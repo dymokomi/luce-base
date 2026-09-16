@@ -112,8 +112,9 @@ pub struct Emitter:
             # logical frame top so shared DW_OP_fbreg locations retain their meaning.
             try o.put(try format(format_room, f"    .uleb128 Ldw_base_end_{index}-Ldw_base_{index}\nLdw_base_{index}:\n    .byte 118\n    .sleb128 {fr.size}\nLdw_base_end_{index}:\n"))
         else:
+            # the frame register by architecture: arm64's x29 is DWARF 29, x86-64's rbp is 6
             try o.put("    .uleb128 1\n    .byte ")
-            try o.put("109\n" if self.os == targets.Os.macos else "86\n")  # DW_OP_reg29 / DW_OP_reg6
+            try o.put("109\n" if self.arch == targets.Arch.arm64 else "86\n")  # DW_OP_reg29 / DW_OP_reg6
         try self.reference(f.result_type)
         try self.scope(f, fr, index, 0)
         try o.put("    .byte 0\n")

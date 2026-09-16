@@ -3,10 +3,12 @@
 # built through the C backend at -O0 and -O2 with the address and undefined-behaviour
 # sanitizers (`LUCE_CFLAGS`), must run clean and print its expectation. A program that
 # misuses memory on purpose says `# sanitize: skip`. Alignment is not checked: a packed
-# record's fields are read unaligned by design (§10.1).
+# record's fields are read unaligned by design (§10.1). Nor is the function check: a
+# witness table calls a method through a pointer whose `self` is `void*`, which every
+# C ABI passes exactly as the typed pointer (§14.3).
 set -eu
 cd "$(dirname "$0")/../.."
-flags="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=alignment -fno-omit-frame-pointer"
+flags="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=alignment,function -fno-omit-frame-pointer"
 programs=0
 for f in tests/conformance/[0-9]*/*.expect tests/robustness/*/*.expect; do
     [ -e "$f" ] || continue
