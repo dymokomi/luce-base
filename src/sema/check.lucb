@@ -2551,6 +2551,27 @@ pub struct Checker:
             _:
                 return none
 
+    ## Whether `e` names storage a method may take the address of: a binding, `self`, an
+    ## element, a dereference, a member of one of those, or a member reached through a
+    ## pointer, `((T*)p).field`. An enum case or a call's result is a value.
+    pub func is_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name, .self_, .index:
+                return true
+            .unary:
+                return e.text == "*"
+            .group:
+                let inner = e.left else return false
+                return self.is_place(inner)
+            .member:
+                if let d = e.resolved:
+                    if d.kind == ast.Kind.enum_case:
+                        return false
+                let owner = e.left else return false
+                return self.is_place(owner) or self.table.kind(owner.type_id) == types.Kind.pointer
+            _:
+                return false
+
     ## The literal a constant expression stands for: a literal, a name or member of a
     ## constant whose initialiser stands for one, either behind parentheses or a conditional
     ## on a constant condition (`6 if os.macos else 1`); none for a computed initialiser,

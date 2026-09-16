@@ -3668,7 +3668,7 @@ pub struct Lowerer:
     ## The address a method's `self` takes: the receiver's place, or a temporary holding a
     ## value receiver, `Flags.a.name()` or a call's result.
     mutating func receiver_address(receiver: ast.Node*, rt: u32) -> ir.Ref!:
-        if ast.is_place_expression(receiver):
+        if self.c.is_place(receiver):
             return try self.place(receiver)
         let v = try self.expr(receiver)
         if v.in_memory:

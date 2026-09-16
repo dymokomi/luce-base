@@ -1821,7 +1821,7 @@ pub struct Emitter:
             try self.line("")
             try self.put_type(it)
             # `for e in &items` over an array modifies the array itself, not a copy
-            self.seq_in_place = self.is_array(it) and s.has(ast.flag_by_pointer) and ast.is_place_expression(seq)
+            self.seq_in_place = self.is_array(it) and s.has(ast.flag_by_pointer) and self.c.is_place(seq)
             if self.seq_in_place:
                 try self.put("* ")
                 try self.put_tmp("seq", n)
@@ -4936,7 +4936,7 @@ pub struct Emitter:
             fn = try self.c.substitute(fn, impl, args)
         discard(try self.add_func(impl, args, owner, owner_args))
         # a value receiver, `Flags.a.name()` or a call's result, is held in a temporary
-        let by_value = not impl.has(ast.flag_static) and not self.is_ptr(rt_raw) and not ast.is_place_expression(receiver)
+        let by_value = not impl.has(ast.flag_static) and not self.is_ptr(rt_raw) and not self.c.is_place(receiver)
         if by_value:
             try self.put("({ ")
             try self.put_type(rt)

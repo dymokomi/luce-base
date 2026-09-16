@@ -1,0 +1,26 @@
+## §9.4: a mutating method on a member reached through a pointer, `((T*)p).field.bump()`,
+## acts on that storage, as on a member of a binding; only a member of a call's result is a
+## copy the call cannot change.
+struct Inner:
+    var count: i64
+
+    mutating func bump():
+        self.count += 1
+
+struct Outer:
+    var inner: Inner
+
+    static func make() -> Outer:
+        return Outer(inner = Inner(count = 10))
+
+pub func main(arguments: str[]) -> i32:
+    var outer = Outer(inner = Inner(count = 0))
+    let erased = (void*)&outer
+    ((Outer*)erased).inner.bump()
+    let pointer = &outer
+    pointer.inner.bump()
+    (*pointer).inner.bump()
+    var held = Outer.make().inner
+    held.bump()
+    print(f"{outer.inner.count} {held.count} {Outer.make().inner.count}")
+    return 0
