@@ -1795,18 +1795,25 @@ pub struct Lowerer:
                 return try self.load_from(try self.slot_address(slot), t)
         return try self.fail(e, "a name without a place")
 
-    ## A constant read as the value it denotes, `platform.windows` or `os.name`: a bool,
-    ## an integer or a text the checker can evaluate becomes a literal, so no initialiser
-    ## depends on another library member's having run first (§17.6); none for the rest.
+    ## A constant read as the literal it denotes, `platform.windows` or `os.name`: a bool,
+    ## an integer or a text, so no initialiser depends on another library member's having
+    ## run first (§17.6); none for the rest.
     mutating func folded_constant(e: ast.Node*, t: u32) -> LowerValue?!:
+        let leaf = self.c.constant_leaf(e) else return none
+        let b = leaf.text.bytes
         if t == types.bool_id:
-            let v = self.c.constant_bool(e) else return none
-            return LowerValue(ref = ir.const_ref(1 if v else 0), type_id = t, in_memory = false)
+            if leaf.text != "true" and leaf.text != "false":
+                return none
+            return LowerValue(ref = ir.const_ref(1 if leaf.text == "true" else 0), type_id = t, in_memory = false)
         if self.is_int(t):
-            let v = self.c.constant_u64(e) else return none
+            if b.length == 0 or b[0] < '0' or b[0] > '9':
+                return none
+            let v = try literals.decode_integer(leaf.text)
             return LowerValue(ref = ir.const_ref((i64)v), type_id = t, in_memory = false)
         if t == types.str_id:
-            let text = self.c.constant_text(e) else return none
+            if b.length == 0 or b[0] != '"':
+                return none
+            let text = check.decode_text(leaf.text)
             let index = try self.program_unit.text(text)
             let data = try self.f.address_of(ir.text_ref(index))
             return try self.span_of(data, ir.const_ref((i64)text.length), types.str_id)

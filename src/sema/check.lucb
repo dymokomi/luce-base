@@ -2551,6 +2551,33 @@ pub struct Checker:
             _:
                 return none
 
+    ## The literal a constant expression stands for: a literal, a name or member of a
+    ## constant whose initialiser stands for one, either behind parentheses or a conditional
+    ## on a constant condition (`6 if os.macos else 1`); none for a computed initialiser,
+    ## whose value the backends read from its global, since this evaluator is not
+    ## sign-exact for arithmetic.
+    pub func constant_leaf(e: ast.Node*) -> ast.Node*?:
+        match e.kind:
+            .literal:
+                return e
+            .group:
+                let inner = e.left else return none
+                return self.constant_leaf(inner)
+            .name, .member:
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_leaf(init)
+            .conditional:
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_leaf(l if truth else r)
+            _:
+                return none
+
     ## The text a constant `str` expression denotes: a literal, or a top-level `let` of one,
     ## `os.name`; none for anything else.
     pub func constant_text(e: ast.Node*) -> str?:

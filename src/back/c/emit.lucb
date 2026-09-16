@@ -6914,8 +6914,13 @@ pub struct Emitter:
             let v = self.c.constant_bool(init) else return false
             try self.put("true" if v else "false")
             return true
+        # an integer or a text only through a literal: the evaluator is not sign-exact
+        let leaf = self.c.constant_leaf(init) else return false
+        let b = leaf.text.bytes
         if self.is_int(t):
-            let v = self.c.constant_u64(init) else return false
+            if b.length == 0 or b[0] < '0' or b[0] > '9':
+                return false
+            let v = try literals.decode_integer(leaf.text)
             try self.put("((")
             try self.put_type(t)
             try self.put(")")
@@ -6923,8 +6928,9 @@ pub struct Emitter:
             try self.put("ULL)")
             return true
         if t == types.str_id:
-            let text = self.c.constant_text(init) else return false
-            try self.put_str_literal(text)
+            if b.length == 0 or b[0] != '"':
+                return false
+            try self.put_str_literal(check.decode_text(leaf.text))
             return true
         return false
 

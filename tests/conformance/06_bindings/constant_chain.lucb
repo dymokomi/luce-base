@@ -1,0 +1,19 @@
+## §6.1, §17.6: a constant read through another constant keeps the computed value of its
+## initialiser, signed division included; a constant that stands for a literal, or for one
+## behind a conditional on a constant condition, is that literal.
+import os
+
+let quotient: i64 = -7 // 3
+let remainder: i64 = -7 % 3
+let shifted: i64 = -8 >> 1
+let alias = quotient
+let named: str = "plain"
+let chosen: i64 = 6 if os.posix or os.windows else 1
+let flag: bool = os.posix or os.windows
+
+func second(first: i64, more: i64 = alias) -> i64:
+    return first * 10 + more
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{quotient} {remainder} {shifted} {alias} {second(4)} {named} {chosen} {flag}")
+    return 0
