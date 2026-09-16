@@ -121,7 +121,8 @@ for snapshot in bootstrap/luce-base-*.c; do
     case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
     ./build/luce-base build src/main.lucb --target "$target" --cpu "$level" --emit=c -o build/snapshot.c
     if ! cmp -s build/snapshot.c "$snapshot"; then
-        echo "FAIL $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"; exit 1
+        echo "FAIL $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"
+        diff build/snapshot.c "$snapshot" | head -40; exit 1
     fi
 done
 # the standard library's text for every target is what this compiler emits for it
@@ -133,7 +134,8 @@ for snapshot in bootstrap/luce-base-*.c; do
     ./build/luce-base std-build src/std "build/std-snapshot/$target" --target "$target" --cpu "$level" --emit=c
     for f in "build/std-snapshot/$target"/*; do
         if ! cmp -s "$f" "bootstrap/std/$target/$(basename "$f")"; then
-            echo "FAIL bootstrap/std/$target/$(basename "$f") differs from the current compiler's text; run tools/snapshot.sh"; exit 1
+            echo "FAIL bootstrap/std/$target/$(basename "$f") differs from the current compiler's text; run tools/snapshot.sh"
+            diff "$f" "bootstrap/std/$target/$(basename "$f")" | head -40; exit 1
         fi
     done
 done

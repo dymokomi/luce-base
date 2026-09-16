@@ -103,17 +103,14 @@ float probe_float(const char *text, char **end, _locale_t locale) {
     float (*real)(const char *, char **, _locale_t) = real_symbol("_strtof_l");
     return real(text, end, locale);
 }
-int probe_print(char *output, size_t size, const char *format, _locale_t locale, ...) __asm__("_snprintf_l");
-int probe_print(char *output, size_t size, const char *format, _locale_t locale, ...) {
+int probe_print(unsigned long long options, char *output, size_t size, const char *format, _locale_t locale, va_list args) __asm__("__stdio_common_vsprintf");
+int probe_print(unsigned long long options, char *output, size_t size, const char *format, _locale_t locale, va_list args) {
     if (fault_mode == 6 || fault_mode == 7) {
         ++fault_hits;
         assert(size == 32 && !strcmp(format, "%.*g"));
         output[0] = '!';
         return fault_mode == 6 ? -1 : 32;
     }
-    va_list args;
-    va_start(args, locale);
-    int result = _vsnprintf_l(output, size, format, locale, args);
-    va_end(args);
-    return result;
+    int (*real)(unsigned long long, char *, size_t, const char *, _locale_t, va_list) = real_symbol("__stdio_common_vsprintf");
+    return real(options, output, size, format, locale, args);
 }

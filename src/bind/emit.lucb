@@ -25,6 +25,7 @@ import c
 import files
 import front.token
 import paths
+import platform
 import strings
 import support.buffer
 import support.list
@@ -670,8 +671,9 @@ pub struct Emitter:
         let n = v.type_name
         if n == "int" or n == "": return "i32" if v.value >= -2147483648 and v.value <= 2147483647 else "i64"
         if n == "unsigned int": return "u32"
-        if n == "long": return "c.long"
-        if n == "unsigned long": return "c.ulong"
+        # a suffixed literal is a plain number to C, so it takes the width `long` has here
+        if n == "long": return "i32" if platform.windows else "i64"
+        if n == "unsigned long": return "u32" if platform.windows else "u64"
         if n == "long long": return "i64"
         if n == "unsigned long long": return "u64"
         if n == "size_t": return "usize"

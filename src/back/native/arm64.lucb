@@ -605,7 +605,8 @@ pub struct Generator:
     mutating func describe_text(text: str) -> !:
         let index = try self.program_unit.text(text)
         var d = &self.descriptors
-        try d.put("    .quad l_text_")
+        try d.put("    .quad ")
+        try d.put(self.object_format.text_label)
         try d.put_u64((u64)index)
         try d.put(", ")
         try d.put_u64((u64)text.length)

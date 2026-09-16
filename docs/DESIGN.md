@@ -82,7 +82,9 @@ the token list with C's declarator grammar (a nested declarator is read twice, o
 find its suffixes and once to apply them) and evaluates constant expressions, casts and
 `sizeof` included, from a layout it computes itself. `bind.emit` names everything first,
 so that references agree, then writes the module in kinds: types, functions,
-variables, constants. The rules are §17.5; the module is what the header's own directory
+variables, constants; a macro constant with a `long` suffix takes the fixed width `long`
+has on this host (`SDL_UINT64_C(x)` is `u64` on every host), since to C it is a plain
+number. The rules are §17.5; the module is what the header's own directory
 declares, and a declaration that cannot map is one line in the report, never a failed
 run.
 

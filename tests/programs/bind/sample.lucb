@@ -94,4 +94,4 @@ pub let SAMPLE_FLAG_B: u32 = 2
 
 pub let SAMPLE_LIMIT: usize = 64
 
-pub let SAMPLE_OFFSET: c.long = -7
+pub let SAMPLE_OFFSET: i64 = -7
