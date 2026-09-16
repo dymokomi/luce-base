@@ -459,12 +459,14 @@ lb_gpu_18vulkan_device_open:
     addq %rcx, %rbx
     movq %rbx, %r10
     movq %r15, (%r10)
-    movq $44, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    movl $4194304, %eax
+    leaq lb_gpu_22vulkan_api_version_1_0(%rip), %rbx
     movq %rbx, %r10
-    movl %eax, (%r10)
+    movl (%r10), %ebx
+    movq $44, %rcx
+    movq %r14, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movl %ebx, (%r10)
     movq %r14, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8

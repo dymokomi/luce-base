@@ -7412,9 +7412,11 @@ lb_files_16windows_relative:
     movq %rbx, %r10
     movslq (%r10), %rax
     movq %rax, 136(%rbp)
+    leaq lb_files_20current_directory_fd(%rip), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
     movl 136(%rbp), %eax
-    movl $4294967196, %ecx
-    cmpl %ecx, %eax
+    cmpl %r12d, %eax
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d

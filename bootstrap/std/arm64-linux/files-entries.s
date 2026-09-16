@@ -534,14 +534,17 @@ lb_files_rename:
     mov w14, w0
     b .L6_3
 .L6_2:
-    sub x14, x29, #80
-    ldr x14, [x14]
-    sub x15, x29, #96
+    adrp x14, lb_files_20current_directory_fd
+    add x14, x14, :lo12:lb_files_20current_directory_fd
+    ldrsw x14, [x14]
+    sub x15, x29, #80
     ldr x15, [x15]
-    movn x0, #99
-    mov x1, x14
-    movn x2, #99
-    mov x3, x15
+    sub x12, x29, #96
+    ldr x12, [x12]
+    mov x0, x14
+    mov x1, x15
+    mov x2, x14
+    mov x3, x12
     movz x4, #1
     bl renameat2
     mov w14, w0
@@ -708,14 +711,17 @@ lb_files_16create_hard_link:
     str x0, [x16]
     sub x16, x29, #96
     str x1, [x16]
-    sub x14, x29, #80
-    ldr x14, [x14]
-    sub x15, x29, #96
+    adrp x14, lb_files_20current_directory_fd
+    add x14, x14, :lo12:lb_files_20current_directory_fd
+    ldrsw x14, [x14]
+    sub x15, x29, #80
     ldr x15, [x15]
-    movn x0, #99
-    mov x1, x14
-    movn x2, #99
-    mov x3, x15
+    sub x12, x29, #96
+    ldr x12, [x12]
+    mov x0, x14
+    mov x1, x15
+    mov x2, x14
+    mov x3, x12
     mov x4, #0
     bl linkat
     mov w14, w0

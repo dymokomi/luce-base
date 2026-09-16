@@ -110,18 +110,21 @@ lb_files_Directory_open:
     movq %rax, 64(%rbp)
     movq 368(%rbp), %rax
     movl %eax, 48(%rbp)
-    leaq 64(%rbp), %rbx
+    leaq lb_files_20current_directory_fd(%rip), %rbx
     movq %rbx, %r10
-    movq (%r10), %rbx
-    leaq 48(%rbp), %r12
+    movslq (%r10), %rbx
+    leaq 64(%rbp), %r12
     movq %r12, %r10
-    movzbl (%r10), %r12d
+    movq (%r10), %r12
+    leaq 48(%rbp), %r13
+    movq %r13, %r10
+    movzbl (%r10), %r13d
     subq $32, %rsp
-    movl $4294967196, %eax
+    movl %ebx, %eax
     movq %rax, 8(%rsp)
-    movq %rbx, %rax
+    movq %r12, %rax
     movq %rax, 16(%rsp)
-    movl %r12d, %eax
+    movl %r13d, %eax
     movq %rax, 24(%rsp)
     leaq 8(%rbp), %rax
     movq %rax, (%rsp)

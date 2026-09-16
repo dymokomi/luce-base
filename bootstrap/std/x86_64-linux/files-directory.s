@@ -24,15 +24,18 @@ lb_files_Directory_open:
     movq %r14, -40(%rbp)
     movq %rsi, -96(%rbp)
     movl %edx, -112(%rbp)
-    leaq -96(%rbp), %rbx
+    leaq lb_files_20current_directory_fd(%rip), %rbx
     movq %rbx, %r10
-    movq (%r10), %rbx
-    leaq -112(%rbp), %r12
+    movslq (%r10), %rbx
+    leaq -96(%rbp), %r12
     movq %r12, %r10
-    movzbl (%r10), %r12d
-    movl $4294967196, %esi
-    movq %rbx, %rdx
-    movl %r12d, %ecx
+    movq (%r10), %r12
+    leaq -112(%rbp), %r13
+    movq %r13, %r10
+    movzbl (%r10), %r13d
+    movl %ebx, %esi
+    movq %r12, %rdx
+    movl %r13d, %ecx
     leaq -152(%rbp), %rdi
     call lb_files_17open_directory_at@PLT
     leaq -152(%rbp), %r12

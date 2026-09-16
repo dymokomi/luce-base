@@ -691,14 +691,17 @@ _lb_files_16create_hard_link:
     str x0, [x16]
     sub x16, x29, #96
     str x1, [x16]
-    sub x14, x29, #80
-    ldr x14, [x14]
-    sub x15, x29, #96
+    adrp x14, _lb_files_20current_directory_fd@PAGE
+    add x14, x14, _lb_files_20current_directory_fd@PAGEOFF
+    ldrsw x14, [x14]
+    sub x15, x29, #80
     ldr x15, [x15]
-    movn x0, #1
-    mov x1, x14
-    movn x2, #1
-    mov x3, x15
+    sub x12, x29, #96
+    ldr x12, [x12]
+    mov x0, x14
+    mov x1, x15
+    mov x2, x14
+    mov x3, x12
     mov x4, #0
     bl _linkat
     mov w14, w0

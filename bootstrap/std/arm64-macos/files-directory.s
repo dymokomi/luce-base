@@ -24,13 +24,16 @@ _lb_files_Directory_open:
     str x0, [x16]
     sub x16, x29, #104
     str w1, [x16]
-    sub x14, x29, #88
-    ldr x14, [x14]
-    sub x15, x29, #104
-    ldrb w15, [x15]
-    movn x0, #1
-    mov x1, x14
-    mov x2, x15
+    adrp x14, _lb_files_20current_directory_fd@PAGE
+    add x14, x14, _lb_files_20current_directory_fd@PAGEOFF
+    ldrsw x14, [x14]
+    sub x15, x29, #88
+    ldr x15, [x15]
+    sub x12, x29, #104
+    ldrb w12, [x12]
+    mov x0, x14
+    mov x1, x15
+    mov x2, x12
     sub x8, x29, #144
     bl _lb_files_17open_directory_at
     sub x15, x29, #144

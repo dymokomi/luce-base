@@ -612,16 +612,19 @@ lb_files_rename:
     movl %eax, %ebx
     jmp .L6_3
 .L6_2:
-    leaq -80(%rbp), %rbx
+    leaq lb_files_20current_directory_fd(%rip), %rbx
     movq %rbx, %r10
-    movq (%r10), %rbx
-    leaq -96(%rbp), %r12
+    movslq (%r10), %rbx
+    leaq -80(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
-    movl $4294967196, %edi
-    movq %rbx, %rsi
-    movl $4294967196, %edx
-    movq %r12, %rcx
+    leaq -96(%rbp), %r13
+    movq %r13, %r10
+    movq (%r10), %r13
+    movl %ebx, %edi
+    movq %r12, %rsi
+    movl %ebx, %edx
+    movq %r13, %rcx
     movl $1, %r8d
     call renameat2@PLT
     movl %eax, %ebx
@@ -810,16 +813,19 @@ lb_files_16create_hard_link:
     movq %r13, -32(%rbp)
     movq %rsi, -80(%rbp)
     movq %rdx, -96(%rbp)
-    leaq -80(%rbp), %rbx
+    leaq lb_files_20current_directory_fd(%rip), %rbx
     movq %rbx, %r10
-    movq (%r10), %rbx
-    leaq -96(%rbp), %r12
+    movslq (%r10), %rbx
+    leaq -80(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
-    movl $4294967196, %edi
-    movq %rbx, %rsi
-    movl $4294967196, %edx
-    movq %r12, %rcx
+    leaq -96(%rbp), %r13
+    movq %r13, %r10
+    movq (%r10), %r13
+    movl %ebx, %edi
+    movq %r12, %rsi
+    movl %ebx, %edx
+    movq %r13, %rcx
     movl $0, %r8d
     call linkat@PLT
     movl %eax, %ebx
