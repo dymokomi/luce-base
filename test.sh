@@ -7,6 +7,8 @@
 # (arm64-macos, x86_64-linux); what depends on the target is under tests/platform.
 set -eu
 cd "$(dirname "$0")"
+# the gate's builds share a cache of this tree's own, not the user's (§19.7)
+export LUCE_CACHE="$PWD/build/cache"
 if [ ! -x ../luce-seed/build/lucb ]; then
     echo "FAIL: the full gate requires ../luce-seed/build/lucb ($(cat bootstrap/SEED))"
     exit 1

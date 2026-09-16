@@ -39,6 +39,7 @@ import sema.standard as standard
 import sema.describe
 import back.declarations
 import support.buffer
+import support.cache as cache
 import support.list
 import support.literals
 import support.runtime
@@ -46,7 +47,7 @@ import support.version
 import support.host_tools
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -76,8 +77,12 @@ struct Options:
     var library_dirs: list.List[c.str]
     ## `-framework NAME`: an Apple framework to link.
     var frameworks: list.List[c.str]
-    ## `--std-dir DIR`: where the standard library's archives are (§16.6).
+    ## `--std-dir DIR`: where the standard library's source is (§16.6).
     var std_dir: str
+    ## `--cache-dir DIR`: where built objects are kept, `none` for no cache (§19.7).
+    var cache_dir: str
+    ## `--cache-report`: say whether the object came from the cache.
+    var cache_report: bool
 
 ## Element `k` of a link-flag list; an empty slot reads as empty text. A `c.str` has no zero
 ## value (§6.1), so the lists hold `c.str?`.
@@ -226,18 +231,42 @@ func report_warnings(checker: check.Checker*) -> !:
         i += 1
 
 ## Check FILE and its imports, then generate C for the whole program.
-func generate(path: c.str, mode: u32) -> str!:
-    var checker = try checked(path)
-    let entry = checker.modules.get(checker.modules.count - 1).tree
-    var actual = mode
+## The mode a program is built in: as asked, unless it is an `answer()` program (§19.4).
+func settle_mode(entry: ast.Node*, mode: u32) -> u32!:
     if mode == 4 and check.find_decl(entry, "_start") == none:
         error(build_failed, "a freestanding program supplies `export naked func _start` (§19.4)")
     if mode == 0 and check.find_decl(entry, "main") == none:
         if check.find_decl(entry, "answer") == none:
             error(build_failed, "this module has no `main` to build a program from; `check` it, or `test` it")
-        actual = 2
-    used_mode = actual
-    return try translate(&checker, entry, actual)
+        return 2
+    return mode
+
+## The key of this build (§19.7): the sources the checker read, the target and its level,
+## the backend, the flags, the package, and the compiler itself.
+func build_key(mode: u32, release: bool) -> str!:
+    let t = build_target()
+    var settings = try buffer.Buffer.create(256)
+    try settings.put(t.name)
+    try settings.put_u64((u64)t.level)
+    try settings.put(" native " if native_backend else " c ")
+    try settings.put_u64((u64)mode)
+    try settings.put(" r" if release else " -")
+    try settings.put("d" if debug_backend else "-")
+    try settings.put("s" if symbols_backend else "-")
+    try settings.put("q" if diagnostic_profile else "-")
+    try settings.put("f" if freestanding else "-")
+    try settings.put_u64((u64)opt_level)
+    try settings.put(" ")
+    try settings.put_u64((u64)opt_count)
+    try settings.put(" ")
+    try settings.put(names.export_prefix)
+    try settings.put(" ")
+    try settings.put(package.name)
+    if not native_backend:
+        if let extra = os.env("LUCE_CFLAGS"):
+            try settings.put(" ")
+            try settings.put(extra)
+    return try cache.key(settings.view())
 
 ## `--lib`: the program as a library with no entry, and the header of its exports (§17.6).
 func generate_library(path: c.str) -> (str, str)!:
@@ -251,6 +280,7 @@ func generate_library(path: c.str) -> (str, str)!:
 
 ## The program at `path`, checked, with its warnings reported.
 func checked(path: c.str) -> check.Checker!:
+    cache.begin()
     let m = try manifest.load(try module_paths.canonical((str)path))
     package = m
     names.export_prefix = m.symbol_prefix
@@ -445,7 +475,9 @@ func run_cc(arguments: c.str[], directory: str) -> (i32, str, str)!:
 func is_wasm32() -> bool:
     return build_target().arch == targets.Arch.wasm32
 
-func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> !:
+## The program's object, from the cache or by translating and assembling (§19.7), then the
+## link into `requested_exe`.
+func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe: str, release: bool, with_start: bool) -> !:
     let output_buffer = try alloc u8[requested_exe.length + 5]
     defer free(output_buffer)
     let exe = try format(output_buffer, f"{requested_exe}.exe") if platform.windows and paths.extension(requested_exe).length == 0 else requested_exe
@@ -454,8 +486,9 @@ func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> 
     let dir = workspace.path()
     var name_bytes: u8[4096]
     let linked_exe = try paths.join(dir, "program.exe")
+    let key = try build_key(mode, release)
     if native_backend:
-        try assemble_and_link(dir, name_bytes[..<3072], text, linked_exe)
+        try assemble_and_link(dir, name_bytes[..<3072], checker, entry, mode, key, linked_exe)
         try workspace.publish(linked_exe, exe)
         if debug_backend:
             try finish_debug(exe)
@@ -466,19 +499,24 @@ func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> 
     let runtime_path = try format(name_bytes[1024..<1536], f"{dir}/lucb_rt.c")
     let start_path = try format(name_bytes[1536..<2048], f"{dir}/start.c")
     let object_path = try format(name_bytes[2048..<2560], f"{dir}/gen.o")
-    try files.write((c.str)gen_path, text.bytes)
     try files.write((c.str)header_path, runtime.header.bytes)
     try files.write((c.str)runtime_path, runtime.source.bytes)
     if with_start:
         try files.write((c.str)start_path, runtime.start.bytes)
     let include = try format(name_bytes[2560..<3072], f"-I{dir}")
-    var object_args = try c_arguments(release)
-    try object_args.add((c.str)include)
-    try object_args.add("-c")
-    try object_args.add((c.str)gen_path)
-    try object_args.add("-o")
-    try object_args.add((c.str)object_path)
-    try run_tool("cc", object_args.span(), "the C compiler rejected the generated code", dir)
+    if let cached = try cache.find(key, "-c.o"):
+        try files.write((c.str)object_path, try files.read((c.str)cached))
+    else:
+        let text = try translate(checker, entry, mode)
+        try files.write((c.str)gen_path, text.bytes)
+        var object_args = try c_arguments(release)
+        try object_args.add((c.str)include)
+        try object_args.add("-c")
+        try object_args.add((c.str)gen_path)
+        try object_args.add("-o")
+        try object_args.add((c.str)object_path)
+        try run_tool("cc", object_args.span(), "the C compiler rejected the generated code", dir)
+        cache.keep(key, "-c.o", object_path)
     var cc_args = try c_arguments(release)
     try cc_args.add((c.str)include)
     try cc_args.add((c.str)object_path)
@@ -573,20 +611,25 @@ func finish_debug(exe: str) -> !:
 ## `as` over the assembly, then the target's linker (§19.5): Apple's `ld` against the
 ## system library found through `xcrun`, or the C driver, which knows where the C library,
 ## its start files, and the dynamic loader are.
-func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
+func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str, exe: str) -> !:
     let asm_path = try format(name_bytes[..<512], f"{dir}/gen.s")
     let object_path = try format(name_bytes[512..<1024], f"{dir}/gen.o")
-    try files.write((c.str)asm_path, text.bytes)
-    var as_args: c.str[3] = ---
-    as_args[0] = "-o"
-    as_args[1] = (c.str)object_path
-    as_args[2] = (c.str)asm_path
-    let assembled = try host_tools.run("as", as_args, dir)
-    let (as_status, as_out, as_err) = assembled
-    discard(as_out.length)
-    if as_status != 0:
-        try io.stderr().write(as_err)
-        error(build_failed, "the assembler rejected the generated code")
+    if let cached = try cache.find(key, "-n.o"):
+        try files.write((c.str)object_path, try files.read((c.str)cached))
+    else:
+        let text = try translate(checker, entry, mode)
+        try files.write((c.str)asm_path, text.bytes)
+        var as_args: c.str[3] = ---
+        as_args[0] = "-o"
+        as_args[1] = (c.str)object_path
+        as_args[2] = (c.str)asm_path
+        let assembled = try host_tools.run("as", as_args, dir)
+        let (as_status, as_out, as_err) = assembled
+        discard(as_out.length)
+        if as_status != 0:
+            try io.stderr().write(as_err)
+            error(build_failed, "the assembler rejected the generated code")
+        cache.keep(key, "-n.o", object_path)
     let t = build_target()
     if t.linker == targets.Linker.c_driver:
         try link_with_driver(dir, object_path, exe, t)
@@ -686,6 +729,8 @@ func build_file(path: c.str, options: Options) -> !:
         link_directories = options.library_dirs.span()
         link_frameworks = options.frameworks.span()
         standard.override = options.std_dir
+        cache.override = options.cache_dir
+        cache.report = options.cache_report
         cpu_level_name = options.cpu
         if options.target.length > 0:
             let chosen = targets.Target.named(options.target) else return try unknown_target()
@@ -718,8 +763,11 @@ func build_file(path: c.str, options: Options) -> !:
             error(build_failed, "a freestanding program is built natively: add `--native`")
         freestanding = options.freestanding
         diagnostic_profile = options.diagnostic
-        let text = try generate(path, 4 if options.freestanding else (1 if options.run_tests else 0))
+        var checker = try checked(path)
+        let entry = checker.modules.get(checker.modules.count - 1).tree
+        used_mode = try settle_mode(entry, 4 if options.freestanding else (1 if options.run_tests else 0))
         if options.emit_c:
+            let text = try translate(&checker, entry, used_mode)
             if options.output.length > 0:
                 try files.write((c.str)options.output, text.bytes)
             else:
@@ -728,7 +776,7 @@ func build_file(path: c.str, options: Options) -> !:
         var exe = options.output
         if exe.length == 0:
             exe = "a.out"
-        try compile(text, exe, options.release, used_mode == 2 and not native_backend)
+        try compile(&checker, entry, used_mode, exe, options.release, used_mode == 2 and not native_backend)
 
 ## `--target` with no name (§19.6): the targets of §19.5, then the asm architectures the
 ## program's own modules carry blocks for; the one this compiler builds is marked.
@@ -850,12 +898,14 @@ func test_file(path: c.str, native: bool) -> i32!:
     defer arena.destroy()
     with arena:
         native_backend = native
-        let text = try generate(path, 1)
+        var checker = try checked(path)
+        let entry = checker.modules.get(checker.modules.count - 1).tree
+        used_mode = try settle_mode(entry, 1)
         let directory = try scratch_directory()
         defer remove_tree((c.str)directory)
         let exe_name = try alloc u8[directory.length + 16]
         let exe = try format(exe_name, f"{directory}/test.exe" if platform.windows else f"{directory}/test")
-        try compile(text, exe, false, false)
+        try compile(&checker, entry, 1, exe, false, false)
         var run_args: c.str[1] = ---
         run_args[0] = (c.str)exe
         let ran = try process.run((c.str)exe, run_args)
@@ -1137,6 +1187,8 @@ pub func main(arguments: c.str[]) -> i32!:
         options.frameworks = try list.List[c.str].create(4)
         options.output = ""
         options.std_dir = ""
+        options.cache_dir = ""
+        options.cache_report = false
         options.release = false
         options.emit_c = false
         options.run_tests = false
@@ -1222,6 +1274,11 @@ pub func main(arguments: c.str[]) -> i32!:
             elif a == "-framework" and i + 1 < arguments.length:
                 try options.frameworks.push(arguments[i + 1])
                 i += 1
+            elif a == "--cache-dir" and i + 1 < arguments.length:
+                options.cache_dir = (str)arguments[i + 1]
+                i += 1
+            elif a == "--cache-report":
+                options.cache_report = true
             elif a == "--std-dir" and i + 1 < arguments.length:
                 options.std_dir = (str)arguments[i + 1]
                 i += 1

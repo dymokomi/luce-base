@@ -19,6 +19,7 @@ import paths
 import c
 import platform
 import files
+import support.cache as cache
 import memory
 pub let malformed: ErrorCode = ErrorCode.package(17)
 
@@ -85,6 +86,7 @@ pub func load(entry_path: str) -> Manifest!:
 func read_if_present(path: c.str) -> u8[]?:
     let data = files.read(path) catch:
         return none
+    cache.note_input((str)path, data)
     return data
 
 ## The manifest `text` describes, for the package rooted at `root`.

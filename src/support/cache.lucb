@@ -1,0 +1,141 @@
+#==============================================================================================
+#
+#   cache - The build cache: an object kept under the hash of everything that made it
+#
+#   DESCRIPTION:
+#       A build's object is a function of the sources read (every standard module, the
+#       program's modules, the manifest), the target and its level, the backend and the
+#       flags, and the compiler itself. The driver notes each source as the checker reads
+#       it, asks for the key once the program is checked, and links the cached object when
+#       one is there, translating and assembling nothing (base.md §19.7). The cache is
+#       `--cache-dir DIR`, else `LUCE_CACHE`, else `~/.cache/luce-base`; `none` turns it off.
+#
+#==============================================================================================
+
+import c
+import files
+import io
+import memory
+import os
+import paths
+
+pub let failed: ErrorCode = ErrorCode.package(42)
+
+## `--cache-dir`: the directory the driver was told, before any default; `none` for no cache.
+pub var override: str = ""
+## `--cache-report`: say on standard error whether the object came from the cache.
+pub var report: bool = false
+
+var digest: u64 = 1469598103934665603
+var inputs: u64 = 0
+var compiler_hash: u64 = 0
+
+## Note a source the build read, in the order it was read: its path and its bytes.
+pub func note_input(path: str, bytes: const u8[]):
+    digest = mix(digest, path.bytes)
+    digest = mix(digest, bytes)
+    inputs += 1
+
+## FNV-1a over `bytes` from `h`, then the length, so two inputs never run together.
+func mix(h: u64, bytes: const u8[]) -> u64:
+    var r = h
+    for b in bytes:
+        r = (r ^ (u64)b) *% 1099511628211
+    r = (r ^ (u64)bytes.length) *% 1099511628211
+    return r
+
+## Start a build's digest afresh.
+pub func begin():
+    digest = 1469598103934665603
+    inputs = 0
+
+## The key of a build: the inputs noted so far, `settings` (the target, backend and flags
+## as text), and the compiler's own bytes, as sixteen hex digits.
+pub func key(settings: str) -> str!:
+    var h = mix(digest, settings.bytes)
+    h = (h ^ (try compiler())) *% 1099511628211
+    h = (h ^ inputs) *% 1099511628211
+    let room = try alloc u8[16]
+    let digits = "0123456789abcdef"
+    var i: usize = 0
+    while i < 16:
+        room[i] = digits.bytes[(usize)((h >> (60 - 4 * i)) & 15)]
+        i += 1
+    return (str)room[..<16]
+
+## The hash of the running compiler's file, read once: a different compiler is a
+## different build.
+func compiler() -> u64!:
+    if compiler_hash != 0:
+        return compiler_hash
+    let exe = try os.executable()
+    let bytes = try files.read((c.str)exe)
+    compiler_hash = mix(14695981039346656037, bytes)
+    return compiler_hash
+
+## The cache directory, created when missing; none when the cache is off or nowhere.
+pub func directory() -> str?!:
+    var chosen = override
+    if chosen.length == 0:
+        if let named = os.env("LUCE_CACHE"):
+            chosen = named
+    if chosen == "none":
+        return none
+    if chosen.length == 0:
+        let home = home_directory()
+        if home.length == 0:
+            return none
+        let base_room = try alloc u8[home.length + 8]
+        let base = try format(base_room, f"{home}/.cache")
+        try ensure((c.str)base)
+        let room = try alloc u8[home.length + 24]
+        chosen = try format(room, f"{home}/.cache/luce-base")
+    try ensure((c.str)chosen)
+    return chosen
+
+func home_directory() -> str:
+    if let home = os.env("HOME"):
+        return home
+    if let app_data = os.env("LOCALAPPDATA"):
+        return app_data
+    return ""
+
+func ensure(path: c.str) -> !:
+    if files.exists(path):
+        return
+    files.create_directory(path, 493u32) catch failure:
+        if files.exists(path):
+            return
+        error(failure.code, failure.message)
+
+## The cached object for the key `entry` and `suffix` (`-n.o` native, `-c.o` C), when it is there.
+pub func find(entry: str, suffix: str) -> str?!:
+    let dir = try directory() else return none
+    let room = try alloc u8[dir.length + entry.length + suffix.length + 2]
+    let path = try format(room, f"{dir}/{entry}{suffix}")
+    if not files.exists((c.str)path):
+        if report:
+            try io.stderr().write(f"luce-base: cache miss {entry}{suffix}\n")
+        return none
+    if report:
+        try io.stderr().write(f"luce-base: cache hit {entry}{suffix}\n")
+    return path
+
+## Keep `object` under the key `entry` and `suffix`: written beside its place, then renamed, so a
+## reader never sees a partial file. A cache that cannot be written is no cache.
+pub func keep(entry: str, suffix: str, object: str):
+    keep_object(entry, suffix, object) catch ignored:
+        discard(ignored)
+
+func keep_object(entry: str, suffix: str, object: str) -> !:
+    let dir = try directory() else return
+    let final_room = try alloc u8[dir.length + entry.length + suffix.length + 2]
+    let final = try format(final_room, f"{dir}/{entry}{suffix}")
+    # a directory of this build's own, so two builds keeping one key never share a file
+    let staging = try files.create_temporary_directory((c.str)dir, 448u32)
+    defer files.remove_tree((c.str)staging) catch ignored:
+        discard(ignored)
+    let temp_room = try alloc u8[staging.length + 8]
+    let temp = try format(temp_room, f"{staging}/object")
+    try files.write((c.str)temp, try files.read((c.str)object))
+    try files.rename((c.str)temp, (c.str)final, true)

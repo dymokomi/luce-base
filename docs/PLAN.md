@@ -65,12 +65,3 @@ runs it for longer. Every finding becomes a test.
     lines, no function over 100 lines but the dispatches named in `tools/shape.dispatches`,
     and no undocumented `pub` declaration; `tools/shape.limits` is the ratchet on the
     way there.
-7. **A cache for the standard library, read from source.** Every build reads the
-    library from source (`src/std`, or `share/luce-base/std` beside a released compiler),
-    checks the modules a program imports, and compiles only the declarations it reaches,
-    in one unit (§16.6). What remains is the cache: content-addressed, under `--cache-dir`
-    (default `~/.cache/luce-base`), keyed on the module sources reached, the target, the
-    CPU level, the backend and flags, and the compiler's own hash, so a repeated build
-    assembles the objects of unchanged modules instead of recompiling them. Gate: a second
-    build of the compiler compiles no standard module, a touched module invalidates only
-    itself and its dependants, and `--cache-dir none` is a cold build. Then luce's pin.

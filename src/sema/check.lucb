@@ -36,6 +36,7 @@ import sema.init_rules
 import support.decimal
 import support.literals
 import sema.standard as standard
+import support.cache as cache
 import sema.prune
 import sema.types
 import support.list
@@ -743,6 +744,7 @@ pub struct Checker:
         var order_bytes = try alloc u8[text.length + 8]
         let order = files.read((c.str)try format(order_bytes, f"{text}/ORDER")) catch:
             return try source.Source.load(path)
+        cache.note_input(text, order)
         var names = try list.List[str].create(8)
         var texts = try list.List[u8[]].create(8)
         var start: usize = 0
@@ -754,7 +756,9 @@ pub struct Checker:
                 var fragment_bytes = try alloc u8[text.length + part.length + 2]
                 let fragment = try format(fragment_bytes, f"{text}/{part}")
                 try names.push(fragment)
-                try texts.push(try files.read((c.str)fragment))
+                let bytes = try files.read((c.str)fragment)
+                cache.note_input(fragment, bytes)
+                try texts.push(bytes)
             if blank:
                 start = i + 1
             i += 1

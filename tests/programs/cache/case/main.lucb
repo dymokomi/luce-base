@@ -1,0 +1,7 @@
+## The build cache's proof (§19.7): built twice, once from the cache, and again after an
+## edit; the same program each time.
+import strings
+
+pub func main(arguments: str[]) -> i32:
+    print(f"cached {strings.starts_with("luce", "lu")}")
+    return 0

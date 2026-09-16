@@ -51,6 +51,7 @@ subdirectory keeps a generated module of its own beside it.
 | `bind.command` | the `bind` command: options, the recipe, where the files go |
 | `sema.types` | the type table: interned ids for every type, layout, spelling |
 | `sema.standard` | where the standard library's source is (`--std-dir`, `LUCE_STD`, beside the compiler, or `src/std`) and which modules `ORDER` names |
+| `support.cache` | the build cache (§19.7): every source read is noted, the key hashes them with the target, flags and the compiler's bytes, and an object is kept and found under it |
 | `sema.check` | names, types, and effects; writes `type_id` and `resolved` onto the tree |
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
 | `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |

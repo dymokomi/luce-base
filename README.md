@@ -119,7 +119,10 @@ beside a released compiler's `bin`, checks the modules a program imports, and
 compiles only the declarations the program reaches, in one unit with the program
 (§16.6): a hello program carries no Unicode tables and no window system.
 `tools/library_reference.py` writes [`docs/LIBRARY.md`](docs/LIBRARY.md) from the
-same source, and the gate fails when it has drifted. `bootstrap/luce-base-<target>.c`
+same source, and the gate fails when it has drifted. A build's object is kept in a
+cache (§19.7) under the hash of every source read, the target, the flags and the
+compiler, so a repeated build links the kept object and translates nothing
+(`--cache-dir DIR`, `LUCE_CACHE`, default `~/.cache/luce-base`; `none` turns it off). `bootstrap/luce-base-<target>.c`
 is the compiler's own C for each target, the standard code it reaches included, so a
 host without a compiler builds its first one from that C alone. `net` also provides transport-independent
 [HTTP/1.1 and WebSocket codecs](docs/NET_PROTOCOLS.md), using caller-owned storage
