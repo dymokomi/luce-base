@@ -46,7 +46,8 @@ pub func main(arguments: str[]) -> i32!:
     print(f"{shared.hits} {shared.plain} {mine} {passed} {seen}")
     let solo = try thread.spawn(bump, &shared)
     solo.detach()
-    thread.sleep(1)
+    # a detached thread is waited for through what it signals, never by sleeping
+    shared.gate.acquire()
     thread.yield()
     thread.pause()
     let me = thread.current()
