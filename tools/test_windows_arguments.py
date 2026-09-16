@@ -51,3 +51,25 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
                           'library.lucb', '共有.a', '共有.h'}
         assert {path.name for path in work.iterdir()} == expected_files
         print('PASS Unicode source/output paths, CRLF source, argv and process.run', flags[0])
+    # A program named with a directory, in forward slashes and without its `.exe`, is found
+    # from the `directory` the call names, never from the caller's working directory or
+    # the caller's own directory: the parent lives and runs where `nested/child` does not.
+    nested = work / 'nested'
+    nested.mkdir()
+    (nested / 'child.exe').write_bytes((work / '引数.exe').read_bytes())
+    elsewhere = work / 'elsewhere'
+    elsewhere.mkdir()
+    relative = elsewhere / 'relative.lucb'
+    relative.write_bytes(('import c\nimport process\nimport io\n'
+                          'pub func main(arguments: str[]) -> i32!:\n'
+                          '    let child: c.str[1] = ["relative program"]\n'
+                          f'    let (status, output, errors) = try process.run("nested/child", child, {literal(str(work))})\n'
+                          '    assert(status == 0 and errors.length == 0)\n'
+                          '    try io.stdout().write(output)\n'
+                          '    return 0\n').encode('utf-8'))
+    for flags in (['--native'], ['--backend=c']):
+        binary = elsewhere / 'relative.exe'
+        subprocess.run([compiler, 'build', relative, *flags, '-o', binary], check=True, env=environment)
+        result = subprocess.run([binary], check=True, capture_output=True, cwd=nested)
+        assert result.stdout == 'relative program\n'.encode('utf-8'), result.stdout
+        print('PASS a relative program with forward slashes and no extension, found from `directory`', flags[0])

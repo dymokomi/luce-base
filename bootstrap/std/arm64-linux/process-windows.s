@@ -44,10 +44,10 @@ lb_process_15release_storage_0g1_u16:
     umulh x11, x9, x10
     mul x9, x9, x10
     cbz x11, 1f
-    adrp x0, .Ltext_79
-    add x0, x0, :lo12:.Ltext_79
-    adrp x1, .Ltext_80
-    add x1, x1, :lo12:.Ltext_80
+    adrp x0, .Ltext_89
+    add x0, x0, :lo12:.Ltext_89
+    adrp x1, .Ltext_90
+    add x1, x1, :lo12:.Ltext_90
     bl lb_core_7trap_at
 1:
     mov x20, x9
@@ -88,39 +88,39 @@ lb_process_15release_storage_0g1_u16:
 
     .section .rodata
 .Ltext_0:
-    .asciz "src/std/process/windows.lucb:54:13"
-.Ltext_1:
     .asciz "src/std/process/windows.lucb:55:13"
+.Ltext_1:
+    .asciz "src/std/process/windows.lucb:56:13"
 .Ltext_2:
-    .asciz "src/std/process/windows.lucb:57:5"
-.Ltext_3:
     .asciz "src/std/process/windows.lucb:58:5"
+.Ltext_3:
+    .asciz "src/std/process/windows.lucb:59:5"
 .Ltext_4:
-    .asciz "src/std/process/windows.lucb:62:13"
+    .asciz "src/std/process/windows.lucb:63:13"
 .Ltext_5:
-    .asciz "src/std/process/windows.lucb:64:9"
+    .asciz "src/std/process/windows.lucb:65:9"
 .Ltext_6:
-    .asciz "src/std/process/windows.lucb:67:13"
-.Ltext_7:
     .asciz "src/std/process/windows.lucb:68:13"
+.Ltext_7:
+    .asciz "src/std/process/windows.lucb:69:13"
 .Ltext_8:
-    .asciz "src/std/process/windows.lucb:69:9"
-.Ltext_9:
     .asciz "src/std/process/windows.lucb:70:9"
+.Ltext_9:
+    .asciz "src/std/process/windows.lucb:71:9"
 .Ltext_10:
-    .asciz "src/std/process/windows.lucb:72:5"
+    .asciz "src/std/process/windows.lucb:73:5"
 .Ltext_11:
-    .asciz "src/std/process/windows.lucb:74:9"
-.Ltext_12:
     .asciz "src/std/process/windows.lucb:75:9"
+.Ltext_12:
+    .asciz "src/std/process/windows.lucb:76:9"
 .Ltext_13:
-    .asciz "src/std/process/windows.lucb:76:5"
-.Ltext_14:
     .asciz "src/std/process/windows.lucb:77:5"
+.Ltext_14:
+    .asciz "src/std/process/windows.lucb:78:5"
 .Ltext_15:
     .asciz "null_foreign"
 .Ltext_16:
-    .asciz "src/std/process/windows.lucb:81:5"
+    .asciz "src/std/process/windows.lucb:82:5"
 .Ltext_17:
     .asciz "a child stream could not be inherited"
 .Ltext_18:
@@ -128,7 +128,7 @@ lb_process_15release_storage_0g1_u16:
 .Ltext_19:
     .asciz "unreachable"
 .Ltext_20:
-    .asciz "src/std/process/windows.lucb:84:5"
+    .asciz "src/std/process/windows.lucb:85:5"
 .Ltext_21:
     .asciz "a child stream could not be measured"
 .Ltext_22:
@@ -138,31 +138,31 @@ lb_process_15release_storage_0g1_u16:
 .Ltext_24:
     .asciz "memory.unset"
 .Ltext_25:
-    .asciz "src/std/process/windows.lucb:92:5"
+    .asciz "src/std/process/windows.lucb:93:5"
 .Ltext_26:
     .asciz "memory.exhausted"
 .Ltext_27:
-    .asciz "src/std/process/windows.lucb:94:9"
+    .asciz "src/std/process/windows.lucb:95:9"
 .Ltext_28:
-    .asciz "src/std/process/windows.lucb:96:5"
+    .asciz "src/std/process/windows.lucb:97:5"
 .Ltext_29:
-    .asciz "src/std/process/windows.lucb:101:5"
-.Ltext_30:
     .asciz "src/std/process/windows.lucb:102:5"
+.Ltext_30:
+    .asciz "src/std/process/windows.lucb:103:5"
 .Ltext_31:
     .asciz "the child temporary directory is unavailable"
 .Ltext_32:
     .asciz "0123456789abcdef"
 .Ltext_33:
-    .asciz "src/std/process/windows.lucb:110:13"
+    .asciz "src/std/process/windows.lucb:111:13"
 .Ltext_34:
     .asciz "shift count out of range"
 .Ltext_35:
-    .asciz "src/std/process/windows.lucb:111:13"
+    .asciz "src/std/process/windows.lucb:112:13"
 .Ltext_36:
-    .asciz "src/std/process/windows.lucb:112:9"
-.Ltext_37:
     .asciz "src/std/process/windows.lucb:113:9"
+.Ltext_37:
+    .asciz "src/std/process/windows.lucb:114:9"
 .Ltext_38:
     .asciz "a child capture file could not be created"
 .Ltext_39:
@@ -174,80 +174,100 @@ lb_process_15release_storage_0g1_u16:
 .Ltext_42:
     .asciz "no unused child capture name was found"
 .Ltext_43:
-    .asciz "src/std/process/windows.lucb:125:5"
+    .asciz "src/std/process/windows.lucb:126:5"
 .Ltext_44:
     .asciz "the process command is too long"
 .Ltext_45:
-    .asciz "src/std/process/windows.lucb:135:5"
+    .asciz "src/std/process/windows.lucb:150:5"
 .Ltext_46:
-    .asciz "src/std/process/windows.lucb:140:9"
+    .asciz "src/std/process/windows.lucb:153:5"
 .Ltext_47:
-    .asciz "src/std/process/windows.lucb:141:9"
+    .asciz "src/std/process/windows.lucb:154:5"
 .Ltext_48:
-    .asciz "src/std/process/windows.lucb:143:5"
+    .asciz "src/std/process/windows.lucb:159:13"
 .Ltext_49:
-    .asciz "src/std/process/windows.lucb:144:5"
+    .asciz "src/std/process/windows.lucb:160:13"
 .Ltext_50:
-    .asciz "index out of bounds"
+    .asciz "src/std/process/windows.lucb:161:9"
 .Ltext_51:
-    .asciz "src/std/process/windows.lucb:147:9"
+    .asciz "src/std/process/windows.lucb:162:13"
 .Ltext_52:
-    .asciz "src/std/process/windows.lucb:150:9"
+    .asciz "src/std/process/windows.lucb:163:13"
 .Ltext_53:
-    .asciz "src/std/process/windows.lucb:154:9"
+    .asciz "src/std/process/windows.lucb:165:9"
 .Ltext_54:
-    .asciz "src/std/process/windows.lucb:156:5"
+    .asciz "src/std/process/windows.lucb:166:9"
 .Ltext_55:
-    .asciz "src/std/process/windows.lucb:158:5"
+    .asciz "src/std/process/windows.lucb:167:5"
 .Ltext_56:
-    .asciz "NUL"
+    .asciz "index out of bounds"
 .Ltext_57:
-    .asciz "rb"
+    .asciz "src/std/process/windows.lucb:169:9"
 .Ltext_58:
-    .asciz "the child input could not be opened"
+    .asciz "src/std/process/windows.lucb:170:9"
 .Ltext_59:
-    .asciz "src/std/process/windows.lucb:160:5"
+    .asciz "src/std/process/windows.lucb:172:5"
 .Ltext_60:
-    .asciz "src/std/process/windows.lucb:162:5"
+    .asciz "src/std/process/windows.lucb:173:5"
 .Ltext_61:
-    .asciz "src/std/process/windows.lucb:164:5"
+    .asciz "src/std/process/windows.lucb:176:9"
 .Ltext_62:
-    .asciz "src/std/process/windows.lucb:166:5"
+    .asciz "src/std/process/windows.lucb:179:9"
 .Ltext_63:
-    .asciz "the process could not be started"
+    .asciz "src/std/process/windows.lucb:183:9"
 .Ltext_64:
-    .asciz "src/std/process/windows.lucb:178:9"
+    .asciz "src/std/process/windows.lucb:185:5"
 .Ltext_65:
-    .asciz "CreateProcess returned no process"
+    .asciz "src/std/process/windows.lucb:187:5"
 .Ltext_66:
-    .asciz "src/std/process/windows.lucb:179:5"
+    .asciz "NUL"
 .Ltext_67:
-    .asciz "CreateProcess returned no thread"
+    .asciz "rb"
 .Ltext_68:
-    .asciz "src/std/process/windows.lucb:180:5"
+    .asciz "the child input could not be opened"
 .Ltext_69:
-    .asciz "src/std/process/windows.lucb:184:9"
+    .asciz "src/std/process/windows.lucb:189:5"
 .Ltext_70:
-    .asciz "waiting for the process failed"
+    .asciz "src/std/process/windows.lucb:191:5"
 .Ltext_71:
-    .asciz "src/std/process/windows.lucb:188:9"
+    .asciz "src/std/process/windows.lucb:193:5"
 .Ltext_72:
-    .asciz "the process exit status is unavailable"
+    .asciz "src/std/process/windows.lucb:195:5"
 .Ltext_73:
-    .asciz "src/std/process/windows.lucb:191:9"
+    .asciz "the process could not be started"
 .Ltext_74:
-    .asciz ""
+    .asciz "src/std/process/windows.lucb:207:9"
 .Ltext_75:
-    .asciz "src/std/process/windows.lucb:193:9"
+    .asciz "CreateProcess returned no process"
 .Ltext_76:
-    .asciz "src/std/process/windows.lucb:194:5"
+    .asciz "src/std/process/windows.lucb:208:5"
 .Ltext_77:
-    .asciz "src/std/process/windows.lucb:197:9"
+    .asciz "CreateProcess returned no thread"
 .Ltext_78:
-    .asciz "src/std/process/windows.lucb:198:5"
+    .asciz "src/std/process/windows.lucb:209:5"
 .Ltext_79:
-    .asciz "src/std/process/module.lucb:172:9"
+    .asciz "src/std/process/windows.lucb:213:9"
 .Ltext_80:
+    .asciz "waiting for the process failed"
+.Ltext_81:
+    .asciz "src/std/process/windows.lucb:217:9"
+.Ltext_82:
+    .asciz "the process exit status is unavailable"
+.Ltext_83:
+    .asciz "src/std/process/windows.lucb:220:9"
+.Ltext_84:
+    .asciz ""
+.Ltext_85:
+    .asciz "src/std/process/windows.lucb:222:9"
+.Ltext_86:
+    .asciz "src/std/process/windows.lucb:223:5"
+.Ltext_87:
+    .asciz "src/std/process/windows.lucb:226:9"
+.Ltext_88:
+    .asciz "src/std/process/windows.lucb:227:5"
+.Ltext_89:
+    .asciz "src/std/process/module.lucb:172:9"
+.Ltext_90:
     .asciz "integer overflow"
 
     .section .data.rel.ro,"aw"

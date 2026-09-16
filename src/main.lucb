@@ -1129,12 +1129,14 @@ pub struct Prelude:
 
 ## Every directory of `path`, created in turn where it is missing.
 func ensure_path(path: str) -> !:
+    # both separators on Windows, and never the drive or share the path is rooted in
+    let root = paths.root(path)
     var i: usize = 1
     while i <= path.length:
-        if i == path.length or path.bytes[i] == '/':
+        if i == path.length or paths.separator(path.bytes[i]):
             let prefix = (str)path.bytes[..<i]
             let native = (c.str)try strings.copy(prefix)
-            if prefix.length > 0 and not files.exists(native):
+            if prefix.length > root.length and not files.exists(native):
                 try files.create_directory(native, 493)
         i += 1
 

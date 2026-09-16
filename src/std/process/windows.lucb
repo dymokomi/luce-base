@@ -1,3 +1,4 @@
+import paths
 from windows_abi import MultiByteToWideChar, GetLastError, CloseHandle, GetCurrentProcess, GetTempPathW, CreateFileW
 
 ## Windows subprocesses use CRT argument quoting and UTF-16 process creation.
@@ -126,8 +127,22 @@ func temporary_windows() -> void*!:
 
 func run_windows(program: c.str, arguments: const c.str[], directory: c.str, environment: const c.str[]?, control: CommandState*? = none) -> (i32, str, str)!:
     let name = (str)program
+    let cwd_text = (str)directory
+    # A program named with a directory is found from `directory` when one is given, as the
+    # POSIX launcher finds it after `chdir`; CreateProcessW resolves the command line's
+    # program from the parent's working directory instead, and only when a backslash
+    # spells it: `build/tests/run` is searched as a bare name and not found, while the
+    # same path with backslashes is opened and given its `.exe`, as the module promises
+    # for both slash styles.
+    var has_directory = false
+    for byte in name.bytes:
+        if paths.separator(byte):
+            has_directory = true
+    let prefixed = has_directory and cwd_text.length > 0 and paths.root(name).length == 0
+    let extra = cwd_text.length +? 2 else error(failed, "the process command is too long")
     var room = name.length *? 2 else error(failed, "the process command is too long")
     room = room +? 4 else error(failed, "the process command is too long")
+    room = room +? extra else error(failed, "the process command is too long")
     for argument in arguments:
         let width = ((str)argument).length *? 2 else error(failed, "the process command is too long")
         room = room +? width else error(failed, "the process command is too long")
@@ -135,7 +150,21 @@ func run_windows(program: c.str, arguments: const c.str[], directory: c.str, env
     let command = try alloc u8[room]
     defer free(command)
     var used: usize = 0
-    quote_windows(command, &used, name)
+    let spelled_room = name.length +? extra else error(failed, "the process command is too long")
+    let spelled = try alloc u8[spelled_room]
+    defer free(spelled)
+    var length: usize = 0
+    if prefixed:
+        for byte in cwd_text.bytes:
+            spelled[length] = 92 if byte == '/' else byte
+            length += 1
+        if spelled[length - 1] != 92:
+            spelled[length] = 92
+            length += 1
+    for byte in name.bytes:
+        spelled[length] = 92 if byte == '/' else byte
+        length += 1
+    quote_windows(command, &used, (str)spelled[..<length])
     for argument in arguments:
         command[used] = ' '
         used += 1

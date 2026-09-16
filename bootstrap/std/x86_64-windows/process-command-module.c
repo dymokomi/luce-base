@@ -4399,28 +4399,28 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:143:9";
+    lb_pos = "src/std/process/command/module.lucb:114:9";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:146:5";
+    lb_pos = "src/std/process/command/module.lucb:117:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:143:9";
+    lb_pos = "src/std/process/command/module.lucb:114:9";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:146:5";
+    lb_pos = "src/std/process/command/module.lucb:117:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
@@ -4737,21 +4737,21 @@ size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b) {
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:127:9";
+    lb_pos = "src/std/process/command/module.lucb:98:9";
     self->value = lb_value;
-    lb_pos = "src/std/process/command/module.lucb:128:13";
+    lb_pos = "src/std/process/command/module.lucb:99:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/process/command/module.lucb:129:9";
+    lb_pos = "src/std/process/command/module.lucb:100:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:132:13";
+    lb_pos = "src/std/process/command/module.lucb:103:9";
     void* _lb_o67 = self->storage;
     if (_lb_o67 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o67;
         {
-            lb_pos = "src/std/process/command/module.lucb:133:9";
+            lb_pos = "src/std/process/command/module.lucb:104:13";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o68 = self->dispose; if (_lb_o68 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o68; })))(lb_storage));
@@ -4760,21 +4760,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:127:9";
+    lb_pos = "src/std/process/command/module.lucb:98:9";
     self->value = lb_value;
-    lb_pos = "src/std/process/command/module.lucb:128:13";
+    lb_pos = "src/std/process/command/module.lucb:99:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/process/command/module.lucb:129:9";
+    lb_pos = "src/std/process/command/module.lucb:100:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:132:13";
+    lb_pos = "src/std/process/command/module.lucb:103:9";
     void* _lb_o69 = self->storage;
     if (_lb_o69 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o69;
         {
-            lb_pos = "src/std/process/command/module.lucb:133:9";
+            lb_pos = "src/std/process/command/module.lucb:104:13";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o70 = self->dispose; if (_lb_o70 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o70; })))(lb_storage));
@@ -4939,42 +4939,42 @@ struct lb_process_CommandState* lb_process_Command_state(const lb_process_Comman
 }
 __attribute__((weak)) lb_interop_Owned_0g1_str lb_interop_Owned_0g1_str_clone(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/termination/module.lucb:27:9";
+    lb_pos = "src/std/process/windows.lucb:225:9";
     struct lb_ownership_Object* _lb_o96 = self->owner;
     if (_lb_o96 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o96;
         {
-            lb_pos = "src/std/process/termination/module.lucb:28:9";
+            lb_pos = "src/std/process/windows.lucb:226:9";
             (void)(((void)(lb_ownership_retain(lb_owner))));
         }
     }
-    lb_pos = "src/std/process/termination/module.lucb:29:9";
+    lb_pos = "src/std/process/windows.lucb:227:5";
     lb_interop_Owned_0g1_str _lb_ret97 = (*self);
     return _lb_ret97;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Owned_0g1_str_release(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/termination/module.lucb:32:9";
+    lb_pos = "src/std/process/termination/module.lucb:3:1";
     struct lb_ownership_Object* _lb_o98 = self->owner;
     if (_lb_o98 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o98;
         {
-            lb_pos = "src/std/process/termination/module.lucb:33:9";
+            lb_pos = "src/std/process/termination/module.lucb:4:1";
             (void)(lb_ownership_release(lb_owner));
         }
     }
 }
 __attribute__((weak)) void lb_interop_Owned_0g1_str_trace(const lb_interop_Owned_0g1_str* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/termination/module.lucb:36:17";
+    lb_pos = "src/std/process/termination/module.lucb:7:1";
     struct lb_ownership_Object* _lb_o99 = self->owner;
     if (_lb_o99 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o99;
         {
-            lb_pos = "src/std/process/termination/module.lucb:37:17";
+            lb_pos = "src/std/process/termination/module.lucb:8:1";
             (void)(lb_ownership_12check_thread(lb_owner));
-            lb_pos = "src/std/process/termination/module.lucb:38:9";
+            lb_pos = "src/std/process/termination/module.lucb:9:1";
             (void)((lb_visit)(lb_owner, lb_context));
         }
     }
