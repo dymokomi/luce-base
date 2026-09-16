@@ -1,6 +1,7 @@
 ## §6.1, §17.6: a constant read through another constant keeps the computed value of its
 ## initialiser, signed division included; a constant that stands for a literal, or for one
 ## behind a conditional on a constant condition, is that literal.
+# oracle: none
 import os
 
 let quotient: i64 = -7 // 3
