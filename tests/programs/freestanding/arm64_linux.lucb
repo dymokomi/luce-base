@@ -1,0 +1,22 @@
+## The freestanding program (§19.4) for arm64 Linux: the same `_start` of one asm block,
+## with the ELF sections and relocations and the Linux system calls, since an asm block
+## is chosen by architecture and `main.lucb`'s arm64 block speaks to the macOS kernel.
+## Build: luce-base build programs/freestanding/arm64_linux.lucb --native --freestanding -o build/fs
+
+asm arm64:
+    .section .rodata
+    lb_freestanding_message:
+    .ascii "freestanding\n"
+    .text
+
+export naked func _start():
+    asm arm64:
+        mov x0, #1
+        adrp x1, lb_freestanding_message
+        add x1, x1, :lo12:lb_freestanding_message
+        mov x2, #13
+        mov x8, #64
+        svc #0
+        mov x0, #0
+        mov x8, #93
+        svc #0
