@@ -14,7 +14,7 @@ lb_thread_0init:
     str w9, [x14]
     adrp x14, lb_thread_11least_stack
     add x14, x14, :lo12:lb_thread_11least_stack
-    movz x9, #16384
+    movz x9, #2, lsl #16
     str x9, [x14]
     adrp x14, lb_thread_9name_room
     add x14, x14, :lo12:lb_thread_9name_room
@@ -777,14 +777,14 @@ lb_thread_spawn:
     mov w14, w0
     sxtw x14, w14
 .L4_64:
-    movz x10, #16384
+    movz x10, #2, lsl #16
     cmp x25, x10
     b.ls .L4_38
 .L4_37:
     mov x15, x25
     b .L4_39
 .L4_38:
-    movz x9, #16384
+    movz x9, #2, lsl #16
     mov x15, x9
 .L4_39:
     mov x9, x14
@@ -1428,73 +1428,73 @@ lb_memory_copy_0g1_u8:
 .Ltext_3:
     .asciz "join"
 .Ltext_4:
-    .asciz "src/std/thread.lucb:72:9"
+    .asciz "src/std/thread.lucb:73:9"
 .Ltext_5:
     .asciz "index out of bounds"
 .Ltext_6:
     .asciz "null_foreign"
 .Ltext_7:
-    .asciz "src/std/thread.lucb:76:13"
+    .asciz "src/std/thread.lucb:77:13"
 .Ltext_8:
-    .asciz "src/std/thread.lucb:77:5"
+    .asciz "src/std/thread.lucb:78:5"
 .Ltext_9:
-    .asciz "src/std/thread.lucb:80:5"
+    .asciz "src/std/thread.lucb:81:5"
 .Ltext_10:
     .asciz "memory.exhausted: the allocation size overflows"
 .Ltext_11:
     .asciz "memory.unset"
 .Ltext_12:
-    .asciz "src/std/thread.lucb:86:5"
+    .asciz "src/std/thread.lucb:87:5"
 .Ltext_13:
     .asciz "memory.exhausted"
 .Ltext_14:
-    .asciz "src/std/thread.lucb:87:5"
+    .asciz "src/std/thread.lucb:88:5"
 .Ltext_15:
-    .asciz "src/std/thread.lucb:89:5"
-.Ltext_16:
     .asciz "src/std/thread.lucb:90:5"
+.Ltext_16:
+    .asciz "src/std/thread.lucb:91:5"
 .Ltext_17:
-    .asciz "src/std/thread.lucb:91:9"
+    .asciz "src/std/thread.lucb:92:9"
 .Ltext_18:
-    .asciz "src/std/thread.lucb:94:5"
+    .asciz "src/std/thread.lucb:95:5"
 .Ltext_19:
-    .asciz "src/std/thread.lucb:95:9"
+    .asciz "src/std/thread.lucb:96:9"
 .Ltext_20:
     .asciz "spawn"
 .Ltext_21:
-    .asciz "src/std/thread.lucb:101:9"
+    .asciz "src/std/thread.lucb:102:9"
 .Ltext_22:
     .asciz "division by zero"
 .Ltext_23:
-    .asciz "src/std/thread.lucb:102:9"
+    .asciz "src/std/thread.lucb:103:9"
 .Ltext_24:
-    .asciz "src/std/thread.lucb:103:13"
-.Ltext_25:
     .asciz "src/std/thread.lucb:104:13"
+.Ltext_25:
+    .asciz "src/std/thread.lucb:105:13"
 .Ltext_26:
     .asciz "the stack size is refused"
 .Ltext_27:
-    .asciz "src/std/thread.lucb:108:5"
-.Ltext_28:
     .asciz "src/std/thread.lucb:109:5"
+.Ltext_28:
+    .asciz "src/std/thread.lucb:110:5"
 .Ltext_29:
-    .asciz "src/std/thread.lucb:111:9"
+    .asciz "src/std/thread.lucb:112:9"
 .Ltext_30:
-    .asciz "src/std/thread.lucb:115:5"
+    .asciz "src/std/thread.lucb:116:5"
 .Ltext_31:
-    .asciz "src/std/thread.lucb:118:5"
+    .asciz "src/std/thread.lucb:119:5"
 .Ltext_32:
-    .asciz "src/std/thread.lucb:127:9"
+    .asciz "src/std/thread.lucb:128:9"
 .Ltext_33:
     .asciz "arm64"
 .Ltext_34:
     .asciz "yield\n"
 .Ltext_35:
-    .asciz "src/std/thread.lucb:146:5"
+    .asciz "src/std/thread.lucb:147:5"
 .Ltext_36:
-    .asciz "src/std/thread.lucb:162:9"
+    .asciz "src/std/thread.lucb:163:9"
 .Ltext_37:
-    .asciz "src/std/thread.lucb:164:9"
+    .asciz "src/std/thread.lucb:165:9"
 .Ltext_38:
     .asciz "src/std/memory.lucb:328:9"
 .Ltext_39:

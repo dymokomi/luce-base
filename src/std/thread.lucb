@@ -37,8 +37,9 @@ extern struct Duration:
 
 pub let failed: ErrorCode = ErrorCode.package(5)
 
-## `PTHREAD_STACK_MIN` on both hosts: a smaller stack is raised to it.
-let least_stack: usize = 16384
+## `PTHREAD_STACK_MIN`: 16 KiB on macOS and x86-64 glibc, 128 KiB on arm64 glibc; a
+## smaller stack is raised to it.
+let least_stack: usize = 131072 if platform.linux and platform.arm64 else 16384
 ## The longest name a thread may carry, with its NUL.
 let name_room: usize = 16
 
