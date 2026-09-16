@@ -122,8 +122,7 @@ pub struct Format:
                 try out.put(",\"dw\"\n" if self.os == build_target.Os.windows else ",\"aw\"\n")
             else:
                 try out.put("\n    .bss\n")
-            if not g.private:
-                try self.global_symbol(out, g.name, g.weak, g.used)
+            try self.global_symbol(out, g.name, g.weak, g.used)
             if self.os != build_target.Os.windows:
                 try out.put("    .type ")
                 try self.symbol(out, g.name)

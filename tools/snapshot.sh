@@ -1,8 +1,9 @@
 #!/bin/sh
 # Refresh the bootstrap snapshots from the compiler built from source: one C file per
-# target that has a native backend, each the compiler's own C for that target. Any host
-# writes every snapshot, since the C backend emits C for any target (§19.5); the gate on
-# each host checks that its own snapshot is what its compiler emits.
+# target that has a native backend, each the compiler's own C for that target, the standard
+# code it reaches included. Any host writes every snapshot, since the C backend emits C for
+# any target (§19.5); the gate on each host checks that its own snapshot is what its
+# compiler emits.
 set -eu
 cd "$(dirname "$0")/.."
 # a snapshot is for the family's baseline level: it must build on any machine of the
@@ -11,10 +12,4 @@ for target in arm64-macos arm64-linux x86_64-linux x86_64-windows; do
     case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
     ./build/luce-base build src/main.lucb --target "$target" --cpu "$level" --emit=c -o "bootstrap/luce-base-$target.c"
     echo "wrote bootstrap/luce-base-$target.c"
-    # the standard library for the target: one assembly file and one C file per module,
-    # which a host turns into archives with its own tools
-    rm -rf "bootstrap/std/$target"
-    ./build/luce-base std-build src/std "bootstrap/std/$target" --target "$target" --cpu "$level" --emit=asm
-    ./build/luce-base std-build src/std "bootstrap/std/$target" --target "$target" --cpu "$level" --emit=c
-    echo "wrote bootstrap/std/$target"
 done

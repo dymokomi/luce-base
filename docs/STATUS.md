@@ -88,7 +88,7 @@ mutations and 2,801 generated programs, no finding.
 run against the archive through both backends by the gate (`luce-base test`): `strings`,
 `paths`, `math` and `math32`, `time`, `utf8`, `io`, `memory`, `files`, and `thread` with
 `sync` and `atomic`. A test lives beside the module's users rather than in the module,
-since a standard module's own file is the prelude and cannot be built as a program.
+since a standard module's own file cannot be built as a program.
 
 ## The shape of the tree
 

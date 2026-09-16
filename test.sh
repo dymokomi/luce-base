@@ -17,12 +17,6 @@ python3 tools/test_platform_boundaries.py
 python3 tools/unicode_tables.py --check
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
-# the prelude is the standard library's interfaces, as the compiler writes them from src/std
-./build/luce-base std-interface src/std build/prelude.lucb
-if ! cmp -s build/prelude.lucb src/sema/prelude.lucb; then
-    echo "FAIL src/sema/prelude.lucb is not what src/std says; run ./build/luce-base std-interface src/std src/sema/prelude.lucb"; exit 1
-fi
-rm -f build/prelude.lucb
 python3 tools/embed_native_links.py --check
 python3 tools/test_desktop_services.py --compiler build/luce-base
 python3 tools/test_window_targets.py --compiler build/luce-base
@@ -124,20 +118,6 @@ for snapshot in bootstrap/luce-base-*.c; do
         echo "FAIL $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"
         diff build/snapshot.c "$snapshot" | head -40; exit 1
     fi
-done
-# the standard library's text for every target is what this compiler emits for it
-for snapshot in bootstrap/luce-base-*.c; do
-    target=$(basename "$snapshot" .c | sed 's/^luce-base-//')
-    case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
-    rm -rf "build/std-snapshot/$target"
-    ./build/luce-base std-build src/std "build/std-snapshot/$target" --target "$target" --cpu "$level" --emit=asm
-    ./build/luce-base std-build src/std "build/std-snapshot/$target" --target "$target" --cpu "$level" --emit=c
-    for f in "build/std-snapshot/$target"/*; do
-        if ! cmp -s "$f" "bootstrap/std/$target/$(basename "$f")"; then
-            echo "FAIL bootstrap/std/$target/$(basename "$f") differs from the current compiler's text; run tools/snapshot.sh"
-            diff "$f" "bootstrap/std/$target/$(basename "$f")" | head -40; exit 1
-        fi
-    done
 done
 rm -f build/stage1.c build/stage2.c build/stage2 build/snapshot.c
 # the seed named in bootstrap/SEED builds this compiler from source, and the compiler it

@@ -50,21 +50,13 @@ pub interface Backend:
 ## C for the host C compiler.
 pub struct CBackend: Backend:
     var emitter: emit.Emitter
-    ## `std-build`: the one module this unit defines; empty for a whole program.
-    pub var only_module: str
-    ## The fragment file of `only_module` this member is, and its name in symbols; empty
-    ## for a module read from one file.
-    pub var only_fragment: str
-    pub var member_name: str
 
     pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
         var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
-        return CBackend(emitter = emitter, only_module = "", only_fragment = "", member_name = "")
+        return CBackend(emitter = emitter)
 
     pub mutating func compile(mode: u32) -> str!:
-        self.emitter.only_module = self.only_module
-        self.emitter.only_fragment = self.only_fragment
         try self.emitter.program(mode)
         return self.emitter.text()
 
@@ -82,16 +74,12 @@ pub struct NativeBackend: Backend:
     pub var report: bool
     ## The target of the build (§19.5): arm64-macos and x86_64-linux have generators.
     var target: targets.Target
-    ## `std-build`: the one module this unit defines; empty for a whole program.
-    pub var only_module: str
-    pub var only_fragment: str
-    pub var member_name: str
 
     pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
         lowerer.symbols = symbols
-        return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target, only_module = "", only_fragment = "", member_name = "")
+        return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
@@ -100,9 +88,6 @@ pub struct NativeBackend: Backend:
             error(unsupported_target, "the native backend emits arm64-macos, arm64-linux, x86_64-linux and x86_64-windows; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
         self.lowerer.target = t
-        self.lowerer.only_module = self.only_module
-        self.lowerer.only_fragment = self.only_fragment
-        self.lowerer.member_name = self.member_name
         var at = ticks()
         try self.lowerer.program(mode)
         try note(&at, 0)

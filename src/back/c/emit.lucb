@@ -99,15 +99,6 @@ pub struct Emitter:
     ## Storage referenced by emitted bodies or global initializers.
     var referenced_storage: list.List[NodeRef]
     var entry: ast.Node*
-    ## `std-build`: the one module whose bodies this unit defines; every other module's
-    ## functions and globals are the library's, as if `linked`. Empty for a whole program.
-    pub var only_module: str
-    ## The fragment file of `only_module` this member is; empty for a whole module.
-    pub var only_fragment: str
-    ## What a library defines (§9.8): the roots of every module it carries, in mode 5.
-    var roots: list.List[ast.Node*]
-    ## Mode 5: the unit is the library or one member of it, whose symbols are all global.
-    var library: bool
     var funcs: list.List[Instance]
     var records: list.List[Instance]
     ## Type ids whose typedef is needed, and those already written.
@@ -169,7 +160,7 @@ pub struct Emitter:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
                        scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
-                       modules = try list.List[NodeRef].create(16), referenced_storage = try list.List[NodeRef].create(8), entry = entry, only_module = "", only_fragment = "", library = false, roots = try list.List[ast.Node*].create(1),
+                       modules = try list.List[NodeRef].create(16), referenced_storage = try list.List[NodeRef].create(8), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
@@ -699,24 +690,6 @@ pub struct Emitter:
         if names.is_runtime_name(name):
             try self.put("_")
 
-    ## Whether this unit defines the declaration: a whole program defines everything that is
-    ## not `linked`; a library member only its own module's.
-    func owns(d: ast.Node*) -> bool:
-        if self.only_module.length == 0:
-            return true
-        if names.module_of(d) != self.only_module:
-            return false
-        if self.only_fragment.length == 0:
-            return true
-        let index = self.c.find_module(self.only_module) else return false
-        var m = self.c.modules.get(index)
-        return declarations.fragment_at(&m.src, d.start) == self.only_fragment
-
-    ## Whether this unit defines the instance: what it owns, and every instance or `inline`
-    ## body, which is compiled where it is used.
-    func defines(inst: Instance) -> bool:
-        return self.owns(inst.owner else inst.decl) or inst.args.length > 0 or inst.owner_args.length > 0 or ast.has_attribute(inst.decl, "inline")
-
     ## The C name of a function or method instance: an extern's binding, else what `names` says.
     mutating func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
         if f.kind == ast.Kind.extern_func:
@@ -1107,12 +1080,8 @@ pub struct Emitter:
             # Standard functions belong to this artifact, unless explicitly exported
             # or given linkage attributes. Internal linkage lets the host compiler
             # omit unused platform code (for example AppKit in a console program).
-            if not self.library and check.is_standard_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
+            if check.is_standard_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
                 try self.put("static __attribute__((unused)) ")
-            elif self.library and (self.fn_args.length > 0 or self.owner_args.length > 0 or ast.has_attribute(f, "inline")):
-                # an instance or an `inline` body is compiled in every member that uses
-                # it, and in every program: weak, so the linker keeps one copy
-                try self.put("__attribute__((weak)) ")
             try self.attribute_prefix(f, true)
             try self.put_result_type(f)
             try self.put(" ")
@@ -6579,7 +6548,6 @@ pub struct Emitter:
     ## then the instances they needed, then the header those bodies need.
     ## `mode` is 0 for a program, 1 for the test runner, 2 for an `answer()` program.
     pub mutating func program(mode: u32) -> !:
-        self.library = mode == 5
         # every module, the standard ones included: their bodies are Base too
         var i: usize = 0
         while i < self.c.modules.count:
@@ -6598,7 +6566,7 @@ pub struct Emitter:
                         try deferred_storage.push(d)
                     else:
                         try self.global(d)
-                elif d.kind == ast.Kind.asm_ and d.text == "arm64" and self.owns(d):
+                elif d.kind == ast.Kind.asm_ and d.text == "arm64":
                     try self.module_asm(d)
                 cursor = d.next
             i += 1
@@ -6609,32 +6577,20 @@ pub struct Emitter:
             # Runtime glue also refers to these four modules by their C names.
             let module_info = self.c.modules.get(i)
             let runtime_root = module_info.name == "core" or module_info.name == "memory" or module_info.name == "io" or module_info.name == "testing"
-            var eager = not module_info.is_prelude or runtime_root
-            var rooted = false
-            if mode == 5:
-                # a library member defines what its interface names (§9.8): the roots of its
-                # module; the rest of the module only as its own code reaches it
-                eager = false
-                rooted = module_info.name == self.only_module
-                if rooted:
-                    var m = self.c.modules.get(i)
-                    self.roots = try declarations.member_roots(m.tree, &m.src)
+            let eager = not module_info.is_prelude or runtime_root
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none or (rooted and declarations.is_root(self.roots.span(), d))):
+                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none):
                     discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
-                elif (eager or rooted) and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
+                elif eager and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
                     while let m = member:
-                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none and (eager or declarations.is_root(self.roots.span(), m)):
+                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
                             discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
                         member = m.next
                     # every implemented interface needs its table, except a generic one,
-                    # `Iterator[T]`, which `for` consumes statically and nothing views; a
-                    # library's private records get theirs where they are viewed
+                    # `Iterator[T]`, which `for` consumes statically and nothing views
                     var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
-                    if rooted and not d.has(ast.flag_pub):
-                        listed = none
                     while let l = listed:
                         if let iface = self.decl_of(l.type_id):
                             if check.generic_params_of(iface) == none:
@@ -6654,7 +6610,7 @@ pub struct Emitter:
                 if not inst.done:
                     inst.done = true
                     self.funcs.set(next, inst)
-                    if not ast.is_linked(inst.decl) and self.defines(inst):
+                    if not ast.is_linked(inst.decl):
                         try self.function(inst)
                 next += 1
             while tests_done < self.tests.count and next >= self.funcs.count:
@@ -6701,7 +6657,7 @@ pub struct Emitter:
             try self.answer_shim()
         elif mode == 3:
             try self.library_init()
-        elif mode != 5:
+        else:
             let main_fn = check.find_decl(self.entry, "main") else return
             try self.main_shim(main_fn)
 
@@ -6877,12 +6833,11 @@ pub struct Emitter:
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:
         try self.line("")
-        if ast.is_linked(d) or not self.owns(d):
+        if ast.is_linked(d):
             try self.put("extern ")
-        elif not self.library and d.kind == ast.Kind.constant and check.is_standard_module(names.module_of(d)):
-            # a standard constant's storage is in its library member and, read through the
-            # interface, in every program: the program's copy is its own, since not every
-            # linker coalesces weak data
+        elif d.kind == ast.Kind.constant and check.is_standard_module(names.module_of(d)):
+            # a standard constant belongs to this unit; internal linkage lets the host
+            # compiler drop one nothing reads
             try self.put("static __attribute__((unused)) ")
         try self.attribute_prefix(d, false)
         if d.has(ast.flag_thread_local):
@@ -6891,7 +6846,7 @@ pub struct Emitter:
         try self.put_type(t)
         try self.put(" ")
         try self.put_global_name(d)
-        if d.has(ast.flag_uninit) or ast.is_linked(d) or not self.owns(d):
+        if d.has(ast.flag_uninit) or ast.is_linked(d):
             try self.put(";")
             return
         try self.put(" = ")

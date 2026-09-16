@@ -10,10 +10,6 @@ if ! command -v wasmtime > /dev/null 2>&1; then
     echo "FAIL tests/programs/wasm: wasmtime is not installed (brew install wasmtime, or https://wasmtime.dev); the gate cannot run in full"
     exit 1
 fi
-if [ ! -f build/lib/luce-base/wasm32/libstd-c.a ]; then
-    echo "FAIL tests/programs/wasm: no wasm32 standard library under build/lib/luce-base/wasm32; build.sh writes it where a WASI toolchain is installed (WASI_SDK, or Homebrew's llvm, lld, wasi-libc and wasi-runtimes); the gate cannot run in full"
-    exit 1
-fi
 "$LB" build tests/programs/wasm/main.lucb --target wasm32 -o build/wasm-check.wasm
 (cd build && wasmtime --dir . wasm-check.wasm > wasm-check.out)
 cat > build/wasm-check.expected <<'END'

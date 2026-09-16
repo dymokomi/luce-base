@@ -50,7 +50,7 @@ subdirectory keeps a generated module of its own beside it.
 | `bind.table` | a table from names to values for the binder |
 | `bind.command` | the `bind` command: options, the recipe, where the files go |
 | `sema.types` | the type table: interned ids for every type, layout, spelling |
-| `sema.prelude` | the interfaces (§9.8) of the standard modules of §16.6, `core` among them, as Base text |
+| `sema.standard` | where the standard library's source is (`--std-dir`, `LUCE_STD`, beside the compiler, or `src/std`) and which modules `ORDER` names |
 | `sema.check` | names, types, and effects; writes `type_id` and `resolved` onto the tree |
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
 | `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |
@@ -96,9 +96,9 @@ check every body. What it learns is written onto the tree, so later stages
 read `Node.type_id` and `Node.resolved` and never look a name up again.
 
 Types are interned in `types.Table`; two spellings of one type share an id,
-so equality is integer equality. The standard modules come from `prelude`:
-their interfaces as Base text, parsed and checked before the program's own
-modules, which keeps `io.stdout()` and `Writer` ordinary declarations rather
+so equality is integer equality. The standard modules are read from source
+(`sema.standard` finds the directory), parsed and checked before the program's
+own modules, which keeps `io.stdout()` and `Writer` ordinary declarations rather
 than special cases,
 and they are imported like any other module: nothing is in scope without
 `import io` or `from io import Writer` (§16.6).
@@ -213,16 +213,19 @@ interface view, an array a span, a value its tagged optional, text a byte
 span. Optionals of pointers are the pointer itself; other optionals and every
 fallible result are small structs the runtime header defines through macros.
 
-The standard modules are compiled once, into `lib/luce-base/<target>/libstd-c.a`,
-and a program declares what it reaches through the `linked` signatures of
-`prelude`; only generic instances are emitted with the program. Each member
-initialises its own globals from the target's initialiser section, in link
-order, so no initialiser may read another member's: a constant the checker can
-evaluate (`platform.windows`, `os.name`, `6 if platform.macos else 1`) is
-written as the value it denotes by both backends, the C emitter as a static
-initialiser and the lowerer by folding constant reads and constant
-conditionals. Three things stay with the backend because no Base body can
-spell them: `atomic.fence`, the `luce` facts about the use site, and the C
+The standard modules are compiled with the program, in one unit, from their
+source: the checker reads every module `ORDER` names, and the backends emit
+what the program reaches. The C emitter gives a standard function or constant
+internal linkage, so the host C compiler drops the rest; the lowerer gives every
+standard global an initialiser function of its own (`<global>_0init`, called by
+`lb_init_globals` in module order) and the IR pruner (`opt.inline`) keeps a
+standard function, global, initialiser, witness table or text only while
+retained code reaches it, so a hello program carries no Unicode tables.
+Globals initialise in module order, the standard modules first in `ORDER`, so
+a module's are set before those of any module that imports it; a constant the
+checker can evaluate to a literal (`platform.windows`, `os.name`,
+`6 if platform.macos else 1`) is written as that literal by both backends.
+Three things stay with the backend because no Base body can spell them: `atomic.fence`, the `luce` facts about the use site, and the C
 standard streams. Every C name is qualified by its module (`lb_files_read`,
 `lb_memory_allocator`, `lb_io_Location`), so two modules may declare the same
 name; only `main` and `answer` keep the names the entry shims call.
@@ -230,7 +233,7 @@ name; only `main` and `answer` keep the names the entry shims call.
 `runtime/lucb_rt.c` is what generated code calls by name and cannot be Base:
 the trap reporter, the checked and wrapping arithmetic families, conversions,
 the scalar formatting behind `print` and `format`, UTF-8 validation, and
-hashing. Allocation goes through the `Allocator` interface the prelude
+hashing. Allocation goes through the `Allocator` interface the `memory` module
 declares; the backend generates the three calls `new`, `alloc`, and `free`
 make on a view, next to that interface's witness-table type.
 
@@ -337,7 +340,7 @@ assembly. The native path involves no C at all: what generated code needs by
 name, the trap reporter, text formatting, the conversion and saturation
 families, hashing, UTF-8 validation, and the startup shim's pieces, is the
 `core` module of the standard library, written in Base and linked from
-`libstd.a` like the rest of it (§16.6);
+compiled with the program like the rest of it (§16.6);
 `//`, `%`, and the shifts are checked inline in the IR. The driver assembles
 with `as` and links as the target's `Linker` says: `ld` against the system
 library on macOS, the C driver on Linux, where the start files and the
@@ -420,7 +423,7 @@ slot and its type's spelling) on the IR function, calls `debug.enter` and
 line, frame)` before every statement of the program's own modules; the
 arm64 backend, which knows where each slot lands below the frame pointer,
 emits one descriptor per function into `__DATA,__const`. The `debug` module
-of the prelude keeps a shadow stack of activations, matches breakpoints,
+keeps a shadow stack of activations, matches breakpoints,
 and reads locals straight out of the frame by their described offsets. Only
 the program's modules are hooked; the standard modules run as built.
 

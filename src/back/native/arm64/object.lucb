@@ -180,7 +180,7 @@ pub struct Format:
         try out.put("\n    .section __DATA,__const\n    .p2align 3\n" if self.apple else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
 
     ## Every global of the unit that the unit defines: thread-locals, named sections,
-    ## private, weak, and ordinary zero-filled storage.
+    ## weak and ordinary zero-filled storage.
     pub func globals(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
         var i: usize = 0
         while i < program_unit.globals.count:
@@ -223,15 +223,6 @@ pub struct Format:
             try out.put(":\n    .space ")
             try out.put_u64(size)
             try out.put("\n")
-        elif g.private:
-            # a symbol of this unit alone
-            try out.put("    .zerofill __DATA,__bss,")
-            try self.symbol(out, g.name)
-            try out.put(",")
-            try out.put_u64(size)
-            try out.put(",")
-            try out.put_u64(align)
-            try out.put("\n")
         elif g.weak:
             # the linker coalesces weak storage only when it is data, not zero-fill
             try out.put("    .section __DATA,__data\n    .p2align ")
@@ -266,8 +257,7 @@ pub struct Format:
             try out.put(",\"aw\"\n")
         else:
             try out.put("\n    .bss\n")
-        if not g.private:
-            try self.global_symbol(out, g.name, g.weak, g.used)
+        try self.global_symbol(out, g.name, g.weak, g.used)
         try out.put("    .type ")
         try self.symbol(out, g.name)
         try out.put(", %object\n")

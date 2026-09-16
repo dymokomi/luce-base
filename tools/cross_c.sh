@@ -21,14 +21,13 @@ mkdir -p build/cross
 case "$host" in
     x86_64-windows) ;;
     *)
-        for f in "bootstrap/std/$host"/*.c bootstrap/luce-base-$host.c; do
+        for f in bootstrap/luce-base-$host.c runtime/lucb_rt.c; do
             "$gnu" -std=gnu11 -O2 -w -fno-strict-aliasing -I runtime -c "$f" -o build/cross/gnu.o
         done
-        "$gnu" -std=gnu11 -O2 -w -fno-strict-aliasing -I runtime -c runtime/lucb_rt.c -o build/cross/gnu.o
-        echo "ok cross_c: $gnu compiles the $host snapshot and its library";;
+        echo "ok cross_c: $gnu compiles the $host snapshot";;
 esac
-for f in bootstrap/std/x86_64-windows/*.c bootstrap/luce-base-x86_64-windows.c runtime/lucb_rt.c; do
+for f in bootstrap/luce-base-x86_64-windows.c runtime/lucb_rt.c; do
     x86_64-w64-mingw32-gcc -std=gnu11 -O2 -w -fno-strict-aliasing -I runtime -c "$f" -o build/cross/win.o
 done
 rm -rf build/cross
-echo "ok cross_c: MinGW-w64 GCC compiles the x86_64-windows snapshot and its library"
+echo "ok cross_c: MinGW-w64 GCC compiles the x86_64-windows snapshot"

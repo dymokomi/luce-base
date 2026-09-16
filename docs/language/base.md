@@ -1383,15 +1383,15 @@ The language depends on these modules by name. Their full surfaces are in the li
 | `testing` | assertions, seeds, and the per-test allocator of §16.5 |
 | `runtime` | `heap()` inside a full Luce program (§18.9) |
 
-The standard modules are compiled once, not with each program: `luce-base std-build`
-turns their source into an archive of one object per source file (a module read from
-one file, or each fragment of §16.1), `libstd.a` from the native backend and
-`libstd-c.a` from the C backend, under `lib/luce-base/<target>/` beside the compiler (or beside its `bin` directory; `--std-dir DIR` and the `LUCE_STD` environment
-variable name another place). A program is checked against the modules' interfaces
-(§9.8), which the compiler carries, and linked with the archive; only the members it
-reaches are loaded, so a program that never names `window` links no window system, and
-only generic and `inline` bodies of the library are compiled with the program. A library
-built with `--lib` carries the archive's members, so its C user links it alone.
+The standard modules are read from source with every build: `src/std` of a source tree, or
+`share/luce-base/std` beside a released compiler's `bin` directory (`--std-dir DIR` and the
+`LUCE_STD` environment variable name another place; `ORDER` there lists the modules in
+binding order, a module being one file or the fragments of §16.1). The compiler checks
+every module and compiles, in one unit with the program, only the declarations the program
+reaches, so a program that never names `window` carries no window system and a program
+that never names `unicode` carries no Unicode tables. The modules' globals initialise in
+that order, before the program's own. A library built with `--lib` carries what it reaches
+of the standard modules, so its C user links it alone.
 
 `input` provides portable physical-key, pointer, modifier, and scrolling event
 values. `window` owns native windows and dispatches those events; its first

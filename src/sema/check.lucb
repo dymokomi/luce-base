@@ -35,7 +35,7 @@ import memory
 import sema.init_rules
 import support.decimal
 import support.literals
-import sema.prelude
+import sema.standard as standard
 import sema.prune
 import sema.types
 import support.list
@@ -583,19 +583,10 @@ pub struct Checker:
                 cursor = d.next
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = is_prelude))
 
-    ## Parse and add every standard module. The target is settled by now: its word sizes
-    ## the pointer-shaped types (§19.5).
+    ## Parse and add every standard module from its source (§16.6), where `standard`
+    ## finds it. The target is settled by now: its word sizes the pointer-shaped types (§19.5).
     pub mutating func add_prelude() -> !:
-        self.table.word = (u64)self.build_target.pointer_bits // 8
-        self.table.configure_c(self.build_target.os == targets.Os.windows, self.build_target.os == targets.Os.windows or self.build_target.arch == targets.Arch.wasm32, self.build_target.arch == targets.Arch.arm64 and self.build_target.os == targets.Os.linux)
-        for p in prelude.modules:
-            var text = p.text
-            if p.name == "platform":
-                # the one module written for the build: the target's facts (§19.5)
-                let buffer = try alloc u8[1024]
-                text = try self.build_target.module_text(buffer)
-            let src = try source.Source.over(p.name, text.bytes)
-            try self.add_module(p.name, src, true)
+        try self.add_prelude_from(try standard.directory())
 
     ## Parse and add every standard module from its source under `directory`, in the order
     ## `directory/ORDER` lists, a module being `name.lucb` or the fragments of `name/`.
@@ -5583,10 +5574,7 @@ func is_intrinsic(name: str) -> bool:
     return false
 
 pub func is_standard_module(name: str) -> bool:
-    for p in prelude.modules:
-        if p.name == name:
-            return true
-    return false
+    return standard.is_module(name)
 
 func is_comparison(op: str) -> bool:
     return op == "==" or op == "!=" or op == "<" or op == "<=" or op == ">" or op == ">="
@@ -6066,15 +6054,10 @@ pub func check_text(text: str, scratch: u8[]) -> !:
     try checker.add_module("test", src, false)
     try checker.check_program()
 
-## Budget tree and binding storage from the embedded source size so expanding the
-## standard library does not make unrelated semantic expectations fail with OOM.
-## The factor is test headroom, not a compiler memory limit or an accuracy bound.
+## Budget tree and binding storage for the standard library's source and a test program,
+## with headroom: not a compiler memory limit or an accuracy bound.
 func test_arena_size() -> usize!:
-    var capacity: usize = 1048576
-    for module in prelude.modules:
-        let allowance = module.text.length *? 64 else error(memory.exhausted, "the semantic test arena size overflowed")
-        capacity = capacity +? allowance else error(memory.exhausted, "the semantic test arena size overflowed")
-    return capacity
+    return 268435456
 
 func expect_error(text: str, fragment: str) -> !:
     let capacity = try test_arena_size()

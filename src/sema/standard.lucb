@@ -1,0 +1,96 @@
+#==============================================================================================
+#
+#   standard - Where the standard library's source is, and which modules it holds
+#
+#   DESCRIPTION:
+#       The standard modules are read from source with every build (base.md §16.6): from
+#       `--std-dir`, else `LUCE_STD`, else `share/luce-base/std` beside the compiler's
+#       `bin` directory (a release), else `src/std` above `build/` (a source tree), else
+#       `src/std` under the working directory. `ORDER` there lists the modules in binding
+#       order; a name is a standard module's when that list holds it.
+#
+#==============================================================================================
+
+import c
+import files
+import io
+import memory
+import os
+import paths
+import support.list
+
+pub let failed: ErrorCode = ErrorCode.package(41)
+
+## `--std-dir`: the directory the driver was told, before any search.
+pub var override: str = ""
+
+var found: str = ""
+var names: list.List[str]? = none
+
+## The directory holding the standard library's `ORDER` and modules, found once.
+pub func directory() -> str!:
+    if found.length > 0:
+        return found
+    if override.length > 0:
+        found = override
+        return found
+    if let chosen = os.env("LUCE_STD"):
+        found = chosen
+        return found
+    with memory.heap:
+        let exe = try files.canonical((c.str)try os.executable())
+        let above = paths.directory(paths.directory(exe))
+        var room = try alloc u8[above.length + 32]
+        let shared = try format(room, f"{above}/share/luce-base/std")
+        if try holds_order(shared):
+            found = shared
+            return found
+        var tree_room = try alloc u8[above.length + 16]
+        let tree = try format(tree_room, f"{above}/src/std")
+        if try holds_order(tree):
+            found = tree
+            return found
+        if try holds_order("src/std"):
+            found = "src/std"
+            return found
+    try io.stderr().write(f"luce-base: no standard library source: expected share/luce-base/std beside the compiler's bin directory, or src/std of a source tree; name its directory with --std-dir or LUCE_STD\n")
+    error(failed, "the standard library source is not beside the compiler")
+
+## Whether `path` is a library directory: it holds `ORDER`.
+func holds_order(path: str) -> bool!:
+    var order = try alloc u8[path.length + 8]
+    return files.exists((c.str)try format(order, f"{path}/ORDER"))
+
+## The modules `ORDER` names, in binding order, read once.
+pub func modules() -> str[]!:
+    if let known = names:
+        return known.span()
+    let home = try directory()
+    with memory.heap:
+        var order_bytes = try alloc u8[home.length + 8]
+        let order = try files.read((c.str)try format(order_bytes, f"{home}/ORDER"))
+        var kept = try list.List[str].create(32)
+        var start: usize = 0
+        var i: usize = 0
+        while i <= order.length:
+            let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
+            if blank and i > start:
+                try kept.push((str)order[start..<i])
+            if blank:
+                start = i + 1
+            i += 1
+        names = kept
+        return kept.span()
+
+## Whether `name` is a standard module's; no library at all means no name is.
+pub func is_module(name: str) -> bool:
+    let known = modules() catch ignored: return false
+    for m in known:
+        if m == name:
+            return true
+    return false
+
+test "the standard modules are the ones ORDER lists":
+    assert(is_module("core"))
+    assert(is_module("unicode"))
+    assert(not is_module("nothing"))

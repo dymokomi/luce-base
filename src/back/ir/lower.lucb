@@ -17,7 +17,6 @@
 #
 #==============================================================================================
 from back.effects import arguments_have_effect
-import back.declarations as declarations
 import back.ir.ir
 import back.isa
 import back.names
@@ -98,15 +97,6 @@ pub struct Lowerer:
     var scratch: buffer.Buffer
     var modules: list.List[NodeRef]
     var entry: ast.Node*
-    ## `std-build`: the one module whose bodies this unit defines; every other module's
-    ## functions and globals are the library's, as if `linked`. Empty for a whole program.
-    pub var only_module: str
-    ## The fragment file of `only_module` this member is, and its symbol name; empty for a
-    ## module read from one file.
-    pub var only_fragment: str
-    pub var member_name: str
-    ## What a library member must define (§9.8); empty outside member mode.
-    var roots: list.List[ast.Node*]
     var funcs: list.List[LowerInstance]
     var tests: list.List[NodeRef]
     var vtables: list.List[LowerWitness]
@@ -157,9 +147,9 @@ pub struct Lowerer:
     var site_line: u32
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
-        return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, only_module = "", only_fragment = "", member_name = "", target = targets.Target.host(),
+        return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, target = targets.Target.host(),
                        modules = try list.List[NodeRef].create(16), entry = entry,
-                       funcs = try list.List[LowerInstance].create(64), tests = try list.List[NodeRef].create(32), roots = try list.List[ast.Node*].create(1),
+                       funcs = try list.List[LowerInstance].create(64), tests = try list.List[NodeRef].create(32),
                        vtables = try list.List[LowerWitness].create(16), current_fn = none, fn_decl = none,
                        fn_args = try types.no_args(), owner_decl = none, owner_args = try types.no_args(),
                        locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
@@ -683,18 +673,14 @@ pub struct Lowerer:
     ## Lower one function instance into the unit.
     mutating func function(inst: LowerInstance) -> !:
         let d = inst.decl
-        if ast.is_linked(d) or not self.defines(inst):
-            return  # the library defines it; calls name the symbol
+        if ast.is_linked(d):
+            return  # another object defines it; calls name the symbol
         let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         try self.begin_function(name, d, inst)
         self.f.standard = check.is_standard_module(names.module_of(inst.owner else d))
         self.f.naked = ast.has_attribute(d, "naked")
-        # an instance or an `inline` body is compiled wherever it is used, so every copy is
-        # weak and the linker keeps one
-        self.f.weak = ast.has_attribute(d, "weak") or compiled_where_used(inst)
-        # a library member defines what its interface names (§9.8), expanded or not; the
-        # rest of its module stays only while the member's own code reaches it
-        self.f.used = ast.has_attribute(d, "used") or (self.only_module.length > 0 and declarations.is_root(self.roots.span(), d))
+        self.f.weak = ast.has_attribute(d, "weak")
+        self.f.used = ast.has_attribute(d, "used")
         self.f.noinline = ast.has_attribute(d, "noinline")
         self.f.section = section_of(d)
         # parameters: `self` first for methods, each in a slot
@@ -4646,9 +4632,6 @@ pub struct Lowerer:
         var i: usize = 0
         while i < self.c.modules.count:
             try self.modules.push(self.c.modules.get(i).tree)
-            if self.only_module.length > 0 and self.c.modules.get(i).name == self.only_module:
-                var m = self.c.modules.get(i)
-                self.roots = try declarations.member_roots(m.tree, &m.src)
             i += 1
         i = 0
         while i < self.modules.count:
@@ -4656,7 +4639,7 @@ pub struct Lowerer:
             while let d = cursor:
                 if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none:
                     discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
-                elif d.kind == ast.Kind.asm_ and d.text == self.arch_name() and self.owns(d):
+                elif d.kind == ast.Kind.asm_ and d.text == self.arch_name():
                     try self.module_asm(d)
                 elif (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
@@ -4693,66 +4676,81 @@ pub struct Lowerer:
                 tests_done += 1
         if mode == 3:
             try self.library_init_function()
-        elif mode != 4 and mode != 5:
+        elif mode != 4:
             try self.entry_function(mode)
         try self.witness_tables()
 
     mutating func declare_global(d: ast.Node*) -> !:
         let name = try self.global_name(d)
-        let used = ast.has_attribute(d, "used") or (self.only_module.length > 0 and declarations.is_root(self.roots.span(), d))
-        # a standard constant's storage is in its library member and, read through the
-        # interface, in every program: the program's copy is a private symbol, since not
-        # every linker coalesces weak data
+        let used = ast.has_attribute(d, "used")
         let standard = check.is_standard_module(names.module_of(d))
-        let private = standard and d.kind == ast.Kind.constant and self.only_module.length == 0
-        try self.program_unit.globals.push(ir.Global(name = name, standard = standard, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = used, section = section_of(d), external = ast.is_linked(d) or not self.owns(d), private = private))
+        try self.program_unit.globals.push(ir.Global(name = name, standard = standard, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = used, section = section_of(d), external = ast.is_linked(d)))
 
-    ## Whether this unit defines the declaration: a whole program defines everything that is
-    ## not `linked`; a library member only its own module's.
-    func owns(d: ast.Node*) -> bool:
-        if self.only_module.length == 0:
-            return true
-        if names.module_of(d) != self.only_module:
-            return false
-        return self.only_fragment.length == 0 or self.fragment_of(d) == self.only_fragment
-
-    ## The fragment file a declaration of the member's module came from.
-    func fragment_of(d: ast.Node*) -> str:
-        let index = self.c.find_module(self.only_module) else return ""
-        var m = self.c.modules.get(index)
-        return declarations.fragment_at(&m.src, d.start)
-
-    ## Whether this unit defines the instance: what it owns, and every instance or `inline`
-    ## body, which is compiled where it is used.
-    func defines(inst: LowerInstance) -> bool:
-        return self.owns(inst.owner else inst.decl) or compiled_where_used(inst)
-
-    ## `lb_init_globals`, every top-level initialiser in module order; for a library member,
-    ## `lb_<module>_0init` with the member's own.
+    ## `lb_init_globals`, every top-level initialiser in module order: the standard modules
+    ## first, in `ORDER`, then the program's, so a module's globals are set before those of
+    ## any module that imports it. A standard global's initialiser is a function of its own
+    ## (`<global>_0init`) that `lb_init_globals` calls, so the pruner drops it, its texts
+    ## and the global together when nothing reaches the global.
     mutating func globals_initialiser() -> !:
-        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
-        var name = "lb_init_globals"
-        if self.only_module.length > 0:
-            # a library member's initialiser runs from the target's initialiser section, so
-            # only the members the linker pulled in initialise, in link order
-            self.scratch.clear()
-            try names.init_name(&self.scratch, self.only_module, self.member_name)
-            name = try names.keep(&self.scratch)
-            self.program_unit.init_function = name
-        try self.begin_function(name, none, inst)
-        self.fn_decl = none
-        self.current_fn = none
-        try self.push_scope(false, "", 0, 0)
         var i: usize = 0
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if (d.kind == ast.Kind.global or d.kind == ast.Kind.constant) and not d.has(ast.flag_uninit) and self.owns(d) and not ast.is_linked(d):
-                    if let init = d.left:
+                if self.initialised(d) and check.is_standard_module(names.module_of(d)):
+                    try self.global_initialiser(d)
+                cursor = d.next
+            i += 1
+        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        try self.begin_function("lb_init_globals", none, inst)
+        self.fn_decl = none
+        self.current_fn = none
+        try self.push_scope(false, "", 0, 0)
+        i = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if self.initialised(d):
+                    if check.is_standard_module(names.module_of(d)):
+                        discard(try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+                    elif let init = d.left:
                         let v = try self.value(init, d.type_id)
                         try self.store_to(try self.global_address(d), v)
                 cursor = d.next
             i += 1
+        self.pop_scope()
+        try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+        try self.end_function()
+
+    ## Whether a top-level declaration has an initialiser this unit runs.
+    func initialised(d: ast.Node*) -> bool:
+        return (d.kind == ast.Kind.global or d.kind == ast.Kind.constant) and not d.has(ast.flag_uninit) and not ast.is_linked(d) and d.left != none
+
+    ## `<global>_0init`: the initialiser function of one standard global.
+    mutating func init_function_name(d: ast.Node*) -> str!:
+        let name = try self.global_name(d)
+        let room = try alloc u8[name.length + 8]
+        return try format(room, f"{name}_0init")
+
+    ## One standard global's initialiser as its own function, named on the global.
+    mutating func global_initialiser(d: ast.Node*) -> !:
+        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        let name = try self.init_function_name(d)
+        let global = try self.global_name(d)
+        var g: usize = 0
+        while g < self.program_unit.globals.count:
+            if self.program_unit.globals.items[g].name == global:
+                self.program_unit.globals.items[g].init_function = name
+            g += 1
+        try self.begin_function(name, none, inst)
+        self.fn_decl = none
+        self.current_fn = none
+        self.f.standard = true
+        # never expanded into `lb_init_globals`: the pruner must still see it apart
+        self.f.noinline = true
+        try self.push_scope(false, "", 0, 0)
+        if let init = d.left:
+            let v = try self.value(init, d.type_id)
+            try self.store_to(try self.global_address(d), v)
         self.pop_scope()
         try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.end_function()
@@ -5208,8 +5206,3 @@ func vector_op(op: str, floats: bool) -> ir.Op:
     if op == ">>":
         return ir.Op.vshr
     return ir.Op.copy
-
-## Whether an instance is compiled where it is used rather than once in its module: a
-## generic function or method, a generic record's method, or an `inline` function.
-func compiled_where_used(inst: LowerInstance) -> bool:
-    return inst.args.length > 0 or inst.owner_args.length > 0 or ast.has_attribute(inst.decl, "inline")

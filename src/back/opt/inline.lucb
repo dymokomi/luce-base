@@ -70,6 +70,18 @@ func drop_unused_standard(program: ir.Unit*) -> !:
         let f = &program.functions.items[i]
         retained[i] = not f.standard or f.exported or f.used or f.weak or f.naked or f.section.length > 0 or f.name == program.init_function or f.name == program.trap_function or f.name == program.trap_at_function or f.name == program.trap_two_at_function or named_in_asm(&texts, f.name)
         i += 1
+    # a standard global's initialiser is reached through the global, not through the
+    # call `lb_init_globals` makes: that call goes when the global does
+    let retained_globals = try alloc bool[program.globals.count + 1]
+    defer free(retained_globals)
+    clear_flags(retained_globals)
+    let initialisers = try alloc bool[count + 1]
+    defer free(initialisers)
+    clear_flags(initialisers)
+    for global in program.globals.span():
+        if global.init_function.length > 0:
+            if let position = index.find(global.init_function):
+                initialisers[position] = true
     let retained_tables = try alloc bool[program.tables.count + 1]
     defer free(retained_tables)
     clear_flags(retained_tables)
@@ -89,14 +101,24 @@ func drop_unused_standard(program: ir.Unit*) -> !:
                 changed = true
                 let f = &program.functions.items[i]
                 for instruction in f.instrs.span():
-                    note_reference(&index, retained, instruction.a)
-                    note_reference(&index, retained, instruction.b)
+                    note_reached(&index, retained, initialisers, instruction.a)
+                    note_reached(&index, retained, initialisers, instruction.b)
                     retain_table(program, &index, retained, retained_tables, instruction.a)
                     retain_table(program, &index, retained, retained_tables, instruction.b)
+                    retain_storage(program, retained_globals, instruction.a)
+                    retain_storage(program, retained_globals, instruction.b)
                 for argument in f.args.span():
-                    note_reference(&index, retained, argument.value)
+                    note_reached(&index, retained, initialisers, argument.value)
                     retain_table(program, &index, retained, retained_tables, argument.value)
+                    retain_storage(program, retained_globals, argument.value)
             i += 1
+        for gi in 0..<program.globals.count:
+            let global = program.globals.get(gi)
+            if retained_globals[gi] and global.init_function.length > 0:
+                if let position = index.find(global.init_function):
+                    if not retained[position]:
+                        retained[position] = true
+                        changed = true
     var kept_tables = try list.List[ir.WitnessTable].create(program.tables.count)
     for ti in 0..<program.tables.count:
         var table = program.tables.get(ti)
@@ -111,6 +133,8 @@ func drop_unused_standard(program: ir.Unit*) -> !:
     while i < count:
         var f = program.functions.get(i)
         if retained[i]:
+            if f.name == "lb_init_globals":
+                drop_dead_initialiser_calls(&f, &index, retained)
             try kept.push(f)
         else:
             f.points.destroy()
@@ -127,6 +151,73 @@ func drop_unused_standard(program: ir.Unit*) -> !:
     program.functions.destroy()
     program.functions = kept
     try drop_unused_storage(program, &texts)
+    try drop_unused_texts(program)
+
+## The calls of `lb_init_globals` to initialisers the pruner dropped go with them.
+func drop_dead_initialiser_calls(f: ir.Function*, index: Index*, retained: bool[]):
+    var kept: usize = 0
+    var i: usize = 0
+    while i < f.instrs.count:
+        let instruction = f.instrs.get(i)
+        var live = true
+        if instruction.op == ir.Op.call and instruction.a.kind == ir.RefKind.function:
+            if let position = index.find(instruction.a.name):
+                live = retained[position]
+        if live:
+            f.instrs.items[kept] = instruction
+            kept += 1
+        i += 1
+    f.instrs.count = kept
+
+## The texts no retained function names are dropped and the rest renumbered, since a
+## text is only data for the instruction that takes its address.
+func drop_unused_texts(program: ir.Unit*) -> !:
+    let used = try alloc bool[program.texts.count + 1]
+    defer free(used)
+    clear_flags(used)
+    for function in program.functions.span():
+        for instruction in function.instrs.span():
+            note_text(used, instruction.a)
+            note_text(used, instruction.b)
+            if positioned(instruction) and (usize)instruction.extra2 <= used.length:
+                used[instruction.extra2 - 1] = true
+        for argument in function.args.span():
+            note_text(used, argument.value)
+    let renumbered = try alloc u32[program.texts.count + 1]
+    defer free(renumbered)
+    var kept = try list.List[ir.Text].create(program.texts.count)
+    for i in 0..<program.texts.count:
+        renumbered[i] = u32(kept.count)
+        if used[i]:
+            try kept.push(program.texts.get(i))
+    if kept.count == program.texts.count:
+        kept.destroy()
+        return
+    for function in program.functions.span():
+        for k in 0..<function.instrs.count:
+            function.instrs.items[k].a = renumber_text(function.instrs.items[k].a, renumbered)
+            function.instrs.items[k].b = renumber_text(function.instrs.items[k].b, renumbered)
+            if positioned(function.instrs.items[k]):
+                function.instrs.items[k].extra2 = renumbered[function.instrs.items[k].extra2 - 1] + 1
+        for k in 0..<function.args.count:
+            function.args.items[k].value = renumber_text(function.args.items[k].value, renumbered)
+    program.texts.destroy()
+    program.texts = kept
+
+## A `bounds` or checked operation names its statement's position text in `extra2`
+## (index + 1) for the trap it may raise; 0 names none.
+func positioned(instruction: ir.Instr) -> bool:
+    let op = instruction.op
+    return (op == ir.Op.bounds or op == ir.Op.addo or op == ir.Op.subo or op == ir.Op.mulo or op == ir.Op.vaddo or op == ir.Op.vsubo) and instruction.extra2 > 0
+
+func note_text(used: bool[], r: ir.Ref):
+    if r.kind == ir.RefKind.text and (usize)r.index < used.length:
+        used[r.index] = true
+
+func renumber_text(r: ir.Ref, renumbered: const u32[]) -> ir.Ref:
+    if r.kind != ir.RefKind.text:
+        return r
+    return ir.text_ref(renumbered[r.index])
 
 ## Retained bodies and initializers determine which standard storage exists. In
 ## particular, an unused OS adapter must not reserve its TLS on another target.
@@ -165,7 +256,7 @@ test "standard storage follows retained code without changing user linkage":
         var program = try ir.Unit.create()
         let names: str[8] = ["unused", "read", "initialized", "assembly", "used", "weak", "section", "user"]
         for i in 0..<names.length:
-            try program.globals.push(ir.Global(name = names[i], standard = i != 7, size = 8, align = 8, external = false, private = false,
+            try program.globals.push(ir.Global(name = names[i], standard = i != 7, size = 8, align = 8, external = false,
                                                is_thread_local = true, used = i == 4, weak = i == 5, section = "custom" if i == 6 else ""))
         var entry = try ir.Function.create("entry")
         discard(try entry.load(ir.Op.loadl, ir.Class.l, ir.global_ref("read")))
@@ -380,6 +471,15 @@ func note_reference(index: Index*, referenced: bool[], r: ir.Ref):
         return
     if let gi = index.find(r.name):
         referenced[gi] = true
+
+## A function reference retains its function, except a global's initialiser, which the
+## global retains (`drop_unused_standard`).
+func note_reached(index: Index*, referenced: bool[], initialisers: bool[], r: ir.Ref):
+    if r.kind != ir.RefKind.function:
+        return
+    if let gi = index.find(r.name):
+        if not initialisers[gi]:
+            referenced[gi] = true
 
 ## No slots shared yet: the marker in `expand_in`'s table of slot bases.
 let no_slots: u32 = 0xFFFFFFFF
