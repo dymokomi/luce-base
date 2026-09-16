@@ -8,11 +8,14 @@
 # C ABI passes exactly as the typed pointer (§14.3).
 set -eu
 cd "$(dirname "$0")/../.."
+host=$(tools/host.sh)
 flags="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=alignment,function -fno-omit-frame-pointer"
 programs=0
 for f in tests/conformance/[0-9]*/*.expect tests/robustness/*/*.expect; do
     [ -e "$f" ] || continue
     case "$f" in *.*-*.expect) continue;; esac
+    # a program whose output names the host has one expectation per host, as in conformance
+    [ -e "${f%.expect}.$host.expect" ] && f="${f%.expect}.$host.expect"
     src="${f%%.*}.lucb"
     [ -e "$src" ] || src="${f%%.*}/main.lucb"
     grep -q '^# sanitize: skip' "$src" && continue

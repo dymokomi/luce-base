@@ -111,6 +111,7 @@ paths; Base owns manifest parsing and Luce delegates that policy to it. There is
 no copied raw-TOML adapter or separate Luce limitation on source/search inputs.
 
 Standard window/GPU backends declare system requirements beside their
-implementation in `links.json`. Object inspection selects only requirements
+implementation in `links.json` (its `target` is one name or a list, since a Linux
+backend serves both architectures). Object inspection selects only requirements
 actually used, so a package importing portable GPU values adds no graphics
 frameworks. UI, 3D and application manifests need no duplicate backend settings.

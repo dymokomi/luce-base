@@ -7,7 +7,9 @@ pub struct Rule:
     pub let name: c.str
     pub let framework: bool
 
-pub let rules: Rule[52] = [
+pub let rules: Rule[54] = [
+    Rule("arm64-linux", "cairo_image_surface_create", "cairo", false),
+    Rule("arm64-linux", "cairo_scaled_font_destroy", "cairo", false),
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "CoreGraphics", true),
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "QuartzCore", true),
     Rule("arm64-macos", "CTFontCreateWithName", "CoreFoundation", true),
