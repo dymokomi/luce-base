@@ -83,7 +83,8 @@ rm -f build/conformance.s build/conformance.c build/conformance.err
 # the target listing (§19.5); the host's mark is not part of the expectation
 $lb build $dir/targets.lucb --target | sed 's/ (built here)//' | cmp - $dir/targets.targets
 # a freestanding program: its own `_start`, no shim, an exit code of its own choosing (§19.4)
-$lb build $dir/freestanding.lucb --native --freestanding -o build/conformance
+case "$(tools/host.sh)" in arm64-linux) freestanding=freestanding_arm64_linux;; *) freestanding=freestanding;; esac
+$lb build $dir/$freestanding.lucb --native --freestanding -o build/conformance
 rc=0
 ./build/conformance > build/conformance.out || rc=$?
 [ "$rc" = 3 ] || { echo "FAIL $dir/freestanding.lucb: exit code $rc"; exit 1; }
