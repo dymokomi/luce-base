@@ -57,7 +57,9 @@ for pair in "x86_64-linux ARM_LINUX_X86" "arm64-macos ARM_MACOS_ARM64" "arm64-li
     survivors=$(grep -o 'ARM_[A-Z0-9_]*' build/conformance.c | sort -u | tr '\n' ' ')
     [ "$survivors" = "$2 " ] || { echo "FAIL $dir/targets_prune.lucb for $1: kept [$survivors]"; exit 1; }
 done
-if $lb build $dir/targets_prune.lucb --target arm64-linux --native -o build/conformance 2> build/conformance.err; then
+# another target than this host's: arm64-linux everywhere but on arm64 Linux itself
+case "$(tools/host.sh)" in arm64-linux) other=x86_64-linux;; *) other=arm64-linux;; esac
+if $lb build $dir/targets_prune.lucb --target $other --native -o build/conformance 2> build/conformance.err; then
     echo "FAIL $dir: the native backend accepted another target"; exit 1
 fi
 grep -q 'emit=c' build/conformance.err
