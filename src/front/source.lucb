@@ -93,6 +93,17 @@ pub struct Source:
                     return (paths[found], line - starts[found] + 1, column)
         return (self.path, line, column)
 
+    ## Spell this source's path, and its fragments', under `replacement` instead of the
+    ## directory `prefix`: a standard module's positions name `std/core.lucb`, the same on
+    ## every machine, not the directory the library was read from (§11.5).
+    pub mutating func rebase(prefix: str, replacement: str) -> !:
+        self.path = try rebased(self.path, prefix, replacement)
+        if let paths = self.segment_paths:
+            var k: usize = 0
+            while k < self.segment_count:
+                paths[k] = try rebased(paths[k], prefix, replacement)
+                k += 1
+
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
     pub static func load(path: c.str) -> Source!:
         let data = try files.read(path)
@@ -388,3 +399,11 @@ test "position directives map the lines after them":
     assert(src.statement_column(3) == 5)
     assert(src.statement_column(8) == 5)
     assert(src.statement_column(9) == 1)
+
+## `path` with a leading `prefix/` replaced by `replacement/`; unchanged without the prefix.
+func rebased(path: str, prefix: str, replacement: str) -> str!:
+    if path.length <= prefix.length or (str)path.bytes[..<prefix.length] != prefix or path.bytes[prefix.length] != '/':
+        return path
+    let rest = (str)path.bytes[prefix.length + 1..]
+    let room = try alloc u8[replacement.length + rest.length + 1]
+    return try format(room, f"{replacement}/{rest}")

@@ -610,7 +610,9 @@ pub struct Checker:
                     var path = try format(path_bytes, f"{directory}/{name}.lucb")
                     if not file_exists((c.str)path):
                         path = try format(path_bytes, f"{directory}/{name}")
-                    try self.add_module(name, try self.load_source((c.str)path), true)
+                    var src = try self.load_source((c.str)path)
+                    try src.rebase(directory, "std")
+                    try self.add_module(name, src, true)
             if blank:
                 start = i + 1
             i += 1
