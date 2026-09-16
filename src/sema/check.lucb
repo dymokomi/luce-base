@@ -193,19 +193,26 @@ pub struct Checker:
         memory.copy(kept, message.bytes, message.length)
         try self.errors.push((str)kept[..<message.length])
 
-    ## Every kept failure, one per line, as the error the check answers with.
+    ## Every kept failure, one per line, as the error the check answers with: joined in the
+    ## scratch buffer, which outlives the arena the failures were kept in; what does not fit
+    ## is counted on a last line.
     func all_errors() -> str!:
-        var total: usize = 0
-        for e in self.errors.span():
-            total += e.length + 1
-        var joined = try alloc u8[total]
+        var joined = self.scratch
         var at: usize = 0
+        var shown: usize = 0
         for e in self.errors.span():
+            let needed = e.length + (1 if at > 0 else 0)
+            if at + needed + 40 > joined.length:
+                break
             if at > 0:
                 joined[at] = '\n'
                 at += 1
             memory.copy(joined[at..], e.bytes, e.length)
             at += e.length
+            shown += 1
+        if shown < self.errors.count:
+            let rest = try format(joined[at..], f"\n  ... and {self.errors.count - shown} more")
+            at += rest.length
         return (str)joined[..<at]
 
     ## The spelling of a type, kept in the current allocator.

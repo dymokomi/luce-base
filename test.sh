@@ -172,7 +172,8 @@ fi
 if ./build/luce-base build tests/samples/exports.lucb --opt abc -o build/sample 2>/dev/null; then
     echo "FAIL: --opt abc was accepted"; exit 1
 fi
-if ./build/luce-base build tests/samples/exports.lucb --lib --target x86_64-linux -o build/sample 2>/dev/null; then
+case "$(uname -sm)" in "Linux x86_64") other_target=arm64-linux;; *) other_target=x86_64-linux;; esac
+if ./build/luce-base build tests/samples/exports.lucb --lib --target "$other_target" -o build/sample 2>/dev/null; then
     echo "FAIL: a library for another target was assembled on this host"; exit 1
 fi
 rm -f build/sample build/sample.a build/sample.h

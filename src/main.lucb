@@ -372,7 +372,7 @@ var link_frameworks: c.str[]
 ## `std_directory`.
 var std_directory_name: str = ""
 
-var scratch_bytes: u8[4096]
+var scratch_bytes: u8[65536]
 ## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
 var used_mode: u32
 
@@ -934,9 +934,8 @@ func trim(text: str) -> str:
 func check_file(path: c.str) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
-        var checker = try check.Checker.create(scratch)
+        var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
         try checker.add_prelude()
         try checker.load(path)
@@ -960,9 +959,8 @@ func stem_of(path: str) -> str:
 func describe_file(path: c.str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
-        var checker = try check.Checker.create(scratch)
+        var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
         try checker.add_prelude()
         try checker.load(path)
@@ -1204,9 +1202,8 @@ func build_member(out_dir: str, module: str, text: str) -> str!:
 func interface_file(path: c.str, output: str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
-        var checker = try check.Checker.create(scratch)
+        var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
         try checker.add_prelude()
         try checker.load(path)
@@ -1222,9 +1219,8 @@ func interface_file(path: c.str, output: str, out: io.Writer) -> !:
 func interface_standard(name: str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
-        var checker = try check.Checker.create(scratch)
+        var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
         try checker.add_prelude()
         let index = checker.find_module(name) else error(build_failed, "unknown standard module")
@@ -1238,9 +1234,8 @@ func interface_standard(name: str, out: io.Writer) -> !:
 func describe_standard(name: str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
-        var checker = try check.Checker.create(scratch)
+        var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
         try checker.add_prelude()
         let index = checker.find_module(name) else error(build_failed, "unknown standard module")
@@ -1268,9 +1263,8 @@ func resolve_module(importer: str, root: str, name: str, base_only: bool, out: i
 func dependencies_file(path: c.str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
-        var checker = try check.Checker.create(scratch)
+        var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
         try checker.add_prelude()
         try checker.load(path)
@@ -1317,10 +1311,9 @@ func native_inputs_file(path: str, out: io.Writer) -> !:
 func parse_file(path: c.str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
         let src = try source.Source.load(path)
-        var p = try parser.Parser.over(src, scratch)
+        var p = try parser.Parser.over(src, scratch_of())
         let module = try p.parse_module()
         try ast.dump(out, module, 0)
 
@@ -1330,17 +1323,16 @@ func parse_file(path: c.str, out: io.Writer) -> !:
 func fmt_file(path: c.str, mode: str, out: io.Writer) -> i32!:
     var arena = Arena(memory.heap)
     defer arena.destroy()
-    var scratch: u8[4096]
     with arena:
         let src = try source.Source.load(path)
-        var p = try parser.Parser.over(src, scratch)
+        var p = try parser.Parser.over(src, scratch_of())
         p.allow_core_names = true  # a standard module formats like any other
         let module = try p.parse_module()
         var f = try layout.Formatter.over(src, p.token_span())
         try f.module(module)
         let text = f.text()
         let again = try source.Source.over((str)path, text.bytes)
-        var p2 = try parser.Parser.over(again, scratch)
+        var p2 = try parser.Parser.over(again, scratch_of())
         p2.allow_core_names = true
         let reread = p2.parse_module() catch failure:
             error(failure.code, try format(scratch_bytes[..<2048], f"the layout does not parse: {failure.message}"))
