@@ -376,45 +376,47 @@ pub struct Generator:
 
     # mark: Functions ==========================================================================
 
-    ## Copy `size` bytes from [x10] to [x11] with plain loads and stores through x16 and x17:
-    ## 16 at a time, then 8, 4, 2, 1. The addresses are records in frames or fields, so unaligned access is fine
-    ## on arm64; a copy of up to 128 bytes is cheaper inline than as a call.
-    mutating func inline_copy(size: u64) -> !:
+    ## Copy `size` bytes from [`origin`] to [`to`] with plain loads and stores through x16 and
+    ## x17: 16 at a time, then 8, 4, 2, 1. The addresses are records in frames or fields, so
+    ## unaligned access is fine on arm64; a copy of up to 128 bytes is cheaper inline than as
+    ## a call.
+    mutating func inline_copy(origin: str, to: str, size: u64) -> !:
         var done: u64 = 0
         while size - done >= 16:
-            try self.pair_move("ldp x16, x17, [x10, #", done)
-            try self.pair_move("stp x16, x17, [x11, #", done)
+            try self.pair_move("ldp x16, x17, [", origin, done)
+            try self.pair_move("stp x16, x17, [", to, done)
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
-        let loads: str[4] = ["ldr x16", "ldr w16", "ldrh w16", "ldrb w16"]
-        let stores: str[4] = ["str x16", "str w16", "strh w16", "strb w16"]
+        let loads: str[4] = ["ldr x16, [", "ldr w16, [", "ldrh w16, [", "ldrb w16, ["]
+        let stores: str[4] = ["str x16, [", "str w16, [", "strh w16, [", "strb w16, ["]
         var k: usize = 0
         while k < 4:
             if size - done >= widths[k]:
-                try self.pair_move(loads[k], done, ", [x10, #")
-                try self.pair_move(stores[k], done, ", [x11, #")
+                try self.pair_move(loads[k], origin, done)
+                try self.pair_move(stores[k], to, done)
                 done += widths[k]
             k += 1
 
-    ## Zero `size` bytes at [x11] the same way.
-    mutating func inline_zero(size: u64) -> !:
+    ## Zero `size` bytes at [`to`] the same way.
+    mutating func inline_zero(to: str, size: u64) -> !:
         var done: u64 = 0
         while size - done >= 16:
-            try self.pair_move("stp xzr, xzr, [x11, #", done)
+            try self.pair_move("stp xzr, xzr, [", to, done)
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
-        let stores: str[4] = ["str xzr", "str wzr", "strh wzr", "strb wzr"]
+        let stores: str[4] = ["str xzr, [", "str wzr, [", "strh wzr, [", "strb wzr, ["]
         var k: usize = 0
         while k < 4:
             if size - done >= widths[k]:
-                try self.pair_move(stores[k], done, ", [x11, #")
+                try self.pair_move(stores[k], to, done)
                 done += widths[k]
             k += 1
 
-    ## `mnemonic` + `middle` + offset + `]`: one line of a copy.
-    mutating func pair_move(mnemonic: str, offset: u64, middle: str = "") -> !:
+    ## `mnemonic` then `base, #offset]`.
+    mutating func pair_move(mnemonic: str, base: str, offset: u64) -> !:
         try self.line(mnemonic)
-        try self.put(middle)
+        try self.put(base)
+        try self.put(", #")
         try self.put_u64(offset)
         try self.put("]")
 
@@ -915,10 +917,11 @@ pub struct Generator:
                 try self.store_temp("x0", n.dst)
             .blit:
                 if n.extra <= 128:
-                    # a record copy: loads and stores in place of a call
-                    try self.address_operand("x10", n.b)
-                    try self.address_operand("x11", n.a)
-                    try self.inline_copy((u64)n.extra)
+                    # a record copy: loads and stores in place of a call, from and to the
+                    # addresses where they live
+                    let origin = try self.source(n.b, ir.Class.l, "x10")
+                    let to = try self.source(n.a, ir.Class.l, "x11")
+                    try self.inline_copy(origin, to, (u64)n.extra)
                 else:
                     try self.address_operand("x0", n.a)
                     try self.address_operand("x1", n.b)
@@ -927,8 +930,8 @@ pub struct Generator:
                     try self.symbol("memcpy")
             .zero:
                 if n.extra <= 128:
-                    try self.address_operand("x11", n.a)
-                    try self.inline_zero((u64)n.extra)
+                    let to = try self.source(n.a, ir.Class.l, "x11")
+                    try self.inline_zero(to, (u64)n.extra)
                 else:
                     try self.address_operand("x0", n.a)
                     try self.line("mov x1, #0")
@@ -981,22 +984,27 @@ pub struct Generator:
                 try self.put(reg)
                 try self.put(", [x16]")
             .atomic_load:
-                try self.address_operand("x9", n.a)
+                let address = try self.source(n.a, ir.Class.l, "x9")
+                let d = self.target(n.dst, ir.Class.w if n.extra <= 4 else ir.Class.l, self.reg(ir.Class.w if n.extra <= 4 else ir.Class.l, 0))
                 try self.line("ldar" if n.extra2 >= 2 else "ldr")
                 try self.put(width_suffix(n.extra))
                 try self.put(" ")
-                try self.put(self.reg(ir.Class.w if n.extra <= 4 else ir.Class.l, 0))
-                try self.put(", [x9]")
-                try self.store_temp(self.reg(n.cls, 0), n.dst)
+                try self.put(d)
+                try self.put(", [")
+                try self.put(address)
+                try self.put("]")
+                try self.finish(n.dst, n.cls, d)
             .atomic_store:
                 let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
-                try self.operand(self.reg(cls, 0), cls, n.a)
-                try self.address_operand("x10", n.b)
+                let v = try self.source(n.a, cls, self.reg(cls, 0))
+                let address = try self.source(n.b, ir.Class.l, "x10")
                 try self.line("stlr" if n.extra2 >= 3 else "str")
                 try self.put(width_suffix(n.extra))
                 try self.put(" ")
-                try self.put(self.reg(cls, 0))
-                try self.put(", [x10]")
+                try self.put(v)
+                try self.put(", [")
+                try self.put(address)
+                try self.put("]")
             .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min:
                 try self.read_modify_write(n)
             .atomic_cas:
@@ -1215,10 +1223,11 @@ pub struct Generator:
                 # shift by the negated count, arithmetic or logical by the lanes' signedness
                 try self.vector_source(0, n.a, bytes)
                 let wide = ir.lane_bits(shape) == 64
-                try self.operand("x9" if wide else "w9", ir.Class.l if wide else ir.Class.w, n.b)
+                let count = try self.source(n.b, ir.Class.l if wide else ir.Class.w, "x9" if wide else "w9")
                 try self.line("dup v17")
                 try self.put(arr)
-                try self.put(", x9" if wide else ", w9")
+                try self.put(", ")
+                try self.put(count)
                 if n.op == ir.Op.vshr:
                     try self.line("neg v17")
                     try self.put(arr)
@@ -1286,10 +1295,11 @@ pub struct Generator:
             try self.put(", v16.d[0]" if cls == ir.Class.d else ", v16.s[0]")
             return
         let wide = ir.lane_bits(shape) == 64
-        try self.operand("x9" if wide else "w9", ir.Class.l if wide else ir.Class.w, n.a)
+        let scalar = try self.source(n.a, ir.Class.l if wide else ir.Class.w, "x9" if wide else "w9")
         try self.line("dup v16")
         try self.put(arr)
-        try self.put(", x9" if wide else ", w9")
+        try self.put(", ")
+        try self.put(scalar)
 
     ## A vector temporary into scratch register `k`: from the register it lives in, else
     ## from its home.
@@ -1302,43 +1312,49 @@ pub struct Generator:
             return
         try self.store_temp(vector_scratch(k, bytes), dst)
 
+    ## A checked operation reads its operands where they live and computes into the
+    ## destination's register when it has one; a multiply computes in x9 (its high word
+    ## or widened check in x10 and x11) and moves the product out.
     mutating func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
-        let a = self.reg(n.cls, 0)
-        let b = self.reg(n.cls, 1)
-        try self.operand(a, n.cls, n.a)
-        try self.operand(b, n.cls, n.b)
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         if n.op == ir.Op.mulo:
             if n.cls == ir.Class.w:
                 # multiply at 64 bits and check the range
                 if signed:
-                    try self.line("sxtw x9, w9")
-                    try self.line("sxtw x10, w10")
+                    try self.line3("sxtw x9, ", a, "")
+                    try self.line3("sxtw x10, ", b, "")
                     try self.line("mul x9, x9, x10")
                     try self.line("cmp x9, w9, sxtw")
                 else:
-                    try self.line("mov w9, w9")
-                    try self.line("mov w10, w10")
+                    try self.line3("mov w9, ", a, "")
+                    try self.line3("mov w10, ", b, "")
                     try self.line("mul x9, x9, x10")
                     try self.line("cmp x9, w9, uxtw")
                 try self.line("b.eq 1f")
             else:
                 if signed:
-                    try self.line("smulh x11, x9, x10")
-                    try self.line("mul x9, x9, x10")
+                    try self.line3("smulh x11, ", a, ", ")
+                    try self.put(b)
+                    try self.line3("mul x9, ", a, ", ")
+                    try self.put(b)
                     try self.line("cmp x11, x9, asr #63")
                     try self.line("b.eq 1f")
                 else:
-                    try self.line("umulh x11, x9, x10")
-                    try self.line("mul x9, x9, x10")
+                    try self.line3("umulh x11, ", a, ", ")
+                    try self.put(b)
+                    try self.line3("mul x9, ", a, ", ")
+                    try self.put(b)
                     try self.line("cbz x11, 1f")
             try self.trap_text("integer overflow", n.extra2)
             try self.put("\n1:")
-            try self.store_temp(a, n.dst)
+            try self.finish(n.dst, n.cls, self.reg(n.cls, 0))
             return
         let add = n.op == ir.Op.addo
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
         try self.line("adds " if add else "subs ")
-        try self.put(a)
+        try self.put(d)
         try self.put(", ")
         try self.put(a)
         try self.put(", ")
@@ -1351,7 +1367,7 @@ pub struct Generator:
             try self.line("b.cs 1f")
         try self.trap_text("integer overflow", n.extra2)
         try self.put("\n1:")
-        try self.store_temp(a, n.dst)
+        try self.finish(n.dst, n.cls, d)
 
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
     ## position plus one, which the reporter names first (§11.5).
@@ -1602,31 +1618,29 @@ pub struct Generator:
                     try self.put_u64(base_offset)
                     try self.put("]")
                 elif self.hfa(a.shape) > 0:
-                    try self.address_operand("x9", a.value)
+                    let at = try self.source(a.value, ir.Class.l, "x9")
                     let each = (u64)self.program_unit.leaves_of(a.shape)[0].size
                     var k: u32 = 0
                     while k < self.hfa(a.shape):
-                        try self.line("ldr x10, [x9, #" if each == 8 else ("ldr w10, [x9, #" if each == 4 else "ldrh w10, [x9, #"))
-                        try self.put_u64((u64)k * each)
-                        try self.put("]")
+                        try self.pair_move("ldr x10, [" if each == 8 else ("ldr w10, [" if each == 4 else "ldrh w10, ["), at, (u64)k * each)
                         try self.line("str x10, [sp, #" if each == 8 else ("str w10, [sp, #" if each == 4 else "strh w10, [sp, #"))
                         try self.put_u64(base_offset + (u64)k * each)
                         try self.put("]")
                         k += 1
                 elif a.size <= 16:
-                    try self.address_operand("x9", a.value)
-                    try self.line("ldr x10, [x9]")
+                    let at = try self.source(a.value, ir.Class.l, "x9")
+                    try self.pair_move("ldr x10, [", at, 0)
                     try self.line("str x10, [sp, #")
                     try self.put_u64(base_offset)
                     try self.put("]")
                     if a.size > 8:
-                        try self.line("ldr x10, [x9, #8]")
+                        try self.pair_move("ldr x10, [", at, 8)
                         try self.line("str x10, [sp, #")
                         try self.put_u64(base_offset + 8)
                         try self.put("]")
                 else:
-                    try self.address_operand("x9", a.value)
-                    try self.line("str x9, [sp, #")
+                    let at = try self.source(a.value, ir.Class.l, "x9")
+                    try self.line3("str ", at, ", [sp, #")
                     try self.put_u64(base_offset)
                     try self.put("]")
             i += 1
@@ -1644,14 +1658,16 @@ pub struct Generator:
                     try self.put(", ")
                     try self.put(try self.hv(self.reg(a.cls, 0)))
                 else:
-                    try self.address_operand("x9", a.value)
+                    let at = try self.source(a.value, ir.Class.l, "x9")
                     let each = (u64)a.size // (u64)self.hfa(a.shape)
                     var k: u32 = 0
                     while k < p.count:
                         try self.line("ldr ")
                         try self.put(float_letter_of(each))
                         try self.put_u64((u64)(p.first + k))
-                        try self.put(", [x9, #")
+                        try self.put(", [")
+                        try self.put(at)
+                        try self.put(", #")
                         try self.put_u64((u64)k * each)
                         try self.put("]")
                         k += 1
@@ -1664,19 +1680,24 @@ pub struct Generator:
                 if a.size == 0:
                     try self.operand(arg_register(p.first), ir.Class.l, a.value)
                 else:
-                    try self.address_operand("x9", a.value)
+                    let at = try self.source(a.value, ir.Class.l, "x9")
                     try self.line("ldr x")
                     try self.put_u64((u64)p.first)
-                    try self.put(", [x9]")
+                    try self.put(", [")
+                    try self.put(at)
+                    try self.put("]")
                     if p.count == 2:
                         try self.line("ldr x" if a.size > 12 else "ldr w")
                         try self.put_u64((u64)p.first + 1)
-                        try self.put(", [x9, #8]")
+                        try self.put(", [")
+                        try self.put(at)
+                        try self.put(", #8]")
             elif p.where == 3:
-                try self.address_operand("x9", a.value)
+                let at = try self.source(a.value, ir.Class.l, "x9")
                 try self.line("mov x")
                 try self.put_u64((u64)p.first)
-                try self.put(", x9")
+                try self.put(", ")
+                try self.put(at)
             i += 1
         # a large aggregate result arrives through x8
         if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0:
@@ -1775,18 +1796,15 @@ pub struct Generator:
     mutating func return_value(n: ir.Instr) -> !:
         if self.f.has_result:
             if self.f.result_size == 0:
+                # straight into the result register, from wherever the value lives
                 if self.f.result_cls == ir.Class.s:
-                    try self.operand("s16", ir.Class.s, n.a)
-                    try self.line("fmov s0, s16")
+                    try self.operand("s0", ir.Class.s, n.a)
                 elif self.f.result_cls == ir.Class.h:
-                    try self.operand("h16", ir.Class.h, n.a)
-                    try self.fmove("h0", "h16")
+                    try self.operand("h0", ir.Class.h, n.a)
                 elif self.f.result_cls == ir.Class.d:
-                    try self.operand("d16", ir.Class.d, n.a)
-                    try self.line("fmov d0, d16")
+                    try self.operand("d0", ir.Class.d, n.a)
                 else:
-                    try self.operand("x9", ir.Class.l, n.a)
-                    try self.line("mov x0, x9")
+                    try self.operand("x0", ir.Class.l, n.a)
             elif self.hfa(self.f.result_shape) > 0:
                 try self.address_operand("x9", n.a)
                 let each = (u64)self.f.result_size // (u64)self.hfa(self.f.result_shape)

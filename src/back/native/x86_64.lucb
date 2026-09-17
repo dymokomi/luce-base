@@ -295,50 +295,51 @@ pub struct Generator:
 
     # mark: Functions ==========================================================================
 
-    ## Copy `size` bytes from (%r10) to (%r11) with plain loads and stores: 16 at a time
-    ## through an SSE register, then 8, 4, 2, 1. Unaligned access is fine on this target.
-    mutating func inline_copy(size: u64) -> !:
+    ## Copy `size` bytes from (`origin`) to (`to`) with plain loads and stores: 16 at a
+    ## time through an SSE register, then 8, 4, 2, 1. Unaligned access is fine on this target.
+    mutating func inline_copy(origin: str, to: str, size: u64) -> !:
         var done: u64 = 0
         while size - done >= 16:
-            try self.offset_move("movups ", done, "(%r10), %xmm8")
-            try self.line("movups %xmm8, ")
-            try self.put_u64(done)
-            try self.put("(%r11)")
+            try self.based_move("movups ", done, origin, ", %xmm8")
+            try self.based_move("movups %xmm8, ", done, to, "")
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
         let loads: str[4] = ["movq ", "movl ", "movzwl ", "movzbl "]
-        let load_regs: str[4] = ["(%r10), %rax", "(%r10), %eax", "(%r10), %eax", "(%r10), %eax"]
+        let load_regs: str[4] = [", %rax", ", %eax", ", %eax", ", %eax"]
         let stores: str[4] = ["movq %rax, ", "movl %eax, ", "movw %ax, ", "movb %al, "]
         var k: usize = 0
         while k < 4:
             if size - done >= widths[k]:
-                try self.offset_move(loads[k], done, load_regs[k])
-                try self.line(stores[k])
-                try self.put_u64(done)
-                try self.put("(%r11)")
+                try self.based_move(loads[k], done, origin, load_regs[k])
+                try self.based_move(stores[k], done, to, "")
                 done += widths[k]
             k += 1
 
-    ## Zero `size` bytes at (%r11) the same way.
-    mutating func inline_zero(size: u64) -> !:
+    ## Zero `size` bytes at (`to`) the same way.
+    mutating func inline_zero(to: str, size: u64) -> !:
         var done: u64 = 0
         if size >= 16:
             try self.line("pxor %xmm8, %xmm8")
         while size - done >= 16:
-            try self.line("movups %xmm8, ")
-            try self.put_u64(done)
-            try self.put("(%r11)")
+            try self.based_move("movups %xmm8, ", done, to, "")
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
         let stores: str[4] = ["movq $0, ", "movl $0, ", "movw $0, ", "movb $0, "]
         var k: usize = 0
         while k < 4:
             if size - done >= widths[k]:
-                try self.line(stores[k])
-                try self.put_u64(done)
-                try self.put("(%r11)")
+                try self.based_move(stores[k], done, to, "")
                 done += widths[k]
             k += 1
+
+    ## `mnemonic offset(base)rest`.
+    mutating func based_move(mnemonic: str, offset: u64, base: str, rest: str) -> !:
+        try self.line(mnemonic)
+        try self.put_u64(offset)
+        try self.put("(")
+        try self.put(base)
+        try self.put(")")
+        try self.put(rest)
 
     ## `mnemonic` + offset + `rest`: one line of a copy.
     mutating func offset_move(mnemonic: str, offset: u64, rest: str) -> !:
@@ -549,24 +550,24 @@ pub struct Generator:
         try self.put(reg)
         try self.store_bytes(reg, base, offset + low, width - low)
 
-    ## Eightbyte `k` of an aggregate of `size` bytes at (%r10), into `reg`: an integer
+    ## Eightbyte `k` of an aggregate of `size` bytes at (`base`), into `reg`: an integer
     ## register, or an SSE one through rax.
-    mutating func load_eightbyte(reg: str, k: u32, size: u32, sse: bool) -> !:
+    mutating func load_eightbyte(reg: str, base: str, k: u32, size: u32, sse: bool) -> !:
         let offset = (u64)k * 8
         let width = (u64)size - offset if (u64)size - offset < 8 else 8
         if sse:
             if width == 8 or width == 4:
                 # A preceding INTEGER result may already be in rax. Loading an SSE
                 # eightbyte must not overwrite that other half of a mixed return.
-                try self.offset_move("movq " if width == 8 else "movd ", offset, "(%r10), ")
+                try self.based_move("movq " if width == 8 else "movd ", offset, base, ", ")
                 try self.put(reg)
             else:
                 try self.line("movq %rax, %xmm9")
-                try self.load_bytes("%rax", "%r10", offset, width)
+                try self.load_bytes("%rax", base, offset, width)
                 try self.line3("movq %rax, ", reg, "")
                 try self.line("movq %xmm9, %rax")
         else:
-            try self.load_bytes(reg, "%r10", offset, width)
+            try self.load_bytes(reg, base, offset, width)
 
     ## Eightbyte `k` of an aggregate of `size` bytes, from `reg` to (%r10).
     mutating func store_eightbyte(reg: str, k: u32, size: u32, sse: bool) -> !:
@@ -680,7 +681,7 @@ pub struct Generator:
                     try self.put_u64(stack_offset)
                     try self.put("(%rbp), %r10")
                     try self.frame_address("%r11", self.slot_home(p.slot))
-                    try self.copy_r10_to_r11((u64)p.size)
+                    try self.copy_to_r11("%r10", (u64)p.size)
                     stack_offset += round_up((u64)p.size, 8)
             i += 1
 
@@ -690,13 +691,13 @@ pub struct Generator:
         try self.put("(%rbp), ")
         try self.put(reg)
 
-    ## `size` bytes from (%r10) to (%r11): inline up to 128, else `memcpy`.
-    mutating func copy_r10_to_r11(size: u64) -> !:
+    ## `size` bytes from (`origin`) to (%r11): inline up to 128, else `memcpy`.
+    mutating func copy_to_r11(origin: str, size: u64) -> !:
         if size <= 128:
-            try self.inline_copy(size)
+            try self.inline_copy(origin, "%r11", size)
             return
         try self.line("movq %r11, %rdi")
-        try self.line("movq %r10, %rsi")
+        try self.line3("movq ", origin, ", %rsi")
         try self.load_immediate("%rdx", (i64)size)
         try self.call_symbol("memcpy")
 
@@ -828,9 +829,10 @@ pub struct Generator:
                 try self.store_temp("%rax", ir.Class.l, n.dst)
             .blit:
                 if n.extra <= 128:
-                    try self.address_operand("%r10", n.b)
-                    try self.address_operand("%r11", n.a)
-                    try self.inline_copy((u64)n.extra)
+                    # from and to the addresses where they live
+                    let origin = try self.source(n.b, ir.Class.l, "%r10")
+                    let to = try self.source(n.a, ir.Class.l, "%r11")
+                    try self.inline_copy(origin, to, (u64)n.extra)
                 else:
                     try self.address_operand("%rdi", n.a)
                     try self.address_operand("%rsi", n.b)
@@ -838,8 +840,8 @@ pub struct Generator:
                     try self.call_symbol("memcpy")
             .zero:
                 if n.extra <= 128:
-                    try self.address_operand("%r11", n.a)
-                    try self.inline_zero((u64)n.extra)
+                    let to = try self.source(n.a, ir.Class.l, "%r11")
+                    try self.inline_zero(to, (u64)n.extra)
                 else:
                     try self.address_operand("%rdi", n.a)
                     try self.line("xorl %esi, %esi")
@@ -1427,29 +1429,43 @@ pub struct Generator:
         try self.line3(vector_move(bytes), reg, ", ")
         try self.frame_operand(self.temp_home(dst))
 
+    ## A checked operation reads its right operand where it lives and computes into the
+    ## destination's register when it has one, its left operand moved there first; an
+    ## unsigned multiply computes in rax as the instruction demands.
     mutating func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
         let cls = n.cls
         let suffix = "q" if cls == ir.Class.l else "l"
-        let a = self.reg(cls, 0)
-        let b = self.reg(cls, 1)
-        try self.operand(a, cls, n.a)
-        try self.operand(b, cls, n.b)
+        if n.op == ir.Op.mulo and not signed:
+            let a = self.reg(cls, 0)
+            try self.operand(a, cls, n.a)
+            let b = try self.source(n.b, cls, self.reg(cls, 1))
+            try self.line4("mul", suffix, " ", b)
+            try self.line("jnc 1f")
+            try self.trap_text("integer overflow", n.extra2)
+            try self.put("\n1:")
+            try self.store_temp(a, cls, n.dst)
+            return
+        let b = try self.source(n.b, cls, self.reg(cls, 1))
+        var d = self.target(n.dst, cls, self.reg(cls, 0))
+        if d == b:
+            # the destination is the right operand's register: compute in scratch
+            d = self.reg(cls, 0)
+        let a = try self.source(n.a, cls, d)
+        if a != d:
+            try self.line3(self.move_of(cls), a, ", ")
+            try self.put(d)
         if n.op == ir.Op.mulo:
-            if signed:
-                try self.line5("imul", suffix, " ", b, ", ")
-                try self.put(a)
-                try self.line("jno 1f")
-            else:
-                try self.line4("mul", suffix, " ", b)
-                try self.line("jnc 1f")
+            try self.line5("imul", suffix, " ", b, ", ")
+            try self.put(d)
+            try self.line("jno 1f")
         else:
             try self.line5("add" if n.op == ir.Op.addo else "sub", suffix, " ", b, ", ")
-            try self.put(a)
+            try self.put(d)
             try self.line("jno 1f" if signed else "jnc 1f")
         try self.trap_text("integer overflow", n.extra2)
         try self.put("\n1:")
-        try self.store_temp(a, cls, n.dst)
+        try self.finish(n.dst, cls, d)
 
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
     ## position plus one, which the reporter names first (§11.5).
@@ -1666,7 +1682,7 @@ pub struct Generator:
             elif self.convention.in_memory(p.size, p.shape):
                 try self.stack_param_load("%r10", (u64)(16 + ordinal * 8))
                 try self.frame_address("%r11", home)
-                try self.copy_r10_to_r11((u64)p.size)
+                try self.copy_to_r11("%r10", (u64)p.size)
             else:
                 try self.stack_param_load("%rax", (u64)(16 + ordinal * 8))
                 try self.frame_address("%r10", home)
@@ -1704,7 +1720,7 @@ pub struct Generator:
                 try self.line("leaq ")
                 try self.put_u64(copy_offset)
                 try self.put("(%rsp), %r11")
-                try self.copy_r10_to_r11((u64)a.size)
+                try self.copy_to_r11("%r10", (u64)a.size)
                 try self.line("leaq ")
                 try self.put_u64(copy_offset)
                 try self.put("(%rsp), %rax")
@@ -1783,11 +1799,11 @@ pub struct Generator:
                     try self.put_u64((u64)p.stack_offset)
                     try self.put("(%rsp)")
                 else:
-                    try self.address_operand("%r10", a.value)
+                    let at = try self.source(a.value, ir.Class.l, "%r10")
                     try self.line("leaq ")
                     try self.put_u64((u64)p.stack_offset)
                     try self.put("(%rsp), %r11")
-                    try self.copy_r10_to_r11((u64)a.size)
+                    try self.copy_to_r11(at, (u64)a.size)
             i += 1
         # float registers, then integer ones, so loading the latter disturbs nothing
         i = 0
@@ -1798,12 +1814,12 @@ pub struct Generator:
                 if a.size == 0:
                     try self.operand(float_argument_names[(usize)p.first_float], a.cls, a.value)
                 else:
-                    try self.address_operand("%r10", a.value)
+                    let at = try self.source(a.value, ir.Class.l, "%r10")
                     var k: u32 = 0
                     var f = p.first_float
                     while k < p.words:
                         if (p.sse & (u8)(1 << k)) != 0:
-                            try self.load_eightbyte(float_argument_names[(usize)f], k, a.size, true)
+                            try self.load_eightbyte(float_argument_names[(usize)f], at, k, a.size, true)
                             f += 1
                         k += 1
             i += 1
@@ -1815,12 +1831,12 @@ pub struct Generator:
                 if a.size == 0:
                     try self.operand(argument_names[(usize)p.first_int] if a.cls == ir.Class.l else narrow_name(argument_names[(usize)p.first_int]), a.cls, a.value)
                 else:
-                    try self.address_operand("%r10", a.value)
+                    let at = try self.source(a.value, ir.Class.l, "%r10")
                     var k: u32 = 0
                     var g = p.first_int
                     while k < p.words:
                         if (p.sse & (u8)(1 << k)) == 0:
-                            try self.load_eightbyte(argument_names[(usize)g], k, a.size, false)
+                            try self.load_eightbyte(argument_names[(usize)g], at, k, a.size, false)
                             g += 1
                         k += 1
             i += 1
@@ -1867,14 +1883,14 @@ pub struct Generator:
                 if store:
                     try self.store_eightbyte(reg, k, size, true)
                 else:
-                    try self.load_eightbyte(reg, k, size, true)
+                    try self.load_eightbyte(reg, "%r10", k, size, true)
             else:
                 let reg = "%rax" if next_int == 0 else "%rdx"
                 next_int += 1
                 if store:
                     try self.store_eightbyte(reg, k, size, false)
                 else:
-                    try self.load_eightbyte(reg, k, size, false)
+                    try self.load_eightbyte(reg, "%r10", k, size, false)
             k += 1
 
     mutating func return_value(n: ir.Instr) -> !:

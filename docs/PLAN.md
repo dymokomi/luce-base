@@ -21,11 +21,15 @@ that work. Native compilation remains the primary execution and hardening target
    register is in any pool, since the rest carry arguments). Splitting a life at a call,
    a copy out before and a copy back after, was measured on the compiler itself and
    rejected: the generators already reload a frame temporary at each use, so a split
-   adds a store per crossing and gained nothing. What would pay is a generator that
-   chooses its scratch around the operands' registers, so x9–x11 and r10, r11 could join
-   the pools, and a parallel move for call arguments, so the argument registers could.
-   Gate: the `tests/optimization` limits lowered again, the native fixpoint kept, the
-   compiler's own build time in `docs/STATUS.md` lowered again.
+   adds a store per crossing and gained nothing. Reading operands and addresses where
+   they live (record copies, checked arithmetic, returns, aggregate arguments) halved
+   the register-to-register moves in the compiler's own assembly; what is left of them
+   is argument setup, 50 K copies of pooled registers into x0–x7. What would pay now is
+   a parallel move for call arguments, so the argument registers could join the pools
+   for temporaries that cross no call, and a generator that chooses its scratch around
+   the operands' registers, so x9–x11 and r10, r11 could join too. Gate: the
+   `tests/optimization` limits lowered again, the native fixpoint kept, the compiler's
+   own assembly in `docs/STATUS.md` smaller again.
 2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines and
    pins named locals to their slots (`docs/DEBUGGING.md`). What remains: location lists
    for values that live in temporaries, so the pinning can go; `DW_TAG_inlined_subroutine`
