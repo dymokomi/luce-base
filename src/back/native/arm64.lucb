@@ -933,8 +933,11 @@ pub struct Generator:
                     let to = try self.source(n.a, ir.Class.l, "x11")
                     try self.inline_copy(origin, to, (u64)n.extra)
                 else:
+                    # the origin first, through a scratch no value lives in: the destination's
+                    # address may live in x0, and the origin's in x1
+                    try self.address_operand("x10", n.b)
                     try self.address_operand("x0", n.a)
-                    try self.address_operand("x1", n.b)
+                    try self.line("mov x1, x10")
                     try self.load_immediate("x2", (i64)n.extra)
                     try self.line("bl ")
                     try self.symbol("memcpy")

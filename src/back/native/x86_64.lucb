@@ -509,7 +509,8 @@ pub struct Generator:
     # mark: Eightbyte transfers ================================================================
 
     ## Exactly `width` bytes (1..8) at `offset(base)` into the 64-bit register `reg`, zero
-    ## above; `%r11` helps with the odd widths.
+    ## above; `%rax` helps with the odd widths, or `%r11` when `reg` is `%rax` itself, so an
+    ## argument's load leaves the callee parked in r11 alone.
     mutating func load_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
         let l = narrow_name(reg)
         if width == 8:
@@ -526,12 +527,15 @@ pub struct Generator:
             return
         # 3, 5, 6, 7: the low part, then the rest shifted into place
         let low: u64 = 4 if width > 4 else 2
-        try self.load_bytes("%r11", base, offset + low, width - low)
+        let helper = "%r11" if reg == "%rax" else "%rax"
+        try self.load_bytes(helper, base, offset + low, width - low)
         try self.load_bytes(reg, base, offset, low)
         try self.line("shlq $")
         try self.put_u64(low * 8)
-        try self.put(", %r11")
-        try self.line3("orq %r11, ", reg, "")
+        try self.put(", ")
+        try self.put(helper)
+        try self.line3("orq ", helper, ", ")
+        try self.put(reg)
 
     ## Exactly `width` bytes of the 64-bit register `reg` to `offset(base)`; the register is
     ## consumed.
@@ -837,8 +841,11 @@ pub struct Generator:
                     let to = try self.source(n.a, ir.Class.l, "%r11")
                     try self.inline_copy(origin, to, (u64)n.extra)
                 else:
+                    # the origin first, through a scratch no value lives in: the destination's
+                    # address may live in %rdi, and the origin's in %rsi
+                    try self.address_operand("%r10", n.b)
                     try self.address_operand("%rdi", n.a)
-                    try self.address_operand("%rsi", n.b)
+                    try self.line("movq %r10, %rsi")
                     try self.load_immediate("%rdx", (i64)n.extra)
                     try self.call_symbol("memcpy")
             .zero:
@@ -1768,8 +1775,9 @@ pub struct Generator:
 
     ## The integer register arguments as one parallel move: an argument may live in an
     ## argument register another argument takes, so a move waits while its destination is
-    ## still read by a pending one, a cycle breaks through r11 (free until the callee is
-    ## loaded), and the arguments read from the frame or made from constants come last.
+    ## still read by a pending one, a cycle breaks through r10 (the frame's address scratch,
+    ## which only the last phase needs), and the arguments read from the frame or made
+    ## from constants come last.
     mutating func integer_arguments(info: ir.CallInfo, placements: Placement[]) -> !:
         let count = (usize)info.args_count
         var pending = try alloc bool[count + 1]
@@ -1802,8 +1810,8 @@ pub struct Generator:
                 i = 0
                 while i < count:
                     if pending[i] and reads[i].length > 0 and argument_index(reads[i]) >= 0:
-                        try self.line3("movq ", reads[i], ", %r11")
-                        reads[i] = "%r11"
+                        try self.line3("movq ", reads[i], ", %r10")
+                        reads[i] = "%r10"
                         break
                     i += 1
         i = 0
@@ -1905,8 +1913,14 @@ pub struct Generator:
                     try self.line("leaq ")
                     try self.put_u64((u64)p.stack_offset)
                     try self.put("(%rsp), %r11")
-                    try self.copy_to_r11(at, (u64)a.size)
+                    # inline whatever the size: a call here would clobber the arguments
+                    # already living in caller-saved registers
+                    try self.inline_copy(at, "%r11", (u64)a.size)
             i += 1
+        # the callee first, into r11, which no argument's placement touches: its home may be
+        # an argument register (a constant propagated into an indirect call has no symbol)
+        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
+            try self.operand("%r11", ir.Class.l, n.a)
         # float registers, then integer ones, so loading the latter disturbs nothing
         i = 0
         while i < info.args_count:
@@ -1928,9 +1942,6 @@ pub struct Generator:
         try self.integer_arguments(info, placements)
         if hidden:
             try self.frame_address("%rdi", self.slot_home(info.result_slot))
-        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
-            # A constant propagated into an indirect call has no symbol name.
-            try self.operand("%r11", ir.Class.l, n.a)
         if info.variadic:
             try self.load_immediate("%eax", (i64)next_float)
         if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
