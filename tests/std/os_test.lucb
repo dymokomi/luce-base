@@ -1,0 +1,39 @@
+## The `os` module against its archive: environment variables round-tripping through
+## set, read and unset; operating-system randomness filling a whole buffer; and the
+## process and machine facts. Reading and setting the environment can allocate on some
+## hosts, so those tests set an allocator.
+import os
+import strings
+import memory
+
+test "environment variables round-trip through set, read and unset":
+    with memory.heap:
+        assert(os.env("LUCE_BASE_TEST_ABSENT_VARIABLE") == none)
+        try os.set_env("LUCE_BASE_TEST_VARIABLE", "present")
+        assert((os.env("LUCE_BASE_TEST_VARIABLE") else "") == "present")
+        try os.set_env("LUCE_BASE_TEST_VARIABLE", "changed")
+        assert((os.env("LUCE_BASE_TEST_VARIABLE") else "") == "changed")
+        try os.unset_env("LUCE_BASE_TEST_VARIABLE")
+        assert(os.env("LUCE_BASE_TEST_VARIABLE") == none)
+
+test "operating-system randomness fills the whole buffer":
+    var first: u8[32]
+    var second: u8[32]
+    try os.random_bytes(first[0..])
+    try os.random_bytes(second[0..])
+    # two draws of 32 bytes are overwhelmingly unlikely to be identical
+    var identical = true
+    for i in 0..<32:
+        if first[i] != second[i]:
+            identical = false
+    assert(not identical)
+
+test "the process and machine facts are sane, and the working directory is real":
+    assert(os.cpus() >= 1)
+    assert(os.page_size() > 0)
+    assert(os.pid() > 0)
+    assert(os.name.length > 0)
+    with memory.heap:
+        let dir = try os.cwd()
+        defer strings.release(dir)
+        assert(dir.length > 0)

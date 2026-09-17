@@ -1,5 +1,7 @@
 ## The `thread`, `sync` and `atomic` modules against their archive: a counter under a
-## mutex and an atomic one agree after every thread joins.
+## mutex and an atomic one agree after every thread joins; a `Once` runs its function a
+## single time under contention; a `Semaphore` hands a permit from one thread to another;
+## and a `Condition` wakes a waiter once the value it guards is published.
 import atomic
 import sync
 import thread
@@ -30,3 +32,69 @@ test "threads count under a mutex and an atomic":
         try handle.join()
     assert(counter.plain == 4000)
     assert(counter.atomic_hits.load(.acquire) == 4000)
+
+## The `Once` function takes no context, so its effect is a file-level counter.
+var once_counter: @u32
+
+func mark_once():
+    discard(once_counter.add(1, .acq_rel))
+
+func run_once(context: void*?):
+    let raw = context else trap("no once")
+    let gate = (sync.Once*)raw
+    gate.run(mark_once)
+
+test "a Once runs its function exactly once under contention":
+    once_counter.store(0, .release)
+    var gate: sync.Once
+    var handles: thread.Handle[8]
+    for index in 0..<8:
+        handles[index] = try thread.spawn(run_once, &gate)
+    for handle in handles:
+        try handle.join()
+    assert(once_counter.load(.acquire) == 1)
+
+struct Handoff:
+    var permit: sync.Semaphore
+    var done: @u32
+
+func wait_then_mark(context: void*?):
+    let raw = context else trap("no handoff")
+    let handoff = (Handoff*)raw
+    handoff.permit.acquire()
+    discard(handoff.done.add(1, .release))
+
+test "a semaphore hands a permit from one thread to another":
+    var handoff: Handoff
+    let worker = try thread.spawn(wait_then_mark, &handoff)
+    # the worker blocks in acquire() until this release grants the permit
+    handoff.permit.release()
+    try worker.join()
+    assert(handoff.done.load(.acquire) == 1)
+
+struct Box:
+    var lock: sync.Mutex
+    var ready: sync.Condition
+    var value: u32
+    var published: bool
+    var observed: u32
+
+func consume(context: void*?):
+    let raw = context else trap("no box")
+    let box = (Box*)raw
+    box.lock.lock()
+    while not box.published:
+        box.ready.wait(&box.lock)
+    box.observed = box.value
+    box.lock.unlock()
+
+test "a condition wakes a waiter after the value it guards is published":
+    var box: Box
+    let waiter = try thread.spawn(consume, &box)
+    box.lock.lock()
+    box.value = 99
+    box.published = true
+    box.ready.signal()
+    box.lock.unlock()
+    try waiter.join()
+    assert(box.observed == 99)
