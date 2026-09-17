@@ -10,9 +10,11 @@
 # passes reach today.
 # 0.17.2: the argument registers x0–x7 joined that pool, a call filling them by a parallel
 # move; the generators read operands and addresses where they live.
+# 0.17.4: r8, r9, rsi and rdi joined the x86-64 SysV pool the same way; the x86-64 counts
+# lowered to what the passes reach.
 ir 310
 loads 39
 stores 46
 calls 11
 asm-arm64 464
-asm-x86_64 872
+asm-x86_64 639
