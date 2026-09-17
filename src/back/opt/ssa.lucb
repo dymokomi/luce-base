@@ -244,7 +244,7 @@ pub func promote(f: ir.Function*) -> bool!:
         let param = f.params.get(p)
         if param.size == 0 and temp_of[(usize)param.slot] != 0:
             let op = ir.load_op((u64)f.slots.get((usize)param.slot).size, false, ir.is_float_class(param.cls))
-            try out.push(ir.Instr(op = op, cls = param.cls, dst = temp_of[(usize)param.slot], a = ir.slot_ref(param.slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0))
+            try out.push(ir.Instr(op = op, cls = param.cls, dst = temp_of[(usize)param.slot], a = ir.slot_ref(param.slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
         p += 1
     i = 0
     while i < f.instrs.count:
@@ -256,10 +256,10 @@ pub func promote(f: ir.Function*) -> bool!:
         let sb = slot_of(addr_of, x.b)
         if sb != none_index and temp_of[(usize)sb] != 0:
             # a store: the value into the temporary
-            x = ir.Instr(op = ir.Op.copy, cls = cls[(usize)sb], dst = temp_of[(usize)sb], a = x.a, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0)
+            x = ir.Instr(op = ir.Op.copy, cls = cls[(usize)sb], dst = temp_of[(usize)sb], a = x.a, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
         elif sa != none_index and temp_of[(usize)sa] != 0:
             # a load: the temporary, extended as the load would have
-            x = ir.Instr(op = load_as(x.op, x.cls), cls = x.cls, dst = x.dst, a = ir.temp_ref(temp_of[(usize)sa]), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0)
+            x = ir.Instr(op = load_as(x.op, x.cls), cls = x.cls, dst = x.dst, a = ir.temp_ref(temp_of[(usize)sa]), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
         try out.push(x)
     f.instrs.destroy()
     f.instrs = out
@@ -606,7 +606,7 @@ pub func construct(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
                 while q < block.preds.count:
                     try f.phi_args.push(ir.PhiArg(value = ir.const_ref(0), pred = g.blocks.get((usize)block.preds.get(q)).label))
                     q += 1
-                try out.push(ir.Instr(op = ir.Op.phi, cls = ph.cls, dst = ph.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = u32(block.preds.count), line = 0, file = 0))
+                try out.push(ir.Instr(op = ir.Op.phi, cls = ph.cls, dst = ph.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = u32(block.preds.count), line = 0, file = 0, scope = 0, site = 0))
                 try origin.push(ph.temp)
                 p += 1
         i += 1

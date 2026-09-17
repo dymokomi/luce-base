@@ -338,7 +338,7 @@ func post_order(program: ir.Unit*, index: Index*) -> usize[]!:
 ## are dead past its exit, so the next expansion may have them.
 func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> !:
     var f = &program.functions.items[fi]
-    if f.debug or f.symbols or not has_expandable_call(program, index, census, fi):
+    if f.debug or not has_expandable_call(program, index, census, fi):
         return
     var out = Sink(instrs = try list.List[ir.Instr].create(f.instrs.count + 64))
     var bases = try alloc u32[program.functions.count + 1]
@@ -352,7 +352,7 @@ func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> 
         let n = f.instrs.get(ix)
         ix += 1
         if let gi = expandable_callee(program, index, census, fi, n):
-            var expansion = Expansion.of(f, &program.functions.items[gi], n, bases[gi])
+            var expansion = Expansion.of(program, f, &program.functions.items[gi], n, bases[gi])
             try expansion.run(&out)
             bases[gi] = expansion.slot_base
             census.expanded[gi] = true
@@ -397,7 +397,7 @@ func try_size(census: Census*, program: ir.Unit*, gi: usize) -> usize?:
 ## How many instructions, labels aside, a function's body has; none when the body may not
 ## stand in for a call of it at all.
 func body_size(g: ir.Function*) -> usize?:
-    if g.variadic or g.naked or g.noinline or g.debug or g.symbols or g.instrs.count == 0:
+    if g.variadic or g.naked or g.noinline or g.debug or g.instrs.count == 0:
         return none
     var count: usize = 0
     var ix: usize = 0
@@ -620,6 +620,7 @@ struct Sink:
 
 ## The renumbering of one callee body into one caller, at one call.
 struct Expansion:
+    var program: ir.Unit*
     var f: ir.Function*
     var g: ir.Function*
     var call: ir.Instr
@@ -633,21 +634,27 @@ struct Expansion:
     var result_slot: u32
     ## Whether the body's slots are an earlier expansion's, already in the caller's frame.
     var shares_slots: bool
+    ## `--release --debug`, both functions described: the inlined subroutine this expansion
+    ## is in the caller (1-based), and what the body's scope numbers shift by.
+    var site: u32
+    var scope_base: u32
+    var described: bool
 
-    static func of(f: ir.Function*, g: ir.Function*, call: ir.Instr, shared: u32) -> Expansion:
-        return Expansion(f = f, g = g, call = call, info = f.calls.get((usize)call.extra),
+    static func of(program: ir.Unit*, f: ir.Function*, g: ir.Function*, call: ir.Instr, shared: u32) -> Expansion:
+        return Expansion(program = program, f = f, g = g, call = call, info = f.calls.get((usize)call.extra),
                          slot_base = u32(f.slots.count) if shared == no_slots else shared,
                          temp_base = u32(f.temps.count), label_base = f.labels, exit_label = 0, result_slot = 0,
-                         shares_slots = shared != no_slots)
+                         shares_slots = shared != no_slots, site = 0, scope_base = 0, described = false)
 
     mutating func run(out: Sink*) -> !:
         try self.join_frames()
+        try self.describe()
         try self.bind_parameters(out)
         var ix: usize = 0
         while ix < self.g.instrs.count:
             try self.copy_instr(self.g.instrs.get(ix), out)
             ix += 1
-        try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0))
+        try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
         try self.take_result(out)
 
     ## The callee's slots and temporaries join the caller's; its labels get fresh numbers,
@@ -674,9 +681,9 @@ struct Expansion:
             let a = self.f.args.get((usize)self.info.args_start + i)
             let target = ir.slot_ref(self.slot_base + p.slot)
             if p.size == 0:
-                try out.push(ir.Instr(op = store_op(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0, line = 0, file = 0))
+                try out.push(ir.Instr(op = store_op(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             else:
-                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = target, b = a.value, extra = p.size, extra2 = 0, line = 0, file = 0))
+                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = target, b = a.value, extra = p.size, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             i += 1
 
     ## The caller's destination takes the result from its slot, after the exit label.
@@ -684,7 +691,43 @@ struct Expansion:
         if self.result_slot == 0 or self.call.dst == 0:
             return
         let cls = self.info.result_cls
-        try out.push(ir.Instr(op = load_op(cls), cls = cls, dst = self.call.dst, a = ir.slot_ref(self.result_slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0))
+        try out.push(ir.Instr(op = load_op(cls), cls = cls, dst = self.call.dst, a = ir.slot_ref(self.result_slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+
+    ## `--release --debug`: the body is an inlined subroutine of the caller. A site names the
+    ## callee and the call; the callee's scopes, named locals and own sites join the caller's
+    ## under it. A body without symbols brings no lines: its instructions belong to the
+    ## statement of the call.
+    mutating func describe() -> !:
+        if not (self.f.symbols and self.g.symbols):
+            return
+        self.described = true
+        self.scope_base = u32(self.f.debug_scopes.count)
+        try self.f.sites.push(ir.InlineSite(name = self.g.source_name, source = self.g.source, line = self.g.source_line, result_type = self.g.result_type,
+                                            call_line = self.call.line, call_file = self.call.file, scope = self.call.scope, parent = self.call.site))
+        self.site = u32(self.f.sites.count)
+        for inner in self.g.sites.span():
+            try self.f.sites.push(ir.InlineSite(name = inner.name, source = inner.source, line = inner.line, result_type = inner.result_type,
+                                                call_line = inner.call_line, call_file = inner.call_file, scope = self.scope_of(inner.scope), parent = self.site_of(inner.parent)))
+        var k: usize = 1
+        while k < self.g.debug_scopes.count:
+            let sc = self.g.debug_scopes.get(k)
+            try self.f.debug_scopes.push(ir.DebugScope(parent = (usize)self.scope_of(u32(sc.parent)), start = 0, end = 0, site = self.site_of(sc.site)))
+            k += 1
+        for described in self.g.locals.span():
+            var moved = described
+            moved.slot += self.slot_base
+            moved.scope = (usize)self.scope_of(u32(described.scope))
+            moved.site = self.site_of(described.site)
+            try self.f.locals.push(moved)
+
+    ## The body's scope `old` as the caller numbers it: the body's own (0) is the site itself,
+    ## whose root entry is not copied.
+    func scope_of(old: u32) -> u32:
+        return 0 if old == 0 else self.scope_base + old - 1
+
+    ## The body's site `old` as the caller numbers it: the body's own (0) is this site.
+    func site_of(old: u32) -> u32:
+        return self.site if old == 0 else self.site + old
 
     ## One instruction of the body, renumbered; `ret` becomes the result's store and the exit.
     mutating func copy_instr(n: ir.Instr, out: Sink*) -> !:
@@ -693,6 +736,16 @@ struct Expansion:
             m.dst += self.temp_base
         m.a = self.renumber(m.a)
         m.b = self.renumber(m.b)
+        if self.described:
+            m.scope = self.scope_of(n.scope)
+            m.site = self.site_of(n.site)
+            if m.line != 0 and m.file == 0:
+                m.file = try self.program.file_index(self.g.source)
+        else:
+            m.scope = 0
+            m.site = 0
+            m.line = 0
+            m.file = 0
         match m.op:
             .label, .jmp:
                 m.extra += self.label_base
@@ -712,11 +765,11 @@ struct Expansion:
     func leave(value: ir.Ref, out: Sink*) -> !:
         if self.info.has_result:
             if self.info.result_size == 0:
-                try out.push(ir.Instr(op = store_op(self.info.result_cls), cls = ir.Class.l, dst = 0, a = value, b = ir.slot_ref(self.result_slot), extra = 0, extra2 = 0, line = 0, file = 0))
+                try out.push(ir.Instr(op = store_op(self.info.result_cls), cls = ir.Class.l, dst = 0, a = value, b = ir.slot_ref(self.result_slot), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             else:
                 # a record result is built where the caller's call sequence would have put it
-                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0, line = 0, file = 0))
-        try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0))
+                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+        try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
 
     ## A call inside the body: its description and arguments join the caller's lists.
     func copy_call(extra: u32) -> u32!:

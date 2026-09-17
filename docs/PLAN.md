@@ -32,12 +32,12 @@ that work. Native compilation remains the primary execution and hardening target
    around the operands' registers, so x9–x11 and r10, r11 could join too. Gate: the
    `tests/optimization` limits lowered again, the native fixpoint kept, the compiler's
    own assembly in `docs/STATUS.md` smaller again.
-2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines and
-   pins named locals to their slots (`docs/DEBUGGING.md`). What remains: location lists
-   for values that live in temporaries, so the pinning can go; `DW_TAG_inlined_subroutine`
-   so the program's own functions may be inlined; lexical scopes carried through the
-   passes; payload enums as variant parts; Luce ARC values. Gate: the same breakpoints
-   under full optimisation and inlining, in both debuggers.
+2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines,
+   lexical scopes and inlined subroutines carried through the passes on the instructions,
+   payload enums as a tag and a union of case records, and named locals pinned to their
+   slots (`docs/DEBUGGING.md`). What remains: location lists for values that live in
+   temporaries, so the pinning can go; Luce ARC values. Gate: the same breakpoints under
+   full optimisation and inlining, in both debuggers.
 3. **Further library breadth.** TLS belongs to the paused `luce-tls` package. Graphics remains deferred: a portable window/input/GPU
    interface with a proving program on each supported host.
 4. **`luce-ld`.** Everything links through the host's `ld` or `cc`. A linker

@@ -287,6 +287,13 @@ pub struct Instr:
     ## --debug`); the passes carry them with the instruction.
     pub var line: u32
     pub var file: u32
+    ## The lexical scope (an index into the function's `debug_scopes`, 0 for the function's
+    ## own) the instruction came from; the passes carry it, and a build with symbols
+    ## describes each scope's locals over the addresses its instructions reach.
+    pub var scope: u32
+    ## The inlined subroutine (an index into the function's `sites`, 1-based, 0 for the
+    ## function's own body) the instruction came from, the same way.
+    pub var site: u32
 
 ## One scalar member of an aggregate, wherever it lies: what a calling convention reads to
 ## classify the aggregate. A union's members overlap; padding has no leaf.
@@ -363,6 +370,8 @@ pub struct LocalInfo:
     pub var line: u32
     pub var parameter: bool
     pub var scope: usize
+    ## The inlined subroutine the local belongs to (`Instr.site`), 0 for the function's own.
+    pub var site: u32
 
 pub struct DebugPoint:
     pub var instruction: usize
@@ -374,6 +383,28 @@ pub struct DebugScope:
     pub var parent: usize
     pub var start: usize
     pub var end: usize
+    ## The inlined subroutine the scope belongs to (`Instr.site`), 0 for the function's own.
+    pub var site: u32
+
+## A call a build with symbols opened out (`opt/inline.lucb`): the callee, for its abstract
+## description, and where the call was, for the inlined subroutine's own.
+pub struct InlineSite:
+    ## The callee's name.
+    pub var name: str
+    ## The callee's source file.
+    pub var source: str
+    ## The line the callee is declared on.
+    pub var line: u32
+    ## The callee's result type.
+    pub var result_type: u32
+    ## The line and file (`Instr.file`) of the call.
+    pub var call_line: u32
+    ## The file of the call, 0 for the caller's own source.
+    pub var call_file: u32
+    ## The caller's scope the call was in.
+    pub var scope: u32
+    ## The site the call itself was in, 0 for the caller's own body.
+    pub var parent: u32
 
 pub struct Function:
     pub var name: str
@@ -388,11 +419,15 @@ pub struct Function:
     ## The position `emit` stamps on each instruction.
     pub var at_line: u32
     pub var at_file: u32
+    ## The scope the lowerer is in, stamped on each instruction it emits (`Instr.scope`).
+    pub var at_scope: u32
     pub var source: str
     pub var source_name: str
     pub var source_line: u32
     pub var points: list.List[DebugPoint]
     pub var debug_scopes: list.List[DebugScope]
+    ## The calls the inliner opened out in a build with symbols, 1-based by `Instr.site`.
+    pub var sites: list.List[InlineSite]
     pub var locals: list.List[LocalInfo]
     pub var params: list.List[Param]
     pub var slots: list.List[Slot]
@@ -418,7 +453,7 @@ pub struct Function:
     pub var noinline: bool
 
     pub static func create(name: str) -> Function!:
-        return Function(name = name, exported = false, debug = false, symbols = false, at_line = 0, at_file = 0, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), locals = try list.List[LocalInfo].create(8),
+        return Function(name = name, exported = false, debug = false, symbols = false, at_line = 0, at_file = 0, at_scope = 0, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), sites = try list.List[InlineSite].create(0), locals = try list.List[LocalInfo].create(8),
                         params = try list.List[Param].create(8),
                         slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
@@ -444,7 +479,7 @@ pub struct Function:
         return self.labels
 
     pub mutating func emit(op: Op, cls: Class, dst: u32, a: Ref, b: Ref, extra: u32) -> !:
-        try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0, line = self.at_line, file = self.at_file))
+        try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0, line = self.at_line, file = self.at_file, scope = self.at_scope, site = 0))
 
     ## `dst = op a, b` with a fresh temporary.
     ## `dst = a op b` at class `cls`; a comparison compares at `cls` and answers a word.
@@ -470,7 +505,7 @@ pub struct Function:
         var cls = Class.l
         if condition.kind == RefKind.temp and (usize)condition.index <= self.temps.count:
             cls = self.temps.get((usize)condition.index - 1)
-        try self.instrs.push(Instr(op = Op.jnz, cls = cls, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label, line = 0, file = 0))
+        try self.instrs.push(Instr(op = Op.jnz, cls = cls, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label, line = 0, file = 0, scope = 0, site = 0))
 
     pub mutating func load(op: Op, cls: Class, address: Ref) -> Ref!:
         let t = try self.temp(cls)

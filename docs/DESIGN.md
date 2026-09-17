@@ -429,11 +429,20 @@ and reads locals straight out of the frame by their described offsets. Only
 the program's modules are hooked; the standard modules run as built.
 
 `--release --debug` keeps the DWARF and drops the hooks: the lowerer stamps every
-instruction with its line and file (`Instr.line`, `Instr.file`), which the passes
-carry, so the line table of an optimised function comes from its instructions;
-named locals are recorded as under `--debug` and `ssa` leaves their slots in memory,
-where the frame planner may still promote them to callee-saved registers, which the
-DWARF then names; the program's own functions are kept out of inlining.
+instruction with its line and file (`Instr.line`, `Instr.file`), its lexical scope
+(`Instr.scope`) and, once the inliner has opened a call out, the inlined subroutine it
+came from (`Instr.site`); the passes carry all four, so the line table, the lexical
+blocks and the inlined subroutines of an optimised function come from its
+instructions: the generator labels each instruction where the scope or site changes,
+and the emitter turns the runs into `DW_AT_ranges`. Named locals are recorded as under
+`--debug` and `ssa` leaves their slots in memory, where the frame planner may still
+promote them to callee-saved registers, which the DWARF then names. When the inliner
+expands one described function into another, the callee's scopes, named locals and
+sites join the caller's under a site (`Function.sites`), and the callee is described
+once more as an abstract subprogram the site refers to; a callee without symbols
+brings no lines, so its instructions belong to the statement of the call. A payload
+enum is described as its tag, an enumeration of the case names, and a union of one
+record per case at the payload's offset.
 
 ## The native backend's code quality
 

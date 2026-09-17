@@ -356,7 +356,7 @@ func rewrite(a: Analysis*) -> !:
     f.instrs = out
 
 func instruction(op: ir.Op, cls: ir.Class, dst: u32, a: ir.Ref, b: ir.Ref, extra: u32 = 0, extra2: u32 = 0) -> ir.Instr:
-    return ir.Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = extra2, line = 0, file = 0)
+    return ir.Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = extra2, line = 0, file = 0, scope = 0, site = 0)
 
 func result(f: ir.Function*, out: list.List[ir.Instr]*, op: ir.Op, cls: ir.Class, a: ir.Ref, b: ir.Ref, shape: u32 = 0) -> ir.Ref!:
     let temp = try f.temp(ir.Class.w if ir.is_comparison(op) else cls)

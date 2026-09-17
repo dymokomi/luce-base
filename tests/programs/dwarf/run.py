@@ -109,7 +109,7 @@ shutil.move(str(exe) + suffix, str(package / exe.name) + suffix)
 values = {"value": 3, "point.x": 3, "point.y": 4, "text.length": 5,
           "span.length": 3, "span.data[1]": 22, "array[2]": 33, "pointer->x": 3, "text.data[0]": 104, "optional.value": 17, "optional.present": 1,
           "absent.present": 0, "box.value": 91, "pair._0": 5, "pair._1": 6,
-          "packed.first": 7, "packed.second": 123}
+          "packed.first": 7, "packed.second": 123, "shape.tag": 2, "shape.payload.rect.width": 8, "shape.payload.rect.height": 9}
 transcript = debug("mixed-moved", package / exe.name, moved / "main.lucb", [
     ("BREAK_INSPECT", values, ("inner",)),
     ("BREAK_INNER", {"inner": 77}, ()),
@@ -126,15 +126,20 @@ run("emit-optimised", [compiler, "build", moved / "main.lucb", "--native", "--re
 listing = (work / "optimised.s").read_text()
 if "lb_debug_at" in listing or ".loc " not in listing:
     raise SystemExit("FAIL DWARF: the optimised build must carry lines and no debugger hooks")
+if "Ldw_abstract_" not in listing:
+    raise SystemExit("FAIL DWARF: the optimised build must describe its inlined subroutines")
 if mac:
     run("verify-optimised", ["xcrun", "dwarfdump", "--verify", str(optimised) + ".dSYM"])
 else:
     run("verify-optimised", ["llvm-dwarfdump", "--verify", str(optimised) + ".debug"])
-debug("optimised", optimised, moved / "main.lucb", [
-    ("BREAK_INSPECT", {"value": 3, "point.x": 3, "point.y": 4, "optional.value": 17, "pair._0": 5, "pair._1": 6, "packed.second": 123}, ()),
+transcript = debug("optimised", optimised, moved / "main.lucb", [
+    ("BREAK_INSPECT", {"value": 3, "point.x": 3, "point.y": 4, "optional.value": 17, "pair._0": 5, "pair._1": 6, "packed.second": 123, "shape.tag": 2, "shape.payload.rect.width": 8}, ("inner",)),
     ("BREAK_INNER", {"inner": 77, "result": 7}, ()),
-    ("BREAK_AFTER", {"result": 84}, ()),
+    ("BREAK_AFTER", {"result": 84}, ("inner",)),
     ("BREAK_METHOD", {"self->x": 3, "self->y": 4}, ())])
+# the method is inlined into `inspect`: the breakpoint in it stops in an inlined frame
+if not re.search(r"x_value.*main\.lucb", transcript) or not re.search(r"inspect.*main\.lucb", transcript):
+    raise SystemExit("FAIL DWARF: the optimised build must show the inlined method and its caller")
 lib = work / "library"
 run("build-library", [compiler, "build", fixtures / "library/main.lucb", "--native", "--debug", "--lib", "-o", lib])
 cc = shlex.split(os.environ.get("CC", "cc"))

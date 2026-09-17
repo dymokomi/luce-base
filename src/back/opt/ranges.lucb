@@ -186,7 +186,7 @@ struct Search:
             if instruction.op == ir.Op.bounds:
                 if self.at_most(instruction.a, instruction.b, ir.Class.l, true) or self.packed_bound(instruction.a, instruction.b):
                     # Keep graph instruction ranges stable until the walk ends.
-                    instruction = ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0)
+                    instruction = ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
                     self.f.instrs.set(at, instruction)
                     self.changed = true
                 else:

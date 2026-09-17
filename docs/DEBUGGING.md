@@ -12,13 +12,14 @@ functions under `--debug` keep their development layout.
 `--release --debug` is the optimised program with DWARF and without the in-program
 debugger: every pass runs on the program's own functions, except that a named local
 stays in its frame slot (or the callee-saved register the frame planner promotes it
-to, which the DWARF names), and that the program's own functions are not inlined.
-Each instruction carries the line it came from through the passes, so source
-breakpoints and backtraces are exact; a named local reads correctly at every statement
-boundary, and a local the optimiser removed entirely says so rather than showing a
-stale value. What this build does not have: lexical scopes (every local is described
-at function scope), locations for values that live only in temporaries, inlined
-frames, and payload enums beyond their tag and storage.
+to, which the DWARF names). Each instruction carries the line, the lexical scope and,
+after inlining, the inlined subroutine it came from through the passes, so source
+breakpoints and backtraces are exact, a local is visible only within its scope, and a
+breakpoint in a function the optimiser inlined stops in an inlined frame with the
+function's own locals, the caller beneath it. A named local reads correctly at every
+statement boundary, and a local the optimiser removed entirely says so rather than
+showing a stale value. What this build does not have: locations for values that live
+only in temporaries (hence the pinning).
 
 On macOS, the compiler runs `dsymutil` before deleting its temporary object files.
 Keep `program` and `program.dSYM` together. On Linux, it runs `objcopy` to create
@@ -45,8 +46,9 @@ gdb program
 Parameters, method receivers, lexical scopes, scalar types, pointers, arrays,
 spans, strings, tuples, generic records, packed fields, unions, optional and
 fallible representations are described using the compiler's target layouts.
-Integer-backed enum cases have names; payload enums currently expose their tag
-and raw storage. For optionals with a separate `present` flag, check it before reading the payload;
+Integer-backed enum cases have names. A payload enum is a record of `tag`, an
+enumeration of its case names in case order, and `payload`, a union with one record
+per case that carries one, named by the case (`shape.payload.rect.width`). For optionals with a separate `present` flag, check it before reading the payload;
 nullable pointers and views use their null representation instead. Check a fallible
 value's `failed` flag before interpreting its payload. Debugger expressions use the
 C-compatible representation, so a span's elements are under `data[index]`.
@@ -65,9 +67,10 @@ manifest are compiled with source debugging and frame pointers in debug builds,
 so mixed C/Base backtraces include both source languages.
 
 `tests/programs/dwarf/check.sh` launches LLDB on macOS and GDB on Linux. It checks
-source breakpoints, mixed backtraces, typed values, lexical scope exit, moved
-source/artifact paths containing spaces, and a C consumer of a Base static
-library. Commands, output and replay records are kept under `build/dwarf/`.
+source breakpoints, mixed backtraces, typed values, payload enums, lexical scope exit,
+moved source/artifact paths containing spaces, a C consumer of a Base static
+library, and the optimised build at the same breakpoints, one of them in an inlined
+method. Commands, output and replay records are kept under `build/dwarf/`.
 Both hosts run LLVM `dwarfdump --verify` on packaged debug information.
 The Linux test gate requires GDB, binutils and `llvm-dwarfdump` (the `llvm` package).
 

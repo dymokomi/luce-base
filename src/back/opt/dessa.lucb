@@ -116,7 +116,7 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
             try out.push(f.instrs.get((usize)block.start - 1))
         # the body, phis dropped, the copies before the terminator
         var e = block.end
-        let last = f.instrs.get((usize)e - 1) if e > block.start else ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0)
+        let last = f.instrs.get((usize)e - 1) if e > block.start else ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
         let ends = e > block.start and ir.is_terminator(last.op)
         var i2 = block.start
         while i2 < (e - 1 if ends else e):
@@ -175,9 +175,9 @@ func emit_edge(f: ir.Function*, moves: Moves*, at: u32, s: u32, out: list.List[i
         return
     let label = split_label[(usize)s]
     split_label[(usize)s] = 0
-    try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = label, extra2 = 0, line = 0, file = 0))
+    try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
     try copy_edge(f, moves, at, s, out, g)
-    try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = g.blocks.get((usize)s).label, extra2 = 0, line = 0, file = 0))
+    try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = g.blocks.get((usize)s).label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
 
 ## The parallel copies of one edge: through fresh temporaries when a source is another
 ## copy's destination.
@@ -204,7 +204,7 @@ func copy_edge(f: ir.Function*, moves: Moves*, at: u32, s: u32, out: list.List[i
             let m = moves.items.get(i)
             if moves.owner[(usize)m.dst] == s:
                 if not (m.value.kind == ir.RefKind.temp and m.value.index == m.dst):
-                    try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0))
+                    try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             i += 1
         return
     # every source first, then every destination
@@ -215,7 +215,7 @@ func copy_edge(f: ir.Function*, moves: Moves*, at: u32, s: u32, out: list.List[i
         let m = moves.items.get(i)
         if moves.owner[(usize)m.dst] == s:
             let t = try f.temp(m.cls)
-            try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = t, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0))
+            try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = t, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             try staged.push(t)
         i += 1
     var k: usize = 0
@@ -223,6 +223,6 @@ func copy_edge(f: ir.Function*, moves: Moves*, at: u32, s: u32, out: list.List[i
     while i < hi:
         let m = moves.items.get(i)
         if moves.owner[(usize)m.dst] == s:
-            try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = ir.temp_ref(staged.get(k)), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0))
+            try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = ir.temp_ref(staged.get(k)), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             k += 1
         i += 1

@@ -18,6 +18,18 @@ pub struct Emitter:
     ## The line and file of the last `.loc` of an optimised function (`--release --debug`).
     var last_line: u32
     var last_file: u32
+    ## The scope the last instruction of an optimised function belonged to, and each
+    ## instruction where that changed with the scope it changed to: the runs a lexical
+    ## block's ranges are made of.
+    var last_scope: u32
+    var last_site: u32
+    var changes: list.List[u32]
+    var change_scopes: list.List[u32]
+    var change_sites: list.List[u32]
+    ## The callees the inlined subroutines stand for, one abstract subprogram each.
+    var origins: list.List[ir.InlineSite]
+    ## The `.debug_ranges` entries of the lexical blocks, ahead of the section.
+    var ranges: buffer.Buffer
     var files: list.List[str]
     var needed: list.List[u32]
     var info: buffer.Buffer
@@ -26,6 +38,9 @@ pub struct Emitter:
 
     pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os, arch: targets.Arch = targets.Arch.arm64) -> Emitter!:
         return Emitter(checker = checker, program = program, os = os, arch = arch, last_line = 0, last_file = 0,
+                       last_scope = 0, last_site = 0, changes = try list.List[u32].create(0), change_scopes = try list.List[u32].create(0),
+                       change_sites = try list.List[u32].create(0), origins = try list.List[ir.InlineSite].create(0),
+                       ranges = try buffer.Buffer.create(0),
                        files = try list.List[str].create(0), needed = try list.List[u32].create(0),
                        info = try buffer.Buffer.create(0), cwd = "", serial = 0)
 
@@ -50,6 +65,10 @@ pub struct Emitter:
                 discard(try self.file(f.source))
                 for point in f.points.span():
                     discard(try self.file(point.file))
+                for site in f.sites.span():
+                    discard(try self.file(site.source))
+                    if site.call_file != 0:
+                        discard(try self.file(self.program.files.get((usize)site.call_file - 1)))
             i += 1
         # the files the optimised functions' instructions name (`--release --debug`)
         for path in self.program.files.span():
@@ -74,8 +93,22 @@ pub struct Emitter:
                 try out.put(try format(format_room, f"\n    .loc {file} {f.source_line} 0 prologue_end is_stmt 1"))
                 self.last_line = 0
                 self.last_file = 0
+                self.last_scope = 0
+                self.last_site = 0
+                self.changes.count = 0
+                self.change_scopes.count = 0
+                self.change_sites.count = 0
             if instruction < f.instrs.count:
                 let x = f.instrs.get(instruction)
+                # a label where the scope or the inlined subroutine changes; an instruction a
+                # pass made (no line, no scope, no site) belongs to where it lies
+                if (x.scope != self.last_scope or x.site != self.last_site) and (x.scope != 0 or x.site != 0 or x.line != 0):
+                    try out.put(try format(format_room, f"\nLdw_sc_{index}_{instruction}:"))
+                    try self.changes.push(u32(instruction))
+                    try self.change_scopes.push(x.scope)
+                    try self.change_sites.push(x.site)
+                    self.last_scope = x.scope
+                    self.last_site = x.site
                 if x.line != 0 and (x.line != self.last_line or x.file != self.last_file):
                     let path = self.program.files.get((usize)x.file - 1) if x.file != 0 else f.source
                     let file = try self.file(path)
@@ -116,17 +149,37 @@ pub struct Emitter:
             try o.put("    .uleb128 1\n    .byte ")
             try o.put("109\n" if self.arch == targets.Arch.arm64 else "86\n")  # DW_OP_reg29 / DW_OP_reg6
         try self.reference(f.result_type)
-        try self.scope(f, fr, index, 0)
+        try self.scope(f, fr, index, 0, 0)
         try o.put("    .byte 0\n")
 
-    mutating func scope(f: ir.Function*, fr: frame.Frame*, index: usize, scope: usize) -> !:
+    ## The locals of `scope` in inlined subroutine `site` (0 for the function's own body),
+    ## then the scopes and sites within it. A development build's block spans its
+    ## instructions' labels; an optimised build's covers the runs its instructions kept,
+    ## and a scope none kept describes its locals in its parent. An inlined subroutine
+    ## none kept is not described at all.
+    mutating func scope(f: ir.Function*, fr: frame.Frame*, index: usize, scope: usize, site: u32) -> !:
         var format_room: u8[4096]
         let o = &self.info
-        if scope != 0:
+        var block = scope != 0 or site != 0
+        if block and f.symbols:
+            block = try self.scope_ranges(f, index, scope, site)
+            if not block and scope == 0:
+                return
+            if block and scope != 0:
+                try o.put("    .uleb128 20\n")
+                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), self.os)
+            elif block:
+                let where = f.sites.get((usize)site - 1)
+                let origin = try self.origin(where)
+                let call_file = try self.file(self.program.files.get((usize)where.call_file - 1) if where.call_file != 0 else f.source)
+                try o.put((try format(format_room, f"    .uleb128 21\n    .long Ldw_abstract_{origin}-Ldw_info\n")))
+                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), self.os)
+                try o.put((try format(format_room, f"    .uleb128 {call_file}\n    .uleb128 {where.call_line}\n")))
+        elif block:
             let s = f.debug_scopes.get(scope)
             try o.put((try format(format_room, f"    .uleb128 5\n    .quad Ldw_pc_{index}_{s.start}\n    .quad Ldw_pc_{index}_{s.end}\n")))
         for described in f.locals.span():
-            if described.scope != scope:
+            if described.scope != scope or described.site != site:
                 continue
             try o.put("    .uleb128 3\n" if described.parameter else "    .uleb128 4\n")
             try text(o, described.name)
@@ -150,11 +203,72 @@ pub struct Emitter:
                 try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 145\n    .sleb128 -{home}\nLdw_expr_end_{serial}:\n")))
         var i: usize = 1
         while i < f.debug_scopes.count:
-            if f.debug_scopes.get(i).parent == scope:
-                try self.scope(f, fr, index, i)
+            let inner = f.debug_scopes.get(i)
+            if inner.parent == scope and inner.site == site and i != scope:
+                try self.scope(f, fr, index, i, site)
             i += 1
-        if scope != 0:
+        var k: usize = 0
+        while k < f.sites.count:
+            let inner = f.sites.get(k)
+            if (usize)inner.scope == scope and inner.parent == site:
+                try self.scope(f, fr, index, 0, u32(k + 1))
+            k += 1
+        if block:
             try o.put("    .byte 0\n")
+
+    ## The abstract subprogram an inlined subroutine refers to, by the callee's name; its
+    ## index among `origins`.
+    mutating func origin(site: ir.InlineSite) -> usize!:
+        var i: usize = 0
+        while i < self.origins.count:
+            if self.origins.get(i).name == site.name and self.origins.get(i).source == site.source:
+                return i
+            i += 1
+        try self.origins.push(site)
+        return self.origins.count - 1
+
+    ## The `.debug_ranges` entry of `scope` in site `site` of the optimised function `index`:
+    ## each run of instructions in it or below it, from its first change point to the one
+    ## that leaves it, or the function's end. Whether it kept any.
+    mutating func scope_ranges(f: ir.Function*, index: usize, scope: usize, site: u32) -> bool!:
+        var format_room: u8[4096]
+        var any = false
+        var open = false
+        var k: usize = 0
+        while k < self.changes.count:
+            let inside = self.within(f, self.change_scopes.get(k), self.change_sites.get(k), scope, site)
+            if inside and not open:
+                if not any:
+                    try self.ranges.put((try format(format_room, f"Ldw_rs_{index}_{scope}_{site}:\n")))
+                    any = true
+                try self.ranges.put((try format(format_room, f"    .quad Ldw_sc_{index}_{self.changes.get(k)}, ")))
+                open = true
+            elif not inside and open:
+                try self.ranges.put((try format(format_room, f"Ldw_sc_{index}_{self.changes.get(k)}\n")))
+                open = false
+            k += 1
+        if open:
+            try self.ranges.put((try format(format_room, f"Ldw_end_{index}\n")))
+        if any:
+            try self.ranges.put("    .quad 0, 0\n")
+        return any
+
+    ## Whether scope `inner` of site `inner_site` is `outer` of `outer_site` or lies within it:
+    ## up the scopes of one site, then out through the site's call to the scope it was in.
+    func within(f: ir.Function*, inner: u32, inner_site: u32, outer: usize, outer_site: u32) -> bool:
+        var s = (usize)inner
+        var k = inner_site
+        while true:
+            if s == outer and k == outer_site:
+                return true
+            if s != 0:
+                s = f.debug_scopes.get(s).parent
+            elif k != 0:
+                let site = f.sites.get((usize)k - 1)
+                s = (usize)site.scope
+                k = site.parent
+            else:
+                return false
 
     mutating func reference(id: u32) -> !:
         var format_room: u8[4096]
@@ -278,16 +392,121 @@ pub struct Emitter:
             try self.member("code", types.error_code_id, 0)
             try self.member("message", types.str_id, 8)
         elif t.kind == types.Kind.enum_:
-            try self.member("tag", types.u32_id, 0)
-            if size > 4:
-                try self.member("storage", try checker.table.array(types.u8_id, size - 4), 4)
+            try self.payload_enum(id)
+            return
         try o.put("    .byte 0\n")
+
+    ## A payload enum (§6.1): its `tag`, an enumeration of the case names in case order, and
+    ## `payload`, a union of one record per case with a payload, at the offset the lowerer
+    ## lays the payloads at (`payload_offset`). The debuggers read that C shape as it is.
+    mutating func payload_enum(id: u32) -> !:
+        var format_room: u8[4096]
+        let checker = self.checker
+        let t = checker.table.get(id)
+        let o = &self.info
+        let size = checker.table.size_of(id)
+        if t.decl == none:
+            try o.put("    .byte 0\n")
+            return
+        let decl = t.decl else return
+        var widest: u64 = 4
+        var with_payload = false
+        var cursor = decl.body
+        while let c = cursor:
+            if c.kind == ast.Kind.enum_case:
+                var q = c.body
+                while let param = q:
+                    let pt = try checker.substitute(param.type_id, decl, t.args)
+                    let a = checker.table.align_of(pt)
+                    widest = a if a > widest else widest
+                    with_payload = true
+                    q = param.next
+            cursor = c.next
+        let base = round_up(4, widest)
+        try self.member_of("tag", (try format(format_room, f"Ldw_tag_{id}")), 0)
+        if with_payload and size > base:
+            try self.member_of("payload", (try format(format_room, f"Ldw_payload_{id}")), base)
+        try o.put("    .byte 0\n")
+        # the tag's enumeration
+        try o.put((try format(format_room, f"Ldw_tag_{id}:\n    .uleb128 17\n")))
+        try text(o, "tag")
+        try o.put("    .uleb128 4\n")
+        try self.reference(types.u32_id)
+        var index: u64 = 0
+        cursor = decl.body
+        while let c = cursor:
+            if c.kind == ast.Kind.enum_case:
+                try o.put("    .uleb128 18\n")
+                try text(o, c.text)
+                try o.put((try format(format_room, f"    .uleb128 {index}\n")))
+                index += 1
+            cursor = c.next
+        try o.put("    .byte 0\n")
+        if not (with_payload and size > base):
+            return
+        # the union of the cases' records, then each record
+        try o.put((try format(format_room, f"Ldw_payload_{id}:\n    .uleb128 15\n")))
+        try text(o, "payload")
+        try o.put((try format(format_room, f"    .uleb128 {size - base}\n")))
+        index = 0
+        cursor = decl.body
+        while let c = cursor:
+            if c.kind == ast.Kind.enum_case:
+                if c.body != none:
+                    try self.member_of(c.text, (try format(format_room, f"Ldw_case_{id}_{index}")), 0)
+                index += 1
+            cursor = c.next
+        try o.put("    .byte 0\n")
+        index = 0
+        cursor = decl.body
+        while let c = cursor:
+            if c.kind == ast.Kind.enum_case:
+                if c.body != none:
+                    var offset: u64 = 0
+                    var q = c.body
+                    while let param = q:
+                        let pt = try checker.substitute(param.type_id, decl, t.args)
+                        offset = round_up(offset, checker.table.align_of(pt))
+                        offset += checker.table.size_of(pt)
+                        q = param.next
+                    try o.put((try format(format_room, f"Ldw_case_{id}_{index}:\n    .uleb128 8\n")))
+                    try text(o, c.text)
+                    try o.put((try format(format_room, f"    .uleb128 {offset}\n")))
+                    offset = 0
+                    q = c.body
+                    while let param = q:
+                        let pt = try checker.substitute(param.type_id, decl, t.args)
+                        offset = round_up(offset, checker.table.align_of(pt))
+                        try self.member(param.text, pt, offset)
+                        offset += checker.table.size_of(pt)
+                        q = param.next
+                    try o.put("    .byte 0\n")
+                index += 1
+            cursor = c.next
+
+    ## A member whose type is a DIE of this emitter's own, by label.
+    mutating func member_of(name: str, label: str, offset: u64) -> !:
+        var format_room: u8[4096]
+        try self.info.put("    .uleb128 9\n")
+        try text(&self.info, name)
+        try self.info.put((try format(format_room, f"    .long {label}-Ldw_info\n    .uleb128 {offset}\n")))
 
     pub mutating func finish(out: buffer.Buffer*) -> !:
         var format_room: u8[4096]
         if self.files.count == 0:
             return
         var i: usize = 0
+        while i < self.origins.count:
+            # the callees the inlined subroutines stand for, by name; their types may add
+            # to `needed`, so before the types
+            let origin = self.origins.get(i)
+            let file = try self.file(origin.source)
+            try self.info.put((try format(format_room, f"Ldw_abstract_{i}:\n    .uleb128 22\n")))
+            try text(&self.info, origin.name)
+            try self.info.put((try format(format_room, f"    .uleb128 {file}\n    .uleb128 {origin.line}\n    .byte 1\n")))
+            try self.reference(origin.result_type)
+            i += 1
+        i = 0
         while i < self.needed.count:
             try self.type_info(self.needed.get(i))
             i += 1
@@ -314,13 +533,14 @@ pub struct Emitter:
         i = 0
         while i < self.program.functions.count:
             let f = &self.program.functions.items[i]
-            if f.debug and not f.naked:
+            if (f.debug or f.symbols) and not f.naked:
                 try out.put("    .quad ")
                 try out.put("_" if (self.os == targets.Os.macos) else "")
                 try out.put(f.name)
                 try out.put((try format(format_room, f", Ldw_end_{i}\n")))
             i += 1
         try out.put("    .quad 0, 0\n")
+        try out.put(self.ranges.view())
 
 func round_up(n: u64, alignment: u64) -> u64:
     return (n + alignment - 1) // alignment * alignment if alignment > 0 else n
@@ -339,6 +559,18 @@ func section(out: buffer.Buffer*, name: str, os: targets.Os) -> !:
 func section_offset(out: buffer.Buffer*, label: str, os: targets.Os) -> !:
     if os == targets.Os.macos:
         try out.put("    .long 0\n")
+        return
+    try out.put("    .secrel32 " if os == targets.Os.windows else "    .long ")
+    try out.put(label)
+    try out.put("\n")
+
+## A `DW_AT_ranges` offset into `.debug_ranges`: Mach-O's debug linker rebases each object's
+## sections, so the offset is from the section's start; ELF and COFF relocate a label.
+func range_offset(out: buffer.Buffer*, label: str, os: targets.Os) -> !:
+    if os == targets.Os.macos:
+        try out.put("    .long ")
+        try out.put(label)
+        try out.put("-Ldw_ranges\n")
         return
     try out.put("    .secrel32 " if os == targets.Os.windows else "    .long ")
     try out.put(label)
@@ -389,6 +621,9 @@ let abbreviations: str = r"""
     .byte 17,4,1,3,8,11,15,73,19,0,0
     .byte 18,40,0,3,8,28,15,0,0
     .byte 19,40,0,3,8,28,13,0,0
+    .byte 20,11,1,85,23,0,0
+    .byte 21,29,1,49,19,85,23,88,15,89,15,0,0
+    .byte 22,46,0,3,8,58,15,59,15,32,11,73,19,0,0
     .byte 0
 """
 

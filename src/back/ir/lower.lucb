@@ -425,7 +425,7 @@ pub struct Lowerer:
             let et = self.elem(id)
             let cls = self.class_of(et)
             let t = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = u32(self.scalar_size(et)), extra2 = 5, line = 0, file = 0))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = u32(self.scalar_size(et)), extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
             return LowerValue(ref = ir.temp_ref(t), type_id = id, in_memory = false)
         if not self.is_scalar(id):
             return LowerValue(ref = address, type_id = id, in_memory = true)
@@ -532,7 +532,7 @@ pub struct Lowerer:
     mutating func describe_local(decl: ast.Node*, slot: u32, id: u32) -> !:
         if not (self.f.debug or self.f.symbols) or decl.text.length == 0 or decl.text == "_":
             return
-        try self.f.locals.push(ir.LocalInfo(name = decl.text, slot = slot, kind = try self.c.spell(id), size = self.size(id), type_id = id, line = decl.line, parameter = decl.kind == ast.Kind.param, scope = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0))
+        try self.f.locals.push(ir.LocalInfo(name = decl.text, slot = slot, kind = try self.c.spell(id), size = self.size(id), type_id = id, line = decl.line, parameter = decl.kind == ast.Kind.param, scope = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0, site = 0))
 
     ## `--debug`: the address of this function's descriptor, `lbd_<name>`.
     mutating func descriptor_ref() -> ir.Ref!:
@@ -615,16 +615,18 @@ pub struct Lowerer:
 
     mutating func push_scope(loop: bool, label: str, break_label: u32, continue_label: u32) -> !:
         var scope: usize = 0
-        if self.f.debug:
+        if self.f.debug or self.f.symbols:
             scope = self.f.debug_scopes.count
             let parent = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0
-            try self.f.debug_scopes.push(ir.DebugScope(parent = parent, start = self.f.instrs.count, end = 0))
+            try self.f.debug_scopes.push(ir.DebugScope(parent = parent, start = self.f.instrs.count, end = 0, site = 0))
+            self.f.at_scope = u32(scope)
         try self.scopes.push(LowerScope(debug_scope = scope, defer_base = self.defers.count, loop = loop, label = label, break_label = break_label, continue_label = continue_label, restore_alloc = false, alloc_slot = 0))
 
     mutating func pop_scope():
         let sc = self.scopes.get(self.scopes.count - 1)
-        if self.f.debug:
+        if self.f.debug or self.f.symbols:
             self.f.debug_scopes.items[sc.debug_scope].end = self.f.instrs.count
+            self.f.at_scope = u32(self.f.debug_scopes.get(sc.debug_scope).parent)
         self.defers.count = sc.defer_base
         self.scopes.count -= 1
 
@@ -691,7 +693,7 @@ pub struct Lowerer:
                 let s = try self.f.slot(8, 8)
                 self.self_slot = s
                 if self.f.debug or self.f.symbols:
-                    try self.f.locals.push(ir.LocalInfo(name = "self", slot = s, kind = try self.c.spell(pointer), size = 8, type_id = pointer, line = d.line, parameter = true, scope = 0))
+                    try self.f.locals.push(ir.LocalInfo(name = "self", slot = s, kind = try self.c.spell(pointer), size = 8, type_id = pointer, line = d.line, parameter = true, scope = 0, site = 0))
                 try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = pointer, slot = s, shape = 0))
         var cursor = d.right
         while let p = cursor:
@@ -893,8 +895,9 @@ pub struct Lowerer:
         if let decl = d:
             self.f.source_name = decl.text
             self.f.source_line = decl.line
-        if self.f.debug:
-            try self.f.debug_scopes.push(ir.DebugScope(parent = 0, start = 0, end = 0))
+        if self.f.debug or self.f.symbols:
+            try self.f.debug_scopes.push(ir.DebugScope(parent = 0, start = 0, end = 0, site = 0))
+        self.f.at_scope = 0
         self.locals.count = 0
         self.scopes.count = 0
         self.defers.count = 0
@@ -958,7 +961,7 @@ pub struct Lowerer:
         try self.trap_with("unreachable")
 
     mutating func end_function() -> !:
-        if self.f.debug:
+        if self.f.debug or self.f.symbols:
             self.f.debug_scopes.items[0].end = self.f.instrs.count
         try self.program_unit.functions.push(self.f)
 
@@ -1103,7 +1106,7 @@ pub struct Lowerer:
         let width = u32(self.scalar_size(et))
         let vv = try self.value(value, et)
         if s.text == "=":
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = 5, line = 0, file = 0))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
             return
         let op = (str)s.text.bytes[..<s.text.length - 1]
         var operand = vv.ref
@@ -1118,7 +1121,7 @@ pub struct Lowerer:
             instr = ir.Op.atomic_and_not
             operand = try self.f.binary(ir.Op.xor, cls, vv.ref, ir.const_ref(-1))
         let t = try self.f.temp(cls)
-        try self.f.instrs.push(ir.Instr(op = instr, cls = cls, dst = t, a = operand, b = address, extra = width, extra2 = 5, line = 0, file = 0))
+        try self.f.instrs.push(ir.Instr(op = instr, cls = cls, dst = t, a = operand, b = address, extra = width, extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
 
     mutating func if_stmt(s: ast.Node*) -> !:
         let then_label = self.f.label()
@@ -4016,12 +4019,12 @@ pub struct Lowerer:
             order = memory_order(o)
         if name == "load":
             let t = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = order, line = 0, file = 0))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = order, line = 0, file = 0, scope = 0, site = 0))
             return LowerValue(ref = ir.temp_ref(t), type_id = et, in_memory = false)
         if name == "store":
             let v = args[0] else return try self.fail(e, "no value")
             let vv = try self.value(v, et)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0, scope = 0, site = 0))
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         if name == "wait":
             let v = args[0] else return try self.fail(e, "no value")
@@ -4032,7 +4035,7 @@ pub struct Lowerer:
             let keep = try self.materialise(vv)
             try self.f.place_label(head)
             let t = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = 5, line = 0, file = 0))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
             let expected = try self.load_from(keep, et)
             let same = try self.f.binary(ir.Op.ceq, cls, ir.temp_ref(t), expected.ref)
             try self.f.branch(same, spin, done)
@@ -4055,7 +4058,7 @@ pub struct Lowerer:
             try self.f.args.push(ir.Arg(value = ev.ref, cls = cls, size = 0, align = 8, type_id = et, shape = 0))
             try self.f.args.push(ir.Arg(value = dv.ref, cls = cls, size = 0, align = 8, type_id = et, shape = 0))
             let observed = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_cas, cls = cls, dst = observed, a = address, b = ir.const_ref((i64)start), extra = width, extra2 = order, line = 0, file = 0))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_cas, cls = cls, dst = observed, a = address, b = ir.const_ref((i64)start), extra = width, extra2 = order, line = 0, file = 0, scope = 0, site = 0))
             let swapped = try self.f.binary(ir.Op.ceq, cls, ir.temp_ref(observed), ev.ref)
             try self.f.store(ir.Op.storeb, swapped, a)
             let offset = lower_round_up(1, self.c.table.align_of(et))
@@ -4079,7 +4082,7 @@ pub struct Lowerer:
         elif name == "min":
             op = ir.Op.atomic_min
         let t = try self.f.temp(cls)
-        try self.f.instrs.push(ir.Instr(op = op, cls = cls, dst = t, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0))
+        try self.f.instrs.push(ir.Instr(op = op, cls = cls, dst = t, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0, scope = 0, site = 0))
         return LowerValue(ref = ir.temp_ref(t), type_id = et, in_memory = false)
 
     # mark: Memory =============================================================================
