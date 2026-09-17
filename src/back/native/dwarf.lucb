@@ -1,5 +1,13 @@
-## DWARF 4 for development builds. Addresses and frame offsets come from the native
-## generator; types and member offsets come from the checker's target layout.
+#==============================================================================================
+#
+#   dwarf - DWARF 4 debugging information
+#
+#   DESCRIPTION:
+#       For development and `--release --debug` builds. Addresses and frame offsets come from
+#       the native generator; types and member offsets come from the checker's target layout.
+#
+#==============================================================================================
+
 import files
 import back.target as targets
 import back.native.frame
@@ -10,6 +18,7 @@ import sema.types
 import support.buffer
 import support.list
 
+## Emits a unit's DWARF: the line table, the function DIEs, and the sections they need.
 pub struct Emitter:
     var checker: check.Checker*
     var program: ir.Unit*
@@ -41,6 +50,7 @@ pub struct Emitter:
     var cwd: str
     var serial: usize
 
+    ## A DWARF emitter for `program` on `os` and `arch`, reading types from `checker`.
     pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os, arch: targets.Arch = targets.Arch.arm64) -> Emitter!:
         return Emitter(checker = checker, program = program, os = os, arch = arch, last_line = 0, last_file = 0,
                        last_scope = 0, last_site = 0, changes = try list.List[u32].create(0), change_scopes = try list.List[u32].create(0),
@@ -58,6 +68,9 @@ pub struct Emitter:
         try self.files.push(path)
         return self.files.count
 
+    # mark: The line table ====================================================================
+
+    ## Emit the line-table header, declaring every source file the unit names.
     pub mutating func begin(out: buffer.Buffer*) -> !:
         var format_room: u8[4096]
         self.cwd = try files.canonical(".")
@@ -85,10 +98,12 @@ pub struct Emitter:
             try out.put("\n")
             i += 1
 
+    ## Emit the `.loc` that opens a function's line program.
     pub mutating func entry(out: buffer.Buffer*) -> !:
         if self.files.count > 0:
             try out.put("\n    .loc 1 0 0 is_stmt 0\n")
 
+    ## Emit the line, and for an optimised function the scope and value labels, at `instruction`.
     pub mutating func mark(out: buffer.Buffer*, f: ir.Function*, fr: frame.Frame*, index: usize, instruction: usize) -> !:
         var format_room: u8[4096]
         if f.symbols:
@@ -135,6 +150,9 @@ pub struct Emitter:
                 let file = try self.file(point.file)
                 try out.put((try format(format_room, f"    .loc {file} {point.line} {point.column} is_stmt 1\n")))
 
+    # mark: Function DIEs =====================================================================
+
+    ## Emit the debugging information entry for function `f`: its scopes, locals and types.
     pub mutating func function(f: ir.Function*, fr: frame.Frame*, index: usize) -> !:
         var format_room: u8[4096]
         if not (f.debug or f.symbols) or f.naked:
@@ -622,6 +640,9 @@ pub struct Emitter:
         try text(&self.info, name)
         try self.info.put((try format(format_room, f"    .long {label}-Ldw_info\n    .uleb128 {offset}\n")))
 
+    # mark: The sections ======================================================================
+
+    ## Emit the abbreviation, info, ranges and location sections, after every function.
     pub mutating func finish(out: buffer.Buffer*) -> !:
         var format_room: u8[4096]
         if self.files.count == 0:
@@ -675,6 +696,8 @@ pub struct Emitter:
         try section(out, "loc", self.os)
         try out.put("Ldw_loc:\n")
         try out.put(self.locs.view())
+
+# mark: Helpers ===============================================================================
 
 func round_up(n: u64, alignment: u64) -> u64:
     return (n + alignment - 1) // alignment * alignment if alignment > 0 else n

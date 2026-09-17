@@ -1,12 +1,20 @@
-## Decimal float literals to IEEE bits, correctly rounded (§4.3). A literal is a digit
-## string D and a decimal exponent E, D * 10^E. With big integers Num and Den, Num = D * 10^E
-## and Den = 1 for a non-negative E, else Num = D and Den = 10^-E, so that the value is
-## Num / Den exactly. Scaling by a power of two, which only moves the binary exponent, puts
-## the quotient in [2^(p+2), 2^(p+4)), p the width's precision; that quotient, its remainder
-## as a sticky bit, and the exponent are then rounded once to the width, ties to even. A
-## literal keeps at most 800 significant digits: every float and every midpoint between two
-## floats has a decimal expansion shorter than that, so what follows can only decide a tie,
-## which the sticky bit records.
+#==============================================================================================
+#
+#   decimal - Decimal float literals to IEEE bits, correctly rounded
+#
+#   DESCRIPTION:
+#       §4.3: a literal is a digit string D and a decimal exponent E, D * 10^E. With big
+#       integers Num and Den, Num = D * 10^E and Den = 1 for a non-negative E, else Num = D and
+#       Den = 10^-E, so the value is Num / Den exactly. Scaling by a power of two, which only
+#       moves the binary exponent, puts the quotient in [2^(p+2), 2^(p+4)), p the width's
+#       precision; that quotient, its remainder as a sticky bit, and the exponent are rounded
+#       once to the width, ties to even. A literal keeps at most 800 significant digits: every
+#       float and every midpoint between two floats has a shorter decimal expansion, so what
+#       follows can only decide a tie, which the sticky bit records.
+#
+#==============================================================================================
+
+# mark: Big integers ==========================================================================
 
 ## Big unsigned integers of up to 6144 bits, in 32-bit limbs, least significant first. The
 ## widest value here is Num scaled up to the length of Den = 10^1200, under 4100 bits.
@@ -133,6 +141,8 @@ struct Format:
         return ((one << self.exponent_bits) - 1) << (self.precision - 1)
 
 let digit_cap: usize = 800
+
+# mark: Literals to bits ======================================================================
 
 ## The bits of `text` (digits, one optional point, an optional exponent, `_` separators,
 ## no sign and no suffix) as a float of `width` bits, 16, 32, or 64; `none` when the text

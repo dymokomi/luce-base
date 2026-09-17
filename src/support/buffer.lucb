@@ -1,12 +1,23 @@
-## Growable compiler output. Storage belongs to the allocator captured at creation;
-## views borrow that storage until the next append or destruction.
+#==============================================================================================
+#
+#   buffer - Growable compiler output
+#
+#   DESCRIPTION:
+#       Storage belongs to the allocator captured at creation; views borrow that storage until
+#       the next append or destruction.
+#
+#==============================================================================================
+
 import memory
 
+## A growable byte buffer over a captured allocator, for emitted text.
 pub struct Buffer:
     var data: u8[]
+    ## The number of bytes written; `bytes()[..<used]` are them.
     pub var used: usize
     var allocator: memory.Allocator
 
+    ## An empty buffer with room for `capacity` bytes (at least 256).
     pub static func create(capacity: usize) -> Buffer!:
         let room = capacity if capacity > 0 else 256
         return Buffer(data = try alloc u8[room], used = 0, allocator = memory.allocator)
@@ -23,21 +34,25 @@ pub struct Buffer:
         free(self.data) in self.allocator
         self.data = grown
 
+    ## Append `text`.
     pub mutating func put(text: str) -> !:
         try self.reserve(text.length)
         memory.copy(self.data[self.used..], text.bytes, text.length)
         self.used += text.length
 
+    ## Append raw `bytes`.
     pub mutating func put_bytes(bytes: const u8[]) -> !:
         try self.reserve(bytes.length)
         memory.copy(self.data[self.used..], bytes, bytes.length)
         self.used += bytes.length
 
+    ## Append one byte.
     pub mutating func put_byte(byte: u8) -> !:
         try self.reserve(1)
         self.data[self.used] = byte
         self.used += 1
 
+    ## Append `value` in decimal.
     pub mutating func put_u64(value: u64) -> !:
         var digits: u8[24]
         var n: usize = 0
@@ -55,6 +70,7 @@ pub struct Buffer:
             self.data[self.used] = digits[n]
             self.used += 1
 
+    ## Append `value` in decimal, with a leading minus when negative.
     pub mutating func put_i64(value: i64) -> !:
         if value < 0:
             try self.put_byte('-')
@@ -66,12 +82,15 @@ pub struct Buffer:
     pub func view() -> str:
         return (str)self.data[..<self.used]
 
+    ## The bytes written so far; invalid after the next append.
     pub func bytes() -> const u8[]:
         return self.data[..<self.used]
 
+    ## Discard the contents, keeping the storage.
     pub mutating func clear():
         self.used = 0
 
+    ## Release the storage.
     pub mutating func destroy():
         free(self.data) in self.allocator
 

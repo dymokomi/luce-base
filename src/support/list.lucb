@@ -1,17 +1,29 @@
-## The compiler's growable collection. Growth copies live elements, then releases
-## the previous storage through its captured allocator. Element borrows expire on growth.
+#==============================================================================================
+#
+#   list - The compiler's growable collection
+#
+#   DESCRIPTION:
+#       Growth copies the live elements, then releases the previous storage through the
+#       allocator captured at creation. An element borrow expires on the next growth.
+#
+#==============================================================================================
+
 import memory
 
+## A growable array of `T` over a captured allocator.
 pub struct List[T]:
     ## The storage; `items[..<count]` are the live elements.
     pub var items: T[]
+    ## The number of live elements.
     pub var count: usize
     var allocator: memory.Allocator
 
+    ## An empty list with room for `capacity` elements (at least four).
     pub static func create(capacity: usize) -> List[T]!:
         let room = capacity if capacity > 0 else 4
         return List[T](items = try alloc T[room], count = 0, allocator = memory.allocator)
 
+    ## Append `item`, growing the storage when it is full.
     pub mutating func push(item: T) -> !:
         if self.count == self.items.length:
             let capacity = self.items.length *? 2 else error(memory.exhausted, "the list capacity overflows")
@@ -22,9 +34,11 @@ pub struct List[T]:
         self.items[self.count] = item
         self.count += 1
 
+    ## The element at `index`.
     pub func get(index: usize) -> T:
         return self.items[index]
 
+    ## Replace the element at `index` with `item`.
     pub mutating func set(index: usize, item: T):
         self.items[index] = item
 
@@ -32,6 +46,7 @@ pub struct List[T]:
     pub func span() -> T[]:
         return self.items[..<self.count]
 
+    ## Release the storage.
     pub mutating func destroy():
         free(self.items) in self.allocator
 

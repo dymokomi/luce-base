@@ -1,12 +1,20 @@
-## Version straight-line counted loops for portable 128-bit SIMD. Recognized
-## loops contain only contiguous loads, arithmetic and at most one store, or
-## one wrapping integer sum. Everything else keeps its scalar implementation.
-## Floating-point expressions retain their original operation order; floating
-## reductions are deliberately excluded.
+#==============================================================================================
+#
+#   vectorize - Versioning counted loops for 128-bit SIMD
+#
+#   DESCRIPTION:
+#       A recognized loop contains only contiguous loads, arithmetic and at most one store, or
+#       one wrapping integer sum; everything else keeps its scalar implementation. Float
+#       expressions retain their operation order, and float reductions are excluded.
+#
+#==============================================================================================
+
 import back.ir.cfg
 import back.ir.ir
 import back.opt.loops
 import support.list
+
+# mark: Recognizing a loop ====================================================================
 
 struct Analysis:
     var f: ir.Function*
@@ -156,6 +164,8 @@ struct Analysis:
     func data(value: ir.Ref) -> bool:
         return self.kind(value) == 3 or (self.invariant(value) and (value.kind == ir.RefKind.constant or (value.kind == ir.RefKind.temp and self.f.temp_class(value.index) == self.cls)))
 
+# mark: Building the vector loop ==============================================================
+
 struct Builder:
     var f: ir.Function*
     var analysis: Analysis*
@@ -196,6 +206,9 @@ struct Builder:
                 let b = try self.value(x.b)
                 self.values[x.dst] = try result(self.f, &self.body, vector_op(x.op, x.cls), ir.Class.v, a, b, self.shape)
 
+# mark: The pass ==============================================================================
+
+## Version every counted loop of `f` that qualifies for 128-bit SIMD.
 pub func run(f: ir.Function*) -> !:
     # Newly made vector loops contain vector operations, so cannot match again.
     # Remember original headers: their scalar tails must not be versioned again.

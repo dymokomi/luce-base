@@ -1,15 +1,26 @@
-## Describe emitted frame operations using DWARF CFI or Windows SEH. Frame layout
-## and instructions stay with the generator; every unwind directive is owned here.
+#==============================================================================================
+#
+#   unwind - Frame unwind directives for the x86-64 backend
+#
+#   DESCRIPTION:
+#       Describe emitted frame operations with DWARF CFI or Windows SEH. Frame layout and
+#       instructions stay with the generator; every unwind directive is owned here.
+#
+#==============================================================================================
+
 import support.buffer
 
+## Emits a function's unwind directives: DWARF CFI, Windows SEH, or both.
 pub struct FrameUnwind:
     let windows: bool
     let cfi: bool
 
+    ## A describer for a target: `windows` selects SEH, `cfi` selects DWARF CFI.
     pub func init(windows: bool, cfi: bool):
         self.windows = windows
         self.cfi = cfi
 
+    ## Open the procedure's unwind scope.
     pub func begin(out: buffer.Buffer*, prefix: str, name: str) -> !:
         if self.cfi:
             try line(out, ".cfi_startproc")
@@ -18,6 +29,7 @@ pub struct FrameUnwind:
             try out.put(prefix)
             try out.put(name)
 
+    ## Record that the prologue pushed the frame pointer.
     pub func pushed_frame_pointer(out: buffer.Buffer*) -> !:
         if self.windows:
             try line(out, ".seh_pushreg %rbp")
@@ -25,15 +37,18 @@ pub struct FrameUnwind:
             try line(out, ".cfi_def_cfa_offset 16")
             try line(out, ".cfi_offset 6, -16")
 
+    ## Record that the frame pointer now defines the canonical frame address.
     pub func cfa_frame_pointer(out: buffer.Buffer*) -> !:
         if self.cfi and not self.windows:
             try line(out, ".cfi_def_cfa_register 6")
 
+    ## Record a stack allocation of `size` bytes.
     pub func allocated_stack(out: buffer.Buffer*, size: u64) -> !:
         if self.windows:
             try line(out, ".seh_stackalloc ")
             try out.put_u64(size)
 
+    ## Record that the frame pointer is set, the frame `size` bytes below it.
     pub func established_frame(out: buffer.Buffer*, size: u64) -> !:
         if self.windows:
             try line(out, ".seh_setframe %rbp, 0")
@@ -41,6 +56,7 @@ pub struct FrameUnwind:
                 try line(out, ".cfi_def_cfa 6, ")
                 try out.put_u64(size + 16)
 
+    ## Record a callee-saved register spilled to `stack_offset`; `vector` for an SSE register.
     pub func saved_register(out: buffer.Buffer*, name: str, stack_offset: u64, vector: bool) -> !:
         if self.windows:
             try line(out, ".seh_savexmm " if vector else ".seh_savereg ")
@@ -48,6 +64,7 @@ pub struct FrameUnwind:
             try out.put(", ")
             try out.put_u64(stack_offset)
 
+    ## Record, for CFI, that DWARF register `number` was saved `cfa_offset` below the frame address.
     pub func saved_cfi_register(out: buffer.Buffer*, number: u64, cfa_offset: u64) -> !:
         if self.cfi:
             try line(out, ".cfi_offset ")
@@ -55,27 +72,33 @@ pub struct FrameUnwind:
             try out.put(", -")
             try out.put_u64(cfa_offset)
 
+    ## Mark the end of the prologue (SEH).
     pub func prologue_complete(out: buffer.Buffer*) -> !:
         if self.windows:
             try line(out, ".seh_endprologue")
 
+    ## Remember the unwind state before the epilogue undoes it (CFI).
     pub func begin_epilogue(out: buffer.Buffer*) -> !:
         if self.cfi:
             try line(out, ".cfi_remember_state")
 
+    ## Record that the epilogue restored the frame pointer and stack.
     pub func popped_frame_pointer(out: buffer.Buffer*) -> !:
         if self.cfi:
             try line(out, ".cfi_def_cfa 7, 8")
             try line(out, ".cfi_restore 6")
 
+    ## Restore the remembered unwind state after the epilogue (CFI).
     pub func end_epilogue(out: buffer.Buffer*) -> !:
         if self.cfi:
             try line(out, ".cfi_restore_state")
 
+    ## Close the CFI procedure.
     pub func cfi_complete(out: buffer.Buffer*) -> !:
         if self.cfi:
             try line(out, ".cfi_endproc")
 
+    ## Close the SEH procedure.
     pub func complete(out: buffer.Buffer*) -> !:
         if self.windows:
             try line(out, ".seh_endproc")

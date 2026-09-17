@@ -1,14 +1,22 @@
+#==============================================================================================
+#
+#   table - A names-to-values hash table for the binder
+#
+#   DESCRIPTION:
+#       For the binder's typedefs, tags and constants. Storage comes from the allocator
+#       current at creation and is never given back: the binder runs in one arena.
+#
+#==============================================================================================
+
 import memory
 
-## A table from names to values, for the binder's typedefs, tags and constants. Storage
-## comes from the allocator current at creation and is never given back: the binder runs
-## in one arena.
-
+## An open-addressing table from `str` names to `T` values.
 pub struct Table[T]:
     var keys: str[]
     var values: T[]
     var count: usize
 
+    ## An empty table sized for `capacity` entries.
     pub static func create(capacity: usize) -> Table[T]!:
         var room: usize = 16
         while room < capacity * 2:
@@ -18,6 +26,7 @@ pub struct Table[T]:
             t.keys[i] = ""
         return t
 
+    ## The value stored under `name`, or `none`.
     pub func get(name: str) -> T?:
         let mask = self.keys.length - 1
         var i = (usize)fnv(name) & mask
@@ -28,9 +37,11 @@ pub struct Table[T]:
                 return self.values[i]
             i = (i + 1) & mask
 
+    ## Whether `name` has a value.
     pub func has(name: str) -> bool:
         return self.get(name) != none
 
+    ## Store `value` under `name`, replacing any earlier value and growing when full.
     pub mutating func put(name: str, value: T) -> !:
         if (self.count + 1) * 2 > self.keys.length:
             try self.grow()

@@ -1,16 +1,31 @@
-## Natural loops and conservative motion in SSA. Only computations that cannot
-## fail may execute before a zero-trip loop. Memory motion is restricted further
-## to unescaped, unchanged stack storage with a statically valid access.
+#==============================================================================================
+#
+#   loops - Natural loops and conservative motion in SSA
+#
+#   DESCRIPTION:
+#       Only a computation that cannot fail may run before a zero-trip loop. Memory motion is
+#       restricted further to unescaped, unchanged stack storage with a statically valid
+#       access.
+#
+#==============================================================================================
+
 import back.ir.cfg
 import back.ir.ir
 import back.opt.load
 import support.list
 
+# mark: Natural loops =========================================================================
+
+## A natural loop: its header, its preheader, and which blocks belong to it.
 pub struct Natural:
+    ## The loop header block.
     pub var header: u32
+    ## The block that enters the header from outside the loop.
     pub var preheader: u32
+    ## Which blocks, by index, belong to the loop.
     pub var members: bool[]
 
+    ## The natural loop of a back edge into `header`, or none when there is none.
     pub static func find(g: cfg.Graph*, header: u32) -> Natural?!:
         let block = g.blocks.get(header)
         var members = try alloc bool[g.count()]
@@ -50,8 +65,11 @@ pub struct Natural:
             return none
         return Natural(header = header, preheader = preheader, members = members)
 
+    ## Release the members set.
     pub mutating func release():
         free(self.members)
+
+# mark: Simplifying phis ======================================================================
 
 ## Mutually recursive load phis can all denote one value from before a loop.
 ## Follow only phis, require exactly one external value, and require that value
@@ -121,6 +139,7 @@ pub func simplify_phis(f: ir.Function*, g: cfg.Graph*) -> bool!:
                 f.instrs.set(i, x)
     return changed
 
+## The block that defines each temporary, by index.
 pub func definition_blocks(f: ir.Function*, g: cfg.Graph*) -> u32[]!:
     var definitions = try alloc u32[f.temps.count + 1]
     for i in 0..<definitions.length:
@@ -133,8 +152,11 @@ pub func definition_blocks(f: ir.Function*, g: cfg.Graph*) -> u32[]!:
                 definitions[x.dst] = (u32)b
     return definitions
 
+## Whether `r` is loop-invariant: a constant, or a value defined outside the loop.
 pub func invariant(r: ir.Ref, members: bool[], definitions: u32[]) -> bool:
     return r.kind != ir.RefKind.temp or (definitions[r.index] != cfg.none_block and not members[definitions[r.index]])
+
+# mark: Invariant code motion =================================================================
 
 ## Rebuild after each moved group: instruction ranges and definition blocks have
 ## changed. The bound limits compile time on generated functions with many loops.
@@ -240,5 +262,6 @@ func movable(op: ir.Op) -> bool:
         .extsb, .extub, .extsh, .extuh, .extsw, .extuw, .cast, .exth, .exts, .truncs, .truncd: return true
         _: return false
 
+## Whether two references are the same temporary or the same constant.
 pub func same(a: ir.Ref, b: ir.Ref) -> bool:
     return a.kind == b.kind and a.index == b.index and a.value == b.value and a.name == b.name

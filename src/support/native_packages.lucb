@@ -1,5 +1,13 @@
-## Native inputs belong to their declaring package. Resolve relative paths before
-## merging import closures or handing sources to another compiler's workspace.
+#==============================================================================================
+#
+#   native_packages - Native inputs merged across a package closure
+#
+#   DESCRIPTION:
+#       Native inputs belong to their declaring package. Relative paths are resolved before
+#       import closures are merged or sources are handed to another compiler's workspace.
+#
+#==============================================================================================
+
 import c
 import io
 import paths
@@ -8,17 +16,24 @@ import support.list
 import support.manifest
 import support.modules
 
+## One native input: its kind and its resolved value.
 pub struct Input:
+    ## The kind of input: sources, link_search, libraries, frameworks, or pkg_config.
     pub let kind: str
+    ## The resolved path or name.
     pub let value: c.str
 
+## The native inputs gathered across a package's import closure, each kept once.
 pub struct Inputs:
+    ## The gathered inputs, in the order first seen.
     pub var entries: list.List[Input]
     var roots: list.List[str]
 
+    ## An empty set of inputs.
     pub static func create() -> Inputs!:
         return Inputs(try list.List[Input].create(8), try list.List[str].create(8))
 
+    ## Add the native inputs of the package at `path`, once per package root.
     pub mutating func collect(path: str) -> !:
         let package = try manifest.load(try modules.canonical(path))
         if package.root.length == 0:
@@ -43,6 +58,7 @@ pub struct Inputs:
             if not duplicate:
                 try self.entries.push(Input(kind, (c.str)resolved))
 
+    ## The values gathered for one `kind`, in order.
     pub func values(kind: str) -> c.str[]!:
         var selected = try list.List[c.str].create(4)
         for entry in self.entries.span():
@@ -50,6 +66,7 @@ pub struct Inputs:
                 try selected.push(entry.value)
         return selected.span()
 
+    ## Replace `package`'s native fields with the merged inputs.
     pub func apply(package: manifest.Manifest*) -> !:
         package.sources = try self.values("sources")
         package.link_search = try self.values("link_search")
@@ -57,6 +74,7 @@ pub struct Inputs:
         package.frameworks = try self.values("frameworks")
         package.pkg_config = try self.values("pkg_config")
 
+    ## Write the inputs as NUL-separated `native` records.
     pub func write(out: io.Writer) -> !:
         for entry in self.entries.span():
             try out.write(f"native\0{entry.kind}\0{(str)entry.value}\0")

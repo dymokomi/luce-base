@@ -1,7 +1,16 @@
-## Shared, local instruction-selection facts. Counting every use prevents a
-## comparison needed elsewhere from being consumed by a fused branch.
+#==============================================================================================
+#
+#   selection - Shared, local instruction-selection facts
+#
+#   DESCRIPTION:
+#       Counting every use prevents a comparison needed elsewhere from being consumed by a
+#       fused branch. The generators ask these questions as they walk a function's IR.
+#
+#==============================================================================================
+
 import back.ir.ir
 
+## The number of times each temporary is used, by index; a comparison used once may fuse.
 pub func uses(f: ir.Function*) -> u32[]!:
     var counts = try alloc u32[f.temps.count + 1]
     for i in 0..<counts.length:
@@ -20,6 +29,7 @@ func mark(counts: u32[], value: ir.Ref):
     if value.kind == ir.RefKind.temp:
         counts[value.index] += 1
 
+## The label of the instruction at `at`, or 0 when it is not a label.
 pub func label_at(f: ir.Function*, at: usize) -> u32:
     if at < f.instrs.count:
         let x = f.instrs.get(at)
@@ -27,6 +37,8 @@ pub func label_at(f: ir.Function*, at: usize) -> u32:
             return x.extra
     return 0
 
+## Whether the instruction at `at` is a comparison whose only use is the branch right
+## after it, so the two fuse into one conditional jump.
 pub func branch(f: ir.Function*, at: usize, counts: u32[]) -> bool:
     if f.debug or at + 1 >= f.instrs.count:
         return false
@@ -34,6 +46,7 @@ pub func branch(f: ir.Function*, at: usize, counts: u32[]) -> bool:
     let next = f.instrs.get(at + 1)
     return ir.is_comparison(x.op) and (x.cls == ir.Class.w or x.cls == ir.Class.l) and x.dst != 0 and counts[x.dst] == 1 and next.op == ir.Op.jnz and next.a.kind == ir.RefKind.temp and next.a.index == x.dst
 
+## The comparison that a fused branch inverts to when the fall-through is the taken side.
 pub func inverse(op: ir.Op) -> ir.Op:
     match op:
         .ceq: return ir.Op.cne

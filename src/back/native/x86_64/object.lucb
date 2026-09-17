@@ -1,13 +1,24 @@
-## ELF/COFF sections, symbols and relocations for x86-64. The instruction
-## selector requests storage and addresses without spelling object-format rules.
+#==============================================================================================
+#
+#   object - ELF and COFF sections, symbols and relocations for x86-64
+#
+#   DESCRIPTION:
+#       The instruction selector requests storage and addresses without spelling
+#       object-format rules.
+#
+#==============================================================================================
+
 import back.ir.ir
 import back.target as build_target
 import support.buffer
 
+## Emits ELF or COFF sections, symbols and relocations for x86-64.
 pub struct Format:
+    ## The target operating system, which selects ELF or COFF.
     pub let os: build_target.Os
     let symbol_prefix: str
 
+    ## A formatter for `os`, with `symbol_prefix` on every emitted symbol.
     pub func init(os: build_target.Os, symbol_prefix: str):
         self.os = os
         self.symbol_prefix = symbol_prefix
@@ -29,6 +40,7 @@ pub struct Format:
         try out.put("\n")
         try self.linkage(out, name, weak, used)
 
+    ## The extra `.weak` a non-Windows target needs after `.globl`; `used` has no directive.
     pub func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
         if weak and self.os != build_target.Os.windows:
             try out.put("    .weak ")
@@ -49,6 +61,9 @@ pub struct Format:
         if function.section.length > 0 or (self.os == build_target.Os.windows and function.weak):
             try out.put("\n    .text\n")
 
+    # mark: Functions, sections and globals ===================================================
+
+    ## Open a function's section, align it, and emit its label.
     pub func function_start(out: buffer.Buffer*, function: ir.Function*) -> !:
         if self.os == build_target.Os.windows and function.weak:
             try out.put("\n    .section .text$")
@@ -67,6 +82,7 @@ pub struct Format:
         try self.symbol(out, function.name)
         try out.put(":")
 
+    ## Declare the unit's weak symbols before any code (COFF).
     pub func begin(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
         # Declare COFF weak references before emitting code. Weak definitions
         # receive individual sections so their fallback symbol has zero offset.
@@ -88,6 +104,7 @@ pub struct Format:
                 try self.symbol(out, table.name)
                 try out.put("\n")
 
+    ## Register `name` as a load-time initializer (`.init_array`, `__mod_init_func`, `.CRT$XCU`).
     pub func initializer(out: buffer.Buffer*, name: str) -> !:
         # the loader runs the unit's initialiser: ELF's `.init_array`, Mach-O's
         # `__mod_init_func` (§17.6)
@@ -101,6 +118,7 @@ pub struct Format:
             try self.symbol(out, name)
             try out.put("\n    .text\n")
 
+    ## Emit the reserved storage for the unit's own globals.
     pub func globals(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
         var i: usize = 0
         while i < program_unit.globals.count:
@@ -136,10 +154,14 @@ pub struct Format:
             try out.put("\n")
             i += 1
 
+    ## Emit the object's trailer (the non-executable-stack note on ELF).
     pub func finish(out: buffer.Buffer*) -> !:
         if self.os != build_target.Os.windows:
             try out.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
 
+    # mark: Addresses =========================================================================
+
+    ## Load the address of external symbol `name` into `reg`, through the GOT on ELF.
     pub func external_address(out: buffer.Buffer*, name: str, reg: str) -> !:
         # a function's address, or another image's data (`import_ref`), goes through the
         # GOT, so a symbol defined in a linked shared object resolves
@@ -148,6 +170,7 @@ pub struct Format:
         try out.put("(%rip), " if self.os == build_target.Os.windows else "@GOTPCREL(%rip), ")
         try out.put(reg)
 
+    ## Load the address of thread-local `name` under the initial-exec model.
     pub func thread_address(out: buffer.Buffer*, name: str) -> !:
         # the initial-exec model: the thread pointer plus the variable's offset in
         # the static thread block, which the linker writes into the GOT
@@ -164,9 +187,11 @@ pub struct Format:
             try self.symbol(out, name)
             try out.put("@GOTTPOFF(%rip), %rax")
 
+    ## The read-only data section directive.
     pub func read_only() -> str:
         return "\n    .section .rdata,\"dr\"" if self.os == build_target.Os.windows else "\n    .section .rodata"
 
+    ## The section directive for read-only data that carries relocations.
     pub func relocated_read_only() -> str:
         return "\n    .section .rdata,\"dr\"\n    .p2align 3\n" if self.os == build_target.Os.windows else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n"
 

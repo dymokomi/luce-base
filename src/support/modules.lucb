@@ -1,6 +1,14 @@
-## Resolve public package modules from local dependencies. Manifests declare the
-## source root and public exports; both compilers use this resolver, and builds
-## package its resolved files instead of depending on a staging directory layout.
+#==============================================================================================
+#
+#   modules - Resolving public package modules
+#
+#   DESCRIPTION:
+#       Manifests declare the source root and public exports; both compilers use this resolver,
+#       and builds package its resolved files instead of depending on a staging directory
+#       layout.
+#
+#==============================================================================================
+
 import c
 import files
 import memory
@@ -8,11 +16,18 @@ import paths
 import strings
 import support.list
 import support.manifest
+# mark: Resolutions and packages ==============================================================
+
+## A manifest or dependency layout is malformed.
 pub let invalid: ErrorCode = ErrorCode.package(28)
 
+## A resolved module: its name, its source file, and its package root.
 pub struct Resolution:
+    ## The module's name.
     pub let name: str
+    ## The path to its source file.
     pub let path: str
+    ## The package's source root.
     pub let root: str
 
 struct Mapping:
@@ -144,6 +159,8 @@ func exported(package: Package, name: str, base_only: bool) -> Resolution?!:
             let path = try source_file(root, item.value, base_only) else error(invalid, "an exported module does not exist")
             return Resolution(item.value, path, root)
     return none
+
+# mark: Resolving imports =====================================================================
 
 ## A package export, from the owning package or an explicitly declared dependency.
 ## Competing exports are errors, including a dependency colliding with a local file.

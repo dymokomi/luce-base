@@ -1,8 +1,18 @@
-## x86-64 calling-convention policy. Classification and argument placement are
-## independent of instruction emission, sections, relocations and unwind records.
+#==============================================================================================
+#
+#   abi - x86-64 calling-convention policy
+#
+#   DESCRIPTION:
+#       Classification and argument placement, independent of instruction emission, sections,
+#       relocations and unwind records.
+#
+#==============================================================================================
+
 import back.ir.ir
 import back.target
 import memory
+
+# mark: The convention ========================================================================
 
 ## One argument's placement for a call: in registers, one per eightbyte, or on the stack.
 pub struct Placement:
@@ -10,15 +20,22 @@ pub struct Placement:
     pub var where: u8
     ## bit k set when eightbyte k takes an SSE register
     pub var sse: u8
+    ## The first integer register, 0-based, this argument's eightbytes take.
     pub var first_int: u32
+    ## The first SSE register this argument's eightbytes take.
     pub var first_float: u32
+    ## The number of eightbytes.
     pub var words: u32
+    ## The offset in the stack argument area when `where` is stack.
     pub var stack_offset: u32
 
+## The calling convention of a target: System V, or Microsoft x64 when `windows`.
 pub struct Convention:
+    ## Whether this is the Microsoft x64 convention.
     pub let windows: bool
     let program_unit: ir.Unit*
 
+    ## The convention for `os`, reading aggregate shapes from `program_unit`.
     pub func init(program_unit: ir.Unit*, os: target.Os):
         self.windows = os == target.Os.windows
         self.program_unit = program_unit
@@ -34,6 +51,7 @@ pub struct Convention:
             return false
         return has_unaligned_leaf(self.program_unit.leaves_of(shape))
 
+    ## A bitmask of which of an aggregate's eightbytes take an SSE register (System V).
     pub func sse_of(cls: ir.Class, size: u32, shape: u32) -> u8:
         if size == 0:
             return 1 if ir.is_float_class(cls) else 0
@@ -80,6 +98,8 @@ pub struct Convention:
         let p = Placement(where = 2, sse = 0, first_int = 0, first_float = 0, words = words, stack_offset = (u32)start)
         *stack = (u32)(start + round_up((u64)a.size, 8))
         return p
+
+# mark: Helpers ===============================================================================
 
 ## A leaf not aligned to its own size: a packed record's field, which makes the whole
 ## aggregate MEMORY class (System V §3.2.3).

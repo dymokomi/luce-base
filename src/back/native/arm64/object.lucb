@@ -1,12 +1,21 @@
-## Mach-O and ELF for arm64: sections, symbols, relocations, thread-locals, and the
-## calling-convention choices that differ between Apple's arm64 and AAPCS64. The
-## generator asks for storage and addresses without spelling object-format rules, so
-## arm64-macos and arm64-linux share every instruction it emits.
+#==============================================================================================
+#
+#   object - Mach-O and ELF sections, symbols and relocations for arm64
+#
+#   DESCRIPTION:
+#       Also the calling-convention choices that differ between Apple's arm64 and AAPCS64. The
+#       generator asks for storage and addresses without spelling object-format rules, so
+#       arm64-macos and arm64-linux share every instruction it emits.
+#
+#==============================================================================================
+
 import back.ir.ir
 import back.target as build_target
 import support.buffer
 
+## Emits Mach-O or ELF sections, symbols, relocations and thread-locals for arm64.
 pub struct Format:
+    ## The target operating system, which selects Mach-O or ELF.
     pub let os: build_target.Os
     let symbol_prefix: str
     ## Apple passes variadic arguments on the stack and packs stack arguments by their
@@ -17,6 +26,7 @@ pub struct Format:
     ## What begins a text literal's label.
     pub let text_label: str
 
+    ## A formatter for `os`, with `symbol_prefix` on every symbol; picks Apple or AAPCS64 forms.
     pub func init(os: build_target.Os, symbol_prefix: str):
         self.os = os
         self.symbol_prefix = symbol_prefix
@@ -27,6 +37,8 @@ pub struct Format:
     func symbol(out: buffer.Buffer*, name: str) -> !:
         try out.put(self.symbol_prefix)
         try out.put(name)
+
+    # mark: Addresses =========================================================================
 
     ## `adrp` and `add` to the address of a symbol or a local label in `reg`.
     pub func page_address(out: buffer.Buffer*, reg: str, name: str, is_symbol: bool) -> !:
@@ -113,6 +125,9 @@ pub struct Format:
             try self.symbol(out, name)
             try out.put("\n")
 
+    # mark: Sections and symbols ==============================================================
+
+    ## Switch to the text section.
     pub func text_section(out: buffer.Buffer*) -> !:
         try out.put("    .section __TEXT,__text,regular,pure_instructions\n" if self.apple else "    .text\n")
 
@@ -122,6 +137,7 @@ pub struct Format:
             try out.put("\n")
             try self.text_section(out)
 
+    ## Open a function's section, align it, and emit its label.
     pub func function_start(out: buffer.Buffer*, function: ir.Function*) -> !:
         if function.section.length > 0:
             try out.put("\n    .section ")
@@ -178,6 +194,8 @@ pub struct Format:
     ## Where witness tables go: read-only data with relocations.
     pub func relocated_read_only(out: buffer.Buffer*) -> !:
         try out.put("\n    .section __DATA,__const\n    .p2align 3\n" if self.apple else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
+
+    # mark: Globals ===========================================================================
 
     ## Every global of the unit that the unit defines: thread-locals, named sections,
     ## weak and ordinary zero-filled storage.

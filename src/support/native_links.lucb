@@ -1,15 +1,27 @@
-## Select backend-owned requirements from the actual object's unresolved symbols: the
-## standard code a program reaches is in that object, so dead standard code adds no
-## frameworks to any program.
+#==============================================================================================
+#
+#   native_links - Backend link requirements from an object's symbols
+#
+#   DESCRIPTION:
+#       Select backend-owned requirements from the actual object's unresolved symbols: the
+#       standard code a program reaches is in that object, so dead standard code adds no
+#       frameworks to any program.
+#
+#==============================================================================================
+
 import c
 import support.host_tools
 import support.list
 import support.native_link_table
 import back.target
+## The tool could not read the object's symbols.
 pub let failed: ErrorCode = ErrorCode.package(113)
 
+## The native libraries and frameworks a program must link.
 pub struct Requirements:
+    ## The libraries to link (`-l`).
     pub let libraries: c.str[]
+    ## The macOS frameworks to link.
     pub let frameworks: c.str[]
 
 ## One line of `nm`: a symbol a member of the archive defines or needs.
@@ -18,6 +30,7 @@ struct Entry:
     var symbol: str
     var undefined: bool
 
+## The libraries and frameworks `object`'s undefined symbols require on `platform`.
 pub func collect(object: c.str, platform: target.Target, directory: str) -> Requirements!:
     var libraries = try list.List[c.str].create(4)
     var frameworks = try list.List[c.str].create(4)

@@ -1,6 +1,16 @@
-## Compiler command storage. Chunk ownership lives here; allocation mechanics
-## are supplied by the standard memory.Allocator interface on every host.
+#==============================================================================================
+#
+#   arena - Compiler command storage
+#
+#   DESCRIPTION:
+#       Chunk ownership lives here; allocation mechanics are the standard memory.Allocator
+#       interface, on every host.
+#
+#==============================================================================================
+
 import memory
+
+# mark: The arena =============================================================================
 
 ## An arena that acquires additional chunks without moving earlier allocations.
 ## The parent is retained by value; it must outlive this owner. Borrow the arena
@@ -12,6 +22,7 @@ pub struct Arena: memory.Allocator:
     var active: ArenaChunk*?
     var chunk_size: usize
 
+    ## An arena over `parent`, taking chunks of `chunk_size` bytes.
     pub func init(parent: memory.Allocator, chunk_size: usize = 65536):
         self.parent = parent
         self.first = none
@@ -19,6 +30,7 @@ pub struct Arena: memory.Allocator:
         self.active = none
         self.chunk_size = chunk_size if chunk_size > 0 else 65536
 
+    ## A block of `size` bytes at `alignment`, from the active chunk or a fresh one.
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)(usize)8, 0)
@@ -64,12 +76,14 @@ pub struct Arena: memory.Allocator:
         chunk.used = start + size
         return true
 
+    ## Reclaim `block` when it is the last allocation in the active chunk; else keep it.
     pub mutating func release(block: u8[]):
         let chunk = self.active else return
         let start = (usize)block.data -? (usize)chunk.bytes.data else return
         if start <= chunk.used and block.length == chunk.used - start:
             chunk.used = start
 
+    ## Reuse every chunk for fresh allocations, releasing none.
     pub mutating func reset():
         var cursor = self.first
         while let chunk = cursor:
@@ -77,6 +91,7 @@ pub struct Arena: memory.Allocator:
             cursor = chunk.next
         self.active = self.first
 
+    ## Release every chunk back to the parent.
     pub mutating func destroy():
         var cursor = self.first
         self.first = none
@@ -107,6 +122,8 @@ func aligned_offset(storage: u8[], used: usize, alignment: usize) -> usize?:
     if padding > storage.length - used:
         return none
     return used + padding
+
+# mark: A limited allocator for the tests =====================================================
 
 struct Budget: memory.Allocator:
     var remaining: usize = 2

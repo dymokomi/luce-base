@@ -1,4 +1,13 @@
-## Evaluation-order facts shared by both backends.
+#==============================================================================================
+#
+#   effects - Evaluation-order facts shared by both backends
+#
+#   DESCRIPTION:
+#       Whether one operand of an expression may have an effect another operand could
+#       observe, so the emitters know when the order of evaluation matters (§7.1).
+#
+#==============================================================================================
+
 import front.ast
 
 ## Whether evaluating `e` may have an effect another operand could observe (§7.1): a call,

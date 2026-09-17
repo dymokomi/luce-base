@@ -1,6 +1,14 @@
-## Host tools run inside an owned workspace with private child state. Generated
-## filenames remain relative ASCII names even when the output directory is Unicode.
-## Storage belongs to the compiler command arena; close releases filesystem state.
+#==============================================================================================
+#
+#   host_tools - Running host tools inside an owned workspace
+#
+#   DESCRIPTION:
+#       Host tools run with private child state. Generated filenames stay relative ASCII names
+#       even when the output directory is Unicode. Storage belongs to the compiler command
+#       arena; close releases filesystem state.
+#
+#==============================================================================================
+
 import c
 import files
 import paths
@@ -8,24 +16,30 @@ import platform
 import process
 import strings
 
+## A temporary directory a host tool runs in, removed when closed.
 pub struct Workspace:
     let directory: str
 
+    ## Create the workspace beside `output`'s directory.
     pub func init(output: str) -> !:
         let parent = try strings.copy(paths.directory(output))
         let absolute = try files.canonical((c.str)parent)
         self.directory = try files.create_temporary_directory((c.str)absolute, 448u32)
 
+    ## The workspace directory.
     pub func path() -> str:
         return self.directory
 
+    ## Move a produced file out of the workspace to `destination`.
     pub func publish(source: str, destination: str) -> !:
         let target = try strings.copy(destination)
         try files.rename((c.str)source, (c.str)target, true)
 
+    ## Remove the workspace and everything in it.
     pub func close() -> !:
         try files.remove_tree((c.str)self.directory)
 
+    ## Remove the workspace, ignoring failure.
     pub func destroy():
         self.close() catch failure:
             discard(failure)
@@ -54,6 +68,8 @@ pub func run_compiler(program: c.str, arguments: const c.str[], directory: str) 
         return try run(program, selected, directory)
     return try run(program, arguments, directory)
 
+## Run `program` with `directory` as its working directory, rebasing filesystem operands
+## and confining its temporaries there; the status, standard output and standard error.
 pub func run(program: c.str, arguments: const c.str[], directory: str = "") -> (i32, str, str)!:
     if directory.length == 0:
         return try process.run(program, arguments)

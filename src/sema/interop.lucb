@@ -1,16 +1,31 @@
-## Checked ownership declarations for the public package description. Recognition
-## uses the standard module's declaration identity, never a user type's short name.
+#==============================================================================================
+#
+#   interop - Checked ownership declarations for the package description
+#
+#   DESCRIPTION:
+#       Recognition uses the standard module's declaration identity, never a user type's
+#       short name.
+#
+#==============================================================================================
+
 import front.ast
 import sema.check
 import sema.types
 
+## The checked ownership facts of a native interop type, read from its interop.Type constant.
 pub struct Declaration:
+    ## The interop.Type / interop.ViewType constant that declares the ownership.
     pub let descriptor: ast.Node*
+    ## The disposal method or function, or none for a view.
     pub let dispose: ast.Node*?
+    ## Whether the owner exposes a public disposal method (closeable = true).
     pub let closeable: bool
+    ## Whether this is a borrowing view (interop.ViewType) rather than an owner.
     pub let view: bool
+    ## Whether a view permits public mutation.
     pub let mutable: bool
 
+## Whether type `id` is the standard `interop` module's declaration named `name`.
 pub func standard(checker: check.Checker*, id: u32, name: str) -> bool:
     let native = checker.table.get(id)
     let declaration = native.decl else return false

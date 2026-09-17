@@ -1,9 +1,19 @@
-## Facts about immutable SSA values, scoped by dominance. A successful bounds
-## check supplies a fact just like a branch does. Unknown ranges retain checks;
-## this pass never derives facts about a memory location from an earlier load.
+#==============================================================================================
+#
+#   ranges - Range facts about SSA values
+#
+#   DESCRIPTION:
+#       Facts about immutable SSA values, scoped by dominance. A successful bounds check
+#       supplies a fact just like a branch does. Unknown ranges retain checks; this pass
+#       never derives a fact about a memory location from an earlier load.
+#
+#==============================================================================================
+
 import back.ir.cfg
 import back.ir.ir
 import support.list
+
+# mark: Facts and the search ==================================================================
 
 enum Relation as u8:
     less = 1
@@ -218,6 +228,8 @@ struct Search:
             try self.visit(child)
         self.facts.count = mark
         self.products.count = product_mark
+
+# mark: The pass ==============================================================================
 
 ## Run after value numbering/load forwarding, while temporaries still have one
 ## definition. The caller rebuilds its graph when instructions were removed.
