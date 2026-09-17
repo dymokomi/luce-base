@@ -56,6 +56,9 @@ pub struct Frame:
     ## Bit c-1 is set when register code c is used; `save_offset[c]` is where it is spilled.
     pub var used_mask: u64
     pub var save_offset: u64[64]
+    ## Codes the generator keeps for itself on this target, never handed to a temporary:
+    ## bit `c - 1` for code `c`.
+    pub var reserved: u64
     ## The frame's size, rounded to 16, and the home of the hidden result pointer when the
     ## function returns through memory.
     pub var size: u64
@@ -64,7 +67,7 @@ pub struct Frame:
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
                       temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256),
-                      used_mask = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
+                      used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
     ## Whether register `code` is a float (or vector) one, and whether a call preserves it.
@@ -321,7 +324,7 @@ pub struct Frame:
         while i < n:
             try self.temp_regs.push(0)
             i += 1
-        var taken: u64 = 0
+        var taken: u64 = self.reserved
         var ps: usize = 0
         while ps < self.slot_regs.count:
             let code = self.slot_regs.get(ps)

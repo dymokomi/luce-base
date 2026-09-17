@@ -60,7 +60,7 @@ pub struct Generator:
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = Format(os, symbol_prefix), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
-                         fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 0, scratch_floats = 4)), descriptors = try buffer.Buffer.create(4096))
+                         fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -397,6 +397,9 @@ pub struct Generator:
         if let dw = self.dw:
             try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
+        # Windows keeps the argument-register codes 6–9 out of the pools (rsi and rdi are
+        # nonvolatile there, and its arguments are staged through the shadow area)
+        self.fr.reserved = 480 if self.convention.windows else 0
         try self.fr.plan(self.f)
         try self.fr.layout(self.f, 176 if self.convention.windows else 0, self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape))
         try self.object_format.function_start(&self.out, self.f)
@@ -1763,6 +1766,105 @@ pub struct Generator:
             try self.frame_address("%r10", self.slot_home(info.result_slot))
             try self.store_bytes("%rax", "%r10", 0, (u64)info.result_size)
 
+    ## The integer register arguments as one parallel move: an argument may live in an
+    ## argument register another argument takes, so a move waits while its destination is
+    ## still read by a pending one, a cycle breaks through r11 (free until the callee is
+    ## loaded), and the arguments read from the frame or made from constants come last.
+    mutating func integer_arguments(info: ir.CallInfo, placements: Placement[]) -> !:
+        let count = (usize)info.args_count
+        var pending = try alloc bool[count + 1]
+        var reads = try alloc str[count + 1]
+        var i: usize = 0
+        while i < count:
+            let a = self.f.args.get((usize)info.args_start + i)
+            let p = placements[i]
+            pending[i] = p.where == 0 and (p.sse == 0 or a.size > 0)
+            reads[i] = ""
+            if pending[i] and a.value.kind == ir.RefKind.temp:
+                let code = self.fr.temp_regs.get((usize)a.value.index - 1)
+                if code != 0 and not self.fr.float_code(code):
+                    reads[i] = class_name(code, ir.Class.l)
+            i += 1
+        var left = true
+        while left:
+            left = false
+            var moved = false
+            i = 0
+            while i < count:
+                if pending[i] and reads[i].length > 0:
+                    left = true
+                    if not self.destination_read(placements[i], self.f.args.get((usize)info.args_start + i), pending, reads, i, count):
+                        try self.integer_argument(i, info, placements[i], reads[i])
+                        pending[i] = false
+                        moved = true
+                i += 1
+            if left and not moved:
+                i = 0
+                while i < count:
+                    if pending[i] and reads[i].length > 0 and argument_index(reads[i]) >= 0:
+                        try self.line3("movq ", reads[i], ", %r11")
+                        reads[i] = "%r11"
+                        break
+                    i += 1
+        i = 0
+        while i < count:
+            if pending[i]:
+                try self.integer_argument(i, info, placements[i], "")
+            i += 1
+
+    ## How many integer registers argument `i` writes: one, or an aggregate's integer eightbytes.
+    func integer_words(p: Placement, a: ir.Arg) -> u32:
+        if a.size == 0:
+            return 1
+        var words: u32 = 0
+        var k: u32 = 0
+        while k < p.words:
+            if (p.sse & (u8)(1 << k)) == 0:
+                words += 1
+            k += 1
+        return words
+
+    ## Whether a pending argument other than `i` reads a register argument `i` writes.
+    func destination_read(p: Placement, a: ir.Arg, pending: bool[], reads: str[], i: usize, count: usize) -> bool:
+        let words = self.integer_words(p, a)
+        var k: usize = 0
+        while k < count:
+            if k != i and pending[k] and reads[k].length > 0:
+                let read = argument_index(reads[k])
+                if read >= (i32)p.first_int and read < (i32)p.first_int + (i32)words:
+                    return true
+            k += 1
+        return false
+
+    ## One integer register argument: from `read` when it lives in a register, else loaded;
+    ## an aggregate's eightbytes come from its address, the one into the address's own
+    ## register last.
+    mutating func integer_argument(i: usize, info: ir.CallInfo, p: Placement, read: str) -> !:
+        let a = self.f.args.get((usize)info.args_start + i)
+        if a.size == 0:
+            if read.length > 0:
+                if read != argument_names[(usize)p.first_int]:
+                    try self.line3("movq ", read, ", ")
+                    try self.put(argument_names[(usize)p.first_int])
+                return
+            try self.operand(argument_names[(usize)p.first_int] if a.cls == ir.Class.l else narrow_name(argument_names[(usize)p.first_int]), a.cls, a.value)
+            return
+        var at = read
+        if at.length == 0:
+            at = try self.source(a.value, ir.Class.l, "%r10")
+        var pass: u32 = 0
+        while pass < 2:
+            var k: u32 = 0
+            var g = p.first_int
+            while k < p.words:
+                if (p.sse & (u8)(1 << k)) == 0:
+                    let into = argument_names[(usize)g]
+                    if (into == at) == (pass == 1):
+                        try self.load_eightbyte(into, at, k, a.size, false)
+                    g += 1
+                k += 1
+            pass += 1
+
     mutating func call(n: ir.Instr) -> !:
         if self.convention.windows:
             try self.call_windows(n)
@@ -1823,23 +1925,7 @@ pub struct Generator:
                             f += 1
                         k += 1
             i += 1
-        i = 0
-        while i < info.args_count:
-            let a = self.f.args.get((usize)(info.args_start + i))
-            let p = placements[i]
-            if p.where == 0 and (p.sse == 0 or a.size > 0):
-                if a.size == 0:
-                    try self.operand(argument_names[(usize)p.first_int] if a.cls == ir.Class.l else narrow_name(argument_names[(usize)p.first_int]), a.cls, a.value)
-                else:
-                    let at = try self.source(a.value, ir.Class.l, "%r10")
-                    var k: u32 = 0
-                    var g = p.first_int
-                    while k < p.words:
-                        if (p.sse & (u8)(1 << k)) == 0:
-                            try self.load_eightbyte(argument_names[(usize)g], at, k, a.size, false)
-                            g += 1
-                        k += 1
-            i += 1
+        try self.integer_arguments(info, placements)
         if hidden:
             try self.frame_address("%rdi", self.slot_home(info.result_slot))
         if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
@@ -2027,12 +2113,15 @@ pub struct Generator:
 let windows_arguments: str[4] = ["%rcx", "%rdx", "%r8", "%r9"]
 
 ## The callee-saved registers the allocator hands out, codes 1..5, in their four widths.
-## Register codes: 1–5 the callee-saved rbx and r12–r15; 6–9 the caller-saved xmm12–xmm15,
+## Register codes: 1–5 the callee-saved rbx and r12–r15; 6–9 the caller-saved argument
+## registers r8, r9, rsi and rdi, for integers that cross no call, which a call's parallel
+## move fills last (reserved on Windows, where rsi and rdi are nonvolatile and the
+## arguments are staged through the shadow area); 10–13 the caller-saved xmm12–xmm15,
 ## which nothing else here touches, for floats and vectors that cross no call.
-let q_names: str[10] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
-let l_names: str[10] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
-let w_names: str[10] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
-let b_names: str[10] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let q_names: str[14] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r8", "%r9", "%rsi", "%rdi", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let l_names: str[14] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%r8d", "%r9d", "%esi", "%edi", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let w_names: str[14] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%r8w", "%r9w", "%si", "%di", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let b_names: str[14] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%r8b", "%r9b", "%sil", "%dil", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
 
 ## Every integer register this generator names, in its four widths, for the views.
 let all_q: str[14] = ["%rax", "%rcx", "%rdx", "%rbx", "%rsi", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"]
@@ -2388,3 +2477,12 @@ let half_routines_text: str = """
     movl %edx, %eax
     ret
 """
+
+## The argument register `%rdi`..`%r9` a name is, as its index, or -1.
+func argument_index(name: str) -> i32:
+    var k: i32 = 0
+    while k < 6:
+        if argument_names[(usize)k] == name:
+            return k
+        k += 1
+    return -1

@@ -26,9 +26,10 @@ that work. Native compilation remains the primary execution and hardening target
    the register-to-register moves in the compiler's own assembly; what is left of them
    is argument setup. On arm64 the argument registers x0–x7 are in the caller-saved pool
    and a call's integer arguments are placed by one parallel move (`integer_arguments`).
-   What remains: the same on x86-64 (rdi, rsi, r8, r9; rcx and rdx stay scratch for the
-   shifts and the divides), and a generator that chooses its scratch around the
-   operands' registers, so x9–x11 and r10, r11 could join too. Gate: the
+   On x86-64 r8, r9, rsi and rdi are in the SysV pool the same way (rcx and rdx stay
+   scratch for the shifts and the divides; Windows reserves them, its arguments being
+   staged through the shadow area). What remains: a generator that chooses its scratch
+   around the operands' registers, so x9–x11 and r10, r11 could join too. Gate: the
    `tests/optimization` limits lowered again, the native fixpoint kept, the compiler's
    own assembly in `docs/STATUS.md` smaller again.
 2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines and
