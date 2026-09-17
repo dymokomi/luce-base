@@ -80,11 +80,6 @@ func promotable_slots(f: ir.Function*, slot_of: u32[]) -> bool[]!:
     while k < ok.length:
         ok[k] = true
         k += 1
-    # `--release --debug`: a named local's stores stay, since the debugger reads its slot
-    if f.symbols:
-        for described in f.locals.span():
-            if (usize)described.slot < ok.length:
-                ok[(usize)described.slot] = false
     var i: usize = 0
     while i < f.instrs.count:
         let x = f.instrs.get(i)
@@ -393,8 +388,9 @@ func sweep(f: ir.Function*) -> bool!:
     var i: usize = 0
     while i < f.instrs.count:
         let x = f.instrs.get(i)
-        mark(used, x.a)
-        mark(used, x.b)
+        if x.op != ir.Op.dbg:
+            mark(used, x.a)
+            mark(used, x.b)
         i += 1
     i = 0
     while i < f.args.count:

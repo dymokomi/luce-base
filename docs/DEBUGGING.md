@@ -10,16 +10,18 @@ The native optimizer continues to optimize standard-library functions; user
 functions under `--debug` keep their development layout.
 
 `--release --debug` is the optimised program with DWARF and without the in-program
-debugger: every pass runs on the program's own functions, except that a named local
-stays in its frame slot (or the callee-saved register the frame planner promotes it
-to, which the DWARF names). Each instruction carries the line, the lexical scope and,
-after inlining, the inlined subroutine it came from through the passes, so source
-breakpoints and backtraces are exact, a local is visible only within its scope, and a
-breakpoint in a function the optimiser inlined stops in an inlined frame with the
-function's own locals, the caller beneath it. A named local reads correctly at every
-statement boundary, and a local the optimiser removed entirely says so rather than
-showing a stale value. What this build does not have: locations for values that live
-only in temporaries (hence the pinning).
+debugger: every pass runs on the program's own functions as in a release build. Each
+instruction carries the line, the lexical scope and, after inlining, the inlined
+subroutine it came from through the passes, so source breakpoints and backtraces are
+exact, a local is visible only within its scope, and a breakpoint in a function the
+optimiser inlined stops in an inlined frame with the function's own locals, the caller
+beneath it. A named local the optimiser lifts out of its frame slot is described by a
+location list: at each assignment the optimiser records which temporary (or constant)
+now holds it, and the list names that temporary's register or frame home from there
+until the next assignment or the end of the temporary's life. So a local reads
+correctly at every statement boundary while its value is still needed; past its last
+use, or when the optimiser removed it entirely, the debugger says so rather than
+showing a stale value, as it does for C.
 
 On macOS, the compiler runs `dsymutil` before deleting its temporary object files.
 Keep `program` and `program.dSYM` together. On Linux, it runs `objcopy` to create

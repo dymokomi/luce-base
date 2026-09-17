@@ -136,7 +136,7 @@ transcript = debug("optimised", optimised, moved / "main.lucb", [
     ("BREAK_INSPECT", {"value": 3, "point.x": 3, "point.y": 4, "optional.value": 17, "pair._0": 5, "pair._1": 6, "packed.second": 123, "shape.tag": 2, "shape.payload.rect.width": 8}, ("inner",)),
     ("BREAK_INNER", {"inner": 77, "result": 7}, ()),
     ("BREAK_AFTER", {"result": 84}, ("inner",)),
-    ("BREAK_METHOD", {"self->x": 3, "self->y": 4}, ())])
+    ("BREAK_METHOD", {"self->x": 3, "self->y": 4, "total": 7}, ())])
 # the method is inlined into `inspect`: the breakpoint in it stops in an inlined frame
 if not re.search(r"x_value.*main\.lucb", transcript) or not re.search(r"inspect.*main\.lucb", transcript):
     raise SystemExit("FAIL DWARF: the optimised build must show the inlined method and its caller")

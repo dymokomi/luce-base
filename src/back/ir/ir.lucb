@@ -262,6 +262,11 @@ pub enum Op as u8:
     vshl = 158
     vshr = 159
     vsplat = 160
+    ## `--release --debug`: from here, named local `extra` (an index into `locals`) holds
+    ## `a`, a temporary or a constant, until the next `dbg` of it or the end of the
+    ## temporary's life; no code, no use of `a` (`ssa.promote` places them, the DWARF
+    ## emitter reads them)
+    dbg = 161
     ## The frame pointer of the running function, for the debugger.
     frame = 200
     ## Inline assembly operands: `set_reg a -> named register b` before an `asm` block,

@@ -441,8 +441,11 @@ pub struct Generator:
         while i < self.f.instrs.count:
             self.at = i
             if let dw = self.dw:
-                try dw.mark(&self.out, self.f, index, i)
+                try dw.mark(&self.out, self.f, &self.fr, index, i)
             if selection.branch(self.f, i, uses):
+                if let dw = self.dw:
+                    # the fused branch's own line and labels, ahead of the pair
+                    try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
                 let branch = self.f.instrs.get(i + 1)
                 var comparison = self.f.instrs.get(i)
                 let next = selection.label_at(self.f, i + 2)
@@ -454,7 +457,7 @@ pub struct Generator:
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             i += 1
         if let dw = self.dw:
-            try dw.mark(&self.out, self.f, index, i)
+            try dw.mark(&self.out, self.f, &self.fr, index, i)
             if self.f.debug or self.f.symbols:
                 try self.put("\nLdw_end_")
                 try self.put_u64((u64)index)
@@ -726,6 +729,8 @@ pub struct Generator:
 
     mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
         match n.op:
+            .dbg:
+                discard(0)
             .label:
                 try self.put("\n")
                 try self.label_name(n.extra)

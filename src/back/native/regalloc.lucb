@@ -75,6 +75,10 @@ pub struct Lives:
     var ranges: list.List[Range]
     var uses: list.List[Use]
 
+    ## The doubled position temporary `t`'s life ends at, 0 when it has none.
+    pub func life_end(t: u32) -> u32:
+        return self.end[(usize)t] if self.start[(usize)t] != no_position else 0
+
     ## The lives of `f`'s temporaries over its graph `g`. Every allocation is the current
     ## allocator's; `release` gives them back.
     pub static func over(f: ir.Function*, g: cfg.Graph*) -> Lives!:
@@ -120,6 +124,9 @@ pub struct Lives:
                 let x = f.instrs.get((usize)i)
                 if x.dst != 0 and (usize)x.dst <= n:
                     try l.define_at(x.dst, 2 * i + 1)
+                if x.op == ir.Op.dbg:
+                    # what a debugger reads is no use: the value's life is its own
+                    continue
                 try l.use_at(x.a, 2 * block.start, 2 * i)
                 try l.use_at(x.b, 2 * block.start, 2 * i)
                 let (args_start, args_count) = ir.argument_range(f, x)

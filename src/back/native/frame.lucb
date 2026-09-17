@@ -53,6 +53,9 @@ pub struct Frame:
     ## whose address it holds, or 0.
     pub var slot_regs: list.List[u8]
     pub var temp_slot: list.List[u32]
+    ## Where each temporary's life ends (`regalloc.Lives.end`, a doubled position), for the
+    ## DWARF emitter's location lists; 0 for a temporary with no life.
+    pub var temp_ends: list.List[u32]
     ## Bit c-1 is set when register code c is used; `save_offset[c]` is where it is spilled.
     pub var used_mask: u64
     pub var save_offset: u64[64]
@@ -66,7 +69,7 @@ pub struct Frame:
 
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
-                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256),
+                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), temp_ends = try list.List[u32].create(256),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
@@ -79,6 +82,10 @@ pub struct Frame:
 
     pub func temp_home(t: u32) -> u64:
         return self.temp_homes.get((usize)t - 1)
+
+    ## The doubled position temporary `t`'s life ends at, 0 when it has none.
+    pub func temp_end(t: u32) -> u32:
+        return self.temp_ends.get((usize)t - 1) if (usize)t <= self.temp_ends.count else 0
 
     pub func slot_home(s: u32) -> u64:
         return self.slot_homes.get((usize)s)
@@ -143,8 +150,9 @@ pub struct Frame:
         for parameter in f.params.span():
             live_slots[parameter.slot] = true
         for x in f.instrs.span():
-            mark_home(x.a, live_slots, live_temps)
-            mark_home(x.b, live_slots, live_temps)
+            if x.op != ir.Op.dbg:
+                mark_home(x.a, live_slots, live_temps)
+                mark_home(x.b, live_slots, live_temps)
             if x.dst != 0:
                 live_temps[x.dst] = true
             if x.op == ir.Op.call:
@@ -319,10 +327,12 @@ pub struct Frame:
     ## slot's register is held for the whole function.
     mutating func allocate(f: ir.Function*, lives: regalloc.Lives*) -> !:
         self.temp_regs.count = 0
+        self.temp_ends.count = 0
         let n = f.temps.count
         var i: usize = 0
         while i < n:
             try self.temp_regs.push(0)
+            try self.temp_ends.push(lives.life_end(u32(i + 1)))
             i += 1
         var taken: u64 = self.reserved
         var ps: usize = 0

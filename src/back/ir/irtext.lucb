@@ -297,4 +297,5 @@ func op_name(op: ir.Op) -> str:
         .vshl: return "vshl"
         .vshr: return "vshr"
         .vsplat: return "vsplat"
+        .dbg: return "dbg"
         _: return "?"

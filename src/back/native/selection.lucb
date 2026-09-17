@@ -7,6 +7,8 @@ pub func uses(f: ir.Function*) -> u32[]!:
     for i in 0..<counts.length:
         counts[i] = 0
     for x in f.instrs.span():
+        if x.op == ir.Op.dbg:
+            continue
         mark(counts, x.a)
         mark(counts, x.b)
         let (start, count) = ir.argument_range(f, x)

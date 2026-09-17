@@ -442,7 +442,16 @@ sites join the caller's under a site (`Function.sites`), and the callee is descr
 once more as an abstract subprogram the site refers to; a callee without symbols
 brings no lines, so its instructions belong to the statement of the call. A payload
 enum is described as its tag, an enumeration of the case names, and a union of one
-record per case at the payload's offset.
+record per case at the payload's offset. A named local's slot is promoted like any
+other: `ssa.promote` follows each store to it, each parameter's entry load and each
+phi of it with a `dbg` instruction naming the local and the temporary (or, after
+propagation, the constant) that holds it. A `dbg` is no use of its operand, so no pass,
+the liveness, the allocator or the frame keeps a value alive for it, and a value that
+goes leaves the `dbg` naming a temporary without a life. The generators emit a label at
+each `dbg` and where the lives of the temporaries named end (`Ldw_v`), and the emitter
+writes each such local's `DW_AT_location` as a `.debug_loc` list: from a `dbg` to the
+next of that local or the end of the temporary's life, the temporary's register or frame
+home, a slot's address as a stack value, or a constant.
 
 ## The native backend's code quality
 

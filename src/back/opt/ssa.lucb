@@ -154,11 +154,6 @@ pub func promote(f: ir.Function*) -> bool!:
         else:
             kind[(usize)param.slot] = no
         p += 1
-    # `--release --debug`: a named local stays in its slot, where the debugger reads it
-    if f.symbols:
-        for described in f.locals.span():
-            if (usize)described.slot < kind.length:
-                kind[(usize)described.slot] = no
     # which temporaries hold a slot's address
     var addr_of = try alloc u32[f.temps.count + 1]
     defer free(addr_of)
@@ -245,6 +240,7 @@ pub func promote(f: ir.Function*) -> bool!:
         if param.size == 0 and temp_of[(usize)param.slot] != 0:
             let op = ir.load_op((u64)f.slots.get((usize)param.slot).size, false, ir.is_float_class(param.cls))
             try out.push(ir.Instr(op = op, cls = param.cls, dst = temp_of[(usize)param.slot], a = ir.slot_ref(param.slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+            try describe(f, param.slot, temp_of[(usize)param.slot], &out)
         p += 1
     i = 0
     while i < f.instrs.count:
@@ -255,8 +251,11 @@ pub func promote(f: ir.Function*) -> bool!:
         let sa = slot_of(addr_of, x.a)
         let sb = slot_of(addr_of, x.b)
         if sb != none_index and temp_of[(usize)sb] != 0:
-            # a store: the value into the temporary
+            # a store: the value into the temporary, and where a named local now lives
             x = ir.Instr(op = ir.Op.copy, cls = cls[(usize)sb], dst = temp_of[(usize)sb], a = x.a, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
+            try out.push(x)
+            try describe(f, sb, temp_of[(usize)sb], &out)
+            continue
         elif sa != none_index and temp_of[(usize)sa] != 0:
             # a load: the temporary, extended as the load would have
             x = ir.Instr(op = load_as(x.op, x.cls), cls = x.cls, dst = x.dst, a = ir.temp_ref(temp_of[(usize)sa]), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
@@ -264,6 +263,17 @@ pub func promote(f: ir.Function*) -> bool!:
     f.instrs.destroy()
     f.instrs = out
     return true
+
+## `--release --debug`: a `dbg` for each named local slot `s` describes, saying it now
+## holds temporary `t` (several locals may share a slot: an inlined callee's expansions do).
+func describe(f: ir.Function*, s: u32, t: u32, out: list.List[ir.Instr]*) -> !:
+    if not f.symbols:
+        return
+    var k: usize = 0
+    while k < f.locals.count:
+        if f.locals.get(k).slot == s:
+            try out.push(ir.Instr(op = ir.Op.dbg, cls = f.temp_class(t), dst = 0, a = ir.temp_ref(t), b = ir.none_ref(), extra = u32(k), extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+        k += 1
 
 ## The slot an operand names: directly, or through the temporary holding its address.
 func slot_of(addr_of: u32[], r: ir.Ref) -> u32:
@@ -380,6 +390,8 @@ pub struct Liveness:
                         continue
                     if x.dst != 0:
                         clear_bit(gen, x.dst)
+                    if x.op == ir.Op.dbg:
+                        continue
                     set_use(gen, x.a)
                     set_use(gen, x.b)
                     let (args_start, args_count) = ir.argument_range(f, x)
@@ -609,6 +621,14 @@ pub func construct(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
                 try out.push(ir.Instr(op = ir.Op.phi, cls = ph.cls, dst = ph.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = u32(block.preds.count), line = 0, file = 0, scope = 0, site = 0))
                 try origin.push(ph.temp)
                 p += 1
+            # `--release --debug`: a named local whose temporary a phi joins lives in the
+            # phi's result from here; after every phi, so the phis stay at the head
+            if f.symbols:
+                p = phi_start[(usize)here]
+                while p < phi_start[(usize)here + 1]:
+                    let ph = phis.get((usize)by_block[(usize)p])
+                    try describe_phi(f, ph.temp, &out, &origin)
+                    p += 1
         i += 1
     f.instrs.destroy()
     f.instrs = out
@@ -663,6 +683,28 @@ func name_of(current: u32[], renamed: bool[], r: ir.Ref) -> ir.Ref:
     if now == 0:
         return ir.const_ref(0)
     return ir.temp_ref(now)
+
+## A `dbg` for each named local that `t` (a temporary about to be renamed) holds at its
+## `dbg`s; `rename` then reads the phi's fresh name into it.
+func describe_phi(f: ir.Function*, t: u32, out: list.List[ir.Instr]*, origin: list.List[u32]*) -> !:
+    var seen: u32[64]
+    var count: usize = 0
+    var i: usize = 0
+    while i < out.count:
+        let x = out.get(i)
+        if x.op == ir.Op.dbg and x.a.kind == ir.RefKind.temp and x.a.index == t:
+            var known = false
+            var k: usize = 0
+            while k < count:
+                if seen[k] == x.extra:
+                    known = true
+                k += 1
+            if not known and count < 64:
+                seen[count] = x.extra
+                count += 1
+                try out.push(ir.Instr(op = ir.Op.dbg, cls = x.cls, dst = 0, a = ir.temp_ref(t), b = ir.none_ref(), extra = x.extra, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+                try origin.push(0)
+        i += 1
 
 func rename(f: ir.Function*, g: cfg.Graph*, b: u32, renamed: bool[], current: u32[], log: list.List[Undo]*, origin: list.List[u32]*) -> !:
     let mark = log.count

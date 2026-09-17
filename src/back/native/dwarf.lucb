@@ -30,6 +30,11 @@ pub struct Emitter:
     var origins: list.List[ir.InlineSite]
     ## The `.debug_ranges` entries of the lexical blocks, ahead of the section.
     var ranges: buffer.Buffer
+    ## The `.debug_loc` lists of the locals in temporaries, ahead of the section.
+    var locs: buffer.Buffer
+    ## Which instructions of the optimised function get a `Ldw_v` label: each `dbg`, and
+    ## where the life of a temporary a `dbg` names ends.
+    var labelled: list.List[u8]
     var files: list.List[str]
     var needed: list.List[u32]
     var info: buffer.Buffer
@@ -40,7 +45,7 @@ pub struct Emitter:
         return Emitter(checker = checker, program = program, os = os, arch = arch, last_line = 0, last_file = 0,
                        last_scope = 0, last_site = 0, changes = try list.List[u32].create(0), change_scopes = try list.List[u32].create(0),
                        change_sites = try list.List[u32].create(0), origins = try list.List[ir.InlineSite].create(0),
-                       ranges = try buffer.Buffer.create(0),
+                       ranges = try buffer.Buffer.create(0), locs = try buffer.Buffer.create(0), labelled = try list.List[u8].create(0),
                        files = try list.List[str].create(0), needed = try list.List[u32].create(0),
                        info = try buffer.Buffer.create(0), cwd = "", serial = 0)
 
@@ -84,7 +89,7 @@ pub struct Emitter:
         if self.files.count > 0:
             try out.put("\n    .loc 1 0 0 is_stmt 0\n")
 
-    pub mutating func mark(out: buffer.Buffer*, f: ir.Function*, index: usize, instruction: usize) -> !:
+    pub mutating func mark(out: buffer.Buffer*, f: ir.Function*, fr: frame.Frame*, index: usize, instruction: usize) -> !:
         var format_room: u8[4096]
         if f.symbols:
             # the optimised function: a line per instruction where the source changes
@@ -98,8 +103,11 @@ pub struct Emitter:
                 self.changes.count = 0
                 self.change_scopes.count = 0
                 self.change_sites.count = 0
+                try self.plan_labels(f, fr)
             if instruction < f.instrs.count:
                 let x = f.instrs.get(instruction)
+                if self.labelled.get(instruction) != 0:
+                    try out.put(try format(format_room, f"\nLdw_v_{index}_{instruction}:"))
                 # a label where the scope or the inlined subroutine changes; an instruction a
                 # pass made (no line, no scope, no site) belongs to where it lies
                 if (x.scope != self.last_scope or x.site != self.last_site) and (x.scope != 0 or x.site != 0 or x.line != 0):
@@ -152,6 +160,113 @@ pub struct Emitter:
         try self.scope(f, fr, index, 0, 0)
         try o.put("    .byte 0\n")
 
+    ## Which instructions get a `Ldw_v` label: each `dbg`, and the instruction where the
+    ## life of the temporary it names ends, when that is later.
+    mutating func plan_labels(f: ir.Function*, fr: frame.Frame*) -> !:
+        self.labelled.count = 0
+        var i: usize = 0
+        while i <= f.instrs.count:
+            try self.labelled.push(0)
+            i += 1
+        i = 0
+        while i < f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.op == ir.Op.dbg:
+                self.labelled.set(i, 1)
+                if x.a.kind == ir.RefKind.temp:
+                    let e = life_end_index(fr, x.a.index)
+                    if e > i and e < f.instrs.count:
+                        self.labelled.set(e, 1)
+            i += 1
+
+    ## The location list of local `k` of the optimised function `index`: an entry from each
+    ## `dbg` of it to the next, or to the end of the life of the temporary it names.
+    ## Whether the local has any.
+    mutating func location_list(f: ir.Function*, fr: frame.Frame*, index: usize, k: usize) -> bool!:
+        var format_room: u8[4096]
+        var any = false
+        var i: usize = 0
+        while i < f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.op == ir.Op.dbg and (usize)x.extra == k:
+                var stop = f.instrs.count
+                var j = i + 1
+                while j < f.instrs.count:
+                    let y = f.instrs.get(j)
+                    if y.op == ir.Op.dbg and (usize)y.extra == k:
+                        stop = j
+                        break
+                    j += 1
+                if try self.location_entry(f, fr, index, x.a, i, stop, any):
+                    any = true
+            i += 1
+        if any:
+            try self.locs.put("    .quad 0, 0\n")
+        return any
+
+    ## One entry: `value` from instruction `at` to `stop`, the register or frame home of a
+    ## temporary while it lives, the address of a slot, or a constant. Whether one was written.
+    mutating func location_entry(f: ir.Function*, fr: frame.Frame*, index: usize, value: ir.Ref, at: usize, stop: usize, started: bool) -> bool!:
+        var format_room: u8[4096]
+        var until = stop
+        var expression: u8[24]
+        var length: usize = 0
+        if value.kind == ir.RefKind.constant:
+            expression[0] = 17  # DW_OP_consts
+            length = 1 + sleb(expression[1..], value.value)
+            expression[length] = 159  # DW_OP_stack_value
+            length += 1
+        elif value.kind == ir.RefKind.temp:
+            let slot = fr.slot_of(value)
+            if slot != 0:
+                let slot_home = fr.slot_home(slot - 1)
+                if slot_home == 0:
+                    return false
+                expression[0] = 145  # DW_OP_fbreg
+                length = 1 + sleb(expression[1..], -(i64)slot_home)
+                expression[length] = 159
+                length += 1
+            else:
+                let e = life_end_index(fr, value.index)
+                if e <= at:
+                    return false
+                if e < until:
+                    until = e
+                let register = fr.temp_regs.get((usize)value.index - 1)
+                if register != 0:
+                    let number = dwarf_register(self.arch, register)
+                    if number < 32:
+                        expression[0] = (u8)(80 + number)  # DW_OP_reg0 + n
+                        length = 1
+                    else:
+                        expression[0] = 144  # DW_OP_regx
+                        length = 1 + uleb(expression[1..], (u64)number)
+                else:
+                    let temp_home = fr.temp_home(value.index)
+                    if temp_home == 0:
+                        return false
+                    expression[0] = 145
+                    length = 1 + sleb(expression[1..], -(i64)temp_home)
+        else:
+            return false
+        if not started:
+            try self.locs.put((try format(format_room, f"Ldw_ll_{self.serial}:\n")))
+            self.serial += 1
+        try self.locs.put((try format(format_room, f"    .quad Ldw_v_{index}_{at}, ")))
+        if until < f.instrs.count:
+            try self.locs.put((try format(format_room, f"Ldw_v_{index}_{until}\n")))
+        else:
+            try self.locs.put((try format(format_room, f"Ldw_end_{index}\n")))
+        try self.locs.put((try format(format_room, f"    .short {length}\n    .byte ")))
+        var b: usize = 0
+        while b < length:
+            if b > 0:
+                try self.locs.put(",")
+            try self.locs.put_u64((u64)expression[b])
+            b += 1
+        try self.locs.put("\n")
+        return true
+
     ## The locals of `scope` in inlined subroutine `site` (0 for the function's own body),
     ## then the scopes and sites within it. A development build's block spans its
     ## instructions' labels; an optimised build's covers the runs its instructions kept,
@@ -167,26 +282,45 @@ pub struct Emitter:
                 return
             if block and scope != 0:
                 try o.put("    .uleb128 20\n")
-                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), self.os)
+                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), "Ldw_ranges", self.os)
             elif block:
                 let where = f.sites.get((usize)site - 1)
                 let origin = try self.origin(where)
                 let call_file = try self.file(self.program.files.get((usize)where.call_file - 1) if where.call_file != 0 else f.source)
                 try o.put((try format(format_room, f"    .uleb128 21\n    .long Ldw_abstract_{origin}-Ldw_info\n")))
-                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), self.os)
+                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), "Ldw_ranges", self.os)
                 try o.put((try format(format_room, f"    .uleb128 {call_file}\n    .uleb128 {where.call_line}\n")))
         elif block:
             let s = f.debug_scopes.get(scope)
             try o.put((try format(format_room, f"    .uleb128 5\n    .quad Ldw_pc_{index}_{s.start}\n    .quad Ldw_pc_{index}_{s.end}\n")))
-        for described in f.locals.span():
+        var k: usize = 0
+        while k < f.locals.count:
+            let described = f.locals.get(k)
+            k += 1
             if described.scope != scope or described.site != site:
+                continue
+            let home = fr.slot_home(described.slot)
+            let register = fr.slot_register(described.slot)
+            if f.symbols and home == 0 and register == 0:
+                # the optimiser lifted the local out of its slot: where its temporaries live,
+                # or no location when nothing of it survived, as C compilers say it
+                let list_label = self.serial
+                if try self.location_list(f, fr, index, k - 1):
+                    try o.put("    .uleb128 23\n" if described.parameter else "    .uleb128 24\n")
+                    try text(o, described.name)
+                    try self.reference(described.type_id)
+                    try o.put((try format(format_room, f"    .uleb128 {described.line}\n")))
+                    try range_offset(o, (try format(format_room, f"Ldw_ll_{list_label}")), "Ldw_loc", self.os)
+                else:
+                    try o.put("    .uleb128 3\n" if described.parameter else "    .uleb128 4\n")
+                    try text(o, described.name)
+                    try self.reference(described.type_id)
+                    try o.put((try format(format_room, f"    .uleb128 {described.line}\n    .uleb128 0\n")))
                 continue
             try o.put("    .uleb128 3\n" if described.parameter else "    .uleb128 4\n")
             try text(o, described.name)
             try self.reference(described.type_id)
             try o.put((try format(format_room, f"    .uleb128 {described.line}\n")))
-            let home = fr.slot_home(described.slot)
-            let register = fr.slot_register(described.slot)
             let serial = self.serial
             self.serial += 1
             if register != 0:
@@ -196,9 +330,6 @@ pub struct Emitter:
                     try o.put((try format(format_room, f"    .uleb128 1\n    .byte {80 + number}\n")))
                 else:
                     try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 144\n    .uleb128 {number}\nLdw_expr_end_{serial}:\n")))
-            elif f.symbols and home == 0:
-                # optimised away: no location, as C compilers say it
-                try o.put("    .uleb128 0\n")
             else:
                 try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 145\n    .sleb128 -{home}\nLdw_expr_end_{serial}:\n")))
         var i: usize = 1
@@ -207,12 +338,12 @@ pub struct Emitter:
             if inner.parent == scope and inner.site == site and i != scope:
                 try self.scope(f, fr, index, i, site)
             i += 1
-        var k: usize = 0
-        while k < f.sites.count:
-            let inner = f.sites.get(k)
+        var j: usize = 0
+        while j < f.sites.count:
+            let inner = f.sites.get(j)
             if (usize)inner.scope == scope and inner.parent == site:
-                try self.scope(f, fr, index, 0, u32(k + 1))
-            k += 1
+                try self.scope(f, fr, index, 0, u32(j + 1))
+            j += 1
         if block:
             try o.put("    .byte 0\n")
 
@@ -541,6 +672,9 @@ pub struct Emitter:
             i += 1
         try out.put("    .quad 0, 0\n")
         try out.put(self.ranges.view())
+        try section(out, "loc", self.os)
+        try out.put("Ldw_loc:\n")
+        try out.put(self.locs.view())
 
 func round_up(n: u64, alignment: u64) -> u64:
     return (n + alignment - 1) // alignment * alignment if alignment > 0 else n
@@ -564,13 +698,16 @@ func section_offset(out: buffer.Buffer*, label: str, os: targets.Os) -> !:
     try out.put(label)
     try out.put("\n")
 
-## A `DW_AT_ranges` offset into `.debug_ranges`: Mach-O's debug linker rebases each object's
-## sections, so the offset is from the section's start; ELF and COFF relocate a label.
-func range_offset(out: buffer.Buffer*, label: str, os: targets.Os) -> !:
+## A section offset (`DW_AT_ranges`, `DW_AT_location` as a list) to `label` in the section
+## that starts at `base`: Mach-O's debug linker rebases each object's sections, so the
+## offset is from the section's start; ELF and COFF relocate the label.
+func range_offset(out: buffer.Buffer*, label: str, base: str, os: targets.Os) -> !:
     if os == targets.Os.macos:
         try out.put("    .long ")
         try out.put(label)
-        try out.put("-Ldw_ranges\n")
+        try out.put("-")
+        try out.put(base)
+        try out.put("\n")
         return
     try out.put("    .secrel32 " if os == targets.Os.windows else "    .long ")
     try out.put(label)
@@ -624,18 +761,64 @@ let abbreviations: str = r"""
     .byte 20,11,1,85,23,0,0
     .byte 21,29,1,49,19,85,23,88,15,89,15,0,0
     .byte 22,46,0,3,8,58,15,59,15,32,11,73,19,0,0
+    .byte 23,5,0,3,8,73,19,59,15,2,23,0,0
+    .byte 24,52,0,3,8,73,19,59,15,2,23,0,0
     .byte 0
 """
 
-## The DWARF register number of an allocator code: arm64's x19–x28 are 19–28 and d8–d15
-## are 72–79; x86-64's rbx is 3, r12–r15 are 12–15, and xmm12–xmm15 are 29–32.
+## The DWARF register number of an allocator code, by the generators' name tables: arm64's
+## x19–x28 (codes 1–10) are 19–28, d8–d15 (11–18) are 72–79, the pooled x14, x15, x12, x13
+## and x7 down to x0 (19–30) are their numbers, and d24–d31 (31–38) are 88–95; x86-64's rbx
+## is 3, r12–r15 are 12–15, r8 and r9 are 8 and 9, rsi and rdi are 4 and 5, and
+## xmm12–xmm15 (10–13) are 29–32.
 func dwarf_register(arch: targets.Arch, code: u8) -> u32:
     if arch == targets.Arch.arm64:
         if code <= 10:
             return 18 + (u32)code
-        return 61 + (u32)code
+        if code <= 18:
+            return 61 + (u32)code
+        if code <= 30:
+            let pooled: u32[12] = [14, 15, 12, 13, 7, 6, 5, 4, 3, 2, 1, 0]
+            return pooled[(usize)code - 19]
+        return 57 + (u32)code
     if code == 1:
         return 3
     if code <= 5:
         return 10 + (u32)code
-    return 23 + (u32)code
+    if code <= 9:
+        let pooled: u32[4] = [8, 9, 4, 5]
+        return pooled[(usize)code - 6]
+    return 19 + (u32)code
+
+## The instruction index the life ending at doubled position `end` of temporary `t` reaches:
+## a last read at instruction `i` (position `2i`) keeps the value through the reads of `i`,
+## so the entry ends where `i` writes.
+func life_end_index(fr: frame.Frame*, t: u32) -> usize:
+    let end = fr.temp_end(t)
+    return (usize)((end + 1) // 2)
+
+## `value` as a signed LEB128 into `out`; how many bytes.
+func sleb(out: u8[], value: i64) -> usize:
+    var v = value
+    var n: usize = 0
+    while true:
+        let byte = (u8)(v & 127)
+        v >>= 7
+        if (v == 0 and (byte & 64) == 0) or (v == -1 and (byte & 64) != 0):
+            out[n] = byte
+            return n + 1
+        out[n] = byte | 128
+        n += 1
+
+## `value` as an unsigned LEB128 into `out`; how many bytes.
+func uleb(out: u8[], value: u64) -> usize:
+    var v = value
+    var n: usize = 0
+    while true:
+        let byte = (u8)(v & 127)
+        v >>= 7
+        if v == 0:
+            out[n] = byte
+            return n + 1
+        out[n] = byte | 128
+        n += 1

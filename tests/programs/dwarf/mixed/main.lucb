@@ -3,7 +3,8 @@ struct Point:
     var y: i64
 
     pub func x_value() -> i64:
-        return self.x # BREAK_METHOD
+        let total = self.x + self.y
+        return total - 4 # BREAK_METHOD
 
 struct Box[T]:
     var value: T

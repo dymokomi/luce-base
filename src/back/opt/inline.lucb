@@ -638,13 +638,14 @@ struct Expansion:
     ## is in the caller (1-based), and what the body's scope numbers shift by.
     var site: u32
     var scope_base: u32
+    var locals_base: u32
     var described: bool
 
     static func of(program: ir.Unit*, f: ir.Function*, g: ir.Function*, call: ir.Instr, shared: u32) -> Expansion:
         return Expansion(program = program, f = f, g = g, call = call, info = f.calls.get((usize)call.extra),
                          slot_base = u32(f.slots.count) if shared == no_slots else shared,
                          temp_base = u32(f.temps.count), label_base = f.labels, exit_label = 0, result_slot = 0,
-                         shares_slots = shared != no_slots, site = 0, scope_base = 0, described = false)
+                         shares_slots = shared != no_slots, site = 0, scope_base = 0, locals_base = 0, described = false)
 
     mutating func run(out: Sink*) -> !:
         try self.join_frames()
@@ -702,6 +703,7 @@ struct Expansion:
             return
         self.described = true
         self.scope_base = u32(self.f.debug_scopes.count)
+        self.locals_base = u32(self.f.locals.count)
         try self.f.sites.push(ir.InlineSite(name = self.g.source_name, source = self.g.source, line = self.g.source_line, result_type = self.g.result_type,
                                             call_line = self.call.line, call_file = self.call.file, scope = self.call.scope, parent = self.call.site))
         self.site = u32(self.f.sites.count)
@@ -747,6 +749,10 @@ struct Expansion:
             m.line = 0
             m.file = 0
         match m.op:
+            .dbg:
+                if not self.described:
+                    return
+                m.extra += self.locals_base
             .label, .jmp:
                 m.extra += self.label_base
             .jnz:

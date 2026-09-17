@@ -422,8 +422,9 @@ func drop_dead_phis(f: ir.Function*) -> !:
         var i: usize = 0
         while i < f.instrs.count:
             let x = f.instrs.get(i)
-            mark_use(used, x.a)
-            mark_use(used, x.b)
+            if x.op != ir.Op.dbg:
+                mark_use(used, x.a)
+                mark_use(used, x.b)
             if x.op == ir.Op.phi:
                 var q: u32 = 0
                 while q < x.extra2:

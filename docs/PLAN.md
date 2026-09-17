@@ -34,10 +34,10 @@ that work. Native compilation remains the primary execution and hardening target
    own assembly in `docs/STATUS.md` smaller again.
 2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines,
    lexical scopes and inlined subroutines carried through the passes on the instructions,
-   payload enums as a tag and a union of case records, and named locals pinned to their
-   slots (`docs/DEBUGGING.md`). What remains: location lists for values that live in
-   temporaries, so the pinning can go; Luce ARC values. Gate: the same breakpoints under
-   full optimisation and inlining, in both debuggers.
+   payload enums as a tag and a union of case records, and location lists for the named
+   locals the optimiser lifts into temporaries (`docs/DEBUGGING.md`). What remains: Luce
+   ARC values, which is Luce's to describe once it emits Base with symbols. Gate: the
+   same breakpoints under full optimisation and inlining, in both debuggers.
 3. **Further library breadth.** TLS belongs to the paused `luce-tls` package. Graphics remains deferred: a portable window/input/GPU
    interface with a proving program on each supported host.
 4. **`luce-ld`.** Everything links through the host's `ld` or `cc`. A linker
