@@ -24,10 +24,11 @@ that work. Native compilation remains the primary execution and hardening target
    adds a store per crossing and gained nothing. Reading operands and addresses where
    they live (record copies, checked arithmetic, returns, aggregate arguments) halved
    the register-to-register moves in the compiler's own assembly; what is left of them
-   is argument setup, 50 K copies of pooled registers into x0–x7. What would pay now is
-   a parallel move for call arguments, so the argument registers could join the pools
-   for temporaries that cross no call, and a generator that chooses its scratch around
-   the operands' registers, so x9–x11 and r10, r11 could join too. Gate: the
+   is argument setup. On arm64 the argument registers x0–x7 are in the caller-saved pool
+   and a call's integer arguments are placed by one parallel move (`integer_arguments`).
+   What remains: the same on x86-64 (rdi, rsi, r8, r9; rcx and rdx stay scratch for the
+   shifts and the divides), and a generator that chooses its scratch around the
+   operands' registers, so x9–x11 and r10, r11 could join too. Gate: the
    `tests/optimization` limits lowered again, the native fixpoint kept, the compiler's
    own assembly in `docs/STATUS.md` smaller again.
 2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines and

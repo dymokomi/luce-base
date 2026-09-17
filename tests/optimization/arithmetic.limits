@@ -8,9 +8,11 @@
 # the temporaries that cross no call, lowered the assembly count.
 # 0.15.0: x12 and x13 joined the caller-saved pool on arm64; the counts lowered to what the
 # passes reach today.
+# 0.17.2: the argument registers x0–x7 joined that pool, a call filling them by a parallel
+# move; the generators read operands and addresses where they live.
 ir 28
 loads 2
 stores 3
 calls 7
-asm-arm64 123
+asm-arm64 112
 asm-x86_64 158

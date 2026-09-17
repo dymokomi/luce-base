@@ -54,8 +54,8 @@ pub struct Frame:
     pub var slot_regs: list.List[u8]
     pub var temp_slot: list.List[u32]
     ## Bit c-1 is set when register code c is used; `save_offset[c]` is where it is spilled.
-    pub var used_mask: u32
-    pub var save_offset: u64[32]
+    pub var used_mask: u64
+    pub var save_offset: u64[64]
     ## The frame's size, rounded to 16, and the home of the hidden result pointer when the
     ## function returns through memory.
     pub var size: u64
@@ -64,7 +64,7 @@ pub struct Frame:
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
                       temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256),
-                      used_mask = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
+                      used_mask = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
     ## Whether register `code` is a float (or vector) one, and whether a call preserves it.
@@ -87,7 +87,7 @@ pub struct Frame:
         return self.slot_regs.get((usize)s)
 
     pub func uses(code: u8) -> bool:
-        return (self.used_mask & (u32)(1 << (u32)(code - 1))) != 0
+        return (self.used_mask & ((u64)1 << (u64)(code - 1))) != 0
 
     ## The slot an address temporary stands for, 1-based, or 0. Only meaningful after
     ## `plan`, and only for slots that were promoted.
@@ -283,14 +283,14 @@ pub struct Frame:
                     kind[best] = 3
                     continue
                 self.slot_regs.set(best, int_code)
-                self.used_mask = self.used_mask | (u32)(1 << (u32)(int_code - 1))
+                self.used_mask = self.used_mask | ((u64)1 << (u64)(int_code - 1))
                 int_code += 1
             else:
                 if float_code > self.registers.ints + floats:
                     kind[best] = 3
                     continue
                 self.slot_regs.set(best, float_code)
-                self.used_mask = self.used_mask | (u32)(1 << (u32)(float_code - 1))
+                self.used_mask = self.used_mask | ((u64)1 << (u64)(float_code - 1))
                 float_code += 1
 
     ## One load or store of `width` bytes through slot `k` (1-based): it fits when the width
@@ -321,12 +321,12 @@ pub struct Frame:
         while i < n:
             try self.temp_regs.push(0)
             i += 1
-        var taken: u32 = 0
+        var taken: u64 = 0
         var ps: usize = 0
         while ps < self.slot_regs.count:
             let code = self.slot_regs.get(ps)
             if code != 0:
-                taken = taken | (u32)(1 << (u32)(code - 1))
+                taken = taken | ((u64)1 << (u64)(code - 1))
             ps += 1
         self.used_mask = taken
         if n == 0:

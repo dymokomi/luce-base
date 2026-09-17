@@ -263,6 +263,9 @@ func build_key(mode: u32, release: bool) -> str!:
     try settings.put(" ")
     try settings.put(package.name)
     if not native_backend:
+        # a C object is the C compiler's as much as the program's
+        try settings.put(" cc=")
+        try settings.put((str)host_c_compiler())
         if let extra = os.env("LUCE_CFLAGS"):
             try settings.put(" ")
             try settings.put(extra)

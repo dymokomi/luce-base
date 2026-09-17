@@ -338,9 +338,9 @@ pub struct Lives:
     ## Give each temporary a register code, 0 for the frame: `held` is the mask of codes the
     ## promoted slots keep for the whole function; `regs` receives a code per temporary and
     ## the mask of every code used comes back.
-    pub mutating func allocate(f: ir.Function*, pools: Pools, held: u32, regs: u8[]) -> u32!:
+    pub mutating func allocate(f: ir.Function*, pools: Pools, held: u64, regs: u8[]) -> u64!:
         let n = self.count
-        var used: u32 = 0
+        var used: u64 = 0
         var t: usize = 0
         while t < n:
             regs[t] = 0
@@ -474,7 +474,7 @@ pub struct Lives:
             if wanted != 0 and regs[(usize)wanted - 1] != 0:
                 let r = (usize)regs[(usize)wanted - 1]
                 let in_pool = (r >= low_scratch and r <= high_scratch) or (r >= low_callee and r <= high_callee)
-                if in_pool and (held & (u32)(1 << (u32)(r - 1))) == 0 and free_until[r] >= my_end:
+                if in_pool and (held & ((u64)1 << (u64)(r - 1))) == 0 and free_until[r] >= my_end:
                     chosen = r
             if chosen == 0:
                 chosen = pick_free(free_until, held, low_scratch, high_scratch, my_end)
@@ -490,7 +490,7 @@ pub struct Lives:
                     c = 1
                     while c <= codes:
                         let in_pool = (c >= low_scratch and c <= high_scratch) or (c >= low_callee and c <= high_callee)
-                        if in_pool and (held & (u32)(1 << (u32)(c - 1))) == 0 and blocked_at[c] > far_at:
+                        if in_pool and (held & ((u64)1 << (u64)(c - 1))) == 0 and blocked_at[c] > far_at:
                             far_at = blocked_at[c]
                             far = c
                         c += 1
@@ -514,7 +514,7 @@ pub struct Lives:
                         chosen = far
             if chosen != 0:
                 regs[(usize)cur - 1] = (u8)chosen
-                used = used | (u32)(1 << (u32)(chosen - 1))
+                used = used | ((u64)1 << (u64)(chosen - 1))
                 active[active_count] = cur
                 active_count += 1
             i += 1
@@ -523,16 +523,17 @@ pub struct Lives:
 ## An instruction that may clobber the caller-saved registers: a call, an asm block, and
 ## the block operations the generators hand to `memcpy` and `memset` past their inline size.
 pub func is_barrier(op: ir.Op) -> bool:
-    return op == ir.Op.call or op == ir.Op.asm_ or op == ir.Op.blit or op == ir.Op.zero or op == ir.Op.fill
+    # `addr_tls` calls the loader's resolver on Mach-O, which keeps only the callee-saved registers
+    return op == ir.Op.call or op == ir.Op.asm_ or op == ir.Op.blit or op == ir.Op.zero or op == ir.Op.fill or op == ir.Op.addr_tls
 
 ## The code in `[low, high]` that stays free the longest, when one stays free for the whole
 ## life ending at `end`; 0 otherwise. The first of equals wins, so the lowest register.
-func pick_free(free_until: u32[], held: u32, low: usize, high: usize, end: u32) -> usize:
+func pick_free(free_until: u32[], held: u64, low: usize, high: usize, end: u32) -> usize:
     var best: usize = 0
     var best_until: u32 = 0
     var c = low
     while c != 0 and c <= high:
-        if (held & (u32)(1 << (u32)(c - 1))) == 0 and free_until[c] > best_until:
+        if (held & ((u64)1 << (u64)(c - 1))) == 0 and free_until[c] > best_until:
             best_until = free_until[c]
             best = c
         c += 1

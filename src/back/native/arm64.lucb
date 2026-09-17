@@ -63,7 +63,7 @@ pub struct Generator:
 
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = object.Format(os, symbol_prefix), fp16 = os == build_target.Os.macos, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
-                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 4, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
+                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -351,6 +351,16 @@ pub struct Generator:
                 return "x1"
             if reg == "w2":
                 return "x2"
+            if reg == "w3":
+                return "x3"
+            if reg == "w4":
+                return "x4"
+            if reg == "w5":
+                return "x5"
+            if reg == "w6":
+                return "x6"
+            if reg == "w7":
+                return "x7"
         return reg
 
     ## The address a slot, global, function, or text refers to, into an x register.
@@ -1559,6 +1569,105 @@ pub struct Generator:
         *stack += 8
         return p
 
+    ## The second register of a two-register aggregate argument, from `at` + 8.
+    mutating func second_word(p: ArgPlacement, a: ir.Arg, at: str) -> !:
+        try self.line("ldr x" if a.size > 12 else "ldr w")
+        try self.put_u64((u64)p.first + 1)
+        try self.put(", [")
+        try self.put(at)
+        try self.put(", #8]")
+
+    ## The integer register arguments as one parallel move: an argument may live in an
+    ## argument register another argument takes, so a move waits while its destination is
+    ## still read by a pending one, a cycle breaks through x17 (free until the callee is
+    ## reloaded), and the arguments read from the frame or made from constants, which read
+    ## no register, come last.
+    mutating func integer_arguments(info: ir.CallInfo, placements: ArgPlacement[]) -> !:
+        let count = (usize)info.args_count
+        var pending = try alloc bool[count + 1]
+        var reads = try alloc str[count + 1]
+        var i: usize = 0
+        while i < count:
+            let a = self.f.args.get((usize)info.args_start + i)
+            let p = placements[i]
+            pending[i] = p.where == 0 or p.where == 3
+            reads[i] = ""
+            if pending[i] and a.value.kind == ir.RefKind.temp:
+                let code = self.fr.temp_regs.get((usize)a.value.index - 1)
+                if code != 0 and not self.fr.float_code(code):
+                    reads[i] = class_name(code, ir.Class.l)
+            i += 1
+        var left = true
+        while left:
+            left = false
+            var moved = false
+            i = 0
+            while i < count:
+                if pending[i] and reads[i].length > 0:
+                    left = true
+                    if not self.destination_read(placements[i], pending, reads, i, count):
+                        try self.integer_argument(i, info, placements[i], reads[i])
+                        pending[i] = false
+                        moved = true
+                i += 1
+            if left and not moved:
+                # every pending destination is still a source: park one source in x17
+                i = 0
+                while i < count:
+                    if pending[i] and reads[i].length > 0 and is_argument_register(reads[i]):
+                        try self.line3("mov x17, ", reads[i], "")
+                        reads[i] = "x17"
+                        break
+                    i += 1
+        i = 0
+        while i < count:
+            if pending[i]:
+                try self.integer_argument(i, info, placements[i], "")
+            i += 1
+
+    ## Whether a pending argument other than `i` reads a register argument `i` writes.
+    func destination_read(p: ArgPlacement, pending: bool[], reads: str[], i: usize, count: usize) -> bool:
+        var k: usize = 0
+        while k < count:
+            if k != i and pending[k] and reads[k].length > 0:
+                let read = argument_index(reads[k])
+                if read >= 0 and (read == (i32)p.first or (p.count == 2 and read == (i32)p.first + 1)):
+                    return true
+            k += 1
+        return false
+
+    ## One integer register argument: from `read` when it lives in a register, else loaded.
+    mutating func integer_argument(i: usize, info: ir.CallInfo, p: ArgPlacement, read: str) -> !:
+        let a = self.f.args.get((usize)info.args_start + i)
+        if p.where == 3 or a.size > 0:
+            var at = read
+            if at.length == 0:
+                at = try self.source(a.value, ir.Class.l, "x9")
+            if p.where == 3:
+                try self.line("mov x")
+                try self.put_u64((u64)p.first)
+                try self.put(", ")
+                try self.put(at)
+                return
+            # the address may live in one of the destinations: that word loads last
+            let first_last = p.count == 2 and at == arg_register(p.first)
+            if first_last:
+                try self.second_word(p, a, at)
+            try self.line("ldr x")
+            try self.put_u64((u64)p.first)
+            try self.put(", [")
+            try self.put(at)
+            try self.put("]")
+            if p.count == 2 and not first_last:
+                try self.second_word(p, a, at)
+            return
+        if read.length > 0:
+            if read != arg_register(p.first):
+                try self.line3("mov ", arg_register(p.first), ", ")
+                try self.put(read)
+            return
+        try self.operand(arg_register(p.first), ir.Class.l, a.value)
+
     mutating func call(n: ir.Instr) -> !:
         let info = self.f.calls.get((usize)n.extra)
         # first pass: sizes of the stack area
@@ -1672,33 +1781,7 @@ pub struct Generator:
                         try self.put("]")
                         k += 1
             i += 1
-        i = 0
-        while i < info.args_count:
-            let a = self.f.args.get((usize)(info.args_start + i))
-            let p = placements[i]
-            if p.where == 0:
-                if a.size == 0:
-                    try self.operand(arg_register(p.first), ir.Class.l, a.value)
-                else:
-                    let at = try self.source(a.value, ir.Class.l, "x9")
-                    try self.line("ldr x")
-                    try self.put_u64((u64)p.first)
-                    try self.put(", [")
-                    try self.put(at)
-                    try self.put("]")
-                    if p.count == 2:
-                        try self.line("ldr x" if a.size > 12 else "ldr w")
-                        try self.put_u64((u64)p.first + 1)
-                        try self.put(", [")
-                        try self.put(at)
-                        try self.put(", #8]")
-            elif p.where == 3:
-                let at = try self.source(a.value, ir.Class.l, "x9")
-                try self.line("mov x")
-                try self.put_u64((u64)p.first)
-                try self.put(", ")
-                try self.put(at)
-            i += 1
+        try self.integer_arguments(info, placements)
         # a large aggregate result arrives through x8
         if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0:
             try self.frame_address("x8", self.slot_home(info.result_slot))
@@ -1943,14 +2026,15 @@ pub struct Generator:
 
 ## The callee-saved registers the allocator hands out: codes 1..10 are x19..x28, codes
 ## 11..18 are d8..d15, viewed as w/s where a narrower access asks for it.
-## Register codes: 1–10 the callee-saved x19–x28, 11–18 the callee-saved d8–d15, 19–22 the
-## caller-saved x14, x15, x12 and x13, which nothing else here touches, 23–30 the
-## caller-saved d24–d31, which a vector temporary sees as q24–q31.
-let x_names: str[31] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "x12", "x13", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"]
-let w_names: str[31] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "w12", "w13", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"]
-let h_names: str[31] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "w12", "w13", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31"]
-let q_names: str[31] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "x14", "x15", "x12", "x13", "q24", "q25", "q26", "q27", "q28", "q29", "q30", "q31"]
-let v_names: str[31] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "x14", "x15", "x12", "x13", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"]
+## Register codes: 1–10 the callee-saved x19–x28, 11–18 the callee-saved d8–d15, 19–30 the
+## caller-saved x14, x15, x12, x13 and x7 down to x0 (the argument registers, which a
+## call's parallel move fills last), 31–38 the caller-saved d24–d31, which a vector
+## temporary sees as q24–q31.
+let x_names: str[39] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"]
+let w_names: str[39] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"]
+let h_names: str[39] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31"]
+let q_names: str[39] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "q24", "q25", "q26", "q27", "q28", "q29", "q30", "q31"]
+let v_names: str[39] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"]
 
 ## The 8-byte name used to spill and reload a register on entry and exit.
 func save_name(code: usize) -> str:
@@ -2192,3 +2276,15 @@ func vector_mnemonic(op: ir.Op, signed: bool) -> str:
         .vadds: return "sqadd" if signed else "uqadd"
         .vsubs: return "sqsub" if signed else "uqsub"
         _: return "add"
+
+## The argument register `x0`..`x7` a name is, as its index, or -1.
+func argument_index(name: str) -> i32:
+    var k: i32 = 0
+    while k < 8:
+        if argument_names[(usize)k] == name:
+            return k
+        k += 1
+    return -1
+
+func is_argument_register(name: str) -> bool:
+    return argument_index(name) >= 0
