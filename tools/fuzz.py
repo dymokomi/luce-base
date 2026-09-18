@@ -198,23 +198,31 @@ class Gen:
             "i32": ["e0", "e1", "(i32)a2", "(i32)b1"],
             "u16": ["h0", "(u16)a0", "(u16)c1"],
             "u64": ["m0", "m1", "(u64)a2", "(u64)c0"],
+            "i8": ["n8", "(i8)b0", "(i8)a0", "(i8)(a1 & 63)"],
+            "i16": ["n16", "(i16)a0", "(i16)c1", "(i16)(a2 & 4095)"],
+            "usize": ["us0", "s0.length", "(usize)(a0 & 1023)", "table.length"],
+            "isize": ["is0", "(isize)a0", "(isize)e0", "(isize)(a1 & 4095)"],
         }
         for name, t in self.locals:
             if t == ty:
                 pool[ty] = pool[ty] + [name, name]
         if r.random() < 0.25:
-            if ty == "i64":
+            if ty in ("i64", "i32"):
                 return str(r.randint(-1000, 1000))
-            if ty == "i32":
-                return str(r.randint(-1000, 1000))
-            return str(r.randint(0, {"u8": 255, "u32": 4000000000, "u16": 65535, "u64": 1000000}[ty]))
+            if ty == "i8":
+                return str(r.randint(-100, 100))
+            if ty == "i16":
+                return str(r.randint(-30000, 30000))
+            if ty == "isize":
+                return str(r.randint(-100000, 100000))
+            return str(r.randint(0, {"u8": 255, "u32": 4000000000, "u16": 65535, "u64": 1000000, "usize": 100000}[ty]))
         return r.choice(pool[ty])
 
     def expr(self, depth, ty="i64"):
         r = self.rng
         if depth <= 0 or r.random() < 0.3:
             return self.leaf(ty)
-        width = {"i64": 63, "u8": 7, "u32": 31, "i32": 31, "u16": 15, "u64": 63}[ty]
+        width = {"i64": 63, "u8": 7, "u32": 31, "i32": 31, "u16": 15, "u64": 63, "i8": 7, "i16": 15, "usize": 63, "isize": 63}[ty]
         k = r.randrange(16)
         if k < 3:
             return f"({self.expr(depth - 1, ty)} {r.choice(['+%', '-%', '*%'])} {self.expr(depth - 1, ty)})"
@@ -226,16 +234,16 @@ class Gen:
             return f"({self.expr(depth - 1, ty)} if {self.cond(depth - 1)} else {self.expr(depth - 1, ty)})"
         if k == 6:
             # checked arithmetic on operands masked well inside the width never traps
-            mask = {"i64": 4095, "u8": 15, "u32": 4095, "i32": 4095, "u16": 255, "u64": 4095}[ty]
-            return f"(({self.expr(depth - 1, ty)} & {mask}) {r.choice(['+', '-', '*']) if ty in ('i64', 'i32') else r.choice(['+', '*'])} ({self.expr(depth - 1, ty)} & {mask}))"
+            mask = {"i64": 4095, "u8": 15, "u32": 4095, "i32": 4095, "u16": 255, "u64": 4095, "i8": 3, "i16": 255, "usize": 4095, "isize": 4095}[ty]
+            return f"(({self.expr(depth - 1, ty)} & {mask}) {r.choice(['+', '-', '*']) if ty in ('i64', 'i32', 'i8', 'i16', 'isize') else r.choice(['+', '*'])} ({self.expr(depth - 1, ty)} & {mask}))"
         if k == 7:
             # division and remainder: a non-negative dividend, a divisor that is never zero
-            top = 127 if ty == "u8" else 1023
+            top = {"u8": 127, "i8": 63, "i16": 1023}.get(ty, 1023)
             return f"(({self.expr(depth - 1, ty)} & {top}) {r.choice(['//', '%'])} (({self.expr(depth - 1, ty)} & 63) | 1))"
         if k == 8:
             return f"({self.expr(depth - 1, ty)} {r.choice(['+|', '-|', '*|'])} {self.expr(depth - 1, ty)})"
         if k == 9:
-            other = r.choice([t for t in ("i64", "u8", "u32", "i32", "u16", "u64") if t != ty])
+            other = r.choice([t for t in ("i64", "u8", "u32", "i32", "u16", "u64", "i8", "i16", "usize", "isize") if t != ty])
             return f"({ty}){self.expr(depth - 1, other)}"
         if k == 10 and ty == "i64":
             return f"pick[i64]({self.expr(depth - 1)}, {self.expr(depth - 1)}, {self.cond(depth - 1)})"
@@ -275,6 +283,22 @@ class Gen:
     def fcond(self, depth):
         return f"({self.fexpr(depth)} {self.rng.choice(['<', '<=', '==', '!=', '>=', '>'])} {self.fexpr(depth)})"
 
+    def f32expr(self, depth):
+        """A single-precision float kept finite and small, so every backend rounds it the same."""
+        r = self.rng
+        if depth <= 0 or r.random() < 0.3:
+            return r.choice(["gf0", "gf1", str(r.choice([0.5, 2.25, -1.5, 3.0, 0.125])), f"f32({self.expr(1)} & 255)", "(f32)b0", "f32(f64(a0 & 4095) * 0.5)"])
+        k = r.randrange(6)
+        if k < 2:
+            return f"({self.f32expr(depth - 1)} {r.choice(['+', '-'])} {self.f32expr(depth - 1)})"
+        if k == 2:
+            return f"({self.f32expr(depth - 1)} * {r.choice(['0.5', '0.25', '-0.5', '2.0'])})"
+        if k == 3:
+            return f"({self.f32expr(depth - 1)} / {r.choice(['2.0', '4.0', '-8.0'])})"
+        if k == 4:
+            return f"({self.f32expr(depth - 1)} if {self.cond(depth - 1)} else {self.f32expr(depth - 1)})"
+        return f"(-{self.f32expr(depth - 1)})"
+
     def cond(self, depth):
         r = self.rng
         if depth <= 0 or r.random() < 0.4:
@@ -297,7 +321,7 @@ class Gen:
         self.pad = "    " * indent
         saved_locals = list(self.locals)
         for _ in range(r.randint(1, 4)):
-            k = r.randrange(42)
+            k = r.randrange(52)
             if self.in_arena and k in (32, 33, 34, 35, 36, 37, 38, 39, 40, 41):
                 # a fixed buffer reclaims only its last allocation: nothing else allocates
                 # inside its suite, so the one object it holds is freed in order
@@ -318,6 +342,40 @@ class Gen:
                 lines.append(f"{pad}table[{r.randrange(8)}] = {self.expr(2)}")
             elif k == 7:
                 lines.append(f"{pad}d{r.randrange(2)} = {self.fexpr(3)}")
+            elif k == 42:
+                lines.append(f"{pad}gf{r.randrange(2)} = {self.f32expr(3)}")
+            elif k == 43:
+                lines.append(r.choice([f"{pad}hf0 = f16({self.expr(2)} & 15)", f"{pad}gf0 = (gf0 + gf1) * 0.5", f"{pad}gf1 = f32(f64({self.expr(2)} & 1023) * 0.5)"]))
+            elif k == 44:
+                lines.append(r.choice([f"{pad}n8 = {self.expr(2, 'i8')}", f"{pad}n16 = {self.expr(2, 'i16')}", f"{pad}n8 = (i8)({self.expr(1)} & 63)"]))
+            elif k == 45:
+                lines.append(r.choice([f"{pad}us0 = {self.expr(2, 'usize')}", f"{pad}is0 = {self.expr(2, 'isize')}", f"{pad}us0 = (usize)({self.expr(1)} & 4095)"]))
+            elif k == 46:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}let view{n}: Shape = &{r.choice(['box0', 'tri0'])}")
+                lines.append(f"{pad}a{r.randrange(3)} = view{n}.area() +% area_dyn(&{r.choice(['box0', 'tri0'])})")
+            elif k == 47 and depth > 0:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}let shapes{n}: Shape[2] = [&box0, &tri0]")
+                lines.append(f"{pad}var tot{n}: i64 = 0")
+                lines.append(f"{pad}for shv{n} in shapes{n}:")
+                lines.append(f"{pad}    tot{n} = tot{n} *% 3 +% shv{n}.area()")
+                lines.append(f"{pad}a{r.randrange(3)} = tot{n}")
+            elif k == 48:
+                lines.append(r.choice([f"{pad}pk0.a = {self.expr(1, 'u8')}", f"{pad}pk0.b = {self.expr(2, 'u32')}", f"{pad}pk0.c = {self.expr(2, 'i16')}", f"{pad}pk0 = Packed(a = {self.expr(1, 'u8')}, b = {self.expr(2, 'u32')}, c = {self.expr(2, 'i16')})"]))
+            elif k == 49:
+                lines.append(r.choice([f"{pad}al0.value = {self.expr(2, 'u64')}", f"{pad}al0.first = {self.expr(1, 'u8')}", f"{pad}a{r.randrange(3)} = (i64)al0.value +% (i64)al0.first"]))
+            elif k == 50:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}var isum{n}: i64 = 0")
+                lines.append(f"{pad}for iv{n} in Counting(stop = {r.randint(0, 8)}):")
+                lines.append(f"{pad}    isum{n} = isum{n} *% 3 +% iv{n}")
+                lines.append(f"{pad}a{r.randrange(3)} = isum{n}")
+            elif k == 51:
+                lines.append(r.choice([f"{pad}fv0 = fv0 * f32[4](0.5) + f32[4](0.5)", f"{pad}sv0 = sv0 +% sv0", f"{pad}dv0 = dv0 * f64[2](0.5) + f64[2](1.0)", f"{pad}sv0 = sv0 & i16[8](255)", f"{pad}a{r.randrange(3)} = i64(sv0.max()) +% i64((sv0 & 15).sum())"]))
             elif k == 8:
                 lines.append(r.choice([f"{pad}p0 = makep({self.expr(2)})", f"{pad}p0.x = {self.expr(2)}", f"{pad}p0.y = {self.expr(2, 'u8')}", f"{pad}p0.f = {self.fexpr(2)}", f"{pad}p0 = pick[P](p0, makep({self.expr(2)}), {self.cond(1)})", f"{pad}ps[{r.randrange(4)}] = p0", f"{pad}p0 = ps[{r.randrange(4)}]", f"{pad}p0 = P(x = {self.expr(2)}, y = {self.expr(1, 'u8')}, f = {self.fexpr(1)})"]))
             elif k == 9:
@@ -547,7 +605,7 @@ class Gen:
 
     def program(self):
         r = self.rng
-        text = ["## generated by tools/fuzz.py", "import memory", "", "let bad = ErrorCode.package(1)", "",
+        text = ["## generated by tools/fuzz.py", "import memory", "from luce import Iterable, Iterator", "", "let bad = ErrorCode.package(1)", "",
                 "enum Kind as u8:", "    small = 0", "    large = 1", "    huge = 2", "",
                 "struct P:", "    var x: i64", "    var y: u8", "    var f: f64", "",
                 "    static func of(x: i64) -> P:", "        return P(x = x, y = (u8)x, f = 0.25)", "",
@@ -557,6 +615,10 @@ class Gen:
                 "enum Figure:", "    empty", "    circle(r: i64)", "    rect(w: i64, h: i64)", "",
                 "union U:", "    a: i64", "    b: f64", "",
                 "struct Pair[T]:", "    var a: T", "    var b: T", "",
+                "packed struct Packed:", "    var a: u8", "    var b: u32", "    var c: i16", "",
+                "struct Aligned:", "    var first: u8", "    align(16) var value: u64", "    var last: u8", "",
+                "struct Stepper: Iterator[i64]:", "    var cur: i64", "    var stop: i64", "    mutating func next() -> i64?:", "        if self.cur >= self.stop:", "            return none", "        let v = self.cur", "        self.cur = self.cur +% 1", "        return v", "",
+                "struct Counting: Iterable[i64, Stepper]:", "    var stop: i64", "    func iterator() -> Stepper:", "        return Stepper(cur = 0, stop = self.stop)", "",
                 "struct Q:", "    var a: i64", "    var b: i64", "    var c: i64", "    var tag: Kind", "",
                 "interface Shape:", "    func area() -> i64", "",
                 "struct Box: Shape:", "    var w: i64", "    var h: i64", "", "    func area() -> i64:", "        return self.w *% self.h", "",
@@ -564,7 +626,8 @@ class Gen:
                 "var table: i64[8]", "var ps: P[4]", "var qs: Q[3]", "var sum: i64", "var a0: i64", "var a1: i64", "var a2: i64",
                 "var b0: u8", "var b1: u8", "var c0: u32", "var c1: u32", "var e0: i32", "var e1: i32", "var h0: u16", "var m0: u64", "var m1: u64",
                 "var d0: f64", "var d1: f64", "var p0: P", "var q0: Q", "var o0: i64?", "var s0: str", "var box0: Box", "var tri0: Tri",
-                "var sh0: Figure", "var u0: U", "var pr0: Pair[i64]", "var v0: i32[4]", "var v1: i32[4]", "var fp0: (func(i64) -> i64)?", "",
+                "var gf0: f32", "var gf1: f32", "var hf0: f16", "var n8: i8", "var n16: i16", "var us0: usize", "var is0: isize",
+                "var sh0: Figure", "var u0: U", "var pr0: Pair[i64]", "var v0: i32[4]", "var v1: i32[4]", "var pk0: Packed", "var al0: Aligned", "var fv0: f32[4]", "var dv0: f64[2]", "var sv0: i16[8]", "var fp0: (func(i64) -> i64)?", "",
                 "func swap[T](p: Pair[T]) -> Pair[T]:", "    return Pair[T](a = p.b, b = p.a)", "",
                 "func list_sum(head: Node*?) -> i64:", "    var tally: i64 = 0", "    var cursor = head", "    while let n = cursor:", "        tally = tally *% 7 +% n.value", "        cursor = n.next", "    return tally", "",
                 "func release(head: Node*?):", "    var cursor = head", "    while let n = cursor:", "        let next = n.next", "        free(n)", "        cursor = next", "",
@@ -576,6 +639,7 @@ class Gen:
                 "func divmod(x: i64) -> (i64, i64):", "    let d = (x & 1023) // 7", "    return (d, (x & 1023) % 7)", "",
                 "func pick[T](a: T, b: T, first: bool) -> T:", "    return a if first else b", "",
                 "func area_of[S: Shape](s: S*) -> i64:", "    return s.area()", "",
+                "func area_dyn(s: Shape) -> i64:", "    return s.area()", "",
                 "func apply(f: func(i64) -> i64, x: i64) -> i64:", "    return f(x)", "",
                 "func makep(x: i64) -> P:", "    return P(x = x *% 7, y = (u8)x, f = f64(x & 255) * 0.5)", "",
                 "func makeq(x: i64) -> Q:", "    return Q(a = x, b = x *% 3, c = x ^ 255, tag = Kind.large if x > 0 else Kind.small)", "",
@@ -615,6 +679,18 @@ class Gen:
         text.append(f"    e0 = {r.randint(-1000, 1000)}")
         text.append(f"    d0 = {r.choice([1.5, -2.25, 0.0, 100.0])}")
         text.append(f"    d1 = {r.choice([0.5, 3.0, -7.75])}")
+        text.append(f"    gf0 = f32(f64({r.randint(0, 4095)}) * 0.25)")
+        text.append(f"    gf1 = f32(f64({r.randint(-2000, 2000)}) * 0.5)")
+        text.append(f"    hf0 = f16({r.randint(0, 30)})")
+        text.append(f"    n8 = {r.randint(-100, 100)}")
+        text.append(f"    n16 = {r.randint(-30000, 30000)}")
+        text.append(f"    us0 = {r.randint(0, 100000)}")
+        text.append(f"    is0 = {r.randint(-100000, 100000)}")
+        text.append(f"    pk0 = Packed(a = (u8){r.randint(0, 255)}, b = (u32){r.randint(0, 100000)}, c = (i16){r.randint(-4000, 4000)})")
+        text.append(f"    al0 = Aligned(first = (u8){r.randint(0, 255)}, value = (u64){r.randint(0, 100000)}, last = (u8){r.randint(0, 255)})")
+        text.append(f"    fv0 = [{r.randint(-9, 9)}.0, {r.randint(-9, 9)}.0, {r.randint(-9, 9)}.0, {r.randint(-9, 9)}.0]")
+        text.append(f"    dv0 = [{r.randint(-9, 9)}.0, {r.randint(-9, 9)}.0]")
+        text.append(f"    sv0 = [{', '.join(str(r.randint(-100, 100)) for _ in range(8))}]")
         text.append("    p0 = makep(a0)")
         text.append("    q0 = makeq(a1)")
         text.append("    s0 = \"abcd\"")
@@ -626,7 +702,7 @@ class Gen:
         text.append("        qs[j] = makeq((i64)j -% 1)")
         self.locals = []
         text += self.statements(3, 1)
-        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]} {shape_area(sh0)} {pr0.a} {v0[1]} {(v1 & 255).sum()} {u0.a}")')
+        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]} {shape_area(sh0)} {pr0.a} {v0[1]} {(v1 & 255).sum()} {u0.a} {gf0} {gf1} {gf0.bits()} {hf0.bits()} {f64(hf0)} {i64(n8)} {i64(n16)} {us0} {is0} {area_dyn(&box0)} {area_dyn(&tri0)} {sizeof(Packed)} {sizeof(Aligned)} {alignof(Aligned)} {offsetof(Aligned, value)} {i64(pk0.a)} {pk0.b} {i64(pk0.c)} {al0.value} {fv0[0]} {fv0.sum()} {dv0[1]} {i64(sv0.max())} {i64((sv0 & 15).sum())}")')
         text.append("    return 0")
         return "\n".join(text) + "\n"
 
@@ -737,12 +813,109 @@ def differential_trap(text, timeout, findings, label):
         findings.report("trap-disagree", text.encode(), f"{label}: the executions disagree on the trap/value: {detail}")
 
 
+def gen_package(rng):
+    """A three-module package (geo, num, main) plus luce.toml exercising cross-module imports,
+    qualified and from-import names, a cross-module struct/method/generic, a shared interface
+    dispatched dynamically across modules, and module constants. Everything is wrapping or
+    bounded, so it never traps; the interpreter and every backend must print the same line."""
+    r = rng
+    def c():
+        return str(r.randint(-50, 50))
+    geo = "\n".join([
+        "pub struct Point:",
+        "    pub var x: i64",
+        "    pub var y: i64",
+        "    pub func norm() -> i64:",
+        "        return self.x *% self.x +% self.y *% self.y",
+        "pub func mix(a: i64, b: i64) -> i64:",
+        "    return a *% " + str(r.randint(2, 9)) + " +% b *% " + str(r.randint(2, 9)),
+        "pub let SEED: i64 = " + c(),
+        "",
+    ])
+    num = "\n".join([
+        "import geo",
+        "pub interface Scored:",
+        "    func score() -> i64",
+        "pub struct Tally: Scored:",
+        "    pub var total: i64",
+        "    pub func score() -> i64:",
+        "        return self.total *% " + str(r.randint(2, 9)) + " +% " + c(),
+        "pub func fold(p: geo.Point) -> i64:",
+        "    return geo.mix(p.x, p.y) +% p.norm()",
+        "pub func score_dyn(s: Scored) -> i64:",
+        "    return s.score()",
+        "",
+    ])
+    steps = []
+    for _ in range(r.randint(2, 6)):
+        kind = r.randrange(4)
+        if kind == 0:
+            steps.append("    acc = acc *% 3 +% num.fold(geo.Point(x = " + c() + ", y = " + c() + "))")
+        elif kind == 1:
+            steps.append("    t.total = t.total *% 2 +% " + c())
+            steps.append("    acc = acc *% 5 +% num.score_dyn(&t)")
+        elif kind == 2:
+            steps.append("    acc = acc *% 7 +% geo.mix(" + c() + ", acc)")
+        else:
+            steps.append("    p = geo.Point(x = acc, y = " + c() + ")")
+            steps.append("    acc = acc *% 3 +% p.norm()")
+    main = "\n".join([
+        "import geo",
+        "import num",
+        "from geo import Point",
+        "from num import Tally",
+        "pub func main(arguments: str[]) -> i32:",
+        "    var acc: i64 = geo.SEED",
+        "    var p = geo.Point(x = " + c() + ", y = " + c() + ")",
+        "    var t = num.Tally(total = " + c() + ")",
+        "    acc = acc *% 3 +% num.fold(p)",
+        "    acc = acc *% 3 +% num.score_dyn(&t)",
+        *steps,
+        '    print(f"{acc} {p.norm()} {geo.mix(' + c() + ', acc)} {t.score()} {num.score_dyn(&t)}")',
+        "    return 0",
+    ])
+    return {"geo.lucb": geo, "num.lucb": num, "main.lucb": main, "luce.toml": "[package]\nname = \"genpkg\"\n"}
+
+
+def differential_package(files, timeout, findings, label):
+    """Build and run a generated package four ways; every execution must print the same line."""
+    import shutil
+    d = out / "genpkg"
+    shutil.rmtree(d, ignore_errors=True)
+    d.mkdir(parents=True)
+    for name, content in files.items():
+        (d / name).write_text(content)
+    combined = "\n".join(f"# ===== {n} =====\n{files[n]}" for n in ("geo.lucb", "num.lucb", "main.lucb"))
+    exe = d / "prog"
+    outputs = {}
+    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+        status, so, se = run([str(compiler), "build", str(d / "main.lucb"), *flags, "-o", str(exe)], timeout * 4)
+        if status != 0:
+            findings.report("pkg-build-" + name, combined.encode(), f"{label}: the package build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
+            return
+        status, so, se = run([str(exe)], timeout)
+        if status != 0:
+            findings.report("pkg-run-" + name, combined.encode(), f"{label}: the package ({name}) stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
+            return
+        outputs[name] = so
+    if seed_binary.exists():
+        status, so, se = run([str(seed_binary), "eval", str(d / "main.lucb")], timeout * 4)
+        if status != 0:
+            findings.report("pkg-seed", combined.encode(), f"{label}: the seed stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
+            return
+        outputs["seed"] = so
+    if len(set(outputs.values())) > 1:
+        detail = "; ".join(f"{k}: {v.decode('utf-8', 'replace').strip()}" for k, v in outputs.items())
+        findings.report("pkg-disagree", combined.encode(), f"{label}: the package executions disagree: {detail}")
+
+
 def main():
     args = sys.argv[1:]
     seed = 1
     mutations = 300
     programs = 40
     trap_programs = 0
+    packages = 0
     minutes = 0.0
     gate = "--gate" in args
     for i, a in enumerate(args):
@@ -754,10 +927,12 @@ def main():
             programs = int(args[i + 1])
         elif a == "--trap-programs":
             trap_programs = int(args[i + 1])
+        elif a == "--packages":
+            packages = int(args[i + 1])
         elif a == "--minutes":
             minutes = float(args[i + 1])
     if gate:
-        seed, mutations, programs, trap_programs = 7, 120, 12, 12
+        seed, mutations, programs, trap_programs, packages = 7, 120, 12, 12, 6
     rng = random.Random(seed)
     findings = Findings()
     files = corpus()
@@ -765,14 +940,14 @@ def main():
         print("no corpus")
         return 1
     deadline = time.time() + minutes * 60 if minutes > 0 else None
-    done_m = done_p = done_t = 0
+    done_m = done_p = done_t = done_k = 0
     round_ = 0
     while True:
         round_ += 1
         if deadline and round_ > 1:
             # a long run says where it is, through a pipe or a file as well as a terminal
             left = max(0, int(deadline - time.time()))
-            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {findings.count} findings, {left // 60} min left", flush=True)
+            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {findings.count} findings, {left // 60} min left", flush=True)
         for k in range(mutations):
             name, source = rng.choice(files)
             text = mutate(source, rng)
@@ -792,13 +967,19 @@ def main():
             done_t += 1
             if deadline and time.time() > deadline:
                 break
+        for k in range(packages):
+            files = gen_package(random.Random(rng.randrange(1 << 30)))
+            differential_package(files, 20, findings, f"package {done_k + 1} (seed {seed})")
+            done_k += 1
+            if deadline and time.time() > deadline:
+                break
         if not deadline or time.time() > deadline:
             break
     for name in ("current.lucb", "generated.lucb", "generated"):
         p = out / name
         if p.exists():
             p.unlink()
-    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {findings.count} findings (seed {seed})", flush=True)
+    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {findings.count} findings (seed {seed})", flush=True)
     return min(findings.count, 100)
 
 
