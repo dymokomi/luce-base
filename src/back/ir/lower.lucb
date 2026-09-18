@@ -29,6 +29,7 @@ import support.buffer
 import support.decimal
 import support.list
 import support.literals
+## The native backend does not support the build's target (§19.5).
 pub let native_unsupported: ErrorCode = ErrorCode.package(14)
 
 type NodeRef = ast.Node*
@@ -71,8 +72,11 @@ struct LowerScope:
 
 ## A value: a scalar in `ref`, or the address of its bytes when `in_memory`.
 pub struct LowerValue:
+    ## The scalar value, or the address of the value's bytes when `in_memory`.
     pub var ref: ir.Ref
+    ## The value's type.
     pub var type_id: u32
+    ## Whether `ref` is the address of the value's bytes rather than the value itself.
     pub var in_memory: bool
 
 # mark: The lowerer ============================================================================
@@ -88,8 +92,10 @@ func assert_text(condition: str, message: str) -> str!:
         return try format(room, f"assert failed: {condition}: {message}")
     return try format(room, f"assert failed: {condition}")
 
+## The native backend's front half: it lowers each function instance to an `ir.Function`.
 pub struct Lowerer:
     var c: check.Checker*
+    ## The lowered program, filled as functions are visited.
     pub var program_unit: ir.Unit
     ## Per type, the shape recorded for it (1-based), 0 until asked.
     var shape_cache: list.List[u32]
@@ -146,6 +152,7 @@ pub struct Lowerer:
     ## The line of the allocation being lowered, for the diagnostic profile's record.
     var site_line: u32
 
+    ## A lowerer for `entry`, checked by `c`.
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, target = targets.Target.host(),
                        modules = try list.List[NodeRef].create(16), entry = entry,
@@ -5057,9 +5064,11 @@ func round_up8(value: u64) -> u64:
 pub func float_bits(text: str) -> u64:
     return decimal.bits(text, 64) else 0
 
+## The f32 bit pattern of the float literal `text`, 0 when it is not finite.
 pub func float32_bits(text: str) -> u64:
     return decimal.bits(text, 32) else 0
 
+## The f16 bit pattern of the float literal `text`, 0 when it is not finite.
 pub func float16_bits(text: str) -> u64:
     return decimal.bits(text, 16) else 0
 

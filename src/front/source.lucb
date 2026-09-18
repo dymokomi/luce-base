@@ -13,31 +13,48 @@ import c
 import files
 import memory
 import support.cache as cache
+## The source is not valid UTF-8, or holds a disallowed control or bidi character.
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
+## The source file could not be read.
 pub let unreadable: ErrorCode = ErrorCode.package(2)
+
+# mark: Sources and directives ================================================================
 
 ## A position directive (§3.3): a line holding only `#: file:line:column` says that the
 ## lines after it, until the next directive, were compiled from that position of another
 ## source, and a trap on them reports it (§11.5); a bare `#:` restores the file's own
 ## positions (`file` empty).
 pub struct Directive:
+    ## The line the directive itself is on.
     pub var base_line: u32
+    ## The source the following lines are attributed to; empty restores the file's own.
     pub var file: str
+    ## The line of `file` the following lines start at.
     pub var line: u32
+    ## The column of `file` the following lines start at.
     pub var column: u32
 
+## One source file, or a module assembled from fragments: its bytes and the line,
+## directive and segment maps that positions use.
 pub struct Source:
+    ## The source's path, as diagnostics name it.
     pub var path: str
+    ## The source bytes.
     pub var bytes: const u8[]
+    ## The position directives, in order.
     pub var directives: Directive*?
+    ## How many directives.
     pub var directive_count: usize
     ## Where each line begins, for the positions traps name (§11.5)
     pub var lines: usize*?
+    ## How many lines.
     pub var line_count: usize
     ## A module assembled from fragments: each fragment's path and the line it begins at,
     ## so a position names the fragment file (`mapped`); empty for one file.
     pub var segment_paths: str*?
+    ## The line each fragment begins at.
     pub var segment_starts: u32*?
+    ## How many fragments.
     pub var segment_count: usize
 
     ## The fragments a directory's `ORDER` lists, in order, as one source at `path`: each
@@ -181,10 +198,14 @@ pub struct Source:
             i += 1
         return (line, column)
 
+    ## The source text between byte offsets `start` and `end`.
     pub func text(start: usize, end: usize) -> str:
         return (str)self.bytes[start..<end]
 
 ## The UTF-8 byte-order mark, accepted only at byte zero.
+# mark: Reading and validation ================================================================
+
+## Whether `data` starts with a UTF-8 byte-order mark.
 func has_bom(data: const u8[]) -> bool:
     return data.length >= 3 and data[0] == 0xEF and data[1] == 0xBB and data[2] == 0xBF
 

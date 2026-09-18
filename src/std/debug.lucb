@@ -52,6 +52,7 @@ var line_bytes: u8[512]
 ## Called at every function entry and exit of a `--debug` build.
 # mark: Debugger hooks ========================================================================
 
+## Enter a described lexical scope for the in-program debugger.
 pub func enter(shape: void*):
     if depth < activations.length:
         activations[depth] = Activation(shape = (Shape*)shape, frame = none, line = 0)

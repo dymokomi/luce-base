@@ -25,6 +25,7 @@ import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer
+## The arm64 generator could not emit the program.
 pub let failed: ErrorCode = ErrorCode.package(15)
 
 ## One argument's placement for a call.
@@ -35,7 +36,9 @@ struct ArgPlacement:
     var count: u32
     var stack_offset: u32
 
+## The arm64 code generator: the IR to arm64 assembly, through its object format.
 pub struct Generator:
+    ## `--debug` or `--release --debug`: the DWARF emitter, else none.
     pub var dw: dwarf.Emitter*?
     var out: buffer.Buffer
     ## What precedes a C symbol in this target's assembler: `_` on macOS (§19.5).
@@ -61,6 +64,7 @@ pub struct Generator:
     ## operands relative to sp add it back.
     var sp_shift: u64
 
+    ## A generator for `program_unit`, targeting `os` with the given C symbol prefix.
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = object.Format(os, symbol_prefix), fp16 = os == build_target.Os.macos, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
@@ -100,6 +104,7 @@ pub struct Generator:
         let room = try alloc u8[self.object_format.text_label.length + 24]
         return try format(room, f"{self.object_format.text_label}{n}")
 
+    ## The assembly emitted so far.
     pub func text() -> str:
         return self.out.view()
 

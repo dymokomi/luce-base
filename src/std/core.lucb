@@ -463,6 +463,7 @@ var hash_seeded: bool
 ## A per-process seed for the collection hashers.
 # mark: Hashing ===============================================================================
 
+## The process's per-run hash seed, chosen once from the address space.
 pub func hash_seed() -> u64:
     if not hash_seeded:
         hash_seed_value = 11400714819323198485 ^ (u64)(usize)&hash_seed_value
@@ -627,6 +628,7 @@ func mul_overflows_s(a: i64, b: i64) -> bool:
 ## Saturating signed addition at `bits`.
 # mark: Saturating and checked arithmetic =====================================================
 
+## Saturating signed addition of `x` and `y` at `bits` bits.
 pub func adds_s(x: i64, y: i64, bits: i32) -> i64:
     let a = sign_extend(x, bits)
     let b = sign_extend(y, bits)

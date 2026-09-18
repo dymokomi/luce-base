@@ -13,6 +13,7 @@
 import io
 import memory
 
+## Every kind of node the parser and checker produce.
 pub enum Kind as u8:
     module = 1
     import_ = 2
@@ -92,29 +93,53 @@ pub enum Kind as u8:
 
 ## Flags on a node; which ones apply depends on the kind.
 pub let flag_pub: u32 = 1
+## A `mutating` method or receiver.
 pub let flag_mutating: u32 = 2
+## A `static` function.
 pub let flag_static: u32 = 4
+## An `export` declaration, with C linkage.
 pub let flag_export: u32 = 8
+## A `packed` struct.
 pub let flag_packed: u32 = 16
+## A `local` (thread-local) global.
 pub let flag_thread_local: u32 = 32
+## An uninitialised binding (`= ---`).
 pub let flag_uninit: u32 = 64
+## A `const` binding or pointee.
 pub let flag_const: u32 = 128
+## A `volatile` pointee.
 pub let flag_volatile: u32 = 256
+## An atomic type (`@T`).
 pub let flag_atomic: u32 = 512
+## An optional type (`T?`).
 pub let flag_optional: u32 = 1024
+## A fallible type or result (`T!`).
 pub let flag_fallible: u32 = 2048
+## A `for` element bound by pointer (§8.2).
 pub let flag_by_pointer: u32 = 4096
+## A `noalias` parameter.
 pub let flag_noalias: u32 = 8192
+## An `out` parameter, written by the callee.
 pub let flag_out: u32 = 16384
+## A `blocking` function or call.
 pub let flag_blocking: u32 = 32768
+## A variadic function.
 pub let flag_variadic: u32 = 65536
+## A pointer type node (`T*`).
 pub let flag_star: u32 = 131072
+## A span type node (`T[]`).
 pub let flag_span: u32 = 262144
+## An array type node (`T[N]`).
 pub let flag_array: u32 = 524288
+## A function type node.
 pub let flag_func_type: u32 = 1048576
+## A `void` marker.
 pub let flag_void: u32 = 2097152
+## A tuple type node.
 pub let flag_tuple_type: u32 = 4194304
+## An `if let` / `while let` binding form.
 pub let flag_if_let: u32 = 8388608
+## A `_` wildcard pattern.
 pub let flag_wildcard: u32 = 16777216
 ## Set by the checker on a name that denotes a type rather than a value.
 pub let flag_type_ref: u32 = 33554432
@@ -135,17 +160,27 @@ pub let flag_format_sink: u32 = 2147483648
 
 # mark: Nodes and lists =======================================================================
 pub struct Node:
+    ## What this node is.
     pub var kind: Kind
     ## The spelling that matters: a name, a literal, an operator, a label.
     pub var text: str
+    ## The byte offset where the node's source begins.
     pub var start: usize
+    ## The byte offset just past the node's source.
     pub var end: usize
+    ## The one-based line the node begins on.
     pub var line: u32
+    ## The `flag_*` bits set on this node.
     pub var flags: u32
+    ## A child whose role depends on the kind: an operand, subject, or type.
     pub var left: Node*?
+    ## A second child, by kind.
     pub var right: Node*?
+    ## The node's body list: statements, members, or arguments, by kind.
     pub var body: Node*?
+    ## A type or auxiliary child, by kind.
     pub var ty: Node*?
+    ## The next node in a sibling list.
     pub var next: Node*?
     ## The attributes of §9.8 before a `func` or a top-level `var`: nodes named by the word,
     ## `section` carrying its name in `left`.
@@ -153,8 +188,10 @@ pub struct Node:
     ## Written by the checker: the interned type id of this node (0 = none)
     ## and the declaration a name, call, or member resolved to.
     pub var type_id: u32
+    ## The declaration a name, call, or member resolved to; `none` until the checker sets it.
     pub var resolved: Node*?
 
+    ## A fresh node of `kind` spelling `text`, at `start` on `line`, with no children.
     pub static func make(kind: Kind, text: str, start: usize, line: u32) -> Node*!:
         return try new Node(kind = kind, text = text, start = start, end = start, line = line,
                             flags = 0, left = none, right = none, body = none, ty = none, next = none,
@@ -167,6 +204,7 @@ pub struct Node:
             return declaration
         return none
 
+    ## Whether `flag` is set on this node.
     pub func has(flag: u32) -> bool:
         return (self.flags & flag) != 0
 
@@ -180,6 +218,7 @@ pub func append(list: Node*?*, tail: Node*?*, item: Node*):
         *list = item
     *tail = item
 
+## The number of nodes in the sibling list at `list`.
 pub func count(list: Node*?) -> usize:
     var n: usize = 0
     var cursor = list
@@ -315,6 +354,7 @@ test "append keeps order and count":
 pub func is_linked(d: Node*) -> bool:
     return has_attribute(d, "linked")
 
+## Whether declaration `d` carries the attribute named `word` (§9.8).
 pub func has_attribute(d: Node*, word: str) -> bool:
     var cursor = d.attrs
     while let a = cursor:

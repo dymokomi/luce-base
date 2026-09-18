@@ -342,6 +342,7 @@ var held_next: usize
 ## Allocation failed: out of memory.
 # mark: Diagnostics and heap ==================================================================
 
+## Allocation failed because memory is exhausted.
 pub let exhausted: ErrorCode = ErrorCode.package(1)
 ## No allocator is current (§12.3).
 pub let unset: ErrorCode = ErrorCode.package(2)
@@ -360,6 +361,7 @@ pub func startup():
 ## Copy `count` elements from `source` to `target` (no overlap).
 # mark: Byte primitives =======================================================================
 
+## Copy `count` elements from `source` into `target`.
 pub func copy[T](target: T[], source: const T[], count: usize):
     if count > target.length or count > source.length:
         trap("index out of bounds")

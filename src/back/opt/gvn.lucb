@@ -21,6 +21,8 @@ import back.ir.cfg
 import back.ir.ir
 import back.opt.opt
 
+# mark: The value table =======================================================================
+
 ## An entry of the table: what an instruction computed, and where its result is.
 struct Entry:
     var op: ir.Op
@@ -100,6 +102,8 @@ func ref_hash(r: ir.Ref) -> u64:
         for byte in r.name.bytes:
             h = (h ^ (u64)byte) *% 0x100000001b3
     return h
+
+# mark: The pass ==============================================================================
 
 ## The pass over `f`, whose graph is `g`. Answers the graph of the function as it stands
 ## afterwards, which is a new one when blocks were removed.

@@ -342,6 +342,7 @@ pub func stdin() -> Reader:
 ## The process's standard output stream.
 # mark: Standard streams ======================================================================
 
+## A writer over the process's standard output.
 pub func stdout() -> Writer:
     return &out_file
 

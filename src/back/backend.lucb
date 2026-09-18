@@ -37,7 +37,10 @@ import back.ir.lower
 import back.opt.opt
 import front.ast
 import sema.check
+## The build's target has no native code generator (§19.5).
 pub let unsupported_target: ErrorCode = ErrorCode.package(20)
+
+# mark: Backends ==============================================================================
 
 ## The last stage of the pipeline: the checked program as the target's text.
 pub interface Backend:
@@ -51,11 +54,13 @@ pub interface Backend:
 pub struct CBackend: Backend:
     var emitter: emit.Emitter
 
+    ## A C backend that emits `entry`, checked by `checker`.
     pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
         var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
         return CBackend(emitter = emitter)
 
+    ## Emit the whole program as C and return its text.
     pub mutating func compile(mode: u32) -> str!:
         try self.emitter.program(mode)
         return self.emitter.text()
@@ -69,18 +74,21 @@ pub struct NativeBackend: Backend:
     pub var dump_ir: bool
     ## How far the optimiser goes, and on how many functions (`--opt`, `--opt-count`).
     pub var opt_level: u32
+    ## How many functions the optimiser processes; all of them when `0xFFFFFFFF`.
     pub var opt_count: u32
     ## `--opt-report`: the time each stage took, on standard error.
     pub var report: bool
     ## The target of the build (§19.5): arm64-macos and x86_64-linux have generators.
     var target: targets.Target
 
+    ## A native backend that lowers `entry` to IR and generates the target's assembly.
     pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
         lowerer.symbols = symbols
         return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
 
+    ## Lower, optimise, and generate the target's assembly, or the IR text with `dump_ir`.
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
         let has_generator = (t.arch == targets.Arch.arm64 and (t.os == targets.Os.macos or t.os == targets.Os.linux)) or (t.arch == targets.Arch.x86_64 and (t.os == targets.Os.linux or t.os == targets.Os.windows))
@@ -124,6 +132,8 @@ pub struct NativeBackend: Backend:
         if self.report:
             try print_report()
         return text
+
+# mark: Optimisation pipeline =================================================================
 
 ## Processor time per stage, in the C library's clock ticks (a millionth of a second):
 ## lower, inline, promote, ssa, gvn, load, dessa, the sweep, generate.

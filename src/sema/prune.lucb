@@ -18,15 +18,22 @@ import support.list
 import memory
 import sema.types
 
+# mark: Reachability and pruning =============================================================
+
 ## The warnings of one module, each formatted with its position.
 pub struct Reporter:
+    ## The module's source path, for positions.
     pub var path: str
+    ## Its source, for positions.
     pub var src: source.Source
+    ## The program's warning list this module appends to.
     pub var warnings: list.List[str]*
     ## A standard module's warnings are nobody's business: it is pruned in silence.
     pub var silent: bool
+    ## `--debug`: keep unused locals rather than pruning them.
     pub var keep_locals: bool
 
+    ## Record a warning at `node` saying `what`, unless this module is silent.
     pub mutating func warn(node: ast.Node*, what: str) -> !:
         if self.silent:
             return
@@ -168,6 +175,7 @@ pub func certainly_leaves(s: ast.Node*) -> bool:
         _:
             return false
 
+## Whether every path through `block` leaves it (returns, breaks, or traps).
 pub func certainly_leaves_block(block: ast.Node*) -> bool:
     var last: ast.Node*? = none
     var cursor = block.body

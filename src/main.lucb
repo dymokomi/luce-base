@@ -921,6 +921,7 @@ func remove_tree(path: c.str):
     files.remove_tree(path) catch failure:
         discard(failure)
 
+## The program could not be built.
 pub let build_failed: ErrorCode = ErrorCode.package(13)
 
 ## Text without its trailing newline.
@@ -1152,6 +1153,7 @@ func lex_file(path: c.str, out: io.Writer) -> !:
             else:
                 try out.write(f"{t.line}:{t.column} {t.label()} {lx.text(t)}\n")
 
+## The `luce-base` command: it dispatches on the first argument (§19.6).
 pub func main(arguments: c.str[]) -> i32!:
     let out = io.stdout()
     if arguments.length < 2:

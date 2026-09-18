@@ -89,7 +89,7 @@ An allocation the diagnostic profile recorded (§19.4): the block, its size, and
 
 - `func allocation_sites() -> const Site[]` — The allocations recorded so far, the most recent 256 at most, oldest first. A view of the record: read it while no other thread allocates.
 
-- `let exhausted: ErrorCode = ErrorCode.package(1)`
+- `let exhausted: ErrorCode = ErrorCode.package(1)` — Allocation failed because memory is exhausted.
 
 - `let unset: ErrorCode = ErrorCode.package(2)` — No allocator is current (§12.3).
 
@@ -97,7 +97,7 @@ An allocation the diagnostic profile recorded (§19.4): the block, its size, and
 
 - `func startup()` — Run by the startup shim before `main`, and by `thread.spawn` in a new thread.
 
-- `func copy[T](target: T[], source: const T[], count: usize)`
+- `func copy[T](target: T[], source: const T[], count: usize)` — Copy `count` elements from `source` into `target`.
 
 - `func move[T](target: T[], source: const T[], count: usize)` — Copy `count` elements, allowing `source` and `target` to overlap.
 
@@ -137,7 +137,7 @@ Its environment, working directory, identity and host (§16.6). Text comes back 
 
 - `let cpu_level: u32 = platform.cpu_level` — The instruction-set level the program was compiled for (`--cpu`, §19.5): on x86-64, 1 to 4 for x86-64-v1 to v4; on arm64, 1 for NEON, 2 for SVE.
 
-- `func cpu_level_running() -> u32`
+- `func cpu_level_running() -> u32` — The microarchitecture level (§19.5) the CPU running this process supports.
 
 - `func cpus() -> u32` — The processors available to this process, at least one.
 
@@ -245,7 +245,7 @@ Borrowed standard output stream. Each nonempty write uses the existing libc stre
 
 - `func stdin() -> Reader` — Borrowed unbuffered standard input. Reads may block; concurrent readers compete for bytes. Do not mix with buffered C stdin reads, which may have prefetched data.
 
-- `func stdout() -> Writer`
+- `func stdout() -> Writer` — A writer over the process's standard output.
 
 - `func stderr() -> Writer` — The process's standard error stream.
 
@@ -296,7 +296,7 @@ A monotonic clock that never goes backwards, and the wall clock as seconds since
 
 Spawning, joining and detaching host threads over pthreads (Windows through its own primitives), with the running thread's identity and yielding and sleeping.
 
-- `let failed: ErrorCode = ErrorCode.package(5)`
+- `let failed: ErrorCode = ErrorCode.package(5)` — A thread operation failed.
 
 ### `Handle` (struct)
 
@@ -313,7 +313,7 @@ A running thread; the zero value is no thread at all, so arrays of handles exist
 
 - `func pause()` — A hint to the processor inside a spin loop.
 
-- `func yield()`
+- `func yield()` — Yield the processor to another runnable thread.
 
 - `func sleep(milliseconds: u64)` — Sleep for at least `milliseconds`: a signal that interrupts the sleep leaves the time remaining, which is slept again.
 
@@ -544,7 +544,7 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 
 - `func format_u64(value: u64, buffer: u8[], radix: u32 = 10) -> str!` — Unsigned counterpart of format_i64; at most 64 bytes are needed. io.full reports insufficient capacity and invalid_radix reports a radix outside 2 through 36.
 
-- `func parse_f64(text: str) -> f64!`
+- `func parse_f64(text: str) -> f64!` — Parse `text` as a 64-bit float, or fail when it is not a number.
 
 - `func parse_f32(text: str) -> f32!` — The f32 counterpart of parse_f64. It calls the single-precision converter directly, avoiding a second rounding step through f64.
 
@@ -587,6 +587,8 @@ Unicode 17.0.0 text operations over strict UTF-8. Data is pinned and generated f
 
 ### `NormalizationForm` (enum as u8)
 
+A Unicode normalization form: canonical or compatibility, composed or decomposed.
+
 - `func normalize(text: str, form: NormalizationForm = NormalizationForm.nfc, max_bytes: usize? = none) -> str!` — Normalize complete UTF-8 text. NFC/NFD preserve canonical equivalence; NFKC/NFKD also apply compatibility mappings and can erase distinctions such as presentation forms. No case folding, BOM removal or replacement is performed. Return fresh owned text, even when unchanged. Temporary scalar storage and an optional sorting buffer use the current allocator and are released on return. max_bytes bounds the final result after composition, not intermediate storage.
 
 ### `GraphemeIterator` (struct)
@@ -601,7 +603,7 @@ Borrowed iterator over default extended grapheme clusters from Unicode 17 UAX #2
 
 Lexical filesystem paths. Both slash styles separate components on Windows; on POSIX a backslash is an ordinary filename byte. No operation touches the disk.
 
-- `func separator(byte: u8) -> bool`
+- `func separator(byte: u8) -> bool` — Whether `byte` separates path components on this target.
 
 - `func root(path: str) -> str` — The volume and root prefix, preserved verbatim. A drive-relative `C:foo` has root `C:`; a UNC share is indivisible, including its optional trailing separator.
 
@@ -1142,6 +1144,8 @@ RFC 6455 base opcodes. Extensions and reserved bits/opcodes are rejected.
 
 ### `WebSocketFrame` (struct)
 
+A decoded WebSocket frame: its opcode, control flags, and payload bytes.
+
 - `var opcode: WebSocketOpcode` — The frame's opcode.
 - `var final: bool` — Whether this is the final frame of a message.
 - `var length: u64` — The payload length.
@@ -1363,14 +1367,16 @@ Owning registration token. Dropping its last reference disconnects; explicit dis
 
 ### `Signal` (struct [A])
 
+A typed, connectable signal: an owned carrier its aliases share by reference count.
+
 - `func init(allocator: memory.Allocator? = none) -> !` — A custom allocator must outlive the signal and its connection aliases.
-- `func clone() -> Signal[A]`
-- `func release()`
-- `func close()`
-- `func is_closed() -> bool`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-- `func connect(callback: Callback[A, unit]) -> Reference[Connection]!`
-- `func emit(argument: A) -> Outcome[unit]`
+- `func clone() -> Signal[A]` — Another strong reference to the same signal.
+- `func release()` — Drop this signal's edge.
+- `func close()` — Close the signal; further connects and emits fail.
+- `func is_closed() -> bool` — Whether the signal has been closed.
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the signal state as a strong reference.
+- `func connect(callback: Callback[A, unit]) -> Reference[Connection]!` — Register `callback`, returning a `Connection` token.
+- `func emit(argument: A) -> Outcome[unit]` — Deliver `argument` to every connected callback.
 
 ### `Packet` (struct [T])
 
@@ -1420,12 +1426,14 @@ A named factory and its runtime hooks, with no retained source-thread state. The
 
 ### `Worker` (struct [C, M, R])
 
-- `func init(entry: WorkerEntry[C, M, R], configuration: C,`
-- `func send(message: M) -> !`
+A bounded persistent worker: a uniquely-owned handle over a thread, its queues and cancellation.
+
+- `func init(entry: WorkerEntry[C, M, R], configuration: C,` — Start `entry` on a new worker thread with `configuration`, waiting until it is ready.
+- `func send(message: M) -> !` — Post `message` to the worker, blocking while its input queue is full.
 - `func try_send(message: M) -> !` — Nonblocking backpressure: a full input queue returns worker_busy.
 - `func receive() -> Reply[R]!` — Replies preserve accepted-message order. Cancellation is terminal: queued replies are discarded by close, and blocked receivers wake with worker_closed.
-- `func cancel()`
-- `mutating func close()`
+- `func cancel()` — Ask the worker to stop; cancellation is terminal and wakes blocked callers.
+- `mutating func close()` — Cancel the worker, join its thread, drain its queues, and free it.
 
 ## `files`
 
@@ -1614,7 +1622,7 @@ Own one directory tree. Borrow this owner; copying it does not copy ownership. c
 
 A sorted snapshot owns all entry names. Reading another entry never invalidates an earlier owned name, and closing releases the complete snapshot.
 
-- `func init(path: str) -> !`
+- `func init(path: str) -> !` — Open `path` for reading its bytes as text.
 - `func count() -> i64` — The number of entries in the snapshot.
 - `func name(index: i64) -> interop.Owned[str]!` — The owned name of entry `index` in the snapshot.
 - `mutating func close()` — Release the snapshot's names.
@@ -1772,6 +1780,8 @@ The portable desktop window module: creating a window, pumping its events, and l
 
 ### `Options` (struct)
 
+Options for creating a window; each has a sensible default.
+
 - `var title: str = "Luce"` — The title-bar text.
 - `var width: u32 = 800` — The initial content width in logical points.
 - `var height: u32 = 600` — The initial content height in logical points.
@@ -1792,12 +1802,12 @@ Content extent in logical points and backing pixels. Query again after resized; 
 One owned native window. The zero value is closed. Copies alias ownership: borrow this value, and destroy exactly one owner on the main thread. All methods, including event pumping, require that thread. Multiple windows are allowed; polling one dispatches OS events for all and queues them per window. The process-global NSApplication and registered runtime classes live until exit.
 
 - `static func open(options: Options = Options()) -> Window!` — Open a hidden window. Call show after setup. Titles must be valid UTF-8; content dimensions are 1..10000 points. No graphics API is initialized.
-- `func show() -> !`
-- `func size() -> Size!`
-- `func resize(width: u32, height: u32) -> !`
+- `func show() -> !` — Make the window visible; call after setting it up.
+- `func size() -> Size!` — The window's current content extent.
+- `func resize(width: u32, height: u32) -> !` — Resize the content to `width` by `height` logical points.
 - `func set_text_input(enabled: bool) -> !` — Enable committed text from the active keyboard layout and input method. Disable when no editable control has focus; this cancels pending composition.
 - `func set_cursor(cursor: input.Cursor) -> !` — Choose the cursor for this window's content. Native chrome and other windows keep their own cursors. The choice survives OS cursor updates.
-- `func cursor() -> input.Cursor!`
+- `func cursor() -> input.Cursor!` — The window's current cursor.
 - `func acquire_presentation() -> Presentation!` — Reserve this window for one graphics surface. Normally gpu.Surface calls this; applications need not manage the lease themselves.
 - `func request_close() -> !` — Request closure, using the same event as the title-bar close button. The application decides whether to destroy the window after receiving it.
 - `func poll() -> input.Event?!` — Return the oldest queued event, or none after a bounded nonblocking pump. Each window holds 256 events. On exhaustion the queue is discarded and one overflow event precedes subsequent events; close requests remain sticky. No event holds transient AppKit storage. Call regularly for every window.

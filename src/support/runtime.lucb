@@ -10,6 +10,8 @@
 #
 #==============================================================================================
 
+# mark: Runtime header (lucb_rt.h) ============================================================
+
 ## The text of `runtime/lucb_rt.h`.
 pub let header: str = r"""//==============================================================================================
 //
@@ -320,6 +322,8 @@ int lb_qsub_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
 int lb_qmul_s(int64_t a, int64_t b, int bits, int64_t* out);
 int lb_qmul_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
 """
+
+# mark: Runtime source (lucb_rt.c) ============================================================
 
 ## The text of `runtime/lucb_rt.c`.
 pub let source: str = r"""//==============================================================================================
@@ -1153,6 +1157,8 @@ void lb_print_f64(double value) {
     printf("%g\n", value);
 }
 """
+
+# mark: Process entry (start.c) ===============================================================
 
 ## The text of `runtime/start.c`.
 pub let start: str = r"""//==============================================================================================

@@ -21,12 +21,19 @@ import platform
 import files
 import support.cache as cache
 import memory
+
+# mark: Settings ==============================================================================
+
+## A manifest line or value is malformed.
 pub let malformed: ErrorCode = ErrorCode.package(17)
 
 ## One `key = value` line of a manifest, under its section, the value unquoted.
 pub struct Setting:
+    ## The `[section]` header the setting falls under.
     pub var section: str
+    ## The setting's key, trimmed.
     pub var key: str
+    ## The setting's value, unquoted and trimmed.
     pub var value: str
 
 ## Every setting of the manifest `text`, in order.
@@ -58,16 +65,25 @@ func count_lines(text: str) -> usize:
             n += 1
     return n
 
+# mark: Manifests =============================================================================
+
 ## What the manifest says; the lists hold NUL-terminated text, ready for a tool's arguments.
 pub struct Manifest:
+    ## The package's name.
     pub var name: str
     ## The directory holding `luce.toml`, with its trailing slash; empty when none was found.
     pub var root: str
+    ## The prefix put before exported C symbols, or empty.
     pub var symbol_prefix: str
+    ## The C source files to compile alongside the program, NUL-terminated.
     pub var sources: c.str[]
+    ## The libraries to link, NUL-terminated.
     pub var libraries: c.str[]
+    ## The directories to search for libraries, NUL-terminated.
     pub var link_search: c.str[]
+    ## The macOS frameworks to link, NUL-terminated.
     pub var frameworks: c.str[]
+    ## The pkg-config packages whose flags to add, NUL-terminated.
     pub var pkg_config: c.str[]
 
 ## The manifest of the package holding `entry_path`, or the default one.
@@ -170,6 +186,8 @@ func items_of(value: str) -> c.str[]!:
                 error(malformed, "native input strings must be separated by commas")
             at += 1
     return out[..<count]
+
+# mark: Text and paths ========================================================================
 
 ## A TOML string's text: `"basic"` or `'literal'`, with a trailing `# comment` dropped; a
 ## bare value stays as written.

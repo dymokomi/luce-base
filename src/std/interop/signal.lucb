@@ -78,6 +78,7 @@ struct SignalState[A]:
 ## manage ownership. Package owners close their signal before releasing it.
 # mark: The signal carrier =====================================================================
 
+## A typed, connectable signal: an owned carrier its aliases share by reference count.
 pub struct Signal[A]:
     let state: SignalState[A]*
 
@@ -90,33 +91,33 @@ pub struct Signal[A]:
         state.information = information
         state.header.info = &state.information
         state.allocator = selected
-        ## Another strong reference to the same signal.
         self.state = state
 
+    ## Another strong reference to the same signal.
     pub func clone() -> Signal[A]:
         discard(ownership.retain(&self.state.header))
-        ## Drop this signal's edge.
         return self
 
+    ## Drop this signal's edge.
     pub func release():
-        ## Close the signal; further connects and emits fail.
         ownership.release(&self.state.header)
 
+    ## Close the signal; further connects and emits fail.
     pub func close():
         ownership.check_alive(&self.state.header)
-        ## Whether the signal has been closed.
         SignalState[A].close(&self.state.header)
 
+    ## Whether the signal has been closed.
     pub func is_closed() -> bool:
         ownership.check_alive(&self.state.header)
-        ## Visit the signal state as a strong reference.
         return self.state.closed
 
+    ## Visit the signal state as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         ownership.check_thread(&self.state.header)
-        ## Register `callback`, returning a `Connection` token.
         visit(&self.state.header, context)
 
+    ## Register `callback`, returning a `Connection` token.
     pub func connect(callback: Callback[A, unit]) -> Reference[Connection]!:
         ownership.check_alive(&self.state.header)
         ownership.check_alive(callback.owner)
@@ -138,9 +139,9 @@ pub struct Signal[A]:
         else:
             self.state.first = entry
         self.state.last = entry
-        ## Deliver `argument` to every connected callback.
         return token
 
+    ## Deliver `argument` to every connected callback.
     pub func emit(argument: A) -> Outcome[unit]:
         discard(ownership.retain(&self.state.header))
         defer ownership.release(&self.state.header)

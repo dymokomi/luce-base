@@ -15,8 +15,11 @@
 
 import front.source
 import front.token
+## Indentation is not a multiple of four spaces, or misaligns a block.
 pub let bad_indent: ErrorCode = ErrorCode.package(3)
+## A string, character, or comment reaches end of file unterminated.
 pub let unterminated: ErrorCode = ErrorCode.package(4)
+## A byte that is not valid in the source at this point.
 pub let bad_character: ErrorCode = ErrorCode.package(5)
 
 ## The suffixes a number may carry (§4.2, §4.3): the exact type's name.
@@ -29,12 +32,15 @@ func is_literal_suffix(word: str) -> bool:
 
 ## The longest identifier (§3.1): a diagnostic quoting one fits its buffer.
 pub let longest_name: usize = 128
+## A tab character in the source, which is not allowed.
 pub let tab: ErrorCode = ErrorCode.package(6)
 
 let max_blocks: usize = 64
 let max_modes: usize = 32
 
+## The lexer over one source, producing tokens on demand.
 pub struct Lexer:
+    ## The source being lexed.
     pub var src: source.Source
     var offset: usize
     var line: u32
@@ -60,6 +66,7 @@ pub struct Lexer:
     ## Where the token being read began, for a diagnostic (`error_position`).
     var token_start: usize
 
+    ## A lexer positioned at the start of `src`.
     pub static func over(src: source.Source) -> Lexer:
         return Lexer(src = src, offset = 0, line = 1, line_start = 0, at_line_start = true,
                      depth = 0, pending_dedents = 0, delimiters = 0, mode_depth = 0,
@@ -207,6 +214,12 @@ pub struct Lexer:
             return try self.next()
         if column < self.raw_level:
             self.in_raw = false
+            # End the suite by dedenting to the line's level now, so a comment on
+            # that line does not defer the dedent past the asm node (layout() would
+            # return none for a `##`/`#` line, hiding the dedent the parser needs).
+            while column < self.levels[self.depth]:
+                self.depth -= 1
+                self.pending_dedents += 1
             return try self.next()
         let start = i
         self.offset = i
@@ -365,6 +378,7 @@ pub struct Lexer:
                 return self.make(token.Kind.operator, start)
         error(bad_character, "unexpected character")
 
+    ## The next token, advancing past it; the `eof` token at the end.
     pub mutating func next() -> token.Token!:
         self.token_start = self.offset
         if self.in_raw:
@@ -491,6 +505,7 @@ pub struct Lexer:
             i -= 1
         return i
 
+    ## The source text token `t` spans.
     pub func text(t: token.Token) -> str:
         return self.src.text(t.start, t.end)
 
@@ -559,6 +574,15 @@ test "asm suites are raw":
     assert(n == 10)
     assert(toks[5].kind == token.Kind.raw_line)
     assert(toks[6].kind == token.Kind.raw_line)
+
+test "a comment after an asm suite ends the suite":
+    var toks: token.Token[32] = ---
+    let n = tokenize("asm arm64:\n    ret\n## doc\nx\n", toks) catch failure: recover 0
+    # asm arm64 : newline indent raw dedent doc_comment x newline
+    assert(n == 10)
+    assert(toks[5].kind == token.Kind.raw_line)
+    assert(toks[6].kind == token.Kind.dedent)
+    assert(toks[7].kind == token.Kind.doc_comment)
 
 test "CRLF asm lines exclude the physical line ending":
     let src = try source.Source.over("test", "asm x86_64:\r\n    cpuid\r\nx\r\n".bytes)

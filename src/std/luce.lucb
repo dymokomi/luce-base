@@ -27,6 +27,7 @@ pub interface Comparable:
 pub interface Iterator[T]:
     mutating func next() -> T?
 
+## A type a `for` loop can walk: it yields an iterator of `T` (§13.3).
 pub interface Iterable[T, I: Iterator[T]]:
     func iterator() -> I
 

@@ -16,13 +16,16 @@ import front.lexer
 import front.source
 import front.token
 import memory
+## A syntax error.
 pub let syntax: ErrorCode = ErrorCode.package(7)
+## The source nests or chains deeper than the parser allows.
 pub let too_deep: ErrorCode = ErrorCode.package(8)
 
 let max_nest: u32 = 100
 ## A chain of calls or operators, one level per link, may be longer than nesting is deep.
 let max_chain: u32 = 300
 
+## The recursive-descent parser over a source's tokens.
 pub struct Parser:
     var src: source.Source
     var tokens: token.Token[]
@@ -72,19 +75,24 @@ pub struct Parser:
     pub func token_span() -> const token.Token[]:
         return self.tokens[..<self.count]
 
+    ## The length of the parser's scratch buffer.
     pub func scratch_length() -> usize:
         return self.scratch.length
 
+    ## The source text token `t` spans.
     pub func text_of(t: token.Token) -> str:
         return self.src.text(t.start, t.end)
 
+    ## Whether the current token is of `kind`.
     pub func at(kind: token.Kind) -> bool:
         return self.cur().kind == kind
 
+    ## Whether the current token is the operator `spelling`.
     pub func at_op(spelling: str) -> bool:
         let t = self.cur()
         return t.kind == token.Kind.operator and self.text_of(t) == spelling
 
+    ## Whether the current token is the keyword `word`.
     pub func at_kw(word: str) -> bool:
         let t = self.cur()
         return t.kind == token.Kind.keyword and self.text_of(t) == word
@@ -103,12 +111,14 @@ pub struct Parser:
     func ended_suite() -> bool:
         return self.pos > 0 and self.tokens[self.pos - 1].kind == token.Kind.dedent
 
+    ## The current token, advancing past it.
     pub mutating func take() -> token.Token:
         let t = self.cur()
         if self.pos + 1 < self.count:
             self.pos += 1
         return t
 
+    ## Consume the current token if it is the operator `spelling`; whether it was.
     pub mutating func eat_op(spelling: str) -> bool:
         if self.at_op(spelling):
             discard(self.take())
@@ -157,6 +167,7 @@ pub struct Parser:
             return
         discard(try self.fail("expected the end of the line"))
 
+    ## The current token as a name, or a syntax error.
     pub mutating func expect_name() -> str!:
         if not self.at(token.Kind.name):
             discard(try self.fail("expected a name"))

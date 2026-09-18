@@ -11,6 +11,7 @@
 ## Standard canonical and compatibility normalization forms from UAX #15.
 # mark: Normalization ========================================================================
 
+## A Unicode normalization form: canonical or compatibility, composed or decomposed.
 pub enum NormalizationForm as u8:
     nfc = 0
     nfd = 1

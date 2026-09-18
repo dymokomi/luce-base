@@ -20,6 +20,8 @@ import sema.types
 import support.buffer
 import support.list
 
+# mark: Writing declarations ==================================================================
+
 ## Write the interface of `module` to `out`; `table` tells which constants fold.
 pub func write(out: buffer.Buffer*, module: check.Module, table: types.Table*) -> !:
     let text = module.src.bytes
@@ -143,6 +145,8 @@ struct Cutter:
         try self.out.put("\n")
         try self.blank_after(end)
 
+# mark: Reachable roots =======================================================================
+
 ## The declarations a library member must define because something outside it names them:
 ## the module's public functions and globals; every private one a generic or `inline` body
 ## reaches, since such a body is compiled in the program that uses it (§9.8); and, when
@@ -219,12 +223,15 @@ func reached(roots: list.List[ast.Node*]*, work: list.List[ast.Node*]*, seen: li
         try reached(roots, work, seen, e.body, home, everywhere, src)
         cursor = e.next
 
+# mark: Source fragments ======================================================================
+
 ## The fragment file the byte at `offset` came from.
 pub func fragment_at(src: source.Source*, offset: usize) -> str:
     let (path, line, column) = src.located(offset)
     discard(line + column)
     return path
 
+## Whether declaration `d` is one of the program's roots.
 pub func is_root(roots: ast.Node*[], d: ast.Node*) -> bool:
     for r in roots:
         if r == d:

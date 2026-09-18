@@ -17,6 +17,9 @@
 import memory
 import platform
 
+# mark: Platform description ==================================================================
+
+## The operating system a target runs on.
 pub enum Os as u8:
     macos = 1
     linux = 2
@@ -24,6 +27,7 @@ pub enum Os as u8:
     ## WASI, the WebAssembly system interface: the target no machine is a host of.
     wasi = 4
 
+## The processor architecture a target runs on.
 pub enum Arch as u8:
     arm64 = 1
     x86_64 = 2
@@ -47,9 +51,15 @@ let linux_libraries: str[2] = ["-lm", "-lpthread"]
 let windows_libraries: str[4] = ["-lm", "-lsynchronization", "-lbcrypt", "-Wl,--stack,16777216"]
 let wasi_libraries: str[1] = ["-lm"]
 
+# mark: Targets ===============================================================================
+
+## A compilation target: its name, system, architecture, level, and how it links (§19.5).
 pub struct Target:
+    ## The target's name, as `--target` spells it.
     pub var name: str
+    ## The target's operating system.
     pub var os: Os
+    ## The target's architecture.
     pub var arch: Arch
     ## The instruction-set level (§19.5): what the processor is promised to have beyond the
     ## family's baseline, chosen with `--cpu`. x86-64: 1 is x86-64-v1 (SSE2), 2 is v2
@@ -58,16 +68,20 @@ pub struct Target:
     ## that arithmetic at level 1 as well. A generator emits the forms of its level and the
     ## levels below.
     pub var level: u32
+    ## The width of a pointer in bits: 64, or 32 on wasm32.
     pub var pointer_bits: u32
     ## What the assembler and the linker put before a C symbol: `_` on macOS, nothing on
     ## Linux and 64-bit Windows.
     pub var symbol_prefix: str
     ## The C library's variables holding the standard streams (§5.2).
     pub var stdin_symbol: str
+    ## The C library variable holding standard output.
     pub var stdout_symbol: str
+    ## The C library variable holding standard error.
     pub var stderr_symbol: str
     ## The linker of the target, and the libraries every program links, as linker arguments.
     pub var linker: Linker
+    ## The libraries every program on this target links, as linker arguments.
     pub var system_libraries: const str[]
 
     ## The target this compiler runs on and emits natively: the one it was built for, which
@@ -93,6 +107,7 @@ pub struct Target:
                           stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", linker = Linker.c_driver, system_libraries = wasi_libraries)
         return none
 
+    ## Whether this target is the one the compiler is running on.
     pub func is_host() -> bool:
         return self.name == platform.name
 
@@ -135,6 +150,8 @@ pub struct Target:
     pub func module_text(buffer: u8[]) -> str!:
         let socket_type = "isize" if self.os == Os.windows else "i32"
         return try format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let wasm32: bool = {self.arch == Arch.wasm32}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n")
+
+# mark: Sections and names ====================================================================
 
 ## The section a `section("name")` attribute places its declaration in, for the object
 ## format of `os` (§9.8): the name as written, except that Mach-O sections live in segments,

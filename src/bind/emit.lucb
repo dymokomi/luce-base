@@ -30,6 +30,7 @@ import strings
 import support.buffer
 import support.list
 
+## A `bind` code-generation error.
 pub let failed: ErrorCode = ErrorCode.package(121)
 
 extern func snprintf(buffer: c.char*, size: usize, layout: c.str, ...) -> i32
@@ -38,11 +39,14 @@ extern func snprintf(buffer: c.char*, size: usize, layout: c.str, ...) -> i32
 ## NAME.return`, `nonnull TYPE.FIELD`, `skip NAME`, and `macro PROTOTYPE;`, a C prototype
 ## for a function-like macro, which is read by the declaration parser.
 pub struct Recipe:
+    ## Names forced non-null: `NAME.PARAM`, `NAME.return`, or `TYPE.FIELD`.
     pub var nonnull: table.Table[bool]
+    ## Declaration names to leave out of the module.
     pub var skipped: table.Table[bool]
     ## The `macro` prototypes, as C text for the parser.
     pub var prototypes: buffer.Buffer
 
+    ## An empty recipe.
     pub static func create() -> Recipe!:
         return Recipe(nonnull = try table.Table[bool].create(64), skipped = try table.Table[bool].create(64),
                       prototypes = try buffer.Buffer.create(256))
@@ -75,6 +79,7 @@ struct Named:
 let kind_type: u8 = 1
 let kind_value: u8 = 2
 
+## Writes a Base module and its C shims from the parsed declarations.
 pub struct Emitter:
     var parser: cparse.Parser*
     var pp: pre.Preprocessor*
@@ -88,6 +93,7 @@ pub struct Emitter:
     var module: str
     var out: buffer.Buffer
     var shims: buffer.Buffer
+    ## Declarations the emitter could not map, one line each with their place.
     pub var report: buffer.Buffer
     ## Base names in the module, by C name: types and values in one namespace.
     var names: table.Table[str]
@@ -112,15 +118,19 @@ pub struct Emitter:
                        record_names = try table.Table[str].create(256), enum_names = try table.Table[str].create(64),
                        typedef_names = try table.Table[str].create(256), refused = try table.Table[bool].create(16), anonymous = 0, shim_count = 0, unmapped = 0)
 
+    ## The generated Base module text.
     pub func text() -> str:
         return self.out.view()
 
+    ## The generated C shim text.
     pub func shim_text() -> str:
         return self.shims.view()
 
+    ## Whether any C shim was emitted.
     pub func has_shims() -> bool:
         return self.shim_count > 0
 
+    ## How many declarations had no Base mapping.
     pub func unmapped_count() -> u32:
         return self.unmapped
 

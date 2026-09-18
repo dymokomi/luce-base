@@ -72,6 +72,7 @@ pub func path_kind(path: str, follow_symlinks: bool = true) -> FileKind!:
 pub struct Entries:
     var names: str[]
 
+    ## Open `path` for reading its bytes as text.
     pub func init(path: str) -> !:
         let native = try text_path(path)
         defer strings.release(native)

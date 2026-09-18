@@ -48,6 +48,7 @@ extern struct Duration:
 ## A thread operation the operating system refused.
 # mark: Threads ===============================================================================
 
+## A thread operation failed.
 pub let failed: ErrorCode = ErrorCode.package(5)
 
 ## `PTHREAD_STACK_MIN`: 16 KiB on macOS and x86-64 glibc, 128 KiB on arm64 glibc; a
@@ -151,6 +152,7 @@ pub func pause():
     asm x86_64:
         pause
 
+## Yield the processor to another runnable thread.
 pub func yield():
     discard(sched_yield())
 

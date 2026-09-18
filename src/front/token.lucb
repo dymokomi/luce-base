@@ -28,13 +28,20 @@ pub enum Kind as u8:
     raw_line = 17
     eof = 18
 
+## One lexical token: its kind and its span, line, and column in the source.
 pub struct Token:
+    ## What kind of token this is.
     pub var kind: Kind
+    ## The byte offset where the token begins.
     pub var start: usize
+    ## The byte offset just past the token.
     pub var end: usize
+    ## The one-based line the token begins on.
     pub var line: u32
+    ## The one-based column the token begins at.
     pub var column: u32
 
+    ## The token kind's name, for diagnostics.
     pub func label() -> str:
         match self.kind:
             .name: return "name"
@@ -57,6 +64,8 @@ pub struct Token:
             _: return "eof"
 
 # mark: Reserved words ========================================================================
+
+## The reserved words of the language; no declaration may take one (§3.5).
 pub let keywords: str[48] = [
     "alloc", "and", "as", "asm", "break", "catch", "const", "continue", "defer",
     "elif", "else", "enum", "errdefer", "export", "extern", "false", "for", "free",
@@ -74,12 +83,14 @@ pub let core_names: str[35] = [
     "f16", "f32", "f64", "char", "str", "unit", "never",
     "void", "fmt", "Error", "ErrorCode"]
 
+## Whether `word` is one of the core names of §3.5.
 pub func is_core_name(word: str) -> bool:
     for name in core_names:
         if name == word:
             return true
     return false
 
+## Whether `word` is a reserved keyword.
 pub func is_keyword(word: str) -> bool:
     for k in keywords:
         if k == word:

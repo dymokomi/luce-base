@@ -24,18 +24,26 @@ import back.ir.ir
 import back.opt.ssa
 import memory
 import support.list
+## The sentinel position meaning "no instruction"; a doubled index never reaches it.
 pub let no_position: u32 = 0xFFFFFFFF
+
+# mark: Register pools ========================================================================
 
 ## What a target offers the temporaries, as runs of register codes: the callee-saved
 ## integer registers are codes 1 to `callee_ints`, the callee-saved float registers follow,
 ## then the caller-saved integer ones, then the caller-saved float ones, which vectors
 ## also take.
 pub struct Pools:
+    ## The number of callee-saved integer registers (codes 1..callee_ints).
     pub var callee_ints: u8
+    ## The number of callee-saved float registers, following the integer ones.
     pub var callee_floats: u8
+    ## The number of caller-saved integer registers, following the callee-saved ones.
     pub var scratch_ints: u8
+    ## The number of caller-saved float (and vector) registers, last.
     pub var scratch_floats: u8
 
+    ## How many register codes the pools hold in all.
     pub func count() -> u8:
         return self.callee_ints + self.callee_floats + self.scratch_ints + self.scratch_floats
 
@@ -47,6 +55,8 @@ pub struct Pools:
     ## Whether `code` names a register a call preserves.
     pub func is_callee(code: u8) -> bool:
         return code <= self.callee_ints + self.callee_floats
+
+# mark: Live ranges ===========================================================================
 
 ## One run of positions a temporary is live at: `from` to `to`, one past the last.
 struct Range:
@@ -195,6 +205,7 @@ pub struct Lives:
             r = range.next
         return false
 
+    ## Free the lives' backing storage.
     pub mutating func release():
         free(self.start)
         free(self.end)
@@ -526,6 +537,8 @@ pub struct Lives:
                 active_count += 1
             i += 1
         return used
+
+# mark: Barriers and free registers ===========================================================
 
 ## An instruction that may clobber the caller-saved registers: a call, an asm block, and
 ## the block operations the generators hand to `memcpy` and `memset` past their inline size.

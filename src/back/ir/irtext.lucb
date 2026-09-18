@@ -14,6 +14,8 @@
 import back.ir.ir
 import support.buffer
 
+# mark: The unit as text ======================================================================
+
 ## The whole unit as text.
 pub func render(program: ir.Unit*) -> str!:
     var out = try buffer.Buffer.create(65536)
@@ -170,6 +172,8 @@ func operand(out: buffer.Buffer*, r: ir.Ref) -> !:
             try out.put("\"")
         _:
             try out.put("_")
+
+# mark: Class and op names ====================================================================
 
 func class_name(c: ir.Class) -> str:
     match c:

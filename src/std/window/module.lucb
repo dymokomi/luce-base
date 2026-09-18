@@ -35,6 +35,7 @@ pub let presentation_in_use: ErrorCode = ErrorCode.package(90)
 pub func supported() -> bool:
     return (platform.macos and platform.arm64) or (platform.windows and platform.x86_64)
 
+## Options for creating a window; each has a sensible default.
 pub struct Options:
     ## The title-bar text.
     pub var title: str = "Luce"
@@ -80,6 +81,7 @@ pub struct Window:
             return Window(state = try win_open(options))
         error(unsupported, "native windows are not implemented for this target")
 
+    ## Make the window visible; call after setting it up.
     pub func show() -> !:
         let state = try self.checked()
         if platform.macos and platform.arm64:
@@ -87,6 +89,7 @@ pub struct Window:
         if platform.windows:
             discard(ShowWindow(required(state.native), 5))
 
+    ## The window's current content extent.
     pub func size() -> Size!:
         let state = try self.checked()
         if platform.macos and platform.arm64:
@@ -95,6 +98,7 @@ pub struct Window:
             return win_size(state)
         error(unsupported, "native windows are not implemented for this target")
 
+    ## Resize the content to `width` by `height` logical points.
     pub func resize(width: u32, height: u32) -> !:
         let state = try self.checked()
         try check_extent(width, height)
@@ -126,6 +130,7 @@ pub struct Window:
         if platform.windows:
             try win_set_cursor(state, cursor)
 
+    ## The window's current cursor.
     pub func cursor() -> input.Cursor!:
         return (try self.checked()).cursor
 

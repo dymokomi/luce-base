@@ -125,10 +125,11 @@ struct WorkerState[C, M, R]:
 ## Luce libraries expose their own owned application-specific wrapper around it.
 # mark: The worker handle ======================================================================
 
+## A bounded persistent worker: a uniquely-owned handle over a thread, its queues and cancellation.
 pub struct Worker[C, M, R]:
-    ## Start a worker running `entry` with `configuration`.
     var state: WorkerState[C, M, R]*?
 
+    ## Start `entry` on a new worker thread with `configuration`, waiting until it is ready.
     pub func init(entry: WorkerEntry[C, M, R], configuration: C,
                   config_transfer: Transfer[C], message_transfer: Transfer[M], result_transfer: Transfer[R],
                   capacity: usize = 16, stack: usize = 0) -> !:
@@ -149,9 +150,9 @@ pub struct Worker[C, M, R]:
             let code = failure.code
             discard(ownership.pool_object(saved.owner else trap("copied text has no owner")))
             self.close()
-            ## Post `message` to the worker.
             error(code, saved.value)
 
+    ## Post `message` to the worker, blocking while its input queue is full.
     pub func send(message: M) -> !:
         try self.dispatch(message, true)
 
@@ -186,17 +187,17 @@ pub struct Worker[C, M, R]:
             error(worker_closed, "the worker no longer produces replies")
         let result = state.output.pop()
         state.changed.broadcast()
-        ## Ask the worker to stop its current work.
         return result
 
+    ## Ask the worker to stop; cancellation is terminal and wakes blocked callers.
     pub func cancel():
         let state = self.state else return
         state.mutex.lock()
         state.cancellation.request()
         state.changed.broadcast()
-        ## Close the worker and wait for it to finish.
         state.mutex.unlock()
 
+    ## Cancel the worker, join its thread, drain its queues, and free it.
     pub mutating func close():
         let state = self.state else return
         self.cancel()

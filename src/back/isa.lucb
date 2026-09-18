@@ -19,7 +19,9 @@ import back.target as targets
 
 ## What a named register carries: a float or an integer, of `bits` bits.
 pub struct Register:
+    ## Whether the register carries a float rather than an integer.
     pub var is_float: bool
+    ## The register's width in bits.
     pub var bits: u32
 
 let arm64_ints: str[5] = ["x11", "x12", "x13", "x14", "x15"]

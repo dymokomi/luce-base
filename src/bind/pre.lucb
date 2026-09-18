@@ -29,8 +29,10 @@ import strings
 import support.buffer
 import support.list
 
+## A preprocessing error.
 pub let failed: ErrorCode = ErrorCode.package(119)
 
+## The lexical kind of a preprocessing token.
 pub enum Kind:
     ident
     number
@@ -42,19 +44,27 @@ pub enum Kind:
 
 ## A preprocessing token: its spelling, where it came from, and the spacing around it.
 pub struct Tok:
+    ## The token's lexical kind.
     pub var kind: Kind
+    ## The token's spelling.
     pub var text: str
+    ## The source file the token came from.
     pub var file: u32
+    ## The line the token is on.
     pub var line: u32
     ## Whitespace before it, and whether it is the first token of its line.
     pub var space: bool
+    ## Whether it is the first token of its line.
     pub var bol: bool
     var hide: Hide*?
+    ## The next token in the list, or none at the end.
     pub var next: Tok*?
 
+    ## Whether the token has this kind and spelling.
     pub func is(kind: Kind, text: str) -> bool:
         return self.kind == kind and self.text == text
 
+    ## Whether the token is this punctuator.
     pub func is_punct(text: str) -> bool:
         return self.kind == Kind.punct and self.text == text
 
@@ -65,18 +75,27 @@ struct Hide:
 
 ## A macro. `body` is a token list ending in `eof`; a builtin computes its value.
 pub struct Macro:
+    ## The macro's name.
     pub var name: str
+    ## Whether it takes arguments.
     pub var function_like: bool
+    ## The parameter names, for a function-like macro.
     pub var params: str[]
+    ## Whether it ends in `...`.
     pub var variadic: bool
+    ## The replacement tokens, ending in `eof`.
     pub var body: Tok*?
     var builtin: u8
+    ## The file it was defined in.
     pub var file: u32
+    ## The line it was defined on.
     pub var line: u32
+    ## Whether a later `#undef` removed it.
     pub var deleted: bool
 
 ## A file the preprocessor opened: its canonical path and which directory found it.
 pub struct FileEntry:
+    ## The file's canonical path.
     pub var path: str
     var dir: usize
 
@@ -98,11 +117,13 @@ let builtin_counter: u8 = 3
 var scratch: u8[4096]
 var place: u8[4096]
 
+## The C preprocessor: include search, macros, and the files it opened.
 pub struct Preprocessor:
     ## Include directories: the `-I` ones first, then the compiler's system directories.
     var dirs: list.List[str]
     var user_dirs: usize
     var frameworks: list.List[str]
+    ## Every file opened, in order; a token's `file` indexes this list.
     pub var files: list.List[FileEntry]
     var once: list.List[str]
     var keys: str[]
@@ -224,6 +245,7 @@ pub struct Preprocessor:
         let found = try self.search(name, true, 0, false) else return none
         return found.path
 
+    ## The canonical path of file index `file`.
     pub func path_of(file: u32) -> str:
         return self.files.items[file].path
 
@@ -808,7 +830,9 @@ func is_query(name: str) -> bool:
 
 ## A C integer in a constant expression: 64 bits, unsigned when either operand is.
 pub struct Value:
+    ## The 64-bit value.
     pub var value: i64
+    ## Whether the value is unsigned.
     pub var unsigned: bool
 
 ## `#if`'s expression grammar over a token line, C's precedence, `?:` included.
@@ -1087,6 +1111,7 @@ func intersect(a: Hide*?, b: Hide*?) -> Hide*?:
         cursor = h.next
     return out
 
+## A shallow copy of `t` with no successor.
 pub func copy(t: Tok*) -> Tok*!:
     return try new Tok(kind = t.kind, text = t.text, file = t.file, line = t.line, space = t.space,
                        bol = t.bol, hide = t.hide, next = none)
@@ -1141,6 +1166,7 @@ func link(cur: Tok*, items: Tok*) -> Tok*:
         last = n
     return last
 
+## The first token at or after `start` that begins a line.
 pub func skip_line(start: Tok*) -> Tok*:
     var tok = start
     while not tok.bol:

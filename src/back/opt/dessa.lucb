@@ -19,6 +19,8 @@ import support.list
 import back.ir.cfg
 import back.ir.ir
 
+# mark: Moves on each edge ====================================================================
+
 ## A copy to place: at the end of block `at`, `dst = value`.
 struct Move:
     var at: u32
@@ -91,6 +93,8 @@ struct Moves:
         self.items.destroy()
         free(self.start)
         free(self.owner)
+
+# mark: Replacing phis with copies ============================================================
 
 ## Replace every phi of `f` by copies. `g` is the graph of `f` as it stands.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> !:

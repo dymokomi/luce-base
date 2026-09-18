@@ -16,9 +16,13 @@
 import front.ast
 import sema.prune
 
+# mark: Initialisation rules =================================================================
+
 ## The first rule the body breaks: where, and what to say.
 pub struct Finding:
+    ## Where the rule is broken.
     pub var at: ast.Node*
+    ## What to say about it.
     pub var what: str
 
 ## The rule `fn`'s body breaks for the fields of `owner`, if any.

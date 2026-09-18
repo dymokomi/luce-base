@@ -18,6 +18,7 @@ pub enum WebSocketOpcode as u8:
     ping = 9
     pong = 10
 
+## A decoded WebSocket frame: its opcode, control flags, and payload bytes.
 pub struct WebSocketFrame:
     ## The frame's opcode.
     pub var opcode: WebSocketOpcode

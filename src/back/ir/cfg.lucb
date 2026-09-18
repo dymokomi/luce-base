@@ -21,29 +21,40 @@ import back.ir.ir
 ## No block.
 pub let none_block: u32 = 0xFFFFFFFF
 
+# mark: Basic blocks and the graph ============================================================
+
+## One basic block: its instructions, its edges, and its place in the dominator tree.
 pub struct Block:
     ## The label at the block's head; 0 for the entry, which has none.
     pub var label: u32
     ## The instructions of the block: `start` is the first after the label, `end` one past
     ## the last, the terminator included when there is one.
     pub var start: u32
+    ## One past the block's last instruction.
     pub var end: u32
     ## Successors by block index (`none_block` when absent): a jump's target, a branch's
     ## two, the block fallen into.
     pub var succ1: u32
+    ## The second successor, a branch's else; `none_block` when absent.
     pub var succ2: u32
+    ## Predecessor block indices.
     pub var preds: list.List[u32]
     ## The reverse post-order number, `none_block` when unreachable from the entry.
     pub var rpo: u32
+    ## The immediate dominator's block index.
     pub var idom: u32
+    ## The dominance frontier: the blocks where this block's dominance ends.
     pub var frontier: list.List[u32]
     ## Children in the dominator tree, and the depth below the entry.
     pub var children: list.List[u32]
+    ## The depth below the entry in the dominator tree.
     pub var depth: u32
     ## 1 outside every loop, 10 inside one, 100 inside a nested one.
     pub var loop_weight: u32
 
+## The control-flow graph of one function.
 pub struct Graph:
+    ## The basic blocks, indexed by block number.
     pub var blocks: list.List[Block]
     ## Block indices in reverse post-order; `order.count` reachable blocks.
     pub var order: list.List[u32]
@@ -74,6 +85,7 @@ pub struct Graph:
         try g.number()
         return g
 
+    ## Release the graph's storage.
     pub mutating func release():
         var i: usize = 0
         while i < self.blocks.count:
@@ -90,6 +102,7 @@ pub struct Graph:
     pub func block_of(label: u32) -> u32:
         return self.by_label[(usize)label]
 
+    ## How many blocks the graph has.
     pub func count() -> usize:
         return self.blocks.count
 

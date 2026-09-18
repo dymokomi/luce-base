@@ -29,15 +29,23 @@ let none_index: u32 = 0xFFFFFFFF
 ## instruction index, or an argument index under `arg_site`, or a phi argument index under
 ## `phi_site`.
 pub let arg_site: u32 = 0x40000000
+## A use site index tagged as a phi argument, an index into `phi_args`.
 pub let phi_site: u32 = 0x80000000
 
+## Every definition and use of each temporary in a function, gathered once per pass.
 pub struct Uses:
+    ## The number of definitions of each temporary, indexed by temporary.
     pub var def_count: u32[]
+    ## The instruction that defines each temporary, or `none_index`; indexed by temporary.
     pub var def_at: u32[]
+    ## The start of each temporary's run in `sites`, indexed by temporary.
     pub var use_start: u32[]
+    ## The number of use sites of each temporary, indexed by temporary.
     pub var use_count: u32[]
+    ## Every use site packed by temporary: an instruction index, or one tagged with `arg_site` or `phi_site`.
     pub var sites: u32[]
 
+    ## Gather every definition and use of `f`'s temporaries in one pass.
     pub static func over(f: ir.Function*) -> Uses!:
         let n = f.temps.count + 1
         var u = Uses(def_count = try alloc u32[n], def_at = try alloc u32[n], use_start = try alloc u32[n], use_count = try alloc u32[n], sites = try alloc u32[1])
@@ -98,9 +106,11 @@ pub struct Uses:
         self.sites[(usize)(self.use_start[t] + self.use_count[t])] = site
         self.use_count[t] += 1
 
+    ## The `k`th use site of temporary `t`.
     pub func use(t: u32, k: u32) -> u32:
         return self.sites[(usize)(self.use_start[(usize)t] + k)]
 
+    ## Free the gathered arrays.
     pub mutating func release():
         free(self.def_count)
         free(self.def_at)
@@ -283,9 +293,11 @@ func slot_of(addr_of: u32[], r: ir.Ref) -> u32:
         return addr_of[(usize)r.index]
     return none_index
 
+## Whether `op` is one of the typed load instructions.
 pub func is_load(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
 
+## Whether `op` is one of the typed store instructions.
 pub func is_store(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
 
@@ -343,10 +355,14 @@ func load_as(op: ir.Op, cls: ir.Class) -> ir.Op:
 
 ## Which temporaries are live at each block's entry and exit, as bit sets.
 pub struct Liveness:
+    ## The number of 64-bit words in each block's live set, one bit per temporary.
     pub var words: usize
+    ## Each block's live-in set, `words` words per block, indexed by block.
     pub var live_in: u64[]
+    ## Each block's live-out set, `words` words per block, indexed by block.
     pub var live_out: u64[]
 
+    ## Compute per-block liveness for `f` over its control-flow graph `g`.
     pub static func over(f: ir.Function*, g: cfg.Graph*) -> Liveness!:
         let words = (f.temps.count + 1 + 63) // 64
         let nb = g.count()
@@ -432,12 +448,15 @@ pub struct Liveness:
                 a += 1
             i += 1
 
+    ## Whether temporary `t` is live at the entry of block `b`.
     pub func live_in_at(b: u32, t: u32) -> bool:
         return (self.live_in[(usize)b * self.words + (usize)t // 64] & ((u64)1 << ((u64)t % 64))) != 0
 
+    ## Whether temporary `t` is live at the exit of block `b`.
     pub func live_out_at(b: u32, t: u32) -> bool:
         return (self.live_out[(usize)b * self.words + (usize)t // 64] & ((u64)1 << ((u64)t % 64))) != 0
 
+    ## Free the liveness bit sets.
     pub mutating func release():
         free(self.live_in)
         free(self.live_out)

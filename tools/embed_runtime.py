@@ -5,7 +5,13 @@ exit 1 when the embedded text is not what runtime/ says."""
 import pathlib, sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
-files = [("header", "lucb_rt.h"), ("source", "lucb_rt.c"), ("start", "start.c")]
+files = [("header", "lucb_rt.h", "Runtime header (lucb_rt.h)"),
+         ("source", "lucb_rt.c", "Runtime source (lucb_rt.c)"),
+         ("start", "start.c", "Process entry (start.c)")]
+
+def mark(text):
+    base = f"# mark: {text} "
+    return base + "=" * (95 - len(base))
 out = []
 out.append('''#==============================================================================================
 #
@@ -20,10 +26,10 @@ out.append('''#=================================================================
 #==============================================================================================
 
 ''')
-for name, file in files:
+for name, file, section in files:
     text = (root / "runtime" / file).read_text(encoding="utf-8")
     assert '"""' not in text, file
-    out.append(f"## The text of `runtime/{file}`.\npub let {name}: str = r\"\"\"{text}\"\"\"\n\n")
+    out.append(f"{mark(section)}\n\n## The text of `runtime/{file}`.\npub let {name}: str = r\"\"\"{text}\"\"\"\n\n")
 target = root / "src" / "support" / "runtime.lucb"
 text = "".join(out).rstrip("\n") + "\n"
 if "--check" in sys.argv:

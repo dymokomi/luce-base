@@ -43,6 +43,7 @@ func parse_native_f32(text: c.str, end: u8*?*, locale: void*) -> f32:
 ## the current allocator and uses a temporary libc locale, both released on return.
 # mark: Formatting and parsing ==============================================================
 
+## Parse `text` as a 64-bit float, or fail when it is not a number.
 pub func parse_f64(text: str) -> f64!:
     let kind = float_syntax(text) else error(invalid_number, "invalid floating-point text")
     if kind != 0:

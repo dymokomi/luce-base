@@ -19,6 +19,7 @@ import os
 import paths
 import support.list
 
+## Reported when the standard library's location cannot be determined.
 pub let failed: ErrorCode = ErrorCode.package(41)
 
 ## `--std-dir`: the directory the driver was told, before any search.

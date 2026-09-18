@@ -14,6 +14,7 @@ import platform
 ## Whether `byte` separates path components on the target.
 # mark: Paths =================================================================================
 
+## Whether `byte` separates path components on this target.
 pub func separator(byte: u8) -> bool:
     return byte == '/' or (platform.windows and byte == 92)
 

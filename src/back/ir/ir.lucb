@@ -39,9 +39,11 @@ pub enum Class as u8:
 pub func is_comparison(op: Op) -> bool:
     return (u8)op >= (u8)Op.ceq and (u8)op <= (u8)Op.cuge
 
+## Whether `cls` is a float or half-precision register class.
 pub func is_float_class(cls: Class) -> bool:
     return cls == Class.s or cls == Class.d or cls == Class.h
 
+## Whether `cls` is a vector register class.
 pub func is_vector_class(cls: Class) -> bool:
     return cls == Class.v
 
@@ -51,18 +53,23 @@ pub func is_vector_class(cls: Class) -> bool:
 pub func lanes(bits: u32, count: u32, is_float: bool, signed: bool) -> u32:
     return bits | (count << 8) | ((1 if is_float else 0) << 16) | ((1 if signed else 0) << 17)
 
+## The lanes' width in bits, from a vector shape.
 pub func lane_bits(shape: u32) -> u32:
     return shape & 0xFF
 
+## How many lanes a vector shape has.
 pub func lane_count(shape: u32) -> u32:
     return (shape >> 8) & 0xFF
 
+## Whether a vector shape's lanes are floats.
 pub func lanes_float(shape: u32) -> bool:
     return (shape & (1 << 16)) != 0
 
+## Whether a vector shape's lanes are signed.
 pub func lanes_signed(shape: u32) -> bool:
     return (shape & (1 << 17)) != 0
 
+## The total byte width of a vector shape, eight or sixteen.
 pub func vector_bytes(shape: u32) -> u32:
     return lane_bits(shape) * lane_count(shape) // 8
 
@@ -86,24 +93,32 @@ pub enum RefKind as u8:
 
 ## An operand: a temporary, a constant, the address of a slot, global, function, or text.
 pub struct Ref:
+    ## What the operand refers to.
     pub var kind: RefKind
+    ## The temporary, slot, or text index; unused for the rest.
     pub var index: u32
+    ## A constant's value, or 1 marking an imported global.
     pub var value: i64
     ## The symbol of a global or function; the bytes of a text literal.
     pub var name: str
 
+## No operand.
 pub func none_ref() -> Ref:
     return Ref(kind = RefKind.none_, index = 0, value = 0, name = "")
 
+## The temporary numbered `index`.
 pub func temp_ref(index: u32) -> Ref:
     return Ref(kind = RefKind.temp, index = index, value = 0, name = "")
 
+## The integer constant `value`.
 pub func const_ref(value: i64) -> Ref:
     return Ref(kind = RefKind.constant, index = 0, value = value, name = "")
 
+## The address of slot `index`.
 pub func slot_ref(index: u32) -> Ref:
     return Ref(kind = RefKind.slot, index = index, value = 0, name = "")
 
+## The address of the global named `name`.
 pub func global_ref(name: str) -> Ref:
     return Ref(kind = RefKind.global, index = 0, value = 0, name = name)
 
@@ -112,9 +127,11 @@ pub func global_ref(name: str) -> Ref:
 pub func import_ref(name: str) -> Ref:
     return Ref(kind = RefKind.global, index = 0, value = 1, name = name)
 
+## The address of the function named `name`.
 pub func function_ref(name: str) -> Ref:
     return Ref(kind = RefKind.function, index = 0, value = 0, name = name)
 
+## The address of text literal `index`.
 pub func text_ref(index: u32) -> Ref:
     return Ref(kind = RefKind.text, index = index, value = 0, name = "")
 
@@ -280,17 +297,25 @@ pub type Instrs = list.List[Instr]
 ## One instruction. `dst` is 0 when there is none. `extra` carries a label, a
 ## byte count, or a call's argument range.
 pub struct Instr:
+    ## The operation.
     pub var op: Op
+    ## The class of `dst` and of the operation.
     pub var cls: Class
+    ## The result temporary, 0 for none.
     pub var dst: u32
+    ## The first operand.
     pub var a: Ref
+    ## The second operand.
     pub var b: Ref
+    ## A label, a byte count, or a call's argument range.
     pub var extra: u32
+    ## A branch's else label, or a second count.
     pub var extra2: u32
     ## The source line and file (an index into the unit's `files`, 1-based, 0 for none)
     ## the instruction came from, for the line table of an optimised build (`--release
     ## --debug`); the passes carry them with the instruction.
     pub var line: u32
+    ## The file the line refers to, an index into the unit's `files`.
     pub var file: u32
     ## The lexical scope (an index into the function's `debug_scopes`, 0 for the function's
     ## own) the instruction came from; the passes carry it, and a build with symbols
@@ -303,25 +328,36 @@ pub struct Instr:
 ## One scalar member of an aggregate, wherever it lies: what a calling convention reads to
 ## classify the aggregate. A union's members overlap; padding has no leaf.
 pub struct Leaf:
+    ## The member's byte offset in the aggregate.
     pub var offset: u32
+    ## The member's size in bytes.
     pub var size: u8
+    ## The member's register class.
     pub var cls: Class
 
 ## An aggregate's leaves, as a range of the unit's `leaves`; shape 0 is no shape, the
 ## aggregate is passed in memory whatever the convention.
 pub struct Shape:
+    ## The first leaf's index in the unit's `leaves`.
     pub var start: u32
+    ## How many leaves the shape has.
     pub var count: u32
 
 ## One argument of a call: the operand, its class, and for an aggregate its byte size,
 ## alignment, and shape (0 size means a scalar). The convention is the target's: the IR
 ## says what the value is made of, and the generator decides where it goes.
 pub struct Arg:
+    ## The argument operand.
     pub var value: Ref
+    ## The argument's register class.
     pub var cls: Class
+    ## The aggregate's byte size, 0 for a scalar.
     pub var size: u32
+    ## The aggregate's alignment.
     pub var align: u32
+    ## The argument's type.
     pub var type_id: u32
+    ## The aggregate's shape (1-based), 0 for none.
     pub var shape: u32
     ## Scalar storage width before register promotion; zero uses the IR class width.
     ## Apple arm64 packs fixed stack arguments using this width, even for i8/u16.
@@ -329,64 +365,103 @@ pub struct Arg:
 
 ## A call's result: a scalar class, or an aggregate written to `slot` of `size` bytes.
 pub struct CallInfo:
+    ## The first argument's index in the function's `args`.
     pub var args_start: u32
+    ## How many arguments the call passes.
     pub var args_count: u32
+    ## How many arguments are fixed, before any variadic tail.
     pub var fixed_count: u32
+    ## Whether the call is variadic.
     pub var variadic: bool
+    ## The result's register class.
     pub var result_cls: Class
+    ## Whether the call returns a value.
     pub var has_result: bool
+    ## The result's byte size, 0 for a scalar.
     pub var result_size: u32
+    ## The result's alignment.
     pub var result_align: u32
+    ## The result's type.
     pub var result_type: u32
+    ## The slot an aggregate result is written into.
     pub var result_slot: u32
+    ## The result aggregate's shape (1-based), 0 for none.
     pub var result_shape: u32
 
 ## A stack slot: `size` bytes at `align`.
 pub struct Slot:
+    ## The slot's size in bytes.
     pub var size: u32
+    ## The slot's alignment.
     pub var align: u32
 
 ## A parameter as the function receives it.
 pub struct Param:
+    ## The parameter's register class.
     pub var cls: Class
+    ## The parameter's byte size, 0 for a scalar.
     pub var size: u32
+    ## The parameter's alignment.
     pub var align: u32
+    ## The parameter's type.
     pub var type_id: u32
     ## The slot the parameter is stored into on entry.
     pub var slot: u32
+    ## The parameter aggregate's shape (1-based), 0 for none.
     pub var shape: u32
+    ## The scalar storage width before promotion; 0 uses the class width.
     pub var scalar_width: u32
+    ## Whether the scalar parameter is signed.
     pub var scalar_signed: bool
 
 # mark: Functions and the unit ================================================================
 
 ## One incoming value of a phi: what the block whose label is `pred` supplies.
 pub struct PhiArg:
+    ## The value this predecessor supplies.
     pub var value: Ref
+    ## The predecessor block's label.
     pub var pred: u32
 
 ## A named local as the debugger sees it (`--debug`): its slot, its type's spelling.
 pub struct LocalInfo:
+    ## The local's name.
     pub var name: str
+    ## The slot the local lives in.
     pub var slot: u32
+    ## The local's type, spelled for the debugger.
     pub var kind: str
+    ## The local's byte size.
     pub var size: u32
+    ## The local's type.
     pub var type_id: u32
+    ## The line the local is declared on.
     pub var line: u32
+    ## Whether the local is a parameter.
     pub var parameter: bool
+    ## The lexical scope the local belongs to.
     pub var scope: usize
     ## The inlined subroutine the local belongs to (`Instr.site`), 0 for the function's own.
     pub var site: u32
 
+## A statement boundary the in-program debugger stops at (`--debug`).
 pub struct DebugPoint:
+    ## The instruction index the statement begins at.
     pub var instruction: usize
+    ## The statement's source file.
     pub var file: str
+    ## The statement's line.
     pub var line: u32
+    ## The statement's column.
     pub var column: u32
 
+## A lexical scope (`--debug`), for the locals visible within it.
 pub struct DebugScope:
+    ## The enclosing scope's index, 0 for the function's own.
     pub var parent: usize
+    ## The instruction index the scope opens at.
     pub var start: usize
+    ## The instruction index the scope closes at.
     pub var end: usize
     ## The inlined subroutine the scope belongs to (`Instr.site`), 0 for the function's own.
     pub var site: u32
@@ -411,8 +486,11 @@ pub struct InlineSite:
     ## The site the call itself was in, 0 for the caller's own body.
     pub var parent: u32
 
+## One lowered function: its instructions, slots and temporaries, with the metadata the generators and the debugger need.
 pub struct Function:
+    ## The function's symbol.
     pub var name: str
+    ## Whether the function has C linkage (§9.8).
     pub var exported: bool
     ## Optional standard modules must not impose link dependencies on every program.
     pub var standard: bool
@@ -423,40 +501,66 @@ pub struct Function:
     pub var symbols: bool
     ## The position `emit` stamps on each instruction.
     pub var at_line: u32
+    ## The file `emit` stamps on each instruction.
     pub var at_file: u32
     ## The scope the lowerer is in, stamped on each instruction it emits (`Instr.scope`).
     pub var at_scope: u32
+    ## The function's source file.
     pub var source: str
+    ## The function's source-level name.
     pub var source_name: str
+    ## The line the function is declared on.
     pub var source_line: u32
+    ## The statement boundaries, for the in-program debugger.
     pub var points: list.List[DebugPoint]
+    ## The lexical scopes.
     pub var debug_scopes: list.List[DebugScope]
     ## The calls the inliner opened out in a build with symbols, 1-based by `Instr.site`.
     pub var sites: list.List[InlineSite]
+    ## The named locals.
     pub var locals: list.List[LocalInfo]
+    ## The parameters as received.
     pub var params: list.List[Param]
+    ## The stack slots.
     pub var slots: list.List[Slot]
+    ## The instructions, in order.
     pub var instrs: list.List[Instr]
+    ## The call arguments and atomic operands, pooled.
     pub var args: list.List[Arg]
+    ## The call descriptions, indexed by `Instr.extra`.
     pub var calls: list.List[CallInfo]
+    ## The class of each temporary, by index.
     pub var temps: list.List[Class]
+    ## The phi arguments, pooled.
     pub var phi_args: list.List[PhiArg]
+    ## How many labels have been handed out.
     pub var labels: u32
+    ## Whether the function returns a value.
     pub var has_result: bool
+    ## The result's register class.
     pub var result_cls: Class
+    ## The result's byte size, 0 for a scalar.
     pub var result_size: u32
+    ## The result's alignment.
     pub var result_align: u32
+    ## The result's type.
     pub var result_type: u32
+    ## The result aggregate's shape (1-based), 0 for none.
     pub var result_shape: u32
+    ## Whether the function is variadic.
     pub var variadic: bool
     ## The attributes of §9.8 that reach the object file.
     pub var naked: bool
+    ## Whether the symbol is weak (§9.8).
     pub var weak: bool
+    ## Whether the symbol is retained even if unreferenced (§9.8).
     pub var used: bool
+    ## The section the function is placed in, empty for the default.
     pub var section: str
     ## `noinline`: the body stands in for no call of it (§9.8).
     pub var noinline: bool
 
+    ## An empty function named `name`.
     pub static func create(name: str) -> Function!:
         return Function(name = name, exported = false, debug = false, symbols = false, at_line = 0, at_file = 0, at_scope = 0, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), sites = try list.List[InlineSite].create(0), locals = try list.List[LocalInfo].create(8),
                         params = try list.List[Param].create(8),
@@ -466,23 +570,28 @@ pub struct Function:
                         result_cls = Class.l, result_size = 0, result_align = 0, result_type = 0,
                         result_shape = 0, variadic = false)
 
+    ## A fresh temporary of class `cls`; its 1-based number.
     pub mutating func temp(cls: Class) -> u32!:
         try self.temps.push(cls)
         return u32(self.temps.count)
 
+    ## The class of temporary `index`.
     pub func temp_class(index: u32) -> Class:
         return self.temps.get((usize)index - 1)
 
+    ## A fresh slot of `wanted` bytes at `align`; its index.
     pub mutating func slot(wanted: u32, align: u32) -> u32!:
         # an aggregate that travels in two registers lands as two words
         let size = 16 if wanted > 8 and wanted < 16 else wanted
         try self.slots.push(Slot(size = size if size > 0 else 1, align = align if align > 0 else 1))
         return u32(self.slots.count - 1)
 
+    ## A fresh label number.
     pub mutating func label() -> u32:
         self.labels += 1
         return self.labels
 
+    ## Append an instruction, stamping the current source position on it.
     pub mutating func emit(op: Op, cls: Class, dst: u32, a: Ref, b: Ref, extra: u32) -> !:
         try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0, line = self.at_line, file = self.at_file, scope = self.at_scope, site = 0))
 
@@ -493,14 +602,17 @@ pub struct Function:
         try self.emit(op, cls, t, a, b, 0)
         return temp_ref(t)
 
+    ## `dst = op a` at class `cls`, into a fresh temporary.
     pub mutating func unary(op: Op, cls: Class, a: Ref) -> Ref!:
         let t = try self.temp(cls)
         try self.emit(op, cls, t, a, none_ref(), 0)
         return temp_ref(t)
 
+    ## Mark where label `label` lands.
     pub mutating func place_label(label: u32) -> !:
         try self.emit(Op.label, Class.l, 0, none_ref(), none_ref(), label)
 
+    ## An unconditional jump to `label`.
     pub mutating func jump(label: u32) -> !:
         try self.emit(Op.jmp, Class.l, 0, none_ref(), none_ref(), label)
 
@@ -512,39 +624,54 @@ pub struct Function:
             cls = self.temps.get((usize)condition.index - 1)
         try self.instrs.push(Instr(op = Op.jnz, cls = cls, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label, line = 0, file = 0, scope = 0, site = 0))
 
+    ## Load through `address` with `op`, into a fresh temporary.
     pub mutating func load(op: Op, cls: Class, address: Ref) -> Ref!:
         let t = try self.temp(cls)
         try self.emit(op, cls, t, address, none_ref(), 0)
         return temp_ref(t)
 
+    ## Store `value` through `address` with `op`.
     pub mutating func store(op: Op, value: Ref, address: Ref) -> !:
         try self.emit(op, Class.l, 0, value, address, 0)
 
+    ## The address of what `r` refers to, in a fresh temporary.
     pub mutating func address_of(r: Ref) -> Ref!:
         let t = try self.temp(Class.l)
         try self.emit(Op.addr, Class.l, t, r, none_ref(), 0)
         return temp_ref(t)
 
+    ## Copy `size` bytes from `source` to `target`.
     pub mutating func copy_bytes(target: Ref, source: Ref, size: u32) -> !:
         try self.emit(Op.blit, Class.l, 0, target, source, size)
 
+    ## Zero `size` bytes at `target`.
     pub mutating func zero_bytes(target: Ref, size: u32) -> !:
         try self.emit(Op.zero, Class.l, 0, target, none_ref(), size)
 
 ## A text literal of the unit, emitted once with a NUL after it.
 pub struct Text:
+    ## The literal's bytes.
     pub var bytes: str
 
 ## Data for a global: its symbol, its size, its alignment, and whether it is thread-local.
 pub struct Global:
+    ## The global's symbol.
     pub var name: str
+    ## Whether it belongs to a standard module.
     pub var standard: bool
+    ## The global's byte size.
     pub var size: u32
+    ## The global's alignment.
     pub var align: u32
+    ## Whether it is thread-local.
     pub var is_thread_local: bool
+    ## Whether it has C linkage.
     pub var exported: bool
+    ## Whether the symbol is weak.
     pub var weak: bool
+    ## Whether it is retained even if unreferenced.
     pub var used: bool
+    ## The section it is placed in, empty for the default.
     pub var section: str
     ## `linked`: another object defines the storage; the program only refers to it.
     pub var external: bool
@@ -554,21 +681,28 @@ pub struct Global:
 
 ## A witness table: the symbol and the functions it points at, in requirement order.
 pub struct WitnessTable:
+    ## The table's symbol.
     pub var name: str
+    ## The function symbols, in requirement order.
     pub var entries: list.List[str]
 
 ## The whole program as the target sees it.
 pub struct Unit:
+    ## The program's functions.
     pub var functions: list.List[Function]
     ## The source files instructions name by index (`Instr.file`), 1-based.
     pub var files: list.List[str]
+    ## The program's globals.
     pub var globals: list.List[Global]
+    ## The program's text literals.
     pub var texts: list.List[Text]
+    ## The witness tables.
     pub var tables: list.List[WitnessTable]
     ## Module-level `asm` blocks for this target, verbatim (§8.9).
     pub var module_asm: list.List[Text]
     ## The shapes of the aggregates passed and returned, and their leaves.
     pub var shapes: list.List[Shape]
+    ## The aggregate members, referenced by shapes.
     pub var leaves: list.List[Leaf]
     ## The function the loader runs when the image is loaded, empty when there is none:
     ## a library's initialiser (§17.6). The generator places it in its object format's
@@ -580,8 +714,10 @@ pub struct Unit:
     ## The same with the position first (§11.5): `trap_at(position, reason)` and, for an
     ## assertion whose message is computed, `trap_two_at(position, reason, detail)`.
     pub var trap_at_function: str
+    ## The function for an assertion whose message is computed (`trap_two_at`).
     pub var trap_two_at_function: str
 
+    ## An empty unit.
     pub static func create() -> Unit!:
         return Unit(functions = try list.List[Function].create(64), files = try list.List[str].create(8), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
@@ -611,6 +747,7 @@ pub struct Unit:
         try self.shapes.push(Shape(start = u32(start), count = u32(self.leaves.count - start)))
         return u32(self.shapes.count)
 
+    ## The index of text literal `bytes`, adding it when new.
     pub mutating func text(bytes: str) -> u32!:
         var i: usize = 0
         while i < self.texts.count:
@@ -648,6 +785,7 @@ pub func load_op(size: u64, signed: bool, is_float: bool) -> Op:
         return Op.loadsw if signed else Op.loaduw
     return Op.loadl
 
+## The store op for a scalar of a size, or a float.
 pub func store_op(size: u64, is_float: bool) -> Op:
     if is_float:
         return Op.storehf if size == 2 else (Op.stores if size == 4 else Op.stored)

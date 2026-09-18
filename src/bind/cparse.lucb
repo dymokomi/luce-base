@@ -27,10 +27,12 @@ from support.arena import Arena
 import support.buffer
 import support.list
 
+## A `bind` declaration could not be parsed.
 pub let failed: ErrorCode = ErrorCode.package(120)
 
 extern func strtod(text: c.str, end: c.char*?*) -> f64
 
+## The kind of a C type node.
 pub enum Kind:
     void_
     bool_
@@ -53,22 +55,34 @@ pub enum Kind:
 ## A C type. Nodes are shared and never changed after they are made; a qualifier makes
 ## a copy.
 pub struct CType:
+    ## Which kind of type this node is.
     pub var kind: Kind
+    ## The typedef name for a `named` node; empty otherwise.
     pub var name: str
+    ## The pointed-to, element, typedef'd, or return type.
     pub var inner: CType*?
+    ## Whether an integer type is unsigned.
     pub var unsigned: bool
+    ## The integer rank; see `int_`.
     pub var width: u8
+    ## Whether the type is `const`-qualified.
     pub var is_const: bool
     ## For a pointer: 0 unspecified, 1 `_Nonnull`, 2 `_Nullable`.
     pub var nullable: u8
     ## For an array: the count, or -1 when none was written.
     pub var count: i64
+    ## A function type's parameters.
     pub var params: Param[]
+    ## Whether a function type ends in `...`.
     pub var variadic: bool
+    ## The struct or union a `record` node refers to.
     pub var record: Record*?
+    ## The enum an `enum_` node refers to.
     pub var enumeration: Enum*?
+    ## Why an `unsupported` type has no Base representation.
     pub var reason: str
 
+    ## Whether this is the `void` type.
     pub func is_void() -> bool:
         return self.kind == Kind.void_
 
@@ -79,45 +93,74 @@ pub func resolved(t: CType*) -> CType*:
         cursor = cursor.inner else return cursor
     return cursor
 
+## A function parameter: its name and type.
 pub struct Param:
+    ## The parameter's name, or empty when unnamed.
     pub var name: str
+    ## The parameter's type.
     pub var ty: CType*
 
+## A struct or union field.
 pub struct Field:
+    ## The field's name.
     pub var name: str
+    ## The field's type.
     pub var ty: CType*
     ## The bit-field width, or -1.
     pub var bits: i64
+    ## The header line the field is declared on.
     pub var line: u32
 
 ## A struct or union, shared by tag; `complete` once its body has been read.
 pub struct Record:
+    ## The tag, or empty when the record is anonymous.
     pub var tag: str
+    ## Whether it is a `union` rather than a `struct`.
     pub var is_union: bool
+    ## The fields, in declaration order.
     pub var fields: list.List[Field]
+    ## Whether the body has been read.
     pub var complete: bool
+    ## The source file the record is declared in.
     pub var file: u32
+    ## The header line the record is declared on.
     pub var line: u32
     ## The typedef that names it, when one does; the binder's name for it.
     pub var typedef_name: str
+    ## Whether the record is `packed`.
     pub var packed: bool
+    ## An explicit alignment in bytes, or 0 for none.
     pub var aligned: i64
+    ## Whether any field is a bit-field.
     pub var has_bits: bool
+    ## Whether it ends in a flexible array member.
     pub var has_flexible: bool
 
+## One enumerator: its name and value.
 pub struct EnumItem:
+    ## The enumerator's name.
     pub var name: str
+    ## The enumerator's integer value.
     pub var value: i64
+    ## The header line the enumerator is on.
     pub var line: u32
 
+## A C enum, shared by tag; `complete` once its body is read.
 pub struct Enum:
+    ## The tag, or empty when the enum is anonymous.
     pub var tag: str
+    ## The enumerators, in declaration order.
     pub var items: list.List[EnumItem]
+    ## Whether the body has been read.
     pub var complete: bool
+    ## The source file the enum is declared in.
     pub var file: u32
+    ## The header line the enum is declared on.
     pub var line: u32
+    ## The typedef that names it, when one does.
     pub var typedef_name: str
 
+## What kind of thing a declaration introduces.
 pub enum DeclKind:
     typedef_
     function
@@ -128,25 +171,38 @@ pub enum DeclKind:
 
 ## One declared name.
 pub struct Decl:
+    ## Which kind of declaration this is.
     pub var kind: DeclKind
+    ## The declared name.
     pub var name: str
+    ## The declared type.
     pub var ty: CType*
     ## The linker symbol when `__asm__("...")` gave one.
     pub var symbol: str
+    ## Whether the function is `_Noreturn`.
     pub var noreturn: bool
+    ## Whether the declaration is `static`.
     pub var is_static: bool
+    ## The record a `tag` declaration introduces.
     pub var record: Record*?
+    ## The enum a `tag` declaration introduces.
     pub var enumeration: Enum*?
+    ## The source file the name is declared in.
     pub var file: u32
+    ## The header line the name is declared on.
     pub var line: u32
     ## For a `static const` variable with a constant initialiser: its value.
     pub var constant: Const?
 
 ## What a constant expression evaluates to.
 pub struct Const:
+    ## The integer value.
     pub var value: i64
+    ## Whether the value is unsigned.
     pub var unsigned: bool
+    ## Whether the constant is floating-point.
     pub var is_float: bool
+    ## The floating-point value when `is_float`.
     pub var real: f64
     ## A string literal's spelling, quotes included, when the constant is one.
     pub var text: str
@@ -175,16 +231,21 @@ struct Declarator:
 
 var scratch: u8[4096]
 
+## The C declaration parser: its output and its running state.
 pub struct Parser:
     var tok: pre.Tok*
     ## The preprocessor the tokens came from, for file names; none for tokens of a text.
     var pp: pre.Preprocessor*?
+    ## The declarations read, in order.
     pub var decls: list.List[Decl*]
+    ## The records seen, shared by tag.
     pub var records: list.List[Record*]
+    ## The enums seen, shared by tag.
     pub var enums: list.List[Enum*]
     var typedefs: table.Table[CType*]
     var tags: table.Table[Record*]
     var enum_tags: table.Table[Enum*]
+    ## Integer macro and enumerator constants, by name.
     pub var constants: table.Table[i64]
     ## Declarations the parser could not read, one line each with their place.
     pub var report: buffer.Buffer
@@ -192,6 +253,7 @@ pub struct Parser:
     ## 1 or 2, taken by the declarator that follows.
     var base_nullable: u8
 
+    ## A parser over `tokens`, using `pp` for file names.
     pub static func over(tokens: pre.Tok*, pp: pre.Preprocessor*?) -> Parser!:
         var p = Parser(tok = tokens, pp = pp, decls = try list.List[Decl*].create(1024),
                        records = try list.List[Record*].create(256), enums = try list.List[Enum*].create(64),

@@ -23,41 +23,58 @@ import back.native.regalloc
 import memory
 import support.list
 
+# mark: Register banks ========================================================================
+
 ## The registers a target offers: the callee-saved integer and float ones, how many of each
 ## the temporaries may keep from the promoted slots, and the caller-saved ones a temporary
 ## takes when no call or asm block lies inside its life. Codes run: callee-saved integers
 ## from 1, callee-saved floats, caller-saved integers, caller-saved floats (vectors too).
 pub struct Registers:
+    ## The number of callee-saved integer registers the target offers.
     pub var ints: u8
+    ## The number of callee-saved float (and vector) registers the target offers.
     pub var floats: u8
+    ## How many callee-saved integer registers temporaries keep from the promoted slots.
     pub var keep_ints: u8
+    ## How many callee-saved float registers temporaries keep from the promoted slots.
     pub var keep_floats: u8
+    ## The number of caller-saved integer registers in the pool.
     pub var scratch_ints: u8
+    ## The number of caller-saved float (and vector) registers in the pool.
     pub var scratch_floats: u8
 
+    ## The allocator's register pools for this set.
     pub func pools() -> regalloc.Pools:
         return regalloc.Pools(callee_ints = self.ints, callee_floats = self.floats, scratch_ints = self.scratch_ints, scratch_floats = self.scratch_floats)
 
 ## A register that a promoted slot holds for the whole function.
 let held: u32 = 4294967295
 
+# mark: Frame layout ==========================================================================
+
+## What a generator settles before emitting a function: where each slot and temporary lives
+## and which callee-saved registers it uses.
 pub struct Frame:
+    ## The target's callee-saved and caller-saved register counts.
     pub var registers: Registers
     ## Where each temporary and each slot lives: an offset below the frame pointer; 0 for a
     ## temporary in a register.
     pub var temp_homes: list.List[u64]
+    ## Per slot, its offset below the frame pointer; 0 for a promoted slot in a register.
     pub var slot_homes: list.List[u64]
     ## Per temporary, the register code it lives in, or 0 when it is in the frame.
     pub var temp_regs: list.List[u8]
     ## Per slot, the register code it was promoted to, or 0; per temporary, 1 + the slot
     ## whose address it holds, or 0.
     pub var slot_regs: list.List[u8]
+    ## Per temporary, 1 + the slot whose address it holds, or 0.
     pub var temp_slot: list.List[u32]
     ## Where each temporary's life ends (`regalloc.Lives.end`, a doubled position), for the
     ## DWARF emitter's location lists; 0 for a temporary with no life.
     pub var temp_ends: list.List[u32]
     ## Bit c-1 is set when register code c is used; `save_offset[c]` is where it is spilled.
     pub var used_mask: u64
+    ## Where each callee-saved register is spilled, indexed by its code.
     pub var save_offset: u64[64]
     ## Codes the generator keeps for itself on this target, never handed to a temporary:
     ## bit `c - 1` for code `c`.
@@ -65,8 +82,10 @@ pub struct Frame:
     ## The frame's size, rounded to 16, and the home of the hidden result pointer when the
     ## function returns through memory.
     pub var size: u64
+    ## The frame offset of the hidden result pointer when the function returns through memory.
     pub var indirect_home: u64
 
+    ## An empty frame for a target's register set.
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
                       temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), temp_ends = try list.List[u32].create(256),
@@ -77,9 +96,11 @@ pub struct Frame:
     pub func float_code(code: u8) -> bool:
         return self.registers.pools().is_float(code)
 
+    ## Whether register `code` is callee-saved (preserved across a call).
     pub func callee_code(code: u8) -> bool:
         return self.registers.pools().is_callee(code)
 
+    ## The offset below the frame pointer where temporary `t` lives, 0 when it is in a register.
     pub func temp_home(t: u32) -> u64:
         return self.temp_homes.get((usize)t - 1)
 
@@ -87,6 +108,7 @@ pub struct Frame:
     pub func temp_end(t: u32) -> u32:
         return self.temp_ends.get((usize)t - 1) if (usize)t <= self.temp_ends.count else 0
 
+    ## The offset below the frame pointer where slot `s` lives.
     pub func slot_home(s: u32) -> u64:
         return self.slot_homes.get((usize)s)
 
@@ -96,6 +118,7 @@ pub struct Frame:
             return 0
         return self.slot_regs.get((usize)s)
 
+    ## Whether register `code` is in use in this frame.
     pub func uses(code: u8) -> bool:
         return (self.used_mask & ((u64)1 << (u64)(code - 1))) != 0
 
@@ -353,6 +376,8 @@ pub struct Frame:
             self.temp_regs.set(i, codes[i] if self.promoted_slot(u32(i + 1)) == 0 else 0)
             i += 1
         self.used_mask = self.used_mask | used
+
+# mark: Instruction classification ============================================================
 
 ## How many of a class's `pool` the promoted slots may take: what the temporaries do not
 ## keep, and they keep up to `keep` when the pressure asks for that many.

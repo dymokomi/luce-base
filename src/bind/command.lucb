@@ -24,6 +24,7 @@ import platform
 import strings
 from support.arena import Arena
 
+## The `luce-base bind` usage line.
 pub let usage: str = "usage: luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess | --declarations]"
 
 var scratch: u8[4096]
@@ -40,6 +41,8 @@ func host_c_compiler() -> c.str:
     if let selected = os.env("CC"):
         return (c.str)selected
     return "gcc" if platform.windows else "cc"
+
+# mark: The bind command ======================================================================
 
 ## The command; its exit status.
 pub func run(arguments: c.str[], out: io.Writer) -> i32!:
@@ -145,6 +148,8 @@ pub func run(arguments: c.str[], out: io.Writer) -> i32!:
 
 ## The tokens as text: each first-of-line token on a new line, spacing kept, with a
 ## `# LINE "FILE"` marker where the file changes.
+# mark: Diagnostic output =====================================================================
+
 func print_tokens(head: pre.Tok*, pp: pre.Preprocessor*, out: io.Writer) -> !:
     var cursor: pre.Tok*? = head
     var file: u32 = 4294967295

@@ -74,6 +74,7 @@ pub let cpu_level: u32 = platform.cpu_level
 ## NEON until the system reports SVE.
 # mark: Machine and process ===================================================================
 
+## The microarchitecture level (§19.5) the CPU running this process supports.
 pub func cpu_level_running() -> u32:
     if platform.x86_64:
         return x86_level()

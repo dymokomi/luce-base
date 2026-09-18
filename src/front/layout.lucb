@@ -23,6 +23,7 @@ import front.source
 import front.token
 import support.buffer
 
+## The canonical formatter: reads a source and its tokens and writes the canonical text.
 pub struct Formatter:
     var src: source.Source
     var tokens: const token.Token[]
@@ -36,12 +37,14 @@ pub struct Formatter:
     ## Characters on the current output line, for continuation lines aligned under a bracket.
     var column: usize
 
+    ## A formatter over `src` and its `tokens`, with the source's comments located.
     pub static func over(src: source.Source, tokens: const token.Token[]) -> Formatter!:
         var f = Formatter(src = src, tokens = tokens, out = try buffer.Buffer.create(4096), indent = 0,
                           comments = try alloc usize[2], comment_count = 0, written = 0, at_line_start = true, column = 0)
         try f.find_comments()
         return f
 
+    ## The formatted text produced so far.
     pub func text() -> str:
         return self.out.view()
 

@@ -25,9 +25,12 @@ import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer
+## The x86-64 generator could not emit the program.
 pub let failed: ErrorCode = ErrorCode.package(21)
 
+## The x86-64 code generator: the IR to x86-64 assembly, through its object format.
 pub struct Generator:
+    ## `--debug` or `--release --debug`: the DWARF emitter, else none.
     pub var dw: dwarf.Emitter*?
     var out: buffer.Buffer
     ## What precedes a C symbol in this target's assembler: nothing on Linux (§19.5).
@@ -114,6 +117,7 @@ pub struct Generator:
         try self.out.put(".Ltext_")
         try self.out.put_u64((u64)n)
 
+    ## The assembly emitted so far.
     pub func text() -> str:
         return self.out.view()
 

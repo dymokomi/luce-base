@@ -18,6 +18,10 @@ import sema.check
 import sema.types
 import support.buffer
 import support.list
+
+# mark: The C header ==========================================================================
+
+## An exported declaration has no C representation.
 pub let not_representable: ErrorCode = ErrorCode.package(16)
 
 ## The header text for the exported surface of the program `c` holds.

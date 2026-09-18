@@ -19,6 +19,7 @@ import memory
 import os
 import paths
 
+## The build cache could not be read or written.
 pub let failed: ErrorCode = ErrorCode.package(42)
 
 ## `--cache-dir`: the directory the driver was told, before any default; `none` for no cache.

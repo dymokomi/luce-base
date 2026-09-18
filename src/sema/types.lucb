@@ -19,6 +19,7 @@ import memory
 import support.list
 import support.literals
 
+## The form of a type: which of the language's type constructors it is.
 pub enum Kind as u8:
     error_ = 1
     never_ = 2
@@ -69,39 +70,70 @@ pub enum Kind as u8:
 ## How many type parameters a declaration may have: the checker refuses more, so the
 ## fixed rooms an instance's arguments are resolved into are never short.
 pub let max_type_arguments: usize = 16
+## The id of the absent type (no element, result, or payload).
 pub let none_id: u32 = 0
+## The id of the error placeholder, used after a type error.
 pub let error_id: u32 = 1
+## The id of `never`.
 pub let never_id: u32 = 2
+## The id of `unit`.
 pub let unit_id: u32 = 3
+## The id of `bool`.
 pub let bool_id: u32 = 4
+## The id of `i8`.
 pub let i8_id: u32 = 5
+## The id of `i16`.
 pub let i16_id: u32 = 6
+## The id of `i32`.
 pub let i32_id: u32 = 7
+## The id of `i64`.
 pub let i64_id: u32 = 8
+## The id of `isize`.
 pub let isize_id: u32 = 9
+## The id of `u8`.
 pub let u8_id: u32 = 10
+## The id of `u16`.
 pub let u16_id: u32 = 11
+## The id of `u32`.
 pub let u32_id: u32 = 12
+## The id of `u64`.
 pub let u64_id: u32 = 13
+## The id of `usize`.
 pub let usize_id: u32 = 14
+## The id of `f32`.
 pub let f32_id: u32 = 15
+## The id of `f64`.
 pub let f64_id: u32 = 16
+## The id of `char`.
 pub let char_id: u32 = 17
+## The id of `str`.
 pub let str_id: u32 = 18
+## The id of `c.str`.
 pub let cstr_id: u32 = 19
+## The id of the format-string type.
 pub let fmt_id: u32 = 20
+## The id of `void`.
 pub let void_id: u32 = 21
+## The id of an untyped integer literal.
 pub let untyped_int_id: u32 = 22
+## The id of an untyped float literal.
 pub let untyped_float_id: u32 = 23
+## The id of `ErrorCode`.
 pub let error_code_id: u32 = 24
+## The id of the `Error` value (a code and a message).
 pub let error_value_id: u32 = 25
 ## The `c` module's distinct types (base.md §5.2): integers of a target-dependent width,
 ## and the opaque `va_list`, each its own type although its kind is a Base one.
 pub let c_char_id: u32 = 26
+## The id of `c.long`.
 pub let c_long_id: u32 = 27
+## The id of `c.ulong`.
 pub let c_ulong_id: u32 = 28
+## The id of `c.wchar`.
 pub let c_wchar_id: u32 = 29
+## The id of `c.va_list`.
 pub let c_va_list_id: u32 = 30
+## The id of `f16`.
 pub let f16_id: u32 = 31
 let seeded: u32 = 32
 
@@ -138,6 +170,7 @@ func mix(h: u64, x: u64) -> u64:
 
 # mark: The type record ========================================================================
 pub struct Type:
+    ## The type's form.
     pub var kind: Kind
     ## The pointee, element, payload, or result, by id; `none_id` when absent.
     pub var elem: u32
@@ -145,13 +178,16 @@ pub struct Type:
     pub var args: u32[]
     ## Array length.
     pub var length: u64
+    ## Whether the type is `const`.
     pub var is_const: bool
+    ## Whether the type is `volatile`.
     pub var is_volatile: bool
     ## Variadic function type (C only).
     pub var variadic: bool
     ## Nominal types: the declaration; generic instances: the same declaration
     ## plus the type arguments in `args`.
     pub var decl: ast.Node*?
+    ## A nominal type's name, else empty.
     pub var name: str
 
 # mark: The table ==============================================================================
@@ -164,6 +200,7 @@ pub struct Table:
     ## bucket), so `intern` is a lookup rather than a scan over every type so far.
     var index: u32[]
 
+    ## An empty table holding only the built-in scalar types.
     pub static func create() -> Table!:
         var t = Table(types = try list.List[Type].create(256), word = 8, index = try alloc u32[1024])
         zero_index(t.index)
@@ -202,12 +239,15 @@ pub struct Table:
         for i in 0..<self.types.count:
             self.index_add((u32)i)
 
+    ## The `Type` record for `id`.
     pub func get(id: u32) -> Type:
         return self.types.get((usize)id)
 
+    ## The form of type `id`.
     pub func kind(id: u32) -> Kind:
         return self.types.get((usize)id).kind
 
+    ## How many types the table holds.
     pub func count() -> u32:
         return u32(self.types.count)
 
@@ -277,34 +317,41 @@ pub struct Table:
         t.is_volatile = is_volatile
         return try self.intern(t)
 
+    ## The id of `elem[]`, `const` when `is_const`; interned.
     pub mutating func span(elem: u32, is_const: bool) -> u32!:
         var t = try self.plain(Kind.span, elem, "")
         t.is_const = is_const
         return try self.intern(t)
 
+    ## The id of `elem[length]`; interned.
     pub mutating func array(elem: u32, length: u64) -> u32!:
         var t = try self.plain(Kind.array, elem, "")
         t.length = length
         return try self.intern(t)
 
+    ## The id of `elem?`; `elem` itself when it is already optional.
     pub mutating func optional(elem: u32) -> u32!:
         if self.kind(elem) == Kind.optional:
             return elem
         return try self.intern(try self.plain(Kind.optional, elem, ""))
 
+    ## The id of `elem!`; `elem` itself when it is already fallible.
     pub mutating func fallible(elem: u32) -> u32!:
         if self.kind(elem) == Kind.fallible:
             return elem
         return try self.intern(try self.plain(Kind.fallible, elem, ""))
 
+    ## The id of `@elem`; interned.
     pub mutating func atomic(elem: u32) -> u32!:
         return try self.intern(try self.plain(Kind.atomic, elem, ""))
 
+    ## The id of the tuple of `members`; interned.
     pub mutating func tuple(members: u32[]) -> u32!:
         var t = try self.plain(Kind.tuple, 0, "")
         t.args = members
         return try self.intern(t)
 
+    ## The id of the function type over `params` returning `result`; interned.
     pub mutating func function(params: u32[], result: u32, variadic: bool) -> u32!:
         var t = try self.plain(Kind.func_, result, "")
         t.args = params
@@ -329,14 +376,17 @@ pub struct Table:
         let k = (u8)self.kind(id)
         return (k >= (u8)Kind.i8_ and k <= (u8)Kind.usize_) or k == (u8)Kind.untyped_int
 
+    ## Whether `id` is a signed integer type.
     pub func is_signed(id: u32) -> bool:
         let k = self.kind(id)
         return k == Kind.i8_ or k == Kind.i16_ or k == Kind.i32_ or k == Kind.i64_ or k == Kind.isize_ or k == Kind.untyped_int
 
+    ## Whether `id` is a floating-point type.
     pub func is_float(id: u32) -> bool:
         let k = self.kind(id)
         return k == Kind.f16_ or k == Kind.f32_ or k == Kind.f64_ or k == Kind.untyped_float
 
+    ## Whether `id` is an integer or a float.
     pub func is_numeric(id: u32) -> bool:
         return self.is_integer(id) or self.is_float(id)
 
@@ -353,6 +403,7 @@ pub struct Table:
         let bytes = self.size_of(t.elem) * t.length
         return bytes == 8 or bytes == 16
 
+    ## Whether `id` is a pointer type.
     pub func is_pointer(id: u32) -> bool:
         return self.kind(id) == Kind.pointer
 
@@ -476,6 +527,7 @@ pub struct Table:
     pub func size_of(id: u32) -> u64:
         return self.sized(id, none, no_args_view())
 
+    ## The alignment of `id` in bytes.
     pub func align_of(id: u32) -> u64:
         return self.aligned(id, none, no_args_view())
 
@@ -746,6 +798,7 @@ var no_arguments: u32[1]
 func no_args_view() -> u32[]:
     return no_arguments[..<0]
 
+## An empty owned `u32[]`, for a type or call with no arguments.
 pub func no_args() -> u32[]!:
     let one = try alloc u32[1]
     return one[..<0]

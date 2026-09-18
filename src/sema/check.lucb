@@ -42,8 +42,11 @@ import sema.types
 import support.list
 import support.manifest
 import support.modules as module_paths
+## Reported when a name does not resolve (§15).
 pub let unknown_name: ErrorCode = ErrorCode.package(9)
+## Reported for a type mismatch or an ill-typed operation.
 pub let type_error: ErrorCode = ErrorCode.package(10)
+## Reported for a construct the target or backend does not support.
 pub let unsupported: ErrorCode = ErrorCode.package(11)
 
 # mark: Bindings and modules ===================================================================
@@ -65,17 +68,25 @@ struct Binding:
 
 ## Public package exports resolve to the canonical module which owns the type.
 pub struct ModuleAlias:
+    ## The exported module name.
     pub let name: str
+    ## The canonical module the name resolves to.
     pub let target: str
 
 ## One module of the program: its tree, its source for positions, and whether
 ## the checker supplied it from the prelude.
 pub struct Module:
+    ## The module's name.
     pub var name: str
+    ## Its parsed syntax tree.
     pub var tree: ast.Node*
+    ## Its source, for diagnostic positions.
     pub var src: source.Source
+    ## Whether the checker supplied it from the prelude.
     pub var is_prelude: bool
+    ## Its canonical name, for package exports.
     pub var canonical: str = ""
+    ## The package it belongs to.
     pub var package_name: str = ""
 
 ## A `Writer` over a caller's buffer, for spelling types into diagnostics.
@@ -83,6 +94,7 @@ struct SpanWriter: io.Writer:
     var data: u8[]
     var used: usize
 
+    ## Copy `bytes` into the buffer up to its capacity; the number written.
     pub mutating func write(bytes: const u8[]) -> usize!:
         var i: usize = 0
         while i < bytes.length and self.used < self.data.length:
@@ -95,7 +107,9 @@ struct SpanWriter: io.Writer:
 pub struct Checker:
     ## Development debugging retains named locals after reporting unused bindings.
     pub var debug_locals: bool
+    ## The program's type table.
     pub var table: types.Table
+    ## Every module of the program.
     pub var modules: list.List[Module]
     var scope: list.List[Binding]
     var depth: u32
@@ -139,6 +153,7 @@ pub struct Checker:
     ## Imports on the active load path. Completed modules remain in dependency order;
     ## this separate stack detects cycles before recursive loading repeats a module.
     var loading: list.List[str]
+    ## Package-export aliases from a name to its canonical module.
     pub var module_aliases: list.List[ModuleAlias]
     ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
     pub var package_name: str
@@ -156,6 +171,7 @@ pub struct Checker:
     ## The warnings of the whole program, formatted with their positions (§19.6).
     pub var warnings: list.List[str]
 
+    ## A fresh checker; `scratch` is a buffer for formatting diagnostics.
     pub static func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
                        scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), errors = try list.List[str].create(16), depth = 0, scratch = scratch,
@@ -781,6 +797,7 @@ pub struct Checker:
                 return
         try self.module_aliases.push(ModuleAlias(name, target))
 
+    ## The index of the module named `name` (following aliases), or `none`.
     pub func find_module(name: str) -> usize?:
         var canonical = name
         for alias in self.module_aliases.span():
@@ -2917,6 +2934,7 @@ pub struct Checker:
         e.resolved = none
         return vt
 
+    ## Whether `id` is an integer-backed enum (a value type), not a payload enum.
     pub func is_backed_enum(id: u32) -> bool:
         let t = self.table.get(id)
         if t.kind != types.Kind.enum_:
@@ -5357,6 +5375,7 @@ func repeated_name(earlier: ast.Node*?, later: ast.Node*?) -> ast.Node*?:
         cursor = item.next
     return none
 
+## The generic-parameter list of declaration `d`, or `none`.
 pub func generic_params_of(d: ast.Node*) -> ast.Node*?:
     let l = d.left else return none
     if l.kind != ast.Kind.generic_param:
@@ -5416,6 +5435,7 @@ pub func package_identity(name: str) -> u32:
 ## instantiations whose arguments nest past `max_nesting` never ends (§13.1).
 pub let max_nesting: u32 = 16
 
+## The depth of nested nominal types within `id`, for the recursion limit.
 pub func nesting(table: types.Table*, id: u32) -> u32:
     let t = table.get(id)
     match t.kind:
@@ -5438,6 +5458,7 @@ pub func nesting(table: types.Table*, id: u32) -> u32:
         _:
             return 0
 
+## The greatest `nesting` across `args`.
 pub func nesting_of_all(table: types.Table*, args: u32[]) -> u32:
     var deepest: u32 = 0
     for a in args:
@@ -5524,6 +5545,7 @@ pub func c_type_id(name: str) -> u32:
     if name == "str": return types.cstr_id
     return types.none_id
 
+## The type id of a scalar spelled `name`, or `none_id`.
 pub func scalar_id(name: str) -> u32:
     if name == "i8":
         return types.i8_id
@@ -5579,6 +5601,7 @@ func is_intrinsic(name: str) -> bool:
             return true
     return false
 
+## Whether `name` is a standard-library module.
 pub func is_standard_module(name: str) -> bool:
     return standard.is_module(name)
 

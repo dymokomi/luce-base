@@ -28,23 +28,33 @@ pub enum Kind as u8:
     symbol = 2
     constant = 3
 
+## The alias class of an address: what it is an offset from, and by how much.
 pub struct Alias:
+    ## What the address is an offset from.
     pub var kind: Kind
     ## The slot index, or the temporary an unknown address is based on.
     pub var base: u32
+    ## The symbol name, when the address is a symbol offset.
     pub var name: str
+    ## The byte offset from the base.
     pub var offset: i64
 
+## Two addresses that cannot overlap.
 pub let no_alias: u8 = 0
+## Two addresses that might overlap.
 pub let may_alias: u8 = 1
+## Two addresses that refer to the same location.
 pub let must_alias: u8 = 2
 
 ## The alias classes of every temporary of `f` (single-assignment form), and which slots'
 ## addresses escape: are used as anything but the address of a load or a store.
 pub struct Aliases:
+    ## The alias class of every temporary, indexed by temporary.
     pub var of: Alias[]
+    ## Whether each slot's address escapes, indexed by slot.
     pub var escapes: bool[]
 
+    ## Classify every temporary of `f`, and find which slots' addresses escape.
     pub static func over(f: ir.Function*, g: cfg.Graph*) -> Aliases!:
         let n = f.temps.count + 1
         var a = Aliases(of = try alloc Alias[n], escapes = try alloc bool[f.slots.count + 1])
@@ -162,6 +172,7 @@ pub struct Aliases:
     func is_local(a: Alias) -> bool:
         return a.kind == Kind.slot and (usize)a.base < self.escapes.length and not self.escapes[(usize)a.base]
 
+    ## Whether an access through `a` can be reached by memory outside this analysis.
     pub func escaped(a: Alias) -> bool:
         return not self.is_local(a)
 
@@ -171,13 +182,16 @@ pub struct Aliases:
         a.offset = a.offset +% bytes
         return a
 
+    ## Free the alias tables.
     pub mutating func release():
         free(self.of)
         free(self.escapes)
 
+## Whether `op` is one of the typed load instructions.
 pub func is_load(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
 
+## Whether `op` is one of the typed store instructions.
 pub func is_store(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
 
