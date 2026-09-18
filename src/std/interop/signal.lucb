@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   signal - A native multicast signal
+#
+#   DESCRIPTION:
+#       A retained signal that fans an argument out to every connected callback; connecting
+#       yields a `Connection` token whose last reference disconnects.
+#
+#==============================================================================================
+
 struct Subscription[A]:
     let identifier: u64
     let callback: Callback[A, unit]
@@ -66,6 +76,8 @@ struct SignalState[A]:
 
 ## Ordered, thread-bound delivery. Base copies borrow this carrier; clone/release
 ## manage ownership. Package owners close their signal before releasing it.
+# mark: The signal carrier =====================================================================
+
 pub struct Signal[A]:
     let state: SignalState[A]*
 
@@ -78,25 +90,31 @@ pub struct Signal[A]:
         state.information = information
         state.header.info = &state.information
         state.allocator = selected
+        ## Another strong reference to the same signal.
         self.state = state
 
     pub func clone() -> Signal[A]:
         discard(ownership.retain(&self.state.header))
+        ## Drop this signal's edge.
         return self
 
     pub func release():
+        ## Close the signal; further connects and emits fail.
         ownership.release(&self.state.header)
 
     pub func close():
         ownership.check_alive(&self.state.header)
+        ## Whether the signal has been closed.
         SignalState[A].close(&self.state.header)
 
     pub func is_closed() -> bool:
         ownership.check_alive(&self.state.header)
+        ## Visit the signal state as a strong reference.
         return self.state.closed
 
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         ownership.check_thread(&self.state.header)
+        ## Register `callback`, returning a `Connection` token.
         visit(&self.state.header, context)
 
     pub func connect(callback: Callback[A, unit]) -> Reference[Connection]!:
@@ -120,6 +138,7 @@ pub struct Signal[A]:
         else:
             self.state.first = entry
         self.state.last = entry
+        ## Deliver `argument` to every connected callback.
         return token
 
     pub func emit(argument: A) -> Outcome[unit]:

@@ -1,3 +1,15 @@
+#==============================================================================================
+#
+#   temporary - Temporary files and atomic writes
+#
+#   DESCRIPTION:
+#       A temporary file with an owned pathname, and write_atomic, which writes through a
+#       temporary sibling and renames it over the destination.
+#
+#==============================================================================================
+
+# mark: The temporary file ====================================================================
+
 ## A temporary file and its owned pathname. The zero value is closed. Copying does
 ## not duplicate ownership. Borrow the object for I/O and serialize its use.
 ## The pathname allocator is retained, so cleanup may occur outside its with block.
@@ -36,15 +48,19 @@ pub struct TemporaryFile: io.Reader, io.Writer:
     pub func path() -> str:
         return self.name
 
+    ## Read into `buffer`; the bytes read.
     pub mutating func read(buffer: u8[]) -> usize!:
         return try self.file.read(buffer)
 
+    ## Write `data`; the bytes written.
     pub mutating func write(data: const u8[]) -> usize!:
         return try self.file.write(data)
 
+    ## Move the read/write offset and report the new one.
     pub mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!:
         return try self.file.seek(offset, origin)
 
+    ## Flush the file's data to the device.
     pub mutating func sync() -> !:
         try self.file.sync()
 
@@ -93,6 +109,8 @@ pub struct TemporaryFile: io.Reader, io.Writer:
         self.discard() catch failure:
             discard(failure)
         self.release_name()
+
+# mark: Atomic writes =========================================================================
 
 ## Write through a temporary sibling, then atomically rename it over path. The
 ## replacement receives permissions filtered by umask; existing ownership, mode

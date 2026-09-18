@@ -1,7 +1,14 @@
-## Single-precision mathematics. `math32` has the floating-point operations of
-## `math`, with f32 arguments and results and the same special-value contracts.
-## Elementary functions call the host's single-precision libm entry points directly;
-## they do not compute in f64 and then introduce an extra rounding step.
+#==============================================================================================
+#
+#   math32 - Single-precision mathematical functions
+#
+#   DESCRIPTION:
+#       Single-precision mathematics. `math32` has the floating-point operations of `math`, with
+#       f32 arguments and results and the same special-value contracts. Elementary functions
+#       call the host's single-precision libm entry points directly; they do not compute in f64
+#       and then introduce an extra rounding step.
+#
+#==============================================================================================
 extern func c_floor as "floorf"(x: f32) -> f32
 extern func c_ceil as "ceilf"(x: f32) -> f32
 extern func c_round as "roundf"(x: f32) -> f32
@@ -34,34 +41,45 @@ extern func c_frexp as "frexpf"(x: f32, out exponent: i32) -> f32
 extern func c_scalbn as "scalbnf"(x: f32, exponent: i32) -> f32
 extern func c_modf as "modff"(x: f32, out integral: f32) -> f32
 extern func c_remainder as "remainderf"(x: f32, y: f32) -> f32
+## The ratio of a circle's circumference to its diameter.
 pub let pi: f32 = 3.141592653589793
+## A full turn in radians, two pi.
 pub let tau: f32 = 6.283185307179586
+## Euler's number.
 pub let e: f32 = 2.718281828459045
 ## Built from bits so that no constant expression needs to overflow.
 pub let infinity: f32 = f32.bits(2139095040)
+## A quiet not-a-number; unequal to everything, itself included.
 pub let nan: f32 = f32.bits(2143289344)
 
 let sign_mask: u32 = 0x80000000
 let magnitude_mask: u32 = 0x7fffffff
 let exponent_mask: u32 = 0x7f800000
 
+# mark: Real functions ========================================================================
+
 ## Rounding: `floor` toward negative infinity, `ceil` toward positive, `round` to the
 ## nearest with halves away from zero, `trunc` toward zero.
 pub func floor(x: f32) -> f32:
     return c_floor(x)
 
+## The smallest integer value not less than `x`.
 pub func ceil(x: f32) -> f32:
     return c_ceil(x)
 
+## `x` rounded to the nearest integer, halves away from zero.
 pub func round(x: f32) -> f32:
     return c_round(x)
 
+## `x` with its fractional part removed, toward zero.
 pub func trunc(x: f32) -> f32:
     return c_trunc(x)
 
+## The square root of `x`.
 pub func sqrt(x: f32) -> f32:
     return c_sqrt(x)
 
+## The cube root of `x`.
 pub func cbrt(x: f32) -> f32:
     return c_cbrt(x)
 
@@ -73,21 +91,27 @@ pub func hypot(x: f32, y: f32) -> f32:
 pub func mod(x: f32, y: f32) -> f32:
     return c_fmod(x, y)
 
+## `x` raised to the power `y`.
 pub func pow(x: f32, y: f32) -> f32:
     return c_pow(x, y)
 
+## `e` raised to the power `x`.
 pub func exp(x: f32) -> f32:
     return c_exp(x)
 
+## `2` raised to the power `x`.
 pub func exp2(x: f32) -> f32:
     return c_exp2(x)
 
+## The natural logarithm of `x`.
 pub func log(x: f32) -> f32:
     return c_log(x)
 
+## The base-2 logarithm of `x`.
 pub func log2(x: f32) -> f32:
     return c_log2(x)
 
+## The base-10 logarithm of `x`.
 pub func log10(x: f32) -> f32:
     return c_log10(x)
 
@@ -149,21 +173,27 @@ pub func remainder(x: f32, y: f32) -> f32:
     # Match the f64 contract even if a host loses the zero sign while rounding.
     return copysign(result, x) if (result.bits() & magnitude_mask) == 0 else result
 
+## The sine of `x` radians.
 pub func sin(x: f32) -> f32:
     return c_sin(x)
 
+## The cosine of `x` radians.
 pub func cos(x: f32) -> f32:
     return c_cos(x)
 
+## The tangent of `x` radians.
 pub func tan(x: f32) -> f32:
     return c_tan(x)
 
+## The arcsine of `x`, in radians.
 pub func asin(x: f32) -> f32:
     return c_asin(x)
 
+## The arccosine of `x`, in radians.
 pub func acos(x: f32) -> f32:
     return c_acos(x)
 
+## The arctangent of `x`, in radians.
 pub func atan(x: f32) -> f32:
     return c_atan(x)
 
@@ -171,12 +201,15 @@ pub func atan(x: f32) -> f32:
 pub func atan2(y: f32, x: f32) -> f32:
     return c_atan2(y, x)
 
+## The hyperbolic sine of `x`.
 pub func sinh(x: f32) -> f32:
     return c_sinh(x)
 
+## The hyperbolic cosine of `x`.
 pub func cosh(x: f32) -> f32:
     return c_cosh(x)
 
+## The hyperbolic tangent of `x`.
 pub func tanh(x: f32) -> f32:
     return c_tanh(x)
 

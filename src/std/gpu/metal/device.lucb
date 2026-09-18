@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   device - The Metal device handle
+#
+#   DESCRIPTION:
+#       The Metal device handle, kept private to the backend.
+#
+#==============================================================================================
+
 struct MetalDevice:
     var device: void*?
     var queue: void*?

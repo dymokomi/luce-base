@@ -1,6 +1,17 @@
+#==============================================================================================
+#
+#   object - The stable owner shell
+#
+#   DESCRIPTION:
+#       Shared by every native reference and managed alias; its header participates directly in
+#       the collector, with no second reference count.
+#
+#==============================================================================================
+
 ## Stable shell shared by every native reference and managed alias. Its header
 ## participates directly in the shared collector; no second reference count exists.
 pub struct Owner[T]:
+    ## The shared collector header.
     pub var header: ownership.Object
     var information: ownership.Info
     var declaration: Type[T]
@@ -10,14 +21,17 @@ pub struct Owner[T]:
     var disposed: bool
     var active: usize
 
+    ## Whether the owner has not been closed.
     pub static func is_open(object: ownership.Object*) -> bool:
         ownership.check_alive(object)
         return not ((Owner[T]*)object).closed
 
+    ## Begin a native call guard, retaining the object.
     pub static func enter(object: ownership.Object*):
         discard(ownership.retain(object))
         ((Owner[T]*)object).active += 1
 
+    ## End a native call guard, disposing the owner once closed and idle.
     pub static func leave(object: ownership.Object*):
         ownership.check_alive(object)
         let owner = (Owner[T]*)object
@@ -28,9 +42,11 @@ pub struct Owner[T]:
             dispose_owner[T](owner)
         ownership.release(object)
 
+    ## The collector's finalizer: close the owner.
     pub static func finish_owner(object: ownership.Object*):
         close_owner[T]((Owner[T]*)object)
 
+    ## Free the owner's native storage.
     pub static func drop_owner(object: ownership.Object*):
         let owner = (Owner[T]*)object
         if let native = owner.native:
@@ -38,6 +54,7 @@ pub struct Owner[T]:
             owner.native = none
             free(native) in allocator
 
+    ## Visit the native value's strong references.
     pub static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         let owner = (Owner[T]*)object
         if owner.disposed:
@@ -67,6 +84,7 @@ func dispose_owner[T](owner: Owner[T]*):
 pub struct Reservation[T]:
     var owner: Owner[T]*?
 
+    ## Reserve unpublished storage for `declaration`.
     pub func init(declaration: Type[T]) -> !:
         if declaration.main_thread and not thread.is_main():
             error(wrong_thread, "this native type requires the process main thread")
@@ -78,6 +96,7 @@ pub struct Reservation[T]:
         owner.declaration = declaration
         self.owner = owner
 
+    ## Publish the native value, yielding a reference and consuming the reservation.
     pub mutating func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]:
         let owner = self.owner else trap("native ownership has already been published or cancelled")
         owner.native = native
@@ -85,6 +104,7 @@ pub struct Reservation[T]:
         self.owner = none
         return Reference[T](owner)
 
+    ## Discard the reservation without publishing.
     pub mutating func cancel():
         if let owner = self.owner:
             self.owner = none

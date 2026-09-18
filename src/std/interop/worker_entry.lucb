@@ -1,12 +1,27 @@
+#==============================================================================================
+#
+#   worker_entry - A worker's factory and runtime hooks
+#
+#   DESCRIPTION:
+#       A named factory that runs once on the new thread and returns its local handler, with no
+#       retained source-thread state.
+#
+#==============================================================================================
+
 ## A named factory and its runtime hooks, with no retained source-thread state.
 ## The factory runs exactly once on the new thread and returns its local handler.
 ## Compilers supply the managed entry adapter; Base factories use native().
 pub struct WorkerEntry[C, M, R]:
+    ## The factory's context pointer, borrowed for the worker's life.
     pub let context: void*?
+    ## Runs the factory on the new thread, yielding its handler or a failure.
     pub let open: func(void*?, C) -> Outcome[Callback[M, R]]
+    ## The runtime hook run as the worker starts.
     pub let enter: func() -> unit
+    ## The runtime hook run as the worker ends.
     pub let leave: func() -> unit
 
+    ## A worker entry from a plain Base factory.
     pub static func native(factory: func(C) -> Outcome[Callback[M, R]]) -> WorkerEntry[C, M, R]:
         return WorkerEntry[C, M, R]((void*)factory, WorkerEntry[C, M, R].open_native,
                                     ownership.enter, ownership.finish_task)

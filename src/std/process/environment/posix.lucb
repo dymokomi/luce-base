@@ -1,5 +1,13 @@
-## Build argv/environment storage before fork. The child only moves descriptors,
-## changes its working directory/environment pointer, and calls execvp.
+#==============================================================================================
+#
+#   posix - POSIX argv and environment setup
+#
+#   DESCRIPTION:
+#       Build argv and environment storage before fork; the child only moves descriptors,
+#       changes its working directory and environment pointer, and calls execvp.
+#
+#==============================================================================================
+
 extern var environ: (c.str?)*
 extern func _NSGetEnviron() -> (c.str?)**
 extern func chdir(path: c.str) -> i32

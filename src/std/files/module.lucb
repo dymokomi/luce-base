@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   files - Files, directories and their operations
+#
+#   DESCRIPTION:
+#       Opening, reading, writing, seeking, syncing and truncating files, plus directory
+#       listing, rename, remove, symlinks and metadata, over the POSIX and Windows calls.
+#
+#==============================================================================================
+
 import c
 import memory
 import windows_text
@@ -138,18 +148,35 @@ let current_directory_fd: i32 = -2 if platform.macos or platform.wasm32 else -10
 let directory_flag: i32 = 8192 if platform.wasm32 else (1048576 if platform.macos else (16384 if platform.arm64 else 65536))
 let no_follow_flag: i32 = 16777216 if platform.wasm32 else (256 if platform.macos else (32768 if platform.arm64 else 131072))
 let at_no_follow_flag: i32 = 1 if platform.wasm32 else (32 if platform.macos else 256)
+# mark: Error codes ===========================================================================
+
+## The file or directory does not exist.
 pub let missing: ErrorCode = ErrorCode.package(6)
+## The operation was not permitted.
 pub let permission_denied: ErrorCode = ErrorCode.package(18)
+## The destination already exists.
 pub let already_exists: ErrorCode = ErrorCode.package(19)
+## The filesystem is out of space.
 pub let no_space: ErrorCode = ErrorCode.package(20)
+## A nonblocking operation would block.
 pub let would_block: ErrorCode = ErrorCode.package(21)
+## The arguments are invalid.
 pub let invalid_options: ErrorCode = ErrorCode.package(22)
+## The file exceeds a configured limit.
 pub let too_large: ErrorCode = ErrorCode.package(23)
+## A path component is not a directory.
 pub let not_directory: ErrorCode = ErrorCode.package(25)
+## The path is a directory where a file was expected.
 pub let is_directory: ErrorCode = ErrorCode.package(26)
+## The filesystem is read-only.
 pub let read_only_filesystem: ErrorCode = ErrorCode.package(27)
+## The directory is not empty.
 pub let not_empty: ErrorCode = ErrorCode.package(29)
+## The source and destination are on different devices.
 pub let cross_device: ErrorCode = ErrorCode.package(30)
+## Too many symbolic links were encountered.
 pub let symlink_loop: ErrorCode = ErrorCode.package(31)
+## A path or path component is too long.
 pub let name_too_long: ErrorCode = ErrorCode.package(32)
+## The operating system reported an unspecified failure.
 pub let failed: ErrorCode = ErrorCode.package(7)

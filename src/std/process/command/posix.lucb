@@ -1,5 +1,13 @@
-## Dedicated process groups let cancellation stop inherited child processes.
-## The leader is not reaped until its final group signal, avoiding PID reuse.
+#==============================================================================================
+#
+#   posix - The POSIX command backend
+#
+#   DESCRIPTION:
+#       Dedicated process groups let cancellation stop inherited child processes. The leader is
+#       not reaped until its final group signal, avoiding PID reuse.
+#
+#==============================================================================================
+
 extern func setpgid(pid: i32, group: i32) -> i32
 extern func open(path: c.str, flags: i32, ...) -> i32
 

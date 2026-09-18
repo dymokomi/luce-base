@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   native - The Win32 window backend
+#
+#   DESCRIPTION:
+#       The Win32 window class, creation and message pump behind the portable window.
+#
+#==============================================================================================
+
 from windows_abi import MultiByteToWideChar, GetModuleHandleW
 
 ## Win32 types use fixed widths: LONG remains i32 on 64-bit Windows.

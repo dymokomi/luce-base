@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   deadline_stream - Deadline-bound transfers
+#
+#   DESCRIPTION:
+#       A borrowed Reader/Writer applying one absolute deadline to all its transfers.
+#
+#==============================================================================================
+
 ## A borrowed Reader/Writer applying one absolute deadline to all its transfers.
 ## Use with io.read_exact, io.write_all or buffered adapters; confirmed progress
 ## remains available from those helpers when a later call times out or is cancelled.
@@ -12,6 +21,7 @@ pub struct DeadlineStream: Reader, Writer:
     var deadline: Deadline
     var cancellation: Cancellation*?
 
+    ## Wrap `connection` so every transfer shares one absolute deadline.
     pub static func over(connection: Connection*, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> DeadlineStream!:
         try require_nonblocking(connection)
         return DeadlineStream(connection = connection, deadline = deadline, cancellation = cancellation)

@@ -1,5 +1,13 @@
-## CF_UNICODETEXT storage transfers to the OS only after SetClipboardData succeeds.
-## Writing requires a window owned by the active UI thread; reading does not.
+#==============================================================================================
+#
+#   native - The Windows clipboard backend
+#
+#   DESCRIPTION:
+#       CF_UNICODETEXT storage transfers to the OS only after SetClipboardData succeeds.
+#       Writing requires a window owned by the active UI thread; reading does not.
+#
+#==============================================================================================
+
 extern func GetActiveWindow() -> void*?
 extern func OpenClipboard(owner: void*?) -> i32
 extern func CloseClipboard() -> i32

@@ -1,6 +1,14 @@
-## Backend implementation of the portable colored-triangle contract. The vertex
-## input uses eight scalar floats, avoiding native vector alignment in the ABI.
-## Applications never supply Metal source or native pipeline objects.
+#==============================================================================================
+#
+#   drawing - The Metal colored-triangle backend
+#
+#   DESCRIPTION:
+#       Backend implementation of the portable colored-triangle contract. The vertex input uses
+#       eight scalar floats, avoiding native vector alignment in the ABI. Applications never
+#       supply Metal source or native pipeline objects.
+#
+#==============================================================================================
+
 struct MetalDrawing:
     var pipeline: void*?
     var depth_on: void*?

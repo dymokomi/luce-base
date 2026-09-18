@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   transform - Trimming, joining and case
+#
+#   DESCRIPTION:
+#       Trim, join, copy and ASCII case changes over `str`, returning fresh owned text.
+#
+#==============================================================================================
+
 func is_space(byte: u8) -> bool:
     return byte == ' ' or byte == '\n' or byte == '\t' or byte == '\r'
 

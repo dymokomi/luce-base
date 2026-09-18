@@ -1,5 +1,13 @@
-## Cairo resolves fontconfig's installed monospace family and rasterizes through
-## FreeType. Its A8 row stride is copied into the portable tightly packed image.
+#==============================================================================================
+#
+#   native - The Linux (Cairo/FreeType) font backend
+#
+#   DESCRIPTION:
+#       Cairo resolves fontconfig's installed monospace family and rasterizes through
+#       FreeType. Its A8 row stride is copied into the portable tightly packed image.
+#
+#==============================================================================================
+
 extern struct CairoFontMetrics:
     ascent: f64
     descent: f64

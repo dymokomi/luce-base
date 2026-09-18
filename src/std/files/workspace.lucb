@@ -1,5 +1,13 @@
-## Filesystem identity and owned temporary directory trees. Path allocations use
-## the current allocator; owners retain that allocator for eventual cleanup.
+#==============================================================================================
+#
+#   workspace - Canonical paths and temporary trees
+#
+#   DESCRIPTION:
+#       Filesystem identity and owned temporary directory trees. Path allocations use the
+#       current allocator; owners retain that allocator for eventual cleanup.
+#
+#==============================================================================================
+
 extern func realpath(path: c.str, output: u8*?) -> u8*?
 extern func release_realpath as "free"(path: void*)
 
@@ -80,6 +88,7 @@ pub struct TemporaryDirectory:
     var name: str
     var owner: memory.Allocator?
 
+    ## Create a temporary directory under `parent`, or the system default.
     pub func init(parent: c.str = "") -> !:
         let directory = (str)parent if ((str)parent).length > 0 else io.path.temp()
         self.name = try create_temporary_directory((c.str)directory)
@@ -97,12 +106,14 @@ pub struct TemporaryDirectory:
             self.name = ""
             self.owner = none
 
+    ## Remove the directory tree; reports the first failure.
     pub mutating func close() -> !:
         if self.name.length == 0:
             return
         try remove_tree((c.str)self.name)
         self.release_name()
 
+    ## Best-effort removal, releasing memory regardless.
     pub mutating func destroy():
         self.close() catch failure:
             discard(failure)

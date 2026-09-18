@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   render - Vulkan command recording and uploads
+#
+#   DESCRIPTION:
+#       Vulkan command recording and buffer uploads for one frame.
+#
+#==============================================================================================
+
 struct VulkanUpload:
     var buffer: u64
     var block: u64

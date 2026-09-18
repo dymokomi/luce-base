@@ -1,11 +1,23 @@
+#==============================================================================================
+#
+#   callback - A retained callable carrier
+#
+#   DESCRIPTION:
+#       Copying the carrier borrows; cloning acquires an edge. Managed closures use their
+#       existing owner, so captures remain visible to ARC.
+#
+#==============================================================================================
+
 ## A retained callable. Copying this carrier borrows; cloning acquires an edge.
 ## Managed closures use their existing owner, so captures remain visible to ARC.
 pub struct Callback[A, R]:
+    ## The retained object the callable belongs to.
     pub let owner: ownership.Object*
     ## Adapter identity. Call through invoke to retain the owner and check affinity.
     pub let entry: func(ownership.Object*, A) -> Outcome[R]
     let context: u64
 
+    ## A callback over `owner`, called through `entry`.
     pub func init(owner: ownership.Object*, entry: func(ownership.Object*, A) -> Outcome[R]):
         ownership.check_alive(owner)
         self.owner = owner
@@ -16,21 +28,25 @@ pub struct Callback[A, R]:
         if self.context != ownership.context_id():
             trap("a callback belongs to another runtime thread")
 
+    ## Another edge to the same callable.
     pub func clone() -> Callback[A, R]:
         self.require_thread()
         discard(ownership.retain(self.owner))
         return self
 
+    ## Drop this callback's edge to the owner.
     pub func release():
         self.require_thread()
         ownership.release(self.owner)
 
+    ## Call the callable with `argument`, retaining the owner across the call.
     pub func invoke(argument: A) -> Outcome[R]:
         self.require_thread()
         discard(ownership.retain(self.owner))
         defer ownership.release(self.owner)
         return self.entry(self.owner, argument)
 
+    ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         self.require_thread()
         ownership.check_thread(self.owner)
@@ -40,6 +56,7 @@ pub struct Callback[A, R]:
     pub static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!:
         return try BoundCallback[T, A, R].make(source, none, method)
 
+    ## A callback bound to a mutating method of a native `source`.
     pub static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!:
         return try BoundCallback[T, A, R].make(source, method, none)
 

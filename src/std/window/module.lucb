@@ -1,14 +1,32 @@
+#==============================================================================================
+#
+#   window - The portable desktop window
+#
+#   DESCRIPTION:
+#       The portable desktop window module: creating a window, pumping its events, and
+#       leasing its presentation host to the graphics module.
+#
+#==============================================================================================
+
 import c
 import input
 import memory
 import platform
 import utf8
 import thread
+# mark: Errors, options and the window ========================================================
+
+## No native window backend exists for this target.
 pub let unsupported: ErrorCode = ErrorCode.package(85)
+## A window operation ran off the main thread.
 pub let wrong_thread: ErrorCode = ErrorCode.package(86)
+## The window options were rejected.
 pub let invalid_options: ErrorCode = ErrorCode.package(87)
+## A window operation failed.
 pub let failed: ErrorCode = ErrorCode.package(88)
+## A window was used after it closed.
 pub let closed: ErrorCode = ErrorCode.package(89)
+## The window's presentation host is still leased.
 pub let presentation_in_use: ErrorCode = ErrorCode.package(90)
 
 ## Native windows support arm64 macOS and x86_64 Windows. The compiler selects
@@ -18,18 +36,27 @@ pub func supported() -> bool:
     return (platform.macos and platform.arm64) or (platform.windows and platform.x86_64)
 
 pub struct Options:
+    ## The title-bar text.
     pub var title: str = "Luce"
+    ## The initial content width in logical points.
     pub var width: u32 = 800
+    ## The initial content height in logical points.
     pub var height: u32 = 600
+    ## Whether the user may resize the window.
     pub var resizable: bool = true
 
 ## Content extent in logical points and backing pixels. Query again after resized;
 ## a move between displays can change backing pixels without changing logical size.
 pub struct Size:
+    ## The content width in logical points.
     pub var width: f64
+    ## The content height in logical points.
     pub var height: f64
+    ## The content width in backing pixels.
     pub var pixel_width: f64
+    ## The content height in backing pixels.
     pub var pixel_height: f64
+    ## The backing pixels per logical point.
     pub var scale: f64
 
 ## One owned native window. The zero value is closed. Copies alias ownership:

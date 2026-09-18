@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   builder - Text built piece by piece
+#
+#   DESCRIPTION:
+#       A `Builder` grows in the allocator current when it was created, so it may cross `with`
+#       blocks and outlive them; `destroy` gives the storage back.
+#
+#==============================================================================================
+
 ## Text built piece by piece. The builder keeps the allocator that was current when it
 ## was created and grows in it, so it may cross `with` blocks and outlive them; `destroy`
 ## gives its bytes back to that allocator.
@@ -62,6 +72,7 @@ pub struct Builder: io.Writer:
         self.used += data.length
         return data.length
 
+    ## Append `text` to the builder.
     pub mutating func put(text: str) -> !:
         discard(try self.write(text.bytes))
 
@@ -72,6 +83,7 @@ pub struct Builder: io.Writer:
             self.data[self.used] = 0
         return (str)self.data[..<self.used]
 
+    ## Discard the contents, keeping the storage.
     pub mutating func clear():
         self.used = 0
 

@@ -1,5 +1,13 @@
-## Native font resources and grayscale rasterization. UI typography and caches
-## belong to the UI package; this module owns only the operating-system boundary.
+#==============================================================================================
+#
+#   fonts - Native font resources and grayscale rasterization
+#
+#   DESCRIPTION:
+#       Native font resources and grayscale rasterization. UI typography and caches belong
+#       to the UI package; this module owns only the operating-system boundary.
+#
+#==============================================================================================
+
 import c
 import interop
 import math
@@ -9,15 +17,23 @@ import strings
 import thread
 import utf8
 import windows_text
+## A font operation failed, or its arguments were rejected.
 pub let failed: ErrorCode = ErrorCode.package(118)
+
+# mark: The image and the face ================================================================
 
 ## A top-down tightly packed coverage image. Copies borrow; close one owner.
 pub struct Bitmap:
+    ## The coverage bytes, `width*height`, top-down and tightly packed.
     pub var pixels: u8[]
+    ## The image width in pixels.
     pub var width: u32
+    ## The image height in pixels.
     pub var height: u32
+    ## The blank margin the rasterizer reserves around the text, in image pixels.
     pub var padding: f64
 
+    ## Release the pixels and reset to an empty bitmap.
     pub mutating func close():
         if self.pixels.length > 0:
             free(self.pixels) in memory.heap
@@ -29,11 +45,17 @@ pub struct Bitmap:
 pub struct Face:
     var native: void*?
     var auxiliary: void*?
+    ## The face's size in logical points.
     pub let size: f64
+    ## The width of one monospace cell, in points.
     pub let advance: f64
+    ## The ascent above the baseline, in points.
     pub let ascent: f64
+    ## The descent below the baseline, in points.
     pub let descent: f64
 
+    ## Load the installed monospace face at `size` points (8..64); an empty `family` is the
+    ## platform default. Requires the UI thread.
     pub func init(size: f64 = 14.0, family: str = "") -> !:
         try check_thread()
         if not (size >= 8.0 and size <= 64.0):
@@ -51,6 +73,7 @@ pub struct Face:
         self.ascent = loaded.ascent
         self.descent = loaded.descent
 
+    ## The rendered width of `text` in points: one cell advance per scalar.
     pub func measure(text: str) -> f64!:
         if self.native == none:
             error(failed, "the font is closed")
@@ -80,6 +103,7 @@ pub struct Face:
             error(failed, "native fonts are unavailable on this target")
         return bitmap
 
+    ## Release the native face.
     pub mutating func close():
         if let native = self.native:
             if platform.macos:

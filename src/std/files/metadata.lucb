@@ -1,3 +1,14 @@
+#==============================================================================================
+#
+#   metadata - File type, times and stat metadata
+#
+#   DESCRIPTION:
+#       The file kind, timestamps and the stat-derived metadata of a path or open file.
+#
+#==============================================================================================
+
+# mark: Kinds and times =======================================================================
+
 ## File type from mode bits; unknown preserves support for host-specific kinds.
 pub enum FileKind as u8:
     unknown = 0
@@ -12,24 +23,36 @@ pub enum FileKind as u8:
 ## Unix-epoch seconds plus a nanosecond fraction in 0..999999999. Keeping the
 ## components separate preserves negative times and avoids nanosecond overflow.
 pub struct FileTime:
+    ## Whole seconds since the Unix epoch.
     pub var seconds: i64
+    ## The sub-second part, in nanoseconds.
     pub var nanoseconds: u32
 
 ## Metadata returned by one OS query, without allocation. Concurrent mutations
 ## may affect different fields at different instants. Size and block counts keep
 ## the OS's signed representation; their meaning depends on the file kind.
 pub struct Metadata:
+    ## The file's type.
     pub var kind: FileKind
+    ## The permission bits.
     pub var permissions: u32
+    ## The logical size in bytes.
     pub var size: i64
+    ## The device the file lives on.
     pub var device: u64
+    ## The file's inode number.
     pub var inode: u64
+    ## The number of hard links.
     pub var links: u64
+    ## The owning user id.
     pub var user: u32
+    ## The owning group id.
     pub var group: u32
     ## Allocated storage in 512-byte blocks, not the logical file size.
     pub var blocks_512: i64
+    ## The last access time.
     pub var accessed: FileTime
+    ## The last modification time.
     pub var modified: FileTime
     ## Last metadata/status change, not creation time.
     pub var changed: FileTime
@@ -186,6 +209,8 @@ func linux_metadata(value: LinuxMetadata) -> Metadata:
                     links = value.links, user = value.user, group = value.group,
                     blocks_512 = value.blocks, accessed = file_time(value.accessed),
                     modified = file_time(value.modified), changed = file_time(value.changed), created = none)
+
+# mark: Reading metadata ======================================================================
 
 ## Query a path, following its final symlink by default. With follow_symlinks=false,
 ## query that entry itself, including dangling links. Intermediate links resolve

@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   replace - Substring replacement
+#
+#   DESCRIPTION:
+#       Replace nonoverlapping byte substrings left to right into fresh owned text, with
+#       optional caps on the count and the result size.
+#
+#==============================================================================================
+
 ## Replace nonoverlapping byte substrings from left to right. Empty needles report
 ## invalid_separator. max_replacements=0 replaces all matches; max_bytes optionally
 ## limits result bytes excluding its terminator, reporting output_too_large before

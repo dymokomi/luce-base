@@ -1,6 +1,14 @@
-## A backend-neutral coverage command. Storage-buffer sampling keeps this small
-## primitive independent of texture formats and descriptor ownership in callers.
-## Each frame owns at most 16 MiB of packed coverage; regular triangles use none.
+#==============================================================================================
+#
+#   mask - Backend-neutral coverage commands
+#
+#   DESCRIPTION:
+#       A backend-neutral coverage command. Storage-buffer sampling keeps this small primitive
+#       independent of texture formats and descriptor ownership in callers. Each frame owns at
+#       most 16 MiB of packed coverage; regular triangles use none.
+#
+#==============================================================================================
+
 extern struct MaskRegion:
     x: f32
     y: f32

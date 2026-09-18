@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   gpu - Portable devices, canvases and frames
+#
+#   DESCRIPTION:
+#       The portable GPU module: an owned device, colored-triangle canvases and recorded
+#       frames, dispatched to the selected backend (§16.6).
+#
+#==============================================================================================
+
 import c
 import memory
 import math32
@@ -7,18 +17,31 @@ import interop
 import ownership
 import math
 import thread
+## No GPU backend is implemented for this target.
 pub let unsupported: ErrorCode = ErrorCode.package(91)
+## A backend exists but no device could be opened on the hardware.
 pub let unavailable: ErrorCode = ErrorCode.package(92)
+## A GPU operation ran off the required (main) thread.
 pub let wrong_thread: ErrorCode = ErrorCode.package(93)
+## A device, surface or frame was used after it was closed.
 pub let closed: ErrorCode = ErrorCode.package(94)
+## A color component was not finite and within 0..1.
 pub let invalid_color: ErrorCode = ErrorCode.package(95)
+## A GPU operation failed.
 pub let failed: ErrorCode = ErrorCode.package(96)
+## The backend failed while executing submitted commands.
 pub let execution_failed: ErrorCode = ErrorCode.package(97)
+## A surface exceeded the backend's size limit.
 pub let surface_too_large: ErrorCode = ErrorCode.package(98)
+## Triangle geometry was malformed or out of range.
 pub let invalid_geometry: ErrorCode = ErrorCode.package(99)
+## A frame exceeded its command or coverage budget.
 pub let command_limit: ErrorCode = ErrorCode.package(100)
+## A frame that was already finished was recorded into again.
 pub let frame_finished: ErrorCode = ErrorCode.package(114)
+## A frame still in flight was reused.
 pub let frame_in_use: ErrorCode = ErrorCode.package(115)
+## The surface resized under a frame; record a fresh one.
 pub let frame_resized: ErrorCode = ErrorCode.package(116)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
@@ -40,8 +63,11 @@ pub func supported(backend: Backend = Backend.automatic) -> bool:
 ## alpha is fixed at one. Conversion to the sRGB display encoding occurs in the
 ## render target, not in application code. HDR/transparency are not yet exposed.
 pub struct Color:
+    ## The linear-light red component, 0..1.
     pub var red: f64
+    ## The linear-light green component, 0..1.
     pub var green: f64
+    ## The linear-light blue component, 0..1.
     pub var blue: f64
 
 ## Submission does not guarantee that a frame has appeared on the display.

@@ -1,4 +1,16 @@
+#==============================================================================================
+#
+#   windows - Windows process backend
+#
+#   DESCRIPTION:
+#       The Windows implementation of process spawning and capture, over CreateProcessW, jobs
+#       and delete-on-close capture files.
+#
+#==============================================================================================
+
 import paths
+# mark: Windows process calls =================================================================
+
 from windows_abi import MultiByteToWideChar, GetLastError, CloseHandle, GetCurrentProcess, GetTempPathW, CreateFileW
 
 ## Windows subprocesses use CRT argument quoting and UTF-16 process creation.

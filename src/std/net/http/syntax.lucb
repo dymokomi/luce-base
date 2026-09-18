@@ -1,3 +1,14 @@
+#==============================================================================================
+#
+#   syntax - HTTP token and head-boundary syntax
+#
+#   DESCRIPTION:
+#       ASCII case-insensitive comparison and the search for the blank line ending a head.
+#
+#==============================================================================================
+
+# mark: Syntax ================================================================================
+
 ## ASCII case-insensitive equality, independent of locale and Unicode folding.
 pub func http_equal(left: str, right: str) -> bool:
     if left.length != right.length:

@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   termination - Process-termination requests
+#
+#   DESCRIPTION:
+#       A handler that records when the process is asked to terminate (a signal or console
+#       close), so the program can shut down cleanly.
+#
+#==============================================================================================
+
 import sync
 
 var termination_lock: sync.Mutex
@@ -10,6 +20,7 @@ var termination_closing: @bool
 pub struct TerminationStatus:
     var generation: u64
 
+    ## Whether termination has been requested.
     pub func requested() -> bool:
         return termination_generation.load(.acquire) != self.generation
 
@@ -23,6 +34,7 @@ pub struct Termination:
     var observation: TerminationStatus
     var active: bool
 
+    ## Install the termination handler.
     pub func init() -> !:
         termination_lock.lock()
         defer termination_lock.unlock()
@@ -37,9 +49,11 @@ pub struct Termination:
                 error(failure.code, failure.message)
         self.active = true
 
+    ## The current termination status.
     pub func status() -> TerminationStatus:
         return self.observation
 
+    ## Remove the handler.
     pub mutating func close():
         if not self.active:
             return

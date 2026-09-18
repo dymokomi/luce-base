@@ -1,4 +1,16 @@
+#==============================================================================================
+#
+#   walk - Recursive directory traversal
+#
+#   DESCRIPTION:
+#       Walk a directory tree, handing each entry to a visitor, guarding against symlink
+#       cycles and a maximum depth.
+#
+#==============================================================================================
+
+## A symlink cycle was found during the walk.
 pub let directory_cycle: ErrorCode = ErrorCode.package(33)
+## The walk exceeded its maximum depth.
 pub let depth_limit: ErrorCode = ErrorCode.package(34)
 
 ## A borrowed traversal callback. For directories, true requests descent and

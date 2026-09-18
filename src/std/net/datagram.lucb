@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   datagram - A UDP socket
+#
+#   DESCRIPTION:
+#       An owned UDP socket: bind, send to and receive from addresses, socket options and
+#       readiness waiting.
+#
+#==============================================================================================
+
 ## One owned UDP socket. Zero is closed. Copying does not duplicate ownership;
 ## copies must not be independently closed. Synchronize calls on one owner.
 pub struct Datagram:
@@ -97,6 +107,7 @@ pub struct Datagram:
         try set_nonblocking(try self.socket.require(), enabled)
         self.socket.nonblocking = enabled
 
+    ## Whether the socket is in nonblocking mode.
     pub func is_nonblocking() -> bool!:
         if platform.windows:
             discard(try self.socket.require())
@@ -108,6 +119,7 @@ pub struct Datagram:
     pub mutating func set_receive_buffer(bytes: i32) -> !:
         try set_socket_buffer(try self.socket.require(), receive_buffer_option, bytes)
 
+    ## The receive buffer size in bytes.
     pub func receive_buffer() -> i32!:
         return try get_socket_integer(try self.socket.require(), socket_level, receive_buffer_option)
 
@@ -116,6 +128,7 @@ pub struct Datagram:
     pub mutating func set_send_buffer(bytes: i32) -> !:
         try set_socket_buffer(try self.socket.require(), send_buffer_option, bytes)
 
+    ## The send buffer size in bytes.
     pub func send_buffer() -> i32!:
         return try get_socket_integer(try self.socket.require(), socket_level, send_buffer_option)
 

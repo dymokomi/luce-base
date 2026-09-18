@@ -1,4 +1,12 @@
-## Host option numbers stay private; public methods expose typed policies.
+#==============================================================================================
+#
+#   options - Typed socket options
+#
+#   DESCRIPTION:
+#       Host option numbers stay private; public methods expose typed socket policies.
+#
+#==============================================================================================
+
 let nonblocking_flag: i32 = 4 if platform.macos else 2048
 let receive_buffer_option: i32 = 4098 if platform.macos or platform.windows else 8
 let send_buffer_option: i32 = 4097 if platform.macos or platform.windows else 7

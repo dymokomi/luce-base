@@ -1,8 +1,18 @@
-## Lexical filesystem paths. Both slash styles separate components on Windows;
-## on POSIX a backslash is an ordinary filename byte. No operation touches the disk.
+#==============================================================================================
+#
+#   paths - Lexical filesystem paths
+#
+#   DESCRIPTION:
+#       Lexical filesystem paths. Both slash styles separate components on Windows; on POSIX a
+#       backslash is an ordinary filename byte. No operation touches the disk.
+#
+#==============================================================================================
 
 import strings
 import platform
+
+## Whether `byte` separates path components on the target.
+# mark: Paths =================================================================================
 
 pub func separator(byte: u8) -> bool:
     return byte == '/' or (platform.windows and byte == 92)
@@ -56,6 +66,7 @@ pub func root(path: str) -> str:
 pub func is_rooted(path: str) -> bool:
     return root(path).length > 0
 
+## Whether `path` begins at a filesystem root.
 pub func is_absolute(path: str) -> bool:
     if drive_prefix(path):
         return path.length >= 3 and separator(path.bytes[2])

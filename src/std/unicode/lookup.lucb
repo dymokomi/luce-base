@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   lookup - Unicode property table lookup
+#
+#   DESCRIPTION:
+#       Fixed-width ASCII-hex tables keep the bootstrap parser's tree bounded independently of
+#       the number of entries; all storage is immutable.
+#
+#==============================================================================================
+
 # Tables store fixed-width ASCII hex words, keeping the bootstrap parser's tree
 # bounded independently of the number of table entries. All storage is immutable.
 func table_word(table: str, offset: usize) -> u32:

@@ -1,3 +1,14 @@
+#==============================================================================================
+#
+#   core - The compiler's runtime support
+#
+#   DESCRIPTION:
+#       The runtime the compiler emits calls to: startup and thread identity, the `format` and
+#       f-string buffer, integer and boolean formatting, hashing, and the checked, saturating
+#       and converting integer arithmetic.
+#
+#==============================================================================================
+
 from windows_abi import WideCharToMultiByte
 import c
 import platform
@@ -5,6 +16,7 @@ extern func set_binary_mode as "_setmode"(descriptor: i32, mode: i32) -> i32
 extern func GetCurrentThreadId() -> u32
 var initial_thread: u32
 
+## Whether the caller is the process's initial thread.
 pub func on_initial_thread() -> bool:
     if platform.windows:
         return initial_thread != 0 and GetCurrentThreadId() == initial_thread
@@ -121,8 +133,11 @@ func write_diagnostic(data: const u8[]):
 
 ## The buffer `format` and f"..." fill: the bytes, their capacity, and the count used.
 pub struct FormatBuffer:
+    ## The buffer's bytes.
     pub var data: u8*
+    ## The buffer's capacity in bytes.
     pub var capacity: usize
+    ## The number of bytes used.
     pub var used: usize
 
 ## Append `count` bytes; 1 when they do not fit, and the buffer is then over capacity.
@@ -136,6 +151,7 @@ pub func format_put(b: FormatBuffer*, text: const void*?, count: usize) -> i32:
     b.used += count
     return 0
 
+## Append the decimal `value` to `b`; the bytes written.
 pub func format_u64(b: FormatBuffer*, value: u64) -> i32:
     var digits: u8[24] = ---
     var n: usize = 0
@@ -149,6 +165,7 @@ pub func format_u64(b: FormatBuffer*, value: u64) -> i32:
         v = v // 10
     return format_put(b, &digits[24 - n], n)
 
+## Append the decimal `value` to `b`; the bytes written.
 pub func format_i64(b: FormatBuffer*, value: i64) -> i32:
     if value < 0:
         let minus = "-"
@@ -165,6 +182,7 @@ pub func format_f64(b: FormatBuffer*, value: f64) -> i32:
         return 1
     return format_put(b, &text[0], (usize)n)
 
+## Append `true` or `false` to `b`; the bytes written.
 pub func format_bool(b: FormatBuffer*, value: bool) -> i32:
     let word = "true" if value else "false"
     return format_put(b, word.bytes.data, word.length)
@@ -218,6 +236,7 @@ func show_take(source: const u8*, count: usize) -> str:
     show_bytes[slot + n] = 0
     return (str)show_bytes[slot..<slot + n]
 
+## `value` as a hexadecimal string.
 pub func show_hex(value: u64) -> str:
     var digits: u8[16] = ---
     var n: usize = 0
@@ -232,6 +251,7 @@ pub func show_hex(value: u64) -> str:
         v = v >> 4
     return show_take(&digits[16 - n], n)
 
+## `value` as a binary string.
 pub func show_bin(value: u64) -> str:
     var digits: u8[64] = ---
     var n: usize = 0
@@ -245,6 +265,7 @@ pub func show_bin(value: u64) -> str:
         v = v >> 1
     return show_take(&digits[64 - n], n)
 
+## `inner` left-padded with spaces to `width`.
 pub func show_pad(inner: str, width: usize) -> str:
     var n = inner.length
     if n >= width:
@@ -276,6 +297,7 @@ pub func arguments(count: i32, vector: c.str*) -> str[]:
         i += 1
     return str[](items, n)
 
+## The process's arguments as a span of C strings.
 pub func raw_arguments(count: i32, vector: c.str*) -> c.str[]:
     if platform.windows:
         return windows_arguments()
@@ -331,6 +353,7 @@ pub func test_report(name: str, failed: bool, message: str):
         return
     discard(write(1, line.bytes.data, line.length))
 
+## Print a test run's tally; the process exit status.
 pub func test_summary(total: i32, failed: i32) -> i32:
     var bytes: u8[64] = ---
     let line = format(bytes, f"{total - failed} passed\n") catch:
@@ -344,6 +367,7 @@ pub func print_str(text: str):
     let newline = "\n"
     discard(write(1, newline.bytes.data, 1))
 
+## Print `value` followed by a newline.
 pub func print_i64(value: i64):
     var bytes: u8[32] = ---
     let all: u8[] = bytes
@@ -436,18 +460,23 @@ pub func utf8_ok(text: const u8*?, count: usize) -> bool:
 var hash_seed_value: u64
 var hash_seeded: bool
 
+## A per-process seed for the collection hashers.
+# mark: Hashing ===============================================================================
+
 pub func hash_seed() -> u64:
     if not hash_seeded:
         hash_seed_value = 11400714819323198485 ^ (u64)(usize)&hash_seed_value
         hash_seeded = true
     return hash_seed_value
 
+## Mix `x` into the running hash `h`.
 pub func hash_mix(h: u64, x: u64) -> u64:
     var r = h ^ x
     r = r *% 11400714819323198485
     r = r ^ (r >> 32)
     return r
 
+## Mix `count` bytes at `data` into the running hash `h`.
 pub func hash_bytes(h: u64, data: const void*?, count: usize) -> u64:
     var r = h
     if let p = data:
@@ -526,6 +555,7 @@ pub func conv_s(value: i64, from_bits: i32, from_signed: i32, to_bits: i32, to_s
         return sign_extend((i64)bits, to_bits)
     return (i64)bits
 
+## Convert an unsigned value between integer widths and signedness; `mode` chooses checked or wrapping.
 pub func conv_u(value: u64, from_bits: i32, from_signed: i32, to_bits: i32, to_signed: i32, mode: i32, at: c.str) -> u64:
     let m = magnitude(value, from_bits, from_signed)
     if mode == 0:
@@ -565,6 +595,7 @@ pub func f_to_s(value: f64, bits: i32, mode: i32, at: c.str) -> i64:
         return signed_max(bits)
     return (i64)value
 
+## Convert a float to an unsigned integer of `bits`; `mode` checks the range.
 pub func f_to_u(value: f64, bits: i32, mode: i32, at: c.str) -> u64:
     let high = float_bound_u(bits)
     if mode == 0:
@@ -593,6 +624,9 @@ func mul_overflows_s(a: i64, b: i64) -> bool:
         return a == signed_min(64)
     return (a *% b) // b != a
 
+## Saturating signed addition at `bits`.
+# mark: Saturating and checked arithmetic =====================================================
+
 pub func adds_s(x: i64, y: i64, bits: i32) -> i64:
     let a = sign_extend(x, bits)
     let b = sign_extend(y, bits)
@@ -601,6 +635,7 @@ pub func adds_s(x: i64, y: i64, bits: i32) -> i64:
         return signed_min(bits) if a < 0 else signed_max(bits)
     return r
 
+## Saturating unsigned addition at `bits`.
 pub func adds_u(x: u64, y: u64, bits: i32) -> u64:
     let a = zero_extend(x, bits)
     let b = zero_extend(y, bits)
@@ -609,6 +644,7 @@ pub func adds_u(x: u64, y: u64, bits: i32) -> u64:
         return mask_of(bits)
     return r
 
+## Saturating signed subtraction at `bits`.
 pub func subs_s(x: i64, y: i64, bits: i32) -> i64:
     let a = sign_extend(x, bits)
     let b = sign_extend(y, bits)
@@ -617,6 +653,7 @@ pub func subs_s(x: i64, y: i64, bits: i32) -> i64:
         return signed_min(bits) if a < 0 else signed_max(bits)
     return r
 
+## Saturating unsigned subtraction at `bits`.
 pub func subs_u(x: u64, y: u64, bits: i32) -> u64:
     let a = zero_extend(x, bits)
     let b = zero_extend(y, bits)
@@ -624,6 +661,7 @@ pub func subs_u(x: u64, y: u64, bits: i32) -> u64:
         return 0
     return a - b
 
+## Saturating signed multiplication at `bits`.
 pub func muls_s(x: i64, y: i64, bits: i32) -> i64:
     let a = sign_extend(x, bits)
     let b = sign_extend(y, bits)
@@ -631,6 +669,7 @@ pub func muls_s(x: i64, y: i64, bits: i32) -> i64:
         return signed_min(bits) if (a < 0) != (b < 0) else signed_max(bits)
     return a *% b
 
+## Saturating unsigned multiplication at `bits`.
 pub func muls_u(x: u64, y: u64, bits: i32) -> u64:
     let a = zero_extend(x, bits)
     let b = zero_extend(y, bits)
@@ -648,6 +687,7 @@ pub func qadd_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
     *out = r
     return true
 
+## Checked unsigned addition through `out`; whether it fit.
 pub func qadd_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
     let a = zero_extend(x, bits)
     let b = zero_extend(y, bits)
@@ -657,6 +697,7 @@ pub func qadd_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
     *out = r
     return true
 
+## Checked signed subtraction through `out`; whether it fit.
 pub func qsub_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
     let a = sign_extend(x, bits)
     let b = sign_extend(y, bits)
@@ -666,6 +707,7 @@ pub func qsub_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
     *out = r
     return true
 
+## Checked unsigned subtraction through `out`; whether it fit.
 pub func qsub_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
     let a = zero_extend(x, bits)
     let b = zero_extend(y, bits)
@@ -674,6 +716,7 @@ pub func qsub_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
     *out = a - b
     return true
 
+## Checked signed multiplication through `out`; whether it fit.
 pub func qmul_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
     let a = sign_extend(x, bits)
     let b = sign_extend(y, bits)
@@ -682,6 +725,7 @@ pub func qmul_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
     *out = a *% b
     return true
 
+## Checked unsigned multiplication through `out`; whether it fit.
 pub func qmul_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
     let a = zero_extend(x, bits)
     let b = zero_extend(y, bits)

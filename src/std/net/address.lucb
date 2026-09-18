@@ -1,11 +1,27 @@
+#==============================================================================================
+#
+#   address - Socket endpoints
+#
+#   DESCRIPTION:
+#       An IP endpoint: address, port and optional IPv6 interface scope, with parsing and
+#       formatting.
+#
+#==============================================================================================
+
+# mark: The endpoint ==========================================================================
+
 ## An IP endpoint: address, port and optional IPv6 interface scope. A zero value is
 ## 0.0.0.0:0. The port is host order; scope zero means no explicit interface index.
 ## IPv4 endpoints must have scope zero. Values own their inline storage.
 pub struct SocketAddress:
+    ## The IP address.
     pub var ip: IpAddress
+    ## The port number.
     pub var port: u16
+    ## The IPv6 interface scope, or 0.
     pub var scope_id: u32
 
+    ## The loopback endpoint on `port`.
     pub static func loopback(port: u16, version: IpVersion = IpVersion.ipv4) -> SocketAddress:
         if version == IpVersion.ipv4:
             return SocketAddress(ip = IpAddress.from_ipv4(2130706433), port = port)
@@ -13,6 +29,7 @@ pub struct SocketAddress:
         ip.octets[15] = 1
         return SocketAddress(ip = ip, port = port)
 
+    ## The wildcard endpoint on `port`.
     pub static func any(port: u16, version: IpVersion = IpVersion.ipv4) -> SocketAddress:
         return SocketAddress(ip = IpAddress(kind = version), port = port)
 
@@ -56,6 +73,7 @@ pub struct SocketAddress:
         let port = parse_endpoint_number((str)text.bytes[port_start..], 65535, 5) else return none
         return SocketAddress(ip = ip, port = (u16)port, scope_id = scope)
 
+    ## Whether two endpoints are equal.
     pub func equals(other: SocketAddress) -> bool:
         return self.ip.equals(other.ip) and self.port == other.port and self.scope_id == other.scope_id
 

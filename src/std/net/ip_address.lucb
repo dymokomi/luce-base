@@ -1,7 +1,19 @@
+#==============================================================================================
+#
+#   ip_address - IP addresses
+#
+#   DESCRIPTION:
+#       An IPv4 or IPv6 address value, with parsing, formatting and comparison. An IPv4-mapped
+#       IPv6 address stays IPv6.
+#
+#==============================================================================================
+
 ## IP version carried by an address value. IPv4-mapped IPv6 remains IPv6.
 pub enum IpVersion as u8:
     ipv4 = 0
     ipv6 = 1
+
+# mark: The address ===========================================================================
 
 ## An IP value without a port, prefix length or interface scope. Storage is owned
 ## inline; copying is safe and requires no cleanup. Zero represents 0.0.0.0.
@@ -9,6 +21,7 @@ pub struct IpAddress:
     var kind: IpVersion
     var octets: u8[16]
 
+    ## An IPv4 address from a 32-bit number.
     pub static func from_ipv4(number: u32) -> IpAddress:
         var result: IpAddress
         var i: usize = 0
@@ -48,6 +61,7 @@ pub struct IpAddress:
             return IpAddress.from_ipv4(number)
         return parse_ipv6(text)
 
+    ## The IP version of the address.
     pub func version() -> IpVersion:
         return self.kind
 
@@ -57,6 +71,7 @@ pub struct IpAddress:
             return none
         return ((u32)self.octets[0] << 24) | ((u32)self.octets[1] << 16) | ((u32)self.octets[2] << 8) | (u32)self.octets[3]
 
+    ## Whether this is an IPv4-mapped IPv6 address.
     pub func is_ipv4_mapped() -> bool:
         if self.kind != IpVersion.ipv6:
             return false

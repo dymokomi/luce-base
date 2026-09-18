@@ -1,6 +1,13 @@
-## Windows terminates a closing console process when its handler returns. Keep
-## this callback alive until normal threads acknowledge cleanup, within a bound.
-## It never takes termination_lock, so the final owner's close cannot deadlock.
+#==============================================================================================
+#
+#   windows - Windows console termination
+#
+#   DESCRIPTION:
+#       Windows terminates a closing console process when its handler returns, so this callback
+#       stays alive until normal threads acknowledge cleanup, within a bound.
+#
+#==============================================================================================
+
 extern func SetConsoleCtrlHandler(handler: func(u32) -> i32, add: i32) -> i32
 extern func GetTickCount64() -> u64
 extern func Sleep(milliseconds: u32)

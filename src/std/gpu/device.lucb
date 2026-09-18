@@ -1,10 +1,20 @@
-## An owned device. All GPU operations currently require the main thread. The
-## zero value is closed; copies alias ownership, so borrow and destroy one owner.
-## Surfaces retain the underlying device and remain usable after this handle is
-## destroyed. No window system is initialized by opening a device alone.
+#==============================================================================================
+#
+#   device - An owned GPU device
+#
+#   DESCRIPTION:
+#       An owned device. All GPU operations currently require the main thread. The zero value is
+#       closed; copies alias ownership, so borrow and destroy one owner. Surfaces retain the
+#       underlying device and remain usable after this handle is destroyed. No window system is
+#       initialized by opening a device alone.
+#
+#==============================================================================================
+
+## An owned GPU device; the zero value is closed and copies alias ownership.
 pub struct Device:
     var state: DeviceState*?
 
+    ## Open a device on the selected backend, probing the hardware.
     pub static func open(backend: Backend = Backend.automatic) -> Device!:
         try check_thread()
         let selected = try select_backend(backend)
@@ -13,9 +23,11 @@ pub struct Device:
         let state = try new DeviceState(backend = selected, native = native, references = 1) in memory.heap
         return Device(state = state)
 
+    ## The backend this device runs on.
     pub func backend() -> Backend!:
         return (try self.checked()).backend
 
+    ## Release the device on the main thread; open surfaces keep it alive until they close.
     pub mutating func destroy():
         let state = self.state else return
         require_thread()

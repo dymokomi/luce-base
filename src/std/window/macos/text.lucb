@@ -1,6 +1,14 @@
-## NSTextInputClient owns only the input method's marked string. Committed text
-## crosses into the portable queue as scalars; document storage belongs to the UI.
-## `NSNotFound`, the largest signed pointer-sized integer.
+#==============================================================================================
+#
+#   text - The macOS text-input client
+#
+#   DESCRIPTION:
+#       NSTextInputClient owns only the input method's marked string. Committed text crosses
+#       into the portable queue as scalars; document storage belongs to the UI. `NSNotFound`,
+#       the largest signed pointer-sized integer.
+#
+#==============================================================================================
+
 func mac_not_found() -> usize:
     return ~(usize)0 >> 1
 

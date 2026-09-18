@@ -1,13 +1,26 @@
+#==============================================================================================
+#
+#   reference - A typed reference carrier
+#
+#   DESCRIPTION:
+#       Parameters borrow the carrier; clone acquires an additional strong reference.
+#       Publish/adopt return one owning reference whose Base caller releases explicitly.
+#
+#==============================================================================================
+
 ## A typed reference carrier. Parameters borrow the carrier; clone acquires an
 ## additional strong reference. Publish/adopt return one owning reference, whose
 ## Base caller releases explicitly. Copying the struct does not acquire ownership.
 pub struct Reference[T]:
+    ## The owner shell this reference keeps alive.
     pub let owner: Owner[T]*
 
+    ## A reference over `owner`, which is already alive.
     pub func init(owner: Owner[T]*):
         ownership.check_alive(&owner.header)
         self.owner = owner
 
+    ## Adopt `native` into a new owned reference of `declaration`.
     pub static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!:
         let selected = allocator else memory.allocator
         var reservation = Reservation[T](declaration) catch failure:
@@ -16,13 +29,16 @@ pub struct Reference[T]:
             error(failure.code, failure.message)
         return reservation.publish(native, selected)
 
+    ## Another strong reference to the same value.
     pub func clone() -> Reference[T]:
         discard(ownership.retain(&self.owner.header))
         return Reference[T](self.owner)
 
+    ## Drop this reference's edge.
     pub func release():
         ownership.release(&self.owner.header)
 
+    ## The native value, or a closed/uninitialized error.
     pub func get() -> T*!:
         ownership.check_alive(&self.owner.header)
         if self.owner.closed:
@@ -33,24 +49,29 @@ pub struct Reference[T]:
     pub func value() -> T*:
         return self.get() catch failure: trap(failure.message)
 
+    ## A stable identity for the value that never repeats.
     pub func identity() -> u64:
         ownership.check_alive(&self.owner.header)
         return self.owner.header.generation
 
+    ## Whether the value has been closed.
     pub func is_closed() -> bool:
         ownership.check_alive(&self.owner.header)
         return self.owner.closed
 
+    ## Close the value, if its type is closeable.
     pub func close():
         ownership.check_alive(&self.owner.header)
         if not self.owner.declaration.closeable:
             trap("this native type does not support explicit close")
         close_owner[T](self.owner)
 
+    ## A validity lease over the value.
     pub func lease() -> Lease!:
         discard(try self.get())
         return try Lease(&self.owner.header, Owner[T].is_open, Owner[T].enter, Owner[T].leave)
 
+    ## Validate that `object` is a live reference of this type.
     pub static func validate_interface(object: ownership.Object*) -> !:
         discard(try Reference[T]((Owner[T]*)object).get())
 
@@ -63,6 +84,7 @@ pub struct Reference[T]:
     pub func enter():
         Owner[T].enter(&self.owner.header)
 
+    ## End a native call guard on the value.
     pub func leave():
         Owner[T].leave(&self.owner.header)
 

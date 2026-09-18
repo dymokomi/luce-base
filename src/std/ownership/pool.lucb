@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   pool - The temporaries pool
+#
+#   DESCRIPTION:
+#       Owned values handed on as temporaries, released together by the next `drain`; the
+#       generators emit `mark`/`drain` pairs around a statement's operands.
+#
+#==============================================================================================
+
 # mark: The temporaries pool ===================================================================
 
 struct Pending:
@@ -9,6 +19,7 @@ struct Pending:
 local var pending: Pending[]
 local var pending_count: usize = 0
 
+## The current pool position, to `drain` back to later.
 pub func mark() -> usize:
     return pending_count
 

@@ -1,5 +1,13 @@
-## GDI's outline rasterizer returns 65-level grayscale coverage, independent of
-## ClearType settings. Native row padding and glyph bearings stay in this adapter.
+#==============================================================================================
+#
+#   native - The Windows (GDI) font backend
+#
+#   DESCRIPTION:
+#       GDI's outline rasterizer returns 65-level grayscale coverage, independent of
+#       ClearType settings. Native row padding and glyph bearings stay in this adapter.
+#
+#==============================================================================================
+
 extern struct FontLog:
     height: i32
     width: i32

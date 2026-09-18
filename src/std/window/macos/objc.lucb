@@ -1,7 +1,15 @@
-## Minimal AppKit ABI, kept private. Each objc_msgSend alias has the exact method
-## signature: in particular NSRect is an aggregate, never flattened into scalars.
-## This backend is arm64-only; do not reuse these dispatch declarations for an
-## architecture requiring objc_msgSend_stret without a separate ABI review.
+#==============================================================================================
+#
+#   objc - The minimal AppKit ABI
+#
+#   DESCRIPTION:
+#       Minimal AppKit ABI, kept private. Each objc_msgSend alias has the exact method
+#       signature: in particular NSRect is an aggregate, never flattened into scalars. This
+#       backend is arm64-only; do not reuse these dispatch declarations for an architecture
+#       requiring objc_msgSend_stret without a separate ABI review.
+#
+#==============================================================================================
+
 extern struct LuceWindowMacPoint:
     x: f64
     y: f64

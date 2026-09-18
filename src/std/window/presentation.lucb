@@ -1,10 +1,20 @@
-## Exclusive graphics-host lease. Copies alias ownership: destroy one owner on
-## the main thread. Closing the Window invalidates queries immediately, while
-## retaining its native host until this lease is destroyed. This permits graphics
-## resources to be torn down safely in either window/surface destruction order.
+#==============================================================================================
+#
+#   presentation - The exclusive graphics-host lease
+#
+#   DESCRIPTION:
+#       Exclusive graphics-host lease. Copies alias ownership: destroy one owner on the main
+#       thread. Closing the Window invalidates queries immediately, while retaining its native
+#       host until this lease is destroyed. This permits graphics resources to be torn down
+#       safely in either window/surface destruction order.
+#
+#==============================================================================================
+
+## An exclusive lease on a window's native graphics host; copies alias ownership.
 pub struct Presentation:
     var state: State*?
 
+    ## The window's content extent in logical points and backing pixels.
     pub func size() -> Size!:
         let state = try self.checked()
         if platform.macos and platform.arm64:
@@ -42,6 +52,7 @@ pub struct Presentation:
             return required(state.native)
         error(unsupported, "this window has no Windows handle")
 
+    ## Release the lease on the main thread.
     pub mutating func destroy():
         let state = self.state else return
         check_thread() catch failure:

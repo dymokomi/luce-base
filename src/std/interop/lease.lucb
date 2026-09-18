@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   lease - A one-shot validity scope
+#
+#   DESCRIPTION:
+#       Tied to an owning native object: keeping the lease alive keeps its checks safe, and
+#       invalidation never extends the resource's scope.
+#
+#==============================================================================================
+
 ## A one-shot validity scope tied to an owning native object. Keeping a lease
 ## alive keeps its checks safe; invalidation never extends the resource's scope.
 struct LeaseState:
@@ -18,6 +28,7 @@ func trace_lease(object: ownership.Object*, visit: func(ownership.Object*, void*
 var lease_info: ownership.Info = ownership.Info(name = "native lease", size = sizeof(LeaseState),
                                                 finish = none, drop = drop_lease, trace = trace_lease)
 
+## A one-shot validity scope over an owning native object.
 pub struct Lease:
     var state: LeaseState*
     var generation: u64
@@ -39,23 +50,28 @@ pub struct Lease:
         if self.generation != self.state.header.generation:
             trap("a native lease has a stale generation")
 
+    ## Another edge to the same lease.
     pub func clone() -> Lease:
         self.alive()
         discard(ownership.retain(&self.state.header))
         return self
 
+    ## Drop this lease's edge.
     pub func release():
         self.alive()
         ownership.release(&self.state.header)
 
+    ## Mark the scope invalid; later checks fail.
     pub func invalidate():
         self.alive()
         self.state.valid = false
 
+    ## Whether the scope is still valid and its owner open.
     pub func is_valid() -> bool:
         self.alive()
         return self.state.valid and self.state.open(self.state.owner)
 
+    ## Error `expired` when the scope is no longer valid.
     pub func check() -> !:
         if not self.is_valid():
             error(expired, "a native view has expired")
@@ -67,11 +83,13 @@ pub struct Lease:
         discard(ownership.retain(&self.state.header))
         self.state.begin(self.state.owner)
 
+    ## End a guarded invocation, releasing the owner.
     pub func leave():
         self.alive()
         self.state.end(self.state.owner)
         ownership.release(&self.state.header)
 
+    ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         ownership.check_thread(&self.state.header)
         visit(&self.state.header, context)

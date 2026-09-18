@@ -147,8 +147,19 @@ def main():
         result = base_type(command.findtext('proto/type'))
         params = ', '.join(f'{n}: {t}' for n, t in parameters)
         functions.append(f'extern func {name}({params})' + (f' -> {result}' if result != 'void' else ''))
-    lines = ['## Generated from the Khronos Vulkan registry by tools/generate_vulkan.py.',
-             '## Handles use the 64-bit Vulkan ABI; no Vulkan headers are required.', '']
+    lines = [
+             '#==============================================================================================',
+             '#',
+             '#   bindings - Vulkan structures, handles and functions from the Khronos registry',
+             '#',
+             '#   DESCRIPTION:',
+             '#       Generated from the Khronos Vulkan registry by tools/generate_vulkan.py.',
+             '#       Handles use the 64-bit Vulkan ABI; no Vulkan headers are required.',
+             '#',
+             '#==============================================================================================',
+             '',
+             '# mark: Vulkan bindings =======================================================================',
+             '']
     authored = ROOT / 'src/std/gpu/vulkan'
     constants = set()
     for source in authored.rglob('*.lucb'):

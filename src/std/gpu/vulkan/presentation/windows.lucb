@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   windows - Win32 Vulkan surface creation
+#
+#   DESCRIPTION:
+#       Win32 WSI owns the HWND and HINSTANCE boundary. No rendering operation depends on
+#       these handles after vkCreateWin32SurfaceKHR creates the surface.
+#
+#==============================================================================================
+
 from windows_abi import GetModuleHandleW
 ## Win32 WSI owns the HWND and HINSTANCE boundary. No rendering operation
 ## depends on these handles after vkCreateWin32SurfaceKHR creates the surface.

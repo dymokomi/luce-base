@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   encode - HTTP head and body encoding
+#
+#   DESCRIPTION:
+#       Serialize an HTTP head into caller storage and write bodies, framing them by their kind
+#       (fixed length or chunked).
+#
+#==============================================================================================
+
 ## Serialize an HTTP head into caller storage and validate the complete result
 ## before returning it. On failure the output may contain a prefix: never transmit
 ## it. Output must not overlap the input fields/text. Framing and Connection fields
@@ -59,6 +69,8 @@ pub func http_encode_head(output: u8[], head: HttpHead) -> const u8[]!:
         discard(try http_parse_response(sink.written(), fields, head.method, generous))
     return sink.written()
 
+# mark: Chunked writing =======================================================================
+
 ## Write a nonempty chunk. Empty writes are no-ops; only http_end_chunks ends a
 ## body. A sink error can follow partial output: abandon that message/connection.
 pub func http_write_chunk(destination: Writer, data: const u8[]) -> !:
@@ -95,11 +107,13 @@ pub struct HttpBodyWriter: Writer:
     var failed: bool
     var failure: ErrorCode
 
+    ## A body writer over `destination` for a body of `kind`.
     pub static func over(destination: Writer, kind: HttpBodyKind, length: u64 = 0) -> HttpBodyWriter!:
         if kind == HttpBodyKind.tunnel:
             error(http_unsupported, "a tunnel has no HTTP body writer")
         return HttpBodyWriter(destination = destination, kind = kind, remaining = length if kind == HttpBodyKind.fixed else 0, active = true)
 
+    ## Write body bytes, framed by the body kind.
     pub mutating func write(data: const u8[]) -> usize!:
         try self.check()
         return self.append(data) catch problem:
@@ -120,6 +134,7 @@ pub struct HttpBodyWriter: Writer:
             self.remaining -= (u64)data.length
         return data.length
 
+    ## Finish the body, writing any terminator.
     pub mutating func finish() -> !:
         try self.check()
         self.end_body() catch problem:

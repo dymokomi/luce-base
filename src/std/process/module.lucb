@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   process - Running a child process to completion
+#
+#   DESCRIPTION:
+#       Run a program with arguments, capture its standard output and error, and return its
+#       exit status; plus the current process's own exit.
+#
+#==============================================================================================
+
 import c
 import core
 import memory
@@ -28,6 +38,7 @@ let set_flags: i32 = 4
 ## `O_NONBLOCK`: 4 on macOS, 2048 on Linux.
 let non_blocking: i32 = 4 if platform.macos else 2048
 let would_block: i32 = 35 if platform.macos else 11
+## The process could not be started or managed.
 pub let failed: ErrorCode = ErrorCode.package(8)
 
 ## A captured stream: bytes in the current allocator, grown as the program writes.
@@ -71,6 +82,8 @@ struct Capture:
             free(self.data)
             var empty: u8[]
             self.data = empty
+
+# mark: Running a program =====================================================================
 
 ## Run `program` with `arguments`, wait for it, and answer its exit status and what it
 ## wrote to its standard output and error. The two texts are allocations of the current
@@ -210,5 +223,6 @@ pub func release(text: str):
     if text.length > 0:
         free(u8[]((u8*)text.bytes.data, text.length))
 
+## Terminate the current process with `code`.
 pub func exit(code: i32) -> never:
     core.exit(code)

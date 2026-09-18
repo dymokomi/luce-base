@@ -1,16 +1,29 @@
+#==============================================================================================
+#
+#   transfer - Uniquely owned cross-thread messages
+#
+#   DESCRIPTION:
+#       A `Packet` is a uniquely owned message outside either thread's ARC graph; a `Transfer`
+#       is the deep-copy policy, and a `Reply` carries a worker's result or failure.
+#
+#==============================================================================================
+
 ## A uniquely owned message outside either thread's ARC graph. Copies borrow;
 ## passing a packet into a queue transfers its release obligation. Its disposer
 ## must work on either thread and must not access thread-bound owners/allocators.
 pub struct Packet[T]:
+    ## The message value.
     pub let value: T
     let storage: void*? = none
     let dispose: (func(void*) -> unit)? = none
 
+    ## A packet owning `value`, released through `dispose`.
     pub func init(value: T, storage: void*? = none, dispose: (func(void*) -> unit)? = none):
         self.value = value
         self.storage = storage
         self.dispose = dispose
 
+    ## Dispose the packet's storage.
     pub func release():
         if let storage = self.storage:
             (self.dispose else trap("a packet has storage without a disposer"))(storage)
@@ -19,6 +32,7 @@ pub struct Packet[T]:
 ## members must point into the returned packet or immutable process-lifetime data.
 ## A policy must never smuggle an ARC owner, checked view or callback across threads.
 pub struct Transfer[T]:
+    ## The library's deep-copy of a wire value into a packet.
     pub let copy: func(T) -> Packet[T]!
 
     ## For pointer-free scalar/record values only. Text/spans need a deep copy.
@@ -47,32 +61,40 @@ struct PacketBytes:
         let packet = try PacketBytes.copy(value.bytes)
         return Packet[str]((str)packet.value, packet.storage, packet.dispose)
 
+## The deep-copy policy for `str`.
 pub let text_transfer: Transfer[str] = Transfer[str](PacketBytes.text)
+## The deep-copy policy for byte spans.
 pub let bytes_transfer: Transfer[const u8[]] = Transfer[const u8[]](PacketBytes.copy)
 
 ## A reply owns its successful packet or its copied failure text. get borrows;
 ## release is required whether the caller handles success or failure.
 pub struct Reply[T]:
     let result: Packet[T]?
+    ## The failure code, or `package(0)` on success.
     pub let code: ErrorCode
     let message: Packet[str]?
 
+    ## A successful reply carrying `value`.
     pub static func success(value: Packet[T]) -> Reply[T]:
         return Reply[T](value, no_error, none)
 
+    ## A failed reply with `code` and a copied `message`.
     pub static func failure(code: ErrorCode, message: str) -> Reply[T]:
         let copy = text_transfer.copy(message) catch failure:
             return Reply[T](none, memory.exhausted, Packet[str]("out of memory copying a worker failure"))
         return Reply[T](none, code, copy)
 
+    ## Whether the reply succeeded.
     pub func is_success() -> bool:
         return self.message == none
 
+    ## The success value, or the failure as an error.
     pub func get() -> T!:
         if let message = self.message:
             error(self.code, message.value)
         return (self.result else trap("a worker reply has no result")).value
 
+    ## Release the reply's owned value or message.
     pub func release():
         if let result = self.result:
             result.release()

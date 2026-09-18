@@ -1,5 +1,13 @@
-## The POSIX callback performs one lock-free atomic operation. Registration is
-## serialized outside the callback, and restores handlers on the last close.
+#==============================================================================================
+#
+#   posix - POSIX termination signals
+#
+#   DESCRIPTION:
+#       The POSIX callback performs one lock-free atomic operation; registration is serialized
+#       outside the callback and restores handlers on the last close.
+#
+#==============================================================================================
+
 type TerminationHandler = func(i32) -> unit
 extern func termination_signal as "signal"(number: i32, handler: TerminationHandler?) -> TerminationHandler?
 var previous_interrupt: TerminationHandler?

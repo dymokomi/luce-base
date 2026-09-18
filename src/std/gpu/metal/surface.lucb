@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   surface - The Metal presentation surface
+#
+#   DESCRIPTION:
+#       The Metal presentation surface backing a window, kept private to the backend.
+#
+#==============================================================================================
+
 struct MetalSurface:
     var layer: void*?
     var pending: void*?

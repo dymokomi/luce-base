@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   casing - Full Unicode case mapping
+#
+#   DESCRIPTION:
+#       Locale-independent uppercase, lowercase and case folding, including multi-scalar
+#       expansions and the contextual final Greek sigma; no normalization.
+#
+#==============================================================================================
+
 ## Full default uppercase mapping, including multi-scalar expansions. This is
 ## locale-independent Unicode casing, without normalization or language tailoring.
 pub func to_upper(text: str, max_bytes: usize? = none) -> str!:

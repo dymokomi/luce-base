@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   thread - Native threads
+#
+#   DESCRIPTION:
+#       Spawning, joining and detaching host threads over pthreads (Windows through its own
+#       primitives), with the running thread's identity and yielding and sleeping.
+#
+#==============================================================================================
+
 from windows_abi import SystemInfo
 from windows_abi import GetSystemInfo
 from windows_abi import Sleep
@@ -35,6 +45,9 @@ extern struct Duration:
     seconds: i64
     nanoseconds: c.long
 
+## A thread operation the operating system refused.
+# mark: Threads ===============================================================================
+
 pub let failed: ErrorCode = ErrorCode.package(5)
 
 ## `PTHREAD_STACK_MIN`: 16 KiB on macOS and x86-64 glibc, 128 KiB on arm64 glibc; a
@@ -47,11 +60,13 @@ let name_room: usize = 16
 pub struct Handle:
     var id: void*?
 
+    ## Wait for the thread to finish.
     pub func join() -> !:
         let id = self.id else error(failed, "no thread to join")
         if pthread_join(id, none) != 0:
             error(failed, "join")
 
+    ## Let the thread run on its own; its resources are reclaimed at exit.
     pub func detach():
         let id = self.id else return
         discard(pthread_detach(id))
@@ -115,6 +130,7 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
     let thread = id else error(failed, "spawn")
     return Handle(id = thread)
 
+## A handle to the calling thread.
 pub func current() -> Handle:
     return Handle(id = pthread_self())
 

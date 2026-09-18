@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   connection - An owning registration token
+#
+#   DESCRIPTION:
+#       Dropping its last reference disconnects; explicit disconnection stays queryable and
+#       releases its signal-state edge at once.
+#
+#==============================================================================================
+
 ## Owning registration token. Dropping its last reference disconnects; explicit
 ## disconnection remains queryable and releases its signal-state edge immediately.
 pub struct Connection:
@@ -15,12 +25,14 @@ pub struct Connection:
         self.contains = contains
         discard(ownership.retain(state))
 
+    ## Remove the registration; idempotent.
     pub mutating func disconnect():
         let state = self.state else return
         self.state = none
         self.remove(state, self.identifier)
         ownership.release(state)
 
+    ## Whether the registration is still present.
     pub func is_connected() -> bool:
         let state = self.state else return false
         ownership.check_alive(state)
@@ -34,5 +46,6 @@ pub struct Connection:
             ownership.check_thread(state)
             visit(state, context)
 
+## The interop type describing a `Connection`.
 pub let connection_type: Type[Connection] = Type[Connection](name = "Connection",
                                                              dispose = Connection.destroy, trace = Connection.trace)

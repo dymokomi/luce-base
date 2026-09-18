@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   entries - Path existence and entry operations
+#
+#   DESCRIPTION:
+#       Existence checks, directory creation and removal, rename, hard and symbolic links,
+#       and reading a symlink's target.
+#
+#==============================================================================================
+
 ## Whether the path currently resolves to an existing object, following symlinks.
 ## This convenience form returns false on lookup errors; use exists_checked when
 ## permission or I/O failures must be distinguished from absence. It never opens a
@@ -28,6 +38,8 @@ pub func exists_checked(path: c.str) -> bool!:
     if number == 2 or number == 20:
         return false
     error(classify_error(number), "the path could not be inspected")
+
+# mark: Creating, removing and linking ========================================================
 
 ## Create one directory; parents must already exist. An existing final entry is
 ## already_exists, including a symlink. Permissions are filtered by the process

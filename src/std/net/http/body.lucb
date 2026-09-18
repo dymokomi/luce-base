@@ -1,10 +1,26 @@
+#==============================================================================================
+#
+#   body - HTTP message body decoding
+#
+#   DESCRIPTION:
+#       Decode an HTTP/1.1 message body (fixed length or chunked) one step at a time; storage
+#       is caller-owned and borrowed.
+#
+#==============================================================================================
+
+# mark: Body decoding =========================================================================
+
 ## One decoding step. body borrows the supplied input. A trailer borrows the
 ## decoder's line buffer until its next consume call; copy it before continuing.
 ## consumed stops before the next message. Call again with the unconsumed suffix.
 pub struct HttpBodyStep:
+    ## Bytes consumed from the input this step.
     pub var consumed: usize
+    ## The decoded body bytes for this step (borrowed).
     pub var body: const u8[]
+    ## A trailer field, when one was decoded.
     pub var trailer: HttpField?
+    ## Whether the body is complete.
     pub var finished: bool
 
 ## Incremental fixed, chunked or EOF-delimited body framing, independent of I/O.
@@ -25,6 +41,7 @@ pub struct HttpBodyDecoder:
     var failed: bool
     var failure: ErrorCode
 
+    ## A decoder for a body of `kind`.
     pub static func create(kind: HttpBodyKind, length: u64 = 0, maximum: u64 = 1073741824) -> HttpBodyDecoder!:
         if kind == HttpBodyKind.tunnel:
             error(http_unsupported, "a tunnel has no HTTP body decoder")
@@ -37,9 +54,11 @@ pub struct HttpBodyDecoder:
             result.phase = 0
         return result
 
+    ## Whether the body is fully decoded.
     pub func finished() -> bool:
         return not self.failed and self.phase == 6
 
+    ## Decode one step from `data`.
     pub mutating func consume(data: const u8[]) -> HttpBodyStep!:
         if self.failed:
             error(self.failure, "HTTP body decoder has failed")
@@ -48,6 +67,7 @@ pub struct HttpBodyDecoder:
             self.failure = problem.code
             error(problem.code, problem.message)
 
+    ## Assert the body ended cleanly.
     pub mutating func finish() -> !:
         if self.failed:
             error(self.failure, "HTTP body decoder has failed")

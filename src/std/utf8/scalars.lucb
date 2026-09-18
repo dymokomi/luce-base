@@ -1,6 +1,18 @@
+#==============================================================================================
+#
+#   scalars - UTF-8 scalar encoding and decoding
+#
+#   DESCRIPTION:
+#       One-shot encode and decode of a single scalar at a byte offset, over borrowed storage,
+#       with strict RFC 3629 validation and no allocation.
+#
+#==============================================================================================
+
 ## One decoded scalar and the number of source bytes consumed.
 pub struct Decoded:
+    ## The decoded scalar value.
     pub var scalar: char
+    ## The number of source bytes it was encoded in.
     pub var width: usize
 
 ## Encoded byte count, or none for a surrogate or a value beyond U+10FFFF.

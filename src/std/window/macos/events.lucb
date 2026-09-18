@@ -1,6 +1,14 @@
-## AppKit invokes these methods synchronously while the main thread pumps events.
-## Queued events retain no NSEvent/NSNotification objects. AppKit's text service
-## may allocate its own composition state while interpreting a key event.
+#==============================================================================================
+#
+#   events - The AppKit event callbacks
+#
+#   DESCRIPTION:
+#       AppKit invokes these methods synchronously while the main thread pumps events. Queued
+#       events retain no NSEvent/NSNotification objects. AppKit's text service may allocate its
+#       own composition state while interpreting a key event.
+#
+#==============================================================================================
+
 func close_callback(object: void*, selector: void*, sender: void*) -> bool:
     discard(selector)
     discard(sender)

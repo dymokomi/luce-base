@@ -1,9 +1,18 @@
-## Allocating Windows text conversions. Returned storage belongs to the current
-## allocator and includes a NUL terminator. Callers select their API's error code.
+#==============================================================================================
+#
+#   windows_text - Allocating Windows text conversions
+#
+#   DESCRIPTION:
+#       Returned storage belongs to the current allocator and includes a NUL terminator.
+#       Callers select their API's error code.
+#
+#==============================================================================================
+
 import c
 import memory
 import windows_abi
 
+## UTF-8 `text` to a NUL-terminated UTF-16 buffer, `invalid` on malformed input.
 pub func wide(text: c.str, invalid: ErrorCode) -> u16[]!:
     let count = windows_abi.MultiByteToWideChar(windows_abi.utf8_page, windows_abi.reject_invalid_utf8, text, -1, none, 0)
     if count <= 0:
@@ -14,6 +23,7 @@ pub func wide(text: c.str, invalid: ErrorCode) -> u16[]!:
         error(invalid, "OS text could not be converted to UTF-16")
     return result
 
+## UTF-16 `text` to a NUL-terminated UTF-8 string, `invalid` on malformed input.
 pub func narrow(text: const u16[], invalid: ErrorCode) -> str!:
     if text.length > 2147483647:
         error(invalid, "OS text exceeds the conversion limit")

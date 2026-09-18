@@ -1,5 +1,12 @@
-## Readiness uses poll on both hosts. Keep its ABI private and distinct from the
-## public interests/results, so host event bits never leak into application code.
+#==============================================================================================
+#
+#   readiness - Deadlines, cancellation and polling
+#
+#   DESCRIPTION:
+#       Deadlines, cancellation, and a poller over descriptors, using poll on both hosts.
+#
+#==============================================================================================
+
 extern struct NativePoll:
     descriptor: platform.SocketDescriptor
     events: i16
@@ -12,6 +19,8 @@ extern struct MonotonicStamp:
 extern func poll_macos as "poll"(entries: NativePoll*, count: u32, timeout: i32) -> i32
 extern func poll_linux as "poll"(entries: NativePoll*, count: usize, timeout: i32) -> i32
 extern func read_monotonic as "clock_gettime"(clock: i32, stamp: MonotonicStamp*) -> i32
+
+# mark: Deadlines and cancellation ============================================================
 
 ## A monotonic absolute deadline. Zero has no time limit. Reuse the same value
 ## across retries and partial transfers so interruptions cannot restart a timeout.
@@ -35,12 +44,15 @@ pub struct Deadline:
 pub struct Cancellation:
     var requested: @u32
 
+    ## Request cancellation.
     pub mutating func request():
         self.requested.store(1, .release)
 
+    ## Whether cancellation was requested.
     pub func is_requested() -> bool:
         return self.requested.load(.acquire) != 0
 
+## Which readiness to wait for.
 pub enum WaitInterest as u8:
     read = 0
     write = 1
@@ -50,11 +62,18 @@ pub enum WaitInterest as u8:
 ## Use nonblocking I/O and handle io.would_block. Hangup can coexist with queued
 ## readable bytes; read until EOF rather than discarding data on this flag alone.
 pub struct Readiness:
+    ## Whether the descriptor is readable.
     pub var readable: bool
+    ## Whether the descriptor is writable.
     pub var writable: bool
+    ## Whether the peer hung up.
     pub var hangup: bool
+    ## Whether an error condition is pending.
     pub var failure: bool
+    ## Whether the descriptor is invalid.
     pub var invalid: bool
+
+# mark: The poller ============================================================================
 
 ## Reusable storage for a fixed number of borrowed descriptors. All slots begin
 ## disabled; watch/disable mutate slots without allocation. Copying does not
@@ -64,6 +83,7 @@ pub struct Poller:
     var entries: NativePoll[]
     var owner: memory.Allocator?
 
+    ## A poller for up to `capacity` descriptors.
     pub static func create(capacity: usize) -> Poller!:
         if capacity == 0 or capacity > 2147483647:
             error(invalid_options, "poller capacity must be between one and i32 maximum")
@@ -74,6 +94,7 @@ pub struct Poller:
             index += 1
         return Poller(entries = entries, owner = memory.allocator)
 
+    ## The poller's capacity.
     pub func capacity() -> usize:
         return self.entries.length
 
@@ -92,6 +113,7 @@ pub struct Poller:
             other += 1
         self.entries[index] = NativePoll(descriptor = descriptor, events = events)
 
+    ## Stop watching the descriptor at `index`.
     pub mutating func disable(index: usize) -> !:
         try self.check_slot(index)
         self.entries[index] = NativePoll(descriptor = -1)
@@ -115,6 +137,7 @@ pub struct Poller:
         try self.check_slot(index)
         return poll_readiness(self.entries[index].returned)
 
+    ## Release the poller.
     pub mutating func destroy():
         if self.entries.length > 0:
             let owner = self.owner else trap("the poller lost its allocator")

@@ -1,13 +1,27 @@
+#==============================================================================================
+#
+#   weak - Weak references
+#
+#   DESCRIPTION:
+#       A weak reference watches an object without keeping it alive, and yields it again only
+#       while it is still alive.
+#
+#==============================================================================================
+
 # mark: Weak references ========================================================================
+## A weak reference: it watches an object without keeping it alive.
 pub struct Weak:
+    ## The watched object, or none once it is gone.
     pub var target: Object*?
 
+## A weak reference watching `o`.
 pub func weak_make(o: Object*) -> Weak:
     check_alive(o)
     if not has(o, immortal):
         o.weak += 1
     return Weak(target = o)
 
+## A copy of `w`, counting one more watcher of its object.
 pub func weak_copy(w: Weak) -> Weak:
     if let o = w.target:
         check_thread(o)
@@ -15,6 +29,7 @@ pub func weak_copy(w: Weak) -> Weak:
             o.weak += 1
     return w
 
+## Drop `w`; the object's shell is freed when its last watcher goes.
 pub func weak_drop(w: Weak):
     if let o = w.target:
         check_thread(o)

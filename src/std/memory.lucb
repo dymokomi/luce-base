@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   memory - Allocators and byte primitives
+#
+#   DESCRIPTION:
+#       The allocators of §12, the thread's current-allocator convention, the diagnostic
+#       records of an allocation failure, and the byte copy, move, set, read and write helpers.
+#
+#==============================================================================================
+
 from windows_abi import SystemInfo
 from windows_abi import GetSystemInfo
 import platform
@@ -27,9 +37,11 @@ pub struct FixedBuffer: Allocator:
     var data: u8[]
     var used: usize
 
+    ## An allocator handing out `buffer`'s bytes; only the last block resizes.
     pub static func over(buffer: u8[]) -> FixedBuffer:
         return FixedBuffer(data = buffer, used = 0)
 
+    ## Allocate `size` bytes at `alignment`, or none when it cannot.
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return self.data[..<0]
@@ -41,6 +53,7 @@ pub struct FixedBuffer: Allocator:
         self.used = start + size
         return self.data[start..<self.used]
 
+    ## Try to resize `block` to `size` in place; whether it worked.
     pub mutating func resize(block: u8[], size: usize) -> bool:
         if size == block.length:
             return true
@@ -54,6 +67,7 @@ pub struct FixedBuffer: Allocator:
         self.used = start + size
         return true
 
+    ## Free `block`.
     pub mutating func release(block: u8[]):
         if block.length == 0:
             return
@@ -79,6 +93,7 @@ func aligned_offset(storage: u8[], used: usize, alignment: usize) -> usize?:
 pub struct CAllocator: Allocator:
     var unused: u8
 
+    ## Allocate `size` bytes at `alignment`, or none when it cannot.
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)8, 0)
@@ -94,9 +109,11 @@ pub struct CAllocator: Allocator:
         let block = p else return none
         return u8[]((u8*)block, size)
 
+    ## Try to resize `block` to `size` in place; whether it worked.
     pub mutating func resize(block: u8[], size: usize) -> bool:
         return size <= block.length
 
+    ## Free `block`.
     pub mutating func release(block: u8[]):
         if block.length == 0:
             return
@@ -127,10 +144,12 @@ pub struct Arena: Allocator:
     var block: u8[]
     var used: usize
 
+    ## An arena of `capacity` bytes over `parent`, released all at once.
     pub static func over(parent: Allocator, capacity: usize) -> Arena!:
         let block = parent.allocate(capacity, 16) else error(exhausted, "memory.exhausted")
         return Arena(parent = parent, block = block, used = 0)
 
+    ## Allocate `size` bytes at `alignment`, or none when it cannot.
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return self.block[..<0]
@@ -143,6 +162,7 @@ pub struct Arena: Allocator:
         self.used = end
         return self.block[start..<end]
 
+    ## Try to resize `block` to `size` in place; whether it worked.
     pub mutating func resize(block: u8[], size: usize) -> bool:
         if size == block.length:
             return true
@@ -157,6 +177,7 @@ pub struct Arena: Allocator:
         self.used = start + size
         return true
 
+    ## Free `block`.
     pub mutating func release(block: u8[]):
         if diagnostic and block.length > 0:
             discard(memset(block.data, 221, block.length))  # an arena releases all at once
@@ -165,6 +186,7 @@ pub struct Arena: Allocator:
     pub func in_use() -> usize:
         return self.used
 
+    ## The arena's total capacity in bytes.
     pub func capacity() -> usize:
         return self.block.length
 
@@ -182,6 +204,7 @@ pub struct Arena: Allocator:
 pub struct PageAllocator: Allocator:
     var unused: u8
 
+    ## Allocate `size` bytes at `alignment`, or none when it cannot.
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)8, 0)
@@ -197,9 +220,11 @@ pub struct PageAllocator: Allocator:
             return none
         return u8[]((u8*)mapped, rounded)
 
+    ## Try to resize `block` to `size` in place; whether it worked.
     pub mutating func resize(block: u8[], size: usize) -> bool:
         return size <= block.length
 
+    ## Free `block`.
     pub mutating func release(block: u8[]):
         if block.length == 0:
             return
@@ -260,9 +285,13 @@ pub var diagnostic: bool
 
 ## An allocation the diagnostic profile recorded (§19.4): the block, its size, and where.
 pub struct Site:
+    ## The block's address, or none for a failed request.
     pub var address: void*?
+    ## The requested size in bytes.
     pub var size: usize
+    ## The function that requested it.
     pub var function: str
+    ## The source line of the request.
     pub var line: u32
 
 var sites: Site[256]
@@ -310,12 +339,17 @@ var quarantine_next: usize
 ## The released mappings the diagnostic profile still holds, oldest first.
 var held_pages: (u8[]?)[8]
 var held_next: usize
+## Allocation failed: out of memory.
+# mark: Diagnostics and heap ==================================================================
+
 pub let exhausted: ErrorCode = ErrorCode.package(1)
+## No allocator is current (§12.3).
 pub let unset: ErrorCode = ErrorCode.package(2)
 
 var c_allocator: CAllocator
 ## The current allocator of this thread (§12.3) and the process's initial one.
 pub local var allocator: Allocator
+## The process's C heap allocator.
 pub var heap: Allocator
 
 ## Run by the startup shim before `main`, and by `thread.spawn` in a new thread.
@@ -323,27 +357,34 @@ pub func startup():
     heap = &c_allocator
     allocator = heap
 
+## Copy `count` elements from `source` to `target` (no overlap).
+# mark: Byte primitives =======================================================================
+
 pub func copy[T](target: T[], source: const T[], count: usize):
     if count > target.length or count > source.length:
         trap("index out of bounds")
     if count > 0:
         discard(memcpy(target.data, source.data, count * sizeof(T)))
 
+## Copy `count` elements, allowing `source` and `target` to overlap.
 pub func move[T](target: T[], source: const T[], count: usize):
     if count > target.length or count > source.length:
         trap("index out of bounds")
     if count > 0:
         discard(memmove(target.data, source.data, count * sizeof(T)))
 
+## Set every byte of `target` to `value`.
 pub func set(target: u8[], value: u8):
     if target.length > 0:
         discard(memset(target.data, (i32)value, target.length))
 
+## Read a `T` from `address`, which may be unaligned.
 pub func read[T](address: const void*) -> T:
     var value: T = ---
     discard(memcpy(&value, address, sizeof(T)))
     return value
 
+## Write `value` to `address`, which may be unaligned.
 pub func write[T](address: void*, value: T):
     var copy_of = value
     discard(memcpy(address, &copy_of, sizeof(T)))

@@ -1,18 +1,33 @@
+#==============================================================================================
+#
+#   result - Owned native values and outcomes
+#
+#   DESCRIPTION:
+#       A native value with explicit backing storage, and a callback's success value or failure
+#       text, each carrying an explicit owner a Base caller releases.
+#
+#==============================================================================================
+
 ## A native value with explicit backing storage. The value may borrow that storage;
 ## clone retains it, release ends the obligation. Plain/static values need no owner.
 pub struct Owned[T]:
+    ## The native value, which may borrow the owner's storage.
     pub let value: T
+    ## The object backing the value, or none for a plain value.
     pub let owner: ownership.Object*? = none
 
+    ## Another edge to the value's owner, when it has one.
     pub func clone() -> Owned[T]:
         if let owner = self.owner:
             discard(ownership.retain(owner))
         return self
 
+    ## End this value's obligation to its owner.
     pub func release():
         if let owner = self.owner:
             ownership.release(owner)
 
+    ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         if let owner = self.owner:
             ownership.check_thread(owner)
@@ -25,34 +40,42 @@ let no_error: ErrorCode = ErrorCode.package(0)
 ## get borrows until release; it never transfers ownership of the contained value.
 pub struct Outcome[T]:
     let result: Owned[T]?
+    ## The failure code, or `package(0)` on success.
     pub let code: ErrorCode
     let message: Owned[str]?
 
+    ## A successful outcome carrying `value`.
     pub static func success(value: Owned[T]) -> Outcome[T]:
         return Outcome[T](value, no_error, none)
 
+    ## A failed outcome with `code` and `message`.
     pub static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]:
         return Outcome[T](none, code, message)
 
+    ## Whether the outcome succeeded.
     pub func is_success() -> bool:
         return self.message == none
 
+    ## The success value, or the failure as an error.
     pub func get() -> T!:
         if let message = self.message:
             error(self.code, message.value)
         return (self.result else trap("an outcome has no result")).value
 
+    ## A copy of the outcome, retaining its owned value or message.
     pub func clone() -> Outcome[T]:
         if let message = self.message:
             return Outcome[T].failure(self.code, message.clone())
         return Outcome[T].success((self.result else trap("an outcome has no result")).clone())
 
+    ## Release the outcome's owned value or message.
     pub func release():
         if let result = self.result:
             result.release()
         if let message = self.message:
             message.release()
 
+    ## Visit the outcome's strong references.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         if let result = self.result:
             result.trace(visit, context)

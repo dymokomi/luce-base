@@ -1,5 +1,14 @@
-## Generated from the Khronos Vulkan registry by tools/generate_vulkan.py.
-## Handles use the 64-bit Vulkan ABI; no Vulkan headers are required.
+#==============================================================================================
+#
+#   bindings - Vulkan structures, handles and functions from the Khronos registry
+#
+#   DESCRIPTION:
+#       Generated from the Khronos Vulkan registry by tools/generate_vulkan.py.
+#       Handles use the 64-bit Vulkan ABI; no Vulkan headers are required.
+#
+#==============================================================================================
+
+# mark: Vulkan bindings =======================================================================
 
 let VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT: u32 = 256
 let VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT: u32 = 1024

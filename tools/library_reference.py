@@ -19,24 +19,38 @@ def comment_block(lines, i):
     text = " ".join(l.strip()[2:].strip() for l in lines[j:i])
     return text.strip()
 
+def module_head(lines):
+    """The module's description paragraph and how many leading lines it occupies: from a
+    leading `#====` header box's DESCRIPTION when the file has one, else the leading `##`
+    lines. The caller clears those lines so the declaration scan does not see them."""
+    if lines and lines[0].startswith("#===="):
+        desc, seen, i = [], False, 1
+        while i < len(lines):
+            if lines[i].startswith("#===="):
+                return " ".join(desc), i + 1
+            body = lines[i].lstrip("#").strip()
+            if body == "DESCRIPTION:":
+                seen = True
+            elif seen and body:
+                desc.append(body)
+            i += 1
+        return " ".join(desc), i
+    head, i = [], 0
+    while i < len(lines) and (lines[i].startswith("##") or lines[i].strip() == ""):
+        if lines[i].startswith("##"):
+            head.append(lines[i][2:].strip())
+        i += 1
+    return " ".join(head), i
+
 def render(name):
     lines = module_source(std, name).split("\n")
     out = [f"## `{name}`\n"]
-    head = []
-    for l in lines:
-        if l.startswith("##"):
-            head.append(l[2:].strip())
-        elif l.strip() == "":
-            continue
-        else:
-            break
+    head, end = module_head(lines)
     if head:
-        out.append(" ".join(head) + "\n")
+        out.append(head + "\n")
     # the module's paragraph is not the first declaration's
-    i = 0
-    while i < len(lines) and (lines[i].startswith("##") or lines[i].strip() == ""):
+    for i in range(end):
         lines[i] = ""
-        i += 1
     i = 0
     while i < len(lines):
         l = lines[i]

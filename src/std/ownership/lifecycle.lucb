@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   lifecycle - The end of a run
+#
+#   DESCRIPTION:
+#       After `main` and after each worker, the collector runs and anything still alive is a
+#       defect that stops the program.
+#
+#==============================================================================================
+
 # mark: The end of a run =======================================================================
 
 ## After `main`: the collector runs, and anything still alive is a defect. The exit status.

@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   debug - The in-program source debugger's runtime
+#
+#   DESCRIPTION:
+#       The hooks a `--debug` build calls on entry, exit and at each statement, and the
+#       breakpoint console that reads frames by their described layout.
+#
+#==============================================================================================
+
 import c
 import memory
 extern func getenv(name: c.str) -> c.str?
@@ -40,11 +50,14 @@ var names_used: usize
 var line_bytes: u8[512]
 
 ## Called at every function entry and exit of a `--debug` build.
+# mark: Debugger hooks ========================================================================
+
 pub func enter(shape: void*):
     if depth < activations.length:
         activations[depth] = Activation(shape = (Shape*)shape, frame = none, line = 0)
     depth += 1
 
+## Pop the current activation from the debugger's shadow stack.
 pub func leave():
     if depth > 0:
         depth -= 1

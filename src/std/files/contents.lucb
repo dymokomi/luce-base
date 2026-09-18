@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   contents - Whole-file reads and writes
+#
+#   DESCRIPTION:
+#       Read a file through EOF or up to a limit, and create-or-truncate write; the result is
+#       an owned allocation of the current allocator, freed there.
+#
+#==============================================================================================
+
 ## Read through EOF, including files whose size changes or cannot be sought. The
 ## result is an allocation of the current allocator; free the returned span there.
 ## Use read_limit for untrusted or potentially unbounded input.

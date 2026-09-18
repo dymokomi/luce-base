@@ -1,5 +1,13 @@
-## Start suspended, enroll in a job, then resume: descendants inherit the job.
-## Captures are delete-on-close files, drained in bounded chunks while running.
+#==============================================================================================
+#
+#   windows - The Windows command backend
+#
+#   DESCRIPTION:
+#       Start suspended, enroll in a job, then resume so descendants inherit the job. Captures
+#       are delete-on-close files, drained in bounded chunks while the child runs.
+#
+#==============================================================================================
+
 extern func CreateJobObjectW(attributes: void*?, name: void*?) -> void*?
 extern func AssignProcessToJobObject(job: void*, process: void*) -> i32
 extern func TerminateJobObject(job: void*, status: u32) -> i32

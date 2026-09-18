@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   head - Parsing HTTP heads
+#
+#   DESCRIPTION:
+#       Parse exactly one complete request or response head into caller-owned field storage.
+#
+#==============================================================================================
+
 ## Parse exactly one complete request head. On failure storage may contain partial
 ## field views; only a successful result is usable. Header/body limits are separate.
 pub func http_parse_request(data: const u8[], storage: HttpField[], limits: HttpLimits = HttpLimits()) -> HttpHead!:

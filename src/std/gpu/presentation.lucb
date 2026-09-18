@@ -1,5 +1,13 @@
-## The dispatch boundary for surfaces: a surface's native payload, opaque here, opened on
-## a window's presentation, rendered, waited for, and destroyed by the selected backend.
+#==============================================================================================
+#
+#   presentation - The surface dispatch boundary
+#
+#   DESCRIPTION:
+#       The dispatch boundary for surfaces: a surface's native payload, opaque here, opened on a
+#       window's presentation, rendered, waited for, and destroyed by the selected backend.
+#
+#==============================================================================================
+
 func backend_surface_open(device: DeviceState*, host: window.Presentation) -> void*!:
     if platform.windows and device.backend == Backend.vulkan:
         return (void*)try vulkan_surface_open((VulkanDevice*)device.native, host)

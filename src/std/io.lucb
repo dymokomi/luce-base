@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   io - Byte streams
+#
+#   DESCRIPTION:
+#       Readers and writers over bytes, buffered wrappers, the standard output and error
+#       streams, the user's home directory, and the stream error codes.
+#
+#==============================================================================================
+
 import c
 import core
 import memory
@@ -29,9 +39,13 @@ pub interface Reader:
 pub interface Writer:
     mutating func write(data: const u8[]) -> usize!
 
+## A stream ended before the expected bytes arrived.
 pub let unexpected_eof: ErrorCode = ErrorCode.package(14)
+## A stream made no progress and cannot continue.
 pub let no_progress: ErrorCode = ErrorCode.package(15)
+## A read or write was asked for an invalid count.
 pub let invalid_count: ErrorCode = ErrorCode.package(16)
+## A read or write was given an invalid buffer.
 pub let invalid_buffer: ErrorCode = ErrorCode.package(17)
 
 ## Fill `buffer`, or fail at EOF or on a source error. Optional `transferred` is
@@ -107,9 +121,11 @@ pub struct SliceReader: Reader:
     var data: const u8[]
     var position: usize
 
+    ## A reader over `data`.
     pub static func over(data: const u8[]) -> SliceReader:
         return SliceReader(data = data, position = 0)
 
+    ## The number of bytes not yet read.
     pub func remaining() -> usize:
         return self.data.length - self.position
 
@@ -127,6 +143,7 @@ pub struct SliceWriter: Writer:
     var data: u8[]
     var used: usize
 
+    ## A writer into `data`.
     pub static func over(data: u8[]) -> SliceWriter:
         return SliceWriter(data = data, used = 0)
 
@@ -134,6 +151,7 @@ pub struct SliceWriter: Writer:
     pub func written() -> const u8[]:
         return self.data[..<self.used]
 
+    ## Write `data`; the number of bytes written.
     pub mutating func write(data: const u8[]) -> usize!:
         if data.length == 0:
             return 0
@@ -155,6 +173,7 @@ pub struct BufferedReader: Reader:
     var position: usize
     var used: usize
 
+    ## A buffered reader over `source`, using `storage`.
     pub static func over(source: Reader, storage: u8[]) -> BufferedReader!:
         if storage.length == 0:
             error(invalid_buffer, "buffered input requires nonempty storage")
@@ -190,6 +209,7 @@ pub struct BufferedWriter: Writer:
     var storage: u8[]
     var used: usize
 
+    ## A buffered writer over `destination`, using `storage`.
     pub static func over(destination: Writer, storage: u8[]) -> BufferedWriter!:
         if storage.length == 0:
             error(invalid_buffer, "buffered output requires nonempty storage")
@@ -226,12 +246,18 @@ pub struct BufferedWriter: Writer:
 
 ## A compile-time source position, the value of `luce.location`.
 pub struct Location:
+    ## The source file of the location.
     pub var file: str
+    ## The source line of the location.
     pub var line: u32
+    ## The enclosing function of the location.
     pub var function: str
 
+## The stream is closed.
 pub let closed: ErrorCode = ErrorCode.package(3)
+## The underlying stream operation failed.
 pub let failed: ErrorCode = ErrorCode.package(24)
+## A non-blocking stream has no data ready.
 pub let would_block: ErrorCode = ErrorCode.package(28)
 
 ## Borrowed standard output stream. Each nonempty write uses the existing libc
@@ -255,6 +281,7 @@ pub struct File: Writer:
         if fflush(stream) != 0:
             error(closed, "the stream could not be flushed")
 
+    ## Write `data`; the number of bytes written.
     pub mutating func write(data: const u8[]) -> usize!:
         if data.length == 0:
             return 0
@@ -287,6 +314,7 @@ var err_file: File = File(descriptor = 2)
 struct StandardInput: Reader:
     var descriptor: i32
 
+    ## Read into `buffer`; the number of bytes read.
     pub mutating func read(buffer: u8[]) -> usize!:
         if buffer.length == 0:
             return 0
@@ -311,9 +339,13 @@ var in_file: StandardInput = StandardInput(descriptor = 0)
 pub func stdin() -> Reader:
     return &in_file
 
+## The process's standard output stream.
+# mark: Standard streams ======================================================================
+
 pub func stdout() -> Writer:
     return &out_file
 
+## The process's standard error stream.
 pub func stderr() -> Writer:
     return &err_file
 
@@ -325,6 +357,7 @@ pub func flush_stdout() -> !:
 pub func flush_stderr() -> !:
     try err_file.flush()
 
+## A fixed writer has no room left.
 pub let full: ErrorCode = ErrorCode.package(4)
 
 ## The sink a formatted string offers a `Display` value (§14.4): it appends to the buffer
@@ -332,6 +365,7 @@ pub let full: ErrorCode = ErrorCode.package(4)
 pub struct FormatSink: Writer:
     var buffer: core.FormatBuffer*
 
+    ## Write `data`; the number of bytes written.
     pub mutating func write(data: const u8[]) -> usize!:
         if core.format_put(self.buffer, data.data, data.length) != 0:
             error(full, "the buffer is full")
@@ -348,6 +382,7 @@ pub struct path:
         let home = os.env("USERPROFILE" if platform.windows else "HOME") else error(io_path_failed, "no home directory")
         return home
 
+    ## The current user's home directory.
     pub static func home() -> str!:
         return try path.user()
 
@@ -376,4 +411,5 @@ pub struct path:
         let buffer = try alloc u8[home.length + 9]
         return try format(buffer, f"{home}/.config")
 
+## The home directory could not be determined.
 pub let io_path_failed: ErrorCode = ErrorCode.package(13)

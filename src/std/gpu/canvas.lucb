@@ -1,29 +1,54 @@
-## Portable triangle input. Positions are homogeneous clip coordinates: -w..w
-## for x/y and 0..w for z. Colors are straight-alpha linear sRGB in 0..1.
-## The backend interpolates color perspectively and blends into the sRGB target.
+#==============================================================================================
+#
+#   canvas - Portable colored-triangle input
+#
+#   DESCRIPTION:
+#       Portable triangle input. Positions are homogeneous clip coordinates: -w..w for x/y and
+#       0..w for z. Colors are straight-alpha linear sRGB in 0..1. The backend interpolates
+#       color perspectively and blends into the sRGB target.
+#
+#==============================================================================================
+
+## One triangle vertex: a clip-space position and a straight-alpha linear-sRGB colour.
 pub struct Vertex:
+    ## The clip-space x, in -w..w.
     pub var x: f32
+    ## The clip-space y, in -w..w.
     pub var y: f32
+    ## The clip-space z, in 0..w.
     pub var z: f32
+    ## The homogeneous w.
     pub var w: f32 = 1.0
+    ## The linear-sRGB red, 0..1.
     pub var red: f32
+    ## The linear-sRGB green, 0..1.
     pub var green: f32
+    ## The linear-sRGB blue, 0..1.
     pub var blue: f32
+    ## The straight alpha, 0..1.
     pub var alpha: f32 = 1.0
 
 ## Scissor rectangle in backing pixels, measured from the target's top left.
 ## Rectangles are intersected with the target at submission; zero extent is empty.
 pub struct Clip:
+    ## The left edge in backing pixels.
     pub var x: u32
+    ## The top edge in backing pixels.
     pub var y: u32
+    ## The width in backing pixels.
     pub var width: u32
+    ## The height in backing pixels.
     pub var height: u32
 
 ## Destination of clip coordinates, in backing pixels from the top left.
 pub struct Viewport:
+    ## The left edge in backing pixels.
     pub var x: f64
+    ## The top edge in backing pixels.
     pub var y: f64
+    ## The width in backing pixels.
     pub var width: f64
+    ## The height in backing pixels.
     pub var height: f64
 
 struct Draw:
@@ -46,9 +71,11 @@ pub struct Canvas:
     var coverage: u32[]
     var coverage_count: usize
 
+    ## The number of vertices recorded so far.
     pub func count() -> usize:
         return self.vertex_count
 
+    ## Discard every recorded triangle, keeping the storage.
     pub mutating func clear():
         self.vertex_count = 0
         self.draw_count = 0
@@ -94,6 +121,7 @@ pub struct Canvas:
         self.vertex_count = needed
         self.draw_count += 1
 
+    ## Release the recorded storage.
     pub mutating func destroy():
         if self.coverage.length > 0:
             free(self.coverage) in memory.heap

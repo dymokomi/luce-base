@@ -1,4 +1,12 @@
-## Vulkan 1.0: VK_MAKE_API_VERSION(0, 1, 0, 0).
+#==============================================================================================
+#
+#   device - Vulkan instance, device and queues
+#
+#   DESCRIPTION:
+#       Vulkan 1.0: VK_MAKE_API_VERSION(0, 1, 0, 0).
+#
+#==============================================================================================
+
 let vulkan_api_version_1_0: u32 = 1u32 << 22
 
 struct VulkanDevice:

@@ -1,10 +1,20 @@
-## One opaque sRGB presentation surface per window. Copies alias ownership.
-## The surface retains its device and exclusively leases the window's host.
-## Window closure prevents further rendering, but either destruction order is
-## safe. Destroy on the main thread; always destroy surfaces even after closing.
+#==============================================================================================
+#
+#   surface - One sRGB presentation surface per window
+#
+#   DESCRIPTION:
+#       One opaque sRGB presentation surface per window. Copies alias ownership. The surface
+#       retains its device and exclusively leases the window's host. Window closure prevents
+#       further rendering, but either destruction order is safe. Destroy on the main thread;
+#       always destroy surfaces even after closing.
+#
+#==============================================================================================
+
+## One sRGB presentation surface for a window; copies alias ownership.
 pub struct Surface:
     var state: SurfaceState*?
 
+    ## Open a surface presenting `device` onto `target`'s window.
     pub static func open(device: Device, target: window.Window) -> Surface!:
         let device_state = try device.checked()
         var host = try target.acquire_presentation()

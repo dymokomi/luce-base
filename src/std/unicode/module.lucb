@@ -1,13 +1,21 @@
-## Unicode 17.0.0 text operations over strict UTF-8. Data is pinned and generated
-## from the vendored Unicode Character Database; no process locale is consulted.
-## Inputs remain borrowed and must stay unchanged during a call. Returned text is
-## owned, NUL-terminated and released with unicode.release in the same allocator.
-## Malformed UTF-8 reports utf8.invalid_sequence. Output limits count bytes and
-## report strings.output_too_large; allocation/size failure is memory.exhausted.
+#==============================================================================================
+#
+#   unicode - Unicode 17.0.0 text operations
+#
+#   DESCRIPTION:
+#       Unicode 17.0.0 text operations over strict UTF-8. Data is pinned and generated
+#       from the vendored Unicode Character Database; no process locale is consulted.
+#       Inputs remain borrowed and must stay unchanged during a call. Returned text is
+#       owned, NUL-terminated and released with unicode.release in the same allocator.
+#       Malformed UTF-8 reports utf8.invalid_sequence. Output limits count bytes and
+#       report strings.output_too_large; allocation/size failure is memory.exhausted.
+#
+#==============================================================================================
 
 import memory
 import strings
 import utf8
+## The Unicode version this module's data is generated from.
 pub let version: str = "17.0.0"
 
 ## Release text returned by this module, using its original current allocator.

@@ -1,4 +1,12 @@
-## Winsock ABI and lifetime stay below the portable TCP/UDP interfaces.
+#==============================================================================================
+#
+#   windows - Winsock backend
+#
+#   DESCRIPTION:
+#       Winsock ABI and lifetime, kept below the portable TCP/UDP interfaces.
+#
+#==============================================================================================
+
 extern func WSAStartup(version: u16, data: void*) -> i32
 extern func WSACleanup() -> i32
 extern func WSAGetLastError() -> i32

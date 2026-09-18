@@ -1,5 +1,13 @@
-## Exact arm64 Objective-C ABI. Native aggregates are deliberately separate from
-## public types, so changing a portable type cannot silently change a platform call.
+#==============================================================================================
+#
+#   objc - The arm64 Objective-C ABI for the Metal backend
+#
+#   DESCRIPTION:
+#       Exact arm64 Objective-C ABI. Native aggregates are deliberately separate from public
+#       types, so changing a portable type cannot silently change a platform call.
+#
+#==============================================================================================
+
 extern struct LuceGpuMetalSize:
     width: f64
     height: f64

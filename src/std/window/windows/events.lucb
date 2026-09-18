@@ -1,3 +1,14 @@
+#==============================================================================================
+#
+#   events - The Win32 window-procedure event translation
+#
+#   DESCRIPTION:
+#       The Win32 window procedure and its translation of messages into portable events.
+#
+#==============================================================================================
+
+# mark: The window procedure and event translation ============================================
+
 extern func GetKeyState(key: i32) -> i16
 extern func SetCapture(window: void*) -> void*?
 extern func ReleaseCapture() -> i32

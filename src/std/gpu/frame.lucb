@@ -1,8 +1,21 @@
+#==============================================================================================
+#
+#   frame - Render regions and recorded frames
+#
+#   DESCRIPTION:
+#       A logical rectangle in points, relative to its parent's render region.
+#
+#==============================================================================================
+
 ## A logical rectangle in points, relative to its parent's render region.
 pub struct Rect:
+    ## The left edge in points.
     pub var x: f64
+    ## The top edge in points.
     pub var y: f64
+    ## The width in points.
     pub var width: f64
+    ## The height in points.
     pub var height: f64
 
 struct FrameState:
@@ -31,6 +44,8 @@ struct FrameState:
 
 let frame_state_type: interop.Type[FrameState] = interop.Type[FrameState]("GPU frame state", FrameState.close, closeable = true)
 
+# mark: Frames and render targets =============================================================
+
 ## One recording scope. A standalone Frame records portable commands for a
 ## supplied extent. Surface.frame attaches one to a presentation surface.
 ## Base copies borrow; Luce owns the exported object through ordinary ARC.
@@ -38,6 +53,7 @@ pub struct Frame:
     var state: interop.Reference[FrameState]?
     var lease: interop.Lease?
 
+    ## Begin a standalone frame recording commands for `size`.
     pub func init(size: window.Size) -> !:
         try check_frame_size(size)
         let native = try new FrameState(canvas = Canvas(), size = size)
@@ -50,11 +66,13 @@ pub struct Frame:
     func state_value() -> interop.Reference[FrameState]!:
         return self.state else error(frame_finished, "the recording frame is finished")
 
+    ## The frame's extent in logical points and backing pixels.
     pub func size() -> window.Size!:
         let state = try self.state_value()
         try state.value().check()
         return state.value().size
 
+    ## The root drawing target covering the whole frame.
     pub func target() -> interop.View[RenderTarget]!:
         let state = (try self.state_value()).value()
         try state.check()
@@ -76,6 +94,7 @@ pub struct Frame:
         state.ended = true
         return try submit(context, state.canvas, color)
 
+    ## End the recording scope, releasing its resources.
     pub mutating func close():
         if let lease = self.lease:
             self.lease = none
@@ -86,12 +105,14 @@ pub struct Frame:
             state.close()
             state.release()
 
+    ## Visit the frame's owned objects for the interop garbage tracer.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         if let state = self.state:
             state.trace(visit, context)
         if let lease = self.lease:
             lease.trace(visit, context)
 
+## The interop type of an exported `Frame`.
 pub let frame_type: interop.Type[Frame] = interop.Type[Frame]("GPU frame", Frame.close, Frame.trace, closeable = true)
 
 ## A checked drawing view. Its private canvas never escapes. Child regions
@@ -102,6 +123,7 @@ pub struct RenderTarget:
     var rectangle: Rect
     var clipping: Clip
 
+    ## The target's extent in logical points and backing pixels.
     pub func size() -> window.Size!:
         try self.frame.check()
         let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
@@ -110,6 +132,7 @@ pub struct RenderTarget:
                            pixel_width = self.rectangle.width * scale_x, pixel_height = self.rectangle.height * scale_y,
                            scale = self.frame.size.scale)
 
+    ## A child target for `rectangle`, its clip intersected with this target's.
     pub func region(rectangle: Rect) -> interop.View[RenderTarget]!:
         try self.frame.check()
         try check_region(rectangle)
@@ -132,6 +155,7 @@ pub struct RenderTarget:
         let clip = intersect_clip(self.clipping, absolute, scale_x, scale_y)
         return try interop.View[RenderTarget].make(RenderTarget(self.frame, self.lease, self.rectangle, clip), render_target_type, self.lease)
 
+    ## Record a list of clip-space triangles into this target.
     pub func triangles(vertices: const Vertex[], depth: bool = false) -> !:
         try self.frame.check()
         let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
@@ -153,6 +177,7 @@ pub struct RenderTarget:
         try canvas_mask(&self.frame.canvas, pixels, width, height, destination, color,
                         self.clipping, self.frame.size.pixel_width, self.frame.size.pixel_height)
 
+## The interop view type of a `RenderTarget`.
 pub let render_target_type: interop.ViewType[RenderTarget] = interop.ViewType[RenderTarget]("GPU render target")
 
 func frame_scale(pixels: f64, points: f64) -> f64:

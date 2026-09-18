@@ -1,4 +1,12 @@
-## Bound individual transfers below both supported hosts' signed syscall limits.
+#==============================================================================================
+#
+#   handles - Socket transfer limits
+#
+#   DESCRIPTION:
+#       Individual socket transfers are bounded below both hosts' signed syscall limits.
+#
+#==============================================================================================
+
 let transfer_limit: usize = 1073741824
 
 ## Shared ownership state for all socket kinds. Consume before close because an

@@ -1,5 +1,13 @@
-## WM_SETCURSOR owns cursor restoration inside HTCLIENT. Windows continues to
-## select title-bar and frame cursors. Shared system resources are not destroyed.
+#==============================================================================================
+#
+#   cursor - The Win32 client-area cursor
+#
+#   DESCRIPTION:
+#       WM_SETCURSOR owns cursor restoration inside HTCLIENT. Windows continues to select title-
+#       bar and frame cursors. Shared system resources are not destroyed.
+#
+#==============================================================================================
+
 extern func SetCursor(cursor: void*?) -> void*?
 extern func GetCursorPos(point: WinPoint*) -> i32
 extern func GetCapture() -> void*?

@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   sync - Locks, conditions, once and semaphores
+#
+#   DESCRIPTION:
+#       Blocking synchronisation over the host's futex-like wait and wake: a mutex, a condition
+#       variable, a run-once gate, and a counting semaphore.
+#
+#==============================================================================================
+
 import platform
 
 ## macOS: the `ulock` calls libSystem builds its own locks on.
@@ -45,9 +55,11 @@ func wake_every(address: void*):
 
 ## A lock whose waiters sleep: zero is unlocked, so `var lock: Mutex` is ready to
 ## use; one is locked; two is locked with someone asleep on it.
+## A mutual-exclusion lock; a waiter sleeps until it is free.
 pub struct Mutex:
     var state: @u32
 
+    ## Acquire the lock, blocking until it is free.
     pub mutating func lock():
         let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
         if taken:
@@ -59,37 +71,45 @@ pub struct Mutex:
             sleep_on((void*)&self.state, 2)
             current = self.state.swap(2, .acquire)
 
+    ## Release the lock and wake one waiter.
     pub mutating func unlock():
         if self.state.swap(0, .release) == 2:
             wake_one((void*)&self.state)
 
+    ## Acquire the lock without blocking; whether it was taken.
     pub mutating func try_lock() -> bool:
         let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
         discard(seen)
         return taken
 
 ## A sequence number waiters watch; every signal advances it and wakes.
+## A condition variable: waiters sleep until signalled.
 pub struct Condition:
     var sequence: @u32
 
+    ## Release `mutex`, sleep until signalled, then reacquire it.
     pub mutating func wait(mutex: Mutex*):
         let seen = self.sequence.load(.acquire)
         mutex.unlock()
         sleep_on((void*)&self.sequence, seen)
         mutex.lock()
 
+    ## Wake one waiter.
     pub mutating func signal():
         discard(self.sequence.add(1, .release))
         wake_one((void*)&self.sequence)
 
+    ## Wake every waiter.
     pub mutating func broadcast():
         discard(self.sequence.add(1, .release))
         wake_every((void*)&self.sequence)
 
 ## Runs its function exactly once; later callers wait for the first to finish.
+## Runs a function exactly once; later callers wait for the first.
 pub struct Once:
     var state: @u32
 
+    ## Run `function` on the first call; later calls wait for it to finish.
     pub mutating func run(function: func() -> unit):
         let (first, seen) = self.state.cas(0, 1, .acq_rel, .acquire)
         discard(seen)
@@ -102,9 +122,11 @@ pub struct Once:
             sleep_on((void*)&self.state, 1)
 
 ## A counting semaphore whose waiters sleep.
+## A counting semaphore whose waiters sleep.
 pub struct Semaphore:
     var count: @u32
 
+    ## Take one permit, blocking until one is available.
     pub mutating func acquire():
         while true:
             let n = self.count.load(.acquire)
@@ -116,6 +138,7 @@ pub struct Semaphore:
             else:
                 sleep_on((void*)&self.count, 0)
 
+    ## Return one permit and wake one waiter.
     pub mutating func release():
         discard(self.count.add(1, .release))
         wake_one((void*)&self.count)

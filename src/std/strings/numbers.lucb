@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   numbers - Integer formatting and parsing
+#
+#   DESCRIPTION:
+#       Signed and unsigned integers in radix 2 through 36, ASCII digits only, over borrowed or
+#       caller-provided storage.
+#
+#==============================================================================================
+
 ## A signed integer in radix 2 through 36. ASCII letters are case-insensitive
 ## digits; prefixes are not interpreted. Optional +/- and leading zeroes are
 ## accepted. None reports an invalid radix, invalid byte, missing digit or overflow.

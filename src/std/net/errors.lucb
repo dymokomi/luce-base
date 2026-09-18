@@ -1,20 +1,43 @@
-## Stable network error categories. Messages describe the operation and borrow
-## static storage; callers branch on codes rather than host-specific wording.
+#==============================================================================================
+#
+#   errors - Network error codes
+#
+#   DESCRIPTION:
+#       Stable network error categories; messages describe the operation and borrow their text.
+#
+#==============================================================================================
+
+## A network operation failed for an unspecified reason.
 pub let failed: ErrorCode = ErrorCode.package(9)
+## The connection is closed.
 pub let closed: ErrorCode = ErrorCode.package(10)
+## The host name could not be resolved.
 pub let unknown_host: ErrorCode = ErrorCode.package(11)
+## The arguments are invalid.
 pub let invalid_options: ErrorCode = ErrorCode.package(35)
+## A datagram exceeds the maximum message size.
 pub let message_too_large: ErrorCode = ErrorCode.package(36)
+## The operation was cancelled.
 pub let cancelled: ErrorCode = ErrorCode.package(37)
+## The operation exceeded its deadline.
 pub let timed_out: ErrorCode = ErrorCode.package(38)
+## The peer refused the connection.
 pub let connection_refused: ErrorCode = ErrorCode.package(39)
+## The network is unreachable.
 pub let network_unreachable: ErrorCode = ErrorCode.package(40)
+## The address is already in use.
 pub let address_in_use: ErrorCode = ErrorCode.package(41)
+## The address is not available locally.
 pub let address_unavailable: ErrorCode = ErrorCode.package(42)
+## The operation was not permitted.
 pub let permission_denied: ErrorCode = ErrorCode.package(43)
+## A system resource is exhausted.
 pub let resource_exhausted: ErrorCode = ErrorCode.package(44)
+## The connection was aborted.
 pub let connection_aborted: ErrorCode = ErrorCode.package(45)
+## The operation is not supported on this host.
 pub let unsupported: ErrorCode = ErrorCode.package(46)
+## Name resolution failed temporarily; a retry may succeed.
 pub let resolution_temporary: ErrorCode = ErrorCode.package(47)
 
 ## Shared by socket acquisition, options, transfers and waits. Capture this code

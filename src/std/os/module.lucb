@@ -1,6 +1,12 @@
-## The operating system's view of the process (§16.6): its environment, working
-## directory, identity, and host. Text comes back as `str` views of C storage that the
-## system owns; copy what must outlive the next call.
+#==============================================================================================
+#
+#   os - The operating system's view of the process
+#
+#   DESCRIPTION:
+#       Its environment, working directory, identity and host (§16.6). Text comes back as `str`
+#       views of C storage that the system owns; copy what must outlive the next call.
+#
+#==============================================================================================
 import c
 import memory
 import windows_text
@@ -36,19 +42,28 @@ pub func random_bytes(buffer: u8[]) -> !:
             error(failed, "operating system randomness is unavailable")
         offset += count
 
+## An operating-system call failed.
 pub let failed: ErrorCode = ErrorCode.package(12)
 
 ## The target, as constants a program branches on: `if os.arm64:`, `if os.linux and
 ## os.x86_64:` (§19.5); the compiler decides them from `--target`, so the branch a target
 ## rules out is pruned (§19.6).
 pub let arm64: bool = platform.arm64
+## Whether the target architecture is x86-64.
 pub let x86_64: bool = platform.x86_64
+## Whether the target architecture is wasm32.
 pub let wasm32: bool = platform.wasm32
+## Whether the target operating system is macOS.
 pub let macos: bool = platform.macos
+## Whether the target operating system is Linux.
 pub let linux: bool = platform.linux
+## Whether the target operating system is Windows.
 pub let windows: bool = platform.windows
+## Whether the target is a POSIX system.
 pub let posix: bool = platform.posix
+## The width of a pointer on the target, in bits.
 pub let pointer_bits: u32 = platform.pointer_bits
+## The target triple.
 pub let name: str = platform.name
 ## The instruction-set level the program was compiled for (`--cpu`, §19.5): on x86-64, 1
 ## to 4 for x86-64-v1 to v4; on arm64, 1 for NEON, 2 for SVE.
@@ -57,6 +72,8 @@ pub let cpu_level: u32 = platform.cpu_level
 ## The instruction-set level of the processor this program runs on, in the same scale:
 ## what it may dispatch to at run time. On x86-64 `cpuid` answers; on arm64 the level is
 ## NEON until the system reports SVE.
+# mark: Machine and process ===================================================================
+
 pub func cpu_level_running() -> u32:
     if platform.x86_64:
         return x86_level()
@@ -95,6 +112,7 @@ pub func cpus() -> u32:
     let n = sysconf(processors_online)
     return (u32)n if n > 0 else 1
 
+## The host's memory page size in bytes.
 pub func page_size() -> usize:
     if platform.windows:
         var info: SystemInfo = ---
@@ -123,6 +141,7 @@ pub func set_env(variable: c.str, value: c.str) -> !:
     if setenv(variable, value, 1) != 0:
         error(failed, "the environment variable cannot be set")
 
+## Remove environment variable `variable`.
 pub func unset_env(variable: c.str) -> !:
     if platform.windows:
         let key = try windows_text.wide(variable, failed)
@@ -168,6 +187,7 @@ pub func executable() -> str!:
     buffer[count] = 0
     return (str)buffer[..<count]
 
+## Change the process's working directory to `path`.
 pub func change_dir(path: c.str) -> !:
     if platform.windows:
         let text = try windows_text.wide(path, failed)
@@ -178,11 +198,13 @@ pub func change_dir(path: c.str) -> !:
     if chdir(path) != 0:
         error(failed, "the directory cannot be entered")
 
+## The process identifier.
 pub func pid() -> i32:
     if platform.windows:
         return (i32)GetCurrentProcessId()
     return getpid()
 
+## The parent process's identifier.
 pub func parent_pid() -> i32:
     if platform.windows:
         return windows_parent_pid()

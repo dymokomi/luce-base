@@ -1,14 +1,27 @@
-## Text operations over `str` views; what allocates says so and uses the current allocator,
-## and says how the allocation is given back: `release` for a text made here, `free` for
-## the borrowed-field arrays returned by split and split_by.
+#==============================================================================================
+#
+#   strings - Text operations over `str` views
+#
+#   DESCRIPTION:
+#       Text operations over `str` views; what allocates says so and uses the current allocator,
+#       and says how the allocation is given back: `release` for a text made here, `free` for
+#       the borrowed-field arrays returned by split and split_by.
+#
+#==============================================================================================
 
 import c
 import platform
 import io
 import memory
+## An empty separator or needle where one is required.
 pub let invalid_separator: ErrorCode = ErrorCode.package(48)
+## A result exceeds the caller's byte limit.
 pub let output_too_large: ErrorCode = ErrorCode.package(49)
+## A radix outside 2 through 36.
 pub let invalid_radix: ErrorCode = ErrorCode.package(50)
+## The text is not a number in the given radix.
 pub let invalid_number: ErrorCode = ErrorCode.package(51)
+## The parsed value does not fit its type.
 pub let number_out_of_range: ErrorCode = ErrorCode.package(52)
+## The C library could not format or parse the value.
 pub let conversion_failed: ErrorCode = ErrorCode.package(53)

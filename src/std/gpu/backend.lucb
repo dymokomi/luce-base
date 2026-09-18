@@ -1,10 +1,18 @@
-## The dispatch boundary between portable device ownership and the graphics
-## implementations: selection, and a device's native payload, opaque here; Metal types
-## live in metal/. Surface dispatch is in presentation.lucb, so a program that opens a
-## device alone links no window system: each file is one member of the library (§16.6).
-## A Vulkan backend can own its instance/device/queues in its device payload and
-## its VkSurfaceKHR/swapchain/synchronization in its surface payload. It must
-## satisfy the same sRGB, lease, resize, completion, and skipped-frame contracts.
+#==============================================================================================
+#
+#   backend - The device dispatch boundary
+#
+#   DESCRIPTION:
+#       The dispatch boundary between portable device ownership and the graphics
+#       implementations: selection, and a device's native payload, opaque here; Metal types live
+#       in metal/. Surface dispatch is in presentation.lucb, so a program that opens a device
+#       alone links no window system: each file is one member of the library (§16.6). A Vulkan
+#       backend can own its instance/device/queues in its device payload and its
+#       VkSurfaceKHR/swapchain/synchronization in its surface payload. It must satisfy the same
+#       sRGB, lease, resize, completion, and skipped-frame contracts.
+#
+#==============================================================================================
+
 func select_backend(requested: Backend) -> Backend!:
     if platform.windows and platform.x86_64:
         if requested == Backend.automatic or requested == Backend.vulkan:

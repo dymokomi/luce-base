@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   resolver - Host name resolution
+#
+#   DESCRIPTION:
+#       Resolve a host and port to socket endpoints, one or all, preserving resolver order.
+#
+#==============================================================================================
+
 ## An owned collection of resolved endpoints. Values preserve host resolver order,
 ## including duplicates. Copying the collection does not duplicate ownership.
 ## The allocator used by resolve_all must outlive this collection.

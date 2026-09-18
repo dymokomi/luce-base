@@ -1,14 +1,24 @@
-## The derived bounds of §14.4: every type with `==` is Equatable, every hashable
-## one Hashable, every ordered one Comparable. Nothing implements them by hand.
+#==============================================================================================
+#
+#   luce - The derived interface bounds
+#
+#   DESCRIPTION:
+#       The derived bounds of §14.4: every type with `==` is Equatable, every hashable one
+#       Hashable, every ordered one Comparable. Nothing implements them by hand.
+#
+#==============================================================================================
 
 import io
 
+## Implemented by every type with `==`.
 pub interface Equatable:
     func equals(other: void*) -> bool
 
+## Implemented by every hashable type.
 pub interface Hashable:
     func hashed() -> u64
 
+## Implemented by every ordered type.
 pub interface Comparable:
     func compare(other: void*) -> i64
 
@@ -24,8 +34,11 @@ pub interface Iterable[T, I: Iterator[T]]:
 pub interface Display:
     func display(sink: io.Writer) -> !
 
-## Compile-time facts about the use site; the backend replaces them (§9.1).
+## The source file of the use site; the backend replaces it (§9.1).
 pub let file: str = ""
+## The source line of the use site; the backend replaces it (§9.1).
 pub let line: u32 = 0
+## The enclosing function of the use site; the backend replaces it (§9.1).
 pub let function: str = ""
+## The use site's file, line and function together (§9.1).
 pub let location: io.Location = io.Location(file = "", line = 0, function = "")

@@ -1,6 +1,13 @@
-## CreateProcessW receives a private, sorted UTF-16 environment block. Inherited
-## drive-directory entries are retained; override names compare ordinally without
-## case, as Windows requires. No process-wide environment variable is changed.
+#==============================================================================================
+#
+#   windows - The Windows environment block
+#
+#   DESCRIPTION:
+#       CreateProcessW receives a private, sorted UTF-16 environment block; inherited
+#       drive-directory entries are retained and override names compare ordinally.
+#
+#==============================================================================================
+
 extern func GetEnvironmentStringsW() -> u16*?
 extern func FreeEnvironmentStringsW(environment: u16*) -> i32
 extern func CompareStringOrdinal(left: const u16*, left_length: i32, right: const u16*, right_length: i32, ignore_case: i32) -> i32

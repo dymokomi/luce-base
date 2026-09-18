@@ -1,6 +1,14 @@
-## Stable heap storage is shared only with synchronous main-thread OS callbacks.
-## Keeping native pointers here, outside the portable event types, also lets every
-## partially constructed window use the same unwind path.
+#==============================================================================================
+#
+#   queue - The window's native state and event queue
+#
+#   DESCRIPTION:
+#       Stable heap storage is shared only with synchronous main-thread OS callbacks. Keeping
+#       native pointers here, outside the portable event types, also lets every partially
+#       constructed window use the same unwind path.
+#
+#==============================================================================================
+
 struct State:
     var native: void*?
     var view: void*?

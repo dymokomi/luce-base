@@ -1,5 +1,13 @@
-## cursorUpdate: restores the current choice when AppKit enters our tracking
-## area. No push/pop or hide/unhide stack is shared with another window.
+#==============================================================================================
+#
+#   cursor - The macOS cursor for the tracking area
+#
+#   DESCRIPTION:
+#       cursorUpdate: restores the current choice when AppKit enters our tracking area. No
+#       push/pop or hide/unhide stack is shared with another window.
+#
+#==============================================================================================
+
 func mac_cursor(cursor: input.Cursor) -> void*!:
     var name: c.str = "arrowCursor"
     match cursor:

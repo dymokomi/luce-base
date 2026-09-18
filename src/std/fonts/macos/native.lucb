@@ -1,5 +1,13 @@
-## CoreText resolves installed faces and fallback glyphs. CoreGraphics writes
-## grayscale alpha at backing resolution, with LCD color fringes disabled.
+#==============================================================================================
+#
+#   native - The macOS (CoreText/CoreGraphics) font backend
+#
+#   DESCRIPTION:
+#       CoreText resolves installed faces and fallback glyphs. CoreGraphics writes
+#       grayscale alpha at backing resolution, with LCD color fringes disabled.
+#
+#==============================================================================================
+
 extern struct FontPoint:
     x: f64
     y: f64

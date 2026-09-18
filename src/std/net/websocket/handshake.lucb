@@ -1,6 +1,16 @@
-## RFC 6455 version 13, without extensions. Origin checks, authentication and
-## selection among offered subprotocols belong to the application, not the codec.
+#==============================================================================================
+#
+#   handshake - The WebSocket handshake
+#
+#   DESCRIPTION:
+#       The RFC 6455 version-13 opening handshake, without extensions: keys, request and
+#       response checks and encoding.
+#
+#==============================================================================================
+
+## The WebSocket handshake is invalid.
 pub let websocket_invalid: ErrorCode = ErrorCode.package(83)
+## A WebSocket limit was exceeded.
 pub let websocket_limit: ErrorCode = ErrorCode.package(84)
 
 func websocket_entropy(buffer: void*, count: usize) -> i32:
@@ -44,6 +54,8 @@ func websocket_base64(input: const u8[], output: u8[]) -> str!:
         at += 3
         written += 4
     return (str)output[..<written]
+
+# mark: The handshake =========================================================================
 
 ## Generate a fresh 16-byte nonce and encode its canonical 24-byte request key.
 ## output needs 24 bytes. Returned text borrows output and is not NUL-terminated.

@@ -1,5 +1,12 @@
-## What a Base test runs under (§16.5): a fixed-buffer allocator made current for
-## each test, a deterministic seed, and assertions that name what differed.
+#==============================================================================================
+#
+#   testing - What a Base test runs under
+#
+#   DESCRIPTION:
+#       A fixed-buffer allocator made current for each test, a deterministic seed, and
+#       assertions that name what differed (§16.5).
+#
+#==============================================================================================
 
 import memory
 from memory import Allocator, FixedBuffer
@@ -33,15 +40,18 @@ pub func random() -> u64:
     current_seed = x
     return x
 
+## Trap with `message` when `condition` is false.
 pub func expect(condition: bool, message: str):
     if not condition:
         trap(message)
 
+## Trap, naming both values, when `actual` and `expected` differ.
 pub func expect_equal(actual: i64, expected: i64, message: str):
     if actual != expected:
         print(f"expected {expected}, got {actual}: {message}")
         trap(message)
 
+## Trap, naming both, when the texts differ.
 pub func expect_text(actual: str, expected: str, message: str):
     if actual != expected:
         print(f"expected `{expected}`, got `{actual}`: {message}")

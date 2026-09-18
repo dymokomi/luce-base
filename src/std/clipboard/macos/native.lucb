@@ -1,5 +1,13 @@
-## The pasteboard owns published text. An autorelease pool bounds native temporaries
-## even when a Base caller uses the clipboard outside the application event loop.
+#==============================================================================================
+#
+#   native - The macOS pasteboard clipboard backend
+#
+#   DESCRIPTION:
+#       The pasteboard owns published text. An autorelease pool bounds native temporaries
+#       even when a Base caller uses the clipboard outside the application event loop.
+#
+#==============================================================================================
+
 extern func objc_getClass(name: c.str) -> void*?
 extern func sel_registerName(name: c.str) -> void*
 extern func objc_autoreleasePoolPush() -> void*

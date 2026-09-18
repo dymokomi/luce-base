@@ -1,6 +1,17 @@
+#==============================================================================================
+#
+#   interface - An owned interface witness
+#
+#   DESCRIPTION:
+#       Pairs an interface witness with explicit ownership and validity; a bare Base interface is
+#       only a pointer/table view, so this carrier makes retention deliberate.
+#
+#==============================================================================================
+
 ## An interface witness paired with explicit ownership and validity. A bare Base
 ## interface is only a pointer/table view; this carrier makes retention deliberate.
 pub struct Interface[I]:
+    ## The retained object the witness belongs to.
     pub let owner: ownership.Object*
     let native: I
     let validate: (func(ownership.Object*) -> unit!)?
@@ -22,34 +33,41 @@ pub struct Interface[I]:
         self.begin = begin
         self.end = end
 
+    ## Another edge to the same witness.
     pub func clone() -> Interface[I]:
         discard(ownership.retain(self.owner))
         return self
 
+    ## Drop this witness's edge to the owner.
     pub func release():
         ownership.release(self.owner)
 
+    ## The interface value, after checking that the owner is alive and valid.
     pub func get() -> I!:
         ownership.check_alive(self.owner)
         if let validate = self.validate:
             try validate(self.owner)
         return self.native
 
+    ## The interface value, trapping if it is invalid.
     pub func value() -> I:
         return self.get() catch failure: trap(failure.message)
 
+    ## Begin a guarded invocation, retaining the owner.
     pub func enter() -> !:
         discard(try self.get())
         discard(ownership.retain(self.owner))
         if let begin = self.begin:
             begin(self.owner)
 
+    ## End a guarded invocation, releasing the owner.
     pub func leave():
         ownership.check_alive(self.owner)
         if let end = self.end:
             end(self.owner)
         ownership.release(self.owner)
 
+    ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         ownership.check_thread(self.owner)
         visit(self.owner, context)

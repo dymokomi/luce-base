@@ -1,6 +1,14 @@
+#==============================================================================================
+#
+#   windows - The os module's native Windows calls
+#
+#   DESCRIPTION:
+#       Native Windows calls stay behind the portable `os` interface. Public text is UTF-8.
+#
+#==============================================================================================
+
 from windows_abi import SystemInfo
 from windows_abi import MultiByteToWideChar, WideCharToMultiByte, GetLastError, SetLastError, CloseHandle, GetCurrentProcessId, GetSystemInfo, GetEnvironmentVariableW, SetEnvironmentVariableW, GetCurrentDirectoryW, SetCurrentDirectoryW
-## Native Windows calls stay behind the portable os interface. Public text is UTF-8.
 extern func GetComputerNameW(output: u16*, capacity: u32*) -> i32
 extern func GetModuleFileNameW(module: void*?, output: u16*, capacity: u32) -> u32
 extern func GetActiveProcessorCount(group: u16) -> u32

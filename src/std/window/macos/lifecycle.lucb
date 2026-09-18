@@ -1,7 +1,17 @@
-## Runtime classes are initialized once, on the main thread, and never unloaded.
-## The view owns no Base allocation; both it and the delegate borrow State until
-## teardown detaches their pointers. NSWindow retains its content view, not its
-## delegate, so State explicitly owns an additional reference to each object.
+#==============================================================================================
+#
+#   lifecycle - The macOS window and its runtime classes
+#
+#   DESCRIPTION:
+#       Runtime classes are initialized once, on the main thread, and never unloaded. The view
+#       owns no Base allocation; both it and the delegate borrow State until teardown detaches
+#       their pointers. NSWindow retains its content view, not its delegate, so State explicitly
+#       owns an additional reference to each object.
+#
+#==============================================================================================
+
+# mark: Runtime classes and the window state ==================================================
+
 var view_class: void*?
 var delegate_class: void*?
 var application: void*?

@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   floats - Float formatting and parsing
+#
+#   DESCRIPTION:
+#       Locale-independent formatting and parsing of `f64`/`f32`, through the C library under a
+#       C locale so the decimal point is a dot on every host.
+#
+#==============================================================================================
+
 extern func new_numeric_locale as "newlocale"(mask: i32, name: c.str, base: void*?) -> void*?
 extern func free_locale_macos as "freelocale"(locale: void*) -> i32
 extern func free_locale_linux as "freelocale"(locale: void*)
@@ -31,6 +41,8 @@ func parse_native_f32(text: c.str, end: u8*?*, locale: void*) -> f32:
 ## underflow/subnormals and signed zero are valid. Conversion uses the C numeric
 ## locale and the calling thread's rounding mode. Decimal input is copied through
 ## the current allocator and uses a temporary libc locale, both released on return.
+# mark: Formatting and parsing ==============================================================
+
 pub func parse_f64(text: str) -> f64!:
     let kind = float_syntax(text) else error(invalid_number, "invalid floating-point text")
     if kind != 0:

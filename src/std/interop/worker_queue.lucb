@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   worker_queue - A worker's message queue
+#
+#   DESCRIPTION:
+#       Queue storage protected by the worker's mutex; removing a value transfers ownership
+#       before waking a producer, and disposal runs outside the lock.
+#
+#==============================================================================================
+
 ## Queue storage is protected by WorkerState's mutex. Removing a value transfers
 ## ownership before waking a producer; disposal runs outside the queue lock.
 struct WorkerQueue[T]:

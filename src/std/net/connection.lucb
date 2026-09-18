@@ -1,8 +1,20 @@
+#==============================================================================================
+#
+#   connection - A TCP connection
+#
+#   DESCRIPTION:
+#       An owned TCP connection: connect, read, write, shutdown, socket options and readiness
+#       waiting.
+#
+#==============================================================================================
+
 ## Which direction to stop using on a connection. This does not close its owner.
 pub enum ShutdownDirection as u8:
     read = 0
     write = 1
     both = 2
+
+# mark: The connection ========================================================================
 
 ## One owned TCP connection implementing borrowed Reader and Writer interfaces.
 ## Zero is closed. Copying does not duplicate ownership; copies must not be
@@ -137,6 +149,7 @@ pub struct Connection: Reader, Writer:
     pub mutating func set_no_delay(enabled: bool) -> !:
         try set_socket_integer(try self.socket.require(), 6, 1, 1 if enabled else 0)
 
+    ## Whether TCP no-delay (Nagle off) is set.
     pub func no_delay() -> bool!:
         return try get_socket_integer(try self.socket.require(), 6, 1) != 0
 
@@ -145,6 +158,7 @@ pub struct Connection: Reader, Writer:
     pub mutating func set_keepalive(enabled: bool) -> !:
         try set_socket_integer(try self.socket.require(), socket_level, keepalive_option, 1 if enabled else 0)
 
+    ## Whether keepalive probing is enabled.
     pub func keepalive() -> bool!:
         return try get_socket_integer(try self.socket.require(), socket_level, keepalive_option) != 0
 
@@ -160,6 +174,7 @@ pub struct Connection: Reader, Writer:
         try set_nonblocking(try self.socket.require(), enabled)
         self.socket.nonblocking = enabled
 
+    ## Whether the socket is in nonblocking mode.
     pub func is_nonblocking() -> bool!:
         if platform.windows:
             discard(try self.socket.require())
@@ -171,6 +186,7 @@ pub struct Connection: Reader, Writer:
     pub mutating func set_receive_buffer(bytes: i32) -> !:
         try set_socket_buffer(try self.socket.require(), receive_buffer_option, bytes)
 
+    ## The receive buffer size in bytes.
     pub func receive_buffer() -> i32!:
         return try get_socket_integer(try self.socket.require(), socket_level, receive_buffer_option)
 
@@ -179,6 +195,7 @@ pub struct Connection: Reader, Writer:
     pub mutating func set_send_buffer(bytes: i32) -> !:
         try set_socket_buffer(try self.socket.require(), send_buffer_option, bytes)
 
+    ## The send buffer size in bytes.
     pub func send_buffer() -> i32!:
         return try get_socket_integer(try self.socket.require(), socket_level, send_buffer_option)
 

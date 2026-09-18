@@ -1,3 +1,12 @@
+#==============================================================================================
+#
+#   pipeline - Vulkan shader modules and the graphics pipeline
+#
+#   DESCRIPTION:
+#       Vulkan shader modules and the graphics pipeline for the portable triangle contract.
+#
+#==============================================================================================
+
 func vulkan_shader(device: VulkanDevice*, words: u32[]) -> u64!:
     var info = VkShaderModuleCreateInfo(sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, codeSize = words.length * 4, pCode = words.data)
     var shader: u64 = 0

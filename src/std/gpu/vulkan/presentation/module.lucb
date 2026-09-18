@@ -1,6 +1,14 @@
-## Native window-system integration is independent of Vulkan rendering. An OS
-## adapter supplies instance extensions, a queue preflight and surface creation.
-## Actual support for the particular surface is checked by shared surface code.
+#==============================================================================================
+#
+#   module - Vulkan window-system integration
+#
+#   DESCRIPTION:
+#       Native window-system integration is independent of Vulkan rendering. An OS adapter
+#       supplies instance extensions, a queue preflight and surface creation. Actual support for
+#       the particular surface is checked by shared surface code.
+#
+#==============================================================================================
+
 func vulkan_presentation_extensions() -> const c.str[]!:
     if platform.windows:
         return vulkan_windows_extensions

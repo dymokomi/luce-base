@@ -1,6 +1,13 @@
-## The mathematical functions of the standard library (§16.6): `import math` for
-## `math.sqrt(x)`, `from math import sqrt` for `sqrt(x)`. The float functions are the C
-## library's, declared here with the types Base gives them; the integer functions are Base.
+#==============================================================================================
+#
+#   math - The mathematical functions of the standard library
+#
+#   DESCRIPTION:
+#       `import math` for `math.sqrt(x)`, `from math import sqrt` for `sqrt(x)` (§16.6). The float
+#       functions are the C library's, declared here with the types Base gives them; the integer
+#       functions are Base.
+#
+#==============================================================================================
 extern func c_floor as "floor"(x: f64) -> f64
 extern func c_ceil as "ceil"(x: f64) -> f64
 extern func c_round as "round"(x: f64) -> f64
@@ -33,34 +40,45 @@ extern func c_frexp as "frexp"(x: f64, out exponent: i32) -> f64
 extern func c_scalbn as "scalbn"(x: f64, exponent: i32) -> f64
 extern func c_modf as "modf"(x: f64, out integral: f64) -> f64
 extern func c_remainder as "remainder"(x: f64, y: f64) -> f64
+## The ratio of a circle's circumference to its diameter.
 pub let pi: f64 = 3.141592653589793
+## A full turn in radians, two pi.
 pub let tau: f64 = 6.283185307179586
+## Euler's number.
 pub let e: f64 = 2.718281828459045
 ## Built from bits so that no constant expression needs to overflow.
 pub let infinity: f64 = f64.bits(9218868437227405312)
+## A quiet not-a-number; unequal to everything, itself included.
 pub let nan: f64 = f64.bits(9221120237041090560)
 
 let sign_mask: u64 = 0x8000000000000000
 let magnitude_mask: u64 = 0x7fffffffffffffff
 let exponent_mask: u64 = 0x7ff0000000000000
 
+# mark: Real functions ========================================================================
+
 ## Rounding: `floor` toward negative infinity, `ceil` toward positive, `round` to the
 ## nearest with halves away from zero, `trunc` toward zero.
 pub func floor(x: f64) -> f64:
     return c_floor(x)
 
+## The smallest integer value not less than `x`.
 pub func ceil(x: f64) -> f64:
     return c_ceil(x)
 
+## `x` rounded to the nearest integer, halves away from zero.
 pub func round(x: f64) -> f64:
     return c_round(x)
 
+## `x` with its fractional part removed, toward zero.
 pub func trunc(x: f64) -> f64:
     return c_trunc(x)
 
+## The square root of `x`.
 pub func sqrt(x: f64) -> f64:
     return c_sqrt(x)
 
+## The cube root of `x`.
 pub func cbrt(x: f64) -> f64:
     return c_cbrt(x)
 
@@ -72,21 +90,27 @@ pub func hypot(x: f64, y: f64) -> f64:
 pub func mod(x: f64, y: f64) -> f64:
     return c_fmod(x, y)
 
+## `x` raised to the power `y`.
 pub func pow(x: f64, y: f64) -> f64:
     return c_pow(x, y)
 
+## `e` raised to the power `x`.
 pub func exp(x: f64) -> f64:
     return c_exp(x)
 
+## `2` raised to the power `x`.
 pub func exp2(x: f64) -> f64:
     return c_exp2(x)
 
+## The natural logarithm of `x`.
 pub func log(x: f64) -> f64:
     return c_log(x)
 
+## The base-2 logarithm of `x`.
 pub func log2(x: f64) -> f64:
     return c_log2(x)
 
+## The base-10 logarithm of `x`.
 pub func log10(x: f64) -> f64:
     return c_log10(x)
 
@@ -150,21 +174,27 @@ pub func remainder(x: f64, y: f64) -> f64:
     # rounding. Restore it by bits without changing a nonzero or NaN result.
     return copysign(result, x) if (result.bits() & magnitude_mask) == 0 else result
 
+## The sine of `x` radians.
 pub func sin(x: f64) -> f64:
     return c_sin(x)
 
+## The cosine of `x` radians.
 pub func cos(x: f64) -> f64:
     return c_cos(x)
 
+## The tangent of `x` radians.
 pub func tan(x: f64) -> f64:
     return c_tan(x)
 
+## The arcsine of `x`, in radians.
 pub func asin(x: f64) -> f64:
     return c_asin(x)
 
+## The arccosine of `x`, in radians.
 pub func acos(x: f64) -> f64:
     return c_acos(x)
 
+## The arctangent of `x`, in radians.
 pub func atan(x: f64) -> f64:
     return c_atan(x)
 
@@ -172,12 +202,15 @@ pub func atan(x: f64) -> f64:
 pub func atan2(y: f64, x: f64) -> f64:
     return c_atan2(y, x)
 
+## The hyperbolic sine of `x`.
 pub func sinh(x: f64) -> f64:
     return c_sinh(x)
 
+## The hyperbolic cosine of `x`.
 pub func cosh(x: f64) -> f64:
     return c_cosh(x)
 
+## The hyperbolic tangent of `x`.
 pub func tanh(x: f64) -> f64:
     return c_tanh(x)
 
@@ -254,6 +287,7 @@ pub func div_floor(a: i64, b: i64) -> i64:
         return q - 1
     return q
 
+## The remainder of `a / b` with the divisor's sign (floored division).
 pub func mod_floor(a: i64, b: i64) -> i64:
     if b == -1:
         return 0
@@ -262,6 +296,7 @@ pub func mod_floor(a: i64, b: i64) -> i64:
         return r + b
     return r
 
+## The absolute value of `a`; the minimum i64 wraps to itself.
 pub func iabs(a: i64) -> i64:
     return 0 - a if a < 0 else a
 
@@ -286,9 +321,11 @@ pub func checked_mod_floor(a: i64, b: i64) -> i64?:
         return 0
     return mod_floor(a, b)
 
+## The smaller of `a` and `b`.
 pub func imin(a: i64, b: i64) -> i64:
     return a if a < b else b
 
+## The larger of `a` and `b`.
 pub func imax(a: i64, b: i64) -> i64:
     return a if a > b else b
 

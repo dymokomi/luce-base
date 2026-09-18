@@ -1,4 +1,13 @@
-## Memory orderings for the operations of `@T` (§15.1).
+#==============================================================================================
+#
+#   atomic - Memory orderings and fences for `@T` operations
+#
+#   DESCRIPTION:
+#       Memory orderings for the operations of `@T` (§15.1).
+#
+#==============================================================================================
+
+## The memory ordering of an `@T` operation.
 pub enum Ordering as u8:
     relaxed = 1
     acquire = 2

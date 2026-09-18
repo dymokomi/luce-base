@@ -1,12 +1,22 @@
-## Structured JSON values own their UTF-8 encoding. Containers snapshot inserted
-## values: later changes to a child do not mutate its parent or create ARC cycles.
-## No API accepts unchecked JSON fragments. All growth is bounded and transactional.
+#==============================================================================================
+#
+#   json - Structured JSON values
+#
+#   DESCRIPTION:
+#       Structured JSON values own their UTF-8 encoding. Containers snapshot inserted values:
+#       later changes to a child do not mutate its parent or create ARC cycles. No API accepts
+#       unchecked JSON fragments. All growth is bounded and transactional.
+#
+#==============================================================================================
+
 import memory
 import interop
 import strings
 import utf8
 import math
+## A JSON operation with an invalid argument or shape.
 pub let invalid: ErrorCode = ErrorCode.package(110)
+## A JSON value grown past its configured byte limit.
 pub let limit_exceeded: ErrorCode = ErrorCode.package(111)
 
 struct Bytes:
@@ -64,6 +74,8 @@ func quoted(value: str, output: Bytes*, maximum: usize) -> !:
             try output.append(single, maximum)
     try output.append(b"\"", maximum)
 
+# mark: JSON values ===========================================================================
+
 ## Value() creates an object. Arrays and scalar values use the named constructors.
 ## Base copies borrow; an exported Value has normal shared interop ownership.
 pub struct Value:
@@ -73,6 +85,7 @@ pub struct Value:
     var count: usize
     var maximum: usize = 1048576
 
+    ## Initialise as an empty object with a byte limit.
     pub func init(maximum_bytes: usize = 1048576) -> !:
         if maximum_bytes < 2 or maximum_bytes > 67108864:
             error(invalid, "JSON byte limit must be between 2 and 64 MiB")
@@ -86,6 +99,7 @@ pub struct Value:
     static func own(native: Value*) -> interop.Reference[Value]!:
         return try interop.Reference[Value].adopt(native, value_type)
 
+    ## An empty JSON array value.
     pub static func array(maximum_bytes: usize = 1048576) -> interop.Reference[Value]!:
         let native = try new Value(maximum_bytes)
         native.container = '['
@@ -103,25 +117,30 @@ pub struct Value:
             error(failure.code, failure.message)
         return try Value.own(native)
 
+    ## A JSON string value.
     pub static func text(value: str) -> interop.Reference[Value]!:
         var bytes: Bytes
         defer bytes.close()
         try quoted(value, &bytes, 1048576)
         return try Value.scalar((str)bytes.view())
 
+    ## A JSON integer value.
     pub static func integer(value: i64) -> interop.Reference[Value]!:
         var buffer: u8[32]
         return try Value.scalar(try format(buffer, f"{value}"))
 
+    ## A JSON number value; `value` must be finite.
     pub static func number(value: f64) -> interop.Reference[Value]!:
         if not math.is_finite(value):
             error(invalid, "JSON numbers must be finite")
         var buffer: u8[64]
         return try Value.scalar(try strings.format_f64(value, buffer))
 
+    ## A JSON boolean value.
     pub static func boolean(value: bool) -> interop.Reference[Value]!:
         return try Value.scalar("true" if value else "false")
 
+    ## The JSON null value.
     pub static func null() -> interop.Reference[Value]!:
         return try Value.scalar("null")
 
@@ -169,34 +188,42 @@ pub struct Value:
             self.keys.used += 1
         self.count += 1
 
+    ## Set object member `name` to a snapshot of `value`.
     pub mutating func set(name: str, value: interop.Reference[Value]) -> !:
         try self.insert(name, try value.get())
 
+    ## Append a snapshot of `value` to an array.
     pub mutating func append(value: interop.Reference[Value]) -> !:
         try self.insert(none, try value.get())
 
+    ## Set member `name` to a string.
     pub mutating func set_text(name: str, value: str) -> !:
         let child = try Value.text(value)
         defer child.release()
         try self.set(name, child)
 
+    ## Set member `name` to an integer.
     pub mutating func set_integer(name: str, value: i64) -> !:
         let child = try Value.integer(value)
         defer child.release()
         try self.set(name, child)
 
+    ## Set member `name` to a number.
     pub mutating func set_number(name: str, value: f64) -> !:
         let child = try Value.number(value)
         defer child.release()
         try self.set(name, child)
 
+    ## Set member `name` to a boolean.
     pub mutating func set_boolean(name: str, value: bool) -> !:
         let child = try Value.boolean(value)
         defer child.release()
         try self.set(name, child)
 
+    ## Release the value's storage.
     pub mutating func close():
         self.encoded.close()
         self.keys.close()
 
+## The interop type of a JSON `Value`.
 pub let value_type: interop.Type[Value] = interop.Type[Value]("JSON value", Value.close, closeable = true)

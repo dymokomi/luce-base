@@ -1,8 +1,12 @@
-## TCP/UDP sockets, readiness, deadline I/O, and HTTP/WebSocket codecs.
-## Created and accepted sockets are close-on-exec. Linux
-## sets that flag atomically; macOS requires a separate call, so applications
-## must serialize socket creation/acceptance with concurrent fork/exec there.
-## Adopting a caller-created descriptor also needs this coordination on either OS.
+#==============================================================================================
+#
+#   net - TCP/UDP sockets, HTTP and WebSocket
+#
+#   DESCRIPTION:
+#       TCP/UDP sockets, readiness, deadline I/O, and HTTP/WebSocket codecs.
+#
+#==============================================================================================
+
 import c
 import atomic
 import platform
@@ -13,6 +17,8 @@ import utf8
 import sync
 import os
 from io import Reader, Writer
+# mark: Socket system calls ===================================================================
+
 extern func socket(domain: i32, kind: i32, protocol: i32) -> platform.SocketDescriptor
 extern func bind(descriptor: platform.SocketDescriptor, address: const void*, length: u32) -> i32
 extern func listen(descriptor: platform.SocketDescriptor, backlog: i32) -> i32

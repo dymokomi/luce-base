@@ -1,6 +1,14 @@
-## C's types live here (base.md §5.2); the checker supplies them, since their widths are the
-## target's: `c.int` and the other fixed-width ones are Base types by another name, `c.char`,
-## `c.long`, `c.ulong`, and `c.wchar` are distinct, `c.va_list` is opaque, `c.str` is C text.
+#==============================================================================================
+#
+#   c - C's types and errno
+#
+#   DESCRIPTION:
+#       C's types live here (base.md §5.2); the checker supplies them, since their widths are
+#       the target's: `c.int` and the other fixed-width ones are Base types by another name;
+#       `c.char`, `c.long`, `c.ulong` and `c.wchar` are distinct; `c.va_list` is opaque; `c.str`
+#       is C text.
+#
+#==============================================================================================
 
 import platform
 extern func mac_errno as "__error"() -> i32*
@@ -29,12 +37,14 @@ pub func set_errno(value: i32):
 ## WASI numbers its errors its own way.
 pub let interrupted: i32 = 27 if platform.wasm32 else 4
 
-## The C standard streams; the backend supplies them.
+## The C standard input stream; the backend supplies it.
 pub func stdin() -> void*:
     trap("supplied by the backend")
 
+## The C standard output stream; the backend supplies it.
 pub func stdout() -> void*:
     trap("supplied by the backend")
 
+## The C standard error stream; the backend supplies it.
 pub func stderr() -> void*:
     trap("supplied by the backend")

@@ -1,8 +1,17 @@
-## Window input uses logical points, with the origin at the content's top left.
-## Physical keys describe positions, not characters. text_input carries committed
-## Unicode scalars supplied by the OS text service when a window enables text input.
-## Semantic system cursors. These values carry no native window dependency;
-## window.Window maps them to the host's standard, DPI-aware cursor resources.
+#==============================================================================================
+#
+#   input - Window input events, keys and cursors
+#
+#   DESCRIPTION:
+#       Window input uses logical points, with the origin at the content's top left. Physical
+#       keys describe positions, not characters. text_input carries committed Unicode scalars
+#       supplied by the OS text service when a window enables text input.
+#
+#==============================================================================================
+
+# mark: Events and keys =======================================================================
+
+## Semantic system cursors, mapped by `window.Window` to the host's DPI-aware resources.
 pub enum Cursor as u8:
     arrow = 0
     text = 1
@@ -13,6 +22,7 @@ pub enum Cursor as u8:
     grabbing = 6
     not_allowed = 7
 
+## The kind of a window input event; which `Event` fields matter.
 pub enum EventKind as u8:
     idle = 0
     close_requested = 1
@@ -118,13 +128,20 @@ pub enum Key as u16:
     right_alt = 230
     right_super = 231
 
+## The modifier keys held during an event.
 pub struct Modifiers:
+    ## Whether a shift key is held.
     pub var shift: bool
+    ## Whether a control key is held.
     pub var control: bool
+    ## Whether an alt key is held.
     pub var alt: bool
+    ## Whether a super (command/Windows) key is held.
     pub var super: bool
+    ## Whether caps lock is on.
     pub var caps_lock: bool
 
+## Whether scroll deltas are in lines or points.
 pub enum ScrollUnit as u8:
     lines = 0
     points = 1
@@ -137,16 +154,26 @@ pub enum ScrollUnit as u8:
 ## pointer_left clears hover, not a captured drag. Pointer coordinates are valid
 ## on pointer_entered; pointer_left carries no position.
 pub struct Event:
+    ## The kind of event.
     pub var kind: EventKind
+    ## The physical key, for key events.
     pub var key: Key
+    ## The modifier keys held.
     pub var modifiers: Modifiers
+    ## Whether a key_down is an auto-repeat.
     pub var repeated: bool
+    ## The pointer button, zero-based: 0 left, 1 right, 2 middle.
     pub var button: u32
+    ## The pointer x in logical points.
     pub var x: f64
+    ## The pointer y in logical points.
     pub var y: f64
     ## Content displacement: positive x moves content right, positive y down.
     ## Controls subtract these values from viewport offsets on both axes.
     pub var scroll_x: f64
+    ## Vertical scroll displacement (see `scroll_x`).
     pub var scroll_y: f64
+    ## The unit of the scroll deltas.
     pub var scroll_unit: ScrollUnit
+    ## The Unicode scalar, for text_input events.
     pub var codepoint: u32

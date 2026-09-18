@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   handles - Open files and their descriptors
+#
+#   DESCRIPTION:
+#       A File over an OS descriptor, opened by policy (replace, create_new, append), with
+#       read, write, seek, sync, truncate, metadata and permission operations.
+#
+#==============================================================================================
+
 ## File opening policy. `replace` creates or truncates; `create_new` refuses an
 ## existing path; `create_new_read_write` also permits reads. `append` creates if
 ## needed and makes each write append atomically.
@@ -10,10 +20,13 @@ pub enum OpenMode as u8:
     append = 4
     create_new_read_write = 5
 
+## Where a seek offset is measured from.
 pub enum SeekOrigin as u8:
     start = 0
     current = 1
     end = 2
+
+# mark: The open file =========================================================================
 
 ## One owned descriptor. The zero value is closed. Borrow through a pointer or an
 ## io interface; copying this value does not duplicate ownership or the OS handle.

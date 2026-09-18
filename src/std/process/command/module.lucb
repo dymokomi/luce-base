@@ -1,5 +1,13 @@
-## A command owns a background worker and its child process tree. Only byte
-## storage crosses the worker boundary; ARC objects stay on their owning thread.
+#==============================================================================================
+#
+#   command - A background child process with captured output
+#
+#   DESCRIPTION:
+#       A command owns a background worker and its child process tree. Only byte storage crosses
+#       the worker boundary; ARC objects stay on their owning thread.
+#
+#==============================================================================================
+
 import interop
 import thread
 import strings
@@ -31,6 +39,8 @@ func command_text(text: str) -> str!:
     with memory.heap:
         return try strings.copy(text)
 
+# mark: The command ===========================================================================
+
 ## Launch without invoking a shell. `arguments` excludes the program name.
 ## Output merges stdout/stderr in observation order, bounded by output_limit.
 ## close cancels and joins; poll with is_finished without blocking the UI.
@@ -38,6 +48,7 @@ pub struct Command:
     var storage: CommandState*?
     var worker: thread.Handle?
 
+    ## Start `program` with `arguments` in a background worker, capturing output up to `output_limit`.
     pub func init(program: str, arguments: const str[], directory: str = "", output_limit: usize = 1048576, environment: const str[]? = none) -> !:
         if program.length == 0 or output_limit < 1 or output_limit > 16777216:
             error(failed, "a command needs a program and an output limit in 1..16 MiB")
@@ -61,12 +72,15 @@ pub struct Command:
     func state() -> CommandState*:
         return self.storage else trap("the command is closed")
 
+    ## Whether the child has exited.
     pub func is_finished() -> bool:
         return self.state().done.load(.acquire)
 
+    ## A counter that advances as captured output and status change.
     pub func revision() -> i64:
         return (i64)self.state().changed.load(.acquire)
 
+    ## The child's exit code, or `none` while it is still running.
     pub func exit_code() -> i64?:
         if not self.is_finished():
             return none
@@ -94,15 +108,18 @@ pub struct Command:
                     offset += 1
             return try interop.copy_text(text.view())
 
+    ## The captured standard error, as owned text.
     pub func error_message() -> interop.Owned[str]!:
         if not self.is_finished():
             return try interop.copy_text("")
         return try interop.copy_text(self.state().failure)
 
+    ## Request cancellation of the child process tree.
     pub func cancel():
         if let state = self.storage:
             state.cancelled.store(true, .release)
 
+    ## Wait for the worker, reap the child, and release resources.
     pub mutating func close():
         let worker = self.worker else return
         self.cancel()
@@ -113,6 +130,7 @@ pub struct Command:
         self.storage = none
         command_dispose(state)
 
+## The interop type of a Command.
 pub let command_type: interop.Type[Command] = interop.Type[Command]("Command", Command.close, closeable = true)
 
 func command_dispose(state: CommandState*):

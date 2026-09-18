@@ -1,4 +1,16 @@
+#==============================================================================================
+#
+#   worker - A managed worker thread
+#
+#   DESCRIPTION:
+#       A worker runs a factory-built handler on its own thread; messages are posted with
+#       `send` and their replies delivered through the entry's callback.
+#
+#==============================================================================================
+
+## The worker has been closed.
 pub let worker_closed: ErrorCode = ErrorCode.package(104)
+## The worker's queue is full.
 pub let worker_busy: ErrorCode = ErrorCode.package(105)
 
 struct WorkerState[C, M, R]:
@@ -111,7 +123,10 @@ struct WorkerState[C, M, R]:
 ## send/receive/cancel may be called concurrently while the owner keeps it alive.
 ## close must run after those callers return; it cancels and joins before freeing.
 ## Luce libraries expose their own owned application-specific wrapper around it.
+# mark: The worker handle ======================================================================
+
 pub struct Worker[C, M, R]:
+    ## Start a worker running `entry` with `configuration`.
     var state: WorkerState[C, M, R]*?
 
     pub func init(entry: WorkerEntry[C, M, R], configuration: C,
@@ -134,6 +149,7 @@ pub struct Worker[C, M, R]:
             let code = failure.code
             discard(ownership.pool_object(saved.owner else trap("copied text has no owner")))
             self.close()
+            ## Post `message` to the worker.
             error(code, saved.value)
 
     pub func send(message: M) -> !:
@@ -170,6 +186,7 @@ pub struct Worker[C, M, R]:
             error(worker_closed, "the worker no longer produces replies")
         let result = state.output.pop()
         state.changed.broadcast()
+        ## Ask the worker to stop its current work.
         return result
 
     pub func cancel():
@@ -177,6 +194,7 @@ pub struct Worker[C, M, R]:
         state.mutex.lock()
         state.cancellation.request()
         state.changed.broadcast()
+        ## Close the worker and wait for it to finish.
         state.mutex.unlock()
 
     pub mutating func close():

@@ -1,8 +1,19 @@
+#==============================================================================================
+#
+#   surface - The Vulkan swapchain and its images
+#
+#   DESCRIPTION:
+#       The Vulkan swapchain presentation surface and the images it hands out.
+#
+#==============================================================================================
+
 struct VulkanImage:
     var image: u64
     var view: u64
     var framebuffer: u64
     var presented: u64
+
+# mark: The swapchain surface and its images ==================================================
 
 struct VulkanSurface:
     var surface: u64

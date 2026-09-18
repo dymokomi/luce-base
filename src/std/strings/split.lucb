@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   split - Splitting text into views
+#
+#   DESCRIPTION:
+#       Split `str` at a byte or a substring into views over the input, once, last, or every
+#       occurrence.
+#
+#==============================================================================================
+
 ## `text` split at every `separator`, as views into it; the array is an allocation of the
 ## current allocator, given back with `free`.
 pub func split(text: str, separator: u8) -> str[]!:

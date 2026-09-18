@@ -1,11 +1,23 @@
-## Internal shared Win32 ABI. Module-specific handles and records stay with
-## their filesystem, process, input or graphics adapter. Public standard APIs
-## never expose these declarations. This module cannot depend on allocation.
+#==============================================================================================
+#
+#   windows_abi - Internal shared Win32 ABI
+#
+#   DESCRIPTION:
+#       Module-specific handles and records stay with their filesystem, process, input or
+#       graphics adapter. Public standard APIs never expose these declarations. This module
+#       cannot depend on allocation.
+#
+#==============================================================================================
+
 import c
+## The CP_UTF8 code page.
 pub let utf8_page: u32 = 65001
+## MB_ERR_INVALID_CHARS: fail on malformed UTF-8.
 pub let reject_invalid_utf8: u32 = 8
+## WC_ERR_INVALID_CHARS: fail on malformed UTF-16.
 pub let reject_invalid_utf16: u32 = 128
 
+## Win32 SYSTEM_INFO: the page size and processor count.
 pub extern struct SystemInfo:
     pub architecture: u16
     pub reserved: u16
@@ -19,19 +31,35 @@ pub extern struct SystemInfo:
     pub processor_level: u16
     pub processor_revision: u16
 
+## Win32 MultiByteToWideChar: bytes to UTF-16.
 pub extern func MultiByteToWideChar(page: u32, flags: u32, input: c.str, length: i32, output: u16*?, capacity: i32) -> i32
+## Win32 WideCharToMultiByte: UTF-16 to bytes.
 pub extern func WideCharToMultiByte(page: u32, flags: u32, input: const u16*, length: i32, output: u8*?, capacity: i32, fallback: void*?, used_fallback: void*?) -> i32
+## Win32 GetLastError.
 pub extern func GetLastError() -> u32
+## Win32 SetLastError.
 pub extern func SetLastError(error: u32)
+## Win32 CloseHandle.
 pub extern func CloseHandle(handle: void*) -> i32
+## Win32 GetCurrentProcessId.
 pub extern func GetCurrentProcessId() -> u32
+## Win32 GetCurrentProcess.
 pub extern func GetCurrentProcess() -> void*
+## Win32 GetSystemInfo.
 pub extern func GetSystemInfo(info: SystemInfo*)
+## Win32 Sleep, in milliseconds.
 pub extern func Sleep(milliseconds: u32)
+## Win32 GetTempPathW.
 pub extern func GetTempPathW(capacity: u32, output: u16*) -> u32
+## Win32 GetModuleHandleW.
 pub extern func GetModuleHandleW(name: u16*?) -> void*
+## Win32 CreateFileW.
 pub extern func CreateFileW(path: u16*, access: u32, share: u32, security: void*?, disposition: u32, flags: u32, template: void*?) -> void*
+## Win32 GetEnvironmentVariableW.
 pub extern func GetEnvironmentVariableW(name: u16*, output: u16*, capacity: u32) -> u32
+## Win32 SetEnvironmentVariableW.
 pub extern func SetEnvironmentVariableW(name: u16*, value: u16*?) -> i32
+## Win32 GetCurrentDirectoryW.
 pub extern func GetCurrentDirectoryW(capacity: u32, output: u16*?) -> u32
+## Win32 SetCurrentDirectoryW.
 pub extern func SetCurrentDirectoryW(path: u16*) -> i32

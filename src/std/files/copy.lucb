@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   copy - Atomic file copy
+#
+#   DESCRIPTION:
+#       Copy a file's bytes through a temporary sibling and publish the complete result with an
+#       atomic rename; directories are rejected and metadata is not copied.
+#
+#==============================================================================================
+
 ## Copy through a temporary sibling and atomically publish the complete result.
 ## The source is followed and read through EOF; directories are rejected. Refuse
 ## an existing destination unless replace=true, and reject an observed source/

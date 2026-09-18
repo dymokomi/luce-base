@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   time - Monotonic and wall-clock time
+#
+#   DESCRIPTION:
+#       A monotonic clock that never goes backwards, and the wall clock as seconds since the
+#       Unix epoch, over the host's `clock_gettime`.
+#
+#==============================================================================================
+
 import c
 import platform
 extern func clock_gettime(clock: i32, out_time: Stamp*) -> i32

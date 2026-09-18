@@ -1,3 +1,13 @@
+#==============================================================================================
+#
+#   directory - Directory streams and listing
+#
+#   DESCRIPTION:
+#       An owned directory stream that yields entry names, opens children, and reads their
+#       metadata, plus the whole-listing helper.
+#
+#==============================================================================================
+
 ## One owned directory stream; the zero value is closed. Copying does not duplicate
 ## ownership. Borrow it for iteration and serialize access to the stream.
 pub struct Directory:
@@ -100,6 +110,8 @@ func open_directory_at(parent: i32, path: c.str, follow_symlinks: bool) -> Direc
     let number = c.errno()
     discard(close(descriptor))
     error(classify_error(number), "the directory stream could not be created")
+
+# mark: Listing ===============================================================================
 
 ## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
 ## array holding them, exactly as long as the names, are allocations of the current

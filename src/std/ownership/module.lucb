@@ -1,8 +1,15 @@
-## Intrusive ownership shared by Base libraries and compiled Luce programs.
-## Base callers retain and release explicitly; Luce inserts those operations.
-## One header and trace protocol cover native/managed cycles on the owning thread.
-## Runtime allocations use the system heap; an explicit allocator can be supplied
-## to reserve when its lifetime is guaranteed by the native owner.
+#==============================================================================================
+#
+#   ownership - Intrusive ownership shared by Base and Luce
+#
+#   DESCRIPTION:
+#       Intrusive ownership shared by Base libraries and compiled Luce programs. Base callers
+#       retain and release explicitly; Luce inserts those operations. One header and trace
+#       protocol cover native/managed cycles on the owning thread. Runtime allocations use the
+#       system heap; an explicit allocator can be supplied to reserve when its lifetime is
+#       guaranteed by the native owner.
+#
+#==============================================================================================
 
 import io
 import memory
@@ -21,20 +28,30 @@ let collecting: u8 = 16
 ## A literal's text: never counted, never released, never alive at the end.
 pub let immortal: u8 = 32
 
+## The ownership header every managed object carries, before its fields.
 pub struct Object:
+    ## The strong reference count; the object is finalized when it reaches zero.
     pub var strong: u32
+    ## The number of weak references watching the object.
     pub var weak: u32
+    ## The collector's colour and state bits (§the cycle collector).
     pub var flags: u8
+    ## The object's class description.
     pub var info: Info*
     ## Allocation identity never repeats, even when an allocator reuses an address.
     pub var generation: u64
+    ## The owning context the object belongs to.
     pub var context: u64
+    ## The size of the object's allocation in bytes.
     pub var allocation_size: usize
+    ## The allocator that made the object, when one was supplied explicitly.
     pub var allocator: memory.Allocator?
 
 ## What the collector and the destructor need to know about a class.
 pub struct Info:
+    ## The class name, for diagnostics and the collector.
     pub var name: str
+    ## The object's size in bytes, its fields included.
     pub var size: usize
     ## `deinit`, when the class declares one.
     pub var finish: (func(Object*) -> unit)?
@@ -102,14 +119,17 @@ pub func enter():
     discard(context_id())
     runtime_depth += 1
 
+## Trap when no owning context has been entered.
 pub func require_context():
     if runtime_depth == 0:
         stop("a managed callback needs a runtime entry on this thread")
 
+## Trap when `o` is touched from a thread other than its owner.
 pub func check_thread(o: Object*):
     if not has(o, immortal) and o.context != context_id():
         stop("an object belongs to another runtime thread")
 
+## Trap when `o` has already been finalized.
 pub func check_alive(o: Object*):
     check_thread(o)
     if has(o, dead) or o.strong == 0:
@@ -135,6 +155,7 @@ pub func reserve(info: Info*, size: usize, allocator: memory.Allocator? = none) 
     live += 1
     return o
 
+## Allocate an object of class `info` and its header.
 pub func allocate(info: Info*) -> Object*:
     return allocate_sized(info, info.size)
 
@@ -143,6 +164,7 @@ pub func allocate_sized(info: Info*, size: usize) -> Object*:
     return reserve(info, size) catch failure:
         trap("out of memory")
 
+## Add a strong reference to `o` and return it.
 pub func retain(o: Object*) -> Object*:
     check_alive(o)
     if has(o, immortal):
@@ -151,6 +173,7 @@ pub func retain(o: Object*) -> Object*:
     set_color(o, black)
     return o
 
+## Drop a strong reference to `o`, finalizing it when the count reaches zero.
 pub func release(o: Object*):
     check_thread(o)
     if has(o, immortal):

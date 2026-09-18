@@ -1,4 +1,16 @@
+#==============================================================================================
+#
+#   normalization - Unicode normalization forms
+#
+#   DESCRIPTION:
+#       The four normalization forms of UAX #15 over strict UTF-8: NFC/NFD preserve canonical
+#       equivalence, NFKC/NFKD also apply compatibility mappings.
+#
+#==============================================================================================
+
 ## Standard canonical and compatibility normalization forms from UAX #15.
+# mark: Normalization ========================================================================
+
 pub enum NormalizationForm as u8:
     nfc = 0
     nfd = 1
