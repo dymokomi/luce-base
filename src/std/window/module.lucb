@@ -143,6 +143,17 @@ pub struct Window:
         state.presentation_held = true
         return Presentation(state = state)
 
+    ## Register a redraw invoked while the window is being live-resized, so the
+    ## application can repaint at the new size instead of showing a stretched frame.
+    ## During a resize the OS runs a modal loop that starves the normal event pump;
+    ## this callback fires from inside it. It runs on the main thread with `context`,
+    ## and lives until replaced or the window is destroyed. Keep `context` valid for
+    ## that lifetime. The callback must not destroy or resize the window.
+    pub func set_redraw(callback: func(void*) -> unit, context: void*) -> !:
+        let state = try self.checked()
+        state.redraw = callback
+        state.redraw_context = context
+
     ## Request closure, using the same event as the title-bar close button.
     ## The application decides whether to destroy the window after receiving it.
     pub func request_close() -> !:

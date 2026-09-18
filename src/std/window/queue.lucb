@@ -30,6 +30,8 @@ struct State:
     var marked_text: void*?
     var marked_selection: usize
     var marked_length: usize
+    var redraw: (func(void*) -> unit)?
+    var redraw_context: void*?
 
 ## Committed characters own their value. Control keys remain physical events;
 ## no queued event borrows native string storage or a composition buffer.
@@ -52,6 +54,14 @@ func push_utf16(state: State*, code: u16):
         state.pending_surrogate = 0
         push_scalar(state, 0xFFFD)
     push_scalar(state, (u32)code)
+
+## Invoke the application's live-resize redraw, if one is registered, so the window
+## repaints at its new size from inside the OS resize loop instead of stretching a
+## stale frame. Runs synchronously on the main thread while the resize is tracked.
+func invoke_redraw(state: State*):
+    if let redraw = state.redraw:
+        if let context = state.redraw_context:
+            redraw(context)
 
 func push_event(state: State*, event: input.Event):
     if state.count == state.events.length:

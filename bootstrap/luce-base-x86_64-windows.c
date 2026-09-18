@@ -1135,6 +1135,8 @@ typedef struct lb_window_State {
     void* marked_text;
     size_t marked_selection;
     size_t marked_length;
+    lb_fn_0F1_void_0p_unit redraw;
+    void* redraw_context;
 } lb_window_State;
 typedef struct lb_window_Presentation {
     struct lb_window_State* state;

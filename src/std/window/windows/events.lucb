@@ -86,6 +86,7 @@ func win_callback(native: void*, message: u32, word: usize, value: isize) -> isi
         return 0
     if message == 5:
         push_event(state, input.Event(kind = input.EventKind.resized))
+        invoke_redraw(state)
     elif message == 7 or message == 8:
         state.pending_surrogate = 0
         push_event(state, input.Event(kind = input.EventKind.focus_gained if message == 7 else input.EventKind.focus_lost))
