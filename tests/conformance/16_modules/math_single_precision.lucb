@@ -1,4 +1,5 @@
 # oracle: none -- The seed interpreter has no math32 module.
+# valgrind: skip  (valgrind does not model single-precision `roundf` rounding; the program passes natively)
 import math32
 
 pub func main(arguments: str[]) -> i32:

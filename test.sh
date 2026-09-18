@@ -193,6 +193,10 @@ tests/sanitize/run.sh
 tools/cross_c.sh
 # the seed's program corpus, built natively: every `# answer: N` program prints N
 tools/native_check.sh
+# the native backend under valgrind's memcheck where valgrind is present (Linux): every
+# positive program runs clean at -O0 and -O3, catching memory faults in the native machine
+# code that the C-backend sanitizers cannot reach (tools/valgrind_native.sh)
+if command -v valgrind > /dev/null 2>&1; then tools/valgrind_native.sh; else echo "skip valgrind_native: no valgrind on this host"; fi
 # the fuzzer's short run, the same on every host: mutated programs are accepted or
 # rejected with a positioned diagnostic, never a fault, and generated programs agree
 # across the C, C -O2, native, and seed executions (tools/fuzz.py --minutes M runs longer)
