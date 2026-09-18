@@ -426,7 +426,7 @@ class Gen:
                 self.loops += 1
                 lines.append(r.choice([f"{pad}pr0 = Pair[i64](a = {self.expr(2)}, b = {self.expr(2)})", f"{pad}pr0 = swap[i64](pr0)", f"{pad}a2 = pr0.a -% pr0.b", f"{pad}let pf{n} = Pair[f64](a = {self.fexpr(2)}, b = {self.fexpr(2)})\n{pad}d1 = swap[f64](pf{n}).a - pf{n}.b"]))
             elif k == 28:
-                lines.append(r.choice([f"{pad}v0 = v0 +% v1", f"{pad}v1 = v0 *% i32[4]({r.randint(-5, 5)})", f"{pad}v0[{r.randrange(4)}] = {self.expr(2, 'i32')}", f"{pad}a0 = (i64)v0.sum() +% (i64)v1.min()", f"{pad}v1 = (v0 & 255)", f"{pad}v0 = v0 +| v1", f"{pad}v1 = v1 -% {r.randint(-5, 5)}", f"{pad}v0 = -%v1", f"{pad}e0 = v0[{r.randrange(4)}] *% v1[{r.randrange(4)}]"]))
+                lines.append(r.choice([f"{pad}v0 = v0 +% v1", f"{pad}v1 = v0 *% i32[4]({r.randint(-5, 5)})", f"{pad}v0[{r.randrange(4)}] = {self.expr(2, 'i32')}", f"{pad}a0 = (i64)(v0 & 255).sum() +% (i64)v1.min()", f"{pad}v1 = (v0 & 255)", f"{pad}v0 = v0 +| v1", f"{pad}v1 = v1 -% {r.randint(-5, 5)}", f"{pad}v0 = -%v1", f"{pad}e0 = v0[{r.randrange(4)}] *% v1[{r.randrange(4)}]"]))
             elif k == 29:
                 n = self.loops
                 self.loops += 1
@@ -589,7 +589,7 @@ class Gen:
                 "func mix() -> i64:", "    var acc: i64 = a0 +% a1 +% a2 +% (i64)b0 +% (i64)b1 +% (i64)c0 +% (i64)c1 +% (i64)e0 +% (i64)e1 +% (i64)h0 +% (i64)m0 +% (i64)m1",
                 "    acc = acc *% 31 +% p0.x +% (i64)p0.y +% ((i64)(p0.f * 4.0) & 65535) +% q0.a +% q0.b +% q0.c +% (i64)q0.tag",
                 "    acc = acc *% 31 +% ((i64)(d0 * 8.0) & 65535) +% ((i64)(d1 * 8.0) & 65535) +% (o0 else -1) +% (i64)s0.length +% box0.w +% tri0.b",
-                "    acc = acc *% 31 +% shape_area(sh0) +% pr0.a +% pr0.b +% (i64)v0.sum() +% (i64)v1.max() +% (i64)v0.min()",
+                "    acc = acc *% 31 +% shape_area(sh0) +% pr0.a +% pr0.b +% (i64)(v0 & 255).sum() +% (i64)v1.max() +% (i64)v0.min()",
                 "    return acc *% 31 +% sumspan(table) +% deferred(acc)", ""]
         for k in range(r.randint(0, 3)):
             n = r.randint(1, 3)
@@ -626,7 +626,7 @@ class Gen:
         text.append("        qs[j] = makeq((i64)j -% 1)")
         self.locals = []
         text += self.statements(3, 1)
-        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]} {shape_area(sh0)} {pr0.a} {v0[1]} {v1.sum()} {u0.a}")')
+        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]} {shape_area(sh0)} {pr0.a} {v0[1]} {(v1 & 255).sum()} {u0.a}")')
         text.append("    return 0")
         return "\n".join(text) + "\n"
 

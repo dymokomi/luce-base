@@ -4538,7 +4538,8 @@ pub struct Checker:
                         return try self.fail(l, "an unclosed `{` in assembly text")
                     let name = (str)b[i + 1..<j]
                     if not asm_names_operand(s, name):
-                        let message = try format(self.scratch[self.scratch.length // 2..<self.scratch.length], f"the assembly text names `{name}`, which is not a `reg` operand")
+                        var clipped: u8[64]
+                        let message = try format(self.scratch[self.scratch.length // 2..<self.scratch.length], f"the assembly text names `{try clip(clipped, name)}`, which is not a `reg` operand")
                         return try self.fail(l, message)
                     i = j
                 i += 1
@@ -5054,12 +5055,13 @@ pub struct Checker:
                 elif let holds = self.constant_bool(cv):
                     if not holds:
                         var text: u8[256]
+                        var clipped: u8[64]
                         var reason: str = ""
                         if let second = first.next:
                             if let mv = second.left:
                                 if mv.kind == ast.Kind.literal and mv.text.length >= 2:
                                     reason = (str)mv.text.bytes[1..<mv.text.length - 1]
-                        discard(try self.fail(cv, try format(text, f"a module-level `assert` failed: {reason}")))
+                        discard(try self.fail(cv, try format(text, f"a module-level `assert` failed: {try clip(clipped, reason)}")))
             .extern_func, .type_alias, .import_, .from_import, .asm_:
                 discard(0)
             _:
@@ -5400,6 +5402,15 @@ func argument_names(args: ast.Node*?, f: ast.Node*, d: ast.Node*) -> bool:
             return true
         cursor = a.next
     return false
+
+## User text for a diagnostic: itself when short, otherwise its first bytes and a trailing
+## `...`, written into `buffer`. A message that echoes unbounded input (an assembly operand,
+## an `assert` reason) clips it, or a long enough spelling overflows the formatting buffer
+## and the failure is then reported with no position (§19.6).
+func clip(buffer: u8[], text: str) -> str!:
+    if text.length <= 64:
+        return text
+    return try format(buffer, f"{(str)text.bytes[..<60]}...")
 
 ## Whether asm block `s` has a `reg` operand whose expression is the name `name`.
 pub func asm_names_operand(s: ast.Node*, name: str) -> bool:
