@@ -658,11 +658,91 @@ def differential(text, timeout, findings, label):
         findings.report("disagree", text.encode(), f"{label}: the executions disagree: {detail}")
 
 
+def trap_program(rng):
+    """A program whose statements may trap: checked overflow (`+ - *`), division or
+    remainder by a possibly-zero divisor, an out-of-range index, and narrowing casts.
+    Operands come from an opaque runtime seed mixed with WRAPPING arithmetic, so the
+    compiler cannot fold them to a constant and reject at compile time. The same program is
+    run four ways; every execution must agree on the outcome -- the same printed value, or a
+    trap at the same position with the same message (`trap_outcome` / `differential_trap`)."""
+    lines = ["pub func main(arguments: str[]) -> i32!:",
+             "    var s: i64 = 1",
+             "    var k: i64 = 0",
+             "    while k < 5:",
+             "        s = s *% 6364136223846793005 +% 1442695040888963407",
+             "        k += 1",
+             "    var table: i64[8] = [0, 1, 2, 3, 4, 5, 6, 7]",
+             "    var acc: i64 = s"]
+    for _ in range(rng.randint(3, 10)):
+        choice = rng.randrange(8)
+        if choice == 0:
+            lines.append("    acc = acc + s")                          # checked add: overflow
+        elif choice == 1:
+            lines.append(f"    acc = acc * ({rng.randint(2, 1000000)})")  # checked mul: overflow
+        elif choice == 2:
+            lines.append("    acc = acc - s")                          # checked sub: overflow
+        elif choice == 3:
+            lines.append("    acc = acc // (s & 3)")                   # divide by a maybe-zero
+        elif choice == 4:
+            lines.append("    acc = acc % (s & 3)")                    # remainder by a maybe-zero
+        elif choice == 5:
+            lines.append("    acc = acc + table[(usize)(s & 15)]")     # index: maybe out of range
+        elif choice == 6:
+            lines.append("    acc = acc + (i64)(i32)acc")              # narrowing i64 -> i32
+        else:
+            lines.append("    acc = acc + (i64)(u8)s")                 # narrowing -> u8
+        lines.append("    s = s *% 1103515245 +% 12345")              # re-mix (wrapping, no trap)
+    lines.append('    print(f"{acc}")')
+    lines.append("    return 0")
+    return "\n".join(lines) + "\n"
+
+
+trap_position = re.compile(rb"trap: [^ ]+:(\d+:\d+): (.*)")
+
+
+def trap_outcome(status, so, se):
+    """('ok', stdout) for a clean run, ('trap', b'line:col: message') for a positioned trap,
+    or ('crash', detail) for anything else (a signal, or an exit with no positioned trap)."""
+    if status == 0:
+        return ("ok", so.strip())
+    m = trap_position.search(se)
+    if m:
+        return ("trap", m.group(1) + b": " + m.group(2).strip())
+    return ("crash", (se or b"").strip()[:150])
+
+
+def differential_trap(text, timeout, findings, label):
+    """Build and run a maybe-trapping program four ways; every execution must reach the same
+    outcome. A build failure, a crash (non-zero without a positioned trap), or any
+    value-vs-trap or position/message disagreement is a finding."""
+    path = out / "generated.lucb"
+    path.write_text(text)
+    exe = out / "generated"
+    results = {}
+    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+        status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
+        if status != 0:
+            findings.report("trap-build-" + name, text.encode(), f"{label}: the build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
+            return
+        results[name] = trap_outcome(*run([str(exe)], timeout))
+    if seed_binary.exists():
+        results["seed"] = trap_outcome(*run([str(seed_binary), "eval", str(path)], timeout * 4))
+    crashed = {k: v for k, v in results.items() if v[0] == "crash"}
+    if crashed:
+        detail = "; ".join(f"{k}: {v[1].decode('utf-8', 'replace')}" for k, v in crashed.items())
+        findings.report("trap-crash", text.encode(), f"{label}: an execution crashed without a positioned trap: {detail}")
+        return
+    if len(set(results.values())) > 1:
+        detail = "; ".join(f"{k}={v[0]}:{v[1].decode('utf-8', 'replace')}" for k, v in results.items())
+        findings.report("trap-disagree", text.encode(), f"{label}: the executions disagree on the trap/value: {detail}")
+
+
 def main():
     args = sys.argv[1:]
     seed = 1
     mutations = 300
     programs = 40
+    trap_programs = 0
     minutes = 0.0
     gate = "--gate" in args
     for i, a in enumerate(args):
@@ -672,10 +752,12 @@ def main():
             mutations = int(args[i + 1])
         elif a == "--programs":
             programs = int(args[i + 1])
+        elif a == "--trap-programs":
+            trap_programs = int(args[i + 1])
         elif a == "--minutes":
             minutes = float(args[i + 1])
     if gate:
-        seed, mutations, programs = 7, 120, 12
+        seed, mutations, programs, trap_programs = 7, 120, 12, 12
     rng = random.Random(seed)
     findings = Findings()
     files = corpus()
@@ -683,14 +765,14 @@ def main():
         print("no corpus")
         return 1
     deadline = time.time() + minutes * 60 if minutes > 0 else None
-    done_m = done_p = 0
+    done_m = done_p = done_t = 0
     round_ = 0
     while True:
         round_ += 1
         if deadline and round_ > 1:
             # a long run says where it is, through a pipe or a file as well as a terminal
             left = max(0, int(deadline - time.time()))
-            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {findings.count} findings, {left // 60} min left", flush=True)
+            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {findings.count} findings, {left // 60} min left", flush=True)
         for k in range(mutations):
             name, source = rng.choice(files)
             text = mutate(source, rng)
@@ -704,13 +786,19 @@ def main():
             done_p += 1
             if deadline and time.time() > deadline:
                 break
+        for k in range(trap_programs):
+            text = trap_program(random.Random(rng.randrange(1 << 30)))
+            differential_trap(text, 20, findings, f"trap-program {done_t + 1} (seed {seed})")
+            done_t += 1
+            if deadline and time.time() > deadline:
+                break
         if not deadline or time.time() > deadline:
             break
     for name in ("current.lucb", "generated.lucb", "generated"):
         p = out / name
         if p.exists():
             p.unlink()
-    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {findings.count} findings (seed {seed})", flush=True)
+    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {findings.count} findings (seed {seed})", flush=True)
     return min(findings.count, 100)
 
 
