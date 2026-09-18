@@ -909,6 +909,145 @@ def differential_package(files, timeout, findings, label):
         findings.report("pkg-disagree", combined.encode(), f"{label}: the package executions disagree: {detail}")
 
 
+MEM_PRELUDE = """import memory
+
+struct MemNode:
+    var value: i64
+    var next: MemNode*?
+
+enum MemTree:
+    leaf(v: i64)
+    branch(left: MemTree*, right: MemTree*)
+
+struct Counting: memory.Allocator:
+    var live: i64
+    var allocations: i64
+    var frees: i64
+    mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        let block = memory.heap.allocate(size, alignment) else return none
+        self.live += 1
+        self.allocations += 1
+        return block
+    mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+    mutating func release(block: u8[]):
+        self.live -= 1
+        self.frees += 1
+        memory.heap.release(block)
+
+func build_list(n: i64) -> MemNode*?!:
+    var head: MemNode*? = none
+    var i: i64 = 0
+    while i < n:
+        head = try new MemNode(value = i, next = head)
+        i += 1
+    return head
+
+func free_list(head: MemNode*?):
+    var cur = head
+    while let node = cur:
+        let nx = node.next
+        free(node)
+        cur = nx
+
+func build_tree(depth: i64, x: i64) -> MemTree*!:
+    if depth <= 0:
+        return try new MemTree.leaf(v = x)
+    let l = try build_tree(depth - 1, x *% 3)
+    errdefer free_tree(l)
+    let r = try build_tree(depth - 1, x +% 1)
+    return try new MemTree.branch(left = l, right = r)
+
+func free_tree(t: MemTree*):
+    match *t:
+        .leaf(v):
+            discard(v)
+        .branch(left, right):
+            free_tree(left)
+            free_tree(right)
+    free(t)
+
+func risky(fail: bool) -> i64!:
+    let a = try new MemNode(value = 7, next = none)
+    errdefer free(a)
+    if fail:
+        error(memory.exhausted, "planned")
+    let v = a.value
+    free(a)
+    return v
+"""
+
+
+def mem_program(rng):
+    """BALANCED allocation patterns run under a counting allocator: lists, trees, raw buffers,
+    single objects, errdefer cleanup on the success and error path. Every allocation is freed by
+    construction, so a correct compiler ends with live == 0 and allocations == frees. A leak (a
+    dropped free, an ARC object never released) or a double free breaks that invariant."""
+    r = rng
+    ops = []
+    for _ in range(r.randint(3, 9)):
+        k = r.randrange(6)
+        n = len(ops)
+        if k == 0:
+            ops.append("        let h%d = try build_list(%d)" % (n, r.randint(1, 12)))
+            ops.append("        free_list(h%d)" % n)
+        elif k == 1:
+            ops.append("        let t%d = try build_tree(%d, %d)" % (n, r.randint(0, 4), r.randint(-50, 50)))
+            ops.append("        free_tree(t%d)" % n)
+        elif k == 2:
+            ops.append("        let b%d = try alloc u8[%d]" % (n, r.randint(1, 128)))
+            ops.append("        free(b%d)" % n)
+        elif k == 3:
+            ops.append("        let a%d = try alloc i64[%d]" % (n, r.randint(1, 32)))
+            ops.append("        free(a%d)" % n)
+        elif k == 4:
+            ops.append("        let m%d = try new MemNode(value = %d, next = none)" % (n, r.randint(-9, 9)))
+            ops.append("        free(m%d)" % n)
+        else:
+            ops.append("        var rv%d: i64 = 0" % n)
+            ops.append("        rv%d = risky(true) catch failure:" % n)
+            ops.append("            discard(failure)")
+            ops.append("            recover 0")
+            ops.append("        discard(rv%d)" % n)
+            ops.append("        discard(try risky(false))")
+    body = "\n".join(ops)
+    main = 'pub func main(arguments: str[]) -> i32!:\n    var c = Counting(live = 0, allocations = 0, frees = 0)\n    with c:\n' + body + '\n    print(f"{c.allocations} {c.frees} {c.live}")\n    return 0\n'
+    return MEM_PRELUDE + "\n" + main
+
+
+def differential_mem(text, timeout, findings, label):
+    """Build and run a balanced allocation program four ways. Every execution must agree, AND the
+    shared result must balance: allocations == frees and live == 0. A shared imbalance (a runtime
+    or ARC leak, or a double free) is a finding the output-only checks miss."""
+    path = out / "generated.lucb"
+    path.write_text(text)
+    exe = out / "generated"
+    outputs = {}
+    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+        status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
+        if status != 0:
+            findings.report("mem-build-" + name, text.encode(), "%s: the build (%s) failed: %r" % (label, name, (so + se).decode("utf-8", "replace")[:300]))
+            return
+        status, so, se = run([str(exe)], timeout)
+        if status != 0:
+            findings.report("mem-run-" + name, text.encode(), "%s: the program (%s) stopped with %d: %r" % (label, name, status, se.decode("utf-8", "replace")[:200]))
+            return
+        outputs[name] = so
+    if seed_binary.exists():
+        status, so, se = run([str(seed_binary), "eval", str(path)], timeout * 4)
+        if status != 0:
+            findings.report("mem-seed", text.encode(), "%s: the seed stopped with %d: %r" % (label, status, se.decode("utf-8", "replace")[:200]))
+            return
+        outputs["seed"] = so
+    if len(set(outputs.values())) > 1:
+        detail = "; ".join("%s: %s" % (k, v.decode("utf-8", "replace").strip()) for k, v in outputs.items())
+        findings.report("mem-disagree", text.encode(), "%s: the executions disagree: %s" % (label, detail))
+        return
+    parts = next(iter(outputs.values())).decode("utf-8", "replace").split()
+    if len(parts) >= 3 and (parts[0] != parts[1] or parts[2] != "0"):
+        findings.report("mem-imbalance", text.encode(), "%s: allocations/frees/live not balanced: %s/%s/%s (a leak or double free)" % (label, parts[0], parts[1], parts[2]))
+
+
 def main():
     args = sys.argv[1:]
     seed = 1
@@ -916,6 +1055,7 @@ def main():
     programs = 40
     trap_programs = 0
     packages = 0
+    mem_programs = 0
     minutes = 0.0
     gate = "--gate" in args
     for i, a in enumerate(args):
@@ -929,10 +1069,12 @@ def main():
             trap_programs = int(args[i + 1])
         elif a == "--packages":
             packages = int(args[i + 1])
+        elif a == "--mem-programs":
+            mem_programs = int(args[i + 1])
         elif a == "--minutes":
             minutes = float(args[i + 1])
     if gate:
-        seed, mutations, programs, trap_programs, packages = 7, 120, 12, 12, 6
+        seed, mutations, programs, trap_programs, packages, mem_programs = 7, 120, 12, 12, 6, 8
     rng = random.Random(seed)
     findings = Findings()
     files = corpus()
@@ -940,14 +1082,14 @@ def main():
         print("no corpus")
         return 1
     deadline = time.time() + minutes * 60 if minutes > 0 else None
-    done_m = done_p = done_t = done_k = 0
+    done_m = done_p = done_t = done_k = done_x = 0
     round_ = 0
     while True:
         round_ += 1
         if deadline and round_ > 1:
             # a long run says where it is, through a pipe or a file as well as a terminal
             left = max(0, int(deadline - time.time()))
-            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {findings.count} findings, {left // 60} min left", flush=True)
+            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {findings.count} findings, {left // 60} min left", flush=True)
         for k in range(mutations):
             name, source = rng.choice(files)
             text = mutate(source, rng)
@@ -973,13 +1115,19 @@ def main():
             done_k += 1
             if deadline and time.time() > deadline:
                 break
+        for k in range(mem_programs):
+            text = mem_program(random.Random(rng.randrange(1 << 30)))
+            differential_mem(text, 20, findings, f"mem-program {done_x + 1} (seed {seed})")
+            done_x += 1
+            if deadline and time.time() > deadline:
+                break
         if not deadline or time.time() > deadline:
             break
     for name in ("current.lucb", "generated.lucb", "generated"):
         p = out / name
         if p.exists():
             p.unlink()
-    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {findings.count} findings (seed {seed})", flush=True)
+    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {findings.count} findings (seed {seed})", flush=True)
     return min(findings.count, 100)
 
 
