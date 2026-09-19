@@ -63,6 +63,7 @@ jobs:
           install: >-
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-python
+            git
       - name: Check the tag names this version
         if: github.ref_type == 'tag'
         run: |
