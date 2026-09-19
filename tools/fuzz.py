@@ -1048,6 +1048,148 @@ def differential_mem(text, timeout, findings, label):
         findings.report("mem-imbalance", text.encode(), "%s: allocations/frees/live not balanced: %s/%s/%s (a leak or double free)" % (label, parts[0], parts[1], parts[2]))
 
 
+def atomic_program(rng):
+    """N threads each apply M commutative atomic operations to shared state, then main joins
+    them all and prints the result. Because every op (atomic add, OR, XOR, max, and a
+    mutex-guarded plain increment) is interleaving-invariant, the final values are
+    deterministic -- N*M for a counter -- so all four executions must agree (the seed runs
+    threads serially, which is fine for this fan-out/accumulate/join shape). A lost update, a
+    miscompiled read-modify-write, or a mutex that fails to order is a wrong count, a finding."""
+    r = rng
+    n = r.randint(2, 4)
+    m = r.randint(100, 800)
+    k1 = r.randint(2, 9)
+    mask = r.choice([1, 2, 4, 8, 16, 255])
+    xbit = r.choice([1, 2, 4])
+    maxc = r.randint(1000, 100000)
+    order = r.choice([".relaxed", ".seq_cst", ".acq_rel"])
+    lines = [
+        "import thread",
+        "import sync",
+        "",
+        "struct Shared:",
+        "    var c0: @u64",
+        "    var c1: @u64",
+        "    var orv: @u32",
+        "    var xorv: @u32",
+        "    var maxv: @u64",
+        "    var lock: sync.Mutex",
+        "    var plain: u64",
+        "",
+        "func worker(context: void*?):",
+        "    let s = (Shared*)(context else return)",
+        "    var i: u32 = 0",
+        "    while i < %d:" % m,
+        "        s.c0 += 1",
+        "        s.c1.add(%d, %s)" % (k1, order),
+        "        s.orv |= %d" % mask,
+        "        s.xorv ^= %d" % xbit,
+        "        s.maxv.max(%d)" % maxc,
+        "        s.lock.lock()",
+        "        s.plain += 1",
+        "        s.lock.unlock()",
+        "        i += 1",
+        "",
+        "pub func main(arguments: str[]) -> i32!:",
+        "    var shared = Shared(c0 = 0, c1 = 0, orv = 0, xorv = 0, maxv = 0, lock = sync.Mutex(), plain = 0)",
+        "    var handles: thread.Handle[%d]" % n,
+        "    var t: usize = 0",
+        "    while t < %d:" % n,
+        "        handles[t] = try thread.spawn(worker, (void*)&shared)",
+        "        t += 1",
+        "    t = 0",
+        "    while t < %d:" % n,
+        "        try handles[t].join()",
+        "        t += 1",
+        '    print(f"{shared.c0} {shared.c1} {shared.orv} {shared.xorv} {shared.maxv} {shared.plain}")',
+        "    return 0",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def litmus_program(rng):
+    """A message-passing litmus test: a writer sets a payload then RELEASE-stores a flag; a
+    reader ACQUIRE-loads the flag then reads the payload, counting any STALE read. Under the
+    release/acquire ordering a stale read is forbidden, so `seen_stale` must be 0 over every
+    round. A compiler that fails to order the release before the acquire, or reorders the
+    payload write past the flag store, lets a stale read through -- a memory-model bug. The
+    ack handshake needs REAL concurrency, so there is no seed leg (the seed runs threads
+    serially and would deadlock)."""
+    r = rng
+    pt = r.choice(["u64", "u32", "i64"])
+    rounds = r.randint(2000, 6000)
+    mul = r.choice([3, 5, 7])
+    lines = [
+        "import thread",
+        "",
+        "let rounds: u32 = %d" % rounds,
+        "",
+        "struct Cell:",
+        "    var payload: %s" % pt,
+        "    var flag: @u32",
+        "    var ack: @u32",
+        "    var seen_stale: u32",
+        "",
+        "func mp_reader(context: void*?):",
+        '    let c = (Cell*)(context else trap("no cell"))',
+        "    var i: u32 = 0",
+        "    while i < rounds:",
+        "        while c.flag.load(.acquire) != i + 1:",
+        "            thread.pause()",
+        "        if c.payload != (%s)i *%% %d:" % (pt, mul),
+        "            c.seen_stale += 1",
+        "        c.ack.store(i + 1, .release)",
+        "        i += 1",
+        "",
+        "func mp_writer(context: void*?):",
+        '    let c = (Cell*)(context else trap("no cell"))',
+        "    var i: u32 = 0",
+        "    while i < rounds:",
+        "        c.payload = (%s)i *%% %d" % (pt, mul),
+        "        c.flag.store(i + 1, .release)",
+        "        while c.ack.load(.acquire) != i + 1:",
+        "            thread.pause()",
+        "        i += 1",
+        "",
+        "pub func main(arguments: str[]) -> i32!:",
+        "    var cell: Cell",
+        "    let w = try thread.spawn(mp_writer, &cell)",
+        "    let r = try thread.spawn(mp_reader, &cell)",
+        "    try w.join()",
+        "    try r.join()",
+        '    print(f"{cell.seen_stale}")',
+        "    return 0",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def differential_litmus(text, timeout, findings, label):
+    """Build and run a litmus program on native, C, and C -O2 (no seed leg -- serial threads
+    deadlock on the ack handshake). Every execution must agree and print 0 stale reads; a
+    non-zero count, a disagreement, or a hang (a deadlock) is a memory-model finding."""
+    path = out / "generated.lucb"
+    path.write_text(text)
+    exe = out / "generated"
+    outputs = {}
+    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+        status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
+        if status != 0:
+            findings.report("litmus-build-" + name, text.encode(), "%s: the build (%s) failed: %r" % (label, name, (so + se).decode("utf-8", "replace")[:300]))
+            return
+        status, so, se = run([str(exe)], timeout)
+        if status != 0:
+            findings.report("litmus-run-" + name, text.encode(), "%s: the program (%s) stopped with %d (a deadlock or trap): %r" % (label, name, status, se.decode("utf-8", "replace")[:200]))
+            return
+        outputs[name] = so
+    if len(set(outputs.values())) > 1:
+        detail = "; ".join("%s: %s" % (k, v.decode("utf-8", "replace").strip()) for k, v in outputs.items())
+        findings.report("litmus-disagree", text.encode(), "%s: the executions disagree: %s" % (label, detail))
+        return
+    result = next(iter(outputs.values())).decode("utf-8", "replace").strip()
+    if result != "0":
+        findings.report("litmus-stale", text.encode(), "%s: %s stale reads -- release/acquire did not order the payload (a memory-model bug)" % (label, result))
+
+
 def main():
     args = sys.argv[1:]
     seed = 1
@@ -1056,6 +1198,8 @@ def main():
     trap_programs = 0
     packages = 0
     mem_programs = 0
+    atomic_programs = 0
+    litmus_programs = 0
     minutes = 0.0
     gate = "--gate" in args
     for i, a in enumerate(args):
@@ -1071,10 +1215,14 @@ def main():
             packages = int(args[i + 1])
         elif a == "--mem-programs":
             mem_programs = int(args[i + 1])
+        elif a == "--atomic-programs":
+            atomic_programs = int(args[i + 1])
+        elif a == "--litmus-programs":
+            litmus_programs = int(args[i + 1])
         elif a == "--minutes":
             minutes = float(args[i + 1])
     if gate:
-        seed, mutations, programs, trap_programs, packages, mem_programs = 7, 120, 12, 12, 6, 8
+        seed, mutations, programs, trap_programs, packages, mem_programs, atomic_programs, litmus_programs = 7, 120, 12, 12, 6, 8, 6, 4
     rng = random.Random(seed)
     findings = Findings()
     files = corpus()
@@ -1082,14 +1230,14 @@ def main():
         print("no corpus")
         return 1
     deadline = time.time() + minutes * 60 if minutes > 0 else None
-    done_m = done_p = done_t = done_k = done_x = 0
+    done_m = done_p = done_t = done_k = done_x = done_a = done_l = 0
     round_ = 0
     while True:
         round_ += 1
         if deadline and round_ > 1:
             # a long run says where it is, through a pipe or a file as well as a terminal
             left = max(0, int(deadline - time.time()))
-            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {findings.count} findings, {left // 60} min left", flush=True)
+            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {findings.count} findings, {left // 60} min left", flush=True)
         for k in range(mutations):
             name, source = rng.choice(files)
             text = mutate(source, rng)
@@ -1121,13 +1269,25 @@ def main():
             done_x += 1
             if deadline and time.time() > deadline:
                 break
+        for k in range(atomic_programs):
+            text = atomic_program(random.Random(rng.randrange(1 << 30)))
+            differential(text, 30, findings, f"atomic-program {done_a + 1} (seed {seed})")
+            done_a += 1
+            if deadline and time.time() > deadline:
+                break
+        for k in range(litmus_programs):
+            text = litmus_program(random.Random(rng.randrange(1 << 30)))
+            differential_litmus(text, 25, findings, f"litmus-program {done_l + 1} (seed {seed})")
+            done_l += 1
+            if deadline and time.time() > deadline:
+                break
         if not deadline or time.time() > deadline:
             break
     for name in ("current.lucb", "generated.lucb", "generated"):
         p = out / name
         if p.exists():
             p.unlink()
-    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {findings.count} findings (seed {seed})", flush=True)
+    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {findings.count} findings (seed {seed})", flush=True)
     return min(findings.count, 100)
 
 
