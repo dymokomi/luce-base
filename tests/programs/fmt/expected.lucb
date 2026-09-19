@@ -53,3 +53,7 @@ func f(a: i64, b: i64) -> i64!:
 
 test "adds":
     assert(try add(1, 2) == 5)
+
+test "wrapped assert":
+    assert((f(1,
+              2) catch _: recover 0) == 3)

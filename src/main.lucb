@@ -1109,7 +1109,7 @@ func fmt_file(path: c.str, mode: str, out: io.Writer) -> i32!:
         p2.allow_core_names = true
         let reread = p2.parse_module() catch failure:
             error(failure.code, try format(scratch_bytes[..<2048], f"the layout does not parse: {failure.message}"))
-        if not try same_tree(module, reread):
+        if not same_tree(module, reread):
             error(build_failed, "the layout reads back as a different tree; the formatter is wrong for this file")
         if mode == "--check":
             return 0 if text == (str)src.bytes else 1
@@ -1120,23 +1120,27 @@ func fmt_file(path: c.str, mode: str, out: io.Writer) -> i32!:
         try out.write(text)
         return 0
 
-## A writer into a buffer, for comparing two dumps.
-struct Sink: io.Writer:
-    var out: buffer.Buffer
-
-    mutating func write(data: const u8[]) -> usize!:
-        try self.out.put_bytes(data)
-        return data.length
-
-## Whether two trees dump the same, the dump naming every kind, text and child.
-func same_tree(a: ast.Node*, b: ast.Node*) -> bool!:
-    var first = Sink(out = try buffer.Buffer.create(65536))
-    var second = Sink(out = try buffer.Buffer.create(65536))
-    let first_writer: io.Writer = &first
-    let second_writer: io.Writer = &second
-    try ast.dump(first_writer, a, 0)
-    try ast.dump(second_writer, b, 0)
-    return first.out.view() == second.out.view()
+## Whether two trees have the same structure: at every node, sibling for sibling, the
+## kind, flags, text and children match. The condition echo the parser keeps on an
+## `assert` call (§11.6) is a whitespace-sensitive copy of the source that the formatter
+## may reflow, and the argument subtree already fixes the meaning, so it is not compared
+## on a call node.
+func same_tree(a: ast.Node*?, b: ast.Node*?) -> bool:
+    var x = a
+    var y = b
+    while true:
+        let na = x else return y == none
+        let nb = y else return false
+        if na.kind != nb.kind or na.flags != nb.flags:
+            return false
+        if na.kind != ast.Kind.call and na.text != nb.text:
+            return false
+        if not same_tree(na.ty, nb.ty) or not same_tree(na.left, nb.left):
+            return false
+        if not same_tree(na.right, nb.right) or not same_tree(na.body, nb.body):
+            return false
+        x = na.next
+        y = nb.next
 
 func lex_file(path: c.str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
