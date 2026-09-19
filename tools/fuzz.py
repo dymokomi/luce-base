@@ -72,7 +72,10 @@ class Findings:
 def corpus():
     from standard_library import module_names, module_source
     files = []
-    for pattern in ("tests/samples/*.lucb", "tests/conformance/*/*.lucb", "tests/conformance/*/*/*.lucb"):
+    for pattern in ("tests/samples/*.lucb", "tests/samples/errors/*.lucb",
+                    "tests/conformance/*/*.lucb", "tests/conformance/*/*/*.lucb",
+                    "tests/programs/*/*.lucb", "tests/std/*.lucb",
+                    "tests/platform/*/*.lucb", "tests/robustness/*/*.lucb"):
         files += sorted(root.glob(pattern))
     sources = [(path.name, path.read_bytes()) for path in files]
     sources = [(name, data) for name, data in sources if len(data) < 60000]
@@ -146,6 +149,35 @@ def mutate(text, rng):
                 b"struct S[T]:\n    var inner: S[S[T]]\n",
             ])
     return text
+
+
+def fmt_check(text, timeout, findings, label):
+    """Run `fmt` on the program. It must accept and format it, or reject it with a positioned
+    diagnostic -- a crash, a hang, or a bare rejection is a finding. When it formats, formatting
+    the result again must be byte-identical: the formatter is a fixpoint, so non-idempotence is a
+    finding. This is the only fuzzing of the formatter, a cold spot the coverage run found."""
+    data = text.encode() if isinstance(text, str) else text
+    path = out / "fmt_in.lucb"
+    path.write_bytes(data)
+    status, so, se = run([str(compiler), "fmt", str(path)], timeout)
+    if status == -1:
+        findings.report("fmt-hang", data, f"{label}: fmt hung")
+        return
+    if status < 0 or status >= 128:
+        findings.report("fmt-crash", data, f"{label}: fmt stopped with {status}: {se.decode('utf-8', 'replace')[:150]!r}")
+        return
+    if status == 1:
+        if not position.search(se.decode('utf-8', 'replace')):
+            findings.report("fmt-bare", data, f"{label}: fmt rejected without a position: {se.decode('utf-8', 'replace')[:120]!r}")
+        return
+    if status != 0:
+        findings.report("fmt-status", data, f"{label}: fmt exited with {status}")
+        return
+    again = out / "fmt_out.lucb"
+    again.write_bytes(so)
+    status2, so2, se2 = run([str(compiler), "fmt", str(again)], timeout)
+    if status2 != 0 or so2 != so:
+        findings.report("fmt-not-idempotent", so, f"{label}: fmt is not idempotent (a second format differs)")
 
 
 def check_one(text, timeout, findings, label):
@@ -1248,6 +1280,7 @@ def main():
         for k in range(programs):
             text = Gen(random.Random(rng.randrange(1 << 30))).program()
             differential(text, 20, findings, f"program {done_p + 1} (seed {seed})")
+            fmt_check(text, 20, findings, f"fmt of program {done_p + 1} (seed {seed})")
             done_p += 1
             if deadline and time.time() > deadline:
                 break
