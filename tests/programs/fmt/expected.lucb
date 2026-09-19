@@ -12,6 +12,7 @@ var table: u8[4] = [
     1, 2,
     3, 4,
 ]
+var grid: i32[2][3]
 
 struct Point:
     var x: f64
