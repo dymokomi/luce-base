@@ -1140,15 +1140,33 @@ pub struct Formatter:
             try self.put("?")
             return
         if t.has(ast.flag_star):
-            try self.type_inner(t.left else return)
+            let pointee = t.left else return
+            # a pointer to an array parenthesises the array: `(T[N])*` is a pointer to an array,
+            # while `T[N]*` reads as an array of pointers (§5.4). The parser folds the
+            # disambiguating parentheses into the tree, so the formatter puts them back.
+            if pointee.text == "[" and (pointee.has(ast.flag_span) or pointee.has(ast.flag_array)):
+                try self.put("(")
+                try self.type_inner(pointee)
+                try self.put(")")
+            else:
+                try self.type_inner(pointee)
             try self.put("*")
             return
         if t.text == "[" and (t.has(ast.flag_span) or t.has(ast.flag_array)):
-            try self.type_inner(t.left else return)
-            try self.put("[")
-            if let length = t.right:
-                try self.expr(length)
-            try self.put("]")
+            # a chain of brackets prints base-first then the outermost length inward, matching the
+            # source `i32[3][4]`; the AST nests the outermost dimension outside, so element-first
+            # recursion would reverse the dimensions and re-parse as a different type (§5.4).
+            var base = t
+            while base.text == "[" and (base.has(ast.flag_span) or base.has(ast.flag_array)):
+                base = base.left else return
+            try self.type_inner(base)
+            var dim = t
+            while dim.text == "[" and (dim.has(ast.flag_span) or dim.has(ast.flag_array)):
+                try self.put("[")
+                if let length = dim.right:
+                    try self.expr(length)
+                try self.put("]")
+                dim = dim.left else break
             return
         if t.has(ast.flag_const):
             try self.put("const ")
