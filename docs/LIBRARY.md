@@ -1684,36 +1684,6 @@ Launch without invoking a shell. `arguments` excludes the program name. Output m
 
 - `let command_type: interop.Type[Command] = interop.Type[Command]("Command", Command.close, closeable = true)` — The interop type of a Command.
 
-## `json`
-
-Structured JSON values own their UTF-8 encoding. Containers snapshot inserted values: later changes to a child do not mutate its parent or create ARC cycles. No API accepts unchecked JSON fragments. All growth is bounded and transactional.
-
-- `let invalid: ErrorCode = ErrorCode.package(110)` — A JSON operation with an invalid argument or shape.
-
-- `let limit_exceeded: ErrorCode = ErrorCode.package(111)` — A JSON value grown past its configured byte limit.
-
-### `Value` (struct)
-
-Value() creates an object. Arrays and scalar values use the named constructors. Base copies borrow; an exported Value has normal shared interop ownership.
-
-- `func init(maximum_bytes: usize = 1048576) -> !` — Initialise as an empty object with a byte limit.
-- `static func array(maximum_bytes: usize = 1048576) -> interop.Reference[Value]!` — An empty JSON array value.
-- `static func text(value: str) -> interop.Reference[Value]!` — A JSON string value.
-- `static func integer(value: i64) -> interop.Reference[Value]!` — A JSON integer value.
-- `static func number(value: f64) -> interop.Reference[Value]!` — A JSON number value; `value` must be finite.
-- `static func boolean(value: bool) -> interop.Reference[Value]!` — A JSON boolean value.
-- `static func null() -> interop.Reference[Value]!` — The JSON null value.
-- `func encode() -> str` — Borrowed until the next mutation or close; Luce copies the result.
-- `mutating func set(name: str, value: interop.Reference[Value]) -> !` — Set object member `name` to a snapshot of `value`.
-- `mutating func append(value: interop.Reference[Value]) -> !` — Append a snapshot of `value` to an array.
-- `mutating func set_text(name: str, value: str) -> !` — Set member `name` to a string.
-- `mutating func set_integer(name: str, value: i64) -> !` — Set member `name` to an integer.
-- `mutating func set_number(name: str, value: f64) -> !` — Set member `name` to a number.
-- `mutating func set_boolean(name: str, value: bool) -> !` — Set member `name` to a boolean.
-- `mutating func close()` — Release the value's storage.
-
-- `let value_type: interop.Type[Value] = interop.Type[Value]("JSON value", Value.close, closeable = true)` — The interop type of a JSON `Value`.
-
 ## `input`
 
 Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. text_input carries committed Unicode scalars supplied by the OS text service when a window enables text input.

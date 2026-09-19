@@ -29,6 +29,6 @@
 - [Desktop services](DESKTOP-SERVICES.md) — clipboard, files and process services.
 - [Cursors](CURSORS.md), [text input](TEXT-INPUT.md), [fonts](FONTS.md) — window services.
 - [GPU](GPU.md) — the Metal and Vulkan backends behind one drawing API.
-- [Math](MATH.md), [JSON](JSON.md), [Unicode](UNICODE.md) — library module contracts.
+- [Math](MATH.md), [Unicode](UNICODE.md) — library module contracts.
 - [Native optimizations](NATIVE-OPTIMIZATIONS.md) — the IR passes and their safety rules.
 - [Native performance](NATIVE-PERFORMANCE.md) — current measurements against C.

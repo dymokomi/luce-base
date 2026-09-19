@@ -23,7 +23,6 @@ net
 interop
 files
 process
-json
 input
 window
 clipboard

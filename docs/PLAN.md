@@ -56,7 +56,7 @@ runs it for longer. Every finding becomes a test.
    nothing else rebuilds; a gate in the same tree makes false findings.
 6. **The shape of the compiler, from the audit of 2026-09-14.** The remaining work
     of `~/dev/luce-base-audit-2026-09-14.md`, in order: unit tests for the rest of the
-    standard library under `tests/std` (`net`, `process`, `json`, `unicode`, `os`, the
+    standard library under `tests/std` (`net`, `process`, `unicode`, `os`, the
     graphics modules through their proving programs); every runtime
     layout and mode named once and shared by the C emitter and the lowerer (error
     layout, allocator vtable, `lb_fmtbuf`, memory orders, program modes) and the Win32,
