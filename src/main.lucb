@@ -286,6 +286,7 @@ func checked(path: c.str) -> check.Checker!:
     cache.begin()
     let m = try manifest.load(try module_paths.canonical((str)path))
     package = m
+    cache.default_root = m.root
     names.export_prefix = m.symbol_prefix
     var checker = try check.Checker.create(scratch_of())
     checker.debug_locals = debug_backend

@@ -8,7 +8,8 @@
 #       flags, and the compiler itself. The driver notes each source as the checker reads
 #       it, asks for the key once the program is checked, and links the cached object when
 #       one is there, translating and assembling nothing (base.md §19.7). The cache is
-#       `--cache-dir DIR`, else `LUCE_CACHE`, else `~/.cache/luce-base`; `none` turns it off.
+#       `--cache-dir DIR`, else `LUCE_CACHE`, else the project-local `build/.cache` beside the
+#       build output (so `rm -rf build` clears it and no two projects share one); `none` off.
 #
 #==============================================================================================
 
@@ -24,6 +25,9 @@ pub let failed: ErrorCode = ErrorCode.package(42)
 
 ## `--cache-dir`: the directory the driver was told, before any default; `none` for no cache.
 pub var override: str = ""
+## The project root (the directory holding `luce.toml`, with a trailing slash, or empty for
+## none), so the default cache lands in that project's `build/.cache` rather than a shared one.
+pub var default_root: str = ""
 ## `--cache-report`: say on standard error whether the object came from the cache.
 pub var report: bool = false
 
@@ -83,23 +87,15 @@ pub func directory() -> str?!:
     if chosen == "none":
         return none
     if chosen.length == 0:
-        let home = home_directory()
-        if home.length == 0:
-            return none
-        let base_room = try alloc u8[home.length + 8]
-        let base = try format(base_room, f"{home}/.cache")
+        # The default cache is project-local: `<project>/build/.cache`, beside the build
+        # output, so `rm -rf build` clears it and each project keeps its own (§19.7).
+        let base_room = try alloc u8[default_root.length + 8]
+        let base = try format(base_room, f"{default_root}build")
         try ensure((c.str)base)
-        let room = try alloc u8[home.length + 24]
-        chosen = try format(room, f"{home}/.cache/luce-base")
+        let room = try alloc u8[default_root.length + 16]
+        chosen = try format(room, f"{default_root}build/.cache")
     try ensure((c.str)chosen)
     return chosen
-
-func home_directory() -> str:
-    if let home = os.env("HOME"):
-        return home
-    if let app_data = os.env("LOCALAPPDATA"):
-        return app_data
-    return ""
 
 func ensure(path: c.str) -> !:
     if files.exists(path):
