@@ -21,6 +21,8 @@ pub func main(arguments: str[]) -> i32!:
     try host.set_cursor(input.Cursor.text)
     try host.set_cursor(input.Cursor.resize_horizontal)
     assert((try host.cursor()) == input.Cursor.resize_horizontal)
+    discard(try host.wait(1000000))
+    try window.wake()
     return 0
 ''')
     for target in ['arm64-macos', 'x86_64-windows', 'x86_64-linux']:
@@ -33,6 +35,14 @@ pub func main(arguments: str[]) -> i32!:
                 for symbol in ['objc_msgSend', 'sel_registerName', 'objc_getClass']:
                     assert symbol not in assembly, (target, level, symbol)
             if target.endswith('linux'):
-                for symbol in ['CreateWindowExW', 'DefWindowProcW', 'GetModuleHandleW', 'LoadCursorW', 'SetCursor', 'GetCursorPos']:
+                for symbol in ['CreateWindowExW', 'DefWindowProcW', 'GetModuleHandleW', 'LoadCursorW', 'SetCursor', 'GetCursorPos',
+                               'MsgWaitForMultipleObjectsEx', 'PostThreadMessageW']:
                     assert symbol not in assembly, (target, level, symbol)
-            print('PASS text input and cursor target', target, level, flush=True)
+            # wait/wake must emit the host's own blocking-pump and thread-safe post
+            if target.endswith('macos'):
+                for symbol in ['nextEventMatchingMask', 'postEvent:atStart:', 'dateWithTimeIntervalSinceNow:']:
+                    assert symbol in assembly, (target, level, symbol)
+            if target.endswith('windows'):
+                for symbol in ['MsgWaitForMultipleObjectsEx', 'PostThreadMessageW']:
+                    assert symbol in assembly, (target, level, symbol)
+            print('PASS text input, cursor, wait and wake target', target, level, flush=True)

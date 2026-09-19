@@ -4,6 +4,15 @@ import window
 import native
 import platform
 import thread
+import time
+
+## Wake the UI loop from another thread after a short delay (spec §8 acceptance).
+func waker(context: void*?):
+    discard(context)
+    thread.sleep(50)
+    window.wake() catch failure:
+        discard(failure)
+        trap("window.wake() from a worker thread failed")
 
 func wrong_thread(context: void*?):
     let pointer = context else trap("missing test context")
@@ -71,6 +80,15 @@ pub func main(arguments: str[]) -> i32!:
             assert(failure.code == window.closed)
             rejected = true
         assert(rejected)
+        # wake() is a thread-safe no-op before any window opens; wait() on a closed window
+        # is rejected exactly like poll().
+        try window.wake()
+        rejected = false
+        discard(zero.wait(0) catch failure:
+            assert(failure.code == window.closed)
+            rejected = true
+            recover none)
+        assert(rejected)
         if arguments.length < 2 or arguments[1] != "gui":
             print("ok window contracts without WindowServer")
             return 0
@@ -82,6 +100,14 @@ pub func main(arguments: str[]) -> i32!:
         defer second.destroy()
         try second.show()
         try first.show()
+        try flush(&first)
+        # A wake() from another thread returns a blocked wait() promptly: the worker sleeps
+        # ~50 ms then wakes; wait's one-hour budget must not be what ends it.
+        var waker_thread = try thread.spawn(waker, none)
+        let started = time.now()
+        discard(try first.wait(3600000000000))
+        try waker_thread.join()
+        assert(time.since(started) < 5000000000)
         try flush(&first)
         native.focus_notification(native.find("Luce test A"), true)
         discard(try expect(&first, input.EventKind.focus_gained))

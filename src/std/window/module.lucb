@@ -174,6 +174,20 @@ pub struct Window:
             win_pump(state)
         return pop_event(state)
 
+    ## Block until an event is queued or `timeout_ns` elapses, then behave like poll():
+    ## return the oldest queued event, or none on a timeout or a spurious wake. A `wake()`
+    ## from another thread returns it promptly; 0 returns immediately, like poll(). The
+    ## loop re-evaluates and waits again on a none. Main thread only; poll() is unchanged.
+    pub func wait(timeout_ns: u64) -> input.Event?!:
+        let state = try self.checked()
+        if let event = pop_event(state):
+            return event
+        if platform.macos and platform.arm64:
+            mac_wait(state, timeout_ns)
+        if platform.windows:
+            win_wait(state, timeout_ns)
+        return pop_event(state)
+
     ## Idempotent on this value. Detach callbacks before releasing native objects
     ## and storage. Calling from another thread traps instead of leaking silently.
     pub mutating func destroy():
@@ -190,6 +204,18 @@ pub struct Window:
     func checked() -> State*!:
         try check_thread()
         return self.state else error(closed, "the window is closed")
+
+## Unblock a wait() in progress from ANY thread, or make the next wait() return promptly.
+## It posts one OS event and touches no main-thread window state, holds no lock and runs no
+## callback, so a finished worker thread can make the UI respond at once. Safe when no wait
+## is in progress (coalesced) and before any window opens (a no-op).
+pub func wake() -> !:
+    if not supported():
+        error(unsupported, "native windows are not implemented for this target")
+    if platform.macos and platform.arm64:
+        try mac_wake()
+    if platform.windows:
+        try win_wake()
 
 func check_thread() -> !:
     if not supported():

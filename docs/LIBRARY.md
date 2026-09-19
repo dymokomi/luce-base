@@ -1782,7 +1782,10 @@ One owned native window. The zero value is closed. Copies alias ownership: borro
 - `func set_redraw(callback: func(void*) -> unit, context: void*) -> !` — Register a redraw invoked while the window is being live-resized, so the application can repaint at the new size instead of showing a stretched frame. During a resize the OS runs a modal loop that starves the normal event pump; this callback fires from inside it. It runs on the main thread with `context`, and lives until replaced or the window is destroyed. Keep `context` valid for that lifetime. The callback must not destroy or resize the window.
 - `func request_close() -> !` — Request closure, using the same event as the title-bar close button. The application decides whether to destroy the window after receiving it.
 - `func poll() -> input.Event?!` — Return the oldest queued event, or none after a bounded nonblocking pump. Each window holds 256 events. On exhaustion the queue is discarded and one overflow event precedes subsequent events; close requests remain sticky. No event holds transient AppKit storage. Call regularly for every window.
+- `func wait(timeout_ns: u64) -> input.Event?!` — Block until an event is queued or `timeout_ns` elapses, then behave like poll(): return the oldest queued event, or none on a timeout or a spurious wake. A `wake()` from another thread returns it promptly; 0 returns immediately, like poll(). The loop re-evaluates and waits again on a none. Main thread only; poll() is unchanged.
 - `mutating func destroy()` — Idempotent on this value. Detach callbacks before releasing native objects and storage. Calling from another thread traps instead of leaking silently.
+
+- `func wake() -> !` — Unblock a wait() in progress from ANY thread, or make the next wait() return promptly. It posts one OS event and touches no main-thread window state, holds no lock and runs no callback, so a finished worker thread can make the UI respond at once. Safe when no wait is in progress (coalesced) and before any window opens (a no-op).
 
 ### `Presentation` (struct)
 

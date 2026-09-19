@@ -15,6 +15,8 @@
 var view_class: void*?
 var delegate_class: void*?
 var application: void*?
+# The NSApp pointer as bits, published once at open so wake() can read it from any thread.
+var app_handle: @usize
 
 func make_class(parent: c.str, name: c.str) -> void*!:
     let native_type = objc_allocateClassPair(try native_class(parent), name, 0) else error(failed, "could not allocate a native window class")
@@ -61,6 +63,7 @@ func mac_open(options: Options) -> State*!:
         if not msg_policy(app, sel("setActivationPolicy:"), 0):
             error(failed, "AppKit refused the application's window activation policy")
         application = app
+        app_handle.store((usize)app, .release)
     let state = try new State() in memory.heap
     errdefer mac_destroy(state)
     state.native_cursor = try mac_cursor(input.Cursor.arrow)
@@ -152,6 +155,41 @@ func mac_pump(waiting: State*):
         if waiting.count > 0 or waiting.close_requested or waiting.overflowed:
             break
     msg_void(app, sel("updateWindows"))
+
+## Block up to `timeout_ns` for the first event (a wake() posts one), deliver it, then
+## drain the rest like mac_pump. A timeout with no event leaves the queue empty.
+func mac_wait(waiting: State*, timeout_ns: u64):
+    let app = application else return
+    let pool = objc_autoreleasePoolPush()
+    defer objc_autoreleasePoolPop(pool)
+    let date_class = objc_getClass("NSDate") else trap("AppKit has no NSDate class")
+    let seconds = (f64)timeout_ns / 1000000000.0
+    let deadline = required(msg_interval(date_class, sel("dateWithTimeIntervalSinceNow:"), seconds))
+    if let event = msg_next(app, sel("nextEventMatchingMask:untilDate:inMode:dequeue:"), ~(u64)0, deadline, NSDefaultRunLoopMode, true):
+        msg_object(app, sel("sendEvent:"), event)
+        let past = required(msg_ptr(date_class, sel("distantPast")))
+        var count: usize = 0
+        while count < 256:
+            if waiting.count > 0 or waiting.close_requested or waiting.overflowed:
+                break
+            let more = msg_next(app, sel("nextEventMatchingMask:untilDate:inMode:dequeue:"), ~(u64)0, past, NSDefaultRunLoopMode, true) else break
+            msg_object(app, sel("sendEvent:"), more)
+            count += 1
+    msg_void(app, sel("updateWindows"))
+
+## Post an application-defined event so a blocked wait() returns. Reads only the
+## atomically-published NSApp handle and makes one thread-safe AppKit call; it takes no
+## lock and runs no callback, so any thread may call it. A no-op before a window opens.
+func mac_wake() -> !:
+    let bits = app_handle.load(.acquire)
+    if bits == 0:
+        return
+    let app = (void*)bits
+    let pool = objc_autoreleasePoolPush()
+    defer objc_autoreleasePoolPop(pool)
+    let event_class = objc_getClass("NSEvent") else error(failed, "AppKit has no NSEvent class")
+    let event = msg_wakeup(event_class, sel("otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:"), 15, LuceWindowMacPoint(), 0, 0.0, 0, none, 0, 0, 0) else error(failed, "could not create a wake event")
+    msg_post(app, sel("postEvent:atStart:"), event, true)
 
 func mac_destroy(state: State*):
     let pool = objc_autoreleasePoolPush()

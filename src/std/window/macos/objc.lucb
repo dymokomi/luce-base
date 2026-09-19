@@ -64,6 +64,7 @@ extern func msg_init_view as "objc_msgSend"(object: void*, selector: void*, rect
 extern func msg_init_tracking as "objc_msgSend"(object: void*, selector: void*, rect: LuceWindowMacRect, options: u64, owner: void*, user_info: void*?) -> void*?
 extern func msg_init_text as "objc_msgSend"(object: void*, selector: void*, bytes: const u8*, length: usize, encoding: u64) -> void*?
 extern func msg_next as "objc_msgSend"(object: void*, selector: void*, mask: u64, until: void*, mode: void*, dequeue: bool) -> void*?
+extern func msg_interval as "objc_msgSend"(object: void*, selector: void*, seconds: f64) -> void*?
 extern func msg_observe as "objc_msgSend"(object: void*, selector: void*, observer: void*, callback: void*, name: void*, sender: void*)
 extern func msg_post as "objc_msgSend"(object: void*, selector: void*, event: void*, first: bool)
 extern func msg_wakeup as "objc_msgSend"(object: void*, selector: void*, kind: u64, point: LuceWindowMacPoint, flags: u64, time: f64, window: i64, context: void*?, subtype: i16, first: i64, second: i64) -> void*?

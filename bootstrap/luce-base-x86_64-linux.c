@@ -5690,6 +5690,13 @@ extern void* lb_x_window_8msg_next(void*, void*, uint64_t, void*, void*, bool) L
 #define lb_c_window_8msg_next lb_x_window_8msg_next
 #endif
 #if defined(__clang__) && !defined(__wasm__)
+extern void lb_x_window_12msg_interval(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_12msg_interval ((void* (*)(void*, void*, double))lb_x_window_12msg_interval)
+#else
+extern void* lb_x_window_12msg_interval(void*, void*, double) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_12msg_interval lb_x_window_12msg_interval
+#endif
+#if defined(__clang__) && !defined(__wasm__)
 extern void lb_x_window_11msg_observe(void) LB_SYMBOL("objc_msgSend");
 #define lb_c_window_11msg_observe ((void (*)(void*, void*, void*, void*, void*, void*))lb_x_window_11msg_observe)
 #else
@@ -5729,6 +5736,9 @@ extern int32_t lb_x_window_SetWindowPos(void*, void*, int32_t, int32_t, int32_t,
 extern int32_t lb_x_window_PeekMessageW(struct WinMessage*, void*, uint32_t, uint32_t, uint32_t) LB_SYMBOL("PeekMessageW");
 extern int32_t lb_x_window_TranslateMessage(struct WinMessage*) LB_SYMBOL("TranslateMessage");
 extern intptr_t lb_x_window_DispatchMessageW(struct WinMessage*) LB_SYMBOL("DispatchMessageW");
+extern uint32_t lb_x_window_MsgWaitForMultipleObjectsEx(uint32_t, void*, uint32_t, uint32_t, uint32_t) LB_SYMBOL("MsgWaitForMultipleObjectsEx");
+extern int32_t lb_x_window_PostThreadMessageW(uint32_t, uint32_t, size_t, intptr_t) LB_SYMBOL("PostThreadMessageW");
+extern uint32_t lb_x_window_GetCurrentThreadId(void) LB_SYMBOL("GetCurrentThreadId");
 extern int16_t lb_x_window_GetKeyState(int32_t) LB_SYMBOL("GetKeyState");
 extern void* lb_x_window_SetCapture(void*) LB_SYMBOL("SetCapture");
 extern int32_t lb_x_window_ReleaseCapture(void) LB_SYMBOL("ReleaseCapture");
