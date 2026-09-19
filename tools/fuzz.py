@@ -42,6 +42,7 @@ os.chdir(root)
 compiler = pathlib.Path(os.environ.get("LUCE_BASE_COMPILER", root / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base")))
 seed_binary = root.parent / "luce-seed" / "build" / "lucb"
 out = root / "build" / "fuzz"
+memcheck = None   # the valgrind command when --valgrind is on and valgrind exists; else None
 out.mkdir(parents=True, exist_ok=True)
 
 position = re.compile(r"[^ :]+\.lucb:\d+:\d+: ")
@@ -755,6 +756,11 @@ def differential(text, timeout, findings, label):
             findings.report("run-" + name, text.encode(), f"{label}: the program ({name}) stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
             return
         outputs[name] = so
+        if memcheck and name == "native":
+            vstatus, vout, verr = run([memcheck, "--error-exitcode=99", "--leak-check=no", "-q", str(exe)], timeout * 8)
+            if vstatus == 99:
+                findings.report("valgrind", text.encode(), f"{label}: valgrind found a memory error in the native binary: {verr.decode('utf-8', 'replace')[:400]!r}")
+                return
     if seed_binary.exists():
         status, so, se = run([str(seed_binary), "eval", str(path)], timeout * 4)
         if status != 0:
@@ -1254,6 +1260,12 @@ def main():
             litmus_programs = int(args[i + 1])
         elif a == "--minutes":
             minutes = float(args[i + 1])
+    if "--valgrind" in args:
+        import shutil
+        global memcheck
+        memcheck = shutil.which("valgrind")
+        if not memcheck:
+            print("fuzz: --valgrind requested but valgrind is not installed; running without memory checks", flush=True)
     if gate:
         seed, mutations, programs, trap_programs, packages, mem_programs, atomic_programs, litmus_programs = 7, 120, 12, 12, 6, 8, 6, 4
     rng = random.Random(seed)

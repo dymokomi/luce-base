@@ -204,5 +204,5 @@ tools/tsan_concurrency.sh
 # the fuzzer's short run, the same on every host: mutated programs are accepted or
 # rejected with a positioned diagnostic, never a fault, and generated programs agree
 # across the C, C -O2, native, and seed executions (tools/fuzz.py --minutes M runs longer)
-python3 tools/fuzz.py --gate
+python3 tools/fuzz.py --gate --valgrind
 echo "ok"
