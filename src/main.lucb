@@ -905,6 +905,17 @@ func test_file(path: c.str, native: bool) -> i32!:
         var checker = try checked(path)
         let entry = checker.modules.get(checker.modules.count - 1).tree
         used_mode = try settle_mode(entry, 1)
+        # LUCE_TEST_BINARY keeps the compiled test binary at a path so a memory checker can
+        # run it (tools/valgrind_std.sh); otherwise it builds into a scratch dir and removes it.
+        if let requested = os.env("LUCE_TEST_BINARY"):
+            let kept = try strings.copy(requested)
+            try compile(&checker, entry, 1, kept, false, false)
+            var kept_args: c.str[1] = ---
+            kept_args[0] = (c.str)kept
+            let (kept_code, kept_out, kept_err) = try process.run((c.str)kept, kept_args)
+            try io.stdout().write(kept_out)
+            try io.stderr().write(kept_err)
+            return kept_code
         let directory = try scratch_directory()
         defer remove_tree((c.str)directory)
         let exe_name = try alloc u8[directory.length + 16]

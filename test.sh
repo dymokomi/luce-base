@@ -197,6 +197,8 @@ tools/native_check.sh
 # positive program runs clean at -O0 and -O3, catching memory faults in the native machine
 # code that the C-backend sanitizers cannot reach (tools/valgrind_native.sh)
 if command -v valgrind > /dev/null 2>&1; then tools/valgrind_native.sh; else echo "skip valgrind_native: no valgrind on this host"; fi
+# the standard library's own test binaries under valgrind (tools/valgrind_std.sh)
+if command -v valgrind > /dev/null 2>&1; then tools/valgrind_std.sh; else echo "skip valgrind_std: no valgrind on this host"; fi
 # the threaded concurrency programs under ThreadSanitizer where it can run (Linux, ASLR off):
 # a data race between threads is a finding no other check sees; the script self-skips where
 # TSan is unavailable or cannot map (tools/tsan_concurrency.sh)

@@ -1,5 +1,6 @@
 ## The `math` and `math32` modules against their archive: rounding, roots, powers,
 ## logarithms and the decompositions.
+# valgrind: skip -- valgrind does not reproduce floating-point results bit for bit
 import math
 import math32
 
