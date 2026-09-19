@@ -1,0 +1,8 @@
+pub func main(arguments: str[]) -> i32:
+    let a: f32 = 1.5
+    let h: f16 = 2.5
+    let n: i8 = -100
+    let m: i16 = 30000
+    let s: f32 = a * 2.0 + (f32)h
+    let total: i64 = (i64)(n +% 5) + (i64)(m -% 1000) + (i64)s
+    return (i32)total

@@ -1,0 +1,13 @@
+interface Shape:
+    func area() -> i64
+struct Box: Shape:
+    var w: i64
+    var h: i64
+    func area() -> i64:
+        return self.w *% self.h
+func area_dyn(s: Shape) -> i64:
+    return s.area()
+pub func main(arguments: str[]) -> i32:
+    var b = Box(w = 3, h = 4)
+    let v: Shape = &b
+    return (i32)(v.area() +% area_dyn(&b))

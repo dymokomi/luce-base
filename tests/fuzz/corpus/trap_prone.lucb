@@ -1,0 +1,6 @@
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = (i64)arguments.length
+    let a = x * 1000000000
+    let b = x // (x & 3)
+    var t: i64[8] = [0, 1, 2, 3, 4, 5, 6, 7]
+    return (i32)(a + b + t[(usize)(x & 15)])

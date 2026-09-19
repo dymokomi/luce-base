@@ -32,7 +32,7 @@ AFL_LLVM_INSTRUMENT=${AFL_LLVM_INSTRUMENT:-CLASSIC} \
 
 # seed the corpus from the small, syntactically diverse front-end inputs
 i=0
-for f in tests/samples/*.lucb tests/samples/errors/*.lucb tests/conformance/[0-9]*/*.lucb tests/conformance/[0-9]*/errors/*.lucb; do
+for f in tests/fuzz/corpus/*.lucb tests/samples/*.lucb tests/samples/errors/*.lucb tests/conformance/[0-9]*/*.lucb tests/conformance/[0-9]*/errors/*.lucb; do
     [ -e "$f" ] || continue
     [ "$(wc -c < "$f")" -lt 4096 ] || continue
     cp "$f" "build/afl/corpus/$i.lucb"

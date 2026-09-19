@@ -1,0 +1,6 @@
+pub func main(arguments: str[]) -> i32:
+    var grid: i32[3][4]
+    var cube: u8[2][3][4]
+    let p: (i32[4])* = &grid[0]
+    grid[2][1] = 7
+    return grid[2][1] + (i32)cube[1][2][3]

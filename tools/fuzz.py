@@ -75,7 +75,8 @@ def corpus():
     for pattern in ("tests/samples/*.lucb", "tests/samples/errors/*.lucb",
                     "tests/conformance/*/*.lucb", "tests/conformance/*/*/*.lucb",
                     "tests/programs/*/*.lucb", "tests/std/*.lucb",
-                    "tests/platform/*/*.lucb", "tests/robustness/*/*.lucb"):
+                    "tests/platform/*/*.lucb", "tests/robustness/*/*.lucb",
+                    "tests/fuzz/corpus/*.lucb"):
         files += sorted(root.glob(pattern))
     sources = [(path.name, path.read_bytes()) for path in files]
     sources = [(name, data) for name, data in sources if len(data) < 60000]
