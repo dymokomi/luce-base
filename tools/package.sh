@@ -28,6 +28,19 @@ rm -rf "$work"
 mkdir -p "$work/$tree/bin" "$work/$tree/share/luce-base/docs/language"
 cp "$exe" "$work/$tree/bin/$name"
 chmod 755 "$work/$tree/bin/$name"
+# Bundle luc, the project tool, so installing the language installs it too. It is built with
+# the compiler just packaged, from the luce-luc checkout (LUCE_LUC_SOURCE, default ../luce-luc);
+# a release always has it, a bare dev package warns and ships without it.
+luc_source=${LUCE_LUC_SOURCE:-../luce-luc}
+if [ -f "$luc_source/build.sh" ]; then
+    case "$host" in x86_64-windows) luc_name=luc.exe;; *) luc_name=luc;; esac
+    LUCE_BASE_COMPILER="$PWD/$exe" "$luc_source/build.sh" > /dev/null
+    cp "$luc_source/build/$luc_name" "$work/$tree/bin/$luc_name"
+    chmod 755 "$work/$tree/bin/$luc_name"
+    echo "package.sh: bundled $("$work/$tree/bin/$luc_name" --version)"
+else
+    echo "package.sh: no luce-luc at $luc_source; the archive will not include luc" >&2
+fi
 cp -R src/std "$work/$tree/share/luce-base/std"
 cp LICENSE LICENSE-MIT LICENSE-APACHE VERSION "$work/$tree/share/luce-base/"
 cp docs/language/base.md "$work/$tree/share/luce-base/docs/language/"

@@ -35,6 +35,8 @@ jobs:
           [ "${GITHUB_REF_NAME#luce-base-}" = "$(tr -d '[:space:]' < VERSION)" ] || { echo "the tag does not name VERSION"; exit 1; }
       - name: Build from the bootstrap snapshot
         run: ./build.sh
+      - name: Fetch luc to bundle in the archive
+        run: git clone --depth 1 https://github.com/dymokomi/luce-luc.git ../luce-luc
       - name: Package
         run: tools/package.sh build/release
       - name: Prove the archive
@@ -67,6 +69,8 @@ jobs:
           [ "${GITHUB_REF_NAME#luce-base-}" = "$(tr -d '[:space:]' < VERSION)" ] || { echo "the tag does not name VERSION"; exit 1; }
       - name: Build from the bootstrap snapshot
         run: python tools/build_windows.py
+      - name: Fetch luc to bundle in the archive
+        run: git clone --depth 1 https://github.com/dymokomi/luce-luc.git ../luce-luc
       - name: Package
         run: sh tools/package.sh build/release
       - name: Prove the archive

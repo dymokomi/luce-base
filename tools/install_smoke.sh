@@ -9,6 +9,7 @@ work=$2
 [ -f "$archive" ] || { echo "install_smoke.sh: $archive is missing" >&2; exit 1; }
 rm -rf "$work"
 mkdir -p "$work"
+work=$(cd "$work" && pwd)   # absolute, so paths survive the cd into a scaffolded project
 directory=$(dirname "$archive")
 name=$(basename "$archive")
 if command -v sha256sum > /dev/null 2>&1; then
@@ -26,4 +27,10 @@ printf 'import strings\npub func main(arguments: str[]) -> i32:\n    print(f"hel
 [ "$("$program")" = "hello from luce-base, true" ]
 "$compiler" build "$work/hello.lucb" --backend=c -o "$program"
 [ "$("$program")" = "hello from luce-base, true" ]
-echo "ok install smoke: $tree builds and runs a program through both backends"
+# the bundled project tool builds and runs a scaffolded project with this same compiler
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) luc="$bin/luc.exe";; *) luc="$bin/luc";; esac
+[ -x "$luc" ] || { echo "install_smoke.sh: the archive has no bin/luc" >&2; exit 1; }
+"$luc" --version
+LUCE_BASE="$compiler" "$luc" new "$work/demo" > /dev/null
+[ "$(cd "$work/demo" && LUCE_BASE="$compiler" "$luc" run)" = "hello from demo" ]
+echo "ok install smoke: $tree builds and runs a program through both backends, and luc builds a project"
