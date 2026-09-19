@@ -1,4 +1,5 @@
 ## §15.1: plain reads and `=` on an `@T` are sequentially consistent loads and stores; `+=`
+# tsan: skip  (TSan cannot instrument a standalone `atomic_thread_fence`)
 ## and the bit assignments are the read-modify-write instructions and wrap; the methods
 ## answer the previous value; `cas` answers whether it exchanged and what it saw; `wait`
 ## returns at once when the value differs; `fence` is a standalone fence. §15.2: loads and

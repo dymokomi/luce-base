@@ -1,4 +1,5 @@
 ## §15: atomics in depth: a counter incremented from several threads through `+=` on an
+# tsan: skip  (TSan cannot instrument a standalone `atomic_thread_fence`)
 ## `@u64`, a flag published with a release store and awaited with acquire loads, a
 ## compare-and-swap loop reserving slots, and a fence between two plain writes.
 # oracle: none
