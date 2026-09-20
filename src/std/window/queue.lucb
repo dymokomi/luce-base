@@ -32,6 +32,13 @@ struct State:
     var marked_length: usize
     var redraw: (func(void*) -> unit)?
     var redraw_context: void*?
+    var fullscreen: bool
+    var saved_x: f64
+    var saved_y: f64
+    var saved_width: f64
+    var saved_height: f64
+    var saved_style: u64
+    var saved_level: i64
 
 ## Committed characters own their value. Control keys remain physical events;
 ## no queued event borrows native string storage or a composition buffer.

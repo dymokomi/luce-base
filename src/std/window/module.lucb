@@ -45,6 +45,9 @@ pub struct Options:
     pub var height: u32 = 600
     ## Whether the user may resize the window.
     pub var resizable: bool = true
+    ## Cover the main display without chrome. The windowed frame is restored by
+    ## `set_fullscreen(false)`. Creation still opens hidden; call show afterwards.
+    pub var fullscreen: bool = false
 
 ## Content extent in logical points and backing pixels. Query again after resized;
 ## a move between displays can change backing pixels without changing logical size.
@@ -75,11 +78,17 @@ pub struct Window:
         try check_extent(options.width, options.height)
         if not utf8.valid(options.title.bytes):
             error(invalid_options, "the window title is not valid UTF-8")
+        var opened = Window()
         if platform.macos and platform.arm64:
-            return Window(state = try mac_open(options))
-        if platform.windows:
-            return Window(state = try win_open(options))
-        error(unsupported, "native windows are not implemented for this target")
+            opened = Window(state = try mac_open(options))
+        elif platform.windows:
+            opened = Window(state = try win_open(options))
+        else:
+            error(unsupported, "native windows are not implemented for this target")
+        errdefer opened.destroy()
+        if options.fullscreen:
+            try opened.set_fullscreen(true)
+        return opened
 
     ## Make the window visible; call after setting it up.
     pub func show() -> !:
@@ -106,6 +115,19 @@ pub struct Window:
             mac_resize(state, width, height)
         if platform.windows:
             try win_resize(state, width, height)
+
+    ## Cover the main display without chrome, or restore the previous windowed
+    ## frame. Idempotent. Emits a resize event when the extent changes.
+    pub func set_fullscreen(enabled: bool) -> !:
+        let state = try self.checked()
+        if platform.macos and platform.arm64:
+            try mac_set_fullscreen(state, enabled)
+        if platform.windows:
+            try win_set_fullscreen(state, enabled)
+
+    ## Whether this window currently covers the display without chrome.
+    pub func is_fullscreen() -> bool!:
+        return (try self.checked()).fullscreen
 
     ## Enable committed text from the active keyboard layout and input method.
     ## Disable when no editable control has focus; this cancels pending composition.

@@ -67,6 +67,16 @@ extern func DispatchMessageW(message: WinMessage*) -> isize
 extern func MsgWaitForMultipleObjectsEx(count: u32, handles: void*?, milliseconds: u32, mask: u32, flags: u32) -> u32
 extern func PostThreadMessageW(thread: u32, message: u32, word: usize, value: isize) -> i32
 extern func GetCurrentThreadId() -> u32
+extern func GetWindowRect(window: void*, rect: WinRect*) -> i32
+extern func MonitorFromWindow(window: void*, flags: u32) -> void*?
+
+extern struct WinMonitor:
+    size: u32
+    monitor: WinRect
+    work: WinRect
+    flags: u32
+
+extern func GetMonitorInfoW(monitor: void*, info: WinMonitor*) -> i32
 
 var win_class_atom: u16
 var win_class_name: u16[11] = [76, 117, 99, 101, 87, 105, 110, 100, 111, 119, 0]
@@ -127,6 +137,37 @@ func win_resize(state: State*, width: u32, height: u32) -> !:
     var rect = WinRect(right = (i32)((u64)width * (u64)dpi // 96), bottom = (i32)((u64)height * (u64)dpi // 96))
     if AdjustWindowRectExForDpi(&rect, style, 0, 0, dpi) == 0 or SetWindowPos(native, none, 0, 0, rect.right - rect.left, rect.bottom - rect.top, 22) == 0:
         error(failed, "the native window could not be resized")
+
+## Cover the nearest monitor without chrome, or restore the saved windowed
+## placement. Idempotent. SetWindowPos emits WM_SIZE, which queues a resize.
+func win_set_fullscreen(state: State*, enabled: bool) -> !:
+    if state.fullscreen == enabled:
+        return
+    let native = required(state.native)
+    if enabled:
+        var placed: WinRect
+        if GetWindowRect(native, &placed) == 0:
+            error(failed, "the native window placement could not be read")
+        let monitor = MonitorFromWindow(native, 2) else error(failed, "no display is available for fullscreen")
+        var info = WinMonitor(size = (u32)sizeof(WinMonitor))
+        if GetMonitorInfoW(monitor, &info) == 0:
+            error(failed, "the native monitor could not be queried")
+        state.saved_x = (f64)placed.left
+        state.saved_y = (f64)placed.top
+        state.saved_width = (f64)(placed.right - placed.left)
+        state.saved_height = (f64)(placed.bottom - placed.top)
+        state.saved_style = (u64)GetWindowLongPtrW(native, -16)
+        discard(SetWindowLongPtrW(native, -16, (isize)(u64)(0x80000000 | 0x10000000)))
+        let area = info.monitor
+        if SetWindowPos(native, none, area.left, area.top, area.right - area.left, area.bottom - area.top, 32) == 0:
+            discard(SetWindowLongPtrW(native, -16, (isize)state.saved_style))
+            error(failed, "the native window could not enter fullscreen")
+        state.fullscreen = true
+    else:
+        discard(SetWindowLongPtrW(native, -16, (isize)state.saved_style))
+        if SetWindowPos(native, none, (i32)state.saved_x, (i32)state.saved_y, (i32)state.saved_width, (i32)state.saved_height, 32) == 0:
+            error(failed, "the native window could not leave fullscreen")
+        state.fullscreen = false
 
 # mark: The event pump ========================================================================
 

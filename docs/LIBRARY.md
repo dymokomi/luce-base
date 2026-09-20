@@ -1756,6 +1756,7 @@ Options for creating a window; each has a sensible default.
 - `var width: u32 = 800` — The initial content width in logical points.
 - `var height: u32 = 600` — The initial content height in logical points.
 - `var resizable: bool = true` — Whether the user may resize the window.
+- `var fullscreen: bool = false` — Cover the main display without chrome. The windowed frame is restored by `set_fullscreen(false)`. Creation still opens hidden; call show afterwards.
 
 ### `Size` (struct)
 
@@ -1775,6 +1776,8 @@ One owned native window. The zero value is closed. Copies alias ownership: borro
 - `func show() -> !` — Make the window visible; call after setting it up.
 - `func size() -> Size!` — The window's current content extent.
 - `func resize(width: u32, height: u32) -> !` — Resize the content to `width` by `height` logical points.
+- `func set_fullscreen(enabled: bool) -> !` — Cover the main display without chrome, or restore the previous windowed frame. Idempotent. Emits a resize event when the extent changes.
+- `func is_fullscreen() -> bool!` — Whether this window currently covers the display without chrome.
 - `func set_text_input(enabled: bool) -> !` — Enable committed text from the active keyboard layout and input method. Disable when no editable control has focus; this cancels pending composition.
 - `func set_cursor(cursor: input.Cursor) -> !` — Choose the cursor for this window's content. Native chrome and other windows keep their own cursors. The choice survives OS cursor updates.
 - `func cursor() -> input.Cursor!` — The window's current cursor.

@@ -68,6 +68,10 @@ extern func msg_interval as "objc_msgSend"(object: void*, selector: void*, secon
 extern func msg_observe as "objc_msgSend"(object: void*, selector: void*, observer: void*, callback: void*, name: void*, sender: void*)
 extern func msg_post as "objc_msgSend"(object: void*, selector: void*, event: void*, first: bool)
 extern func msg_wakeup as "objc_msgSend"(object: void*, selector: void*, kind: u64, point: LuceWindowMacPoint, flags: u64, time: f64, window: i64, context: void*?, subtype: i16, first: i64, second: i64) -> void*?
+extern func msg_i64 as "objc_msgSend"(object: void*, selector: void*) -> i64
+extern func msg_u64_arg as "objc_msgSend"(object: void*, selector: void*, value: u64)
+extern func msg_i64_arg as "objc_msgSend"(object: void*, selector: void*, value: i64)
+extern func msg_set_frame as "objc_msgSend"(object: void*, selector: void*, rect: LuceWindowMacRect, display: bool)
 
 func sel(name: c.str) -> void*:
     return sel_registerName(name)

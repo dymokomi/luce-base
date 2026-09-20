@@ -140,6 +140,40 @@ func mac_resize(state: State*, width: u32, height: u32):
     defer objc_autoreleasePoolPop(pool)
     msg_extent(required(state.native), sel("setContentSize:"), LuceWindowMacExtent(width = (f64)width, height = (f64)height))
 
+## Borderless coverage of the main screen, hiding the dock and menu bar. The
+## windowed frame, style and level are restored when leaving. Synchronous: the
+## content extent changes before this returns, and a resize event is queued.
+func mac_set_fullscreen(state: State*, enabled: bool) -> !:
+    if state.fullscreen == enabled:
+        return
+    let pool = objc_autoreleasePoolPush()
+    defer objc_autoreleasePoolPop(pool)
+    let native = required(state.native)
+    let app = required(application)
+    if enabled:
+        let screen = msg_ptr(try native_class("NSScreen"), sel("mainScreen")) else error(failed, "no display is available for fullscreen")
+        let frame = msg_rect(native, sel("frame"))
+        state.saved_x = frame.origin.x
+        state.saved_y = frame.origin.y
+        state.saved_width = frame.size.width
+        state.saved_height = frame.size.height
+        state.saved_style = msg_uint(native, sel("styleMask"))
+        state.saved_level = msg_i64(native, sel("level"))
+        msg_u64_arg(native, sel("setStyleMask:"), 0)
+        msg_set_frame(native, sel("setFrame:display:"), msg_rect(screen, sel("frame")), true)
+        msg_i64_arg(native, sel("setLevel:"), 25)
+        msg_u64_arg(app, sel("setPresentationOptions:"), 6)
+        state.fullscreen = true
+    else:
+        msg_u64_arg(app, sel("setPresentationOptions:"), 0)
+        msg_i64_arg(native, sel("setLevel:"), state.saved_level)
+        msg_u64_arg(native, sel("setStyleMask:"), state.saved_style)
+        msg_set_frame(native, sel("setFrame:display:"), LuceWindowMacRect(
+            origin = LuceWindowMacPoint(x = state.saved_x, y = state.saved_y),
+            size = LuceWindowMacExtent(width = state.saved_width, height = state.saved_height)), true)
+        state.fullscreen = false
+    push_event(state, input.Event(kind = input.EventKind.resized))
+
 func mac_pump(waiting: State*):
     let app = application else return
     let pool = objc_autoreleasePoolPush()
@@ -195,6 +229,10 @@ func mac_destroy(state: State*):
     let pool = objc_autoreleasePoolPush()
     defer objc_autoreleasePoolPop(pool)
     state.destroyed = true
+    if state.fullscreen:
+        if let app = application:
+            msg_u64_arg(app, sel("setPresentationOptions:"), 0)
+        state.fullscreen = false
     mac_clear_marked(state)
     if let view = state.view:
         set_state(view, none)
