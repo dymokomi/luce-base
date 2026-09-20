@@ -13,7 +13,7 @@
 ## After `main`: the collector runs, and anything still alive is a defect. The exit status.
 pub func finish_run(status: i32) -> i32:
     drain(0)
-    collect()
+    settle()
     if live != 0:
         var room: u8[96]
         let text = format(room, f"runtime: {live} objects alive at exit\n") catch failure:
@@ -30,7 +30,7 @@ pub func finish_run(status: i32) -> i32:
 ## its arguments and result are released; what it does leave stops the program.
 pub func finish_task():
     drain(0)
-    collect()
+    settle()
     if live != 0:
         var room: u8[96]
         let text = format(room, f"runtime: {live} objects alive when a task ended\n") catch failure:
@@ -41,6 +41,18 @@ pub func finish_task():
     release_buffers()
     runtime_depth = 0
     thread_context = 0
+
+## Collecting a cycle drops its members' fields, which can release shared objects the cycle
+## held: that buffers fresh candidates and may pool temporaries. During a run the next
+## collection absorbs them, but at the end of a run there is no next, so repeat until the
+## collector's buffers settle. A bound guards against a fixpoint that never empties.
+func settle():
+    collect()
+    var guard: usize = 0
+    while (pending_count > 0 or root_count > 0) and guard < 1000:
+        drain(0)
+        collect()
+        guard += 1
 
 ## Empty object counts do not include the collector's and temporaries pool's
 ## backing allocations. A finished thread must release those too: its TLS roots
