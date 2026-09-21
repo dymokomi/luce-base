@@ -60,7 +60,10 @@ func mac_open(options: Options) -> State*!:
     if application == none:
         let app = msg_ptr(try native_class("NSApplication"), sel("sharedApplication")) else error(failed, "AppKit could not initialize an application")
         try finish_launch(app)
-        if not msg_policy(app, sel("setActivationPolicy:"), 0):
+        # A program launched from an application bundle is already a regular application,
+        # and AppKit answers NO to a change that changes nothing. Only a policy that is
+        # still not regular afterwards is a failure.
+        if not msg_policy(app, sel("setActivationPolicy:"), 0) and msg_uint(app, sel("activationPolicy")) != 0:
             error(failed, "AppKit refused the application's window activation policy")
         application = app
         app_handle.store((usize)app, .release)
