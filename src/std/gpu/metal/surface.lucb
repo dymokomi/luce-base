@@ -32,7 +32,7 @@ func metal_surface_open(device: MetalDevice*, host: window.Presentation) -> Meta
     metal_uint_arg(layer, metal_sel("setPixelFormat:"), 81)
     metal_bool_arg(layer, metal_sel("setFramebufferOnly:"), true)
     metal_bool_arg(layer, metal_sel("setOpaque:"), true)
-    metal_bool_arg(layer, metal_sel("setDisplaySyncEnabled:"), true)
+    metal_bool_arg(layer, metal_sel("setDisplaySyncEnabled:"), false)
     metal_bool_arg(layer, metal_sel("setAllowsNextDrawableTimeout:"), true)
     metal_bool_arg(layer, metal_sel("setPresentsWithTransaction:"), false)
     let space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB) else error(failed, "could not create the sRGB presentation color space")

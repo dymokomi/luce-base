@@ -92,6 +92,9 @@ func mac_open(options: Options) -> State*!:
     set_state(delegate, state)
     msg_object(native, sel("setDelegate:"), delegate)
     msg_bool_arg(native, sel("setAcceptsMouseMovedEvents:"), true)
+    # Deliver every mouse-moved event rather than the OS-coalesced summary, so hover
+    # feedback tracks a fast pointer instead of stepping between coarse samples.
+    msg_bool_arg(try native_class("NSEvent"), sel("setMouseCoalescingEnabled:"), false)
     discard(msg_bool_object(native, sel("makeFirstResponder:"), view))
     let text_allocated = msg_ptr(try native_class("NSString"), sel("alloc")) else error(failed, "could not allocate a title")
     let title = msg_init_text(text_allocated, sel("initWithBytes:length:encoding:"), options.title.bytes.data, options.title.length, 4) else error(failed, "could not initialize the title")
