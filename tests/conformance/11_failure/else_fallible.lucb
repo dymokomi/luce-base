@@ -1,0 +1,24 @@
+## §11.1: `else` supplies the alternative when a fallible result fails, as it does for an
+## optional absence; the failure value is not bound (use `catch` for that). A fallible operand
+## under a surrounding `try` is propagated by that `try`.
+# oracle: none
+let bad: ErrorCode = ErrorCode.package(1)
+
+func parse(n: i64) -> i64!:
+    if n < 0:
+        error(bad, "below zero")
+    return n * 2
+
+func act(n: i64) -> unit!:
+    if n < 0:
+        error(bad, "below zero")
+
+func guarded(n: i64) -> i64:
+    let v = parse(n) else return -7
+    return v
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{parse(5) else -1} {parse(-5) else -1}")   # 10 -1  (fallible value)
+    act(-1) else print("recovered a unit")             # fallible unit, as a statement
+    print(f"{guarded(4)} {guarded(-3)}")               # 8 -7   (else return)
+    return 0

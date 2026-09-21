@@ -636,7 +636,7 @@ A call may appear as a statement. A non-`unit` result is discarded and the linte
 
 A leading `try` covers the following expression through its binary operators, conditional branches, and optional fallback, stopping before an attached `catch`. Inside an operator operand it has unary precedence: use parentheses to extend that operand, as in `left + try (read() + parse())`.
 
-From tightest to loosest: member, call, index; operand `try`, `not`, `-`, `-%`, `+`, `~`, `*`, `&`, cast; `*`, `/`, `//`, `%`, `*%`, `*|`, `*?`; `+`, `-`, `+%`, `-%`, `+|`, `-|`, `+?`, `-?`; `<<`, `>>`; `&`; `^`; `|`; `..<`, `..=`; comparison; `and`; `or`; conditional expression; the optional `else` fallback (§11.1); `catch`.
+From tightest to loosest: member, call, index; operand `try`, `not`, `-`, `-%`, `+`, `~`, `*`, `&`, cast; `*`, `/`, `//`, `%`, `*%`, `*|`, `*?`; `+`, `-`, `+%`, `-%`, `+|`, `-|`, `+?`, `-?`; `<<`, `>>`; `&`; `^`; `|`; `..<`, `..=`; comparison; `and`; `or`; conditional expression; the `else` fallback (§11.1); `catch`.
 
 ## 8. Control flow
 
@@ -1023,6 +1023,8 @@ let w = create_window() else error(no_window, "no window") # absence becomes fai
 ```
 
 `none` needs an expected optional type. `T` promotes to `T?` where expected; the reverse needs `if let`, `match`, or the three-arm `else`. Optionals are one layer (§5.8). There is no force-unwrap operator; `else trap("reason")` is the explicit spelling.
+
+`else` also supplies the alternative for a **fallible** result (§11.2): `let n = read() else 0` recovers from a failure the way it recovers from an absence, and `read() else return` or `else trap(...)` leaves. It handles the operand in place, so the enclosing function need not be fallible; when the failure value itself is needed, use `catch`, which binds it (§11.4). A fallible operand already under a surrounding `try` is propagated by that `try`, so `try (next() else none)` propagates a failure and takes the fallback only for an absence.
 
 ### 11.2 Fallible functions
 

@@ -621,6 +621,8 @@ Lexical filesystem paths. Both slash styles separate components on Windows; on P
 
 - `func join(left: str, right: str) -> str!` — Join with a separator only when needed; an absolute right path wins. This is lexical joining, without normalization or filesystem access. The result is a NUL-terminated current-allocator allocation, released with strings.release.
 
+- `func join_into(buffer: u8[], left: str, right: str) -> str` — Join into `buffer` without allocating, returning a view of it, or "" when it does not fit. Same rule as `join`, but the caller owns the storage — a stack array or an arena — so there is nothing to release and the result lives as long as `buffer`. It is NUL-terminated when there is room, so it may be used as a `c.str`.
+
 - `func normalize(path: str) -> str!` — Lexically remove dot components, redundant separators and cancellable parent components. This does not resolve symbolic links; use filesystem resolution when identity matters. Roots cannot be crossed. Relative leading parents and Windows drive-relative prefixes are retained. Release with strings.release.
 
 ## `math`
@@ -1341,6 +1343,10 @@ A callback's success value or failure text, each with an explicit owner. A Base 
 - `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the outcome's strong references.
 
 - `func copy_text(value: str) -> Owned[str]!` — Own a copy of text from a temporary buffer or a native error before it expires.
+
+- `func success_unit() -> Outcome[unit]` — A successful unit outcome, for a callback that reports only success or failure. It saves every such callback from spelling `Outcome[unit].success(Owned[unit](()))`.
+
+- `func failure_unit(code: ErrorCode, message: str) -> Outcome[unit]` — A failed unit outcome carrying `code` and an owned copy of `message`, the bridge from a Base `!` failure to the `Outcome` a callback returns: `expr catch failure: return interop.failure_unit(failure.code, failure.message)`. If copying the message itself runs out of memory, the outcome reports memory.exhausted with a static note instead of pending managed text.
 
 ### `Callback` (struct [A, R])
 

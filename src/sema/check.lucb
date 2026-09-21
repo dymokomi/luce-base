@@ -3244,10 +3244,13 @@ pub struct Checker:
         let r = e.right else return try self.fail(e, "`else` needs an alternative")
         var lt = self.plain_read(try self.check_expr(l, try self.table.optional(hint) if hint != types.none_id else types.none_id))
         let t = self.table.get(lt)
-        if t.kind == types.Kind.fallible:
-            return try self.fail(l, "`else` takes an optional; a fallible result takes `try` or `catch` (§11.2)")
-        if t.kind != types.Kind.optional:
-            return try self.fail(l, "`else` needs an optional")
+        # An optional's absence, or a fallible result's failure, takes the alternative. A
+        # fallible operand under a surrounding handler has already been propagated to its
+        # payload above, so the operand reaching here is fallible only when `else` handles it.
+        if t.kind != types.Kind.optional and t.kind != types.Kind.fallible:
+            return try self.fail(l, "`else` needs an optional or a fallible result")
+        if t.kind == types.Kind.fallible and self.is_local_value(l):
+            self.mark_local(e)  # the recovered value still views what the operand viewed (§6.6)
         let payload = t.elem
         if r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_:
             try self.check_stmt(r)
@@ -5787,7 +5790,7 @@ func is_call_statement(e: ast.Node*) -> bool:
     match e.kind:
         .call:
             return true
-        .group, .catch_, .propagate:
+        .group, .catch_, .else_, .propagate:
             let inner = e.left else return false
             return is_call_statement(inner)
         .unary:
@@ -6163,6 +6166,12 @@ test "try needs a fallible function":
 
 test "an unhandled fallible call is an error":
     try expect_error("func g() -> !:\n    return\nfunc f():\n    g()\n", "must be handled")
+
+test "else recovers a fallible result without a fallible caller":
+    try expect_ok("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    return g() else 0\n")
+
+test "else needs an optional or a fallible operand":
+    try expect_error("func f() -> i64:\n    return 5 else 0\n", "an optional or a fallible result")
 
 test "structs construct by name and expose fields":
     try expect_ok("struct P:\n    var x: i64\n    var y: i64\n    func sum() -> i64:\n        return self.x + self.y\nfunc f() -> i64:\n    let p = P(x = 1, y = 2)\n    return p.sum() + p.x\n")

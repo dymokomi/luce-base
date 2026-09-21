@@ -11,3 +11,14 @@ test "paths split into their parts and join":
     assert(joined == "/usr/lib")
     let absolute_wins = try paths.join("/usr", "/etc")
     assert(absolute_wins == "/etc")
+
+test "join_into writes a path with no allocation":
+    var buffer: u8[64] = ---
+    assert(paths.join_into(buffer[0..], "/usr", "lib") == "/usr/lib")
+    assert(paths.join_into(buffer[0..], "/usr/", "lib") == "/usr/lib")   # no doubled separator
+    assert(paths.join_into(buffer[0..], "", "lib") == "lib")             # empty left is the right path
+    assert(paths.join_into(buffer[0..], "/usr", "/etc") == "/etc")       # an absolute right wins
+    let written = paths.join_into(buffer[0..], "dir", "file")
+    assert(buffer[written.length] == 0)                                  # NUL-terminated, usable as c.str
+    var tiny: u8[4] = ---
+    assert(paths.join_into(tiny[0..], "dir", "file").length == 0)        # "" when it does not fit

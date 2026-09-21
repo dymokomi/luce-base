@@ -98,3 +98,29 @@ pub func copy_text(value: str) -> Owned[str]!:
     let bytes = u8[]((u8*)owner + sizeof(ownership.Object), value.length)
     memory.copy(bytes, value.bytes, value.length)
     return Owned[str]((str)bytes, owner)
+
+## A successful unit outcome, for a callback that reports only success or failure. It saves
+## every such callback from spelling `Outcome[unit].success(Owned[unit](()))`.
+pub func success_unit() -> Outcome[unit]:
+    return Outcome[unit].success(Owned[unit](()))
+
+## A failed unit outcome carrying `code` and an owned copy of `message`, the bridge from a
+## Base `!` failure to the `Outcome` a callback returns: `expr catch failure: return
+## interop.failure_unit(failure.code, failure.message)`. If copying the message itself runs
+## out of memory, the outcome reports memory.exhausted with a static note instead of pending
+## managed text.
+pub func failure_unit(code: ErrorCode, message: str) -> Outcome[unit]:
+    let text = copy_text(message) catch exhausted:
+        discard(exhausted)
+        return Outcome[unit].failure(memory.exhausted, Owned[str]("out of memory copying an error message"))
+    return Outcome[unit].failure(code, text)
+
+test "the unit outcome helpers carry success and copied failure text":
+    var good = success_unit()
+    assert(good.is_success())
+    good.release()
+    var bad = failure_unit(memory.exhausted, "boom")
+    assert(not bad.is_success())
+    bad.get() catch failure:
+        assert(failure.message == "boom")
+    bad.release()

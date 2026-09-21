@@ -10,6 +10,7 @@
 
 import strings
 import platform
+import core
 
 ## Whether `byte` separates path components on the target.
 # mark: Paths =================================================================================
@@ -130,6 +131,34 @@ pub func join(left: str, right: str) -> str!:
     let delimiter = "" if separator(left.bytes[left.length - 1]) or drive_only else "/"
     let pieces: str[2] = [left, right]
     return try strings.join(pieces, delimiter)
+
+## The join rule, appended to a caller's buffer. Shared by `join_into`.
+func join_write(b: core.FormatBuffer*, left: str, right: str):
+    if is_absolute(right) or drive_prefix(right) or left.length == 0:
+        discard(core.format_put(b, right.bytes.data, right.length))
+        return
+    if platform.windows and is_rooted(right):
+        let prefix = root(left)
+        var end = prefix.length
+        while end > 0 and separator(prefix.bytes[end - 1]):
+            end -= 1
+        discard(core.format_put(b, prefix.bytes.data, end))
+        discard(core.format_put(b, right.bytes.data, right.length))
+        return
+    let drive_only = drive_prefix(left) and left.length == 2
+    discard(core.format_put(b, left.bytes.data, left.length))
+    if not (separator(left.bytes[left.length - 1]) or drive_only):
+        discard(core.format_put(b, "/".bytes.data, 1))
+    discard(core.format_put(b, right.bytes.data, right.length))
+
+## Join into `buffer` without allocating, returning a view of it, or "" when it does
+## not fit. Same rule as `join`, but the caller owns the storage — a stack array or an
+## arena — so there is nothing to release and the result lives as long as `buffer`. It is
+## NUL-terminated when there is room, so it may be used as a `c.str`.
+pub func join_into(buffer: u8[], left: str, right: str) -> str:
+    var b = core.FormatBuffer(data = buffer.data, capacity = buffer.length, used = 0)
+    join_write(&b, left, right)
+    return core.format_finish(&b)
 
 ## Lexically remove dot components, redundant separators and cancellable parent
 ## components. This does not resolve symbolic links; use filesystem resolution
