@@ -542,9 +542,13 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
         try cc_args.flag("-l", (str)library)
     for search in package.link_search:
         try cc_args.flag("-L", (str)search)
-    for framework in package.frameworks:
-        try cc_args.add("-framework")
-        try cc_args.add(framework)
+    # Frameworks are an Apple linker concept. A portable package can keep its
+    # macOS adapter and framework requirements in one manifest; dead platform
+    # branches and their link inputs must disappear together on other hosts.
+    if build_target().os == targets.Os.macos:
+        for framework in package.frameworks:
+            try cc_args.add("-framework")
+            try cc_args.add(framework)
     for name in package.pkg_config:
         try pkg_config_flags(&cc_args, name, "--cflags", false)
         try pkg_config_flags(&cc_args, name, "--libs", false)

@@ -31,6 +31,15 @@ pub extern struct SystemInfo:
     pub processor_level: u16
     pub processor_revision: u16
 
+## Win32 OVERLAPPED. File locking uses only its zero state; the explicit layout
+## keeps packages from duplicating an ABI-sensitive record.
+pub extern struct Overlapped:
+    pub internal: usize
+    pub internal_high: usize
+    pub offset: u32
+    pub offset_high: u32
+    pub event: void*?
+
 ## Win32 MultiByteToWideChar: bytes to UTF-16.
 pub extern func MultiByteToWideChar(page: u32, flags: u32, input: c.str, length: i32, output: u16*?, capacity: i32) -> i32
 ## Win32 WideCharToMultiByte: UTF-16 to bytes.
@@ -55,6 +64,8 @@ pub extern func GetTempPathW(capacity: u32, output: u16*) -> u32
 pub extern func GetModuleHandleW(name: u16*?) -> void*
 ## Win32 CreateFileW.
 pub extern func CreateFileW(path: u16*, access: u32, share: u32, security: void*?, disposition: u32, flags: u32, template: void*?) -> void*
+## Win32 LockFileEx.
+pub extern func LockFileEx(handle: void*, flags: u32, reserved: u32, low: u32, high: u32, overlapped: Overlapped*) -> i32
 ## Win32 GetEnvironmentVariableW.
 pub extern func GetEnvironmentVariableW(name: u16*, output: u16*, capacity: u32) -> u32
 ## Win32 SetEnvironmentVariableW.
