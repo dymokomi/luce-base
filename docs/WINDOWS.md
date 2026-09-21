@@ -58,6 +58,8 @@ relative operations resolve the directory handle's current name before the wide
 filesystem call; they do not provide Unix `openat` atomicity across a concurrent
 directory rename. Symlink creation requires Windows Developer Mode or the relevant
 privilege; creating a dangling directory symlink requires the directory hint.
+`write_atomic(..., synchronize=true)` flushes the temporary file and publishes it
+with `MOVEFILE_WRITE_THROUGH`; Windows has no separate parent-directory `fsync`.
 
 Subprocess arguments use CRT quoting and `CreateProcessW`. Captured streams use
 Unicode, atomic, delete-on-close temporary files, so large stdout and stderr do
@@ -73,7 +75,8 @@ names (`-save-temps=obj`) to avoid GCC's ANSI temporary-path expansion; the owne
 workspace removes them after both successful and failed builds. Source, output and temporary-directory paths need
 no short-name aliases, and the parent process environment is unchanged. External
 C source and library operands still follow the selected GNU toolchain's filename
-support.
+support. Compiler support archives are linked statically, while Windows system and
+SDK import libraries remain dynamic so facilities such as Vulkan can link normally.
 
 ## Windows and Vulkan
 

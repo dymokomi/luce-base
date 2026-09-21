@@ -6495,11 +6495,68 @@ pub struct Emitter:
         try self.put(d.text)
         try self.put(";")
 
+    ## A type-correct erased-receiver adapter. Calling a concrete `Record*` method
+    ## through a `void*` function-pointer cast is ABI-compatible on common hosts but
+    ## undefined C and is correctly rejected by Clang's function sanitizer.
+    mutating func witness_wrapper(w: Witness, requirement: ast.Node*, implementation: ast.Node*) -> !:
+        let record = self.decl_of(w.record) else return
+        let instance = self.c.table.get(w.record)
+        try self.line("static ")
+        try self.put_result_type(requirement)
+        try self.put(" lb_witness_")
+        try self.put_mangled(w.record)
+        try self.put("_")
+        let iface = self.decl_of(w.iface) else return
+        try self.put(iface.text)
+        try self.put("_")
+        try self.put_ident(requirement.text)
+        try self.put("(void* self")
+        var parameter = requirement.right
+        while let p = parameter:
+            try self.put(", ")
+            try self.put_type(try self.map(p.type_id))
+            try self.put(" ")
+            try self.put_ident(p.text)
+            parameter = p.next
+        try self.put(") {")
+        self.indent += 1
+        let function_type = self.c.table.get(try self.map(requirement.type_id))
+        let returns = requirement.has(ast.flag_fallible) or (function_type.elem != types.unit_id and function_type.elem != types.never_id)
+        try self.line("return " if returns else "")
+        try self.put_func_name(implementation, try types.no_args(), record, instance.args)
+        try self.put("((")
+        try self.put_type(w.record)
+        try self.put("*)self")
+        parameter = requirement.right
+        var concrete = implementation.right
+        while let p = parameter:
+            try self.put(", ")
+            let actual = concrete else return error(backend, "an interface witness has different parameters")
+            let erased_type = try self.map(p.type_id)
+            let actual_type = try self.map(actual.type_id)
+            if erased_type != actual_type:
+                # Equatable and Comparable erase their concrete `other` value to
+                # `void*`; the call site passes its address in the witness ABI.
+                try self.put("*(")
+                try self.put_type(actual_type)
+                try self.put("*)")
+            try self.put_ident(p.text)
+            parameter = p.next
+            concrete = actual.next
+        try self.put(");")
+        self.indent -= 1
+        try self.line("}")
+
     ## The witness table of one record for one interface.
     mutating func vtable(w: Witness) -> !:
         let d = self.decl_of(w.record) else return
         let i = self.decl_of(w.iface) else return
-        let t = self.c.table.get(w.record)
+        var adapter = i.body
+        while let requirement = adapter:
+            if requirement.kind == ast.Kind.func_:
+                if let implementation = check.witness_member(d, requirement.text):
+                    try self.witness_wrapper(w, requirement, implementation)
+            adapter = requirement.next
         try self.line("static const lb_vt_")
         try self.put(i.text)
         try self.put(" lb_vt_")
@@ -6513,17 +6570,15 @@ pub struct Emitter:
             if r.kind == ast.Kind.func_:
                 try self.line(".")
                 try self.put(r.text)
-                try self.put(" = (")
-                try self.put_result_type(r)
-                try self.put(" (*)(void*")
-                var p = r.right
-                while let q = p:
-                    try self.put(", ")
-                    try self.put_type(try self.map(q.type_id))
-                    p = q.next
-                try self.put("))")
+                try self.put(" = ")
                 if let m = check.witness_member(d, r.text):
-                    try self.put_func_name(m, try types.no_args(), d, t.args)
+                    discard(m)
+                    try self.put("lb_witness_")
+                    try self.put_mangled(w.record)
+                    try self.put("_")
+                    try self.put(i.text)
+                    try self.put("_")
+                    try self.put_ident(r.text)
                 else:
                     try self.put("NULL")
                 try self.put(",")

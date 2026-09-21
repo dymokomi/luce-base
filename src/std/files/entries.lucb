@@ -85,17 +85,19 @@ pub func remove_directory(path: c.str) -> !:
 ## Rename an entry, atomically replacing an existing compatible destination on
 ## the same filesystem. Final symlinks are entries, not followed targets. Open
 ## handles keep referring to their objects. This does not copy across devices
-## or request durable storage. With replace=false, atomically refuse an existing
+## or request durable storage unless synchronize=true on Windows. With
+## replace=false, atomically refuse an existing
 ## destination; unsupported exclusive renames fail without an unsafe fallback.
 ## On a remote
 ## filesystem a reported failure may follow a completed server-side mutation.
-pub func rename(source: c.str, destination: c.str, replace: bool = true) -> !:
+pub func rename(source: c.str, destination: c.str, replace: bool = true, synchronize: bool = false) -> !:
     if platform.windows:
         let from_path = try wide_path(source)
         defer free(from_path)
         let to = try wide_path(destination)
         defer free(to)
-        if MoveFileExW(from_path.data, to.data, 1 if replace else 0) == 0:
+        let flags: u32 = (1 if replace else 0) | (8 if synchronize else 0)
+        if MoveFileExW(from_path.data, to.data, flags) == 0:
             error(windows_error(GetLastError()), "the entry could not be renamed")
         return
     var result: i32 = 0

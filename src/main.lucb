@@ -701,9 +701,12 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
     if freestanding:
         try cc_args.add("-nostartfiles")
     if t.os == targets.Os.windows:
-        # the driver's own support libraries (libgcc, winpthread) go into the program, so
-        # it runs on a machine without the toolchain; the C runtime is the system's
-        try cc_args.add("-static")
+        # Keep the compiler support runtime self-contained without forcing system import
+        # libraries (Vulkan, Winsock, bcrypt) to have nonexistent static variants.
+        try cc_args.add("-static-libgcc")
+        try cc_args.add("-Wl,-Bstatic")
+        try cc_args.add("-lwinpthread")
+        try cc_args.add("-Wl,-Bdynamic")
     # the manifest's C sources (§17.4), each compiled to an object beside the assembly
     try compile_sources(dir, &cc_args)
     for search in package.link_search:
