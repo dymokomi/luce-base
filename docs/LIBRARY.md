@@ -1816,6 +1816,16 @@ Desktop text clipboard. Values returned to Base or Luce own their bytes. Access 
 
 - `func write_text(text: str) -> !` — Publish `text` (valid UTF-8, no NUL, at most 1 MiB) to the clipboard from the UI thread.
 
+## `dialogs`
+
+The desktop's own open and save file panels, run modally from the UI thread. A chosen path is returned owning its bytes; a cancelled dialog returns none.
+
+- `let failed: ErrorCode = ErrorCode.package(123)` — The dialog could not be shown or its result could not be read.
+
+- `func open_file(message: str) -> interop.Owned[str]?!` — Ask for an existing file to open, with `message` above the file list. Returns the chosen path, or none when the dialog was cancelled.
+
+- `func save_file(message: str, name: str) -> interop.Owned[str]?!` — Ask where to save a file, suggesting `name`, with `message` above the field. Returns the chosen path, or none when the dialog was cancelled.
+
 ## `fonts`
 
 Native font resources and grayscale rasterization. UI typography and caches belong to the UI package; this module owns only the operating-system boundary.
@@ -1875,6 +1885,14 @@ The portable GPU module: an owned device, colored-triangle canvases and recorded
 
 - `let frame_resized: ErrorCode = ErrorCode.package(116)` — The surface resized under a frame; record a fresh one.
 
+- `let invalid_pixels: ErrorCode = ErrorCode.package(119)` — Pixel data did not match the texture region it was meant for.
+
+- `let wrong_device: ErrorCode = ErrorCode.package(120)` — A texture or pipeline was recorded into a frame on a different device.
+
+- `let wrong_target: ErrorCode = ErrorCode.package(121)` — A pipeline was recorded into a frame whose target format it was not made for.
+
+- `let invalid_shader: ErrorCode = ErrorCode.package(122)` — A shader could not be compiled or a pipeline could not be built from it.
+
 ### `Backend` (enum as u8)
 
 automatic chooses the implemented native backend. An explicit unsupported backend fails; it never falls back silently. Windows x64 uses Vulkan; macOS ARM64 uses Metal. Link dependencies are selected by the compiler.
@@ -1883,11 +1901,39 @@ automatic chooses the implemented native backend. An explicit unsupported backen
 
 ### `Color` (struct)
 
-Linear-light sRGB components, each finite and in 0..1. Presentation is opaque; alpha is fixed at one. Conversion to the sRGB display encoding occurs in the render target, not in application code. HDR/transparency are not yet exposed.
+Linear-light sRGB components and a straight alpha, each finite and in 0..1. Presentation is opaque and ignores alpha; a texture frame clears to it. Conversion to the sRGB display encoding occurs in the render target, not in application code.
 
 - `var red: f64` — The linear-light red component, 0..1.
 - `var green: f64` — The linear-light green component, 0..1.
 - `var blue: f64` — The linear-light blue component, 0..1.
+- `var alpha: f64 = 1.0` — The straight alpha, 0..1.
+
+### `Format` (enum as u8)
+
+Texel layouts of a texture. Every format is tightly packed, top-down, with straight alpha. rgba8 is sRGB-encoded and sampled as linear light; rgba8_linear is sampled as stored; rgba16_float holds half floats; r8 is one channel that samples as red with alpha one.
+
+### `Blend` (enum as u8)
+
+How a draw combines with what is already in the target. Shaders emit premultiplied colour: `over` composites it, `replace` writes it as is, and `add` sums it.
+
+- `let uniform_limit: usize = 128` — The most uniform bytes one draw can carry: Vulkan's guaranteed push constants.
+
+- `let image_limit: usize = 4` — The most textures one draw can sample.
+
+### `Filter` (enum as u8)
+
+How an image draw samples between texels.
+
+### `Region` (struct)
+
+A texel rectangle of a texture, from its top left.
+
+- `var x: u32` — The left edge in texels.
+- `var y: u32` — The top edge in texels.
+- `var width: u32` — The width in texels.
+- `var height: u32` — The height in texels.
+
+- `func texel_bytes(format: Format) -> usize` — The bytes of one texel in `format`.
 
 ### `PresentResult` (enum as u8)
 
@@ -1986,6 +2032,40 @@ A checked drawing view. Its private canvas never escapes. Child regions intersec
 - `func mask(pixels: const u8[], width: u32, height: u32, rectangle: Rect, color: Color) -> !` — Draw a top-down, tightly packed 8-bit coverage image tinted with a linear color. Pixels are copied into the frame; the caller can reuse them at once. Sampling is bilinear and clipped to this target, on every GPU backend.
 
 - `let render_target_type: interop.ViewType[RenderTarget] = interop.ViewType[RenderTarget]("GPU render target")` — The interop view type of a `RenderTarget`.
+
+- `func device_of(target: const RenderTarget*) -> Device!` — An owned handle to the device `target`'s frame draws on, for creating textures to draw into it; destroy it like any device handle. A standalone frame has no device and returns `unavailable`.
+
+- `func draw_image(target: const RenderTarget*, texture: Texture, rectangle: Rect, source: Region? = none, opacity: f64 = 1.0, filter: Filter = Filter.linear) -> !` — Draw `source` texels of `texture` (the whole texture by default) scaled onto `rectangle` of `target` in points, multiplied by `opacity`, sampled with `filter` and clipped to the target. Texels are straight alpha and composite over what is already drawn.
+
+- `func shade(target: const RenderTarget*, pipeline: Pipeline, rectangle: Rect, uniforms: const u8[]? = none, images: const Texture[]? = none,` — Draw `rectangle` of `target` (in points) with a client `pipeline`: `uniforms` fill its push-constant block, `images` its sampled bindings 1.., all with `filter`; `color` is the vertex colour each fragment starts from. Clipped like every other draw.
+
+### `Texture` (struct)
+
+An owned texture; the zero value is closed and copies alias ownership.
+
+- `static func create(device: Device, width: u32, height: u32, format: Format) -> Texture!` — Allocate an uninitialised `width` by `height` texture of `format`, each dimension in 1..16384.
+- `func width() -> u32!` — The width in texels.
+- `func height() -> u32!` — The height in texels.
+- `func format() -> Format!` — The texel format.
+- `func upload(pixels: const u8[], region: Region? = none) -> !` — Replace `region` (the whole texture by default) with tightly packed, top-down `pixels` in the texture's format. The copy completes before this returns, ordered after earlier submissions; `pixels` may be reused at once.
+- `func read(pixels: u8[], region: Region? = none) -> !` — Read `region` (the whole texture by default) back into `pixels`, tightly packed and top-down in the texture's format, after every earlier submission that touched it has completed.
+- `func frame() -> interop.Reference[Frame]!` — Begin one recording frame whose target is this texture; its points equal texels. `present` clears the texture to the given colour, draws, and waits for completion, so the result can be read or sampled immediately after.
+- `mutating func destroy()` — Release this handle on the main thread; recorded draws and open frames keep the storage until they finish.
+
+### `Shader` (struct)
+
+A fragment program on one device; the zero value is closed.
+
+- `static func create(device: Device, spirv: const u32[], msl: c.str) -> Shader!` — Compile a fragment program from its SPIR-V words and its Metal source. Each backend uses its own form and ignores the other.
+- `mutating func destroy()`
+
+### `Pipeline` (struct)
+
+A shader bound to a blend mode and a target format; the zero value is closed.
+
+- `static func create(device: Device, shader: Shader, blend: Blend, format: Format? = none) -> Pipeline!` — Build a pipeline drawing `shader` with `blend` into targets of `format`, or into presentation surfaces when `format` is `none`.
+- `func blend() -> Blend!`
+- `mutating func destroy()`
 
 ## `c`
 
