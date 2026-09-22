@@ -9,6 +9,14 @@
 
 let vulkan_api_version_1_0: u32 = 1u32 << 22
 
+## One render pass pair and pipeline pair per colour format in use.
+struct VulkanFormatState:
+    var format: u32
+    var pass_present: u64
+    var pass_texture: u64
+    var overlay: u64
+    var depth_test: u64
+
 struct VulkanDevice:
     var instance: u64
     var physical: u64
@@ -16,6 +24,22 @@ struct VulkanDevice:
     var queue: u64
     var family: u32
     var memory: VkPhysicalDeviceMemoryProperties
+    # Drawing state shared by surfaces and textures; see vulkan_drawing.
+    var ready: bool
+    var pool: u64
+    var command: u64
+    var descriptor_layout: u64
+    var layout: u64
+    var nearest: u64
+    var linear: u64
+    var placeholder: VulkanTexture*?
+    var formats: VulkanFormatState[6]
+    var format_count: usize
+    var depth_image: u64
+    var depth_memory: u64
+    var depth_view: u64
+    var depth_width: u32
+    var depth_height: u32
 
 func vulkan_check(result: i32, message: str) -> !:
     if result != VK_SUCCESS:
@@ -67,6 +91,7 @@ func vulkan_device_open() -> VulkanDevice*!:
 func vulkan_device_destroy(state: VulkanDevice*):
     if state.device != 0:
         discard(vkDeviceWaitIdle(state.device))
+        vulkan_drawing_destroy(state)
         vkDestroyDevice(state.device, none)
     if state.instance != 0:
         vkDestroyInstance(state.instance, none)

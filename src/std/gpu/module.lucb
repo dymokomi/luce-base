@@ -43,6 +43,10 @@ pub let frame_finished: ErrorCode = ErrorCode.package(114)
 pub let frame_in_use: ErrorCode = ErrorCode.package(115)
 ## The surface resized under a frame; record a fresh one.
 pub let frame_resized: ErrorCode = ErrorCode.package(116)
+## Pixel data did not match the texture region it was meant for.
+pub let invalid_pixels: ErrorCode = ErrorCode.package(119)
+## A texture was recorded into a frame on a different device.
+pub let wrong_device: ErrorCode = ErrorCode.package(120)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Windows x64 uses Vulkan; macOS
@@ -59,9 +63,10 @@ pub func supported(backend: Backend = Backend.automatic) -> bool:
         return backend == Backend.automatic or backend == Backend.vulkan
     return (platform.macos and platform.arm64) and (backend == Backend.automatic or backend == Backend.metal)
 
-## Linear-light sRGB components, each finite and in 0..1. Presentation is opaque;
-## alpha is fixed at one. Conversion to the sRGB display encoding occurs in the
-## render target, not in application code. HDR/transparency are not yet exposed.
+## Linear-light sRGB components and a straight alpha, each finite and in 0..1.
+## Presentation is opaque and ignores alpha; a texture frame clears to it.
+## Conversion to the sRGB display encoding occurs in the render target, not in
+## application code.
 pub struct Color:
     ## The linear-light red component, 0..1.
     pub var red: f64
@@ -69,6 +74,42 @@ pub struct Color:
     pub var green: f64
     ## The linear-light blue component, 0..1.
     pub var blue: f64
+    ## The straight alpha, 0..1.
+    pub var alpha: f64 = 1.0
+
+## Texel layouts of a texture. Every format is tightly packed, top-down, with
+## straight alpha. rgba8 is sRGB-encoded and sampled as linear light; rgba8_linear
+## is sampled as stored; rgba16_float holds half floats; r8 is one channel that
+## samples as red with alpha one.
+pub enum Format as u8:
+    rgba8 = 0
+    rgba8_linear = 1
+    rgba16_float = 2
+    r8 = 3
+
+## How an image draw samples between texels.
+pub enum Filter as u8:
+    nearest = 0
+    linear = 1
+
+## A texel rectangle of a texture, from its top left.
+pub struct Region:
+    ## The left edge in texels.
+    pub var x: u32
+    ## The top edge in texels.
+    pub var y: u32
+    ## The width in texels.
+    pub var width: u32
+    ## The height in texels.
+    pub var height: u32
+
+## The bytes of one texel in `format`.
+pub func texel_bytes(format: Format) -> usize:
+    if format == Format.rgba16_float:
+        return 8
+    if format == Format.r8:
+        return 1
+    return 4
 
 ## Submission does not guarantee that a frame has appeared on the display.
 ## skipped means hidden/minimized, zero drawable extent, or no drawable available;
@@ -93,5 +134,5 @@ func require_thread():
 
 func check_color(color: Color) -> !:
     # Positive comparisons also reject NaNs, without depending on math linkage.
-    if not (color.red >= 0.0 and color.red <= 1.0 and color.green >= 0.0 and color.green <= 1.0 and color.blue >= 0.0 and color.blue <= 1.0):
-        error(invalid_color, "GPU clear colors must be finite linear sRGB values in 0..1")
+    if not (color.red >= 0.0 and color.red <= 1.0 and color.green >= 0.0 and color.green <= 1.0 and color.blue >= 0.0 and color.blue <= 1.0 and color.alpha >= 0.0 and color.alpha <= 1.0):
+        error(invalid_color, "GPU colors must be finite linear sRGB values with alpha in 0..1")

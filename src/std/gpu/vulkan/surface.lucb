@@ -22,14 +22,6 @@ struct VulkanSurface:
     var width: u32
     var height: u32
     var format: u32
-    var render_pass: u64
-    var descriptor_layout: u64
-    var layout: u64
-    var overlay: u64
-    var depth_test: u64
-    var depth_image: u64
-    var depth_memory: u64
-    var depth_view: u64
     var pool: u64
     var command: u64
     var acquired: u64
@@ -101,8 +93,8 @@ func vulkan_swapchain(device: VulkanDevice*, state: VulkanSurface*, width: u32, 
     state.width = extent.width
     state.height = extent.height
     state.format = format
-    try vulkan_depth(device, state)
-    try vulkan_pipeline(device, state)
+    let drawing = try vulkan_format_state(device, format)
+    let depth_view = try vulkan_depth_for(device, extent.width, extent.height)
     count = 0
     try vulkan_check(vkGetSwapchainImagesKHR(device.device, state.swapchain, &count, none), "Vulkan swapchain images are unavailable")
     let images = try alloc u64[(usize)count]
@@ -112,27 +104,13 @@ func vulkan_swapchain(device: VulkanDevice*, state: VulkanSurface*, width: u32, 
     for index in 0..<(usize)count:
         state.images[index].image = images[index]
         state.images[index].view = try vulkan_image_view(device, images[index], format, VK_IMAGE_ASPECT_COLOR_BIT)
-        var attachments: u64[2] = [state.images[index].view, state.depth_view]
+        var attachments: u64[2] = [state.images[index].view, depth_view]
         var framebuffer_info = VkFramebufferCreateInfo(sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                                                       renderPass = state.render_pass, attachmentCount = 2, pAttachments = &attachments[0], width = extent.width, height = extent.height, layers = 1)
+                                                       renderPass = drawing.pass_present, attachmentCount = 2, pAttachments = &attachments[0], width = extent.width, height = extent.height, layers = 1)
         try vulkan_check(vkCreateFramebuffer(device.device, &framebuffer_info, none, &state.images[index].framebuffer), "a Vulkan framebuffer could not be created")
         var semaphore_info = VkSemaphoreCreateInfo(sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
         try vulkan_check(vkCreateSemaphore(device.device, &semaphore_info, none, &state.images[index].presented), "a Vulkan presentation semaphore could not be created")
     state.dirty = false
-
-func vulkan_depth(device: VulkanDevice*, state: VulkanSurface*) -> !:
-    var properties: VkFormatProperties
-    vkGetPhysicalDeviceFormatProperties(device.physical, VK_FORMAT_D32_SFLOAT, &properties)
-    if (properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0:
-        error(unavailable, "the Vulkan device has no 32-bit depth attachment support")
-    var info = VkImageCreateInfo(sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, imageType = VK_IMAGE_TYPE_2D, format = VK_FORMAT_D32_SFLOAT,
-                                 extent = VkExtent3D(width = state.width, height = state.height, depth = 1), mipLevels = 1, arrayLayers = 1, samples = VK_SAMPLE_COUNT_1_BIT, usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-    try vulkan_check(vkCreateImage(device.device, &info, none, &state.depth_image), "the Vulkan depth image could not be created")
-    var requirements: VkMemoryRequirements
-    vkGetImageMemoryRequirements(device.device, state.depth_image, &requirements)
-    state.depth_memory = try vulkan_memory(device, requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-    try vulkan_check(vkBindImageMemory(device.device, state.depth_image, state.depth_memory, 0), "Vulkan depth memory could not be bound")
-    state.depth_view = try vulkan_image_view(device, state.depth_image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT)
 
 func vulkan_swapchain_destroy(device: VulkanDevice*, state: VulkanSurface*):
     for image in state.images:
@@ -143,23 +121,7 @@ func vulkan_swapchain_destroy(device: VulkanDevice*, state: VulkanSurface*):
         free(state.images) in memory.heap
     var empty: VulkanImage[]
     state.images = empty
-    if state.overlay != 0: vkDestroyPipeline(device.device, state.overlay, none)
-    if state.depth_test != 0: vkDestroyPipeline(device.device, state.depth_test, none)
-    if state.descriptor_layout != 0: vkDestroyDescriptorSetLayout(device.device, state.descriptor_layout, none)
-    state.descriptor_layout = 0
-    if state.layout != 0: vkDestroyPipelineLayout(device.device, state.layout, none)
-    if state.render_pass != 0: vkDestroyRenderPass(device.device, state.render_pass, none)
-    if state.depth_view != 0: vkDestroyImageView(device.device, state.depth_view, none)
-    if state.depth_image != 0: vkDestroyImage(device.device, state.depth_image, none)
-    if state.depth_memory != 0: vkFreeMemory(device.device, state.depth_memory, none)
     if state.swapchain != 0: vkDestroySwapchainKHR(device.device, state.swapchain, none)
-    state.overlay = 0
-    state.depth_test = 0
-    state.layout = 0
-    state.render_pass = 0
-    state.depth_view = 0
-    state.depth_image = 0
-    state.depth_memory = 0
     state.swapchain = 0
     state.width = 0
     state.height = 0

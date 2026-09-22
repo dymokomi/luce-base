@@ -1,12 +1,14 @@
 # GPU devices and presentation
 
-`gpu` is a luce-base standard module with a portable application API and a Metal
-backend for arm64 macOS. It currently opens devices, attaches a surface to a
-standard `window`, and records colored triangles into scoped drawing regions for display. All implementation code
-is Base calling system APIs directly. There is no SDL dependency or C/Objective-C
-implementation shim.
+`gpu` is a luce-base standard module with a portable application API, a Metal
+backend for arm64 macOS and a Vulkan backend for x64 Windows. It opens devices,
+attaches a surface to a standard `window`, owns textures, and records coloured
+triangles, coverage masks and image draws into scoped drawing regions that end on
+the screen or in a texture. All implementation code is Base calling system APIs
+directly. There is no SDL dependency or C/Objective-C implementation shim.
 
-This is the presentation foundation. General buffers, textures, programmable pipelines, compute commands, portable shaders and Vulkan are subsequent increments. The API remains provisional while those contracts are exercised.
+Programmable pipelines, portable shaders and compute are subsequent increments.
+The API remains provisional while those contracts are exercised.
 
 ## Run the example
 
@@ -148,12 +150,16 @@ The files under `src/std/gpu/` share one standard module scope:
 | Files | Responsibility |
 | --- | --- |
 | `module.lucb` | Portable values, errors, validation, and thread policy. |
-| `device.lucb`, `surface.lucb`, `frame.lucb` | Public ownership, device references, window leases, and API contracts. |
+| `device.lucb`, `surface.lucb`, `frame.lucb`, `texture.lucb` | Public ownership, device references, window leases, textures, and API contracts. |
+| `params.lucb`, `canvas.lucb`, `mask.lucb` | The recorded command list and the 48-byte per-draw parameters both shaders read. |
 | `backend.lucb` | Backend selection and device dispatch using opaque device payloads. |
-| `presentation.lucb` | Surface dispatch using opaque surface payloads; a device alone never reaches it. |
+| `presentation.lucb`, `resources.lucb` | Surface and texture dispatch using opaque payloads; a device alone never reaches them. |
 | `metal/objc.lucb` | Exact typed system ABI declarations, including native aggregates. |
 | `metal/device.lucb` | Metal device and queue creation and release. |
-| `metal/surface.lucb` | CAMetalLayer, sRGB color space, drawable sizing, render-pass encoding, completion, and teardown. |
+| `metal/drawing.lucb` | The shader library, one pipeline per colour format, samplers, depth state and the shared render pass. |
+| `metal/texture.lucb` | Private textures, blit uploads and readbacks, offscreen passes. |
+| `metal/surface.lucb` | CAMetalLayer, sRGB color space, drawable sizing, presentation, completion, and teardown. |
+| `vulkan/*` | The same contract on Vulkan: `device`, `texture` (images, samplers, transfers), `pipeline` (passes and pipelines per format), `render` (uploads, descriptors, encoding), `surface` (swapchain). |
 
 Application-facing GPU signatures contain no native graphics objects. The
 `window.Presentation.macos_view()` bridge exists for backend implementers; it
@@ -232,10 +238,45 @@ work. Invalid geometry is rejected before recording. A canvas allows up to
 1,048,576 vertices and 4,096 draws; failed growth preserves its recorded contents.
 `clear` retains capacity; `destroy` releases it.
 
-This first pipeline has a fixed position/color shader inside the backend. It is
-not a general shader language: application transforms and lighting are currently
-computed before recording. Packages depend only on `gpu`, so a Vulkan backend
-can implement the same contract without changes to package drawing code.
+The pipeline has a fixed shader inside each backend, written once in Metal
+Shading Language (`metal/drawing.lucb`) and once in GLSL
+(`vulkan/triangle.vert`, `triangle.frag`, embedded as SPIR-V by
+`tools/embed_vulkan_shaders.py`). It emits premultiplied colour and blends with
+One / OneMinusSourceAlpha, so vertex colours, coverage masks and textures all
+composite the same way. It is not a general shader language: application
+transforms and lighting are computed before recording. Packages depend only on
+`gpu`, so both backends serve the same drawing code.
 
 Pixel tests additionally cover depth occlusion, clipping, linear alpha blending,
 resize of depth storage, and releasing CPU commands before GPU completion.
+
+## Textures and offscreen frames
+
+`Texture.create(device, width, height, format)` allocates a texture of one of
+four tightly packed, top-down, straight-alpha formats: `rgba8` (sRGB-encoded,
+sampled as linear light), `rgba8_linear`, `rgba16_float` and `r8` (samples as
+red with alpha one). Dimensions are 1..16384. `upload(pixels, region?)` replaces
+a region from CPU bytes and `read(pixels, region?)` copies one back; both wait
+for the copy and are ordered after earlier submissions, so `read` after a frame
+sees that frame. Pixel lengths must equal the region's texels times
+`texel_bytes(format)`, or `invalid_pixels` is returned.
+
+`texture.frame()` begins a recording frame whose target is the texture (points
+equal texels). Its `present(color)` clears to `color` — alpha included — draws,
+waits for completion and returns `submitted`; the texture can then be read or
+sampled. A frame cannot sample the texture it renders into (`invalid_geometry`),
+and a texture sampled by a frame must belong to the frame's device
+(`wrong_device`).
+
+`draw_image(target, texture, rectangle, source?, opacity, filter)` draws a texel
+region scaled onto a rectangle of a `RenderTarget`, clipped like every other
+draw, with `nearest` or `linear` sampling. `device_of(target)` returns an owned
+handle to the device the target's frame draws on, so drawing code can create
+textures for it; a standalone frame has none. These two are functions rather
+than `RenderTarget` methods because textures and devices are Base resources: a
+method mentioning them would hide the whole view from Luce.
+
+A recorded image draw retains its texture until the canvas is cleared or
+destroyed, so destroying the handle after recording is safe. Like devices and
+surfaces, textures are manual Base resources: the zero value is closed, copies
+alias ownership, and exactly one owner destroys them on the main thread.

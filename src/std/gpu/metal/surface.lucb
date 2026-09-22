@@ -11,7 +11,6 @@ struct MetalSurface:
     var layer: void*?
     var pending: void*?
     var faulted: bool
-    var drawing: MetalDrawing*?
 
 ## Conservative 2D texture baseline across the supported Mac GPU families.
 ## Some newer devices allow larger textures; a later capability API can expose
@@ -79,36 +78,7 @@ func metal_render(device: MetalDevice*, host: window.Presentation, state: MetalS
     # would exhaust CAMetalLayer's small pool even if commands had completed.
     let drawable = metal_ptr(layer, metal_sel("nextDrawable")) else return PresentResult.skipped
     let texture = metal_ptr(drawable, metal_sel("texture")) else error(failed, "Metal returned a drawable without a texture")
-    let descriptor = metal_ptr(try metal_class("MTLRenderPassDescriptor"), metal_sel("renderPassDescriptor")) else error(failed, "could not create a Metal render pass")
-    let attachments = metal_required(metal_ptr(descriptor, metal_sel("colorAttachments")))
-    let attachment = metal_required(metal_index(attachments, metal_sel("objectAtIndexedSubscript:"), 0))
-    metal_object(attachment, metal_sel("setTexture:"), texture)
-    metal_uint_arg(attachment, metal_sel("setLoadAction:"), 2)
-    metal_uint_arg(attachment, metal_sel("setStoreAction:"), 1)
-    metal_color_arg(attachment, metal_sel("setClearColor:"), LuceGpuMetalClearColor(red = color.red, green = color.green, blue = color.blue, alpha = 1.0))
-    var masks: void*? = none
-    defer metal_release_slot(&masks)
-    var buffer: void*? = none
-    defer metal_release_slot(&buffer)
-    if canvas.vertex_count > 0:
-        if state.drawing == none:
-            state.drawing = try metal_drawing_open(device)
-        let drawing = state.drawing else trap("GPU drawing state was not initialized")
-        let depth = metal_required(metal_ptr(descriptor, metal_sel("depthAttachment")))
-        metal_object(depth, metal_sel("setTexture:"), try metal_depth(device, drawing, (u64)size.pixel_width, (u64)size.pixel_height))
-        metal_uint_arg(depth, metal_sel("setLoadAction:"), 2)
-        metal_uint_arg(depth, metal_sel("setStoreAction:"), 0)
-        metal_double_arg(depth, metal_sel("setClearDepth:"), 1.0)
-        buffer = metal_buffer(metal_required(device.device), metal_sel("newBufferWithBytes:length:options:"), canvas.vertices.data, (u64)(canvas.vertex_count * 32), 0) else error(failed, "could not upload GPU triangle data")
-    if canvas.vertex_count > 0:
-        var empty: u32 = 0
-        let source = canvas.coverage.data if canvas.coverage_count > 0 else &empty
-        masks = metal_buffer(metal_required(device.device), metal_sel("newBufferWithBytes:length:options:"), source, (u64)(canvas_max(1, canvas.coverage_count) * 4), 0) else error(failed, "could not upload GPU coverage")
-    let command = metal_ptr(metal_required(device.queue), metal_sel("commandBuffer")) else error(failed, "could not create a Metal command buffer")
-    let encoder = metal_with_object(command, metal_sel("renderCommandEncoderWithDescriptor:"), descriptor) else error(failed, "could not create a Metal render encoder")
-    if let vertices = buffer:
-        metal_encode(encoder, state.drawing else trap("missing GPU drawing state"), vertices, metal_required(masks), canvas, (u64)size.pixel_width, (u64)size.pixel_height)
-    metal_void(encoder, metal_sel("endEncoding"))
+    let command = try metal_pass(device, texture, 0, canvas, Color(color.red, color.green, color.blue, 1.0), (u64)size.pixel_width, (u64)size.pixel_height)
     metal_object(command, metal_sel("presentDrawable:"), drawable)
     # Default command buffers retain referenced resources through completion.
     # Our +1 keeps status queryable after this call's autorelease pool is drained.
@@ -124,15 +94,9 @@ func metal_surface_destroy(state: MetalSurface*, host: window.Presentation):
     # Window closure may already have detached its callbacks. Its lease still
     # keeps the native host alive until our pending work and layer are released.
     metal_detach(state, host)
-    if let drawing = state.drawing:
-        metal_drawing_destroy(drawing)
     if let layer = state.layer:
         metal_void(layer, metal_sel("release"))
     free(state) in memory.heap
-
-func metal_release_slot(object: void*?*):
-    if let value = *object:
-        metal_void(value, metal_sel("release"))
 
 func metal_detach(state: MetalSurface*, host: window.Presentation):
     let view = host.macos_view() catch failure:

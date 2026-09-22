@@ -853,3 +853,91 @@ extern func vkAllocateDescriptorSets(device: u64, pAllocateInfo: VkDescriptorSet
 extern func vkUpdateDescriptorSets(device: u64, descriptorWriteCount: u32, pDescriptorWrites: VkWriteDescriptorSet*?, descriptorCopyCount: u32, pDescriptorCopies: VkCopyDescriptorSet*?)
 extern func vkCmdBindDescriptorSets(commandBuffer: u64, pipelineBindPoint: u32, layout: u64, firstSet: u32, descriptorSetCount: u32, pDescriptorSets: u64*?, dynamicOffsetCount: u32, pDynamicOffsets: u32*?)
 extern func vkCmdPushConstants(commandBuffer: u64, layout: u64, stageFlags: u32, offset: u32, size: u32, pValues: void*?)
+
+# mark: Textures, samplers, transfers and barriers ===========================================
+
+let VK_FORMAT_R8_UNORM: u32 = 9
+let VK_FORMAT_R8G8B8A8_UNORM: u32 = 37
+let VK_FORMAT_R16G16B16A16_SFLOAT: u32 = 97
+let VK_IMAGE_LAYOUT_UNDEFINED: u32 = 0
+let VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: u32 = 5
+let VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: u32 = 6
+let VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: u32 = 7
+let VK_IMAGE_USAGE_TRANSFER_SRC_BIT: u32 = 1
+let VK_IMAGE_USAGE_TRANSFER_DST_BIT: u32 = 2
+let VK_IMAGE_USAGE_SAMPLED_BIT: u32 = 4
+let VK_BUFFER_USAGE_TRANSFER_SRC_BIT: u32 = 1
+let VK_BUFFER_USAGE_TRANSFER_DST_BIT: u32 = 2
+let VK_ACCESS_SHADER_READ_BIT: u32 = 32
+let VK_ACCESS_TRANSFER_READ_BIT: u32 = 2048
+let VK_ACCESS_TRANSFER_WRITE_BIT: u32 = 4096
+let VK_ACCESS_HOST_READ_BIT: u32 = 8192
+let VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT: u32 = 1
+let VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT: u32 = 128
+let VK_PIPELINE_STAGE_TRANSFER_BIT: u32 = 4096
+let VK_PIPELINE_STAGE_HOST_BIT: u32 = 16384
+let VK_FILTER_NEAREST: u32 = 0
+let VK_FILTER_LINEAR: u32 = 1
+let VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: u32 = 2
+let VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: u32 = 1
+let VK_QUEUE_FAMILY_IGNORED: u32 = 4294967295
+let VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO: u32 = 31
+let VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER: u32 = 45
+
+extern struct VkOffset3D:
+    x: i32
+    y: i32
+    z: i32
+
+extern struct VkImageSubresourceLayers:
+    aspectMask: u32
+    mipLevel: u32
+    baseArrayLayer: u32
+    layerCount: u32
+
+extern struct VkBufferImageCopy:
+    bufferOffset: u64
+    bufferRowLength: u32
+    bufferImageHeight: u32
+    imageSubresource: VkImageSubresourceLayers
+    imageOffset: VkOffset3D
+    imageExtent: VkExtent3D
+
+extern struct VkImageMemoryBarrier:
+    sType: u32
+    pNext: void*?
+    srcAccessMask: u32
+    dstAccessMask: u32
+    oldLayout: u32
+    newLayout: u32
+    srcQueueFamilyIndex: u32
+    dstQueueFamilyIndex: u32
+    image: u64
+    subresourceRange: VkImageSubresourceRange
+
+extern struct VkSamplerCreateInfo:
+    sType: u32
+    pNext: void*?
+    flags: u32
+    magFilter: u32
+    minFilter: u32
+    mipmapMode: u32
+    addressModeU: u32
+    addressModeV: u32
+    addressModeW: u32
+    mipLodBias: f32
+    anisotropyEnable: u32
+    maxAnisotropy: f32
+    compareEnable: u32
+    compareOp: u32
+    minLod: f32
+    maxLod: f32
+    borderColor: u32
+    unnormalizedCoordinates: u32
+
+extern func vkCreateSampler(device: u64, pCreateInfo: VkSamplerCreateInfo*?, pAllocator: void*?, pSampler: u64*?) -> i32
+extern func vkDestroySampler(device: u64, sampler: u64, pAllocator: void*?)
+extern func vkCmdPipelineBarrier(commandBuffer: u64, srcStageMask: u32, dstStageMask: u32, dependencyFlags: u32, memoryBarrierCount: u32, pMemoryBarriers: void*?,
+                                 bufferMemoryBarrierCount: u32, pBufferMemoryBarriers: void*?, imageMemoryBarrierCount: u32, pImageMemoryBarriers: VkImageMemoryBarrier*?)
+extern func vkCmdCopyBufferToImage(commandBuffer: u64, srcBuffer: u64, dstImage: u64, dstImageLayout: u32, regionCount: u32, pRegions: VkBufferImageCopy*?)
+extern func vkCmdCopyImageToBuffer(commandBuffer: u64, srcImage: u64, srcImageLayout: u32, dstBuffer: u64, regionCount: u32, pRegions: VkBufferImageCopy*?)

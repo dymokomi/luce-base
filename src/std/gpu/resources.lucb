@@ -1,0 +1,58 @@
+#==============================================================================================
+#
+#   resources - The texture dispatch boundary
+#
+#   DESCRIPTION:
+#       The dispatch boundary for textures: a texture's native payload, opaque here, created,
+#       filled, read back, rendered into and destroyed by the selected backend. Like surfaces,
+#       a program that only opens a device never reaches this file.
+#
+#==============================================================================================
+
+func backend_texture_create(device: DeviceState*, width: u32, height: u32, format: Format) -> void*!:
+    if platform.windows and device.backend == Backend.vulkan:
+        return (void*)try vulkan_texture_create((VulkanDevice*)device.native, width, height, format)
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            return (void*)try metal_texture_create((MetalDevice*)device.native, width, height, format)
+    error(unsupported, "the GPU backend is not implemented")
+
+func backend_texture_upload(device: DeviceState*, native: void*, pixels: const u8[], region: Region) -> !:
+    if platform.windows and device.backend == Backend.vulkan:
+        try vulkan_texture_upload((VulkanDevice*)device.native, (VulkanTexture*)native, pixels, region)
+        return
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            try metal_texture_upload((MetalDevice*)device.native, (MetalTexture*)native, pixels, region)
+            return
+    error(unsupported, "the GPU backend is not implemented")
+
+func backend_texture_read(device: DeviceState*, native: void*, pixels: u8[], region: Region) -> !:
+    if platform.windows and device.backend == Backend.vulkan:
+        try vulkan_texture_read((VulkanDevice*)device.native, (VulkanTexture*)native, pixels, region)
+        return
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            try metal_texture_read((MetalDevice*)device.native, (MetalTexture*)native, pixels, region)
+            return
+    error(unsupported, "the GPU backend is not implemented")
+
+func backend_texture_render(device: DeviceState*, native: void*, canvas: Canvas, color: Color) -> !:
+    if platform.windows and device.backend == Backend.vulkan:
+        try vulkan_texture_render((VulkanDevice*)device.native, (VulkanTexture*)native, canvas, color)
+        return
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            try metal_texture_render((MetalDevice*)device.native, (MetalTexture*)native, canvas, color)
+            return
+    error(unsupported, "the GPU backend is not implemented")
+
+func backend_texture_destroy(device: DeviceState*, native: void*):
+    if platform.windows and device.backend == Backend.vulkan:
+        vulkan_texture_destroy((VulkanDevice*)device.native, (VulkanTexture*)native)
+        return
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            metal_texture_destroy((MetalTexture*)native)
+            return
+    trap("invalid GPU backend during texture destruction")

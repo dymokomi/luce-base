@@ -54,6 +54,7 @@ pub struct Surface:
         discard(try state.host.size())
         if state.active_frame:
             error(frame_in_use, "finish the active frame before presenting")
+        try check_canvas_device(canvas, state.device)
         return try backend_render(state.device, state.host, state.native, canvas, color)
 
     ## Begin one scoped recording frame. Resize, parent closure, presentation or
@@ -68,6 +69,7 @@ pub struct Surface:
         errdefer owner.release()
         let recording = (try native.state_value()).value()
         recording.presentation = (void*)state
+        recording.device = state.device
         recording.validate = check_surface_frame
         recording.submit = submit_surface_frame
         recording.release = release_surface_frame
@@ -128,6 +130,7 @@ func check_surface_frame(context: void*, acquired: window.Size) -> !:
 
 func submit_surface_frame(context: void*, canvas: Canvas, color: Color) -> PresentResult!:
     let state = (SurfaceState*)context
+    try check_canvas_device(canvas, state.device)
     return try backend_render(state.device, state.host, state.native, canvas, color)
 
 func release_surface_frame(context: void*):

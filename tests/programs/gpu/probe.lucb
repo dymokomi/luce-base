@@ -2,6 +2,7 @@ import gpu
 import frames
 import ownership
 import drawing
+import textures
 import allocation
 import memory
 import native
@@ -189,6 +190,7 @@ pub func main(arguments: str[]) -> i32!:
                 print("skip no Metal device")
                 return ownership.finish_run(0)
             error(failure.code, failure.message)
+        try textures.pixels(device)
         device.destroy()
         print("ok GPU device")
     elif arguments.length > 1 and arguments[1] == "gui":

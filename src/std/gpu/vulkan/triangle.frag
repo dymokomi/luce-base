@@ -2,24 +2,28 @@
 layout(location = 0) in vec4 vertex_color;
 layout(location = 0) out vec4 fragment_color;
 layout(set = 0, binding = 0, std430) readonly buffer Coverage { uint data[]; };
-layout(push_constant) uniform Mask {
+layout(set = 0, binding = 1) uniform sampler2D image;
+layout(push_constant) uniform Params {
     float x, y, width, height;
-    uint columns, rows, offset, reserved;
-} mask;
+    uint columns, rows, offset, mode;
+    float u0, v0, u1, v1;
+} params;
 float coverage(ivec2 p) {
-    p = clamp(p, ivec2(0), ivec2(mask.columns - 1, mask.rows - 1));
-    uint i = mask.offset + uint(p.y) * mask.columns + uint(p.x);
+    p = clamp(p, ivec2(0), ivec2(params.columns - 1, params.rows - 1));
+    uint i = params.offset + uint(p.y) * params.columns + uint(p.x);
     return float((data[i / 4] >> ((i % 4) * 8)) & 255u) / 255.0;
 }
 void main() {
-    float alpha = 1.0;
-    if (mask.columns != 0) {
-        vec2 p = (gl_FragCoord.xy - vec2(mask.x, mask.y)) / vec2(mask.width, mask.height)
-            * vec2(mask.columns, mask.rows) - 0.5;
-        ivec2 q = ivec2(floor(p));
-        vec2 f = fract(p);
-        alpha = mix(mix(coverage(q), coverage(q + ivec2(1, 0)), f.x),
-                    mix(coverage(q + ivec2(0, 1)), coverage(q + ivec2(1, 1)), f.x), f.y);
+    vec4 c = vertex_color;
+    vec2 p = (gl_FragCoord.xy - vec2(params.x, params.y)) / vec2(params.width, params.height);
+    if (params.mode == 1u) {
+        vec2 q = p * vec2(params.columns, params.rows) - 0.5;
+        ivec2 i = ivec2(floor(q));
+        vec2 f = fract(q);
+        c.a *= mix(mix(coverage(i), coverage(i + ivec2(1, 0)), f.x),
+                   mix(coverage(i + ivec2(0, 1)), coverage(i + ivec2(1, 1)), f.x), f.y);
+    } else if (params.mode == 2u) {
+        c *= texture(image, mix(vec2(params.u0, params.v0), vec2(params.u1, params.v1), p));
     }
-    fragment_color = vec4(vertex_color.rgb, vertex_color.a * alpha);
+    fragment_color = vec4(c.rgb * c.a, c.a);
 }

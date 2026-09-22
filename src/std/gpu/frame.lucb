@@ -24,6 +24,8 @@ struct FrameState:
     # Presentation hooks are installed only by Surface.frame. Portable recording
     # and its ownership metadata therefore have no native backend dependency.
     var presentation: void*?
+    # The device a surface or texture frame draws on; a standalone frame has none.
+    var device: DeviceState*?
     var validate: (func(void*, window.Size) -> unit!)?
     var submit: (func(void*, Canvas, Color) -> PresentResult!)?
     var release: (func(void*) -> unit)?
@@ -179,6 +181,36 @@ pub struct RenderTarget:
 
 ## The interop view type of a `RenderTarget`.
 pub let render_target_type: interop.ViewType[RenderTarget] = interop.ViewType[RenderTarget]("GPU render target")
+
+# mark: Base-only drawing on a target ==========================================================
+# Textures and devices are Base resources, so these are functions rather than
+# methods: a method mentioning them would hide the whole view from Luce.
+
+## An owned handle to the device `target`'s frame draws on, for creating
+## textures to draw into it; destroy it like any device handle. A standalone
+## frame has no device and returns `unavailable`.
+pub func device_of(target: const RenderTarget*) -> Device!:
+    try target.frame.check()
+    let state = target.frame.device else error(unavailable, "a standalone frame draws on no device")
+    state.references += 1
+    return Device(state = state)
+
+## Draw `source` texels of `texture` (the whole texture by default) scaled onto
+## `rectangle` of `target` in points, multiplied by `opacity`, sampled with
+## `filter` and clipped to the target. Texels are straight alpha and composite
+## over what is already drawn.
+pub func draw_image(target: const RenderTarget*, texture: Texture, rectangle: Rect, source: Region? = none, opacity: f64 = 1.0, filter: Filter = Filter.linear) -> !:
+    try target.frame.check()
+    try check_region(rectangle)
+    let state = try texture.checked()
+    let area = source else Region(0, 0, state.width, state.height)
+    let scale_x = frame_scale(target.frame.size.pixel_width, target.frame.size.width)
+    let scale_y = frame_scale(target.frame.size.pixel_height, target.frame.size.height)
+    let destination = Rect((target.rectangle.x + rectangle.x) * scale_x,
+                           (target.rectangle.y + rectangle.y) * scale_y, rectangle.width * scale_x, rectangle.height * scale_y)
+    try target.frame.canvas.image(state, area, destination, opacity, filter, target.clipping,
+                                  target.frame.size.pixel_width, target.frame.size.pixel_height)
+
 
 func frame_scale(pixels: f64, points: f64) -> f64:
     return pixels / points if points > 0.0 else 0.0
