@@ -17,6 +17,8 @@ import interop
 import ownership
 import math
 import thread
+
+# mark: Errors ================================================================================
 ## No GPU backend is implemented for this target.
 pub let unsupported: ErrorCode = ErrorCode.package(91)
 ## A backend exists but no device could be opened on the hardware.
@@ -52,6 +54,7 @@ pub let wrong_target: ErrorCode = ErrorCode.package(121)
 ## A shader could not be compiled or a pipeline could not be built from it.
 pub let invalid_shader: ErrorCode = ErrorCode.package(122)
 
+# mark: Backends, colours and formats =========================================================
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Windows x64 uses Vulkan; macOS
 ## ARM64 uses Metal. Link dependencies are selected by the compiler.
@@ -128,6 +131,7 @@ pub func texel_bytes(format: Format) -> usize:
         return 1
     return 4
 
+# mark: Presentation and thread checks ========================================================
 ## Submission does not guarantee that a frame has appeared on the display.
 ## skipped means hidden/minimized, zero drawable extent, or no drawable available;
 ## keep pumping events and retry on a later frame. It is not an execution failure.

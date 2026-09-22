@@ -9,6 +9,7 @@
 #
 #==============================================================================================
 
+# mark: Vertices, clips and viewports =========================================================
 ## One triangle vertex: a clip-space position and a straight-alpha linear-sRGB colour.
 pub struct Vertex:
     ## The clip-space x, in -w..w.
@@ -51,6 +52,7 @@ pub struct Viewport:
     ## The height in backing pixels.
     pub var height: f64
 
+# mark: Draws and the canvas ==================================================================
 struct Draw:
     var first: usize
     var count: usize
@@ -193,6 +195,7 @@ pub struct Canvas:
             free(self.draws) in memory.heap
         self = Canvas()
 
+# mark: Geometry helpers ======================================================================
 ## Two clip-space triangles covering `rectangle`, given in backing pixels of a
 ## target `target_width` by `target_height` pixels, coloured `color`.
 func quad_vertices(rectangle: Rect, color: Color, target_width: f64, target_height: f64) -> Vertex[6]:

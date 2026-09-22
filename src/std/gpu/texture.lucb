@@ -10,6 +10,7 @@
 #
 #==============================================================================================
 
+# mark: Textures ==============================================================================
 ## An owned texture; the zero value is closed and copies alias ownership.
 pub struct Texture:
     var state: TextureState*?
@@ -117,6 +118,7 @@ func release_texture(state: TextureState*):
         release_device(state.device)
         free(state) in memory.heap
 
+# mark: Frames on a texture ===================================================================
 ## Every image draw in `canvas` must sample a texture of `device`.
 func check_canvas_device(canvas: Canvas, device: DeviceState*) -> !:
     for draw in canvas.draws[..<canvas.draw_count]:

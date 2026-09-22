@@ -38,6 +38,12 @@ def words_of(path, stage, temporary):
     return output, words
 
 
+def emit_mark(title):
+    head = f'# mark: {title} '
+    lines.append(head + '=' * (95 - len(head)))
+    lines.append('')
+
+
 def emit_words(name, words):
     global lines
     lines.append(f'{visibility}let {name}: u32[{len(words)}] = [')
@@ -48,9 +54,11 @@ def emit_words(name, words):
 
 with tempfile.TemporaryDirectory(prefix='luce-shader-') as temporary:
     for path in args.vertex:
+        emit_mark(f'{path.stem}: vertex stage')
         _, words = words_of(path, 'vert', temporary)
         emit_words(path.stem + '_vert_words', words)
     for path in args.fragments:
+        emit_mark(f'{path.stem}: fragment stage')
         spv, words = words_of(path, 'frag', temporary)
         emit_words(path.stem + '_frag_words', words)
         msl = subprocess.run([args.spirv_cross, '--msl', '--msl-version', '20100', '--msl-decoration-binding',

@@ -9,6 +9,7 @@
 #
 #==============================================================================================
 
+# mark: Vertex and coverage uploads ===========================================================
 struct VulkanUpload:
     var buffer: u64
     var block: u64
@@ -83,6 +84,7 @@ func vulkan_upload(device: VulkanDevice*, canvas: Canvas) -> VulkanUpload!:
         vkUpdateDescriptorSets(device.device, 5, &writes[0], 0, none)
     return upload
 
+# mark: Encoding and rendering ================================================================
 ## Record one render pass of `canvas` into `framebuffer` on `command`, clearing to
 ## `color`. Presentation clears opaque; texture passes keep the alpha.
 func vulkan_encode(device: VulkanDevice*, command: u64, formats: VulkanFormatState*, pass: u64, framebuffer: u64,
