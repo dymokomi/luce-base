@@ -1102,6 +1102,7 @@ typedef struct lb_input_Event {
     double scroll_y;
     uint8_t scroll_unit;
     uint32_t codepoint;
+    double pressure;
 } lb_input_Event;
 typedef struct lb_window_Options {
     lb_str title;

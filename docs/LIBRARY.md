@@ -1735,6 +1735,7 @@ A self-contained value; it retains no native object or borrowed text. Only the f
 - `var scroll_y: f64` — Vertical scroll displacement (see `scroll_x`).
 - `var scroll_unit: ScrollUnit` — The unit of the scroll deltas.
 - `var codepoint: u32` — The Unicode scalar, for text_input events.
+- `var pressure: f64` — Stylus pressure for pointer events, 0..1; zero when the device reports none, as a mouse does.
 
 ## `window`
 

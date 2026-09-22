@@ -89,6 +89,10 @@ func pointer_callback(object: void*, selector: void*, native: void*):
         event.kind = input.EventKind.magnify
         event.scroll_y = msg_double(native, sel("magnification"))
         event.scroll_unit = input.ScrollUnit.points
+    # Tablet points (subtype 1) carry the stylus pressure; everything else presses fully.
+    if (native_type >= 1 and native_type <= 7) or native_type == 25 or native_type == 26 or native_type == 27:
+        if msg_uint(native, sel("subtype")) == 1:
+            event.pressure = msg_double(native, sel("pressure"))
     let bounds = msg_rect(object, sel("bounds"))
     state.pointer_inside = position.x >= 0.0 and position.y >= 0.0 and position.x < bounds.size.width and position.y < bounds.size.height
     if event.button == 0:
