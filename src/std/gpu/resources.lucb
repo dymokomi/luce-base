@@ -48,11 +48,22 @@ func backend_texture_render(device: DeviceState*, native: void*, canvas: Canvas,
     error(unsupported, "the GPU backend is not implemented")
 
 func backend_texture_destroy(device: DeviceState*, native: void*):
-    if platform.windows and device.backend == Backend.vulkan:
-        vulkan_texture_destroy((VulkanDevice*)device.native, (VulkanTexture*)native)
-        return
+    device.destroy_texture((void*)device.native, native)
+
+## The backend's texture release, bound once per device at open.
+func backend_texture_destroyer(backend: Backend) -> func(void*, void*) -> unit:
+    if platform.windows and backend == Backend.vulkan:
+        return vulkan_texture_release
     if platform.macos and platform.arm64:
-        if device.backend == Backend.metal:
-            metal_texture_destroy((MetalTexture*)native)
-            return
-    trap("invalid GPU backend during texture destruction")
+        if backend == Backend.metal:
+            return metal_texture_release
+    trap("invalid GPU backend when binding texture release")
+
+func vulkan_texture_release(device: void*, native: void*):
+    if platform.windows:
+        vulkan_texture_destroy((VulkanDevice*)device, (VulkanTexture*)native)
+
+func metal_texture_release(device: void*, native: void*):
+    discard(device)
+    if platform.macos and platform.arm64:
+        metal_texture_destroy((MetalTexture*)native)
