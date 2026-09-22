@@ -31,6 +31,8 @@ pub struct Shader:
         device_state.references += 1
         return Shader(state = state)
 
+    ## Release this handle on the main thread; pipelines and recorded draws keep
+    ## the program until they finish.
     pub mutating func destroy():
         let state = self.state else return
         require_thread()
@@ -76,9 +78,12 @@ pub struct Pipeline:
         device_state.references += 1
         return Pipeline(state = state)
 
+    ## The blend mode this pipeline was built with.
     pub func blend() -> Blend!:
         return (try self.checked()).blend
 
+    ## Release this handle on the main thread; recorded draws keep the pipeline
+    ## until their canvas is cleared.
     pub mutating func destroy():
         let state = self.state else return
         require_thread()
