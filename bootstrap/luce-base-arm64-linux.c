@@ -1216,6 +1216,31 @@ typedef struct lb_window_WinMouseTracking {
     void* window;
     uint32_t hover_time;
 } lb_window_WinMouseTracking;
+typedef struct WinOpenFileName {
+    uint32_t size;
+    void* owner;
+    void* instance;
+    uint16_t* filter;
+    uint16_t* custom_filter;
+    uint32_t custom_filter_capacity;
+    uint32_t filter_index;
+    uint16_t* file;
+    uint32_t file_capacity;
+    uint16_t* file_title;
+    uint32_t file_title_capacity;
+    uint16_t* initial_directory;
+    uint16_t* title;
+    uint32_t flags;
+    uint16_t file_offset;
+    uint16_t file_extension;
+    uint16_t* default_extension;
+    intptr_t custom_data;
+    void* hook;
+    uint16_t* template_name;
+    void* reserved_pointer;
+    uint32_t reserved;
+    uint32_t flags_extra;
+} WinOpenFileName;
 typedef struct lb_fonts_Bitmap {
     lb_span pixels;
     uint32_t width;
@@ -6110,6 +6135,8 @@ extern void lb_x_dialogs_11msg_release(void) LB_SYMBOL("objc_msgSend");
 extern void lb_x_dialogs_11msg_release(void*, void*) LB_SYMBOL("objc_msgSend");
 #define lb_c_dialogs_11msg_release lb_x_dialogs_11msg_release
 #endif
+extern int32_t lb_x_dialogs_GetOpenFileNameW(struct WinOpenFileName*) LB_SYMBOL("GetOpenFileNameW");
+extern int32_t lb_x_dialogs_GetSaveFileNameW(struct WinOpenFileName*) LB_SYMBOL("GetSaveFileNameW");
 extern void* lb_x_fonts_CFStringCreateWithBytes(void*, const uint8_t*, int64_t, uint32_t, bool) LB_SYMBOL("CFStringCreateWithBytes");
 extern void lb_x_fonts_CFRelease(void*) LB_SYMBOL("CFRelease");
 extern void* lb_x_fonts_CTFontCreateWithName(void*, double, void*) LB_SYMBOL("CTFontCreateWithName");
