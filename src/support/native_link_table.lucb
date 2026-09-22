@@ -22,7 +22,7 @@ pub struct Rule:
     pub let framework: bool
 
 ## Every link rule, across all targets.
-pub let rules: Rule[54] = [
+pub let rules: Rule[56] = [
     Rule("arm64-linux", "cairo_image_surface_create", "cairo", false),
     Rule("arm64-linux", "cairo_scaled_font_destroy", "cairo", false),
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "CoreGraphics", true),
@@ -58,6 +58,8 @@ pub let rules: Rule[54] = [
     Rule("x86_64-windows", "GetDpiForWindow", "user32", false),
     Rule("x86_64-windows", "GetGlyphOutlineW", "gdi32", false),
     Rule("x86_64-windows", "GetObjectW", "gdi32", false),
+    Rule("x86_64-windows", "GetOpenFileNameW", "comdlg32", false),
+    Rule("x86_64-windows", "GetSaveFileNameW", "comdlg32", false),
     Rule("x86_64-windows", "GetTextMetricsW", "gdi32", false),
     Rule("x86_64-windows", "OpenClipboard", "user32", false),
     Rule("x86_64-windows", "PeekMessageW", "user32", false),
