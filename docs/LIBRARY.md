@@ -2026,6 +2026,7 @@ One recording scope. A standalone Frame records portable commands for a supplied
 A checked drawing view. Its private canvas never escapes. Child regions intersect their parent's clip, while vertices retain their own clip coordinates.
 
 - `func size() -> window.Size!` — The target's extent in logical points and backing pixels.
+- `func placement() -> Rect!` — Where this target lies in its frame, in points: what a client shader reading `gl_FragCoord` needs to map frame pixels back to this target.
 - `func region(rectangle: Rect) -> interop.View[RenderTarget]!` — A child target for `rectangle`, its clip intersected with this target's.
 - `func clipped(rectangle: Rect) -> interop.View[RenderTarget]!` — Narrow drawing without changing the coordinate system. Useful when a layout clips a child whose geometry is already in its parent's coordinates.
 - `func triangles(vertices: const Vertex[], depth: bool = false) -> !` — Record a list of clip-space triangles into this target.
@@ -2057,15 +2058,15 @@ An owned texture; the zero value is closed and copies alias ownership.
 A fragment program on one device; the zero value is closed.
 
 - `static func create(device: Device, spirv: const u32[], msl: c.str) -> Shader!` — Compile a fragment program from its SPIR-V words and its Metal source. Each backend uses its own form and ignores the other.
-- `mutating func destroy()`
+- `mutating func destroy()` — Release this handle on the main thread; pipelines and recorded draws keep the program until they finish.
 
 ### `Pipeline` (struct)
 
 A shader bound to a blend mode and a target format; the zero value is closed.
 
 - `static func create(device: Device, shader: Shader, blend: Blend, format: Format? = none) -> Pipeline!` — Build a pipeline drawing `shader` with `blend` into targets of `format`, or into presentation surfaces when `format` is `none`.
-- `func blend() -> Blend!`
-- `mutating func destroy()`
+- `func blend() -> Blend!` — The blend mode this pipeline was built with.
+- `mutating func destroy()` — Release this handle on the main thread; recorded draws keep the pipeline until their canvas is cleared.
 
 ## `c`
 
