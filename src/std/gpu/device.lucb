@@ -21,7 +21,7 @@ pub struct Device:
         let native = try backend_device_open(selected)
         errdefer backend_device_destroy(selected, native)
         let state = try new DeviceState(backend = selected, native = native, references = 1, destroy_texture = backend_texture_destroyer(selected), destroy_shader = backend_shader_destroyer(selected),
-                                           destroy_pipeline = backend_pipeline_destroyer(selected), destroy_device = backend_device_destroy) in memory.heap
+                                        destroy_pipeline = backend_pipeline_destroyer(selected), destroy_device = backend_device_destroy) in memory.heap
         return Device(state = state)
 
     ## The backend this device runs on.
