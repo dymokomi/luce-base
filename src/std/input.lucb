@@ -40,6 +40,8 @@ pub enum EventKind as u8:
     text_input = 13
     pointer_entered = 14
     pointer_left = 15
+    ## A touchpad pinch: `scroll_y` holds the magnification change (0.1 = 10% larger).
+    magnify = 16
 
 ## USB HID keyboard-page usages, independent of the host's virtual key numbers.
 ## Unknown or unsupported positions produce unknown rather than a guessed key.

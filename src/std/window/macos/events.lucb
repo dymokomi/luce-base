@@ -84,6 +84,11 @@ func pointer_callback(object: void*, selector: void*, native: void*):
         event.scroll_x = msg_double(native, sel("scrollingDeltaX"))
         event.scroll_y = msg_double(native, sel("scrollingDeltaY"))
         event.scroll_unit = input.ScrollUnit.points if msg_bool(native, sel("hasPreciseScrollingDeltas")) else input.ScrollUnit.lines
+    elif native_type == 30:
+        # NSEventTypeMagnify: the pinch's magnification change since the last event.
+        event.kind = input.EventKind.magnify
+        event.scroll_y = msg_double(native, sel("magnification"))
+        event.scroll_unit = input.ScrollUnit.points
     let bounds = msg_rect(object, sel("bounds"))
     state.pointer_inside = position.x >= 0.0 and position.y >= 0.0 and position.x < bounds.size.width and position.y < bounds.size.height
     if event.button == 0:

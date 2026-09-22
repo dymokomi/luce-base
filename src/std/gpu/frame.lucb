@@ -134,6 +134,12 @@ pub struct RenderTarget:
                            pixel_width = self.rectangle.width * scale_x, pixel_height = self.rectangle.height * scale_y,
                            scale = self.frame.size.scale)
 
+    ## Where this target lies in its frame, in points: what a client shader
+    ## reading `gl_FragCoord` needs to map frame pixels back to this target.
+    pub func placement() -> Rect!:
+        try self.frame.check()
+        return self.rectangle
+
     ## A child target for `rectangle`, its clip intersected with this target's.
     pub func region(rectangle: Rect) -> interop.View[RenderTarget]!:
         try self.frame.check()
