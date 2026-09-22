@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "abi_scalars" {
+    def native "inputs" {
+        str[] sources = ["helper.c"]
+    }
+}

@@ -19,10 +19,10 @@ def run(*args, expected=0):
 
 with tempfile.TemporaryDirectory(prefix='base-public-exports-') as temporary:
     root = Path(temporary)
-    write(root, 'library/luce.toml', '[package]\nname = "luce_ui"\nsource = "src"\n[exports]\nui = "luce_ui.ui"\ncontrols = "luce_ui.ui"\n')
+    write(root, 'library/package.prisma', '#prisma 4.0\ndef package "luce-ui" {\n    str source = "src"\n    def export "ui" {\n        str module = "luce_ui.ui"\n    }\n    def export "controls" {\n        str module = "luce_ui.ui"\n    }\n}\n')
     library = write(root, 'library/src/luce_ui/ui.lucb', 'import luce_ui.internal\npub struct Button:\n    pub let length: i64\n    pub func init(label: str):\n        self.length = internal.length(label)\n')
     write(root, 'library/src/luce_ui/internal.lucb', 'pub func length(text: str) -> i64:\n    return (i64)text.length\n')
-    manifest = write(root, 'consumer/luce.toml', '[package]\nname = "consumer"\n[dependencies]\nluce_ui = "../library"\n')
+    manifest = write(root, 'consumer/package.prisma', '#prisma 4.0\ndef package "consumer" {\n    def dependency "luce-ui" {\n        str path = "../library"\n    }\n}\n')
     entry = write(root, 'consumer/src/main.lucb', 'from ui import Button\nimport controls\npub func main(arguments: str[]) -> i32:\n    let button: controls.Button = Button("pause")\n    assert(button.length == 5)\n    return 0\n')
     mode_flags = [['--native', '--opt', str(level)] for level in range(4)] + [['--backend=c'], ['--backend=c', '--release']]
     for flags in mode_flags:
@@ -38,6 +38,6 @@ with tempfile.TemporaryDirectory(prefix='base-public-exports-') as temporary:
     assert b'module luce_ui.ui\n' in description, description
     assert run(compiler, 'describe', '--standard', 'math').stdout.startswith(b'description 9\nmodule math\n')
     assert b'unknown standard' in run(compiler, 'describe', '--standard', 'missing', expected=1).stderr
-    manifest.write_text(manifest.read_text().replace('luce_ui =', 'wrong ='))
+    manifest.write_text(manifest.read_text().replace('def dependency "luce-ui"', 'def dependency "wrong"'))
     assert b'match its package name' in run(compiler, 'check', entry, expected=1).stderr
 print('PASS public exports, aliases, dependency protocol and canonical standard descriptions; six modes')

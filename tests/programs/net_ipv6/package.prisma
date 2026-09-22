@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "ipv6_socket_contracts" {
+    def native "inputs" {
+        str[] sources = ["reference.c"]
+    }
+}

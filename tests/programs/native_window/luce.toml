@@ -1,5 +1,0 @@
-[package]
-name = "native_window"
-
-[native]
-frameworks = ["CoreGraphics"]

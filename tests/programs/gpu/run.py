@@ -64,7 +64,7 @@ def main():
         for source in SOURCE.glob('*.lucb'):
             shutil.copy2(source, work / source.name)
         manifest = '[package]\nname = "gpu_test"\n'
-        (work / 'luce.toml').write_text(manifest)
+        (work / 'package.prisma').write_text(manifest)
         modes = [(f'native-{level}', ['--native', '--opt', str(level)]) for level in range(4)]
         modes += [('c', ['--backend=c']), ('c-release', ['--backend=c', '--release'])]
         for name, flags in modes:
@@ -90,7 +90,7 @@ def main():
             print(f'ok gpu {name}' + (' (pixels and presentation)' if gui else ' (contracts)'), flush=True)
 
         # Importing portable GPU values must not link any native graphics library.
-        (work / 'luce.toml').write_text('[package]\nname = "gpu_values"\n')
+        (work / 'package.prisma').write_text('#prisma 4.0\ndef package "gpu_values" {\n}\n')
         values = work / 'values.lucb'
         values.write_text('import gpu\npub func main(arguments: str[]) -> i32:\n    discard(arguments)\n    let color = gpu.Color(red = 0.5)\n    assert(color.red == 0.5 and color.green == 0.0)\n    return 0\n')
         for name, flags in [('native', ['--native']), ('c', ['--backend=c'])]:
@@ -112,7 +112,7 @@ def main():
 
         if mac:
             # Device ownership does not initialize/link a window system.
-            (work / 'luce.toml').write_text('[package]\nname = "gpu_device"\n')
+            (work / 'package.prisma').write_text('#prisma 4.0\ndef package "gpu_device" {\n}\n')
             device = work / 'device.lucb'
             device.write_text('import gpu\npub func main(arguments: str[]) -> i32!:\n    discard(arguments)\n    var device = gpu.Device.open() catch failure:\n        if failure.code == gpu.unavailable:\n            return 0\n        error(failure.code, failure.message)\n    device.destroy()\n    return 0\n')
             for name, flags in [('native', ['--native']), ('c', ['--backend=c'])]:

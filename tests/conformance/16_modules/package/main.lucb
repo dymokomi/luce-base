@@ -1,7 +1,7 @@
 ## §16.1, §16.3: one file is one module named by its path; `import` keeps a module
 ## qualified by its last name, or by an alias when asked; `from ... import` brings the named declarations and
 ## nothing else; a private declaration stays inside its module; a module-level `var` is one
-## per program; the package's error codes carry its name from `luce.toml`.
+## per program; the package's error codes carry its name from `package.prisma`.
 import shapes.circle
 import shapes.square as sq
 from shapes.point import Point, origin

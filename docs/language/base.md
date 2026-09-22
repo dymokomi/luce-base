@@ -1353,7 +1353,16 @@ from image.geometry import Point
 
 ### 16.4 Packages
 
-A package has a `luce.toml` manifest and an exact lock. The manifest names the package, its source roots, its dependencies, its C inputs (§17.4), and the `symbol_prefix` for exports (§17.6). The package name is the identity of its error codes (§11.3). There are no build scripts. A minimal manifest and the commands that build a program are at the start of Chapter 24.
+A package has a `package.prisma` definition and an exact lock. The definition names the package, its source root, its dependencies, its C inputs (§17.4), and the `symbol_prefix` for exports (§17.6). The package name is the identity of its error codes (§11.3); a name spelled `luce-ui` is the identifier `luce_ui`. There are no build scripts. A minimal definition:
+
+```text
+#prisma 4.0
+def package "demo" {
+    str source = "src"
+}
+```
+
+A dependency is `def dependency "name" { str path = "../name" }`; one without a `path` is a registry package that `luc` has unpacked under `.luc/deps/<name>` at or above the package root. Public modules are `def export "alias" { str module = "demo.module" }` and C inputs are `def native "inputs" { str[] sources = [...] }` with `link_search`, `libraries`, `frameworks` and `pkg_config` alongside. The tool `luc` adds the fields it needs (kind, version, owner, tasks); the compiler reads only what is named here.
 
 ### 16.5 Tests
 

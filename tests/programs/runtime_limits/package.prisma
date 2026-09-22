@@ -1,0 +1,7 @@
+#prisma 4.0
+def package "runtime_limits" {
+    str source = "."
+    def native "inputs" {
+        str[] sources = ["guard.c"]
+    }
+}

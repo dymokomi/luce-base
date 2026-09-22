@@ -1,5 +1,0 @@
-[package]
-name = "network_error_contracts"
-
-[native]
-sources = ["reference.c"]

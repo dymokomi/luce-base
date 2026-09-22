@@ -853,7 +853,7 @@ def differential_trap(text, timeout, findings, label):
 
 
 def gen_package(rng):
-    """A three-module package (geo, num, main) plus luce.toml exercising cross-module imports,
+    """A three-module package (geo, num, main) plus package.prisma exercising cross-module imports,
     qualified and from-import names, a cross-module struct/method/generic, a shared interface
     dispatched dynamically across modules, and module constants. Everything is wrapping or
     bounded, so it never traps; the interpreter and every backend must print the same line."""
@@ -913,7 +913,7 @@ def gen_package(rng):
         '    print(f"{acc} {p.norm()} {geo.mix(' + c() + ', acc)} {t.score()} {num.score_dyn(&t)}")',
         "    return 0",
     ])
-    return {"geo.lucb": geo, "num.lucb": num, "main.lucb": main, "luce.toml": "[package]\nname = \"genpkg\"\n"}
+    return {"geo.lucb": geo, "num.lucb": num, "main.lucb": main, "package.prisma": "#prisma 4.0\ndef package \"genpkg\" {\n}\n"}
 
 
 def differential_package(files, timeout, findings, label):

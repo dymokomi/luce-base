@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "external_storage" {
+    def native "inputs" {
+        str[] sources = ["storage.c"]
+    }
+}

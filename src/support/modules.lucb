@@ -122,10 +122,44 @@ func read_package(path: str) -> Package!:
     package.source = try paths.join(root, package.source)
     return package
 
+## Where a dependency lives: its declared checkout path, or `.luc/deps/<name>` at the package
+## root or the nearest directory above it, where luc unpacks registry packages. A package
+## that itself sits under `.luc/deps/` came from the registry, so its own checkout paths are
+## its author's and every dependency is looked up the same way.
+func dependency_directory(package: Package, dependency: Mapping) -> str!:
+    let synced = starts_with_text(dependency.value, ".luc/deps/") or contains_text(package.root, "/.luc/deps/")
+    if not synced:
+        return try paths.join(package.root, dependency.value)
+    var relative = try paths.join(".luc/deps", dependency.name)
+    var directory = package.root
+    while true:
+        let candidate = try paths.join(directory, relative)
+        if try present(candidate):
+            return candidate
+        let parent = paths.directory(directory)
+        if parent == directory or parent.length == 0:
+            error(invalid, "a registry dependency is not synced; run luc sync")
+        directory = parent
+
+func starts_with_text(text: str, prefix: str) -> bool:
+    if text.length < prefix.length:
+        return false
+    return (str)text.bytes[..<prefix.length] == prefix
+
+func contains_text(text: str, part: str) -> bool:
+    if part.length > text.length:
+        return false
+    var i: usize = 0
+    while i + part.length <= text.length:
+        if (str)text.bytes[i..<i + part.length] == part:
+            return true
+        i += 1
+    return false
+
 func enclosing(path: str) -> Package?!:
     var directory = paths.directory(path)
     while directory.length > 0:
-        let candidate = try paths.join(directory, "luce.toml")
+        let candidate = try paths.join(directory, "package.prisma")
         if try present(candidate):
             return try read_package(candidate)
         let parent = paths.directory(directory)
@@ -171,7 +205,7 @@ pub func package_import(importer: str, name: str, base_only: bool = true) -> Res
     let package = try enclosing(input) else return none
     var result = try exported(package, name, base_only)
     for dependency in package.dependencies.span():
-        let path = try paths.join(try paths.join(package.root, dependency.value), "luce.toml")
+        let path = try paths.join(try dependency_directory(package, dependency), "package.prisma")
         let other = try read_package(path)
         if other.name != dependency.name:
             error(invalid, "a dependency key must match its package name")

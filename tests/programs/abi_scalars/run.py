@@ -10,7 +10,7 @@ source = Path(__file__).resolve().parent
 compiler = str(Path(sys.argv[1]).resolve())
 with tempfile.TemporaryDirectory(prefix='luce-abi-scalars-') as directory:
     work = Path(directory)
-    for name in ('main.lucb', 'helper.c', 'luce.toml'):
+    for name in ('main.lucb', 'helper.c', 'package.prisma'):
         shutil.copy2(source / name, work / name)
     modes = [(f'native-{i}', ['--native', '--opt', str(i)]) for i in range(4)]
     modes += [('c', ['--backend=c']), ('c-release', ['--backend=c', '--release'])]

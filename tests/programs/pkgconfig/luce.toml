@@ -1,5 +1,0 @@
-[package]
-name = "pkgconfig"
-
-[native]
-pkg_config = ["sdl3"]

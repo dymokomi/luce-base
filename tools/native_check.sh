@@ -12,7 +12,7 @@ HERE=$(pwd)
 : > "$REPORT"
 pass=0; fail=0
 for f in $(find "$DIR" -name '*.lucb' -maxdepth 2 | sort); do
-    case "$(dirname "$f")" in "$DIR") ;; *) [ -f "$(dirname "$f")/luce.toml" ] && continue ;; esac
+    case "$(dirname "$f")" in "$DIR") ;; *) [ -f "$(dirname "$f")/package.prisma" ] && continue ;; esac
     want=$(sed -n 's/^# answer: *//p' "$f" | head -1)
     [ -z "$want" ] && continue
     grep -q '^# oracle: none' "$f" && continue

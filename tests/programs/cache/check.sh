@@ -32,7 +32,7 @@ grep -q '^luce-base: cache miss ' "$work/report" || { echo "FAIL tests/programs/
 [ "$("$work/program")" = "cached true" ]
 # The default cache (no --cache-dir, no LUCE_CACHE) is the project's own build/.cache, beside
 # the output; the gate exports LUCE_CACHE, so unset it here to exercise the true default.
-printf '[package]\nname = "cache_default"\n' > "$work/luce.toml"
+printf '#prisma 4.0\ndef package "cache_default" {\n}\n' > "$work/package.prisma"
 mkdir -p "$work/build"
 env -u LUCE_CACHE "$compiler" build "$work/main.lucb" --native -o "$work/build/program" > /dev/null 2>&1
 [ -d "$work/build/.cache" ] && [ "$(ls "$work/build/.cache" | wc -l | tr -d ' ')" -ge 1 ] || { echo "FAIL tests/programs/cache: the default cache is not the project build/.cache"; ls -la "$work/build" 2>/dev/null; exit 1; }

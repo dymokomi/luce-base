@@ -366,9 +366,9 @@ does not need to be built by a compiler that has `f16`.
 
 ## Packages
 
-`support/manifest.lucb` finds `luce.toml` upward from the entry file and
+`support/manifest.lucb` finds `package.prisma` upward from the entry file and
 reads what the compiler needs of it (§16.4): the package's name, its
-`symbol_prefix`, and the `[native]` inputs. The name is the identity of the
+`symbol_prefix`, and the `native` inputs. The name is the identity of the
 package's error codes (§11.3): the checker folds `ErrorCode.package(n)` into
 the literal `(identity << 16) | n`, sixteen bits of the name for a program's
 own modules and of `luce` for the standard ones, the same computation the

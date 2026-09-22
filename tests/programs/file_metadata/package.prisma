@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "file_metadata_contracts" {
+    def native "inputs" {
+        str[] sources = ["reference.c"]
+    }
+}

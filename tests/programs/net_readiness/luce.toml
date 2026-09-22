@@ -1,5 +1,0 @@
-[package]
-name = "readiness_contracts"
-
-[native]
-sources = ["reference.c"]

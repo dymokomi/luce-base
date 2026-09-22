@@ -53,7 +53,7 @@ def main():
         manifest = '[package]\nname = "native_window_test"\n'
         if mac:
             manifest += '[native]\nframeworks = ["AppKit", "Foundation", "CoreGraphics"]\nlibraries = ["objc"]\n'
-        (work / 'luce.toml').write_text(manifest)
+        (work / 'package.prisma').write_text(manifest)
         modes = [(f'native-{level}', ['--native', '--opt', str(level)]) for level in range(4)]
         modes += [('c', ['--backend=c']), ('c-release', ['--backend=c', '--release'])]
         for name, flags in modes:
@@ -68,7 +68,7 @@ def main():
                 assert 'SDL' not in run(['otool', '-L', str(binary)]), 'native window linked SDL'
             print(f'ok native_window {name}' + (' (GUI)' if gui else ' (contracts)'), flush=True)
         # A portable input-only program must not acquire AppKit linkage.
-        (work / 'luce.toml').write_text('[package]\nname = "input_only"\n')
+        (work / 'package.prisma').write_text('#prisma 4.0\ndef package "input_only" {\n}\n')
         (work / 'input_only.lucb').write_text('import input\npub func main(arguments: str[]) -> i32:\n    discard(arguments)\n    assert((u16)input.Key.a == 4)\n    return 0\n')
         binary = work / 'input-only'
         run([str(COMPILER), 'build', str(work / 'input_only.lucb'), '-o', str(binary)])

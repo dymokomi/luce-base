@@ -135,11 +135,7 @@ can be broad without disabling mutual authentication; publishing needs separate
 authorization. Provide a browser-compatible website separately if wanted. Neither
 an enrollment problem nor a failed connection triggers fallback to Internet TLS.
 
-The current compilers use `luce.toml`. Design a versioned `luce.yaml` schema and an
-explicit migration covering package identity, error-code identity, dependencies,
-targets and native/link inputs. Specify behavior when both files exist; never silently
-read one while installation writes the other. Preserve existing build behavior during
-migration and test it in both compilers.
+The compilers read `package.prisma`, the one project file `luc` also uses.
 
 Include dependency resolution, a reproducible lockfile, content digests, publisher
 identity and artifact verification, immutable releases, yanking policy, caching,

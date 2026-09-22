@@ -1,5 +1,0 @@
-[package]
-name = "socket_option_contracts"
-
-[native]
-sources = ["reference.c"]

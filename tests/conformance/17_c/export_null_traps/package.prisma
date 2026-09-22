@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "conformance17null" {
+    def native "inputs" {
+        str[] sources = ["caller.c"]
+    }
+}

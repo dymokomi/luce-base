@@ -1,9 +1,9 @@
 #==============================================================================================
 #
-#   manifest - The package manifest, `luce.toml`
+#   manifest - The package manifest, `package.prisma`
 #
 #   DESCRIPTION:
-#       A package has a `luce.toml` at its root (base.md §16.4). This reads the little of it
+#       A package has a `package.prisma` at its root (base.md §16.4). This reads the little of it
 #       the compiler needs: `[package] name`, the identity of the package's error codes
 #       (§11.3); `symbol_prefix`, what every exported symbol starts with (§17.6); and the
 #       `[native]` inputs the build hands the C compiler and the linker (§17.4); and, for the
@@ -36,11 +36,25 @@ pub struct Setting:
     ## The setting's value, unquoted and trimmed.
     pub var value: str
 
-## Every setting of the manifest `text`, in order.
+## Every setting of a `package.prisma` `text`, as section/key/value records in order, so the
+## rest of the compiler reads one shape:
+##
+##   def package "n" {                              [package] name = n   (n as an identifier)
+##     str k = "v"                                  [package] k = v
+##     def dependency "n" { str path = "p" }        [dependencies] n = p, or .luc/deps/n without a path
+##     def export "n" { str module = "m" }          [exports] n = m
+##     def native "x" { str[] k = ["a", "b"] }      [native] k = ["a", "b"]
+##     def module_package "n" { str package = "p" } [module_packages] n = p
+##
+## A package name may be spelled `luce-ui`; the compiler's identifier for it is `luce_ui`.
+## Other elements (tasks, the desktop bundle) and properties are luc's and are skipped.
 pub func settings(text: str) -> Setting[]!:
-    var out = try alloc Setting[count_lines(text) + 1]
+    var out = try alloc Setting[count_lines(text) + 2]
     var count: usize = 0
-    var section: str = ""
+    var depth: usize = 0
+    var kind: str = ""
+    var element: str = ""
+    var saw_path = false
     var rest = text
     while rest.length > 0:
         let cut = find_byte(rest, '\n')
@@ -48,15 +62,82 @@ pub func settings(text: str) -> Setting[]!:
         rest = (str)rest.bytes[cut + 1..] if cut < rest.length else ""
         if line.length == 0 or line.bytes[0] == '#':
             continue
-        if line.bytes[0] == '[':
-            section = line
+        if line == "}":
+            if depth == 2 and kind == "dependency" and not saw_path:
+                out[count] = Setting(section = "[dependencies]", key = element, value = try deps_path(element))
+                count += 1
+            if depth == 0:
+                return error(malformed, "package.prisma closes an element it never opened")
+            depth -= 1
+            continue
+        if line.length > 4 and (str)line.bytes[..<4] == "def ":
+            let after = trim((str)line.bytes[4..])
+            let space = find_byte(after, ' ')
+            let word = (str)after.bytes[..<space]
+            let named = trim((str)after.bytes[space..])
+            if named.length < 3 or named.bytes[named.length - 1] != '{':
+                return error(malformed, "an element is `def kind \"name\" {`")
+            let name = unquote(trim((str)named.bytes[..<named.length - 1]))
+            depth += 1
+            if depth == 1:
+                if word != "package":
+                    return error(malformed, "package.prisma starts with `def package`")
+                out[count] = Setting(section = "[package]", key = "name", value = try identifier_of(name))
+                count += 1
+            elif depth == 2:
+                kind = word
+                element = try identifier_of(name) if word == "dependency" else name
+                saw_path = false
             continue
         let eq = find_byte(line, '=')
         if eq >= line.length:
-            return error(malformed, "a manifest line is neither a section nor `key = value`")
-        out[count] = Setting(section = section, key = trim((str)line.bytes[..<eq]), value = unquote(trim((str)line.bytes[eq + 1..])))
-        count += 1
+            return error(malformed, "a property is `type key = value`")
+        let left = trim((str)line.bytes[..<eq])
+        let type_end = find_byte(left, ' ')
+        if type_end >= left.length:
+            return error(malformed, "a property is `type key = value`")
+        let key = trim((str)left.bytes[type_end..])
+        let raw = trim((str)line.bytes[eq + 1..])
+        if depth == 1:
+            out[count] = Setting(section = "[package]", key = key, value = unquote(raw))
+            count += 1
+        elif depth == 2:
+            if kind == "dependency" and key == "path":
+                out[count] = Setting(section = "[dependencies]", key = element, value = unquote(raw))
+                count += 1
+                saw_path = true
+            elif kind == "export" and key == "module":
+                out[count] = Setting(section = "[exports]", key = element, value = unquote(raw))
+                count += 1
+            elif kind == "native":
+                out[count] = Setting(section = "[native]", key = key, value = raw)
+                count += 1
+            elif kind == "module_package" and key == "package":
+                out[count] = Setting(section = "[module_packages]", key = element, value = unquote(raw))
+                count += 1
     return out[..<count]
+
+## `luce-ui` as the identifier `luce_ui`.
+pub func identifier_of(name: str) -> str!:
+    var copy = try alloc u8[name.length]
+    var i: usize = 0
+    for b in name.bytes:
+        copy[i] = '_' if b == '-' else b
+        i += 1
+    return (str)copy
+
+## Where luc unpacks a registry dependency that declares no checkout path.
+func deps_path(name: str) -> str!:
+    let prefix = ".luc/deps/"
+    var copy = try alloc u8[prefix.length + name.length]
+    var i: usize = 0
+    for b in prefix.bytes:
+        copy[i] = b
+        i += 1
+    for b in name.bytes:
+        copy[i] = b
+        i += 1
+    return (str)copy
 
 func count_lines(text: str) -> usize:
     var n: usize = 0
@@ -71,7 +152,7 @@ func count_lines(text: str) -> usize:
 pub struct Manifest:
     ## The package's name.
     pub var name: str
-    ## The directory holding `luce.toml`, with its trailing slash; empty when none was found.
+    ## The directory holding `package.prisma`, with its trailing slash; empty when none was found.
     pub var root: str
     ## The prefix put before exported C symbols, or empty.
     pub var symbol_prefix: str
@@ -91,7 +172,7 @@ pub func load(entry_path: str) -> Manifest!:
     var dir = directory_of(entry_path)
     while true:
         var buffer = try alloc u8[dir.length + 16]
-        let candidate = try format(buffer, f"{dir}luce.toml")
+        let candidate = try format(buffer, f"{dir}package.prisma")
         if let text = read_if_present((c.str)candidate):
             return try parse((str)text, dir)
         if dir.length == 0:
@@ -255,8 +336,8 @@ test "a manifest names the package, the prefix, and the native inputs":
     var backing: u8[8192]
     var arena = memory.FixedBuffer.over(backing)
     with arena:
-        let m = try parse("# the package\n[package]\nname = \"widgets\"\nsymbol_prefix = \"wg_\"\n\n[native]\nsources = [\"vendor/a.c\", \"shims.c\"]\nlibraries = [\"m\"]\nframeworks = [\"Metal\"]\n", "pkg/")
-        assert(m.name == "widgets")
+        let m = try parse("#prisma 4.0\ndef package \"wid-gets\" {\n    str symbol_prefix = \"wg_\"\n    def native \"inputs\" {\n        str[] sources = [\"vendor/a.c\", \"shims.c\"]\n        str[] libraries = [\"m\"]\n        str[] frameworks = [\"Metal\"]\n    }\n}\n", "pkg/")
+        assert(m.name == "wid_gets")
         assert(m.symbol_prefix == "wg_")
         assert(m.root == "pkg/")
         assert(m.sources.length == 2)
@@ -268,14 +349,19 @@ test "a manifest names the package, the prefix, and the native inputs":
         assert(none_at_all.name == "app")
         assert(none_at_all.sources.length == 0)
 
-test "every setting is read under its section, with either quoting and no comment":
+test "every element becomes settings under its section; luc's own elements are skipped":
     var backing: u8[8192]
     var arena = memory.FixedBuffer.over(backing)
     with arena:
-        let found = try settings("[package]\nname = 'w'  # the name\n\n[other]\nflag = \"on\"\n")
-        assert(found.length == 2)
+        let found = try settings("#prisma 4.0\ndef package \"w\" {\n    str kind = \"package\"\n    str source = 'lib'\n    def dependency \"luce-ui\" {\n        str owner = \"dymokomi\"\n        str path = \"../luce-ui\"\n    }\n    def dependency \"luce-json\" {\n        str version = \"^0.2.0\"\n    }\n    def export \"ui\" {\n        str module = \"w.ui\"\n    }\n    def task \"ci\" {\n        str cmd = \"luc test\"\n    }\n    def module_package \"w.inner\" {\n        str package = \"other\"\n    }\n}\n")
+        assert(found.length == 7)
         assert(found[0].section == "[package]" and found[0].key == "name" and found[0].value == "w")
-        assert(found[1].section == "[other]" and found[1].value == "on")
-        let bad = settings("[package]\njust-a-flag\n") catch failure:
+        assert(found[1].key == "kind" and found[1].value == "package")
+        assert(found[2].key == "source" and found[2].value == "lib")
+        assert(found[3].section == "[dependencies]" and found[3].key == "luce_ui" and found[3].value == "../luce-ui")
+        assert(found[4].section == "[dependencies]" and found[4].key == "luce_json" and found[4].value == ".luc/deps/luce_json")
+        assert(found[5].section == "[exports]" and found[5].key == "ui" and found[5].value == "w.ui")
+        assert(found[6].section == "[module_packages]" and found[6].key == "w.inner" and found[6].value == "other")
+        let bad = settings("def widget \"x\" {\n}\n") catch failure:
             recover found[..<0]
         assert(bad.length == 0)

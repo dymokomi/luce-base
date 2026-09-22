@@ -25,7 +25,7 @@ pub let failed: ErrorCode = ErrorCode.package(42)
 
 ## `--cache-dir`: the directory the driver was told, before any default; `none` for no cache.
 pub var override: str = ""
-## The project root (the directory holding `luce.toml`, with a trailing slash, or empty for
+## The project root (the directory holding `package.prisma`, with a trailing slash, or empty for
 ## none), so the default cache lands in that project's `build/.cache` rather than a shared one.
 pub var default_root: str = ""
 ## `--cache-report`: say on standard error whether the object came from the cache.

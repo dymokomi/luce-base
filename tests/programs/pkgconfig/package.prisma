@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "pkgconfig" {
+    def native "inputs" {
+        str[] pkg_config = ["sdl3"]
+    }
+}

@@ -1,0 +1,7 @@
+#prisma 4.0
+def package "gui" {
+    def native "inputs" {
+        str[] sources = ["shims.c"]
+        str[] pkg_config = ["sdl3"]
+    }
+}

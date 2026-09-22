@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "conformance17b" {
+    def native "inputs" {
+        str[] sources = ["shims.c"]
+    }
+}

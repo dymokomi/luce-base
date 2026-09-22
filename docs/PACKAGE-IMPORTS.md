@@ -1,16 +1,17 @@
 # Public package imports
 
-Both compilers resolve public module names from `luce.toml`. Repository names may
-use hyphens; manifest package names and module names use identifiers such as
-`luce_ui`. A package declares its public imports explicitly:
+Both compilers resolve public module names from `package.prisma`. A package name
+may use hyphens, `luce-ui`; the compilers' identifier for it is `luce_ui`, which
+module names use. A package declares its public imports explicitly:
 
-```toml
-[package]
-name = "luce_ui"
-source = "src"
-
-[exports]
-ui = "luce_ui.ui"
+```text
+#prisma 4.0
+def package "luce-ui" {
+    str source = "src"
+    def export "ui" {
+        str module = "luce_ui.ui"
+    }
+}
 ```
 
 The implementation is `src/luce_ui/ui.lucb`. Private modules can live beside it
@@ -19,12 +20,13 @@ individual declarations; `pub` still determines which declarations are visible.
 
 A consumer declares a local dependency, relative to its own manifest:
 
-```toml
-[package]
-name = "demo"
-
-[dependencies]
-luce_ui = "../luce-ui"
+```text
+#prisma 4.0
+def package "demo" {
+    def dependency "luce-ui" {
+        str path = "../luce-ui"
+    }
+}
 ```
 
 Its Luce code uses ordinary construction and imports:
@@ -35,8 +37,9 @@ from ui import Button
 let button = Button("pause")
 ```
 
-Base uses the same import and construction spelling. Dependency keys must match
-the dependency's package name. Dependencies can declare dependencies of their
+Base uses the same import and construction spelling. A dependency's name must match
+the dependency's own package name. A dependency without a `path` is a registry
+package that `luc sync` unpacked under `.luc/deps/<name>` at or above the root. Dependencies can declare dependencies of their
 own; they resolve relative to that package. Builds do not fetch anything from the
 network. Registry installation and version resolution remain separate work.
 
@@ -90,14 +93,14 @@ include the entry. The compiler checks the complete program before writing any
 records. Paths can contain whitespace, including newlines.
 
 Explicit Luce `--emit=base` output contains unchanged native sources and a generated
-manifest with exports and `[module_packages]`. The latter records each bundled
+`package.prisma` with exports and `module_package` elements. The latter records each bundled
 module's original owner, preserving `ErrorCode.package(n)` after relocation.
 Ordinary source packages derive ownership from their nearest manifest. Normal
 builds remove this generated source package after compilation.
 
 ## Native package inputs
 
-A build merges `[native]` requirements from every loaded package. Sources and
+A build merges `native` inputs from every loaded package. Sources and
 search directories resolve relative to their declaring manifest, then travel as
 absolute paths through Luce’s temporary Base workspace. Identical inputs are
 included once. Libraries/frameworks/pkg-config names retain declaration order.

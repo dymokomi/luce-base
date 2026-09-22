@@ -1,5 +1,0 @@
-[package]
-name = "windows_unwind_contract"
-
-[native]
-sources = ["reference.c"]

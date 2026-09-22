@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "diagnostic_string_contracts" {
+    def native "inputs" {
+        str[] sources = ["reference.c"]
+    }
+}

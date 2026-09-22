@@ -1,5 +1,0 @@
-[package]
-name = "abi"
-
-[native]
-sources = ["helper.c"]

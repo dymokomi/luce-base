@@ -1,0 +1,7 @@
+#prisma 4.0
+def package "manifest" {
+    str symbol_prefix = "mf_"
+    def native "inputs" {
+        str[] sources = ["helper.c"]
+    }
+}

@@ -1,0 +1,7 @@
+#prisma 4.0
+def package "dwarf-mixed" {
+    str version = "0.0.1"
+    def native "inputs" {
+        str[] sources = ["bridge.c"]
+    }
+}

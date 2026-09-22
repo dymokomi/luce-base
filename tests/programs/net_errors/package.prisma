@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "network_error_contracts" {
+    def native "inputs" {
+        str[] sources = ["reference.c"]
+    }
+}

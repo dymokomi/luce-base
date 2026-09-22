@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "windows_unwind_contract" {
+    def native "inputs" {
+        str[] sources = ["reference.c"]
+    }
+}

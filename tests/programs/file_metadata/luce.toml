@@ -1,5 +1,0 @@
-[package]
-name = "file_metadata_contracts"
-
-[native]
-sources = ["reference.c"]

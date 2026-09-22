@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "bind" {
+    def native "inputs" {
+        str[] sources = ["sample.c", "shims.c"]
+    }
+}
