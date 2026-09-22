@@ -50,10 +50,10 @@ def main():
         work = Path(temporary)
         for source in SOURCE.glob('*.lucb'):
             shutil.copy2(source, work / source.name)
-        manifest = '[package]\nname = "native_window_test"\n'
+        manifest = '#prisma 4.0\ndef package "native-window-test" {\n'
         if mac:
-            manifest += '[native]\nframeworks = ["AppKit", "Foundation", "CoreGraphics"]\nlibraries = ["objc"]\n'
-        (work / 'package.prisma').write_text(manifest)
+            manifest += '    def native "inputs" {\n        str[] frameworks = ["AppKit", "Foundation", "CoreGraphics"]\n        str[] libraries = ["objc"]\n    }\n'
+        (work / 'package.prisma').write_text(manifest + '}\n')
         modes = [(f'native-{level}', ['--native', '--opt', str(level)]) for level in range(4)]
         modes += [('c', ['--backend=c']), ('c-release', ['--backend=c', '--release'])]
         for name, flags in modes:
