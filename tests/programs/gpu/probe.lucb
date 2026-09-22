@@ -191,6 +191,7 @@ pub func main(arguments: str[]) -> i32!:
                 return ownership.finish_run(0)
             error(failure.code, failure.message)
         try textures.pixels(device)
+        try textures.programs(device)
         device.destroy()
         print("ok GPU device")
     elif arguments.length > 1 and arguments[1] == "gui":

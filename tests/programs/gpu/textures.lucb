@@ -1,5 +1,6 @@
 import gpu
 import memory
+import shaders
 
 ## Texture contracts that need a device but no window: uploads, offscreen
 ## frames, image draws with both filters, readback, and refusals.
@@ -117,3 +118,81 @@ pub func pixels(device: gpu.Device) -> !:
     try target.read(result)
     # r8 samples as (r, 0, 0, 1): stored red 200 straight into the linear target.
     assert(result[0] >= 199 and result[0] <= 201 and result[1] == 0 and result[3] == 255)
+
+## Client fragment shaders: uniforms, two sampled images, the three blend
+## modes, and the refusals for wrong targets and devices.
+pub func programs(device: gpu.Device) -> !:
+    var shader = try gpu.Shader.create(device, shaders.tint_frag_words, shaders.tint_frag_msl)
+    defer shader.destroy()
+    var over = try gpu.Pipeline.create(device, shader, gpu.Blend.over, gpu.Format.rgba8_linear)
+    defer over.destroy()
+    var replace = try gpu.Pipeline.create(device, shader, gpu.Blend.replace, gpu.Format.rgba8_linear)
+    defer replace.destroy()
+    var add = try gpu.Pipeline.create(device, shader, gpu.Blend.add, gpu.Format.rgba8_linear)
+    defer add.destroy()
+    assert((try over.blend()) == gpu.Blend.over)
+    var first = try gpu.Texture.create(device, 1, 1, gpu.Format.rgba8_linear)
+    defer first.destroy()
+    try first.upload([(u8)255, (u8)128, (u8)255, (u8)255])
+    var second = try gpu.Texture.create(device, 1, 1, gpu.Format.r8)
+    defer second.destroy()
+    try second.upload([(u8)64])
+    var target = try gpu.Texture.create(device, 4, 4, gpu.Format.rgba8_linear)
+    defer target.destroy()
+    # tint (1, 1, 0.5, 1), the rectangle in pixels, offset scale 1: fragment =
+    # white * tint * first + second.r = (1 + 0.25, 0.5, 0.5, 1), red clamped.
+    var uniforms: f32[9] = [1.0, 1.0, 0.5, 1.0, 0.0, 0.0, 4.0, 4.0, 1.0]
+    let bytes = u8[]((u8*)&uniforms[0], 36)
+    let frame = try target.frame()
+    defer frame.release()
+    let root = try frame.value().target()
+    defer root.release()
+    try gpu.shade(root.value(), over, gpu.Rect(width = 4.0, height = 4.0), bytes, [first, second])
+    assert((try frame.value().present(gpu.Color(0.0, 0.0, 1.0, 1.0))) == gpu.PresentResult.submitted)
+    var pixel: u8[4]
+    try target.read(pixel, gpu.Region(1, 1, 1, 1))
+    assert(pixel[0] == 255 and pixel[1] == 128 and pixel[2] == 128 and pixel[3] == 255)
+    # replace ignores the blue clear beneath a half-alpha draw; add sums with it.
+    uniforms[3] = 0.5
+    let half = try target.frame()
+    defer half.release()
+    let whole = try half.value().target()
+    defer whole.release()
+    try gpu.shade(whole.value(), replace, gpu.Rect(width = 2.0, height = 4.0), bytes, [first, second], gpu.Filter.nearest)
+    try gpu.shade(whole.value(), add, gpu.Rect(x = 2.0, width = 2.0, height = 4.0), bytes, [first, second], gpu.Filter.nearest)
+    assert((try half.value().present(gpu.Color(0.0, 0.0, 1.0, 1.0))) == gpu.PresentResult.submitted)
+    try target.read(pixel, gpu.Region(0, 0, 1, 1))
+    # replace: premultiplied (0.625, 0.25, 0.125, 0.5) as stored.
+    assert(pixel[0] >= 158 and pixel[0] <= 161 and pixel[1] >= 63 and pixel[1] <= 65 and pixel[3] == 128)
+    try target.read(pixel, gpu.Region(3, 0, 1, 1))
+    # add: the same plus the opaque blue clear: blue saturates, alpha saturates.
+    assert(pixel[0] >= 158 and pixel[0] <= 161 and pixel[2] == 255 and pixel[3] == 255)
+    # A pipeline made for rgba8_linear cannot draw into an rgba8 texture.
+    var other = try gpu.Texture.create(device, 2, 2, gpu.Format.rgba8)
+    defer other.destroy()
+    let wrong = try other.frame()
+    defer wrong.release()
+    let area = try wrong.value().target()
+    defer area.release()
+    try gpu.shade(area.value(), over, gpu.Rect(width = 2.0, height = 2.0))
+    var rejected = false
+    discard(wrong.value().present() catch failure:
+        assert(failure.code == gpu.wrong_target)
+        rejected = true
+        recover gpu.PresentResult.skipped)
+    assert(rejected)
+    # Bad SPIR-V and a closed shader are refused.
+    rejected = false
+    discard(gpu.Shader.create(device, [(u32)1, (u32)2, (u32)3, (u32)4, (u32)5], shaders.tint_frag_msl) catch failure:
+        assert(failure.code == gpu.invalid_shader)
+        rejected = true
+        recover gpu.Shader())
+    assert(rejected)
+    var closed = try gpu.Shader.create(device, shaders.tint_frag_words, shaders.tint_frag_msl)
+    closed.destroy()
+    rejected = false
+    discard(gpu.Pipeline.create(device, closed, gpu.Blend.over) catch failure:
+        assert(failure.code == gpu.closed)
+        rejected = true
+        recover gpu.Pipeline())
+    assert(rejected)

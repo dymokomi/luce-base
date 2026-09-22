@@ -39,17 +39,21 @@ func vulkan_drawing(device: VulkanDevice*) -> !:
     try vulkan_check(vkCreateCommandPool(device.device, &pool_info, none, &device.pool), "the Vulkan transfer command pool could not be created")
     var command_info = VkCommandBufferAllocateInfo(sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, commandPool = device.pool, commandBufferCount = 1)
     try vulkan_check(vkAllocateCommandBuffers(device.device, &command_info, &device.command), "the Vulkan transfer command buffer could not be allocated")
-    var bindings: VkDescriptorSetLayoutBinding[2] = [
-        VkDescriptorSetLayoutBinding(binding = 0, descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount = 1, stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT),
-        VkDescriptorSetLayoutBinding(binding = 1, descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount = 1, stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT)]
-    var descriptor_info = VkDescriptorSetLayoutCreateInfo(sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, bindingCount = 2, pBindings = &bindings[0])
+    # The fragment contract: sampled images at bindings 1..4, coverage words at 5,
+    # uniforms as push constants.
+    var bindings: VkDescriptorSetLayoutBinding[5]
+    for index in 0..<(usize)4:
+        bindings[index] = VkDescriptorSetLayoutBinding(binding = (u32)index + 1, descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorCount = 1, stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT)
+    bindings[4] = VkDescriptorSetLayoutBinding(binding = 5, descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptorCount = 1, stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT)
+    var descriptor_info = VkDescriptorSetLayoutCreateInfo(sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, bindingCount = 5, pBindings = &bindings[0])
     try vulkan_check(vkCreateDescriptorSetLayout(device.device, &descriptor_info, none, &device.descriptor_layout), "the Vulkan draw layout could not be created")
-    var push = VkPushConstantRange(stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT, size = 48)
+    var push = VkPushConstantRange(stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT, size = (u32)uniform_limit)
     var layout_info = VkPipelineLayoutCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
                                                  setLayoutCount = 1, pSetLayouts = &device.descriptor_layout, pushConstantRangeCount = 1, pPushConstantRanges = &push)
     try vulkan_check(vkCreatePipelineLayout(device.device, &layout_info, none, &device.layout), "the Vulkan pipeline layout could not be created")
     device.nearest = try vulkan_sampler(device, VK_FILTER_NEAREST)
     device.linear = try vulkan_sampler(device, VK_FILTER_LINEAR)
+    device.fill = try vulkan_shader(device, fill_frag_words)
     device.ready = true
     # Every draw binds an image; one opaque texel stands in for draws that sample none.
     let placeholder = try vulkan_texture_create(device, 1, 1, Format.rgba8_linear)
@@ -79,6 +83,8 @@ func vulkan_drawing_destroy(device: VulkanDevice*):
     device.format_count = 0
     if device.nearest != 0: vkDestroySampler(device.device, device.nearest, none)
     if device.linear != 0: vkDestroySampler(device.device, device.linear, none)
+    if device.fill != 0: vkDestroyShaderModule(device.device, device.fill, none)
+    device.fill = 0
     if device.layout != 0: vkDestroyPipelineLayout(device.device, device.layout, none)
     if device.descriptor_layout != 0: vkDestroyDescriptorSetLayout(device.device, device.descriptor_layout, none)
     if device.pool != 0: vkDestroyCommandPool(device.device, device.pool, none)
@@ -245,6 +251,6 @@ func vulkan_texture_render(device: VulkanDevice*, state: VulkanTexture*, canvas:
     try vulkan_transfer_begin(device)
     # The pass begins from an undefined layout and clears; only the bookkeeping moves.
     state.layout = VK_IMAGE_LAYOUT_UNDEFINED
-    vulkan_encode(device, device.command, formats, formats.pass_texture, framebuffer, canvas, upload, color, state.width, state.height)
+    try vulkan_encode(device, device.command, formats, formats.pass_texture, framebuffer, canvas, upload, color, state.width, state.height)
     state.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     try vulkan_transfer_end(device)

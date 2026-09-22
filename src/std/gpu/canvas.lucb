@@ -58,9 +58,13 @@ struct Draw:
     var depth: bool
     var viewport: Viewport?
     var params: DrawParams
-    # An image draw retains its texture until the canvas is cleared or destroyed.
-    var texture: TextureState*?
+    # Sampled images (bindings 1..4) and a client pipeline are retained until
+    # the canvas is cleared or destroyed.
+    var images: TextureState*?[4]
     var filter: Filter
+    var pipeline: PipelineState*?
+    var uniforms: u8[128]
+    var uniform_count: u32
 
 ## A reusable CPU command list, independent of any backend or window. triangles
 ## copies its input, so callers may reuse it immediately. A failed append leaves
@@ -87,8 +91,11 @@ pub struct Canvas:
 
     func release_textures():
         for draw in self.draws[..<self.draw_count]:
-            if let texture = draw.texture:
-                release_texture(texture)
+            for image in draw.images:
+                if let texture = image:
+                    release_texture(texture)
+            if let pipeline = draw.pipeline:
+                release_pipeline(pipeline)
 
     ## Independent triangles, in submission order. Depth-enabled draws use less
     ## comparison and write depth; other draws leave depth untouched. Each frame
@@ -144,9 +151,36 @@ pub struct Canvas:
         try self.triangles(quad_vertices(rectangle, Color(1.0, 1.0, 1.0, opacity), target_width, target_height), clip)
         var draw = &self.draws[self.draw_count - 1]
         draw.params = image_params(rectangle, source, texture.width, texture.height)
-        draw.texture = texture
+        draw.images[0] = texture
         draw.filter = filter
         texture.references += 1
+
+    ## Draw `rectangle` (backing pixels) with a client pipeline: `uniforms` go to
+    ## the push-constant block, `images` to bindings 1.., `color` is the vertex
+    ## colour every fragment starts from. Pipeline and images stay retained
+    ## until the canvas is cleared or destroyed.
+    mutating func shade(pipeline: PipelineState*, rectangle: Rect, color: Color, uniforms: const u8[], images: TextureState*?[],
+                        filter: Filter, clip: Clip, target_width: f64, target_height: f64) -> !:
+        if uniforms.length > uniform_limit:
+            error(invalid_geometry, "a draw carries at most 128 uniform bytes")
+        if images.length > image_limit:
+            error(invalid_geometry, "a draw samples at most 4 images")
+        try check_color(color)
+        if rectangle.width == 0.0 or rectangle.height == 0.0 or clip.width == 0 or clip.height == 0:
+            return
+        try self.triangles(quad_vertices(rectangle, color, target_width, target_height), clip)
+        var draw = &self.draws[self.draw_count - 1]
+        draw.params = DrawParams((f32)rectangle.x, (f32)rectangle.y, (f32)rectangle.width, (f32)rectangle.height, 0, 0, 0, draw_solid, 0.0, 0.0, 0.0, 0.0)
+        if uniforms.length > 0:
+            memory.copy(draw.uniforms[..<uniforms.length], uniforms, uniforms.length)
+        draw.uniform_count = (u32)uniforms.length
+        draw.filter = filter
+        for index in 0..<images.length:
+            if let texture = images[index]:
+                draw.images[index] = texture
+                texture.references += 1
+        draw.pipeline = pipeline
+        pipeline.references += 1
 
     ## Release the recorded storage.
     pub mutating func destroy():

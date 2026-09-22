@@ -33,6 +33,7 @@ struct VulkanDevice:
     var nearest: u64
     var linear: u64
     var placeholder: VulkanTexture*?
+    var fill: u64
     var formats: VulkanFormatState[6]
     var format_count: usize
     var depth_image: u64

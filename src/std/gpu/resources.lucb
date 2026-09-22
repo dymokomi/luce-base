@@ -67,3 +67,55 @@ func metal_texture_release(device: void*, native: void*):
     discard(device)
     if platform.macos and platform.arm64:
         metal_texture_destroy((MetalTexture*)native)
+
+# mark: Shaders and pipelines =================================================================
+
+func backend_shader_create(device: DeviceState*, spirv: const u32[], msl: c.str) -> void*!:
+    if platform.windows and device.backend == Backend.vulkan:
+        return (void*)try vulkan_shader_create((VulkanDevice*)device.native, spirv)
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            return (void*)try metal_shader_create((MetalDevice*)device.native, msl)
+    error(unsupported, "the GPU backend is not implemented")
+
+func backend_pipeline_create(device: DeviceState*, shader: void*, blend: Blend, format: Format?) -> void*!:
+    if platform.windows and device.backend == Backend.vulkan:
+        return (void*)try vulkan_pipeline_create((VulkanDevice*)device.native, (VulkanShader*)shader, blend, format)
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            return (void*)try metal_pipeline_create((MetalDevice*)device.native, shader, blend, format)
+    error(unsupported, "the GPU backend is not implemented")
+
+func backend_shader_destroyer(backend: Backend) -> func(void*, void*) -> unit:
+    if platform.windows and backend == Backend.vulkan:
+        return vulkan_shader_release
+    if platform.macos and platform.arm64:
+        if backend == Backend.metal:
+            return metal_shader_release
+    trap("invalid GPU backend when binding shader release")
+
+func backend_pipeline_destroyer(backend: Backend) -> func(void*, void*) -> unit:
+    if platform.windows and backend == Backend.vulkan:
+        return vulkan_pipeline_release
+    if platform.macos and platform.arm64:
+        if backend == Backend.metal:
+            return metal_pipeline_release
+    trap("invalid GPU backend when binding pipeline release")
+
+func vulkan_shader_release(device: void*, native: void*):
+    if platform.windows:
+        vulkan_shader_destroy((VulkanDevice*)device, (VulkanShader*)native)
+
+func vulkan_pipeline_release(device: void*, native: void*):
+    if platform.windows:
+        vulkan_pipeline_destroy((VulkanDevice*)device, (VulkanPipeline*)native)
+
+func metal_shader_release(device: void*, native: void*):
+    discard(device)
+    if platform.macos and platform.arm64:
+        metal_shader_destroy(native)
+
+func metal_pipeline_release(device: void*, native: void*):
+    discard(device)
+    if platform.macos and platform.arm64:
+        metal_pipeline_destroy(native)

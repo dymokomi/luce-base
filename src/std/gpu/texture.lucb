@@ -120,9 +120,13 @@ func release_texture(state: TextureState*):
 ## Every image draw in `canvas` must sample a texture of `device`.
 func check_canvas_device(canvas: Canvas, device: DeviceState*) -> !:
     for draw in canvas.draws[..<canvas.draw_count]:
-        if let texture = draw.texture:
-            if texture.device != device:
-                error(wrong_device, "an image draw samples a texture from another GPU device")
+        for image in draw.images:
+            if let texture = image:
+                if texture.device != device:
+                    error(wrong_device, "a draw samples a texture from another GPU device")
+        if let pipeline = draw.pipeline:
+            if pipeline.device != device:
+                error(wrong_device, "a draw uses a pipeline from another GPU device")
 
 func check_texture_frame(context: void*, acquired: window.Size) -> !:
     discard(acquired)
@@ -134,10 +138,12 @@ func check_texture_frame(context: void*, acquired: window.Size) -> !:
 func submit_texture_frame(context: void*, canvas: Canvas, color: Color) -> PresentResult!:
     let state = (TextureState*)context
     try check_canvas_device(canvas, state.device)
+    try check_canvas_target(canvas, state.format)
     for draw in canvas.draws[..<canvas.draw_count]:
-        if let texture = draw.texture:
-            if texture == state:
-                error(invalid_geometry, "a texture frame cannot sample the texture it renders into")
+        for image in draw.images:
+            if let texture = image:
+                if texture == state:
+                    error(invalid_geometry, "a texture frame cannot sample the texture it renders into")
     try backend_texture_render(state.device, state.native, canvas, color)
     return PresentResult.submitted
 

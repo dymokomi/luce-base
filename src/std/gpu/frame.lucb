@@ -235,3 +235,34 @@ func intersect_clip(parent: Clip, region: Rect, scale_x: f64, scale_y: f64) -> C
     if right <= left or bottom <= top:
         return Clip()
     return Clip((u32)left, (u32)top, (u32)(right - left), (u32)(bottom - top))
+
+## Draw `rectangle` of `target` (in points) with a client `pipeline`: `uniforms`
+## fill its push-constant block, `images` its sampled bindings 1.., all with
+## `filter`; `color` is the vertex colour each fragment starts from. Clipped
+## like every other draw.
+pub func shade(target: const RenderTarget*, pipeline: Pipeline, rectangle: Rect, uniforms: const u8[]? = none, images: const Texture[]? = none,
+               filter: Filter = Filter.linear, color: Color = Color(1.0, 1.0, 1.0, 1.0)) -> !:
+    try target.frame.check()
+    try check_region(rectangle)
+    let state = try pipeline.checked()
+    var sampled: TextureState*?[4]
+    var count: usize = 0
+    if let list = images:
+        for image in list:
+            if count == image_limit:
+                error(invalid_geometry, "a draw samples at most 4 images")
+            sampled[count] = try image.checked()
+            count += 1
+    var bytes: u8[128]
+    var byte_count: usize = 0
+    if let data = uniforms:
+        if data.length > uniform_limit:
+            error(invalid_geometry, "a draw carries at most 128 uniform bytes")
+        memory.copy(bytes[..<data.length], data, data.length)
+        byte_count = data.length
+    let scale_x = frame_scale(target.frame.size.pixel_width, target.frame.size.width)
+    let scale_y = frame_scale(target.frame.size.pixel_height, target.frame.size.height)
+    let destination = Rect((target.rectangle.x + rectangle.x) * scale_x,
+                           (target.rectangle.y + rectangle.y) * scale_y, rectangle.width * scale_x, rectangle.height * scale_y)
+    try target.frame.canvas.shade(state, destination, color, bytes[..<byte_count], sampled[..<count], filter, target.clipping,
+                                  target.frame.size.pixel_width, target.frame.size.pixel_height)

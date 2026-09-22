@@ -45,8 +45,12 @@ pub let frame_in_use: ErrorCode = ErrorCode.package(115)
 pub let frame_resized: ErrorCode = ErrorCode.package(116)
 ## Pixel data did not match the texture region it was meant for.
 pub let invalid_pixels: ErrorCode = ErrorCode.package(119)
-## A texture was recorded into a frame on a different device.
+## A texture or pipeline was recorded into a frame on a different device.
 pub let wrong_device: ErrorCode = ErrorCode.package(120)
+## A pipeline was recorded into a frame whose target format it was not made for.
+pub let wrong_target: ErrorCode = ErrorCode.package(121)
+## A shader could not be compiled or a pipeline could not be built from it.
+pub let invalid_shader: ErrorCode = ErrorCode.package(122)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Windows x64 uses Vulkan; macOS
@@ -86,6 +90,19 @@ pub enum Format as u8:
     rgba8_linear = 1
     rgba16_float = 2
     r8 = 3
+
+## How a draw combines with what is already in the target. Shaders emit
+## premultiplied colour: `over` composites it, `replace` writes it as is, and
+## `add` sums it.
+pub enum Blend as u8:
+    over = 0
+    replace = 1
+    add = 2
+
+## The most uniform bytes one draw can carry: Vulkan's guaranteed push constants.
+pub let uniform_limit: usize = 128
+## The most textures one draw can sample.
+pub let image_limit: usize = 4
 
 ## How an image draw samples between texels.
 pub enum Filter as u8:
