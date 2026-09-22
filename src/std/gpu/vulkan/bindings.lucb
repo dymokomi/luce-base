@@ -937,7 +937,6 @@ extern struct VkSamplerCreateInfo:
 
 extern func vkCreateSampler(device: u64, pCreateInfo: VkSamplerCreateInfo*?, pAllocator: void*?, pSampler: u64*?) -> i32
 extern func vkDestroySampler(device: u64, sampler: u64, pAllocator: void*?)
-extern func vkCmdPipelineBarrier(commandBuffer: u64, srcStageMask: u32, dstStageMask: u32, dependencyFlags: u32, memoryBarrierCount: u32, pMemoryBarriers: void*?,
-                                 bufferMemoryBarrierCount: u32, pBufferMemoryBarriers: void*?, imageMemoryBarrierCount: u32, pImageMemoryBarriers: VkImageMemoryBarrier*?)
+extern func vkCmdPipelineBarrier(commandBuffer: u64, srcStageMask: u32, dstStageMask: u32, dependencyFlags: u32, memoryBarrierCount: u32, pMemoryBarriers: void*?, bufferMemoryBarrierCount: u32, pBufferMemoryBarriers: void*?, imageMemoryBarrierCount: u32, pImageMemoryBarriers: VkImageMemoryBarrier*?)
 extern func vkCmdCopyBufferToImage(commandBuffer: u64, srcBuffer: u64, dstImage: u64, dstImageLayout: u32, regionCount: u32, pRegions: VkBufferImageCopy*?)
 extern func vkCmdCopyImageToBuffer(commandBuffer: u64, srcImage: u64, srcImageLayout: u32, dstBuffer: u64, regionCount: u32, pRegions: VkBufferImageCopy*?)
