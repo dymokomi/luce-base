@@ -26,6 +26,7 @@ process
 input
 window
 clipboard
+dialogs
 fonts
 gpu
 debug
