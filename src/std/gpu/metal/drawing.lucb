@@ -34,11 +34,11 @@ func metal_text(value: c.str) -> void*!:
 
 ## The MTLPixelFormat of a pipeline slot.
 func metal_slot_format(slot: usize) -> u64:
-    if slot == 1: return 71    # RGBA8Unorm_sRGB
-    if slot == 2: return 70    # RGBA8Unorm
-    if slot == 3: return 115   # RGBA16Float
-    if slot == 4: return 10    # R8Unorm
-    return 81                  # BGRA8Unorm_sRGB
+    if slot == 1: return 71  # RGBA8Unorm_sRGB
+    if slot == 2: return 70  # RGBA8Unorm
+    if slot == 3: return 115  # RGBA16Float
+    if slot == 4: return 10  # R8Unorm
+    return 81  # BGRA8Unorm_sRGB
 
 func metal_format_slot(format: Format) -> usize:
     return (usize)format + 1
