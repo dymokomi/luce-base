@@ -125,11 +125,15 @@ func read_package(path: str) -> Package!:
 ## Where a dependency lives: its declared checkout path, or `.luc/deps/<name>` at the package
 ## root or the nearest directory above it, where luc unpacks registry packages. A package
 ## that itself sits under `.luc/deps/` came from the registry, so its own checkout paths are
-## its author's and every dependency is looked up the same way.
+## its author's and every dependency is looked up the same way; so is a checkout path that
+## is not there, as when an application published with its author's sibling checkouts is
+## installed elsewhere.
 func dependency_directory(package: Package, dependency: Mapping) -> str!:
     let synced = starts_with_text(dependency.value, ".luc/deps/") or contains_text(package.root, "/.luc/deps/")
     if not synced:
-        return try paths.join(package.root, dependency.value)
+        let declared = try paths.join(package.root, dependency.value)
+        if try present(declared):
+            return declared
     var relative = try paths.join(".luc/deps", dependency.name)
     var directory = package.root
     while true:
