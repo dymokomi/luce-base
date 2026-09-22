@@ -63,8 +63,7 @@ def main():
         work = Path(temporary)
         for source in SOURCE.glob('*.lucb'):
             shutil.copy2(source, work / source.name)
-        manifest = '[package]\nname = "gpu_test"\n'
-        (work / 'package.prisma').write_text(manifest)
+        (work / 'package.prisma').write_text('#prisma 4.0\ndef package "gpu-test" {\n}\n')
         modes = [(f'native-{level}', ['--native', '--opt', str(level)]) for level in range(4)]
         modes += [('c', ['--backend=c']), ('c-release', ['--backend=c', '--release'])]
         for name, flags in modes:
