@@ -36,8 +36,17 @@ with tempfile.TemporaryDirectory(prefix='base-public-exports-') as temporary:
     assert b'alias\0controls\0luce_ui.ui\0' in dependencies, dependencies
     description = run(compiler, 'describe', library).stdout
     assert b'module luce_ui.ui\n' in description, description
+    # one check describes the whole closure: each module by its source, then the report
+    closure = run(compiler, 'describe-closure', library).stdout
+    assert closure.startswith(b'luce-base-closure-v1\0'), closure
+    records, report = closure[len(b'luce-base-closure-v1\0'):].split(b'\0\0', 1)[0], closure.split(b'\0\0', 1)[1]
+    fields = records.split(b'\0')
+    described = {fields[index + 1]: fields[index + 2] for index in range(0, len(fields) - 2, 3) if fields[index] == b'module'}
+    assert described[str(library).encode()] == description, described.keys()
+    assert any(path.endswith(b'internal.lucb') for path in described), described.keys()
+    assert report.startswith(b'luce-base-dependencies-v3\0') and b'luce_ui.internal' in report, report
     assert run(compiler, 'describe', '--standard', 'strings').stdout.startswith(b'description 9\nmodule strings\n')
     assert b'unknown standard' in run(compiler, 'describe', '--standard', 'missing', expected=1).stderr
     manifest.write_text(manifest.read_text().replace('def dependency "luce-ui"', 'def dependency "wrong"'))
     assert b'match its package name' in run(compiler, 'check', entry, expected=1).stderr
-print('PASS public exports, aliases, dependency protocol and canonical standard descriptions; six modes')
+print('PASS public exports, aliases, dependency protocol, closure descriptions and canonical standard descriptions; six modes')

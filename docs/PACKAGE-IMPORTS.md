@@ -88,6 +88,13 @@ followed by tagged triples, with every field NUL-terminated:
 | `package` | Canonical module name | Owning package name |
 | `native` | `sources`, `link_search`, `libraries`, `frameworks` or `pkg_config` | Resolved input |
 
+`luce-base describe-closure FILE` checks the module once and answers both questions for
+its whole closure: `luce-base-closure-v1` and a NUL, then for every module `module`, its
+source path and its `describe` text, each NUL-terminated, the list ended by an empty field,
+and then the closure's `dependencies` report as above. Describing each module and asking
+each for its dependencies would check the same closure once per module; Luce asks this
+once per Base package it imports.
+
 Source records exclude the entry and embedded standard modules. Package records
 include the entry. The compiler checks the complete program before writing any
 records. Paths can contain whitespace, including newlines.
