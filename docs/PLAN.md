@@ -7,7 +7,7 @@ limited, planned, or excluded today; nothing is listed here that already exists.
 ## Active priority
 
 The standard library (`math`, `net` with HTTP/1.1 and WebSocket, `io`, `files`,
-`strings`) is in place; [NET_PROTOCOLS.md](NET_PROTOCOLS.md) holds the protocol
+`strings`) is in place; [NET_PROTOCOLS.md](https://github.com/dymokomi/luce-std/blob/main/docs/NET_PROTOCOLS.md) holds the protocol
 contracts. TLS is paused and `luce-server` is a separate package;
 [ECOSYSTEM.md](ECOSYSTEM.md) defines those boundaries.
 The compiler items below remain a backlog and are pulled forward only when they block

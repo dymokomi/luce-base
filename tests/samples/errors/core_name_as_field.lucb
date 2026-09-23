@@ -1,3 +1,0 @@
-# error: belongs to the language
-struct P:
-    var str: i64

@@ -174,7 +174,7 @@ Types, interfaces, and unions are `PascalCase`; functions, methods, bindings, fi
 
 Names resolve lexically. A module's declarations share one namespace and are order-independent. Members of a type have their own namespace. Locals are sequential; use before declaration is rejected. A local or a parameter may not shadow another visible local, a parameter, an imported name, or a declaration of its module; renaming is the repair. A loop, `catch`, `if let`, or `match` binding owns its nested scope. A loop label (§8.5) lives in its own namespace.
 
-The compiler-known core namespace cannot be redeclared: no declaration of any kind, a binding, a parameter, a function, a type, a field, an enum case, a label, or an alias, may take a core name, and a compiler carries exactly this dictionary:
+The compiler-known core namespace cannot be redeclared: no declaration that binds a name in a scope, a binding, a parameter, a function, a type, an enum case, a label, or an alias, may take a core name. A struct field and an extern function's parameter bind nothing (a field is reached through its value, an extern parameter has no body), so they may: a library's `format` field shadows nothing. A compiler carries exactly this dictionary:
 
 ```text
 assert discard error trap hash print format sizeof alignof offsetof hex bin pad
@@ -182,7 +182,7 @@ bool i8 i16 i32 i64 isize u8 u16 u32 u64 usize f16 f32 f64 char str
 unit never void fmt Error ErrorCode
 ```
 
-The reserved words of §3.6 are excluded the same way, by the lexer. A standard module's name, `io` or `c`, binds only where it is imported, so a local named `c` in a module that does not import `c` is ordinary. The standard modules themselves may declare core names, since they are what those names mean. Calls such as `sizeof` parse as ordinary calls; only their checked types and semantics are special. `luce.location` and its pieces are not calls: they are compile-time replacements.
+The reserved words of §3.6 are excluded the same way, by the lexer. A standard module's name, `io` or `c`, binds only where it is imported, so a local named `c` in a module that does not import `c` is ordinary. The prelude alone may declare core names, since it is what those names mean. Calls such as `sizeof` parse as ordinary calls; only their checked types and semantics are special. `luce.location` and its pieces are not calls: they are compile-time replacements.
 
 **Why.** No shadowing removes a refactoring hazard and keeps every diagnostic that names a binding unambiguous. Making `sizeof` a core name rather than a keyword keeps the grammar small: it is a call whose argument may be a type.
 
@@ -217,7 +217,7 @@ Underscores may separate digits. Based prefixes are lowercase. Context chooses t
 1.0     6.022e23     0.5f32     1_000.25
 ```
 
-Context chooses the float type; absent context the default is `f64`, or `c.double` in a variadic position. Conversion from decimal is correctly rounded. NaN and the infinities are constants in the `math` module, not literals.
+Context chooses the float type; absent context the default is `f64`, or `c.double` in a variadic position. Conversion from decimal is correctly rounded. NaN and the infinities are not literals; luce-std's `math` module names them as constants.
 
 ### 4.4 Characters and text
 
@@ -1383,40 +1383,33 @@ The language depends on these modules by name. Their full surfaces are in the li
 | --- | --- |
 | `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `read`, `write`, `copy`, `move`, `set`, `grow` |
 | `io` | `stdout()` and `stderr()` as `Writer`s; `path.user()`, `path.home()`, `path.temp()`, `path.config()` for the process's directories |
-| `files` | `read(path: c.str) -> u8[]!` allocating from the current allocator, `write`, `list(path: c.str) -> str[]!`, `missing` (error code) |
-| `process` | `run(program: c.str, arguments: c.str[]) -> i32!` |
-| `math` | `pi`, `tau`, `e`, `infinity`, `nan`; `floor`, `ceil`, `round`, `trunc`, `sqrt`, `cbrt`, `hypot`, `mod`, `pow`, `exp`, `exp2`, `log`, `log2`, `log10`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `abs`, `sign`, `min`, `max`, `clamp`, `is_nan`, `is_finite`, `is_infinite` on `f64`; `div_floor`, `mod_floor`, `iabs`, `imin`, `imax`, `iclamp` on `i64`. `from math import sqrt` brings one in; `import math` keeps them qualified |
 | `os` | the target as constants: `arm64`, `x86_64`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`; `cpus()`, `page_size()`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
 | `thread` | `spawn`, `Handle`, `current`, `pause`, `yield`, `sleep` |
-| `sync` | `Mutex`, `Condition`, `Once`, `Semaphore` |
+| `sync` | `Mutex`, `Condition`, `Once`, `Semaphore`, `Cancellation` |
 | `atomic` | `fence`, `Ordering` |
 | `c` | the C types of §5.2, `errno()`, `errno(value)`, `stdin()`, `stdout()`, `stderr()` |
 | `testing` | assertions, seeds, and the per-test allocator of §16.5 |
 | `runtime` | `heap()` inside a full Luce program (§18.9) |
 
-The standard modules are read from source with every build: `src/std` of a source tree, or
+These are the runtime: the modules the compiler and every program's startup need, shipped
+with the compiler and read from source with every build: `src/std` of a source tree, or
 `share/luce-base/std` beside a released compiler's `bin` directory (`--std-dir DIR` and the
 `LUCE_STD` environment variable name another place; `ORDER` there lists the modules in
-binding order, a module being one file or the fragments of §16.1). The compiler checks
-every module and compiles, in one unit with the program, only the declarations the program
-reaches, so a program that never names `window` carries no window system and a program
-that never names `unicode` carries no Unicode tables. The modules' globals initialise in
-that order, before the program's own. A library built with `--lib` carries what it reaches
-of the standard modules, so its C user links it alone.
+binding order, a module being one file or the fragments of §16.1). A standard module's
+name belongs to it: no program module may take one. The modules' globals initialise in
+that order, before the program's own.
 
-`input` provides portable physical-key, pointer, modifier, and scrolling event
-values. `window` owns native windows and dispatches those events; its first
-backend supports arm64 macOS through AppKit, entirely in Base. Window methods
-require the main thread. Other targets return `window.unsupported`. These
-modules add no compiler intrinsics. See [native windows](../WINDOWS.md) for the
-ownership contract, demonstration, platform linkage, and current scope.
-
-`gpu` provides portable device and presentation ownership, with Metal clear/present
-on arm64 macOS. Its backend dispatch separates application types from native
-graphics objects so later Vulkan support can implement the same contracts.
-Surfaces retain their device and lease their window host; GPU methods currently
-require the main thread. See [GPU devices and presentation](../GPU.md) for the
-API, color space, synchronization, linkage, tests, and deferred shader/resource work.
+Everything else is a package like any other, versioned apart from the compiler and
+imported through a `def dependency` of the program's manifest: `luce-std` holds `files`,
+`paths`, `process`, `net`, `math`, `math32`, `utf8`, `unicode` and `crash`; `luce-window`
+holds `window` and `input`; `luce-gpu`, `luce-fonts`, `luce-clipboard` and `luce-dialogs`
+hold one module each. The language gives them nothing a program's own packages lack: a
+package declares the native libraries its platform code needs in its own manifest (§17.4),
+and every imported module, standard or not, is compiled in one unit with the program for
+only the declarations the program reaches, so a program that never names `window` carries
+no window system and a program that never names `unicode` carries no Unicode tables. A
+library built with `--lib` carries what it reaches of its imports, so its C user links it
+alone.
 
 ## 17. Calling C
 

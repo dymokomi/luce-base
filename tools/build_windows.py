@@ -24,7 +24,7 @@ def main():
         parser.error('this entry point builds on Windows; use build.sh on Unix')
     build = ROOT / 'build'
     build.mkdir(exist_ok=True)
-    for script in ('embed_version.py', 'embed_runtime.py', 'embed_native_links.py'):
+    for script in ('embed_version.py', 'embed_runtime.py'):
         run(sys.executable, ROOT / 'tools' / script)
     zero, one, two = [build / f'windows-stage{i}.exe' for i in range(3)]
     if args.seed:

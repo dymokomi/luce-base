@@ -9,10 +9,24 @@ jobs:
     defaults:
       run:
         shell: msys2 {0}
+        working-directory: luce-base
     env:
       CC: gcc
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: luce-base
+      - name: Read the library pin
+        id: pins
+        shell: pwsh
+        working-directory: luce-base
+        run: '"std=$(Get-Content bootstrap/STD)" >> $env:GITHUB_OUTPUT'
+      # the compiler's own package depends on luce-std beside it
+      - uses: actions/checkout@v7
+        with:
+          repository: dymokomi/luce-std
+          ref: ${{ steps.pins.outputs.std }}
+          path: luce-std
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -32,7 +46,7 @@ jobs:
         with:
           repository: dymokomi/luce-seed
           ref: ${{ steps.seed.outputs.revision }}
-          path: build/seed
+          path: luce-base/build/seed
       - name: Verify fresh seed bootstrap
         run: |
           cmake -S build/seed -B build/seed/build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -49,23 +63,12 @@ jobs:
           python tools/test_platform_boundaries.py
       - name: Console termination and cleanup acknowledgement
         run: python tests/programs/termination/run.py build/luce-base.exe
-      - uses: actions/checkout@v7
-        with:
-          repository: KhronosGroup/Vulkan-Headers
-          ref: v1.4.341
-          path: build/vulkan-headers
-      - name: Vulkan ABI and constant oracle
-        run: python tools/test_vulkan_abi.py --compiler build/luce-base.exe --headers build/vulkan-headers/include
       - name: Windows OS contracts
         run: |
           python tools/test_windows_arguments.py --compiler build/luce-base.exe
-          python tools/test_window_targets.py --compiler build/luce-base.exe
           python tools/test_windows_native.py
-          python tools/test_desktop_services.py --compiler build/luce-base.exe
-          python tests/programs/fonts/run.py build/luce-base.exe
           python tools/test_windows_debug.py
           python tests/programs/external_storage/run.py build/luce-base.exe
-          python tests/programs/net_protocols/run.py build/luce-base.exe
           python tests/programs/strings_floats/run.py build/luce-base.exe
       - name: Native and C conformance
         run: python tools/test_windows.py --suite conformance --c
@@ -79,7 +82,7 @@ jobs:
         with:
           name: luce-base-windows-${{ github.sha }}
           path: |
-            build/windows-*.json
-            build/windows-*.jsonl
-            build/windows-fixedpoint-*
+            luce-base/build/windows-*.json
+            luce-base/build/windows-*.jsonl
+            luce-base/build/windows-fixedpoint-*
           retention-days: 14

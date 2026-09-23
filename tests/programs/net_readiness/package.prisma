@@ -1,6 +1,0 @@
-#prisma 4.0
-def package "readiness_contracts" {
-    def native "inputs" {
-        str[] sources = ["reference.c"]
-    }
-}

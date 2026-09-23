@@ -93,5 +93,6 @@ pub func is_module(name: str) -> bool:
 
 test "the standard modules are the ones ORDER lists":
     assert(is_module("core"))
-    assert(is_module("unicode"))
+    assert(is_module("strings"))
+    assert(not is_module("unicode"))
     assert(not is_module("nothing"))

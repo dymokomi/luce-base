@@ -711,8 +711,9 @@ pub struct Checker:
         tree.text = name
         let owner = try module_paths.package_of(text, name, self.package_name)
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false, canonical = canonical, package_name = owner))
-        # A dependency's module is library code: kept only where the program reaches it.
-        if owner.length > 0 and owner != self.package_name:
+        # Every imported module is library code, kept only where the program reaches it;
+        # the entry file alone is the program and keeps all it declares.
+        if self.loading.count > 1:
             try note_library_module(name)
 
     ## Leave the active import path on success and on every loading error.
@@ -4102,8 +4103,8 @@ pub struct Checker:
                 if vt == types.str_id and v.kind == ast.Kind.literal and v.text.bytes[0] == '"':
                     # a text literal passes as `c.str`, the way C's own literals do (§17.2)
                     discard(try self.coerce(v, vt, types.cstr_id))
-                elif ck == types.Kind.span or ck == types.Kind.interface_ or ck == types.Kind.tuple or ck == types.Kind.array or vt == types.str_id or vt == types.fmt_id or (ck == types.Kind.optional and not self.table.is_nullable_pointer(vt)):
-                    # C's `...` carries scalars, pointers, and records only (§17.2)
+                elif ck == types.Kind.span or ck == types.Kind.interface_ or ck == types.Kind.tuple or ck == types.Kind.array or ck == types.Kind.struct_ or ck == types.Kind.union_ or vt == types.str_id or vt == types.fmt_id or (ck == types.Kind.optional and not self.table.is_nullable_pointer(vt)):
+                    # C's `...` carries scalars and pointers only (§17.2)
                     return try self.fail(v, "this type cannot be a variadic argument; C has no shape for it; text goes as `c.str`")
                 else:
                     discard(try self.coerce(v, vt, types.i32_id if vt == types.untyped_int_id else self.concrete(vt)))
@@ -5623,8 +5624,8 @@ func is_intrinsic(name: str) -> bool:
 pub func is_standard_module(name: str) -> bool:
     return standard.is_module(name)
 
-## The modules of the program's dependencies, by name, as they load. Names are the
-## modules' own and live for the whole compilation.
+## The modules the entry file imports, directly or not, by name, as they load. Names
+## are the modules' own and live for the whole compilation.
 var library_modules: str[1024]
 var library_module_count: usize = 0
 
@@ -5633,21 +5634,35 @@ func note_library_module(name: str) -> !:
         if known == name:
             return
     if library_module_count >= library_modules.length:
-        error(unsupported, "a program depends on more than 1024 package modules")
+        error(unsupported, "a program imports more than 1024 modules")
     library_modules[library_module_count] = name
     library_module_count += 1
 
-## Whether `name` is library code: a standard module or a module of a package the
-## program depends on. The backends keep a library's functions and storage only where
+## Whether `name` is library code: a standard module or any module the entry file
+## imports. The backends keep a library's functions and storage only where
 ## the program reaches them, so importing a package costs nothing it does not use and
 ## an unused platform binding pulls in no native library.
 pub func is_library_module(name: str) -> bool:
     if standard.is_module(name):
         return true
     for known in library_modules[..<library_module_count]:
-        if known == name:
+        if same_module(known, name):
             return true
     return false
+
+## Whether two module names agree, a dotted path matching its symbol form:
+## `luce_std.files` is `luce_std_files` once lowered.
+func same_module(a: str, b: str) -> bool:
+    if a.length != b.length:
+        return false
+    var i: usize = 0
+    while i < a.length:
+        let x = a.bytes[i]
+        let y = b.bytes[i]
+        if x != y and not ((x == '.' and y == '_') or (x == '_' and y == '.')):
+            return false
+        i += 1
+    return true
 
 func is_comparison(op: str) -> bool:
     return op == "==" or op == "!=" or op == "<" or op == "<=" or op == ">" or op == ">="

@@ -4714,6 +4714,8 @@ pub struct Lowerer:
         try self.begin_function("lb_init_globals", none, inst)
         self.fn_decl = none
         self.current_fn = none
+        # kept whole: the pruner drops the calls to dead initialisers here, not in `main`
+        self.f.noinline = true
         try self.push_scope(false, "", 0, 0)
         i = 0
         while i < self.modules.count:

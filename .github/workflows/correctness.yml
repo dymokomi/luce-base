@@ -37,6 +37,15 @@ jobs:
         with:
           path: luce-base
           fetch-depth: 0
+      - name: Read the library pin
+        id: pins
+        run: echo "std=$(cat bootstrap/STD)" >> "$GITHUB_OUTPUT"
+      # the compiler's own package depends on luce-std beside it
+      - uses: actions/checkout@v7
+        with:
+          repository: dymokomi/luce-std
+          ref: ${{ steps.pins.outputs.std }}
+          path: luce-std
       - name: Build pinned seed and install SDL3
         run: bash tools/ci_dependencies.sh
       - name: Install Linux font backend and valgrind
@@ -76,13 +85,9 @@ jobs:
             luce-base/build/conformance.out
             luce-base/build/conformance.err
             luce-base/build/luce-base/build/*.log
-            luce-base/build/stdlib-scaling.json
-            luce-base/build/net-transfer.json
             luce-base/build/provenance*.json
             luce-base/build/dwarf/
             luce-base/build/failures/
             luce-base/build/fuzz/
-            luce-base/build/math_accuracy/*.lucb
-            luce-base/build/utf8/*.bin
             luce-base/build/hardware-skip.txt
           retention-days: 14

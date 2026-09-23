@@ -81,12 +81,12 @@ func temporary_cases(directory: c.str) -> !:
     assert((str)contents == "kept")
     atomic_fault_arm(8)
     var rejected = false
-    temporary.discard() catch failure:
+    temporary.dispose() catch failure:
         assert(failure.code == files.permission_denied)
         rejected = true
     assert(rejected and atomic_fault_hits() == 1 and temporary.path().length > 0)
-    try temporary.discard()
-    try temporary.discard()
+    try temporary.dispose()
+    try temporary.dispose()
     temporary.destroy()
     owner.finish()
     assert(atomic_descriptors() == before)

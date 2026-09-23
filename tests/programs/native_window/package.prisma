@@ -1,6 +1,0 @@
-#prisma 4.0
-def package "native_window" {
-    def native "inputs" {
-        str[] frameworks = ["CoreGraphics"]
-    }
-}

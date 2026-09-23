@@ -113,8 +113,17 @@ records using the same current dependency format. It accepts Base or Luce source
 paths; Base owns manifest parsing and Luce delegates that policy to it. There is
 no copied raw-TOML adapter or separate Luce limitation on source/search inputs.
 
-Standard window/GPU backends declare system requirements beside their
-implementation in `links.json` (its `target` is one name or a list, since a Linux
-backend serves both architectures). Object inspection selects only requirements
-actually used, so a package importing portable GPU values adds no graphics
-frameworks. UI, 3D and application manifests need no duplicate backend settings.
+A `def native "NAME"` element applies by target: `inputs` (or `all`) everywhere, an
+operating system (`macos`, `linux`, `windows`, `wasi`) on each of its architectures, or
+one exact target (`x86_64-windows`). A package declares the libraries and frameworks its
+platform code calls, per OS, in its own manifest; the linker keeps only those the program
+actually uses (`-dead_strip_dylibs` on macOS, `--as-needed` on Linux, PE imports on
+Windows), so importing a package's portable values adds no graphics frameworks. A
+`link_search` entry may start with `$NAME`: it is that environment variable's directory,
+and it is skipped where the variable is unset (luce-gpu searches `$VULKAN_SDK/Lib`).
+
+Every module a program imports is library code, whichever package it comes from: the
+backends keep only the functions and storage the program reaches, so another target's
+platform code costs nothing and names no library. Only the entry file keeps all it
+declares. A program imports only its direct dependencies' exports; a module a
+dependency uses internally is not importable through it.

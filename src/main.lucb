@@ -19,7 +19,6 @@ import platform
 import back.c.header
 import back.names
 import support.native_packages
-import support.native_links
 import support.manifest
 import support.modules as module_paths
 import files
@@ -527,6 +526,10 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
     try cc_args.add((c.str)runtime_path)
     if with_start:
         try cc_args.add((c.str)start_path)
+    if platform.macos and not is_wasm32():
+        try cc_args.add("-Wl,-dead_strip_dylibs")
+    elif platform.linux and not is_wasm32():
+        try cc_args.add("-Wl,--as-needed")
     try cc_args.add("-lm")
     if not is_wasm32():
         try cc_args.add("-pthread")
@@ -534,7 +537,6 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
         try cc_args.add("-lsynchronization")
     try cc_args.add("-o")
     try cc_args.add((c.str)linked_exe)
-    try automatic_links(&cc_args, (c.str)object_path, dir)
     # the manifest's C sources, under the package root (§17.4), and what it links
     for file in package.sources:
         try cc_args.add(file)
@@ -582,19 +584,6 @@ func c_arguments(release: bool) -> Arguments!:
     if let extra = os.env("LUCE_CFLAGS"):
         try arguments.words(extra, false)
     return arguments
-
-func automatic_links(arguments: Arguments*, object: c.str, directory: str) -> !:
-    native_links.nm_program = (try tools_for(build_target())).nm
-    let required = try native_links.collect(object, build_target(), directory)
-    for library in required.libraries:
-        if platform.windows and (str)library == "vulkan-1":
-            if let sdk = os.env("VULKAN_SDK"):
-                let sdk_library = try paths.join(sdk, "Lib")
-                try arguments.flag("-L", sdk_library)
-        try arguments.flag("-l", (str)library)
-    for framework in required.frameworks:
-        try arguments.add("-framework")
-        try arguments.add(framework)
 
 ## Finish debug artifacts before the scratch objects disappear. ELF keeps a linked
 ## sidecar; Mach-O's debug map is resolved into a dSYM while its inputs still exist.
@@ -656,8 +645,10 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
     try ld_args.add((c.str)sdk)
     try ld_args.add("-o")
     try ld_args.add((c.str)exe)
+    # a package's declared frameworks and libraries cost nothing where the program
+    # names none of their symbols
+    try ld_args.add("-dead_strip_dylibs")
     try ld_args.add((c.str)object_path)
-    try automatic_links(&ld_args, (c.str)object_path, dir)
     for library in t.system_libraries:
         try ld_args.add((c.str)library)
     if freestanding:
@@ -704,6 +695,9 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
     try cc_args.add((c.str)object_path)
     if freestanding:
         try cc_args.add("-nostartfiles")
+    if t.os == targets.Os.linux:
+        # the libraries after it are kept only where the program uses them
+        try cc_args.add("-Wl,--as-needed")
     if t.os == targets.Os.windows:
         # Keep the compiler support runtime self-contained without forcing system import
         # libraries (Vulkan, Winsock, bcrypt) to have nonexistent static variants.
@@ -720,7 +714,6 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
     for name in package.pkg_config:
         try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, false)
-    try automatic_links(&cc_args, (c.str)object_path, dir)
     for library in t.system_libraries:
         try cc_args.add((c.str)library)
     try run_tool("cc", cc_args.span(), "the linker rejected the generated code", dir)
@@ -1045,7 +1038,10 @@ func resolve_module(importer: str, root: str, name: str, base_only: bool, out: i
             try out.write(f"luce-base-module-v1\0standard\0{name}\0\0\0")
             return
         let resolved = try module_paths.resolve(importer, root, name, base_only)
-        let kind = "base" if strings.ends_with(resolved.path, ".lucb") else "luce"
+        # a Base module is a `.lucb` file or a directory whose `ORDER` lists its fragments
+        let order = try alloc u8[resolved.path.length + 8]
+        let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try format(order, f"{resolved.path}/ORDER"))
+        let kind = "base" if base else "luce"
         try out.write(f"luce-base-module-v1\0{kind}\0{resolved.name}\0{resolved.path}\0{resolved.root}\0")
 
 ## Report the resolved nonstandard import closure for source packaging. The entry
@@ -1177,6 +1173,118 @@ func lex_file(path: c.str, out: io.Writer) -> !:
             else:
                 try out.write(f"{t.line}:{t.column} {t.label()} {lx.text(t)}\n")
 
+## `build`'s options from its arguments after the file, or none when one is malformed: the
+## message is already written.
+func build_options(arguments: c.str[]) -> Options?!:
+    var options: Options = ---
+    options.libraries = try list.List[c.str].create(4)
+    options.library_dirs = try list.List[c.str].create(4)
+    options.frameworks = try list.List[c.str].create(4)
+    options.output = ""
+    options.std_dir = ""
+    options.cache_dir = ""
+    options.cache_report = false
+    options.release = false
+    options.emit_c = false
+    options.run_tests = false
+    options.native = true
+    options.backend_chosen = false
+    options.debug = false
+    options.library = false
+    options.freestanding = false
+    options.list_targets = false
+    options.target = ""
+    options.cpu = ""
+    options.diagnostic = false
+    # An emission format selects its backend independently of flag order.
+    var emission_backend: u32 = 0
+    var i: usize = 3
+    while i < arguments.length:
+        let a = (str)arguments[i]
+        if a == "-o" and i + 1 < arguments.length:
+            options.output = (str)arguments[i + 1]
+            i += 1
+        elif a == "--release":
+            options.release = true
+        elif a == "--emit=c" or a == "--emit=asm":
+            options.emit_c = true
+            dump_ir = false
+            emission_backend = 1 if a == "--emit=c" else 2
+        elif a == "--emit=ir":
+            options.emit_c = true
+            options.native = true
+            dump_ir = true
+            emission_backend = 2
+        elif a == "--opt" and i + 1 < arguments.length:
+            let wanted_level = literals.decode_integer((str)arguments[i + 1]) catch failure:
+                try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
+                return none
+            if wanted_level > 3:
+                try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
+                return none
+            opt_level = u32(wanted_level)
+            i += 1
+        elif a == "--opt-report":
+            opt_report = true
+        elif a == "--opt-count" and i + 1 < arguments.length:
+            let wanted_count = literals.decode_integer((str)arguments[i + 1]) catch failure:
+                try io.stderr().write("luce-base: --opt-count takes a number of rewrites\n")
+                return none
+            opt_count = u32(wanted_count)
+            i += 1
+        elif a == "--native":
+            options.native = true
+            options.backend_chosen = true
+        elif a == "--backend=c":
+            options.native = false
+            options.backend_chosen = true
+        elif a == "--lib":
+            options.library = true
+        elif a == "--freestanding":
+            options.freestanding = true
+        elif a == "--target" and i + 1 < arguments.length and not starts_with((str)arguments[i + 1], "-"):
+            options.target = (str)arguments[i + 1]
+            i += 1
+        elif a == "--target":
+            options.list_targets = true
+        elif a == "--cpu" and i + 1 < arguments.length:
+            options.cpu = (str)arguments[i + 1]
+            i += 1
+        elif a == "--profile" and i + 1 < arguments.length:
+            let profile = (str)arguments[i + 1]
+            if profile == "diagnostic":
+                options.diagnostic = true
+            elif profile != "default":
+                try io.stderr().write(f"luce-base: unknown profile `{profile}`; the profiles are `default` and `diagnostic`\n")
+                return none
+            i += 1
+        elif a == "--debug":
+            options.debug = true
+        elif a == "-W":
+            show_warnings = true
+        elif starts_with(a, "-l") and a.length > 2:
+            try options.libraries.push((c.str)(str)a.bytes[2..])
+        elif starts_with(a, "-L") and a.length > 2:
+            try options.library_dirs.push((c.str)(str)a.bytes[2..])
+        elif a == "-framework" and i + 1 < arguments.length:
+            try options.frameworks.push(arguments[i + 1])
+            i += 1
+        elif a == "--cache-dir" and i + 1 < arguments.length:
+            options.cache_dir = (str)arguments[i + 1]
+            i += 1
+        elif a == "--cache-report":
+            options.cache_report = true
+        elif a == "--std-dir" and i + 1 < arguments.length:
+            options.std_dir = (str)arguments[i + 1]
+            i += 1
+        else:
+            try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
+            return none
+        i += 1
+    if emission_backend != 0:
+        options.native = emission_backend == 2
+    return options
+
 ## The `luce-base` command: it dispatches on the first argument (§19.6).
 pub func main(arguments: c.str[]) -> i32!:
     let out = io.stdout()
@@ -1210,113 +1318,7 @@ pub func main(arguments: c.str[]) -> i32!:
             return 1
         return 0
     if command == "build" and positional >= 3:
-        var options: Options = ---
-        options.libraries = try list.List[c.str].create(4)
-        options.library_dirs = try list.List[c.str].create(4)
-        options.frameworks = try list.List[c.str].create(4)
-        options.output = ""
-        options.std_dir = ""
-        options.cache_dir = ""
-        options.cache_report = false
-        options.release = false
-        options.emit_c = false
-        options.run_tests = false
-        options.native = true
-        options.backend_chosen = false
-        options.debug = false
-        options.library = false
-        options.freestanding = false
-        options.list_targets = false
-        options.target = ""
-        options.cpu = ""
-        options.diagnostic = false
-        # An emission format selects its backend independently of flag order.
-        var emission_backend: u32 = 0
-        var i: usize = 3
-        while i < arguments.length:
-            let a = (str)arguments[i]
-            if a == "-o" and i + 1 < arguments.length:
-                options.output = (str)arguments[i + 1]
-                i += 1
-            elif a == "--release":
-                options.release = true
-            elif a == "--emit=c" or a == "--emit=asm":
-                options.emit_c = true
-                dump_ir = false
-                emission_backend = 1 if a == "--emit=c" else 2
-            elif a == "--emit=ir":
-                options.emit_c = true
-                options.native = true
-                dump_ir = true
-                emission_backend = 2
-            elif a == "--opt" and i + 1 < arguments.length:
-                let wanted_level = literals.decode_integer((str)arguments[i + 1]) catch failure:
-                    try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
-                    return 2
-                if wanted_level > 3:
-                    try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
-                    return 2
-                opt_level = u32(wanted_level)
-                i += 1
-            elif a == "--opt-report":
-                opt_report = true
-            elif a == "--opt-count" and i + 1 < arguments.length:
-                let wanted_count = literals.decode_integer((str)arguments[i + 1]) catch failure:
-                    try io.stderr().write("luce-base: --opt-count takes a number of rewrites\n")
-                    return 2
-                opt_count = u32(wanted_count)
-                i += 1
-            elif a == "--native":
-                options.native = true
-                options.backend_chosen = true
-            elif a == "--backend=c":
-                options.native = false
-                options.backend_chosen = true
-            elif a == "--lib":
-                options.library = true
-            elif a == "--freestanding":
-                options.freestanding = true
-            elif a == "--target" and i + 1 < arguments.length and not starts_with((str)arguments[i + 1], "-"):
-                options.target = (str)arguments[i + 1]
-                i += 1
-            elif a == "--target":
-                options.list_targets = true
-            elif a == "--cpu" and i + 1 < arguments.length:
-                options.cpu = (str)arguments[i + 1]
-                i += 1
-            elif a == "--profile" and i + 1 < arguments.length:
-                let profile = (str)arguments[i + 1]
-                if profile == "diagnostic":
-                    options.diagnostic = true
-                elif profile != "default":
-                    try io.stderr().write(f"luce-base: unknown profile `{profile}`; the profiles are `default` and `diagnostic`\n")
-                    return 2
-                i += 1
-            elif a == "--debug":
-                options.debug = true
-            elif a == "-W":
-                show_warnings = true
-            elif starts_with(a, "-l") and a.length > 2:
-                try options.libraries.push((c.str)(str)a.bytes[2..])
-            elif starts_with(a, "-L") and a.length > 2:
-                try options.library_dirs.push((c.str)(str)a.bytes[2..])
-            elif a == "-framework" and i + 1 < arguments.length:
-                try options.frameworks.push(arguments[i + 1])
-                i += 1
-            elif a == "--cache-dir" and i + 1 < arguments.length:
-                options.cache_dir = (str)arguments[i + 1]
-                i += 1
-            elif a == "--cache-report":
-                options.cache_report = true
-            elif a == "--std-dir" and i + 1 < arguments.length:
-                options.std_dir = (str)arguments[i + 1]
-                i += 1
-            else:
-                try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
-                return 2
-            i += 1
-        if emission_backend != 0:
-            options.native = emission_backend == 2
+        let options = try build_options(arguments) else return 2
         build_file(arguments[2], options) catch failure:
             try report_failure(failure.message)
             return 1

@@ -17,6 +17,7 @@
 
 import paths
 import c
+import os
 import platform
 import files
 import support.cache as cache
@@ -213,7 +214,7 @@ pub func parse(text: str, root: str) -> Manifest!:
             elif field == "libraries":
                 m.libraries = try joined(m.libraries, items)
             elif field == "link_search":
-                m.link_search = try joined(m.link_search, items)
+                m.link_search = try joined(m.link_search, try searched(items))
             elif field == "frameworks":
                 m.frameworks = try joined(m.frameworks, items)
             elif field == "pkg_config":
@@ -239,6 +240,30 @@ pub func applies(name: str) -> bool:
     if name == target:
         return true
     return target.length > name.length + 1 and target.bytes[target.length - name.length - 1] == '-' and (str)target.bytes[target.length - name.length..] == name
+
+## Search directories with a leading `$NAME` taken from the environment: `$VULKAN_SDK/Lib`
+## is the SDK's library directory where the variable is set, and nothing where it is not.
+func searched(items: c.str[]) -> c.str[]!:
+    var out = try alloc c.str[items.length]
+    var count: usize = 0
+    for item in items:
+        let text = (str)item
+        if text.length == 0 or text.bytes[0] != '$':
+            out[count] = item
+            count += 1
+            continue
+        let slash = find_byte(text, '/')
+        let name = try alloc u8[slash]
+        memory.copy(name, text.bytes[1..<slash], slash - 1)
+        name[slash - 1] = 0
+        let value = os.env((c.str)name.data) else continue
+        let rest = (str)text.bytes[slash..] if slash < text.length else ""
+        let room = try alloc u8[value.length + rest.length + 1]
+        let joined_text = try format(room, f"{value}{rest}")
+        room[joined_text.length] = 0
+        out[count] = (c.str)room.data
+        count += 1
+    return out[..<count]
 
 ## Two item lists as one, in order.
 func joined(first: c.str[], second: c.str[]) -> c.str[]!:
@@ -416,3 +441,10 @@ test "native elements apply by operating system or exact target":
     let m = try parse("def package \"p\" {\n    def native \"inputs\" {\n        list libraries = [\"m\"]\n    }\n    def native \"windows\" {\n        list libraries = [\"user32\"]\n    }\n    def native \"macos\" {\n        list frameworks = [\"AppKit\"]\n    }\n}\n", "")
     assert(m.libraries.length == 2 and (str)m.libraries[0] == "m" and (str)m.libraries[1] == "user32" and m.frameworks.length == 0)
     set_target("")
+
+test "a search directory may start from an environment variable, and goes where it is unset":
+    let m = try parse("def package \"p\" {\n    def native \"inputs\" {\n        list link_search = [\"$HOME/lib\", \"$LUCE_UNSET_FOR_TEST/Lib\", \"vendor\"]\n    }\n}\n", "")
+    let home = os.env("HOME") else return
+    assert(m.link_search.length == 2 and (str)m.link_search[1] == "vendor")
+    var expected: u8[1024]
+    assert((str)m.link_search[0] == try format(expected, f"{home}/lib"))

@@ -20,15 +20,12 @@
   API format, its records and executable adapter limits.
 - [Debugging](DEBUGGING.md) — native source debugging.
 - [CI](CI.md) — the hosted gate.
-- [Library](LIBRARY.md) — the standard library's public surface, generated
-  from its source.
-- [HTTP and WebSocket](NET_PROTOCOLS.md) — standard `net` protocol primitives,
-  ownership contracts, limits and validation.
+- [Library](LIBRARY.md) — the runtime's public surface (core, memory, io, os, thread,
+  sync, strings, …), generated from its source. Everything else a program imports is a
+  package: `luce-std` (files, paths, processes, networking, math, UTF-8, Unicode, crash
+  reports), `luce-window` (windows, input, drops), `luce-gpu`, `luce-fonts`,
+  `luce-clipboard` and `luce-dialogs`, each documenting its own modules.
 - [Platform architecture](PLATFORM-ARCHITECTURE.md) — OS, CPU and GPU boundaries.
 - [Windows](WINDOWS.md) — the x86_64-windows target: toolchain, OS contracts, checks.
-- [Desktop services](DESKTOP-SERVICES.md) — clipboard, files and process services.
-- [Cursors](CURSORS.md), [text input](TEXT-INPUT.md), [fonts](FONTS.md) — window services.
-- [GPU](GPU.md) — the Metal and Vulkan backends behind one drawing API.
-- [Math](MATH.md), [Unicode](UNICODE.md) — library module contracts.
 - [Native optimizations](NATIVE-OPTIMIZATIONS.md) — the IR passes and their safety rules.
 - [Native performance](NATIVE-PERFORMANCE.md) — current measurements against C.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise Windows OS contracts in all native and C modes; GUI tests are opt-in."""
+"""Exercise the runtime's Windows contracts (sleep, unwinding) in all native and C modes."""
 import argparse
 import json
 import os
@@ -10,14 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--compiler', type=Path, default=ROOT / 'build/luce-base.exe')
 parser.add_argument('--match', default='')
-parser.add_argument('--window', action='store_true', help='exercise real Win32 windows and input')
-parser.add_argument('--gpu', action='store_true', help='also exercise actual Vulkan presentation')
 args = parser.parse_args()
-cases = ['file_contract', 'network_contract', 'sleep_contract', 'unwind_contract', 'text_input_contract']
-if args.window or args.gpu:
-    cases += ['main']
-if args.gpu:
-    cases += ['render']
+cases = ['sleep_contract', 'unwind_contract']
 modes = [['--native', '--opt', str(level)] for level in range(4)] + [['--native', '--debug']] + [
     ['--backend=c'], ['--backend=c', '--release']]
 results = []
@@ -32,8 +26,7 @@ for case in cases:
             record = dict(case=case, flags=flags, build_status=compiled.returncode,
                           build_stderr=compiled.stderr.decode('utf-8', errors='replace'))
             if compiled.returncode == 0:
-                arguments = [work] if case == 'file_contract' else []
-                run = subprocess.run([binary, *arguments], capture_output=True, timeout=60)
+                run = subprocess.run([binary], capture_output=True, timeout=60)
                 record.update(status=run.returncode, stdout=run.stdout.decode('utf-8', errors='replace'),
                               stderr=run.stderr.decode('utf-8', errors='replace'))
                 record['ok'] = run.returncode == 0 and not run.stderr and b'Validation Error' not in run.stdout

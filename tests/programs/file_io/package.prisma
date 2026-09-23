@@ -1,6 +1,0 @@
-#prisma 4.0
-def package "file_io_contracts" {
-    def native "inputs" {
-        str[] sources = ["faults.c"]
-    }
-}

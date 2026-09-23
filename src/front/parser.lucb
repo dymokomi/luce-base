@@ -176,6 +176,14 @@ pub struct Parser:
             discard(try self.fail("this name belongs to the language; a declaration cannot take it (§3.5)"))
         return word
 
+    ## A struct field's or an extern parameter's name. Neither binds a name in any scope
+    ## (a field is reached through its value, an extern parameter has no body), so the
+    ## core names are open to them: a library's `format` field shadows nothing.
+    mutating func expect_unscoped_name() -> str!:
+        if not self.at(token.Kind.name):
+            discard(try self.fail("expected a name"))
+        return self.text_of(self.take())
+
     ## After `.`, a reserved word is an ordinary name; a declaration never takes one.
     mutating func expect_member_name() -> str!:
         if not self.at(token.Kind.name) and not self.at(token.Kind.keyword) and not self.at(token.Kind.integer):
@@ -601,7 +609,7 @@ pub struct Parser:
             return try self.fail("`class` belongs to full Luce; a struct nests no types, declare it beside (§20)")
         elif not fields_only:
             discard(try self.fail("expected `var`, `let`, or `func`"))
-        field.text = try self.expect_name()
+        field.text = try self.expect_unscoped_name()
         try self.expect_op(":")
         field.ty = try self.parse_type()
         if self.eat_op("="):
@@ -755,7 +763,7 @@ pub struct Parser:
             if self.at_name("out"):
                 discard(self.take())
                 p.flags |= ast.flag_out
-            p.text = try self.expect_name()
+            p.text = try self.expect_unscoped_name()
             try self.expect_op(":")
             p.ty = try self.parse_type()
             ast.append(&n.right, &tail, p)

@@ -1,4 +1,4 @@
-# error: 
+# error: cannot be a variadic argument
 ## §17.2: a struct is rejected in a variadic position.
 import c
 extern func printf(format: c.str, ...) -> i32

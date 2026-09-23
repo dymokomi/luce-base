@@ -1,0 +1,14 @@
+## §3.5: a struct field and an extern parameter bind no name in a scope, so they may take
+## a core name; the field is reached through its value and the builtin stays in reach.
+extern func abs(hash: i32) -> i32
+
+struct Pixel:
+    var format: u32
+    var hash: i64
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    var p = Pixel(format = 7, hash = (i64)abs(-9))
+    p.format += 1
+    print(f"{p.format} {p.hash}")
+    return 0

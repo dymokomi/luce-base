@@ -125,7 +125,7 @@ compiler, so a repeated build links the kept object and translates nothing
 (`--cache-dir DIR`, `LUCE_CACHE`, default `~/.cache/luce-base`; `none` turns it off). `bootstrap/luce-base-<target>.c`
 is the compiler's own C for each target, the standard code it reaches included, so a
 host without a compiler builds its first one from that C alone. `net` also provides transport-independent
-[HTTP/1.1 and WebSocket codecs](docs/NET_PROTOCOLS.md), using caller-owned storage
+[HTTP/1.1 and WebSocket codecs](https://github.com/dymokomi/luce-std/blob/main/docs/NET_PROTOCOLS.md), using caller-owned storage
 and the standard Reader/Writer interfaces. Everything decided by target lives in
 `src/back/target.lucb` and in the `platform` module the compiler writes for each build (`--target
 NAME`); the library branches on `platform.macos` and its kin, and the branch a
@@ -147,7 +147,7 @@ commit that bumps it, and `git log` is the history.
 `tests/programs/` holds programs large enough to break a compiler, each built
 natively under the gate and driven from outside by its `check.sh`:
 
-- `tests/programs/http`: a multi-threaded HTTP/1.1 server (a listener thread, a
+- luce-std's `tests/programs/http`: a multi-threaded HTTP/1.1 server (a listener thread, a
   pool of workers over a bounded queue, static files, `/echo`, `/stats`,
   keep-alive), proved with `curl`.
 - `tests/programs/editor`: a terminal text editor (a gap buffer, whole-text undo
