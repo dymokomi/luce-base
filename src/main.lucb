@@ -746,6 +746,7 @@ func build_file(path: c.str, options: Options) -> !:
         if options.target.length > 0:
             let chosen = targets.Target.named(options.target) else return try unknown_target()
             build_target_name = chosen.name
+            manifest.set_target(chosen.name)
             if chosen.arch == targets.Arch.wasm32:
                 # no machine is a wasm32 host: its programs are the C backend's, compiled
                 # and linked by a WASI toolchain on any host (§19.5)

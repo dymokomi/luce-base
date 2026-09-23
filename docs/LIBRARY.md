@@ -350,6 +350,13 @@ A counting semaphore whose waiters sleep. A counting semaphore whose waiters sle
 - `mutating func acquire()` — Take one permit, blocking until one is available.
 - `mutating func release()` — Return one permit and wake one waiter.
 
+### `Cancellation` (struct)
+
+A one-way cancellation signal shared by reference. Zero is not requested. Keep this object alive until every waiting thread returns; do not copy or reset it while shared. Requests use release/acquire synchronization.
+
+- `mutating func request()` — Request cancellation.
+- `func is_requested() -> bool` — Whether cancellation was requested.
+
 ## `ownership`
 
 Intrusive ownership shared by Base libraries and compiled Luce programs. Base callers retain and release explicitly; Luce inserts those operations. One header and trace protocol cover native/managed cycles on the owning thread. Runtime allocations use the system heap; an explicit allocator can be supplied to reserve when its lifetime is guaranteed by the native owner.
@@ -932,7 +939,7 @@ One owned TCP listener. Zero is closed. Copying does not duplicate ownership; co
 - `static func bind(address: SocketAddress, backlog: i32 = 128, ipv6_only: bool = true) -> Listener!` — Bind and listen with a positive requested backlog. The OS may cap the pending connection queue; the value does not limit accepted connections. IPv6 listeners default to IPv6-only on both hosts. Set ipv6_only=false to also permit mapped IPv4 peers; the option has no effect for IPv4 listeners.
 - `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
 - `func accept(nonblocking: bool = false) -> Connection!` — Accept one connection, or io.would_block when a nonblocking listener has none pending. Accepted connections are blocking unless nonblocking=true, independently of the listener setting and host inheritance defaults.
-- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
+- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
 - `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
 - `func is_nonblocking() -> bool!` — Whether the socket is in nonblocking mode.
 - `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
@@ -951,7 +958,7 @@ Which direction to stop using on a connection. This does not close its owner.
 
 One owned TCP connection implementing borrowed Reader and Writer interfaces. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
-- `static func connect(address: SocketAddress, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none, nonblocking: bool = false) -> Connection!` — Establish a TCP connection with an optional absolute deadline/cancellation. Connection setup is nonblocking internally; the returned socket is blocking unless nonblocking=true. Failure closes the newly acquired descriptor. DNS resolution is separate and is not covered by this connection deadline.
+- `static func connect(address: SocketAddress, deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none, nonblocking: bool = false) -> Connection!` — Establish a TCP connection with an optional absolute deadline/cancellation. Connection setup is nonblocking internally; the returned socket is blocking unless nonblocking=true. Failure closes the newly acquired descriptor. DNS resolution is separate and is not covered by this connection deadline.
 - `static func over(descriptor: platform.SocketDescriptor) -> Connection!` — Take ownership of a socket the caller made (a `socketpair`, an inherited descriptor), including on failure. Set close-on-exec, preserving existing flags; this is not atomic with the caller's creation/fork/exec operations. A negative descriptor is rejected. The socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
 - `func local_address() -> SocketAddress!` — Query this connection's local IP endpoint, including its assigned port.
 - `func peer_address() -> SocketAddress!` — Query the connected peer's IP endpoint; this is an address, not an identity.
@@ -962,7 +969,7 @@ One owned TCP connection implementing borrowed Reader and Writer interfaces. Zer
 - `func no_delay() -> bool!` — Whether TCP no-delay (Nagle off) is set.
 - `mutating func set_keepalive(enabled: bool) -> !` — Enable OS TCP keepalive probes. Timing and retry defaults remain host policy; keepalive does not provide an application operation deadline.
 - `func keepalive() -> bool!` — Whether keepalive probing is enabled.
-- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
+- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
 - `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
 - `func is_nonblocking() -> bool!` — Whether the socket is in nonblocking mode.
 - `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
@@ -981,7 +988,7 @@ One owned UDP socket. Zero is closed. Copying does not duplicate ownership; copi
 - `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
 - `func send_to(data: const u8[], address: SocketAddress) -> !` — Send one complete IP datagram, including an empty packet. A successful send confirms local acceptance, not peer delivery. IPv4 permits up to 65507 payload bytes, IPv6 up to 65527; host/path limits may be smaller. IPv6 jumbograms are not supported. The destination must match the socket version.
 - `func receive_from(buffer: u8[]) -> (usize, SocketAddress)!` — Consume one packet. Zero means a valid empty datagram, not stream EOF. If storage is too small, consume/discard the packet and report message_too_large; a copied prefix may remain in the buffer. The next call receives the next packet. Empty storage can receive only an empty packet.
-- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
+- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
 - `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
 - `func is_nonblocking() -> bool!` — Whether the socket is in nonblocking mode.
 - `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
@@ -998,13 +1005,6 @@ A monotonic absolute deadline. Zero has no time limit. Reuse the same value acro
 
 - `static func after(nanoseconds: u64) -> Deadline!` — Expire this many nanoseconds from now. Zero is an immediate check. A delay that exceeds the clock's representable range reports invalid_options.
 - `static func at(nanoseconds: u64) -> Deadline` — Use an absolute nanosecond instant from the same monotonic origin as time.now.
-
-### `Cancellation` (struct)
-
-A one-way cancellation signal shared by reference. Zero is not requested. Keep this object alive until every waiting thread returns; do not copy or reset it while shared. Requests use release/acquire synchronization.
-
-- `mutating func request()` — Request cancellation.
-- `func is_requested() -> bool` — Whether cancellation was requested.
 
 ### `WaitInterest` (enum as u8)
 
@@ -1028,7 +1028,7 @@ Reusable storage for a fixed number of borrowed descriptors. All slots begin dis
 - `func capacity() -> usize` — The poller's capacity.
 - `mutating func watch(index: usize, descriptor: platform.SocketDescriptor, interest: WaitInterest = WaitInterest.read) -> !` — Watch a nonnegative borrowed descriptor. A descriptor may occupy only one slot: host poll implementations differ on duplicate entries. Use both for combined read/write interest. Replacing a slot clears its events.
 - `mutating func disable(index: usize) -> !` — Stop watching the descriptor at `index`.
-- `mutating func wait(deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> usize!` — Wait for ready slots, returning their count or zero on deadline expiration. No allocation occurs. Empty interest sets may be used as a timed sleep. Cancellation reports cancelled; it is checked before and after each poll. With cancellation supplied, kernel waits are capped at 10 ms between checks; scheduling can delay return. A simultaneous observed cancellation wins over readiness. Expired deadlines still perform one nonblocking readiness check. Interrupted calls recompute the remaining deadline. Output events are cleared on entry and on error. This does not make later I/O obey the deadline itself.
+- `mutating func wait(deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none) -> usize!` — Wait for ready slots, returning their count or zero on deadline expiration. No allocation occurs. Empty interest sets may be used as a timed sleep. Cancellation reports cancelled; it is checked before and after each poll. With cancellation supplied, kernel waits are capped at 10 ms between checks; scheduling can delay return. A simultaneous observed cancellation wins over readiness. Expired deadlines still perform one nonblocking readiness check. Interrupted calls recompute the remaining deadline. Output events are cleared on entry and on error. This does not make later I/O obey the deadline itself.
 - `func readiness(index: usize) -> Readiness!` — Borrow a copy of the most recent wait's events for this slot. Disabled slots have no events. Invalid descriptors are reported per slot, not silently closed.
 - `mutating func destroy()` — Release the poller.
 
@@ -1036,7 +1036,7 @@ Reusable storage for a fixed number of borrowed descriptors. All slots begin dis
 
 A borrowed Reader/Writer applying one absolute deadline to all its transfers. Use with io.read_exact, io.write_all or buffered adapters; confirmed progress remains available from those helpers when a later call times out or is cancelled. This adapter allocates nothing and never owns/closes the connection. Keep the connection and optional cancellation signal alive, and synchronize their use. The connection must remain nonblocking. This is checked when creating the view and before nonempty transfers; coordinate all descriptor aliases. macOS can block sends despite MSG_DONTWAIT alone. The adapter never changes socket flags. Copying this view preserves the same deadline; it does not restart a timeout.
 
-- `static func over(connection: Connection*, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> DeadlineStream!` — Wrap `connection` so every transfer shares one absolute deadline.
+- `static func over(connection: Connection*, deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none) -> DeadlineStream!` — Wrap `connection` so every transfer shares one absolute deadline.
 - `mutating func read(buffer: u8[]) -> usize!` — Read some bytes, waiting only when no data is ready. Zero on a nonempty buffer is EOF. Empty input succeeds on an open connection even after its deadline or cancellation, because it performs no transfer. The connection must remain nonblocking; the adapter never changes its shared status flags.
 - `mutating func write(data: const u8[]) -> usize!` — Write some bytes, waiting only when kernel buffers are full. Each successful count is confirmed before checking the next attempt's deadline/cancellation; do not discard it when a later transfer fails. Empty writes make no syscall.
 
@@ -1424,7 +1424,7 @@ A named factory and its runtime hooks, with no retained source-thread state. The
 - `let leave: func() -> unit` — The runtime hook run as the worker ends.
 - `static func native(factory: func(C) -> Outcome[Callback[M, R]]) -> WorkerEntry[C, M, R]` — A worker entry from a plain Base factory.
 
-- `func worker_cancellation() -> net.Cancellation*` — Native operations called by a worker use this signal for interruptible socket waits. The pointer is borrowed on this worker until its factory/handler returns; it must not be retained outside the worker's lifetime or reset by application code.
+- `func worker_cancellation() -> sync.Cancellation*` — Native operations called by a worker use this signal for interruptible socket waits. The pointer is borrowed on this worker until its factory/handler returns; it must not be retained outside the worker's lifetime or reset by application code.
 
 - `let worker_closed: ErrorCode = ErrorCode.package(104)` — The worker has been closed.
 

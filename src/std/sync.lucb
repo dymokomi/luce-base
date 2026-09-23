@@ -142,3 +142,19 @@ pub struct Semaphore:
     pub mutating func release():
         discard(self.count.add(1, .release))
         wake_one((void*)&self.count)
+
+# mark: Cancellation ========================================================================
+
+## A one-way cancellation signal shared by reference. Zero is not requested.
+## Keep this object alive until every waiting thread returns; do not copy or reset
+## it while shared. Requests use release/acquire synchronization.
+pub struct Cancellation:
+    var requested: @u32
+
+    ## Request cancellation.
+    pub mutating func request():
+        self.requested.store(1, .release)
+
+    ## Whether cancellation was requested.
+    pub func is_requested() -> bool:
+        return self.requested.load(.acquire) != 0

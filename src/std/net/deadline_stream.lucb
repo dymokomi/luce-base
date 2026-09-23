@@ -19,10 +19,10 @@
 pub struct DeadlineStream: Reader, Writer:
     var connection: Connection*?
     var deadline: Deadline
-    var cancellation: Cancellation*?
+    var cancellation: sync.Cancellation*?
 
     ## Wrap `connection` so every transfer shares one absolute deadline.
-    pub static func over(connection: Connection*, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> DeadlineStream!:
+    pub static func over(connection: Connection*, deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none) -> DeadlineStream!:
         try require_nonblocking(connection)
         return DeadlineStream(connection = connection, deadline = deadline, cancellation = cancellation)
 
@@ -68,7 +68,7 @@ pub struct DeadlineStream: Reader, Writer:
 
 let dont_wait_flag: i32 = 0 if platform.windows else (128 if platform.macos else 64)
 
-func await_transfer_retry(descriptor: platform.SocketDescriptor, interest: WaitInterest, number: i32, deadline: Deadline, cancellation: Cancellation*?) -> !:
+func await_transfer_retry(descriptor: platform.SocketDescriptor, interest: WaitInterest, number: i32, deadline: Deadline, cancellation: sync.Cancellation*?) -> !:
     if number == socket_interrupted:
         return
     let code = socket_error(number)

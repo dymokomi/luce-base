@@ -1,3 +1,4 @@
+import sync
 import c
 import io
 import net
@@ -10,7 +11,7 @@ extern func reference_cancel_callback(callback: func(void*) -> unit, context: vo
 extern func reference_nonblocking(fd: i32) -> i32
 
 func cancel_now(context: void*):
-    let cancellation = (net.Cancellation*)context
+    let cancellation = (sync.Cancellation*)context
     cancellation.request()
 
 pub func main(arguments: c.str[]) -> i32!:
@@ -67,7 +68,7 @@ pub func main(arguments: c.str[]) -> i32!:
     assert(rejected and progress == 0 and reference_end() == 1)
 
     try io.write_all(&peer, "abcdefgh".bytes)
-    var cancellation: net.Cancellation
+    var cancellation: sync.Cancellation
     reference_cancel_callback(cancel_now, &cancellation)
     reference_begin(4, pair[0])
     bounded = try net.DeadlineStream.over(&connection, cancellation = &cancellation)

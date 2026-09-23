@@ -38,20 +38,6 @@ pub struct Deadline:
     pub static func at(nanoseconds: u64) -> Deadline:
         return Deadline(instant = nanoseconds)
 
-## A one-way cancellation signal shared by reference. Zero is not requested.
-## Keep this object alive until every waiting thread returns; do not copy or reset
-## it while shared. Requests use release/acquire synchronization.
-pub struct Cancellation:
-    var requested: @u32
-
-    ## Request cancellation.
-    pub mutating func request():
-        self.requested.store(1, .release)
-
-    ## Whether cancellation was requested.
-    pub func is_requested() -> bool:
-        return self.requested.load(.acquire) != 0
-
 ## Which readiness to wait for.
 pub enum WaitInterest as u8:
     read = 0
@@ -126,7 +112,7 @@ pub struct Poller:
     ## readiness. Expired deadlines still perform one nonblocking readiness check.
     ## Interrupted calls recompute the remaining deadline. Output events are cleared
     ## on entry and on error. This does not make later I/O obey the deadline itself.
-    pub mutating func wait(deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> usize!:
+    pub mutating func wait(deadline: Deadline = Deadline(), cancellation: sync.Cancellation*? = none) -> usize!:
         if self.entries.length == 0:
             error(closed, "the poller is closed")
         return try wait_poll(self.entries, deadline, cancellation)
@@ -177,12 +163,12 @@ func clear_poll(entries: NativePoll[]):
         entries[index].returned = 0
         index += 1
 
-func check_cancellation(cancellation: Cancellation*?) -> !:
+func check_cancellation(cancellation: sync.Cancellation*?) -> !:
     if let signal = cancellation:
         if signal.is_requested():
             error(cancelled, "the readiness wait was cancelled")
 
-func wait_poll(entries: NativePoll[], deadline: Deadline, cancellation: Cancellation*?) -> usize!:
+func wait_poll(entries: NativePoll[], deadline: Deadline, cancellation: sync.Cancellation*?) -> usize!:
     clear_poll(entries)
     errdefer clear_poll(entries)
     while true:
@@ -215,7 +201,7 @@ func wait_poll(entries: NativePoll[], deadline: Deadline, cancellation: Cancella
             if (try monotonic_nanoseconds()) >= end:
                 return 0
 
-func wait_socket(descriptor: platform.SocketDescriptor, interest: WaitInterest, deadline: Deadline, cancellation: Cancellation*?) -> Readiness!:
+func wait_socket(descriptor: platform.SocketDescriptor, interest: WaitInterest, deadline: Deadline, cancellation: sync.Cancellation*?) -> Readiness!:
     var entry: NativePoll[1]
     entry[0] = NativePoll(descriptor = descriptor, events = try poll_interest(interest))
     if (try wait_poll(entry, deadline, cancellation)) == 0:
@@ -236,7 +222,7 @@ func monotonic_nanoseconds() -> u64!:
 
 ## Actual operations check before each attempt, unlike a readiness-only zero-time
 ## probe. A continuously ready socket must not defeat a transfer's total deadline.
-func check_operation(deadline: Deadline, cancellation: Cancellation*?) -> !:
+func check_operation(deadline: Deadline, cancellation: sync.Cancellation*?) -> !:
     try check_cancellation(cancellation)
     if let end = deadline.instant:
         if (try monotonic_nanoseconds()) >= end:

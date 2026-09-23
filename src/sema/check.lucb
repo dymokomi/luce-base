@@ -709,7 +709,11 @@ pub struct Checker:
                         self.root = saved_root
             cursor = d.next
         tree.text = name
-        try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false, canonical = canonical, package_name = try module_paths.package_of(text, name, self.package_name)))
+        let owner = try module_paths.package_of(text, name, self.package_name)
+        try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false, canonical = canonical, package_name = owner))
+        # A dependency's module is library code: kept only where the program reaches it.
+        if owner.length > 0 and owner != self.package_name:
+            try note_library_module(name)
 
     ## Leave the active import path on success and on every loading error.
     mutating func finish_load():
@@ -5618,6 +5622,32 @@ func is_intrinsic(name: str) -> bool:
 ## Whether `name` is a standard-library module.
 pub func is_standard_module(name: str) -> bool:
     return standard.is_module(name)
+
+## The modules of the program's dependencies, by name, as they load. Names are the
+## modules' own and live for the whole compilation.
+var library_modules: str[1024]
+var library_module_count: usize = 0
+
+func note_library_module(name: str) -> !:
+    for known in library_modules[..<library_module_count]:
+        if known == name:
+            return
+    if library_module_count >= library_modules.length:
+        error(unsupported, "a program depends on more than 1024 package modules")
+    library_modules[library_module_count] = name
+    library_module_count += 1
+
+## Whether `name` is library code: a standard module or a module of a package the
+## program depends on. The backends keep a library's functions and storage only where
+## the program reaches them, so importing a package costs nothing it does not use and
+## an unused platform binding pulls in no native library.
+pub func is_library_module(name: str) -> bool:
+    if standard.is_module(name):
+        return true
+    for known in library_modules[..<library_module_count]:
+        if known == name:
+            return true
+    return false
 
 func is_comparison(op: str) -> bool:
     return op == "==" or op == "!=" or op == "<" or op == "<=" or op == ">" or op == ">="

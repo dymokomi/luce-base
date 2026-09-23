@@ -110,7 +110,10 @@ pub func settings(text: str) -> Setting[]!:
                 out[count] = Setting(section = "[exports]", key = element, value = unquote(raw))
                 count += 1
             elif kind == "native":
-                out[count] = Setting(section = "[native]", key = key, value = raw)
+                # The element's name says where it applies; parse keeps the ones for the target.
+                var room = try alloc u8[element.length + key.length + 1]
+                let scoped = try format(room, f"{element}/{key}")
+                out[count] = Setting(section = "[native]", key = scoped, value = raw)
                 count += 1
             elif kind == "module_package" and key == "package":
                 out[count] = Setting(section = "[module_packages]", key = element, value = unquote(raw))
@@ -200,17 +203,55 @@ pub func parse(text: str, root: str) -> Manifest!:
             elif key == "symbol_prefix":
                 m.symbol_prefix = value
         elif section == "[native]":
-            if key == "sources":
-                m.sources = try items_of(value)
-            elif key == "libraries":
-                m.libraries = try items_of(value)
-            elif key == "link_search":
-                m.link_search = try items_of(value)
-            elif key == "frameworks":
-                m.frameworks = try items_of(value)
-            elif key == "pkg_config":
-                m.pkg_config = try items_of(value)
+            let slash = find_byte(key, '/')
+            if slash >= key.length or not applies((str)key.bytes[..<slash]):
+                continue
+            let field = (str)key.bytes[slash + 1..]
+            let items = try items_of(value)
+            if field == "sources":
+                m.sources = try joined(m.sources, items)
+            elif field == "libraries":
+                m.libraries = try joined(m.libraries, items)
+            elif field == "link_search":
+                m.link_search = try joined(m.link_search, items)
+            elif field == "frameworks":
+                m.frameworks = try joined(m.frameworks, items)
+            elif field == "pkg_config":
+                m.pkg_config = try joined(m.pkg_config, items)
     return m
+
+# mark: Targets ===============================================================================
+
+## The target native elements are chosen for: the host's unless the build names another.
+var target_name: str = ""
+
+## Choose the target `def native` elements are selected for (`arm64-macos`, …).
+pub func set_target(name: str):
+    target_name = name
+
+## Whether a `def native "NAME"` element applies to the target: `inputs` (or `all`)
+## everywhere, an operating system (`macos`, `linux`, `windows`, `wasi`) on each of its
+## architectures, or one exact target (`x86_64-windows`).
+pub func applies(name: str) -> bool:
+    if name == "inputs" or name == "all":
+        return true
+    let target = target_name if target_name.length > 0 else platform.name
+    if name == target:
+        return true
+    return target.length > name.length + 1 and target.bytes[target.length - name.length - 1] == '-' and (str)target.bytes[target.length - name.length..] == name
+
+## Two item lists as one, in order.
+func joined(first: c.str[], second: c.str[]) -> c.str[]!:
+    if first.length == 0:
+        return second
+    if second.length == 0:
+        return first
+    var out = try alloc c.str[first.length + second.length]
+    for index in 0..<first.length:
+        out[index] = first[index]
+    for index in 0..<second.length:
+        out[first.length + index] = second[index]
+    return out
 
 ## `["a", "b"]` as its strings, each copied with a NUL after it; a bare string is one item.
 func items_of(value: str) -> c.str[]!:
@@ -365,3 +406,13 @@ test "every element becomes settings under its section; luc's own elements are s
         let bad = settings("def widget \"x\" {\n}\n") catch failure:
             recover found[..<0]
         assert(bad.length == 0)
+
+test "native elements apply by operating system or exact target":
+    set_target("arm64-macos")
+    assert(applies("inputs") and applies("all") and applies("macos") and applies("arm64-macos"))
+    assert(not applies("windows") and not applies("linux") and not applies("x86_64-macos"))
+    set_target("x86_64-windows")
+    assert(applies("windows") and not applies("macos"))
+    let m = try parse("def package \"p\" {\n    def native \"inputs\" {\n        list libraries = [\"m\"]\n    }\n    def native \"windows\" {\n        list libraries = [\"user32\"]\n    }\n    def native \"macos\" {\n        list frameworks = [\"AppKit\"]\n    }\n}\n", "")
+    assert(m.libraries.length == 2 and (str)m.libraries[0] == "m" and (str)m.libraries[1] == "user32" and m.frameworks.length == 0)
+    set_target("")

@@ -30,10 +30,10 @@ pub struct WorkerEntry[C, M, R]:
         let factory = (func(C) -> Outcome[Callback[M, R]])(context else trap("a worker has no factory"))
         return factory(configuration)
 
-local var active_worker_cancellation: net.Cancellation*? = none
+local var active_worker_cancellation: sync.Cancellation*? = none
 
 ## Native operations called by a worker use this signal for interruptible socket
 ## waits. The pointer is borrowed on this worker until its factory/handler returns;
 ## it must not be retained outside the worker's lifetime or reset by application code.
-pub func worker_cancellation() -> net.Cancellation*:
+pub func worker_cancellation() -> sync.Cancellation*:
     return active_worker_cancellation else trap("this operation requires an application worker")

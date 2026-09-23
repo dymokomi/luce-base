@@ -1083,7 +1083,7 @@ pub struct Emitter:
             # Standard functions belong to this artifact, unless explicitly exported
             # or given linkage attributes. Internal linkage lets the host compiler
             # omit unused platform code (for example AppKit in a console program).
-            if check.is_standard_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
+            if check.is_library_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
                 try self.put("static __attribute__((unused)) ")
             try self.attribute_prefix(f, true)
             try self.put_result_type(f)
@@ -6635,7 +6635,7 @@ pub struct Emitter:
             # Runtime glue also refers to these four modules by their C names.
             let module_info = self.c.modules.get(i)
             let runtime_root = module_info.name == "core" or module_info.name == "memory" or module_info.name == "io" or module_info.name == "testing"
-            let eager = not module_info.is_prelude or runtime_root
+            let eager = not check.is_library_module(module_info.name) or runtime_root
             var cursor = self.modules.get(i).body
             while let d = cursor:
                 if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none):
@@ -6886,14 +6886,14 @@ pub struct Emitter:
     func defer_storage(d: ast.Node*) -> bool:
         let module = self.module_name(d)
         let runtime = module == "core" or module == "memory" or module == "io" or module == "testing"
-        return check.is_standard_module(module) and not runtime and d.left == none and d.attrs == none
+        return check.is_library_module(module) and not runtime and d.left == none and d.attrs == none
 
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:
         try self.line("")
         if ast.is_linked(d):
             try self.put("extern ")
-        elif d.kind == ast.Kind.constant and check.is_standard_module(names.module_of(d)):
+        elif d.kind == ast.Kind.constant and check.is_library_module(names.module_of(d)):
             # a standard constant belongs to this unit; internal linkage lets the host
             # compiler drop one nothing reads
             try self.put("static __attribute__((unused)) ")

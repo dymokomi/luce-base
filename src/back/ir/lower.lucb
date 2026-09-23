@@ -686,7 +686,7 @@ pub struct Lowerer:
             return  # another object defines it; calls name the symbol
         let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         try self.begin_function(name, d, inst)
-        self.f.standard = check.is_standard_module(names.module_of(inst.owner else d))
+        self.f.standard = check.is_library_module(names.module_of(inst.owner else d))
         self.f.naked = ast.has_attribute(d, "naked")
         self.f.weak = ast.has_attribute(d, "weak")
         self.f.used = ast.has_attribute(d, "used")
@@ -4693,7 +4693,7 @@ pub struct Lowerer:
     mutating func declare_global(d: ast.Node*) -> !:
         let name = try self.global_name(d)
         let used = ast.has_attribute(d, "used")
-        let standard = check.is_standard_module(names.module_of(d))
+        let standard = check.is_library_module(names.module_of(d))
         try self.program_unit.globals.push(ir.Global(name = name, standard = standard, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = used, section = section_of(d), external = ast.is_linked(d)))
 
     ## `lb_init_globals`, every top-level initialiser in module order: the standard modules
@@ -4706,7 +4706,7 @@ pub struct Lowerer:
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if self.initialised(d) and check.is_standard_module(names.module_of(d)):
+                if self.initialised(d) and check.is_library_module(names.module_of(d)):
                     try self.global_initialiser(d)
                 cursor = d.next
             i += 1
@@ -4720,7 +4720,7 @@ pub struct Lowerer:
             var cursor = self.modules.get(i).body
             while let d = cursor:
                 if self.initialised(d):
-                    if check.is_standard_module(names.module_of(d)):
+                    if check.is_library_module(names.module_of(d)):
                         discard(try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
                     elif let init = d.left:
                         let v = try self.value(init, d.type_id)

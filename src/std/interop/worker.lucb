@@ -16,7 +16,7 @@ pub let worker_busy: ErrorCode = ErrorCode.package(105)
 struct WorkerState[C, M, R]:
     var mutex: sync.Mutex
     var changed: sync.Condition
-    var cancellation: net.Cancellation
+    var cancellation: sync.Cancellation
     var ready: bool
     var done: bool
     var startup_error: Reply[unit]?
@@ -44,7 +44,7 @@ struct WorkerState[C, M, R]:
         let state = (WorkerState[C, M, R]*)block.data
         var mutex: sync.Mutex
         var changed: sync.Condition
-        var cancellation: net.Cancellation
+        var cancellation: sync.Cancellation
         var worker_thread: thread.Handle
         *state = WorkerState[C, M, R](mutex, changed, cancellation, false, false, none,
                                       WorkerQueue[Packet[M]](input), WorkerQueue[Reply[R]](output), config,
