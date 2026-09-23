@@ -1,0 +1,101 @@
+#==============================================================================================
+#
+#   name_index - Where each name is bound in the checker's scope list
+#
+#   DESCRIPTION:
+#       An open-addressed table from a name to its innermost binding. Each binding records
+#       the one of the same name it hides, so a lookup walks only that name's chain instead
+#       of every binding in scope: a program's top level holds thousands of names, and a
+#       linear scan per identifier was most of the checker's time.
+#
+#==============================================================================================
+
+## A name's innermost binding, as its index in the scope list plus one; 0 when unbound.
+pub struct NameIndex:
+    ## Slot keys; the empty string marks a slot never used. A slot keeps its name once
+    ## used, with head 0 when nothing binds it now, so probing never breaks.
+    var names: str[]
+    var heads: u32[]
+    ## Slots with a key.
+    var used: usize
+
+    ## An empty index, with room for five hundred names before it grows.
+    pub static func create() -> NameIndex!:
+        let names = try alloc str[1024]
+        let heads = try alloc u32[1024]
+        for i in 0..<names.length:
+            names[i] = ""
+            heads[i] = 0
+        return NameIndex(names = names, heads = heads, used = 0)
+
+    ## The innermost binding of `name`, its scope index plus one, or 0.
+    pub func head(name: str) -> u32:
+        let mask = self.names.length - 1
+        var slot = spread(name) & mask
+        while true:
+            let key = self.names[slot]
+            if key.length == 0 and self.heads[slot] == 0:
+                return 0
+            if key == name:
+                return self.heads[slot]
+            slot = (slot + 1) & mask
+
+    ## Make `head` the innermost binding of `name` (0 when none is left).
+    pub mutating func set(name: str, head: u32) -> !:
+        if (self.used + 1) * 2 > self.names.length:
+            try self.grow()
+        let mask = self.names.length - 1
+        var slot = spread(name) & mask
+        while true:
+            let key = self.names[slot]
+            if key == name:
+                self.heads[slot] = head
+                return
+            if key.length == 0 and self.heads[slot] == 0:
+                self.names[slot] = name
+                self.heads[slot] = head
+                self.used += 1
+                return
+            slot = (slot + 1) & mask
+
+    mutating func grow() -> !:
+        let old_names = self.names
+        let old_heads = self.heads
+        self.names = try alloc str[old_names.length * 2]
+        self.heads = try alloc u32[old_names.length * 2]
+        for i in 0..<self.names.length:
+            self.names[i] = ""
+            self.heads[i] = 0
+        self.used = 0
+        for i in 0..<old_names.length:
+            if old_names[i].length > 0 and old_heads[i] != 0:
+                try self.set(old_names[i], old_heads[i])
+        free(old_names)
+        free(old_heads)
+
+## FNV-1a over the name's bytes.
+func spread(name: str) -> usize:
+    var h: u64 = 14695981039346656037
+    for byte in name.bytes:
+        h = (h ^ (u64)byte) *% 1099511628211
+    return (usize)h
+
+test "a name's head follows its bindings and survives growth":
+    var index = try NameIndex.create()
+    assert(index.head("a") == 0)
+    try index.set("a", 1)
+    try index.set("b", 2)
+    try index.set("a", 3)
+    assert(index.head("a") == 3 and index.head("b") == 2)
+    try index.set("a", 1)
+    assert(index.head("a") == 1)
+    try index.set("b", 0)
+    assert(index.head("b") == 0)
+    var buffer: u8[16]
+    for i in 0..<2000:
+        let name = try format(buffer, f"n{i}")
+        var owned = try alloc u8[name.length]
+        for j in 0..<name.length:
+            owned[j] = name.bytes[j]
+        try index.set((str)owned, (u32)i + 10)
+    assert(index.head("a") == 1 and index.head("n1999") == 2009 and index.head("n0") == 10)

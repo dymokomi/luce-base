@@ -38,6 +38,7 @@ import support.literals
 import sema.standard as standard
 import support.cache as cache
 import sema.prune
+import sema.name_index
 import sema.types
 import support.list
 import support.manifest
@@ -65,6 +66,8 @@ struct Binding:
     var origin: ast.Node*?
     ## Some expression read or assigned the name; a local nothing used is pruned (§19.6).
     var used: bool
+    ## The binding of the same name this one hides, as its scope index plus one; 0 for none.
+    var shadowed: u32 = 0
 
 ## Public package exports resolve to the canonical module which owns the type.
 pub struct ModuleAlias:
@@ -112,6 +115,8 @@ pub struct Checker:
     ## Every module of the program.
     pub var modules: list.List[Module]
     var scope: list.List[Binding]
+    ## Each name's innermost binding in `scope`, so a lookup walks one name's bindings.
+    var names: name_index.NameIndex
     var depth: u32
     ## Diagnostics are formatted into the first half; type spellings into the second.
     ## The buffer outlives the arena, so the backends format their own reports here too.
@@ -174,7 +179,7 @@ pub struct Checker:
     ## A fresh checker; `scratch` is a buffer for formatting diagnostics.
     pub static func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
-                       scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), errors = try list.List[str].create(16), depth = 0, scratch = scratch,
+                       scope = try list.List[Binding].create(512), names = try name_index.NameIndex.create(), warnings = try list.List[str].create(16), errors = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", loading = try list.List[str].create(16), module_aliases = try list.List[ModuleAlias].create(8), package_name = "app",
@@ -269,19 +274,45 @@ pub struct Checker:
     mutating func pop_scope():
         while self.scope.count > 0 and self.scope.get(self.scope.count - 1).depth == self.depth:
             mark_if_unused(self.scope.get(self.scope.count - 1))
-            self.scope.count -= 1
+            self.drop_binding()
         self.depth -= 1
 
-    func lookup(name: str) -> Binding?:
-        var i = self.scope.count
-        while i > 0:
-            i -= 1
-            let b = self.scope.get(i)
-            if i < self.lambda_floor and b.depth > 0:
+    ## Remove the innermost binding; the one it hid is its name's innermost again.
+    mutating func drop_binding():
+        let b = self.scope.get(self.scope.count - 1)
+        self.names.set(b.name, b.shadowed) catch failure:
+            trap("the name index cannot shrink")
+        self.scope.count -= 1
+
+    ## Drop bindings until `count` remain.
+    mutating func truncate_scope(count: usize):
+        while self.scope.count > count:
+            self.drop_binding()
+
+    ## Add a binding, the innermost of its name.
+    mutating func push_binding(b: Binding) -> !:
+        var binding = b
+        binding.shadowed = self.names.head(b.name)
+        try self.scope.push(binding)
+        try self.names.set(b.name, (u32)self.scope.count)
+
+    ## The scope index of the innermost binding of `name` a lookup here may see, plus one;
+    ## 0 when none. Inside a lambda, the enclosing function's locals are out of reach.
+    func visible(name: str) -> u32:
+        var at = self.names.head(name)
+        while at > 0:
+            let b = self.scope.get((usize)at - 1)
+            if (usize)at - 1 < self.lambda_floor and b.depth > 0:
+                at = b.shadowed
                 continue
-            if b.name == name:
-                return b
-        return none
+            return at
+        return 0
+
+    func lookup(name: str) -> Binding?:
+        let at = self.visible(name)
+        if at == 0:
+            return none
+        return self.scope.get((usize)at - 1)
 
     ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local or a
     ## parameter may not reuse the name of another local, a parameter, an import, or a
@@ -296,7 +327,7 @@ pub struct Checker:
                 discard(try self.fail_at(at, "this name is already in scope", earlier, "the earlier binding"))
             else:
                 discard(try self.fail(at, "this name is already in scope"))
-        try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false))
+        try self.push_binding(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false, shadowed = 0))
 
     ## A default argument that is `luce.line`, `luce.file`, or `luce.function` expands at
     ## the call site (§6.4): the call gains a named argument holding the fact as a literal.
@@ -504,14 +535,14 @@ pub struct Checker:
 
     ## Record on a binding that it holds a local address (a `let` alias of §6.6).
     mutating func set_from_local(name: str, taint: bool):
-        var i = self.scope.count
-        while i > 0:
-            i -= 1
-            var b = self.scope.get(i)
-            if b.name == name and b.depth == self.depth:
+        var at = self.names.head(name)
+        while at > 0:
+            var b = self.scope.get((usize)at - 1)
+            if b.depth == self.depth:
                 b.from_local = taint
-                self.scope.set(i, b)
+                self.scope.set((usize)at - 1, b)
                 return
+            at = b.shadowed
 
     ## The escape rule (§6.6): a pointer, span, or `str` that names a local must not leave,
     ## alone or as a component of a tuple, an array, a struct, or an optional.
@@ -540,14 +571,12 @@ pub struct Checker:
 
     ## The innermost binding of `name` was read or assigned (§19.6).
     mutating func mark_used(name: str):
-        var i = self.scope.count
-        while i > 0:
-            i -= 1
-            var b = self.scope.get(i)
-            if b.name == name:
-                b.used = true
-                self.scope.set(i, b)
-                return
+        let at = self.names.head(name)
+        if at == 0:
+            return
+        var b = self.scope.get((usize)at - 1)
+        b.used = true
+        self.scope.set((usize)at - 1, b)
 
     ## The reporter for the module being checked.
     mutating func reporter() -> prune.Reporter:
@@ -572,14 +601,12 @@ pub struct Checker:
         return self.current < self.modules.count and self.modules.get(self.current).is_prelude
 
     mutating func rebind(name: str, type_id: u32) -> !:
-        var i = self.scope.count
-        while i > 0:
-            i -= 1
-            var b = self.scope.get(i)
-            if b.name == name:
-                b.type_id = type_id
-                self.scope.set(i, b)
-                return
+        let at = self.names.head(name)
+        if at == 0:
+            return
+        var b = self.scope.get((usize)at - 1)
+        b.type_id = type_id
+        self.scope.set((usize)at - 1, b)
 
     # mark: Modules ============================================================================
 
@@ -850,7 +877,7 @@ pub struct Checker:
                 try self.keep_error(failure.message)
                 while self.depth > depth:
                     self.pop_scope()
-                self.scope.count = bindings
+                self.truncate_scope(bindings)
                 self.current_func = none
                 self.fallible = false
                 self.in_init = false

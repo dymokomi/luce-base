@@ -114,7 +114,7 @@ pub struct Graph:
                 return true
             if x == 0:
                 return false
-            x = self.blocks.get((usize)x).idom
+            x = self.blocks.items[(usize)x].idom
         return false
 
     ## Whether `a` strictly dominates `b`.
@@ -129,13 +129,13 @@ pub struct Graph:
             return a
         var x = a
         var y = b
-        while self.blocks.get((usize)x).depth > self.blocks.get((usize)y).depth:
-            x = self.blocks.get((usize)x).idom
-        while self.blocks.get((usize)y).depth > self.blocks.get((usize)x).depth:
-            y = self.blocks.get((usize)y).idom
+        while self.blocks.items[(usize)x].depth > self.blocks.items[(usize)y].depth:
+            x = self.blocks.items[(usize)x].idom
+        while self.blocks.items[(usize)y].depth > self.blocks.items[(usize)x].depth:
+            y = self.blocks.items[(usize)y].idom
         while x != y:
-            x = self.blocks.get((usize)x).idom
-            y = self.blocks.get((usize)y).idom
+            x = self.blocks.items[(usize)x].idom
+            y = self.blocks.items[(usize)y].idom
         return x
 
     # -- construction ---------------------------------------------------------------------
@@ -265,7 +265,7 @@ pub struct Graph:
                 var p: usize = 0
                 while p < block.preds.count:
                     let pred = block.preds.get(p)
-                    if pred == 0 or self.blocks.get((usize)pred).idom != none_block:
+                    if pred == 0 or self.blocks.items[(usize)pred].idom != none_block:
                         d = self.intersect(d, pred)
                     p += 1
                 if d != block.idom:
@@ -276,7 +276,7 @@ pub struct Graph:
         var i: usize = 1
         while i < self.order.count:
             let b = self.order.get(i)
-            let d = self.blocks.get((usize)b).idom
+            let d = self.blocks.items[(usize)b].idom
             if d != none_block:
                 var parent = self.blocks.get((usize)d)
                 try parent.children.push(b)
@@ -289,10 +289,10 @@ pub struct Graph:
         var x = a
         var y = b
         while x != y:
-            while self.blocks.get((usize)x).rpo > self.blocks.get((usize)y).rpo:
-                x = self.blocks.get((usize)x).idom
-            while self.blocks.get((usize)y).rpo > self.blocks.get((usize)x).rpo:
-                y = self.blocks.get((usize)y).idom
+            while self.blocks.items[(usize)x].rpo > self.blocks.items[(usize)y].rpo:
+                x = self.blocks.items[(usize)x].idom
+            while self.blocks.items[(usize)y].rpo > self.blocks.items[(usize)x].rpo:
+                y = self.blocks.items[(usize)y].idom
         return x
 
     ## Dominance frontiers: a successor a block does not strictly dominate is in the
@@ -332,7 +332,7 @@ pub struct Graph:
         while i < self.order.count:
             let b = self.order.get(i)
             var block = self.blocks.get((usize)b)
-            block.depth = 0 if block.idom == none_block else self.blocks.get((usize)block.idom).depth + 1
+            block.depth = 0 if block.idom == none_block else self.blocks.items[(usize)block.idom].depth + 1
             self.blocks.set((usize)b, block)
             i += 1
 
@@ -355,7 +355,7 @@ pub struct Graph:
             var p: usize = 0
             while p < block.preds.count:
                 let pred = block.preds.get(p)
-                if self.blocks.get((usize)pred).rpo >= block.rpo:
+                if self.blocks.items[(usize)pred].rpo >= block.rpo:
                     # a back-edge: walk the predecessors back to the header
                     var depth: usize = 1
                     stack[0] = pred
