@@ -2,7 +2,7 @@
 
 `gpu` is a luce-base standard module with a portable application API, a Metal
 backend for arm64 macOS and a Vulkan backend for x64 Windows. It opens devices,
-attaches a surface to a standard `window`, owns textures, and records coloured
+attaches a surface to a standard `window`, owns textures, and records colored
 triangles, coverage masks and image draws into scoped drawing regions that end on
 the screen or in a texture. All implementation code is Base calling system APIs
 directly. There is no SDL dependency or C/Objective-C implementation shim.
@@ -158,7 +158,7 @@ The files under `src/std/gpu/` share one standard module scope:
 | `presentation.lucb`, `resources.lucb` | Surface and texture dispatch using opaque payloads; a device alone never reaches them. |
 | `metal/objc.lucb` | Exact typed system ABI declarations, including native aggregates. |
 | `metal/device.lucb` | Metal device and queue creation and release. |
-| `metal/drawing.lucb` | The vertex library, the built-in fill pipeline per colour format, client libraries and pipelines, samplers, depth state and the shared render pass. |
+| `metal/drawing.lucb` | The vertex library, the built-in fill pipeline per color format, client libraries and pipelines, samplers, depth state and the shared render pass. |
 | `metal/texture.lucb` | Private textures, blit uploads and readbacks, offscreen passes. |
 | `metal/surface.lucb` | CAMetalLayer, sRGB color space, drawable sizing, presentation, completion, and teardown. |
 | `vulkan/*` | The same contract on Vulkan: `device`, `texture` (images, samplers, transfers), `pipeline` (passes and pipelines per format), `shader` (client modules and their per-format pipelines), `render` (uploads, descriptors, encoding), `surface` (swapchain). |
@@ -245,8 +245,8 @@ The built-in pipeline's fragment stage is written once in GLSL
 `tools/embed_shaders.py`: SPIR-V words for Vulkan and Metal Shading Language
 cross-compiled from them by spirv-cross. The vertex stage is per backend (they
 disagree on clip-space Y): `shaders/quad.vert` for Vulkan and a Metal source in
-`metal/drawing.lucb`. Fragments emit premultiplied colour and blend with One /
-OneMinusSourceAlpha, so vertex colours, coverage masks and textures all
+`metal/drawing.lucb`. Fragments emit premultiplied color and blend with One /
+OneMinusSourceAlpha, so vertex colors, coverage masks and textures all
 composite the same way. Application transforms are computed before recording.
 Packages depend only on `gpu`, so both backends serve the same drawing code.
 
@@ -295,7 +295,7 @@ a shader changes; the generated module is checked in.
 
 ```glsl
 #version 450
-layout(location = 0) in vec4 vertex_color;      // the draw's colour
+layout(location = 0) in vec4 vertex_color;      // the draw's color
 layout(location = 0) out vec4 fragment_color;   // premultiplied
 layout(push_constant) uniform Params { ... } params;   // up to 128 bytes
 layout(set = 0, binding = 1) uniform sampler2D first;  // bindings 1..4
@@ -312,7 +312,7 @@ for presentation surfaces. `shade(target, pipeline, rectangle, uniforms?,
 images?, filter, color)` draws a rectangle of a `RenderTarget` with it: the
 uniform bytes fill the push-constant block (zero-padded to 128; Metal binds the
 whole block since a padded struct may be larger than the bytes given), the
-images sample at bindings 1.. with `filter`, and `color` is the vertex colour.
+images sample at bindings 1.. with `filter`, and `color` is the vertex color.
 A pipeline recorded into a frame of another target format is refused at
 `present` with `wrong_target`; one from another device with `wrong_device`.
 Shaders and pipelines are manual Base resources like textures, and a draw

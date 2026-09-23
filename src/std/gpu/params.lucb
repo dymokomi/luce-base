@@ -5,7 +5,7 @@
 #   DESCRIPTION:
 #       The 48 bytes every draw hands its fragment shader on both backends: a pixel rectangle
 #       with either a coverage image (mode 1) or a texture's source rectangle (mode 2) mapped
-#       onto it. Mode 0 draws the interpolated vertex colour alone. Layout is shared with the
+#       onto it. Mode 0 draws the interpolated vertex color alone. Layout is shared with the
 #       Metal and GLSL shader sources; change all three together.
 #
 #==============================================================================================

@@ -118,6 +118,7 @@ func win_open(options: Options) -> State*!:
     let native = CreateWindowExW(0, &win_class_name[0], title.data, style, -2147483648, -2147483648,
                                  rect.right - rect.left, rect.bottom - rect.top, none, none, GetModuleHandleW(none), (void*)state) else error(failed, "the native window could not be created")
     state.native = native
+    try win_register_drops(state)
     return state
 
 func win_size(state: State*) -> Size:
@@ -209,6 +210,8 @@ func win_destroy(state: State*):
         win_free(state)
 
 func win_free(state: State*):
+    win_revoke_drops(state)
+    clear_drop_paths(state)
     if let native = state.native:
         discard(SetWindowLongPtrW(native, -21, 0))
         discard(DestroyWindow(native))

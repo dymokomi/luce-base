@@ -22,7 +22,7 @@ pub struct Rule:
     pub let framework: bool
 
 ## Every link rule, across all targets.
-pub let rules: Rule[56] = [
+pub let rules: Rule[61] = [
     Rule("arm64-linux", "cairo_image_surface_create", "cairo", false),
     Rule("arm64-linux", "cairo_scaled_font_destroy", "cairo", false),
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "CoreGraphics", true),
@@ -53,6 +53,7 @@ pub let rules: Rule[56] = [
     Rule("x86_64-windows", "CreateFontIndirectW", "gdi32", false),
     Rule("x86_64-windows", "CreateWindowExW", "user32", false),
     Rule("x86_64-windows", "DefWindowProcW", "user32", false),
+    Rule("x86_64-windows", "DragQueryFileW", "shell32", false),
     Rule("x86_64-windows", "GetActiveWindow", "user32", false),
     Rule("x86_64-windows", "GetClipboardData", "user32", false),
     Rule("x86_64-windows", "GetDpiForWindow", "user32", false),
@@ -61,9 +62,13 @@ pub let rules: Rule[56] = [
     Rule("x86_64-windows", "GetOpenFileNameW", "comdlg32", false),
     Rule("x86_64-windows", "GetSaveFileNameW", "comdlg32", false),
     Rule("x86_64-windows", "GetTextMetricsW", "gdi32", false),
+    Rule("x86_64-windows", "OleInitialize", "ole32", false),
     Rule("x86_64-windows", "OpenClipboard", "user32", false),
     Rule("x86_64-windows", "PeekMessageW", "user32", false),
     Rule("x86_64-windows", "RegisterClassExW", "user32", false),
+    Rule("x86_64-windows", "RegisterDragDrop", "ole32", false),
+    Rule("x86_64-windows", "ReleaseStgMedium", "ole32", false),
+    Rule("x86_64-windows", "RevokeDragDrop", "ole32", false),
     Rule("x86_64-windows", "SetClipboardData", "user32", false),
     Rule("x86_64-windows", "ShowWindow", "user32", false),
     Rule("x86_64-windows", "WSACleanup", "ws2_32", false),

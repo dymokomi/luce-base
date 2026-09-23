@@ -14,6 +14,7 @@ import memory
 import platform
 import utf8
 import thread
+import windows_text
 # mark: Errors, options and the window ========================================================
 
 ## No native window backend exists for this target.
@@ -151,6 +152,20 @@ pub struct Window:
             try mac_set_cursor(state, cursor)
         if platform.windows:
             try win_set_cursor(state, cursor)
+
+    ## The files of the drag in progress, or of the last drop, as UTF-8 paths:
+    ## read on `drag_entered` through `drop`; replaced when the next drag enters.
+    ## At most sixteen files are kept. Empty for a drag that carries no files.
+    pub func drop_paths() -> const str[]!:
+        let state = try self.checked()
+        return state.drop_paths[..<state.drop_count]
+
+    ## Whether the application would take a drop where the pointer is now; the OS
+    ## shows the copy badge, or refuses and slides the files back, accordingly.
+    ## Answer on every drag event: the next native update reports it.
+    pub func set_drop_accepted(accepted: bool) -> !:
+        let state = try self.checked()
+        state.drop_accepted = accepted
 
     ## The window's current cursor.
     pub func cursor() -> input.Cursor!:

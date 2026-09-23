@@ -1,4 +1,4 @@
-// Test fragment: the vertex colour times a uniform tint, times image 1 sampled
+// Test fragment: the vertex color times a uniform tint, times image 1 sampled
 // across the rectangle, plus image 2's red channel as a uniform-scaled offset.
 #version 450
 layout(location = 0) in vec4 vertex_color;

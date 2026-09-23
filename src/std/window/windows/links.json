@@ -2,8 +2,36 @@
   "target": "x86_64-windows",
   "requirements": [
     {
-      "symbols": ["RegisterClassExW", "CreateWindowExW", "DefWindowProcW", "PeekMessageW", "ShowWindow", "GetDpiForWindow"],
-      "libraries": ["user32"]
+      "symbols": [
+        "RegisterClassExW",
+        "CreateWindowExW",
+        "DefWindowProcW",
+        "PeekMessageW",
+        "ShowWindow",
+        "GetDpiForWindow"
+      ],
+      "libraries": [
+        "user32"
+      ]
+    },
+    {
+      "symbols": [
+        "OleInitialize",
+        "RegisterDragDrop",
+        "RevokeDragDrop",
+        "ReleaseStgMedium"
+      ],
+      "libraries": [
+        "ole32"
+      ]
+    },
+    {
+      "symbols": [
+        "DragQueryFileW"
+      ],
+      "libraries": [
+        "shell32"
+      ]
     }
   ]
 }

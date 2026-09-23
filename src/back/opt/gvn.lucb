@@ -181,10 +181,38 @@ func resolve(rep: ir.Ref[], r: ir.Ref) -> ir.Ref:
         hops += 1
     return out
 
+## One block on the walk's stack: which block, the next of its dominator-tree
+## children to visit, and the table's size before the block was numbered.
+struct Visit:
+    var block: u32
+    var child: usize
+    var mark: usize
+
 ## The walk: block `b`, then its dominator-tree children with the table as it stands
-## here, then the table cut back.
+## there, then the table cut back. An explicit stack, not recursion: a long function
+## is a long chain of blocks, and a frame per block overflowed the compiler's stack.
 func number(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[], table: Table*) -> !:
-    let mark = table.mark()
+    var stack = try list.List[Visit].create(64)
+    defer stack.destroy()
+    let root_mark = table.mark()
+    try number_block(f, g, b, rep, dead, table)
+    try stack.push(Visit(block = b, child = 0, mark = root_mark))
+    while stack.count > 0:
+        var top = stack.get(stack.count - 1)
+        let block = g.blocks.get((usize)top.block)
+        if top.child < block.children.count:
+            let child = block.children.get(top.child)
+            top.child += 1
+            stack.set(stack.count - 1, top)
+            let mark = table.mark()
+            try number_block(f, g, child, rep, dead, table)
+            try stack.push(Visit(block = child, child = 0, mark = mark))
+        else:
+            table.cut(top.mark)
+            stack.count -= 1
+
+## Number one block's instructions against the table, extending it.
+func number_block(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[], table: Table*) -> !:
     let block = g.blocks.get((usize)b)
     var i = block.start
     while i < block.end:
@@ -232,11 +260,6 @@ func number(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[],
                 try table.insert(x)
         f.instrs.set((usize)i, x)
         i += 1
-    var c: usize = 0
-    while c < block.children.count:
-        try number(f, g, block.children.get(c), rep, dead, table)
-        c += 1
-    table.cut(mark)
 
 ## Whether an instruction's result depends on its operands alone: the arithmetic and the
 ## conversions, the comparisons, addresses, and the vector forms; not loads, stores, calls,

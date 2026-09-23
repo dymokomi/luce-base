@@ -243,7 +243,7 @@ func intersect_clip(parent: Clip, region: Rect, scale_x: f64, scale_y: f64) -> C
 
 ## Draw `rectangle` of `target` (in points) with a client `pipeline`: `uniforms`
 ## fill its push-constant block, `images` its sampled bindings 1.., all with
-## `filter`; `color` is the vertex colour each fragment starts from. Clipped
+## `filter`; `color` is the vertex color each fragment starts from. Clipped
 ## like every other draw.
 pub func shade(target: const RenderTarget*, pipeline: Pipeline, rectangle: Rect, uniforms: const u8[]? = none, images: const Texture[]? = none,
                filter: Filter = Filter.linear, color: Color = Color(1.0, 1.0, 1.0, 1.0)) -> !:

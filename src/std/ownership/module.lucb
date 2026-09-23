@@ -34,7 +34,7 @@ pub struct Object:
     pub var strong: u32
     ## The number of weak references watching the object.
     pub var weak: u32
-    ## The collector's colour and state bits (§the cycle collector).
+    ## The collector's color and state bits (§the cycle collector).
     pub var flags: u8
     ## The object's class description.
     pub var info: Info*

@@ -54,7 +54,7 @@ pub let wrong_target: ErrorCode = ErrorCode.package(121)
 ## A shader could not be compiled or a pipeline could not be built from it.
 pub let invalid_shader: ErrorCode = ErrorCode.package(122)
 
-# mark: Backends, colours and formats =========================================================
+# mark: Backends, colors and formats =========================================================
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Windows x64 uses Vulkan; macOS
 ## ARM64 uses Metal. Link dependencies are selected by the compiler.
@@ -95,7 +95,7 @@ pub enum Format as u8:
     r8 = 3
 
 ## How a draw combines with what is already in the target. Shaders emit
-## premultiplied colour: `over` composites it, `replace` writes it as is, and
+## premultiplied color: `over` composites it, `replace` writes it as is, and
 ## `add` sums it.
 pub enum Blend as u8:
     over = 0

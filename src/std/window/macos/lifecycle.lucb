@@ -44,6 +44,7 @@ func setup_classes() -> !:
         try add_method(native_type, "isFlipped", (void*)view_accepts, "B@:")
         try add_method(native_type, "cursorUpdate:", (void*)cursor_callback, "v@:@")
         try mac_register_text_input(native_type)
+        try mac_register_drop_methods(native_type)
         var keys: c.str[3] = ["keyDown:", "keyUp:", "flagsChanged:"]
         for name in keys:
             try add_method(native_type, name, (void*)key_callback, "v@:@")
@@ -81,6 +82,7 @@ func mac_open(options: Options) -> State*!:
     state.view = view
     set_state(view, state)
     msg_object(native, sel("setContentView:"), view)
+    try mac_accept_file_drops(view)
     # The view retains its tracking area. InVisibleRect lets AppKit update its
     # bounds on resize; enter/leave remain paired while a captured drag moves out.
     let tracking_allocated = msg_ptr(try native_class("NSTrackingArea"), sel("alloc")) else error(failed, "could not allocate pointer tracking")
@@ -262,4 +264,5 @@ func mac_free(state: State*):
         msg_void(view, sel("release"))
     if let delegate = state.delegate:
         msg_void(delegate, sel("release"))
+    clear_drop_paths(state)
     free(state) in memory.heap

@@ -4,7 +4,7 @@
 #
 #   DESCRIPTION:
 #       A client fragment shader is one VkShaderModule. A client pipeline remembers its blend
-#       mode and target and builds one VkPipeline per colour format it is actually drawn into,
+#       mode and target and builds one VkPipeline per color format it is actually drawn into,
 #       since a presentation surface's format is known only once its swapchain exists.
 #
 #==============================================================================================
@@ -49,13 +49,13 @@ func vulkan_pipeline_destroy(device: VulkanDevice*, state: VulkanPipeline*):
         if entry.pipeline != 0: vkDestroyPipeline(device.device, entry.pipeline, none)
     free(state) in memory.heap
 
-## The client pipeline compiled for colour attachments of `format`.
+## The client pipeline compiled for color attachments of `format`.
 func vulkan_pipeline_for(device: VulkanDevice*, state: VulkanPipeline*, format: u32) -> u64!:
     for entry in state.entries[..<state.count]:
         if entry.format == format:
             return entry.pipeline
     if state.count == state.entries.length:
-        error(failed, "a Vulkan pipeline was drawn into too many colour formats")
+        error(failed, "a Vulkan pipeline was drawn into too many color formats")
     let formats = try vulkan_format_state(device, format)
     let pipeline = try vulkan_build_pipeline(device, formats.pass_texture, state.shader.module, state.blend, false)
     state.entries[state.count] = VulkanPipelineEntry(format = format, pipeline = pipeline)

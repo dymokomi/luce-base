@@ -362,7 +362,7 @@ The ownership header every managed object carries, before its fields.
 
 - `var strong: u32` — The strong reference count; the object is finalized when it reaches zero.
 - `var weak: u32` — The number of weak references watching the object.
-- `var flags: u8` — The collector's colour and state bits (§the cycle collector).
+- `var flags: u8` — The collector's color and state bits (§the cycle collector).
 - `var info: Info*` — The object's class description.
 - `var generation: u64` — Allocation identity never repeats, even when an allocator reuses an address.
 - `var context: u64` — The owning context the object belongs to.
@@ -1797,6 +1797,8 @@ One owned native window. The zero value is closed. Copies alias ownership: borro
 - `func is_fullscreen() -> bool!` — Whether this window currently covers the display without chrome.
 - `func set_text_input(enabled: bool) -> !` — Enable committed text from the active keyboard layout and input method. Disable when no editable control has focus; this cancels pending composition.
 - `func set_cursor(cursor: input.Cursor) -> !` — Choose the cursor for this window's content. Native chrome and other windows keep their own cursors. The choice survives OS cursor updates.
+- `func drop_paths() -> const str[]!` — The files of the drag in progress, or of the last drop, as UTF-8 paths: read on `drag_entered` through `drop`; replaced when the next drag enters. At most sixteen files are kept. Empty for a drag that carries no files.
+- `func set_drop_accepted(accepted: bool) -> !` — Whether the application would take a drop where the pointer is now; the OS shows the copy badge, or refuses and slides the files back, accordingly. Answer on every drag event: the next native update reports it.
 - `func cursor() -> input.Cursor!` — The window's current cursor.
 - `func acquire_presentation() -> Presentation!` — Reserve this window for one graphics surface. Normally gpu.Surface calls this; applications need not manage the lease themselves.
 - `func set_redraw(callback: func(void*) -> unit, context: void*) -> !` — Register a redraw invoked while the window is being live-resized, so the application can repaint at the new size instead of showing a stretched frame. During a resize the OS runs a modal loop that starves the normal event pump; this callback fires from inside it. It runs on the main thread with `context`, and lives until replaced or the window is destroyed. Keep `context` valid for that lifetime. The callback must not destroy or resize the window.
@@ -1925,7 +1927,7 @@ Texel layouts of a texture. Every format is tightly packed, top-down, with strai
 
 ### `Blend` (enum as u8)
 
-How a draw combines with what is already in the target. Shaders emit premultiplied colour: `over` composites it, `replace` writes it as is, and `add` sums it.
+How a draw combines with what is already in the target. Shaders emit premultiplied color: `over` composites it, `replace` writes it as is, and `add` sums it.
 
 - `let uniform_limit: usize = 128` — The most uniform bytes one draw can carry: Vulkan's guaranteed push constants.
 
@@ -1960,7 +1962,7 @@ An owned GPU device; the zero value is closed and copies alias ownership.
 
 ### `Vertex` (struct)
 
-One triangle vertex: a clip-space position and a straight-alpha linear-sRGB colour.
+One triangle vertex: a clip-space position and a straight-alpha linear-sRGB color.
 
 - `var x: f32` — The clip-space x, in -w..w.
 - `var y: f32` — The clip-space y, in -w..w.
@@ -2049,7 +2051,7 @@ A checked drawing view. Its private canvas never escapes. Child regions intersec
 
 - `func draw_image(target: const RenderTarget*, texture: Texture, rectangle: Rect, source: Region? = none, opacity: f64 = 1.0, filter: Filter = Filter.linear) -> !` — Draw `source` texels of `texture` (the whole texture by default) scaled onto `rectangle` of `target` in points, multiplied by `opacity`, sampled with `filter` and clipped to the target. Texels are straight alpha and composite over what is already drawn.
 
-- `func shade(target: const RenderTarget*, pipeline: Pipeline, rectangle: Rect, uniforms: const u8[]? = none, images: const Texture[]? = none,` — Draw `rectangle` of `target` (in points) with a client `pipeline`: `uniforms` fill its push-constant block, `images` its sampled bindings 1.., all with `filter`; `color` is the vertex colour each fragment starts from. Clipped like every other draw.
+- `func shade(target: const RenderTarget*, pipeline: Pipeline, rectangle: Rect, uniforms: const u8[]? = none, images: const Texture[]? = none,` — Draw `rectangle` of `target` (in points) with a client `pipeline`: `uniforms` fill its push-constant block, `images` its sampled bindings 1.., all with `filter`; `color` is the vertex color each fragment starts from. Clipped like every other draw.
 
 ### `Texture` (struct)
 
@@ -2061,7 +2063,7 @@ An owned texture; the zero value is closed and copies alias ownership.
 - `func format() -> Format!` — The texel format.
 - `func upload(pixels: const u8[], region: Region? = none) -> !` — Replace `region` (the whole texture by default) with tightly packed, top-down `pixels` in the texture's format. The copy completes before this returns, ordered after earlier submissions; `pixels` may be reused at once.
 - `func read(pixels: u8[], region: Region? = none) -> !` — Read `region` (the whole texture by default) back into `pixels`, tightly packed and top-down in the texture's format, after every earlier submission that touched it has completed.
-- `func frame() -> interop.Reference[Frame]!` — Begin one recording frame whose target is this texture; its points equal texels. `present` clears the texture to the given colour, draws, and waits for completion, so the result can be read or sampled immediately after.
+- `func frame() -> interop.Reference[Frame]!` — Begin one recording frame whose target is this texture; its points equal texels. `present` clears the texture to the given color, draws, and waits for completion, so the result can be read or sampled immediately after.
 - `mutating func destroy()` — Release this handle on the main thread; recorded draws and open frames keep the storage until they finish.
 
 ### `Shader` (struct)

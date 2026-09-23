@@ -4,7 +4,7 @@
 #
 #   DESCRIPTION:
 #       Backend implementation of the portable drawing contract, shared by every surface and
-#       texture of a device: one shader library, one pipeline per colour format, the depth
+#       texture of a device: one shader library, one pipeline per color format, the depth
 #       states, the two samplers, a placeholder texture for draws that sample nothing, and a
 #       cached depth attachment. The vertex input uses eight scalar floats, avoiding native
 #       vector alignment in the ABI. Applications never supply Metal source or native pipeline
@@ -44,7 +44,7 @@ func metal_format_slot(format: Format) -> usize:
     return (usize)format + 1
 
 ## The one vertex stage: eight scalar floats per vertex from buffer 0, passed
-## through with the colour at user location 0 for every fragment program.
+## through with the color at user location 0 for every fragment program.
 let metal_vertex_source: c.str = "#include <metal_stdlib>\nusing namespace metal;\nstruct V { float4 position [[position]]; float4 color [[user(locn0)]]; };\nvertex V luce_vertex(const device float* data [[buffer(0)]], uint id [[vertex_id]]) {\n uint i=id*8; V v; v.position=float4(data[i],data[i+1],data[i+2],data[i+3]); v.color=float4(data[i+4],data[i+5],data[i+6],data[i+7]); return v;\n}"
 
 func metal_drawing_open(device: MetalDevice*) -> MetalDrawing*!:
@@ -96,7 +96,7 @@ func metal_compile(native: void*, source: c.str) -> void*!:
     var failure: void*? = none
     return metal_library(native, metal_sel("newLibraryWithSource:options:error:"), try metal_text(source), none, &failure) else error(invalid_shader, "could not compile the Metal shader source")
 
-## The built-in pipeline rendering into colour attachments of `slot`, built on first use.
+## The built-in pipeline rendering into color attachments of `slot`, built on first use.
 func metal_pipeline_for(device: MetalDevice*, drawing: MetalDrawing*, slot: usize) -> void*!:
     if let pipeline = drawing.pipelines[slot]:
         return pipeline
@@ -105,7 +105,7 @@ func metal_pipeline_for(device: MetalDevice*, drawing: MetalDrawing*, slot: usiz
     return pipeline
 
 ## A pipeline of the vertex stage, `fragment_library`'s `luce_fragment`, and `blend`,
-## rendering into colour attachments of `slot`.
+## rendering into color attachments of `slot`.
 func metal_build_pipeline(device: MetalDevice*, drawing: MetalDrawing*, fragment_library: void*, blend: Blend, slot: usize) -> void*!:
     let native = metal_required(device.device)
     let vertex = metal_with_object(metal_required(drawing.library), metal_sel("newFunctionWithName:"), try metal_text("luce_vertex")) else error(failed, "the GPU vertex entry is missing")
@@ -120,7 +120,7 @@ func metal_build_pipeline(device: MetalDevice*, drawing: MetalDrawing*, fragment
     let attachments = metal_required(metal_ptr(descriptor, metal_sel("colorAttachments")))
     let color = metal_required(metal_index(attachments, metal_sel("objectAtIndexedSubscript:"), 0))
     metal_uint_arg(color, metal_sel("setPixelFormat:"), metal_slot_format(slot))
-    # Fragments emit premultiplied colour. Factors: 1 = One, 5 = OneMinusSourceAlpha.
+    # Fragments emit premultiplied color. Factors: 1 = One, 5 = OneMinusSourceAlpha.
     metal_bool_arg(color, metal_sel("setBlendingEnabled:"), blend != Blend.replace)
     metal_uint_arg(color, metal_sel("setSourceRGBBlendFactor:"), 1)
     metal_uint_arg(color, metal_sel("setDestinationRGBBlendFactor:"), 1 if blend == Blend.add else 5)
@@ -183,7 +183,7 @@ func metal_drawing_destroy(state: MetalDrawing*):
             metal_void(value, metal_sel("release"))
     free(state) in memory.heap
 
-## Record `canvas` into `target` (a colour texture of `slot`'s format) cleared to
+## Record `canvas` into `target` (a color texture of `slot`'s format) cleared to
 ## `color`, on a new command buffer that the caller commits.
 func metal_pass(device: MetalDevice*, target: void*, slot: usize, canvas: Canvas, color: Color, width: u64, height: u64) -> void*!:
     let descriptor = metal_ptr(try metal_class("MTLRenderPassDescriptor"), metal_sel("renderPassDescriptor")) else error(failed, "could not create a Metal render pass")

@@ -1,9 +1,9 @@
 #==============================================================================================
 #
-#   pipeline - Vulkan render passes and graphics pipelines per colour format
+#   pipeline - Vulkan render passes and graphics pipelines per color format
 #
 #   DESCRIPTION:
-#       For each colour format a device draws into: a render pass ending in presentation, one
+#       For each color format a device draws into: a render pass ending in presentation, one
 #       ending ready for sampling, and the overlay and depth-testing pipelines, which are
 #       compatible with both passes. Shader modules come from the embedded SPIR-V words.
 #
@@ -19,14 +19,14 @@ func vulkan_shader(device: VulkanDevice*, spirv: const u32[]) -> u64!:
     try vulkan_check(vkCreateShaderModule(device.device, &info, none, &shader), "a Vulkan shader could not be created")
     return shader
 
-## The drawing state for colour attachments of `format`, built on first use.
+## The drawing state for color attachments of `format`, built on first use.
 func vulkan_format_state(device: VulkanDevice*, format: u32) -> VulkanFormatState*!:
     try vulkan_drawing(device)
     for index in 0..<device.format_count:
         if device.formats[index].format == format:
             return &device.formats[index]
     if device.format_count == device.formats.length:
-        error(failed, "too many Vulkan colour formats in use")
+        error(failed, "too many Vulkan color formats in use")
     var state = &device.formats[device.format_count]
     *state = VulkanFormatState(format = format)
     errdefer vulkan_format_state_destroy(device, state)
@@ -73,7 +73,7 @@ func vulkan_pipelines(device: VulkanDevice*, state: VulkanFormatState*) -> !:
 
 ## One graphics pipeline: the quad vertex stage, `fragment` (a shader module
 ## with the fragment contract), `blend`, and depth testing or not, compatible
-## with every render pass of `pass`'s colour format.
+## with every render pass of `pass`'s color format.
 func vulkan_build_pipeline(device: VulkanDevice*, pass: u64, fragment: u64, blend: Blend, depth: bool) -> u64!:
     let vertex_shader = try vulkan_shader(device, quad_vert_words)
     defer vkDestroyShaderModule(device.device, vertex_shader, none)
@@ -93,7 +93,7 @@ func vulkan_build_pipeline(device: VulkanDevice*, pass: u64, fragment: u64, blen
     var multisample = VkPipelineMultisampleStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, rasterizationSamples = VK_SAMPLE_COUNT_1_BIT)
     var depth_info = VkPipelineDepthStencilStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, depthCompareOp = VK_COMPARE_OP_LESS,
                                                            depthTestEnable = VK_TRUE if depth else VK_FALSE, depthWriteEnable = VK_TRUE if depth else VK_FALSE)
-    # Fragments emit premultiplied colour: over is One / OneMinusSourceAlpha, add is One / One.
+    # Fragments emit premultiplied color: over is One / OneMinusSourceAlpha, add is One / One.
     let destination = VK_BLEND_FACTOR_ONE if blend == Blend.add else VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
     var color = VkPipelineColorBlendAttachmentState(blendEnable = VK_FALSE if blend == Blend.replace else VK_TRUE, srcColorBlendFactor = VK_BLEND_FACTOR_ONE, dstColorBlendFactor = destination,
                                                     srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE, dstAlphaBlendFactor = destination, colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)

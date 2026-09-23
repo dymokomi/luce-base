@@ -10,7 +10,7 @@
 #==============================================================================================
 
 # mark: Vertices, clips and viewports =========================================================
-## One triangle vertex: a clip-space position and a straight-alpha linear-sRGB colour.
+## One triangle vertex: a clip-space position and a straight-alpha linear-sRGB color.
 pub struct Vertex:
     ## The clip-space x, in -w..w.
     pub var x: f32
@@ -159,7 +159,7 @@ pub struct Canvas:
 
     ## Draw `rectangle` (backing pixels) with a client pipeline: `uniforms` go to
     ## the push-constant block, `images` to bindings 1.., `color` is the vertex
-    ## colour every fragment starts from. Pipeline and images stay retained
+    ## color every fragment starts from. Pipeline and images stay retained
     ## until the canvas is cleared or destroyed.
     mutating func shade(pipeline: PipelineState*, rectangle: Rect, color: Color, uniforms: const u8[], images: TextureState*?[],
                         filter: Filter, clip: Clip, target_width: f64, target_height: f64) -> !:
@@ -197,7 +197,7 @@ pub struct Canvas:
 
 # mark: Geometry helpers ======================================================================
 ## Two clip-space triangles covering `rectangle`, given in backing pixels of a
-## target `target_width` by `target_height` pixels, coloured `color`.
+## target `target_width` by `target_height` pixels, colored `color`.
 func quad_vertices(rectangle: Rect, color: Color, target_width: f64, target_height: f64) -> Vertex[6]:
     let left = (f32)(rectangle.x * 2.0 / target_width - 1.0)
     let right = (f32)((rectangle.x + rectangle.width) * 2.0 / target_width - 1.0)

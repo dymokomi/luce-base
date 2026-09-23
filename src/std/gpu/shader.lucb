@@ -9,9 +9,9 @@
 #       Both are manual Base resources: the zero value is closed, copies alias ownership, and
 #       draws recorded against them keep them alive until the canvas is cleared.
 #
-#       The fragment contract (see docs/GPU.md): the vertex colour arrives at location 0, the
+#       The fragment contract (see docs/GPU.md): the vertex color arrives at location 0, the
 #       push-constant block carries up to 128 uniform bytes, sampled images are bindings 1..4
-#       of set 0, and the output is premultiplied colour at location 0.
+#       of set 0, and the output is premultiplied color at location 0.
 #
 #==============================================================================================
 

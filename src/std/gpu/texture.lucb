@@ -56,7 +56,7 @@ pub struct Texture:
         try backend_texture_read(state.device, state.native, pixels, area)
 
     ## Begin one recording frame whose target is this texture; its points equal
-    ## texels. `present` clears the texture to the given colour, draws, and waits
+    ## texels. `present` clears the texture to the given color, draws, and waits
     ## for completion, so the result can be read or sampled immediately after.
     pub func frame() -> interop.Reference[Frame]!:
         let state = try self.checked()

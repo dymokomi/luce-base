@@ -42,6 +42,15 @@ pub enum EventKind as u8:
     pointer_left = 15
     ## A touchpad pinch: `scroll_y` holds the magnification change (0.1 = 10% larger).
     magnify = 16
+    ## Files dragged from another application entered the window at `x`, `y`;
+    ## the window's `drop_paths` lists them.
+    drag_entered = 17
+    ## The drag moved to `x`, `y`.
+    drag_moved = 18
+    ## The drag left the window, or was cancelled; nothing was dropped.
+    drag_left = 19
+    ## The files were dropped at `x`, `y`.
+    drop = 20
 
 ## USB HID keyboard-page usages, independent of the host's virtual key numbers.
 ## Unknown or unsupported positions produce unknown rather than a guessed key.

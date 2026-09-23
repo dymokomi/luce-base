@@ -1,5 +1,5 @@
-// The built-in fragment: vertex colour, optionally multiplied by a coverage
-// image (mode 1) or a sampled texture (mode 2). Emits premultiplied colour.
+// The built-in fragment: vertex color, optionally multiplied by a coverage
+// image (mode 1) or a sampled texture (mode 2). Emits premultiplied color.
 // Bindings follow the client contract in docs/GPU.md: uniforms are the push
 // constant block, sampled images are bindings 1..4, and the coverage words
 // are binding 5, which client shaders never use.
