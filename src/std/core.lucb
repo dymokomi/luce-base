@@ -47,51 +47,38 @@ extern func snprintf(buffer: void*, size: usize, format: c.str, ...) -> i32
 
 ## Stop the program with its reason on stderr (§8.7).
 pub func trap(message: c.str) -> never:
-    let prefix = "trap: "
-    discard(write(2, prefix.bytes.data, prefix.length))
-    discard(write(2, (const void*)message, strlen(message)))
-    let newline = "\n"
-    discard(write(2, newline.bytes.data, 1))
-    c_exit(1)
+    begin_crash_report()
+    write_diagnostic("trap: ".bytes)
+    write_diagnostic(((str)message).bytes)
+    write_diagnostic("\n".bytes)
+    finish_trap()
 
 ## `trap: file:line:column: message`: a trap naming the statement it stopped at (§11.5).
 pub func trap_at(position: c.str, message: c.str) -> never:
-    let prefix = "trap: "
-    discard(write(2, prefix.bytes.data, prefix.length))
-    discard(write(2, (const void*)position, strlen(position)))
-    let sep = ": "
-    discard(write(2, sep.bytes.data, 2))
-    discard(write(2, (const void*)message, strlen(message)))
-    let newline = "\n"
-    discard(write(2, newline.bytes.data, 1))
-    c_exit(1)
+    diagnostic_location(position)
+    write_diagnostic(((str)message).bytes)
+    write_diagnostic("\n".bytes)
+    finish_trap()
 
 ## Positioned diagnostic with NUL-terminated C strings. Base assertions use
 ## trap_detail_at so their message spans retain their explicit lengths.
 pub func trap_two_at(position: c.str, message: c.str, detail: c.str) -> never:
-    let prefix = "trap: "
-    discard(write(2, prefix.bytes.data, prefix.length))
-    discard(write(2, (const void*)position, strlen(position)))
-    let sep = ": "
-    discard(write(2, sep.bytes.data, 2))
-    discard(write(2, (const void*)message, strlen(message)))
-    discard(write(2, sep.bytes.data, 2))
-    discard(write(2, (const void*)detail, strlen(detail)))
-    let newline = "\n"
-    discard(write(2, newline.bytes.data, 1))
-    c_exit(1)
+    diagnostic_location(position)
+    write_diagnostic(((str)message).bytes)
+    write_diagnostic(": ".bytes)
+    write_diagnostic(((str)detail).bytes)
+    write_diagnostic("\n".bytes)
+    finish_trap()
 
 ## Unpositioned diagnostic with NUL-terminated C strings.
 pub func trap_two(message: c.str, detail: c.str) -> never:
-    let prefix = "trap: "
-    discard(write(2, prefix.bytes.data, prefix.length))
-    discard(write(2, (const void*)message, strlen(message)))
-    let sep = ": "
-    discard(write(2, sep.bytes.data, 2))
-    discard(write(2, (const void*)detail, strlen(detail)))
-    let newline = "\n"
-    discard(write(2, newline.bytes.data, 1))
-    c_exit(1)
+    begin_crash_report()
+    write_diagnostic("trap: ".bytes)
+    write_diagnostic(((str)message).bytes)
+    write_diagnostic(": ".bytes)
+    write_diagnostic(((str)detail).bytes)
+    write_diagnostic("\n".bytes)
+    finish_trap()
 
 ## Fatal diagnostic for a Base string. Its explicit byte length permits slices,
 ## empty values and embedded NUL; no byte beyond the view is read.
@@ -99,7 +86,7 @@ pub func trap_text_at(position: c.str, message: str) -> never:
     diagnostic_location(position)
     write_diagnostic(message.bytes)
     write_diagnostic("\n".bytes)
-    c_exit(1)
+    finish_trap()
 
 ## Assertion prefix plus a Base string detail, preserving the detail's length.
 pub func trap_detail_at(position: c.str, message: c.str, detail: str) -> never:
@@ -109,27 +96,126 @@ pub func trap_detail_at(position: c.str, message: c.str, detail: str) -> never:
     write_diagnostic(": ".bytes)
     write_diagnostic(detail.bytes)
     write_diagnostic("\n".bytes)
-    c_exit(1)
+    finish_trap()
+
+## A trap at a position given as Base text: how the value language's runtime stops.
+pub func trap_located(position: str, message: str) -> never:
+    begin_crash_report()
+    write_diagnostic("trap: ".bytes)
+    write_diagnostic(position.bytes)
+    write_diagnostic(": ".bytes)
+    write_diagnostic(message.bytes)
+    write_diagnostic("\n".bytes)
+    finish_trap()
 
 func diagnostic_location(position: c.str):
+    begin_crash_report()
     write_diagnostic("trap: ".bytes)
     let location = (str)position
     write_diagnostic(location.bytes)
     write_diagnostic(": ".bytes)
 
-## Panic reporting cannot raise another language error. Retry interruptions and
-## short writes; stop on a terminal write failure or lack of progress.
+## Panic reporting cannot raise another language error. The diagnostic goes to
+## stderr and, when crash reports are on, to the report as well.
 func write_diagnostic(data: const u8[]):
+    write_all(2, data)
+    if crash_file >= 0:
+        write_all(crash_file, data)
+
+## Retry interruptions and short writes; stop on a terminal write failure or lack of progress.
+func write_all(descriptor: i32, data: const u8[]):
     var written: usize = 0
     while written < data.length:
         let remaining = data.length - written
         let count = remaining if remaining < 1073741824 else 1073741824
-        let result = write(2, data[written..].data, count)
+        let result = write(descriptor, data[written..].data, count)
         if result < 0 and c.errno() == c.interrupted:
             continue
         if result <= 0:
             return
         written += (usize)result
+
+# mark: Crash reports ==========================================================================
+
+extern func posix_open as "open"(path: c.str, flags: i32, ...) -> i32
+extern func windows_open as "_open"(path: c.str, flags: i32, ...) -> i32
+extern func posix_close as "close"(descriptor: i32) -> i32
+extern func windows_close as "_close"(descriptor: i32) -> i32
+extern func backtrace(frames: void**, size: i32) -> i32
+extern func backtrace_symbols_fd(frames: const void**, size: i32, descriptor: i32)
+extern func c_quick_exit as "_exit"(code: i32) -> never
+
+## Where a crash report goes, NUL-terminated, and what it starts with; empty when
+## reports are off. `std.crash` fills them; a trap or fatal signal writes them.
+var crash_path: u8[1024]
+var crash_header: u8[1024]
+var crash_header_length: usize = 0
+var crash_file: i32 = -1
+
+## Turn crash reports on: a trap from now on also writes `header` and the trap
+## to the file at `path` (created then, replaced if present), with a native
+## stack where the platform gives one. Paths or headers too long are cut.
+pub func set_crash_report(path: str, header: str):
+    let length = path.length if path.length < crash_path.length - 1 else crash_path.length - 1
+    for index in 0..<length:
+        crash_path[index] = path.bytes[index]
+    crash_path[length] = 0
+    let header_length = header.length if header.length < crash_header.length else crash_header.length
+    for index in 0..<header_length:
+        crash_header[index] = header.bytes[index]
+    crash_header_length = header_length
+
+## Whether crash reports are on.
+pub func crash_reports_enabled() -> bool:
+    return crash_path[0] != 0
+
+## Open the report, if reports are on and it is not open yet, and write its header.
+func begin_crash_report():
+    if crash_file >= 0 or crash_path[0] == 0 or platform.wasm32:
+        return
+    let path = (c.str)&crash_path[0]
+    if platform.windows:
+        crash_file = windows_open(path, 1 | 256 | 512 | 32768, 420)
+    elif platform.macos:
+        crash_file = posix_open(path, 1 | 512 | 1024, 420)
+    else:
+        crash_file = posix_open(path, 1 | 64 | 512, 420)
+    if crash_file >= 0:
+        write_all(crash_file, crash_header[..<crash_header_length])
+
+## Finish a trap: the stack into the report, close it, and exit.
+func finish_trap() -> never:
+    finish_crash_report()
+    c_exit(1)
+
+func finish_crash_report():
+    if crash_file < 0:
+        return
+    write_all(crash_file, "\nstack:\n".bytes)
+    # WASI has no backtrace.
+    if platform.posix and not platform.wasm32:
+        # Pointer-sized slots: the addresses backtrace fills in.
+        var frames: usize[64]
+        let depth = backtrace((void**)&frames[0], 64)
+        if depth > 0:
+            backtrace_symbols_fd((const void**)&frames[0], depth, crash_file)
+    else:
+        write_all(crash_file, "(not captured on this platform)\n".bytes)
+    if platform.windows:
+        discard(windows_close(crash_file))
+    else:
+        discard(posix_close(crash_file))
+    crash_file = -1
+
+## A fatal signal: report it as a trap would, then end with the signal's exit
+## status. Only async-signal-safe calls are made from here on.
+pub func report_fatal_signal(name: str, number: i32) -> never:
+    begin_crash_report()
+    write_diagnostic("trap: fatal signal ".bytes)
+    write_diagnostic(name.bytes)
+    write_diagnostic("\n".bytes)
+    finish_crash_report()
+    c_quick_exit(128 + number)
 
 ## The buffer `format` and f"..." fill: the bytes, their capacity, and the count used.
 pub struct FormatBuffer:

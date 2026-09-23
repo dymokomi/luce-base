@@ -80,16 +80,7 @@ pub func restore_site(saved: str):
 
 ## Stop the program with `trap: file:line:column: message` on standard error and status 1.
 pub func stop(message: str) -> never:
-    var e = io.stderr()
-    let prefix = "trap: "
-    discard(e.write(prefix.bytes) catch failure: recover 0)
-    discard(e.write(site.bytes) catch failure: recover 0)
-    let sep = ": "
-    discard(e.write(sep.bytes) catch failure: recover 0)
-    discard(e.write(message.bytes) catch failure: recover 0)
-    let newline = "\n"
-    discard(e.write(newline.bytes) catch failure: recover 0)
-    core.exit(1)
+    core.trap_located(site, message)
 
 func color_of(o: Object*) -> u8:
     return o.flags & color_mask

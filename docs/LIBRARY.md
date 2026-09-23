@@ -1649,6 +1649,16 @@ A sorted snapshot owns all entry names. Reading another entry never invalidates 
 
 - `func delete_path(path: str, recursive: bool = false) -> !` — Remove the entry at `path`; a directory only when `recursive`.
 
+## `crash`
+
+A program that turns crash reports on gets a file per crash under ~/.luce/crashes: which program and version, the platform, the trap's position and message (or the fatal signal) and a native stack. Traps are the program's own; segmentation faults, bus errors, illegal instructions, arithmetic faults and aborts are caught on POSIX. The next run can read the report back with `take_report` and show it, since a program launched from a desktop has nowhere to print.
+
+- `func directory() -> interop.Owned[str]!` — The directory reports go to: ~/.luce/crashes.
+
+- `func enable(app: str, version: str = "") -> !` — Turn crash reports on for this process. `app` names the program in the file name and header (letters, digits, `-` and `_` are kept; anything else becomes `-`); `version` goes in the header.
+
+- `func take_report(app: str) -> interop.Owned[str]!` — The newest report `app` left that nobody has taken, read and marked taken (renamed to `.seen`), or empty text when there is none.
+
 ## `process`
 
 Run a program with arguments, capture its standard output and error, and return its exit status; plus the current process's own exit.
