@@ -215,6 +215,7 @@ func finish_crash_report():
 ## The native stack on Windows, a frame a line as `module+0xoffset`, which a debugger or
 ## addr2line resolves against the build. Nothing here allocates.
 func write_windows_stack(file: i32):
+    write_all(file, "(the reporter's frames and Windows' exception dispatch come first; the fault is the\n first program frame after ntdll.dll. Offsets are from each module's load address;\n add the image base, 0x140000000 by default for a 64-bit program, for addr2line.)\n".bytes)
     var frames: usize[64]
     let depth = (usize)RtlCaptureStackBackTrace(0, 64, (void**)&frames[0], none)
     for index in 0..<depth:
