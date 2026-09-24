@@ -143,6 +143,9 @@ extern func posix_close as "close"(descriptor: i32) -> i32
 extern func windows_close as "_close"(descriptor: i32) -> i32
 extern func backtrace(frames: void**, size: i32) -> i32
 extern func backtrace_symbols_fd(frames: const void**, size: i32, descriptor: i32)
+extern func RtlCaptureStackBackTrace(skip: u32, count: u32, frames: void**, hash: u32*?) -> u16
+extern func GetModuleHandleExA(flags: u32, address: const void*, module: void**) -> i32
+extern func GetModuleFileNameA(module: void*, name: u8*, size: u32) -> u32
 extern func c_quick_exit as "_exit"(code: i32) -> never
 
 ## Where a crash report goes, NUL-terminated, and what it starts with; empty when
@@ -199,6 +202,8 @@ func finish_crash_report():
         let depth = backtrace((void**)&frames[0], 64)
         if depth > 0:
             backtrace_symbols_fd((const void**)&frames[0], depth, crash_file)
+    elif platform.windows:
+        write_windows_stack(crash_file)
     else:
         write_all(crash_file, "(not captured on this platform)\n".bytes)
     if platform.windows:
@@ -206,6 +211,59 @@ func finish_crash_report():
     else:
         discard(posix_close(crash_file))
     crash_file = -1
+
+## The native stack on Windows, a frame a line as `module+0xoffset`, which a debugger or
+## addr2line resolves against the build. Nothing here allocates.
+func write_windows_stack(file: i32):
+    var frames: usize[64]
+    let depth = (usize)RtlCaptureStackBackTrace(0, 64, (void**)&frames[0], none)
+    for index in 0..<depth:
+        let address = frames[index]
+        var line: u8[400] = ---
+        var used: usize = 0
+        var module: void* = ---
+        var base: usize = 0
+        var name: u8[260] = ---
+        var length: u32 = 0
+        # 4: from an address; 2: without changing the module's reference count
+        if GetModuleHandleExA(6, (const void*)address, (void**)&module) != 0:
+            base = (usize)module
+            length = GetModuleFileNameA(module, &name[0], 260)
+        var start: u32 = 0
+        for at in 0..<length:
+            if name[at] == '\\' or name[at] == '/': start = at + 1
+        for at in start..<length:
+            if used < 300:
+                line[used] = name[at]
+                used += 1
+        if length == 0:
+            line[used] = '?'
+            used += 1
+        line[used] = '+'
+        used += 1
+        used = put_hex(line, used, address - base)
+        line[used] = '\n'
+        used += 1
+        write_all(file, (const u8[])line[..<used])
+
+## `value` as `0x` and lowercase hex digits into `line` at `used`; the new length.
+func put_hex(line: u8[], used: usize, value: usize) -> usize:
+    var at = used
+    line[at] = '0'
+    line[at + 1] = 'x'
+    at += 2
+    var shift: usize = 60
+    var started = false
+    while true:
+        let digit = (value >> shift) & 15
+        if digit != 0 or started or shift == 0:
+            started = true
+            line[at] = "0123456789abcdef".bytes[digit]
+            at += 1
+        if shift == 0:
+            break
+        shift -= 4
+    return at
 
 ## A fatal signal: report it as a trap would, then end with the signal's exit
 ## status. Only async-signal-safe calls are made from here on.
