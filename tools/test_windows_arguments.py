@@ -14,6 +14,9 @@ compiler = args.compiler.resolve()
 values = ['café 日本語 😀', '', 'a"b', 'two words\\', '&|<>^%literal%']
 with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
     work = Path(directory)
+    # `process` is luce-std's: the programs here declare it, as any program does
+    std = (Path(__file__).resolve().parents[2] / 'luce-std').as_posix()
+    (work / 'package.prisma').write_text(f'#prisma 4.0\ndef package "arguments" {{\n    def dependency "luce-std" {{\n        str path = "{std}"\n    }}\n}}\n')
     source = work / 'child.lucb'
     source.write_bytes(('pub func main(arguments: str[]) -> i32:\n'
                       '    for argument in arguments[1..]:\n'
@@ -47,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
                        check=True, env=environment)
         assert library.with_suffix('.a').stat().st_size > 0
         assert library.with_suffix('.h').stat().st_size > 0
-        expected_files = {'child.lucb', '引数.exe', 'parent.lucb', '親.exe',
+        expected_files = {'package.prisma', 'child.lucb', '引数.exe', 'parent.lucb', '親.exe',
                           'library.lucb', '共有.a', '共有.h'}
         assert {path.name for path in work.iterdir()} == expected_files
         print('PASS Unicode source/output paths, CRLF source, argv and process.run', flags[0])
