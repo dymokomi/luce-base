@@ -22,7 +22,9 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
                       '    for argument in arguments[1..]:\n'
                       '        print(argument)\n'
                       '    return 0\n').replace('\n', '\r\n').encode('utf-8'))
-    environment = dict(os.environ, TEMP=str(work), TMP=str(work))
+    # the build cache of a package lives under its root; this directory holds only products
+    cache = tempfile.mkdtemp(prefix='luce-cache-')
+    environment = dict(os.environ, TEMP=str(work), TMP=str(work), LUCE_CACHE=cache)
     for flags in (['--native'], ['--native', '--debug'], ['--backend=c']):
         output = work / '引数.exe'
         subprocess.run([compiler, 'build', source, *flags, '-o', output], check=True, env=environment)
@@ -52,7 +54,8 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
         assert library.with_suffix('.h').stat().st_size > 0
         expected_files = {'package.prisma', 'child.lucb', '引数.exe', 'parent.lucb', '親.exe',
                           'library.lucb', '共有.a', '共有.h'}
-        assert {path.name for path in work.iterdir()} == expected_files
+        present = {path.name for path in work.iterdir()}
+        assert present == expected_files, sorted(present ^ expected_files)
         print('PASS Unicode source/output paths, CRLF source, argv and process.run', flags[0])
     # A program named with a directory, in forward slashes and without its `.exe`, is found
     # from the `directory` the call names, never from the caller's working directory or

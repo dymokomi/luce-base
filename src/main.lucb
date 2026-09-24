@@ -534,7 +534,9 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
     if not is_wasm32():
         try cc_args.add("-pthread")
     if platform.windows:
+        # the runtime's waits and its random bytes (os.random_bytes)
         try cc_args.add("-lsynchronization")
+        try cc_args.add("-lbcrypt")
     try cc_args.add("-o")
     try cc_args.add((c.str)linked_exe)
     # the manifest's C sources, under the package root (§17.4), and what it links
@@ -1078,7 +1080,7 @@ func write_dependencies(checker: check.Checker*, out: io.Writer) -> !:
             try out.write("source\0")
             try out.write(item.name)
             try out.write("\0")
-            try out.write(item.src.path)
+            try out.write(item.canonical)
             try out.write("\0")
         index += 1
     for alias in checker.module_aliases.span():
@@ -1100,7 +1102,7 @@ func describe_closure(path: c.str, out: io.Writer) -> !:
         for module in checker.modules.span():
             if module.is_prelude:
                 continue
-            try out.write(f"module\0{module.src.path}\0")
+            try out.write(f"module\0{module.canonical}\0")
             try describe.write(out, &checker, module.tree, module.name)
             try out.write("\0")
         try out.write("\0")
@@ -1111,7 +1113,7 @@ func native_inputs(checker: check.Checker*) -> native_packages.Inputs!:
     var inputs = try native_packages.Inputs.create()
     for module in checker.modules.span():
         if not module.is_prelude:
-            try inputs.collect(module.src.path)
+            try inputs.collect(module.canonical)
     return inputs
 
 ## Luce also has native inputs on its own source packages. Share Base's manifest

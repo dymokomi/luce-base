@@ -38,9 +38,11 @@ with tempfile.TemporaryDirectory(prefix="base-dependencies-") as temporary:
     assert len(fields) % 3 == 0, fields
     actual = [tuple(field.decode() for field in fields[i:i + 3])
               for i in range(0, len(fields), 3)]
-    expected = [("source", "shared", str(root / "shared.lucb")),
-                ("source", "internal.left", str(root / "internal/left.lucb")),
-                ("source", "internal.right", str(root / "internal/right.lucb")),
+    # sources are reported by their canonical paths, the files a caller reads
+    real = root.resolve()
+    expected = [("source", "shared", str(real / "shared.lucb")),
+                ("source", "internal.left", str(real / "internal/left.lucb")),
+                ("source", "internal.right", str(real / "internal/right.lucb")),
                 ("package", "shared", "app"),
                 ("package", "internal.left", "app"),
                 ("package", "internal.right", "app"),

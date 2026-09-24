@@ -737,7 +737,15 @@ pub struct Checker:
             cursor = d.next
         tree.text = name
         let owner = try module_paths.package_of(text, name, self.package_name)
-        try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false, canonical = canonical, package_name = owner))
+        # a dependency's positions name `<package>/<path in it>`, the same on every machine,
+        # as a standard module's name `std/...`; its file stays `canonical`
+        var shown = src
+        if owner.length > 0 and owner != self.package_name:
+            if let found = try module_paths.owner_root(text):
+                let (package, root) = found
+                if package == owner:
+                    try shown.rebase(root, owner)
+        try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner))
         # Every imported module is library code, kept only where the program reaches it;
         # the entry file alone is the program and keeps all it declares.
         if self.loading.count > 1:

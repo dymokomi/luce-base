@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix='base-public-exports-') as temporary:
     records, report = closure[len(b'luce-base-closure-v1\0'):].split(b'\0\0', 1)[0], closure.split(b'\0\0', 1)[1]
     fields = records.split(b'\0')
     described = {fields[index + 1]: fields[index + 2] for index in range(0, len(fields) - 2, 3) if fields[index] == b'module'}
-    assert described[str(library).encode()] == description, described.keys()
+    assert described[str(library.resolve()).encode()] == description, described.keys()
     assert any(path.endswith(b'internal.lucb') for path in described), described.keys()
     assert report.startswith(b'luce-base-dependencies-v3\0') and b'luce_ui.internal' in report, report
     assert run(compiler, 'describe', '--standard', 'strings').stdout.startswith(b'description 9\nmodule strings\n')

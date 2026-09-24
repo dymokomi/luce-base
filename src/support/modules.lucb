@@ -160,6 +160,14 @@ func contains_text(text: str, part: str) -> bool:
         i += 1
     return false
 
+## The package that owns the file at `path` and its root directory, when a manifest
+## encloses it; the root is canonical, as module paths are.
+pub func owner_root(path: str) -> (str, str)?!:
+    let package = try enclosing(try canonical(path)) else return none
+    if package.name.length == 0:
+        return none
+    return (package.name, package.root)
+
 func enclosing(path: str) -> Package?!:
     var directory = paths.directory(path)
     while directory.length > 0:
