@@ -1102,6 +1102,14 @@ pub struct Lowerer:
             return
         let op = (str)s.text.bytes[..<s.text.length - 1]
         let old = try self.load_from(address, pt)
+        if self.is_ptr(pt):
+            # `p += n`: element-scaled, as `p + n` (§7.7)
+            let rt = try self.ty(value)
+            let rv = try self.expr(value)
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, try self.to_word(rv.ref, rt), ir.const_ref((i64)self.c.table.size_of(self.elem(pt))))
+            let moved = try self.f.binary(ir.Op.add if op == "+" else ir.Op.sub, ir.Class.l, old.ref, scaled)
+            try self.f.store(ir.Op.storel, moved, address)
+            return
         let rhs = try self.value(value, pt)
         let result = try self.arithmetic(op, pt, old.ref, rhs.ref, s)
         try self.f.store(ir.store_op(self.scalar_size(pt), self.is_float(pt)), result, address)

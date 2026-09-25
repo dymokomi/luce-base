@@ -1,0 +1,34 @@
+#==============================================================================================
+#
+#   optional_fallible - A plain function stored where an optional fallible one is wanted
+#
+#   DESCRIPTION:
+#       A non-fallible function converts to a fallible function type through a hoisted
+#       adapter (§9.4); an optional of that type, a field or a table entry, takes the same
+#       adapter, so calling it answers the function's result as success.
+#
+#==============================================================================================
+
+type Getter = func(i32) -> i32!
+
+struct Entry:
+    let getter: Getter? = none
+
+func get(a: i32) -> i32:
+    return a * 2
+
+let table: Entry[1] = [Entry(getter = get)]
+
+func called(entry: Entry) -> i32:
+    if let g = entry.getter:
+        return g(4) catch failure:
+            discard(failure)
+            recover -1
+    return -2
+
+test "an optional fallible function holds an adapted plain one":
+    var entry = Entry(getter = get)
+    assert(called(entry) == 8)
+    assert(called(table[0]) == 8)
+    entry = Entry(getter = none)
+    assert(called(entry) == -2)

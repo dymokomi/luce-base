@@ -1556,6 +1556,16 @@ pub struct Emitter:
             try self.value(value, pt)
             try self.put("); }")
             return
+        # `p += n`: C's own pointer arithmetic scales by the pointee, as `p + n` does (§7.7)
+        if self.kind(pt) == types.Kind.pointer and (op == "+" or op == "-"):
+            try self.line("")
+            try self.expr(cell)
+            try self.put(" ")
+            try self.put(op)
+            try self.put("= (")
+            try self.value(value, try self.ty(value))
+            try self.put("); }")
+            return
         if self.is_float(pt) and (op == "+" or op == "-" or op == "*" or op == "/"):
             try self.line("")
             try self.expr(cell)

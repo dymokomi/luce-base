@@ -1,0 +1,72 @@
+#==============================================================================================
+#
+#   pointer_rules - Nullable pointer conversions, signed pointer indices, stores of frames
+#
+#   DESCRIPTION:
+#       A nullable pointer converts as its pointer does, to `void*?` and gaining `const`,
+#       and by cast between pointee types; a pointer's index may be negative; a local's
+#       address may be stored through a pointer that is not a parameter (§5.3, §7.5, §7.7,
+#       §6.6).
+#
+#==============================================================================================
+
+func as_void(p: u8*?) -> void*?:
+    return p
+
+func as_const(p: void*?) -> const void*?:
+    return p
+
+func as_words(p: u8*?) -> u32*?:
+    return (u32*?)p
+
+func top(sp: i64*) -> i64:
+    return sp[-1]
+
+struct Frame:
+    var prev: Frame*?
+    var depth: i32
+
+struct Rt:
+    var cur: Frame*?
+
+struct Ctx:
+    var rt: Rt*
+
+func call(ctx: Ctx*) -> i32:
+    let rt = ctx.rt
+    var frame = Frame(prev = rt.cur, depth = 1)
+    let sf = &frame
+    rt.cur = sf
+    let depth = sf.depth
+    rt.cur = sf.prev
+    return depth
+
+test "nullable pointers convert as pointers do":
+    assert(as_void(none) == none)
+    var byte: u8 = 7
+    assert(as_void(&byte) != none)
+    assert(as_const(as_void(&byte)) != none)
+    assert(as_words(none) == none)
+
+test "a pointer's index may be negative":
+    var a: i64[2] = [7, 9]
+    let sp = &a[0] + 2
+    assert(top(sp) == 9)
+    assert(sp[-2] == 7)
+
+test "a frame is pushed and popped through a pointer read from a parameter":
+    var rt = Rt(cur = none)
+    var ctx = Ctx(rt = &rt)
+    assert(call(&ctx) == 1)
+    assert(rt.cur == none)
+
+test "a pointer moves by compound assignment":
+    var buf: i32[4] = [1, 2, 3, 4]
+    var p = &buf[0]
+    p += 2
+    assert(*p == 3)
+    p -= 1
+    assert(*p == 2)
+    let step: usize = 2
+    p += step
+    assert(*p == 4)

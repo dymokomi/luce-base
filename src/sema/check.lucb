@@ -533,6 +533,47 @@ pub struct Checker:
             _:
                 return self.is_local_value(e)
 
+    ## Whether a store to this place may outlive the function, as §6.6 lists: a global, or a
+    ## place reached through a pointer or view that is a parameter (or `self`). A pointer
+    ## read from anywhere else is not followed, as the check stops at calls.
+    func place_outlives(e: ast.Node*) -> bool:
+        match e.kind:
+            .name:
+                let b = self.lookup(e.text) else return false
+                let d = b.decl else return false
+                return d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or b.depth == 0
+            .self_:
+                return true
+            .group:
+                let inner = e.left else return false
+                return self.place_outlives(inner)
+            .member, .index:
+                let owner = e.left else return false
+                let ok = self.table.kind(owner.type_id)
+                if ok == types.Kind.module:
+                    return true
+                if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
+                    return self.is_parameter(owner)
+                return self.place_outlives(owner)
+            .unary:
+                let inner = e.left else return false
+                return e.text == "*" and self.is_parameter(inner)
+            _:
+                return false
+
+    ## Whether `e` names a parameter of the function being checked, or its receiver.
+    func is_parameter(e: ast.Node*) -> bool:
+        if e.kind == ast.Kind.self_:
+            return true
+        if e.kind == ast.Kind.group:
+            let inner = e.left else return false
+            return self.is_parameter(inner)
+        if e.kind != ast.Kind.name:
+            return false
+        let b = self.lookup(e.text) else return false
+        let d = b.decl else return false
+        return d.kind == ast.Kind.param
+
     ## Record on a binding that it holds a local address (a `let` alias of §6.6).
     mutating func set_from_local(name: str, taint: bool):
         var at = self.names.head(name)
@@ -1815,6 +1856,10 @@ pub struct Checker:
             return true
         if t.kind == types.Kind.optional:
             if s.kind == types.Kind.optional:
+                # a nullable pointer converts as the pointer does: to `void*?`, gaining
+                # `const`; `none` stays `none` (§5.3)
+                if self.table.kind(s.elem) == types.Kind.pointer and self.table.kind(t.elem) == types.Kind.pointer:
+                    return self.assignable(e, s.elem, t.elem)
                 return false
             return self.assignable(e, have, t.elem)
         if t.kind == types.Kind.fallible:
@@ -2034,8 +2079,12 @@ pub struct Checker:
             return e.type_id
         if got == types.never_id:
             return got
-        if self.table.kind(got) == types.Kind.func_ and self.table.kind(target) == types.Kind.func_ and self.table.get(got).elem != self.table.get(target).elem:
-            try self.wrap_as_fallible(e, target)
+        # a function where a fallible function type is wanted, or an optional one, is wrapped
+        var wanted_function = target
+        if self.table.kind(target) == types.Kind.optional and self.table.kind(self.table.get(target).elem) == types.Kind.func_:
+            wanted_function = self.table.get(target).elem
+        if self.table.kind(got) == types.Kind.func_ and self.table.kind(wanted_function) == types.Kind.func_ and self.table.get(got).elem != self.table.get(wanted_function).elem:
+            try self.wrap_as_fallible(e, wanted_function)
         # a local array passed where a span is wanted aliases the frame (§6.6)
         if self.table.kind(got) == types.Kind.array and self.escapes(target) and self.place_is_local(e):
             self.mark_local(e)
@@ -3036,13 +3085,15 @@ pub struct Checker:
                 return try self.fail(e, "`str` is not indexed; slice `.bytes` or iterate")
             else:
                 return try self.fail(e, "indexing needs a span, an array, or a pointer")
-        var it = try self.check_expr(index, types.usize_id)
+        # a pointer's index is signed, `sp[-1]` the element before; a span's or array's is not (§7.7)
+        let offset_type = types.isize_id if t.kind == types.Kind.pointer else types.usize_id
+        var it = try self.check_expr(index, offset_type)
         if it == types.char_id and index.kind == ast.Kind.literal and index.text.bytes[0] == '\'' and check_decode_char(index.text) < 128:
             index.type_id = types.usize_id  # `table['P']`: an ASCII literal in an integer context (§4.4)
             it = types.usize_id
         if not (it == types.untyped_int_id or self.table.is_integer(it)):
             return try self.fail(index, "an index is an integer")
-        discard(try self.coerce(index, it, types.usize_id if it == types.untyped_int_id else it))
+        discard(try self.coerce(index, it, offset_type if it == types.untyped_int_id else it))
         # the element is a copy: a `str` read from a local table views its own text, not
         # the frame; only `&a[i]` and a slice view the array (§6.6)
         return t.elem
@@ -3390,6 +3441,8 @@ pub struct Checker:
         if self.table.is_opaque_handle(have) and d.kind == types.Kind.pointer and d.elem == types.void_id:
             return want
         if s.kind == types.Kind.pointer and d.kind == types.Kind.optional and self.table.kind(d.elem) == types.Kind.pointer:
+            return want
+        if s.kind == types.Kind.optional and self.table.kind(s.elem) == types.Kind.pointer and d.kind == types.Kind.optional and self.table.kind(d.elem) == types.Kind.pointer:
             return want
         if s.kind == types.Kind.optional and self.table.kind(s.elem) == types.Kind.pointer and d.kind == types.Kind.pointer:
             return try self.fail(e, "a nullable pointer needs `if let`, not a cast")
@@ -4704,11 +4757,19 @@ pub struct Checker:
             return try self.fail(place, "this place is not mutable")
         if s.text == "=":
             discard(try self.expect(value, pt))
-            if self.is_local_value(value) and self.escapes(pt) and not self.place_is_local(place):
+            if self.is_local_value(value) and self.escapes(pt) and self.place_outlives(place):
                 # §6.6: a local's address may not be stored in a global or through a pointer
                 discard(try self.fail(value, "this pointer or view names a local and must not be stored where it outlives the function"))
             return
         let target = self.table.get(pt).elem if self.table.kind(pt) == types.Kind.atomic else pt
+        # `p += n` and `p -= n` move a pointer by elements, as `p = p + n` does (§7.7)
+        if self.table.kind(target) == types.Kind.pointer and (s.text == "+=" or s.text == "-="):
+            let nt = try self.check_expr(value, types.isize_id)
+            if nt == types.untyped_int_id:
+                discard(try self.coerce(value, nt, types.isize_id))
+            elif not (self.table.widens(nt, types.usize_id) or self.table.widens(nt, types.isize_id) or nt == types.usize_id or nt == types.isize_id):
+                discard(try self.fail(value, "a pointer offset is `usize` or `isize`"))
+            return
         let vt = try self.expect(value, target)
         let op = (str)s.text.bytes[..<s.text.length - 1]
         if self.table.kind(pt) == types.Kind.atomic and not (op == "+" or op == "-" or op == "|" or op == "&" or op == "^"):
