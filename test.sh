@@ -16,6 +16,7 @@ fi
 ./build.sh
 python3 tools/test_run_case.py
 python3 tools/test_platform_boundaries.py
+python3 tools/test_narrow_extern.py
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
 python3 tools/embed_runtime.py --check

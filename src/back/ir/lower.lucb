@@ -3575,7 +3575,11 @@ pub struct Lowerer:
         else:
             discard(try self.add_func(d, args, owner, owner_args))
             callee = ir.function_ref(try self.function_name(d, args, owner, owner_args))
-        let v = try self.call_through(callee, fn, d, e.body, ir.none_ref(), false, none, args)
+        var v = try self.call_through(callee, fn, d, e.body, ir.none_ref(), false, none, args)
+        if d.kind == ast.Kind.extern_func and not v.in_memory and (self.is_int(v.type_id) or v.type_id == types.bool_id) and self.scalar_size(v.type_id) < 4:
+            # C leaves the bits above a narrow result undefined (Win64 and System V
+            # alike): extend it as its declared type says before anything reads it.
+            v = LowerValue(ref = try self.narrow(v.ref, v.type_id), type_id = v.type_id, in_memory = false)
         if d.kind == ast.Kind.extern_func and (self.is_ptr(v.type_id) or v.type_id == types.cstr_id or self.c.table.is_opaque_handle(v.type_id)):
             # a bare pointer, handle, or `c.str` from C must not be null: the one boundary check (§17.1)
             let ok = self.f.label()
