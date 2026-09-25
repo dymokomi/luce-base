@@ -1,0 +1,6 @@
+## §7.5: `i32(x)` traps at `2^31`, and at a value just below `-2^31` although it truncates
+## into the range: the bounds are the float's, not the truncation's.
+pub func main(arguments: str[]) -> i32:
+    let scale = (f64)arguments.length
+    print(f"{i32(-2147483648.5 * scale)}")
+    return 0

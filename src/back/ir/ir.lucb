@@ -75,7 +75,7 @@ pub func vector_bytes(shape: u32) -> u32:
 
 ## Whether `op` ends a basic block: control leaves through it, or never returns.
 pub func is_terminator(op: Op) -> bool:
-    return op == Op.jmp or op == Op.jnz or op == Op.ret or op == Op.trap_
+    return op == Op.jmp or op == Op.jnz or op == Op.switch_ or op == Op.ret or op == Op.trap_
 
 ## Whether `op` computes on vectors (§5.12), lane shape in `extra`.
 pub func is_vector_op(op: Op) -> bool:
@@ -230,6 +230,10 @@ pub enum Op as u8:
     trap_ = 104
     ## `check a < b` else trap "index out of bounds"
     bounds = 105
+    ## `switch a, extra (default), table extra2`: a jump through table `extra2` of the
+    ## function's `jump_tables` to the label of entry `a - low`, computed at the class of the
+    ## instruction; to `extra` when that is not below the table's `count` (unsigned)
+    switch_ = 106
     ## `arith` variants that trap on overflow: `dst = a op b` with the op in `extra`
     addo = 110
     subo = 111
@@ -388,6 +392,16 @@ pub struct CallInfo:
     ## The result aggregate's shape (1-based), 0 for none.
     pub var result_shape: u32
 
+## The jump table of a `switch`: its labels are `jump_labels[start ..< start + count]`,
+## entry `k` for the value `low + k`.
+pub struct Table:
+    ## The value of the first entry.
+    pub var low: i64
+    ## The first label's index in the function's `jump_labels`.
+    pub var start: u32
+    ## How many entries the table has.
+    pub var count: u32
+
 ## A stack slot: `size` bytes at `align`.
 pub struct Slot:
     ## The slot's size in bytes.
@@ -533,6 +547,10 @@ pub struct Function:
     pub var temps: list.List[Class]
     ## The phi arguments, pooled.
     pub var phi_args: list.List[PhiArg]
+    ## The jump tables of the `switch` instructions, indexed by `Instr.extra2`.
+    pub var jump_tables: list.List[Table]
+    ## The jump tables' labels, pooled.
+    pub var jump_labels: list.List[u32]
     ## How many labels have been handed out.
     pub var labels: u32
     ## Whether the function returns a value.
@@ -566,7 +584,7 @@ pub struct Function:
                         params = try list.List[Param].create(8),
                         slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
-                        temps = try list.List[Class].create(128), phi_args = try list.List[PhiArg].create(16), labels = 0, has_result = false,
+                        temps = try list.List[Class].create(128), phi_args = try list.List[PhiArg].create(16), jump_tables = try list.List[Table].create(0), jump_labels = try list.List[u32].create(0), labels = 0, has_result = false,
                         result_cls = Class.l, result_size = 0, result_align = 0, result_type = 0,
                         result_shape = 0, variadic = false)
 
@@ -623,6 +641,19 @@ pub struct Function:
         if condition.kind == RefKind.temp and (usize)condition.index <= self.temps.count:
             cls = self.temps.get((usize)condition.index - 1)
         try self.instrs.push(Instr(op = Op.jnz, cls = cls, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label, line = 0, file = 0, scope = 0, site = 0))
+
+    ## Jump to `labels[value - low]`, or to `default` when `value - low`, at class `cls`, is
+    ## not below the number of labels (compared unsigned).
+    pub mutating func switch(value: Ref, cls: Class, low: i64, labels: u32[], default: u32) -> !:
+        try self.jump_tables.push(Table(low = low, start = u32(self.jump_labels.count), count = u32(labels.length)))
+        for label in labels:
+            try self.jump_labels.push(label)
+        try self.instrs.push(Instr(op = Op.switch_, cls = cls, dst = 0, a = value, b = none_ref(), extra = default, extra2 = u32(self.jump_tables.count - 1), line = self.at_line, file = self.at_file, scope = self.at_scope, site = 0))
+
+    ## The labels of jump table `index`.
+    pub func table_targets(index: u32) -> u32[]:
+        let t = self.jump_tables.get((usize)index)
+        return self.jump_labels.span()[(usize)t.start..<(usize)(t.start + t.count)]
 
     ## Load through `address` with `op`, into a fresh temporary.
     pub mutating func load(op: Op, cls: Class, address: Ref) -> Ref!:

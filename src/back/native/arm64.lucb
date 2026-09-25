@@ -811,6 +811,8 @@ pub struct Generator:
                 try self.label_name(n.extra)
                 try self.line("b ")
                 try self.label_name(n.extra2)
+            .switch_:
+                try self.jump_table(n)
             .ret:
                 try self.return_value(n)
             .copy:
@@ -1161,6 +1163,59 @@ pub struct Generator:
         try self.line3("cset ", d, ", ")
         try self.put(cond)
         try self.finish(n.dst, ir.Class.w, d)
+
+    ## `switch`: the value less the table's first is the entry, when it is below the
+    ## table's count; the entry is its label's distance from the table, which follows the
+    ## branch in the text, so the table needs no relocation. x9 holds the entry, x10 the
+    ## table's address.
+    mutating func jump_table(n: ir.Instr) -> !:
+        let wide = n.cls == ir.Class.l
+        let table = self.f.jump_tables.get((usize)n.extra2)
+        let v = try self.source(n.a, n.cls, "x9" if wide else "w9")
+        let scratch = "x9" if wide else "w9"
+        # the low bits are the whole value at the word's width
+        let low = (u64)table.low if wide else (u64)table.low & 0xFFFFFFFF
+        let modulus = 0 -% low if wide else ((u64)1 << 32) - low
+        var index = v
+        if low == 0:
+            discard(0)
+        elif low <= 4095:
+            try self.line5("sub ", scratch, ", ", v, ", #")
+            try self.put_u64(low)
+            index = scratch
+        elif modulus <= 4095:
+            try self.line5("add ", scratch, ", ", v, ", #")
+            try self.put_u64(modulus)
+            index = scratch
+        else:
+            try self.load_immediate("x10", (i64)low)
+            try self.line5("sub ", scratch, ", ", v, ", ")
+            try self.put("x10" if wide else "w10")
+            index = scratch
+        try self.line3("cmp ", index, ", #")
+        try self.put_u64((u64)table.count)
+        try self.line("b.hs ")
+        try self.label_name(n.extra)
+        try self.line("adr x10, ")
+        try self.table_name(n.extra2)
+        try self.line3("ldrsw x9, [x10, ", index, ", lsl #2]" if wide else ", uxtw #2]")
+        try self.line("add x10, x10, x9")
+        try self.line("br x10")
+        try self.put("\n")
+        try self.table_name(n.extra2)
+        try self.put(":")
+        for label in self.f.table_targets(n.extra2):
+            try self.line(".long ")
+            try self.label_name(label)
+            try self.put(" - ")
+            try self.table_name(n.extra2)
+
+    ## The label of jump table `n` of the function.
+    mutating func table_name(n: u32) -> !:
+        try self.out.put(self.object_format.local_label)
+        try self.out.put_u64((u64)self.index)
+        try self.out.put("_jt")
+        try self.out.put_u64((u64)n)
 
     ## `op` applied to the 32-bit view `v` of a value, into `d`.
     mutating func extend_from(op: ir.Op, v: str, d: str) -> !:

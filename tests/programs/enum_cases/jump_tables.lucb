@@ -1,0 +1,328 @@
+#==============================================================================================
+#
+#   jump_tables - Dense matches dispatch through a jump table
+#
+#   DESCRIPTION:
+#       A match of four or more constants that are dense (one value in 40 % or more of the
+#       range between the least and the greatest names an arm) jumps through a table of
+#       arm addresses in the native backend; a sparse one searches, and a search over a
+#       dense run of the values takes a table for that run. Every value must reach the arm
+#       the arms' order names and every other value the wildcard, below the table, above
+#       it, and in its holes, for byte, word and doubleword subjects, signed and unsigned,
+#       enums and integers, from a statement or an expression, a loop carrying values
+#       through the arms, and a call expanded where its argument is a constant.
+#
+#==============================================================================================
+
+## Sixty-four byte codes; the match below names the even ones up to 58.
+enum Code as u8:
+    c0 = 0
+    c1 = 1
+    c2 = 2
+    c3 = 3
+    c4 = 4
+    c5 = 5
+    c6 = 6
+    c7 = 7
+    c8 = 8
+    c9 = 9
+    c10 = 10
+    c11 = 11
+    c12 = 12
+    c13 = 13
+    c14 = 14
+    c15 = 15
+    c16 = 16
+    c17 = 17
+    c18 = 18
+    c19 = 19
+    c20 = 20
+    c21 = 21
+    c22 = 22
+    c23 = 23
+    c24 = 24
+    c25 = 25
+    c26 = 26
+    c27 = 27
+    c28 = 28
+    c29 = 29
+    c30 = 30
+    c31 = 31
+    c32 = 32
+    c33 = 33
+    c34 = 34
+    c35 = 35
+    c36 = 36
+    c37 = 37
+    c38 = 38
+    c39 = 39
+    c40 = 40
+    c41 = 41
+    c42 = 42
+    c43 = 43
+    c44 = 44
+    c45 = 45
+    c46 = 46
+    c47 = 47
+    c48 = 48
+    c49 = 49
+    c50 = 50
+    c51 = 51
+    c52 = 52
+    c53 = 53
+    c54 = 54
+    c55 = 55
+    c56 = 56
+    c57 = 57
+    c58 = 58
+    c59 = 59
+    c60 = 60
+    c61 = 61
+    c62 = 62
+    c63 = 63
+
+func code_arm(c: Code) -> i32:
+    match c:
+        .c0: return 1
+        .c2: return 7
+        .c4: return 13
+        .c6: return 19
+        .c8: return 25
+        .c10: return 31
+        .c12: return 37
+        .c14: return 43
+        .c16: return 49
+        .c18: return 55
+        .c20: return 61
+        .c22: return 67
+        .c24: return 73
+        .c26: return 79
+        .c28: return 85
+        .c30: return 91
+        .c32: return 97
+        .c34: return 103
+        .c36: return 109
+        .c38: return 115
+        .c40: return 121
+        .c42: return 127
+        .c44: return 133
+        .c46: return 139
+        .c48: return 145
+        .c50: return 151
+        .c52: return 157
+        .c54: return 163
+        .c56: return 169
+        .c58: return 175
+        _: return -1
+
+## What `code_arm` answers, computed.
+func code_expected(v: u8) -> i32:
+    return (i32)v * 3 + 1 if v % 2 == 0 and v <= 58 else -1
+
+enum Small as u8:
+    a = 3
+    b = 4
+    c = 5
+    d = 6
+    e = 7
+
+## A plain enum's match is exhaustive with no wildcard: what no table entry names ends
+## the match.
+enum Plain:
+    a
+    b
+    c
+    d
+    e
+
+func small_arm(s: Plain) -> i32:
+    var r: i32 = 100
+    match s:
+        .a: r = 1
+        .b: r = 2
+        .c, .d: r = 3
+        .e: r = 4
+    return r
+
+## Signed words around zero, with a hole at 0 and 2.
+func signed_word(x: i32) -> i32:
+    match x:
+        -4: return 10
+        -3: return 11
+        -2, -1: return 12
+        1: return 13
+        3: return 14
+        4: return 15
+        _: return 0
+
+## Signed words at the bottom of the range: the index is taken modulo the word.
+func lowest_word(x: i32) -> i32:
+    match x:
+        -2147483648: return 1
+        -2147483647: return 2
+        -2147483646: return 3
+        -2147483644: return 4
+        _: return 0
+
+## Unsigned words at the top of the range.
+func top_word(x: u32) -> i32:
+    match x:
+        4294967295: return 1
+        4294967294: return 2
+        4294967293: return 3
+        4294967291: return 4
+        2147483648: return 5
+        _: return 0
+
+## Doublewords far from zero, and the very top of the unsigned range.
+func far_doubleword(x: i64) -> i32:
+    match x:
+        1000000000000: return 1
+        1000000000001: return 2
+        1000000000003: return 3
+        1000000000004: return 4
+        -1000000000000: return 5
+        _: return 0
+
+func top_doubleword(x: u64) -> i32:
+    match x:
+        18446744073709551615: return 1
+        18446744073709551614: return 2
+        18446744073709551612: return 3
+        18446744073709551611: return 4
+        _: return 0
+
+## Sparse values search; the dense run among them takes a table of its own.
+func sparse(x: i64) -> i32:
+    match x:
+        1: return 1
+        100: return 2
+        10000: return 3
+        1000000: return 4
+        -77: return 5
+        _: return 0
+
+func clustered(x: i64) -> i32:
+    match x:
+        -1000000: return 9
+        10: return 1
+        11: return 2
+        12: return 3
+        13: return 4
+        14: return 5
+        16: return 6
+        17: return 7
+        1000000: return 8
+        _: return 0
+
+func letter(c: char) -> i32:
+    match c:
+        'a': return 1
+        'b': return 2
+        'c': return 3
+        'e': return 4
+        'f': return 5
+        _: return 0
+
+## A guard sends the match down the chain of tests; the values stay dense.
+func guarded(x: i32, flag: bool) -> i32:
+    match x:
+        0: return 1
+        1 if flag: return 2
+        2: return 4
+        3: return 5
+        _: return 0
+
+## The expression form.
+func as_expression(x: u16) -> i32:
+    return match x:
+        10 => 1
+        11 => 2
+        12 => 3
+        13 => 4
+        _ => 0
+
+## A loop whose values flow through the arms, the join, and back.
+func run(code: u8[8]) -> i64:
+    var acc: i64 = 0
+    var seen: i64 = 0
+    var i: usize = 0
+    while i < code.length:
+        let op = (Small)code[i]
+        match op:
+            .a: acc += 1
+            .b: acc += 10
+            .c:
+                acc -= 3
+                seen += 1
+            .d: seen += 100
+            .e: acc *= 2
+            _: acc = -1
+        i += 1
+    return acc * 1000 + seen
+
+inline func classify(x: i64) -> i64:
+    match x:
+        0: return 7
+        1: return 8
+        2: return 9
+        4: return 10
+        _: return 11
+
+test "dense byte enums take the arm each value names":
+    for v in 0..<64:
+        assert(code_arm((Code)(u8)v) == code_expected((u8)v))
+
+test "an exhaustive match without a wildcard":
+    assert(small_arm(Plain.a) == 1 and small_arm(Plain.b) == 2 and small_arm(Plain.c) == 3)
+    assert(small_arm(Plain.d) == 3 and small_arm(Plain.e) == 4)
+
+test "signed and unsigned words, below, inside and above the table":
+    assert(signed_word(-5) == 0 and signed_word(-4) == 10 and signed_word(-3) == 11)
+    assert(signed_word(-2) == 12 and signed_word(-1) == 12 and signed_word(0) == 0)
+    assert(signed_word(1) == 13 and signed_word(2) == 0 and signed_word(3) == 14)
+    assert(signed_word(4) == 15 and signed_word(5) == 0 and signed_word(2147483647) == 0)
+    assert(signed_word(-2147483648) == 0)
+    assert(lowest_word(-2147483648) == 1 and lowest_word(-2147483647) == 2 and lowest_word(-2147483646) == 3)
+    assert(lowest_word(-2147483645) == 0 and lowest_word(-2147483644) == 4 and lowest_word(-2147483643) == 0)
+    assert(lowest_word(2147483647) == 0 and lowest_word(0) == 0)
+    assert(top_word(4294967295) == 1 and top_word(4294967294) == 2 and top_word(4294967293) == 3)
+    assert(top_word(4294967292) == 0 and top_word(4294967291) == 4 and top_word(4294967290) == 0)
+    assert(top_word(2147483648) == 5 and top_word(0) == 0 and top_word(5) == 0)
+
+test "doublewords far from zero and at the top of the range":
+    assert(far_doubleword(1000000000000) == 1 and far_doubleword(1000000000001) == 2)
+    assert(far_doubleword(1000000000002) == 0 and far_doubleword(1000000000003) == 3)
+    assert(far_doubleword(1000000000004) == 4 and far_doubleword(1000000000005) == 0)
+    assert(far_doubleword(-1000000000000) == 5 and far_doubleword(0) == 0 and far_doubleword(999999999999) == 0)
+    assert(top_doubleword(18446744073709551615) == 1 and top_doubleword(18446744073709551614) == 2)
+    assert(top_doubleword(18446744073709551613) == 0 and top_doubleword(18446744073709551612) == 3)
+    assert(top_doubleword(18446744073709551611) == 4 and top_doubleword(18446744073709551610) == 0)
+    assert(top_doubleword(0) == 0 and top_doubleword(3) == 0)
+
+test "sparse values search, a dense run among them jumps":
+    assert(sparse(1) == 1 and sparse(100) == 2 and sparse(10000) == 3 and sparse(1000000) == 4)
+    assert(sparse(-77) == 5 and sparse(0) == 0 and sparse(2) == 0 and sparse(99) == 0)
+    let expected: i32[10] = [0, 1, 2, 3, 4, 5, 0, 6, 7, 0]
+    for x in 9..<19:
+        assert(clustered(x) == expected[(usize)(x - 9)])
+    assert(clustered(-1000000) == 9 and clustered(1000000) == 8 and clustered(0) == 0)
+
+test "characters, guards and expressions":
+    assert(letter('a') == 1 and letter('b') == 2 and letter('c') == 3 and letter('d') == 0)
+    assert(letter('e') == 4 and letter('f') == 5 and letter('g') == 0 and letter('`') == 0)
+    assert(guarded(0, true) == 1 and guarded(1, true) == 2 and guarded(1, false) == 0)
+    assert(guarded(2, false) == 4 and guarded(3, true) == 5 and guarded(4, true) == 0)
+    assert(as_expression(9) == 0 and as_expression(10) == 1 and as_expression(13) == 4 and as_expression(14) == 0)
+
+test "values carried through the arms of a loop":
+    let code: u8[8] = [3, 4, 5, 6, 7, 3, 5, 7]
+    # acc: 1, 11, 8, 8, 16, 17, 14, 28; seen: 1 + 100 + 1
+    assert(run(code) == 28 * 1000 + 102)
+
+test "an expanded call on a constant jumps straight to its arm":
+    assert(classify(0) == 7 and classify(1) == 8 and classify(2) == 9 and classify(3) == 11 and classify(4) == 10)
+    var total: i64 = 0
+    for x in -2..<7:
+        total += classify(x)
+    assert(total == 11 + 11 + 7 + 8 + 9 + 11 + 10 + 11 + 11)

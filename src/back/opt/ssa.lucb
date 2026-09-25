@@ -387,9 +387,8 @@ pub struct Liveness:
                 while k < words:
                     gen[k] = 0
                     k += 1
-                l.live_on(f, g, block.succ1, b, gen)
-                if block.succ2 != block.succ1:
-                    l.live_on(f, g, block.succ2, b, gen)
+                for s in block.succs.span():
+                    l.live_on(f, g, s, b, gen)
                 k = 0
                 while k < words:
                     if l.live_out[(usize)b * words + k] != gen[k]:
@@ -785,9 +784,8 @@ func rename_block(f: ir.Function*, g: cfg.Graph*, b: u32, renamed: bool[], curre
         f.instrs.set((usize)i, x)
         i += 1
     # the successors' phis take this block's names
-    try fill_phis(f, g, block.succ1, block.label, current, renamed, origin)
-    if block.succ2 != block.succ1:
-        try fill_phis(f, g, block.succ2, block.label, current, renamed, origin)
+    for s in block.succs.span():
+        try fill_phis(f, g, s, block.label, current, renamed, origin)
 
 func fill_phis(f: ir.Function*, g: cfg.Graph*, s: u32, from_label: u32, current: u32[], renamed: bool[], origin: list.List[u32]*) -> !:
     if s == cfg.none_block:

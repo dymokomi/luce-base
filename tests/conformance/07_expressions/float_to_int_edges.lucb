@@ -1,0 +1,29 @@
+## §7.5: a float to a 32- or 64-bit integer, saturating (`(T)x`) and checked (`T(x)`), at
+## every edge of the ranges: NaN and the infinities saturate to 0 and the bounds, the
+## greatest double below each bound truncates, the bound itself saturates, and a value
+## just below the least of a signed range still truncates into it. The native backend
+## converts these without the core helpers; every execution must agree.
+noinline func d(scale: f64, x: f64) -> f64:
+    return x * scale
+
+noinline func s(scale: f64, x: f32) -> f32:
+    return x * (f32)scale
+
+pub func main(arguments: str[]) -> i32:
+    let one = (f64)arguments.length
+    let zero = one - 1.0
+    let nan = zero / zero
+    let inf = one / zero
+    # saturating signed words
+    print(f"{(i32)nan} {(i32)inf} {(i32)(0.0 - inf)} {(i32)d(one, 2147483648.0)} {(i32)d(one, 2147483647.75)}")
+    print(f"{(i32)d(one, -2147483648.75)} {(i32)d(one, -2147483649.0)} {(i32)d(one, -0.0)} {(i32)d(one, 0.9)} {(i32)d(one, -0.9)}")
+    print(f"{(i32)d(one, 1e300)} {(i32)d(one, -1e300)} {(i32)s(one, 3.5)} {(i32)s(one, 3e10)} {(i32)s(one, -3e10)}")
+    # saturating signed doublewords
+    print(f"{(i64)nan} {(i64)inf} {(i64)(0.0 - inf)} {(i64)d(one, 9223372036854775808.0)} {(i64)d(one, 9223372036854774784.0)}")
+    print(f"{(i64)d(one, -9223372036854775808.0)} {(i64)d(one, -9223372036854777856.0)} {(i64)d(one, -12345.99)} {(i64)s(one, -2.5)}")
+    # checked, inside every range
+    print(f"{i32(d(one, 2147483647.99))} {i32(d(one, -2147483648.0))} {i64(d(one, -9223372036854775808.0))} {i8(d(one, -128.0))} {i16(d(one, 32767.5))}")
+    print(f"{u32(d(one, 4294967295.5))} {u32(d(one, -0.0))} {u64(d(one, 18446744073709549568.0))} {u8(d(one, 255.9))} {u16(s(one, 7.25))}")
+    # the narrow and unsigned saturating casts, which keep the helper
+    print(f"{(i8)d(one, 300.0)} {(u8)d(one, -3.0)} {(u32)nan} {(u64)inf} {(u16)d(one, 65535.5)}")
+    return 0

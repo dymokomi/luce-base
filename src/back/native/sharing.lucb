@@ -109,15 +109,17 @@ pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
 ## A slot's value may cross a back edge: a span that meets a loop covers all of it. The
 ## loops' extents are merged into disjoint runs first, so each slot is widened once.
 func over_loops(g: const cfg.Graph*, spans: Span[]) -> !:
-    var lows = try alloc u32[g.blocks.count + 1]
+    # one extent per edge at most: a jump table's block has more than two
+    var edges: usize = 1
+    for b in g.blocks.span():
+        edges += b.succs.count
+    var lows = try alloc u32[edges]
     defer free(lows)
-    var highs = try alloc u32[g.blocks.count + 1]
+    var highs = try alloc u32[edges]
     defer free(highs)
     var n: usize = 0
     for b in g.blocks.span():
-        for successor in [b.succ1, b.succ2]:
-            if successor == cfg.none_block:
-                continue
+        for successor in b.succs.span():
             let head = g.blocks.get((usize)successor).start
             if head <= b.start and n < lows.length:
                 lows[n] = 2 * head

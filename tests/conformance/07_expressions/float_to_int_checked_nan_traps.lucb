@@ -1,0 +1,5 @@
+## §7.5: a checked float conversion of NaN traps, whatever the width.
+pub func main(arguments: str[]) -> i32:
+    let zero = (f64)arguments.length - 1.0
+    print(f"{i32(zero / zero)}")
+    return 0

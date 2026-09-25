@@ -7,9 +7,11 @@
 #       computations already available where the walk stands: an instruction whose
 #       operator, class, and operands are in the table is a copy of the earlier result,
 #       one on constants is its constant, one with an identity (`x + 0`, `x & x`, `x == x`
-#       on integers) is its operand, and a phi whose arguments all agree is that argument.
+#       on integers) is its operand, an extension of a value already in the extended range
+#       (`extub` of a `loadub`) is the value, and a phi whose arguments all agree is that
+#       argument.
 #       Every such instruction is dropped and its uses read the value it stood for. A
-#       branch on a constant becomes a jump, and the blocks that no branch reaches any more
+#       branch (or a jump table) on a constant becomes a jump, and the blocks that no branch reaches any more
 #       go, their phis losing the arguments those blocks supplied. This is QBE's gvn.c
 #       without global code motion, so a computation replaces another only where its
 #       block dominates the use: the table is scoped to the walk.
@@ -39,19 +41,40 @@ struct Table:
     var buckets: u32[]
     var entries: list.List[Entry]
     var log: list.List[u32]
+    ## Per temporary, 1 + the index of the one instruction that assigns it, 0 when none or
+    ## several do: what `redundant_extension` reads an operand's range from.
+    var defining: u32[]
 
-    static func create(room: usize) -> Table!:
+    static func create(f: ir.Function*) -> Table!:
+        let room = f.instrs.count
         var size: usize = 64
         while size < room * 2:
             size *= 2
-        var t = Table(buckets = try alloc u32[size], entries = try list.List[Entry].create(room + 1), log = try list.List[u32].create(room + 1))
+        var t = Table(buckets = try alloc u32[size], entries = try list.List[Entry].create(room + 1), log = try list.List[u32].create(room + 1), defining = try alloc u32[f.temps.count + 1])
         var k: usize = 0
         while k < size:
             t.buckets[k] = 0
             k += 1
+        for d in 0..<t.defining.length:
+            t.defining[d] = 0
+        for i in 0..<f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.dst != 0 and (usize)x.dst < t.defining.length:
+                # a second assignment leaves the temporary unknown for good
+                t.defining[(usize)x.dst] = u32(i + 1) if t.defining[(usize)x.dst] == 0 else 0xFFFFFFFF
+        for d in 0..<t.defining.length:
+            if t.defining[d] == 0xFFFFFFFF:
+                t.defining[d] = 0
         return t
 
+    ## The instruction that assigns temporary `r`, when it is one assigned once.
+    func definition(f: ir.Function*, r: ir.Ref) -> ir.Instr?:
+        if r.kind != ir.RefKind.temp or (usize)r.index >= self.defining.length or self.defining[(usize)r.index] == 0:
+            return none
+        return f.instrs.get((usize)self.defining[(usize)r.index] - 1)
+
     mutating func release():
+        free(self.defining)
         free(self.buckets)
         self.entries.destroy()
         self.log.destroy()
@@ -121,7 +144,7 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
     while i <= f.instrs.count:
         dead[i] = false
         i += 1
-    var table = try Table.create(f.instrs.count)
+    var table = try Table.create(f)
     defer table.release()
     try number(f, g, 0, rep, dead, &table)
     # every use reads what its value became
@@ -154,6 +177,11 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
             x = ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = taken, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
             f.instrs.set(i, x)
             branched = true
+        elif x.op == ir.Op.switch_ and x.a.kind == ir.RefKind.constant:
+            let taken = switch_target(f, x)
+            x = ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = taken, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
+            f.instrs.set(i, x)
+            branched = true
         i += 1
     # the survivors, in order
     var out = try list.List[ir.Instr].create(f.instrs.count)
@@ -171,6 +199,17 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
     try drop_dead_phis(f)
     # the graph of the function as it stands now, ranges and all
     return try cfg.Graph.over(f)
+
+## Where a `switch` on a constant goes: the entry the value names, else the default. The
+## index is taken at the instruction's class, as the generators compute it.
+func switch_target(f: ir.Function*, x: ir.Instr) -> u32:
+    let table = f.jump_tables.get((usize)x.extra2)
+    var index = (u64)(x.a.value -% table.low)
+    if x.cls == ir.Class.w:
+        index = index & 0xFFFFFFFF
+    if index >= (u64)table.count:
+        return x.extra
+    return f.jump_labels.get((usize)table.start + (usize)index)
 
 ## The value a reference stands for, through the replacements.
 func resolve(rep: ir.Ref[], r: ir.Ref) -> ir.Ref:
@@ -247,6 +286,12 @@ func number_block(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: b
                 i += 1
                 continue
             if let same = identity(x):
+                rep[(usize)x.dst] = same
+                dead[(usize)i] = true
+                f.instrs.set((usize)i, x)
+                i += 1
+                continue
+            if let same = redundant_extension(f, table, x):
                 rep[(usize)x.dst] = same
                 dead[(usize)i] = true
                 f.instrs.set((usize)i, x)
@@ -344,6 +389,39 @@ func identity(x: ir.Instr) -> ir.Ref?:
             .ceq, .csle, .csge, .cule, .cuge: return ir.const_ref(1)
             _: discard(0)
     return none
+
+## An extension of a value that is already what the extension would make of it: a byte
+## loaded by `loadub`, or extended by `extub` before, needs no `extub` again. An extension
+## reads only its operand's low bits, which a widening (`extuw`, `extsw`) keeps, so it
+## looks through one to the word; the value stands for the extension when its class is
+## the extension's.
+func redundant_extension(f: ir.Function*, table: Table*, x: ir.Instr) -> ir.Ref?:
+    let wanted = extension_kind(x.op)
+    if wanted == 0:
+        return none
+    var source = x.a
+    var d = table.definition(f, source) else return none
+    if d.op == ir.Op.extuw or d.op == ir.Op.extsw:
+        source = d.a
+        d = table.definition(f, source) else return none
+    if source.kind != ir.RefKind.temp or f.temp_class(source.index) != x.cls:
+        return none
+    let known = extension_kind(d.op)
+    if known == 0:
+        return none
+    # kinds: 1 u8, 2 u16, 3 s8, 4 s16; what each wanted range contains
+    let holds = known == wanted or (wanted == 2 and known == 1) or (wanted == 4 and (known == 1 or known == 3))
+    return source if holds else none
+
+## The range an operation leaves its result in, as a kind: 1 an unsigned byte, 2 an
+## unsigned half, 3 a signed byte, 4 a signed half; 0 for any other.
+func extension_kind(op: ir.Op) -> u8:
+    match op:
+        .extub, .loadub: return 1
+        .extuh, .loaduh: return 2
+        .extsb, .loadsb: return 3
+        .extsh, .loadsh: return 4
+        _: return 0
 
 ## The one value a phi's arguments agree on (the phi itself aside), or none.
 func agreeing_phi(f: ir.Function*, x: ir.Instr, rep: ir.Ref[]) -> ir.Ref?:

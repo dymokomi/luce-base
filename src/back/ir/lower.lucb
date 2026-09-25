@@ -2829,8 +2829,10 @@ pub struct Lowerer:
                 let wide = try self.convert_float(v.ref, st, types.f64_id)
                 let raw = try self.f.unary(ir.Op.dtosi if self.is_signed(dest) else ir.Op.dtoui, ir.Class.l, wide)
                 return LowerValue(ref = try self.from_word(raw, dest), type_id = dest, in_memory = false)
-            let helper = "lb_core_6f_to_s" if self.is_signed(dest) else "lb_core_6f_to_u"
             let wide = try self.convert_float(v.ref, st, types.f64_id)
+            if let r = try self.float_to_int(wide, dest, checked):
+                return LowerValue(ref = r, type_id = dest, in_memory = false)
+            let helper = "lb_core_6f_to_s" if self.is_signed(dest) else "lb_core_6f_to_u"
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.d, size = 0, align = 8, type_id = types.f64_id, shape = 0))
             try self.f.args.push(ir.Arg(value = ir.const_ref((i64)(self.scalar_size(dest) * 8)), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
@@ -2861,6 +2863,39 @@ pub struct Lowerer:
 
     ## Whether the function being lowered belongs to the `core` module, whose bodies are
     ## what the other conversions call.
+    ## A double to an integer without `core.f_to_s` or `core.f_to_u`, where the instruction
+    ## can say what they do: checked (`T(x)`), a compare of the double with the type's
+    ## bounds (NaN and the infinities fail it) before the conversion, which then truncates
+    ## exactly; unchecked (`(T)x`) into a 32- or 64-bit signed integer, the conversion
+    ## marked saturating (`extra` 1: NaN is 0, the rest clamps to the range), which the
+    ## target does in an instruction or a few. None for a saturating conversion into an
+    ## unsigned or narrower integer, which the helper does.
+    mutating func float_to_int(wide: ir.Ref, dest: u32, checked: bool) -> ir.Ref?!:
+        let bits = self.scalar_size(dest) * 8
+        let signed = self.is_signed(dest)
+        if not checked:
+            if not signed or (bits != 32 and bits != 64):
+                return none
+            let cls = self.class_of(dest)
+            let t = try self.f.temp(cls)
+            try self.f.emit(ir.Op.dtosi, cls, t, wide, ir.none_ref(), 1)
+            return ir.temp_ref(t)
+        # the range is [-2^(bits-1), 2^(bits-1)) or [0, 2^bits), whose bounds are exact
+        let top = bits - 1 if signed else bits
+        let high = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref(power_of_two_bits(top, false)))
+        let low = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref(power_of_two_bits(top, true) if signed else 0))
+        let above = try self.f.binary(ir.Op.csge, ir.Class.d, wide, low)
+        let below = try self.f.binary(ir.Op.cslt, ir.Class.d, wide, high)
+        let inside = try self.f.binary(ir.Op.and_, ir.Class.w, above, below)
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(inside, ok, bad)
+        try self.f.place_label(bad)
+        try self.trap_with("integer conversion out of range")
+        try self.f.place_label(ok)
+        let raw = try self.f.unary(ir.Op.dtosi if signed else ir.Op.dtoui, ir.Class.l, wide)
+        return try self.from_word(raw, dest)
+
     func in_core() -> bool:
         let f = self.current_fn else return false
         return names.module_of(f) == "core"
@@ -3194,13 +3229,14 @@ pub struct Lowerer:
         let scrutinee = m.left else return
         let st = try self.ty(scrutinee)
         let v = try self.expr(scrutinee)
+        let done = self.f.label()
+        # a match on constants dispatches on the value itself, which never goes to memory
+        if try self.dispatch(m, st, v, done, is_expr):
+            try self.f.place_label(done)
+            return
         let keep = try self.materialise(v) if not v.in_memory else v.ref
         let scrutinee_slot = try self.new_slot(st)
         try self.f.copy_bytes(try self.slot_address(scrutinee_slot), keep, self.size(st))
-        let done = self.f.label()
-        if try self.dispatch(m, st, scrutinee_slot, done, is_expr):
-            try self.f.place_label(done)
-            return
         var arm = m.body
         while let a = arm:
             let take = self.f.label()
@@ -3246,11 +3282,12 @@ pub struct Lowerer:
         try self.f.place_label(done)
 
     ## A `match` on an integer, integer enum, char or bool whose arms have no guard and
-    ## whose patterns are constants, four values or more, finds its arm by binary search
-    ## over the sorted values: a few comparisons of the value loaded once, where the chain
-    ## of `pattern_test`s would load and compare once per arm in turn. False, having emitted
-    ## nothing, for any other `match`.
-    mutating func dispatch(m: ast.Node*, st: u32, scrutinee_slot: u32, done: u32, is_expr: bool) -> bool!:
+    ## whose patterns are constants, four values or more, finds its arm from the sorted
+    ## values (`search`): through a jump table where they are dense, by binary search where
+    ## they are not, reading the scrutinee `v` where it is, where the chain of
+    ## `pattern_test`s would store it and load and compare once per arm in turn. False,
+    ## having emitted nothing, for any other `match`.
+    mutating func dispatch(m: ast.Node*, st: u32, v: LowerValue, done: u32, is_expr: bool) -> bool!:
         if not (self.is_int(st) or self.is_int_enum(st) or st == types.char_id or st == types.bool_id):
             return false
         var values = try list.List[i64].create(16)
@@ -3284,8 +3321,8 @@ pub struct Lowerer:
         if values.count < 4:
             return false
         sort_cases(values.span(), branches.span(), self.signed_of(st) or st == types.char_id)
-        let current = try self.load_from(try self.slot_address(scrutinee_slot), st)
-        try self.search(current.ref, st, values.span(), branches.span(), fallback)
+        let current = (try self.load_from(v.ref, st)).ref if v.in_memory else v.ref
+        try self.search(current, st, values.span(), branches.span(), fallback)
         var index: usize = 0
         arm = m.body
         while let a = arm:
@@ -3326,9 +3363,13 @@ pub struct Lowerer:
         return lowered.ref.value
 
     ## Branch on `current` to the target of the value it equals among the sorted `values`,
-    ## else to `fallback`: halve while more than three remain, then compare each.
+    ## else to `fallback`: through a jump table when the values are dense enough
+    ## (`dense_range`), else halve while more than three remain, then compare each.
     mutating func search(current: ir.Ref, st: u32, values: i64[], branches: u32[], fallback: u32) -> !:
         let cls = self.class_of(st)
+        if let entries = dense_range(values):
+            try self.jump_table(current, cls, values, branches, entries, fallback)
+            return
         if values.length <= 3:
             for k in 0..<values.length:
                 let next = self.f.label()
@@ -3347,6 +3388,19 @@ pub struct Lowerer:
         try self.search(current, st, values[..<middle], branches[..<middle], fallback)
         try self.f.place_label(upper)
         try self.search(current, st, values[middle..], branches[middle..], fallback)
+
+    ## Jump through a table of `entries` labels from the first of the sorted `values`: each
+    ## value's entry is its target, every value between them none names goes to `fallback`,
+    ## as does whatever lies outside the table.
+    mutating func jump_table(current: ir.Ref, cls: ir.Class, values: i64[], branches: u32[], entries: usize, fallback: u32) -> !:
+        var labels = try alloc u32[entries]
+        defer free(labels)
+        for k in 0..<entries:
+            labels[k] = fallback
+        let low = values[0]
+        for k in 0..<values.length:
+            labels[(usize)((u64)values[k] -% (u64)low)] = branches[k]
+        try self.f.switch(current, cls, low, labels, fallback)
 
     ## Branch to `take` when the pattern matches the scrutinee in its slot.
     mutating func pattern_test(p: ast.Node*, st: u32, scrutinee_slot: u32, take: u32, miss: u32) -> !:
@@ -5338,6 +5392,32 @@ func vector_op(op: str, floats: bool) -> ir.Op:
     if op == ">>":
         return ir.Op.vshr
     return ir.Op.copy
+
+## A jump table needs this many values at least, of which one entry in `table_density`
+## percent names one (the rest go to the fallback), and no more than `table_entries`.
+let table_cases: usize = 4
+let table_density: u64 = 40
+let table_entries: u64 = 4095
+
+## How many entries a jump table over the sorted `values` has, from the first to the
+## last, when they are enough and dense enough for one; none when a search does better.
+func dense_range(values: i64[]) -> usize?:
+    if values.length < table_cases:
+        return none
+    # sorted signed or unsigned, the last is above the first either way: the distance
+    # is the same in 64-bit arithmetic that wraps
+    let distance = (u64)values[values.length - 1] -% (u64)values[0]
+    if distance >= table_entries:
+        return none
+    let entries = distance + 1
+    if (u64)values.length * 100 < entries * table_density:
+        return none
+    return (usize)entries
+
+## The bits of the double `2^power`, or of `-2^power`: exact for every power up to 1023.
+func power_of_two_bits(power: u64, negative: bool) -> i64:
+    let bits = (1023 + power) << 52
+    return (i64)(bits | ((u64)1 << 63)) if negative else (i64)bits
 
 ## Whether `value` is among `values`.
 func holds(values: i64[], value: i64) -> bool:

@@ -455,7 +455,7 @@ func is_store(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
 
 func ends_block(op: ir.Op) -> bool:
-    return op == ir.Op.label or op == ir.Op.jmp or op == ir.Op.jnz or op == ir.Op.ret or op == ir.Op.call or op == ir.Op.asm_ or op == ir.Op.set_reg or op == ir.Op.get_reg or (u8)op >= (u8)ir.Op.atomic_load and (u8)op <= (u8)ir.Op.fence
+    return op == ir.Op.label or op == ir.Op.jmp or op == ir.Op.jnz or op == ir.Op.switch_ or op == ir.Op.ret or op == ir.Op.call or op == ir.Op.asm_ or op == ir.Op.set_reg or op == ir.Op.get_reg or (u8)op >= (u8)ir.Op.atomic_load and (u8)op <= (u8)ir.Op.fence
 
 ## An instruction with no effect beyond its result: the arithmetic that cannot trap, the
 ## comparisons, conversions, loads, and addresses.

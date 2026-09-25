@@ -9,9 +9,10 @@
 #       assigned in several places and read at the join, which the frame allocator accepts
 #       (a temporary's live range runs from its first assignment to its last use). The
 #       copies of one edge are parallel: when one reads what another writes, every source
-#       goes through a fresh temporary first. A predecessor that branches two ways cannot
-#       carry another block's copies, since they would run on both edges: the edge gets a
-#       block of its own, the copies and a jump, and the branch is retargeted to it.
+#       goes through a fresh temporary first. A predecessor that branches two ways (or
+#       through a jump table) cannot carry another block's copies, since they would run on
+#       every edge: the edge gets a block of its own, the copies and a jump, and the branch
+#       (or each table entry) is retargeted to it.
 #
 #==============================================================================================
 
@@ -128,19 +129,14 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
             if x.op != ir.Op.phi:
                 try out.push(x)
             i2 += 1
-        if ends and last.op == ir.Op.jnz and block.succ1 != block.succ2:
+        if ends and block.succs.count > 1:
             # copies for a successor with other predecessors go to an edge block
-            try place_moves(f, &moves, u32(b), block.succ1, &out, split_label, g, false)
-            try place_moves(f, &moves, u32(b), block.succ2, &out, split_label, g, false)
-            var branch = last
-            if split_label[(usize)block.succ1] != 0 and split_label[(usize)block.succ1] != g.blocks.get((usize)block.succ1).label:
-                branch.extra = split_label[(usize)block.succ1]
-            if split_label[(usize)block.succ2] != 0 and split_label[(usize)block.succ2] != g.blocks.get((usize)block.succ2).label:
-                branch.extra2 = split_label[(usize)block.succ2]
-            try out.push(branch)
+            for s in block.succs.span():
+                try place_moves(f, &moves, u32(b), s, &out, split_label, g, false)
+            try out.push(retarget(f, last, split_label, g))
             # the edge blocks, right after the branch
-            try emit_edge(f, &moves, u32(b), block.succ1, &out, split_label, g)
-            try emit_edge(f, &moves, u32(b), block.succ2, &out, split_label, g)
+            for s in block.succs.span():
+                try emit_edge(f, &moves, u32(b), s, &out, split_label, g)
         else:
             try place_moves(f, &moves, u32(b), block.succ1, &out, split_label, g, true)
             if ends:
@@ -149,6 +145,28 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
     f.instrs.destroy()
     f.instrs = out
     f.phi_args.count = 0
+
+## The branch `last` with each target that has an edge block of its own sent there: a
+## `jnz`'s two labels, or a `switch`'s default and every entry of its table.
+func retarget(f: ir.Function*, last: ir.Instr, split_label: u32[], g: cfg.Graph*) -> ir.Instr:
+    var branch = last
+    branch.extra = edge_label(branch.extra, split_label, g)
+    if branch.op == ir.Op.jnz:
+        branch.extra2 = edge_label(branch.extra2, split_label, g)
+    elif branch.op == ir.Op.switch_:
+        let table = f.jump_tables.get((usize)branch.extra2)
+        for k in 0..<(usize)table.count:
+            let at = (usize)table.start + k
+            f.jump_labels.items[at] = edge_label(f.jump_labels.items[at], split_label, g)
+    return branch
+
+## The label an edge to the block headed by `label` takes: its edge block's when it has one.
+func edge_label(label: u32, split_label: u32[], g: cfg.Graph*) -> u32:
+    let s = g.block_of(label)
+    if s == cfg.none_block:
+        return label
+    let split = split_label[(usize)s]
+    return split if split != 0 and split != label else label
 
 ## The copies of edge `at` -> `s`, into `out` when `inline`, else noted for an edge block
 ## in `split_label` (the block's own label when the edge needs none).

@@ -5,7 +5,7 @@
 #   DESCRIPTION:
 #       The IR is a flat list of instructions with labels; the optimiser's passes want it
 #       as a graph. A block runs from a label (or the function's start) to the instruction
-#       that leaves it, a jump, a branch, a return, or a trap, or to the next label, which
+#       that leaves it, a jump, a branch, a jump table, a return, or a trap, or to the next label, which
 #       the block then falls into. The graph numbers the reachable blocks in reverse
 #       post-order, finds each block's immediate dominator ("A Simple, Fast Dominance
 #       Algorithm", Cooper, Harvey, and Kennedy), its dominance frontier, its depth in the
@@ -35,8 +35,11 @@ pub struct Block:
     ## Successors by block index (`none_block` when absent): a jump's target, a branch's
     ## two, the block fallen into.
     pub var succ1: u32
-    ## The second successor, a branch's else; `none_block` when absent.
+    ## The second successor, a branch's else; `none_block` when absent. A `switch` has its
+    ## default in `succ1` and none here: its other targets are only in `succs`.
     pub var succ2: u32
+    ## Every successor, each once, `succ1` first: what a pass that walks the edges reads.
+    pub var succs: list.List[u32]
     ## Predecessor block indices.
     pub var preds: list.List[u32]
     ## The reverse post-order number, `none_block` when unreachable from the entry.
@@ -81,7 +84,7 @@ pub struct Graph:
         try g.split(f)
         # the entry has no label; label 0 names it
         g.by_label[0] = 0
-        g.link(f)
+        try g.link(f)
         try g.number()
         return g
 
@@ -91,6 +94,7 @@ pub struct Graph:
         while i < self.blocks.count:
             var b = self.blocks.get(i)
             b.preds.destroy()
+            b.succs.destroy()
             b.frontier.destroy()
             b.children.destroy()
             i += 1
@@ -165,14 +169,14 @@ pub struct Graph:
 
     mutating func add(label: u32, start: u32, end: u32) -> !:
         let index = u32(self.blocks.count)
-        try self.blocks.push(Block(label = label, start = start, end = end, succ1 = none_block, succ2 = none_block, preds = try list.List[u32].create(2),
+        try self.blocks.push(Block(label = label, start = start, end = end, succ1 = none_block, succ2 = none_block, succs = try list.List[u32].create(2), preds = try list.List[u32].create(2),
                                    rpo = none_block, idom = none_block, frontier = try list.List[u32].create(2), children = try list.List[u32].create(2),
                                    depth = 0, loop_weight = 1))
         if label != 0:
             self.by_label[(usize)label] = index
 
     ## Successors from each block's last instruction, or the block after it.
-    mutating func link(f: ir.Function*):
+    mutating func link(f: ir.Function*) -> !:
         var i: usize = 0
         while i < self.blocks.count:
             var b = self.blocks.get(i)
@@ -182,10 +186,17 @@ pub struct Graph:
             elif b.end > b.start and last.op == ir.Op.jnz:
                 b.succ1 = self.by_label[(usize)last.extra]
                 b.succ2 = self.by_label[(usize)last.extra2]
+            elif b.end > b.start and last.op == ir.Op.switch_:
+                b.succ1 = self.by_label[(usize)last.extra]
             elif b.end > b.start and (last.op == ir.Op.ret or last.op == ir.Op.trap_):
                 discard(0)
             elif i + 1 < self.blocks.count:
                 b.succ1 = u32(i + 1)
+            try add_successor(&b.succs, b.succ1)
+            try add_successor(&b.succs, b.succ2)
+            if b.end > b.start and last.op == ir.Op.switch_:
+                for label in f.table_targets(last.extra2):
+                    try add_successor(&b.succs, self.by_label[(usize)label])
             self.blocks.set(i, b)
             i += 1
 
@@ -196,7 +207,7 @@ pub struct Graph:
         defer free(state)
         var stack = try alloc u32[n + 1]
         defer free(stack)
-        var next = try alloc u8[n + 1]
+        var next = try alloc u32[n + 1]
         defer free(next)
         var post = try alloc u32[n + 1]
         defer free(post)
@@ -213,10 +224,10 @@ pub struct Graph:
             let b = stack[depth - 1]
             let block = self.blocks.get((usize)b)
             var pushed = false
-            while next[depth - 1] < 2:
-                let s = block.succ1 if next[depth - 1] == 0 else block.succ2
+            while (usize)next[depth - 1] < block.succs.count:
+                let s = block.succs.get((usize)next[depth - 1])
                 next[depth - 1] += 1
-                if s != none_block and state[(usize)s] == 0:
+                if state[(usize)s] == 0:
                     state[(usize)s] = 1
                     stack[depth] = s
                     next[depth] = 0
@@ -241,10 +252,8 @@ pub struct Graph:
         while i < self.order.count:
             let b = self.order.get(i)
             let block = self.blocks.get((usize)b)
-            if block.succ1 != none_block:
-                try self.add_pred(block.succ1, b)
-            if block.succ2 != none_block and block.succ2 != block.succ1:
-                try self.add_pred(block.succ2, b)
+            for s in block.succs.span():
+                try self.add_pred(s, b)
             i += 1
 
     mutating func add_pred(to: u32, source: u32) -> !:
@@ -302,9 +311,8 @@ pub struct Graph:
         while i < self.order.count:
             let b = self.order.get(i)
             let block = self.blocks.get((usize)b)
-            try self.frontier_edge(b, block.succ1)
-            if block.succ2 != block.succ1:
-                try self.frontier_edge(b, block.succ2)
+            for s in block.succs.span():
+                try self.frontier_edge(b, s)
             i += 1
 
     mutating func frontier_edge(head: u32, to: u32) -> !:
@@ -376,3 +384,12 @@ pub struct Graph:
                             q += 1
                 p += 1
             i += 1
+
+## Add block `s` to `succs` unless it is none or already there.
+func add_successor(succs: list.List[u32]*, s: u32) -> !:
+    if s == none_block:
+        return
+    for have in succs.span():
+        if have == s:
+            return
+    try succs.push(s)

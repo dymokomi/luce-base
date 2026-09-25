@@ -113,6 +113,13 @@ pub struct Generator:
         try self.out.put("_")
         try self.out.put_u64((u64)n)
 
+    ## The label of jump table `n` of the function.
+    mutating func table_name(n: u32) -> !:
+        try self.out.put(".L")
+        try self.out.put_u64((u64)self.index)
+        try self.out.put("_jt")
+        try self.out.put_u64((u64)n)
+
     mutating func text_label(n: u32) -> !:
         try self.out.put(".Ltext_")
         try self.out.put_u64((u64)n)
@@ -752,6 +759,8 @@ pub struct Generator:
                 try self.label_name(n.extra)
                 try self.line("jmp ")
                 try self.label_name(n.extra2)
+            .switch_:
+                try self.jump_table(n)
             .ret:
                 try self.return_value(n)
             .copy:
@@ -1067,6 +1076,53 @@ pub struct Generator:
             try self.line3("movd %eax, ", d, "")
         try self.finish(n.dst, cls, d)
 
+    ## `switch`: the value less the table's first is the entry, when it is below the
+    ## table's count; the entry is its label's distance from the table, which follows the
+    ## jump in the text, so the table needs no relocation. rax holds the entry, rcx the
+    ## table's address.
+    mutating func jump_table(n: ir.Instr) -> !:
+        let wide = n.cls == ir.Class.l
+        let table = self.f.jump_tables.get((usize)n.extra2)
+        let index = "%rax" if wide else "%eax"
+        try self.operand(index, n.cls, n.a)
+        if wide and table.low != 0:
+            if table.low >= -2147483648 and table.low <= 2147483647:
+                try self.line("subq $")
+                try self.put_i64(table.low)
+                try self.put(", %rax")
+            else:
+                try self.load_immediate("%rcx", table.low)
+                try self.line("subq %rcx, %rax")
+        elif not wide:
+            # the low bits are the whole value at the word's width, spelled signed
+            let low = (i64)((u64)table.low & 0xFFFFFFFF)
+            if low != 0:
+                try self.line("subl $")
+                try self.put_i64(low - 4294967296 if low > 2147483647 else low)
+                try self.put(", %eax")
+        try self.line("cmpq $" if wide else "cmpl $")
+        try self.put_u64((u64)table.count)
+        try self.put(", ")
+        try self.put(index)
+        try self.line("jae ")
+        try self.label_name(n.extra)
+        try self.line("leaq ")
+        try self.table_name(n.extra2)
+        try self.put("(%rip), %rcx")
+        # a word's subtraction left the high half of rax zero
+        try self.line("movslq (%rcx,%rax,4), %rax")
+        try self.line("addq %rcx, %rax")
+        try self.line("jmp *%rax")
+        try self.line(".p2align 2")
+        try self.put("\n")
+        try self.table_name(n.extra2)
+        try self.put(":")
+        for label in self.f.table_targets(n.extra2):
+            try self.line(".long ")
+            try self.label_name(label)
+            try self.put(" - ")
+            try self.table_name(n.extra2)
+
     mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
         let cls = n.cls
         let a = try self.source(n.a, cls, self.reg(cls, 0))
@@ -1190,7 +1246,8 @@ pub struct Generator:
 
     ## A float to an integer, truncating: signed through the conversion instruction; an
     ## unsigned word through the 64-bit conversion; an unsigned long by taking 2^63 off
-    ## first when the value reaches it.
+    ## first when the value reaches it. A saturating signed conversion (`extra` 1) fixes
+    ## up what the instruction leaves out of range (`saturate`).
     mutating func float_to_int(n: ir.Instr) -> !:
         let src = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
         let v = try self.source(n.a, src, self.reg(src, 0))
@@ -1198,6 +1255,8 @@ pub struct Generator:
         let convert = "cvttsd2si " if src == ir.Class.d else "cvttss2si "
         if n.op == ir.Op.stosi or n.op == ir.Op.dtosi:
             try self.line4(convert, v, ", ", d)
+            if n.extra == 1:
+                try self.saturate(n, src, v, d)
         elif n.cls == ir.Class.w:
             try self.line4(convert, v, ", ", wide_name(d))
         else:
@@ -1222,6 +1281,29 @@ pub struct Generator:
             try self.line3("btcq $63, ", d, "")
             try self.put("\n2:")
         try self.finish(n.dst, n.cls, d)
+
+    ## After `cvttsd2si`, which leaves the least integer for NaN and for every value out of
+    ## range: the greatest for a value at or above 2^(bits-1), 0 for NaN, as arm64's
+    ## `fcvtzs` and `core.f_to_s` answer (the least is already right below the range).
+    mutating func saturate(n: ir.Instr, src: ir.Class, v: str, d: str) -> !:
+        let wide = n.cls == ir.Class.l
+        let bound = self.reg(src, 2)
+        if src == ir.Class.d:
+            try self.load_immediate("%rcx", 4890909195324358656 if wide else 4746794007248502784)
+            try self.line3("movq %rcx, ", bound, "")
+            try self.line4("ucomisd ", bound, ", ", v)
+        else:
+            try self.load_immediate("%ecx", 1593835520 if wide else 1325400064)
+            try self.line3("movd %ecx, ", bound, "")
+            try self.line4("ucomiss ", bound, ", ", v)
+        # below the bound, or unordered
+        try self.line("jb 1f")
+        try self.load_immediate(d, 9223372036854775807 if wide else 2147483647)
+        try self.put("\n1:")
+        try self.line4("ucomisd " if src == ir.Class.d else "ucomiss ", v, ", ", v)
+        try self.line("jnp 2f")
+        try self.load_immediate(d, 0)
+        try self.put("\n2:")
 
     ## An integer to a float: signed through the conversion instruction at the integer's
     ## width; an unsigned word as a long; an unsigned long halved when its top bit is set,

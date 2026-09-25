@@ -62,6 +62,23 @@ implicit call-result storage and debug-described locals remain allocated. Local
 selection combines single-use integer comparisons with branches, omits jumps to
 the next label, and uses ARM64 immediate arithmetic and direct register addresses.
 
+A `match` on an integer, integer enum, `char` or `bool` with four or more constant
+values and no guards dispatches on the scrutinee where it is, never stored. Where the
+values are dense (at least 40 % of the range between the least and the greatest name
+an arm, at most 4095 entries) the IR's `switch` jumps through a table of arm addresses
+in the text: a subtraction, a bounds test and an indirect branch through a table of
+label offsets (`adr`/`ldrsw`/`br` on arm64, `leaq`/`movslq`/`jmp *` on x86-64).
+Elsewhere it searches the sorted values, and a dense run among them takes a table of
+its own. The graph's blocks list every successor (`Block.succs`); de-SSA splits a
+table's edges as it splits a branch's. An extension of a value already in its range
+(`extub` of a `loadub`) is the value.
+
+`(i32)x` and `(i64)x` of a float are one saturating conversion (`dtosi` marked
+saturating): `fcvtzs` on arm64, `cvttsd2si` with the fix-ups for the top of the
+range and NaN on x86-64. A checked `T(x)` compares the float with the type's bounds
+and traps before an exact conversion. The narrower and unsigned saturating casts keep
+`core.f_to_s` and `core.f_to_u`.
+
 The assembly-size suite now counts complete function bodies, including code after
 numeric trap labels. Its corrected limits were measured from the unchanged
 `f4306dc` baseline on both target assemblers, rather than raised to accommodate

@@ -65,6 +65,22 @@ func function(out: buffer.Buffer*, f: ir.Function*) -> !:
         i += 1
     try out.put("\n")
 
+## A `switch`'s operands: `switch %t, @default, low [@L, @L, ...]`.
+func jump_table(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
+    let table = f.jump_tables.get((usize)x.extra2)
+    try out.put(" ")
+    try operand(out, x.a)
+    try out.put(", @L")
+    try out.put_u64((u64)x.extra)
+    try out.put(", ")
+    try out.put_i64(table.low)
+    try out.put(" [")
+    let targets = f.table_targets(x.extra2)
+    for k in 0..<targets.length:
+        try out.put("@L" if k == 0 else ", @L")
+        try out.put_u64((u64)targets[k])
+    try out.put("]")
+
 func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
     if x.op == ir.Op.label:
         try out.put("@L")
@@ -90,6 +106,8 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
             try out.put_u64((u64)x.extra)
             try out.put(", @L")
             try out.put_u64((u64)x.extra2)
+        .switch_:
+            try jump_table(out, f, x)
         .ret:
             if x.a.kind != ir.RefKind.none_:
                 try out.put(" ")
@@ -256,6 +274,7 @@ func op_name(op: ir.Op) -> str:
         .label: return "label"
         .jmp: return "jmp"
         .jnz: return "jnz"
+        .switch_: return "switch"
         .ret: return "ret"
         .trap_: return "trap"
         .bounds: return "bounds"

@@ -60,7 +60,8 @@ pub struct Natural:
             free(members)
             return none
         let entry = g.blocks.get(preheader)
-        if entry.succ1 != header or entry.succ2 != cfg.none_block:
+        # the preheader leads to the header alone (a jump table's default is `succ1` too)
+        if entry.succ1 != header or entry.succs.count != 1:
             free(members)
             return none
         return Natural(header = header, preheader = preheader, members = members)

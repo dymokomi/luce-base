@@ -178,6 +178,8 @@ func drop_unused_standard(program: ir.Unit*) -> !:
             f.calls.destroy()
             f.temps.destroy()
             f.phi_args.destroy()
+            f.jump_tables.destroy()
+            f.jump_labels.destroy()
         i += 1
     program.functions.destroy()
     program.functions = kept
@@ -802,6 +804,9 @@ struct Expansion:
             .jnz:
                 m.extra += self.label_base
                 m.extra2 += self.label_base
+            .switch_:
+                m.extra += self.label_base
+                m.extra2 = try self.copy_table(m.extra2)
             .call:
                 m.extra = try self.copy_call(m.extra)
             .ret:
@@ -820,6 +825,15 @@ struct Expansion:
                 # a record result is built where the caller's call sequence would have put it
                 try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
         try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+
+    ## A jump table of the body joins the caller's, its labels renumbered; its new index.
+    func copy_table(index: u32) -> u32!:
+        let table = self.g.jump_tables.get((usize)index)
+        let start = u32(self.f.jump_labels.count)
+        for k in 0..<table.count:
+            try self.f.jump_labels.push(self.g.jump_labels.get((usize)(table.start + k)) + self.label_base)
+        try self.f.jump_tables.push(ir.Table(low = table.low, start = start, count = table.count))
+        return u32(self.f.jump_tables.count - 1)
 
     ## A call inside the body: its description and arguments join the caller's lists.
     func copy_call(extra: u32) -> u32!:
@@ -977,8 +991,8 @@ func is_store_op(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
 
 ## Drop each block that follows an unconditional exit and whose label no jump names, then
-## each jump to the label that follows it. Only `jmp` and `jnz` name labels once the phis
-## are gone.
+## each jump to the label that follows it. Only `jmp`, `jnz` and `switch` name labels once
+## the phis are gone.
 func drop_unreached(f: ir.Function*) -> !:
     let named = try alloc bool[(usize)f.labels + 1]
     defer free(named)
@@ -991,6 +1005,12 @@ func drop_unreached(f: ir.Function*) -> !:
                 named[n.extra] = true
             if (usize)n.extra2 < named.length:
                 named[n.extra2] = true
+        elif n.op == ir.Op.switch_:
+            if (usize)n.extra < named.length:
+                named[n.extra] = true
+            for label in f.table_targets(n.extra2):
+                if (usize)label < named.length:
+                    named[label] = true
     var kept = try list.List[ir.Instr].create(f.instrs.count)
     var skipping = false
     var exited = false
