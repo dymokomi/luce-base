@@ -215,37 +215,40 @@ func finish_crash_report():
 ## The native stack on Windows, a frame a line as `module+0xoffset`, which a debugger or
 ## addr2line resolves against the build. Nothing here allocates.
 func write_windows_stack(file: i32):
-    write_all(file, "(the reporter's frames and Windows' exception dispatch come first; the fault is the\n first program frame after ntdll.dll. Offsets are from each module's load address;\n add the image base, 0x140000000 by default for a 64-bit program, for addr2line.)\n".bytes)
-    var frames: usize[64]
-    let depth = (usize)RtlCaptureStackBackTrace(0, 64, (void**)&frames[0], none)
-    for index in 0..<depth:
-        let address = frames[index]
-        var line: u8[400] = ---
-        var used: usize = 0
-        var module: void* = ---
-        var base: usize = 0
-        var name: u8[260] = ---
-        var length: u32 = 0
-        # 4: from an address; 2: without changing the module's reference count
-        if GetModuleHandleExA(6, (const void*)address, (void**)&module) != 0:
-            base = (usize)module
-            length = GetModuleFileNameA(module, &name[0], 260)
-        var start: u32 = 0
-        for at in 0..<length:
-            if name[at] == '\\' or name[at] == '/': start = at + 1
-        for at in start..<length:
-            if used < 300:
-                line[used] = name[at]
+    # One branch on the platform around everything, which the C backend folds away
+    # elsewhere: the Windows symbols then appear in no other platform's build.
+    if platform.windows:
+        write_all(file, "(the reporter's frames and Windows' exception dispatch come first; the fault is the\n first program frame after ntdll.dll. Offsets are from each module's load address;\n add the image base, 0x140000000 by default for a 64-bit program, for addr2line.)\n".bytes)
+        var frames: usize[64]
+        let depth = (usize)RtlCaptureStackBackTrace(0, 64, (void**)&frames[0], none)
+        for index in 0..<depth:
+            let address = frames[index]
+            var line: u8[400] = ---
+            var used: usize = 0
+            var module: void* = ---
+            var base: usize = 0
+            var name: u8[260] = ---
+            var length: u32 = 0
+            # 4: from an address; 2: without changing the module's reference count
+            if GetModuleHandleExA(6, (const void*)address, (void**)&module) != 0:
+                base = (usize)module
+                length = GetModuleFileNameA(module, &name[0], 260)
+            var start: u32 = 0
+            for at in 0..<length:
+                if name[at] == '\\' or name[at] == '/': start = at + 1
+            for at in start..<length:
+                if used < 300:
+                    line[used] = name[at]
+                    used += 1
+            if length == 0:
+                line[used] = '?'
                 used += 1
-        if length == 0:
-            line[used] = '?'
+            line[used] = '+'
             used += 1
-        line[used] = '+'
-        used += 1
-        used = put_hex(line, used, address - base)
-        line[used] = '\n'
-        used += 1
-        write_all(file, (const u8[])line[..<used])
+            used = put_hex(line, used, address - base)
+            line[used] = '\n'
+            used += 1
+            write_all(file, (const u8[])line[..<used])
 
 ## `value` as `0x` and lowercase hex digits into `line` at `used`; the new length.
 func put_hex(line: u8[], used: usize, value: usize) -> usize:
