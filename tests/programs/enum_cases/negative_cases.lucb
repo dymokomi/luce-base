@@ -1,0 +1,28 @@
+#==============================================================================================
+#
+#   negative_cases - Matching integer-backed enum cases of negative value
+#
+#   DESCRIPTION:
+#       The C backend's switch is on int64_t: a case of -1, or of the most negative i64,
+#       is written as that signed value, never as its unsigned bit pattern.
+#
+#==============================================================================================
+
+enum Tag as i64:
+    lowest = -9223372036854775808
+    object = -1
+    int = 0
+
+func name_of(t: Tag) -> i32:
+    match t:
+        .lowest:
+            return 3
+        .object:
+            return 1
+        _:
+            return 0
+
+test "negative enum cases match in a switch":
+    assert(name_of(Tag.object) == 1)
+    assert(name_of(Tag.int) == 0)
+    assert(name_of(Tag.lowest) == 3)

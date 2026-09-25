@@ -4150,9 +4150,16 @@ pub struct Emitter:
                         if let resolved = v.resolved:
                             if resolved.kind == ast.Kind.enum_case:
                                 let d = self.decl_of(st) else return
+                                # The switch is on int64_t: a case is its signed value, and
+                                # INT64_MIN has no literal of its own in C.
+                                let signed = (i64)types.case_value(d, resolved)
                                 try self.line("case ")
-                                try self.put_u64(types.case_value(d, resolved))
-                                try self.put("LL:")
+                                if signed == -9223372036854775807 - 1:
+                                    try self.put("(-9223372036854775807LL - 1)")
+                                else:
+                                    try self.put_i64(signed)
+                                    try self.put("LL")
+                                try self.put(":")
                                 pattern = p.next
                                 continue
                         if let hi = p.right:
