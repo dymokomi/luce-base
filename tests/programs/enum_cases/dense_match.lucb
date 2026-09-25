@@ -1,0 +1,62 @@
+#==============================================================================================
+#
+#   dense_match - Matches on many constants find their arm by search
+#
+#   DESCRIPTION:
+#       A match of four or more constant values without guards dispatches by binary search
+#       in the native backend. The arm taken must be the one the arms' order says: the first
+#       arm naming a value, the wildcard for the rest.
+#
+#==============================================================================================
+
+enum Op as u8:
+    push = 0
+    pop = 1
+    add = 2
+    sub = 3
+    jump = 200
+    halt = 255
+
+func signed_arm(x: i64) -> i32:
+    match x:
+        -5: return 1
+        -1: return 2
+        0: return 3
+        7, 9: return 4
+        1000000: return 5
+        _: return 0
+
+func unsigned_arm(x: u64) -> i32:
+    match x:
+        0: return 1
+        1: return 2
+        18446744073709551615: return 3
+        9223372036854775808: return 4
+        42: return 5
+        _: return 0
+
+func op_arm(op: Op) -> i32:
+    match op:
+        .push: return 10
+        .pop: return 11
+        .add: return 12
+        .sub: return 13
+        .halt: return 14
+        _: return 15
+
+func letter(c: char) -> i32:
+    match c:
+        'a': return 1
+        'b': return 2
+        'z': return 3
+        'q': return 4
+        _: return 0
+
+test "dense matches take the first arm naming the value":
+    assert(signed_arm(-5) == 1 and signed_arm(-1) == 2 and signed_arm(0) == 3)
+    assert(signed_arm(7) == 4 and signed_arm(9) == 4 and signed_arm(1000000) == 5)
+    assert(signed_arm(8) == 0 and signed_arm(-6) == 0 and signed_arm(2000000) == 0)
+    assert(unsigned_arm(0) == 1 and unsigned_arm(1) == 2 and unsigned_arm(18446744073709551615) == 3)
+    assert(unsigned_arm(9223372036854775808) == 4 and unsigned_arm(42) == 5 and unsigned_arm(43) == 0)
+    assert(op_arm(Op.push) == 10 and op_arm(Op.sub) == 13 and op_arm(Op.halt) == 14 and op_arm(Op.jump) == 15)
+    assert(letter('a') == 1 and letter('q') == 4 and letter('z') == 3 and letter('c') == 0)

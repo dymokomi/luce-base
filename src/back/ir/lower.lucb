@@ -3190,6 +3190,9 @@ pub struct Lowerer:
         let scrutinee_slot = try self.new_slot(st)
         try self.f.copy_bytes(try self.slot_address(scrutinee_slot), keep, self.size(st))
         let done = self.f.label()
+        if try self.dispatch(m, st, scrutinee_slot, done, is_expr):
+            try self.f.place_label(done)
+            return
         var arm = m.body
         while let a = arm:
             let take = self.f.label()
@@ -3233,6 +3236,109 @@ pub struct Lowerer:
             arm = a.next
         try self.f.jump(done)
         try self.f.place_label(done)
+
+    ## A `match` on an integer, integer enum, char or bool whose arms have no guard and
+    ## whose patterns are constants, four values or more, finds its arm by binary search
+    ## over the sorted values: a few comparisons of the value loaded once, where the chain
+    ## of `pattern_test`s would load and compare once per arm in turn. False, having emitted
+    ## nothing, for any other `match`.
+    mutating func dispatch(m: ast.Node*, st: u32, scrutinee_slot: u32, done: u32, is_expr: bool) -> bool!:
+        if not (self.is_int(st) or self.is_int_enum(st) or st == types.char_id or st == types.bool_id):
+            return false
+        var values = try list.List[i64].create(16)
+        defer values.destroy()
+        var branches = try list.List[u32].create(16)
+        defer branches.destroy()
+        var takes = try list.List[u32].create(16)
+        defer takes.destroy()
+        # the first wildcard's arm takes what no value names; the arms after it never run
+        var fallback = done
+        var open = true
+        var arm = m.body
+        while let a = arm:
+            if a.right != none:
+                return false
+            let take = self.f.label()
+            try takes.push(take)
+            var pattern = a.left
+            while let p = pattern:
+                if p.has(ast.flag_wildcard):
+                    if open:
+                        fallback = take
+                    open = false
+                elif open:
+                    let value = try self.constant_pattern(p, st) else return false
+                    if not holds(values.span(), value):
+                        try values.push(value)
+                        try branches.push(take)
+                pattern = p.next
+            arm = a.next
+        if values.count < 4:
+            return false
+        sort_cases(values.span(), branches.span(), self.signed_of(st) or st == types.char_id)
+        let current = try self.load_from(try self.slot_address(scrutinee_slot), st)
+        try self.search(current.ref, st, values.span(), branches.span(), fallback)
+        var index: usize = 0
+        arm = m.body
+        while let a = arm:
+            try self.f.place_label(takes.get(index))
+            try self.push_scope(false, "", 0, 0)
+            let body = a.body else return true
+            if is_expr:
+                let bv = try self.value(body, self.match_type)
+                try self.store_to(try self.slot_address(self.match_slot), bv)
+            else:
+                try self.block(body)
+            try self.unwind(self.scopes.count - 1, false)
+            self.pop_scope()
+            try self.f.jump(done)
+            index += 1
+            arm = a.next
+        return true
+
+    ## The value a pattern names when it is a constant of the scrutinee's type (a literal,
+    ## an integer enum's case, a named constant), none for a range or anything computed.
+    ## Whatever lowering it tried is taken back.
+    mutating func constant_pattern(p: ast.Node*, st: u32) -> i64?!:
+        if p.right != none:
+            return none
+        let v = p.left else return none
+        if v.kind == ast.Kind.case_value:
+            let c = v.resolved else return none
+            let d = self.decl_of(st) else return none
+            if not self.is_int_enum(st):
+                return none
+            return (i64)types.case_value(d, c)
+        let before = self.f.instrs.count
+        let lowered = try self.value(v, st)
+        let emitted = self.f.instrs.count != before
+        self.f.instrs.count = before
+        if emitted or lowered.ref.kind != ir.RefKind.constant:
+            return none
+        return lowered.ref.value
+
+    ## Branch on `current` to the target of the value it equals among the sorted `values`,
+    ## else to `fallback`: halve while more than three remain, then compare each.
+    mutating func search(current: ir.Ref, st: u32, values: i64[], branches: u32[], fallback: u32) -> !:
+        let cls = self.class_of(st)
+        if values.length <= 3:
+            for k in 0..<values.length:
+                let next = self.f.label()
+                let hit = try self.f.binary(ir.Op.ceq, cls, current, ir.const_ref(values[k]))
+                try self.f.branch(hit, branches[k], next)
+                try self.f.place_label(next)
+            try self.f.jump(fallback)
+            return
+        let middle = values.length // 2
+        let lower = self.f.label()
+        let upper = self.f.label()
+        let signed = self.signed_of(st) or st == types.char_id
+        let below = try self.f.binary(ir.Op.cslt if signed else ir.Op.cult, cls, current, ir.const_ref(values[middle]))
+        try self.f.branch(below, lower, upper)
+        try self.f.place_label(lower)
+        try self.search(current, st, values[..<middle], branches[..<middle], fallback)
+        try self.f.place_label(upper)
+        try self.search(current, st, values[middle..], branches[middle..], fallback)
 
     ## Branch to `take` when the pattern matches the scrutinee in its slot.
     mutating func pattern_test(p: ast.Node*, st: u32, scrutinee_slot: u32, take: u32, miss: u32) -> !:
@@ -5224,3 +5330,25 @@ func vector_op(op: str, floats: bool) -> ir.Op:
     if op == ">>":
         return ir.Op.vshr
     return ir.Op.copy
+
+## Whether `value` is among `values`.
+func holds(values: i64[], value: i64) -> bool:
+    for v in values:
+        if v == value:
+            return true
+    return false
+
+## Sort the case values, as signed or unsigned numbers, carrying each one's target along.
+func sort_cases(values: i64[], branches: u32[], signed: bool):
+    var i: usize = 1
+    while i < values.length:
+        let value = values[i]
+        let target = branches[i]
+        var j = i
+        while j > 0 and (values[j - 1] > value if signed else (u64)values[j - 1] > (u64)value):
+            values[j] = values[j - 1]
+            branches[j] = branches[j - 1]
+            j -= 1
+        values[j] = value
+        branches[j] = target
+        i += 1
