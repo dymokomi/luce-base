@@ -60,3 +60,6 @@ let grouped: i32[5] = [
     # the second group
     3, 4, 5,
 ]
+## A pointer to an array, with and without the parentheses (§5.4).
+func digits(buffer :u8[128]*,  other : (u8[4])*) -> usize:
+    return 0

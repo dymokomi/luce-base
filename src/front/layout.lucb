@@ -1169,16 +1169,10 @@ pub struct Formatter:
             try self.put("?")
             return
         if t.has(ast.flag_star):
-            let pointee = t.left else return
-            # a pointer to an array parenthesises the array: `(T[N])*` is a pointer to an array,
-            # while `T[N]*` reads as an array of pointers (§5.4). The parser folds the
-            # disambiguating parentheses into the tree, so the formatter puts them back.
-            if pointee.text == "[" and (pointee.has(ast.flag_span) or pointee.has(ast.flag_array)):
-                try self.put("(")
-                try self.type_inner(pointee)
-                try self.put(")")
-            else:
-                try self.type_inner(pointee)
+            # suffixes read left to right (§5.4): `u8[128]*` is a pointer to an array, and
+            # parentheses written around the array, `(u8[128])*`, stay in the tree as a group
+            # that the `(` case below prints back; none are added
+            try self.type_inner(t.left else return)
             try self.put("*")
             return
         if t.text == "[" and (t.has(ast.flag_span) or t.has(ast.flag_array)):

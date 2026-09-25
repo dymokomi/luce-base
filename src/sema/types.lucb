@@ -873,6 +873,49 @@ pub func case_value(d: ast.Node*, target: ast.Node*) -> u64:
         cursor = node.next
     return 0
 
+## For each case of enum `d`, in order, whether an earlier case has its value: the values
+## in one pass and a hash set of them, where `case_value` for each case against each
+## earlier one would take time cubic in the number of cases.
+pub func repeated_cases(d: ast.Node*) -> bool[]!:
+    var count: usize = 0
+    var cursor = d.body
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
+            count += 1
+        cursor = node.next
+    var repeated = try alloc bool[count]
+    var size: usize = 16
+    while size < count * 2:
+        size *= 2
+    # open addressing over the values; `taken` marks a filled bucket
+    var buckets = try alloc u64[size]
+    defer free(buckets)
+    var taken = try alloc bool[size]
+    defer free(taken)
+    for k in 0..<size:
+        taken[k] = false
+    var next: u64 = 0
+    var index: usize = 0
+    cursor = d.body
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
+            var v = next
+            if let written = node.left:
+                v = written_value(written) else next
+            next = v +% 1
+            repeated[index] = false
+            var at = (usize)((v *% 0x9E3779B97F4A7C15) >> 32) & (size - 1)
+            while taken[at] and buckets[at] != v:
+                at = (at + 1) & (size - 1)
+            if taken[at]:
+                repeated[index] = true
+            else:
+                taken[at] = true
+                buckets[at] = v
+            index += 1
+        cursor = node.next
+    return repeated
+
 ## A case value as written: a literal, possibly grouped or negated.
 func written_value(e: ast.Node*) -> u64?:
     if e.kind == ast.Kind.group:
