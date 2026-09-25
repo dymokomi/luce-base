@@ -20,6 +20,7 @@
 import back.ir.cfg
 import back.ir.ir
 import back.native.regalloc
+import back.native.sharing
 import memory
 import support.list
 
@@ -72,6 +73,10 @@ pub struct Frame:
     ## Where each temporary's life ends (`regalloc.Lives.end`, a doubled position), for the
     ## DWARF emitter's location lists; 0 for a temporary with no life.
     pub var temp_ends: list.List[u32]
+    ## When each temporary's and each slot's value lives (`sharing`), from `plan`: homes
+    ## whose lives never meet share bytes.
+    var temp_spans: list.List[sharing.Span]
+    var slot_spans: list.List[sharing.Span]
     ## Bit c-1 is set when register code c is used; `save_offset[c]` is where it is spilled.
     pub var used_mask: u64
     ## Where each callee-saved register is spilled, indexed by its code.
@@ -88,7 +93,7 @@ pub struct Frame:
     ## An empty frame for a target's register set.
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
-                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), temp_ends = try list.List[u32].create(256),
+                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
@@ -150,6 +155,7 @@ pub struct Frame:
             defer g.release()
             var lives = try regalloc.Lives.over(f, &g)
             defer lives.release()
+            try self.note_spans(f, &g, &lives)
             let (ints, floats) = try lives.pressure(f)
             try self.promote(f, budget(ints, self.registers.ints, self.registers.keep_ints), budget(floats, self.registers.floats, self.registers.keep_floats))
             try self.allocate(f, &lives)
@@ -199,28 +205,52 @@ pub struct Frame:
             else:
                 self.save_offset[c] = 0
             c += 1
+        # every slot, then every temporary left in the frame, takes a home; values whose
+        # lives never meet share one (`sharing`), except in a build a debugger reads
+        let shared = not f.debug and not f.symbols and f.instrs.count <= 200000 and self.slot_spans.count == f.slots.count + 1 and self.temp_spans.count == f.temps.count + 1
+        var packer = try sharing.Packer.at(offset, f.slots.count + f.temps.count)
+        defer packer.release()
         var i: usize = 0
         while i < f.slots.count:
-            if not live_slots[i]:
-                try self.slot_homes.push(0)
-                i += 1
-                continue
-            let s = f.slots.get(i)
-            let size = (u64)s.size if s.size > 0 else 1
-            offset = round_up(offset + size, (u64)s.align if s.align > 0 else 1)
-            try self.slot_homes.push(offset)
+            try self.slot_homes.push(0)
             i += 1
         i = 0
         while i < f.temps.count:
-            if self.temp_regs.get(i) == 0 and live_temps[i + 1]:
-                # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
-                let wide = f.temp_class(u32(i + 1)) == ir.Class.v
-                offset = round_up(offset + (16 if wide else 8), 16 if wide else 8)
-                try self.temp_homes.push(offset)
-            else:
-                try self.temp_homes.push(0)
+            try self.temp_homes.push(0)
             i += 1
-        self.size = round_up(offset, 16)
+        let slot_order = try sharing.by_start(self.slot_spans.span()) if shared else try sharing.in_order(f.slots.count + 1)
+        defer free(slot_order)
+        for k in slot_order:
+            let slot = (usize)k - 1
+            if not live_slots[slot]:
+                continue
+            let s = f.slots.get(slot)
+            let span = self.slot_spans.get((usize)k) if shared else sharing.Span(low = sharing.pinned, high = 0)
+            self.slot_homes.set(slot, packer.home((u64)s.size if s.size > 0 else 1, (u64)s.align if s.align > 0 else 1, span))
+        let temp_order = try sharing.by_start(self.temp_spans.span()) if shared else try sharing.in_order(f.temps.count + 1)
+        defer free(temp_order)
+        for t in temp_order:
+            let index = (usize)t - 1
+            if self.temp_regs.get(index) != 0 or not live_temps[t]:
+                continue
+            # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
+            let wide = f.temp_class(t) == ir.Class.v
+            let span = self.temp_spans.get((usize)t) if shared else sharing.Span(low = sharing.pinned, high = 0)
+            self.temp_homes.set(index, packer.home(16 if wide else 8, 16 if wide else 8, span))
+        self.size = round_up(packer.end(), 16)
+
+    ## Record when each temporary and slot lives, for `layout` to share their homes.
+    mutating func note_spans(f: ir.Function*, g: cfg.Graph*, lives: regalloc.Lives*) -> !:
+        self.temp_spans.count = 0
+        self.slot_spans.count = 0
+        let temps = try sharing.temp_spans(f, lives)
+        defer free(temps)
+        for span in temps:
+            try self.temp_spans.push(span)
+        let slots = try sharing.slot_spans(f, g)
+        defer free(slots)
+        for span in slots:
+            try self.slot_spans.push(span)
 
     ## Which frame slots live in registers: a slot of 1, 2, 4, or 8 bytes whose address is
     ## taken only to load or store that many bytes at once, in one register class. The

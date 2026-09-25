@@ -1,0 +1,258 @@
+#==============================================================================================
+#
+#   sharing - Frame homes shared by values whose lives never meet
+#
+#   DESCRIPTION:
+#       A slot or a spilled temporary needs its home only while its value lives. Two whose
+#       lives do not overlap take the same bytes, as a C compiler colours its stack: the
+#       locals of one `match` arm and those of the next, the results of fallible calls in
+#       different statements, the spills of unrelated temporaries. A temporary's life is
+#       the register allocator's own. A slot's is the span of every use of its address,
+#       drawn out over each loop it is used in, since its bytes carry a value around the
+#       back edge; a slot whose address is stored or returned keeps its home to itself.
+#
+#==============================================================================================
+
+import back.ir.cfg
+import back.ir.ir
+import back.native.regalloc
+import memory
+
+# mark: Lives =================================================================================
+
+## When a slot or temporary's value lives: doubled positions from `low` up to `high`
+## (one past), as `regalloc.Lives` counts them; `low == unused` for one never used.
+pub struct Span:
+    ## The first position the value lives at, `unused` or `pinned`.
+    pub var low: u32
+    ## One past the last position it lives at.
+    pub var high: u32
+
+## A span nothing is in.
+pub let unused: u32 = 0xFFFFFFFF
+
+## A home only its own value may use, the whole function long.
+pub let pinned: u32 = 0xFFFFFFFE
+
+## The spans of every temporary: the hull of its ranges.
+pub func temp_spans(f: ir.Function*, lives: const regalloc.Lives*) -> Span[]!:
+    let n = f.temps.count
+    let spans = try alloc Span[n + 1]
+    for t in 0..<n + 1:
+        spans[t] = Span(low = unused, high = 0)
+    for t in 1..<n + 1:
+        let end = lives.life_end(u32(t))
+        if end != 0:
+            # one past the instruction that last reads it, so no instruction both reads it
+            # and writes another value to the same home
+            spans[t] = Span(low = lives.life_start(u32(t)), high = end + 2)
+    return spans
+
+## The spans of every slot: its address's uses, over the loops they are in; `pinned` for a
+## slot whose address escapes into memory or out of the function, or reaches a temporary
+## a copy defines (a loop's carried value, used before it is written). One pass forwards.
+pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
+    let ns = f.slots.count
+    let spans = try alloc Span[ns + 1]
+    for s in 0..<ns + 1:
+        spans[s] = Span(low = unused, high = 0)
+    for parameter in f.params.span():
+        spans[parameter.slot + 1].low = pinned
+    # 1 + the slot whose address a temporary holds or was computed from, 0 for none
+    let origin = try alloc u32[f.temps.count + 1]
+    defer free(origin)
+    for t in 0..<origin.length:
+        origin[t] = 0
+    var i: u32 = 0
+    while (usize)i < f.instrs.count:
+        let x = f.instrs.get((usize)i)
+        let at = 2 * i
+        let value = derived(x.a, origin)
+        let place = derived(x.b, origin)
+        # the address itself stored, returned or handed to asm: it may be used anywhere
+        if value != 0 and (is_store(x.op) or x.op == ir.Op.ret or x.op == ir.Op.asm_):
+            spans[value].low = pinned
+        if value != 0:
+            widen(spans, value, at)
+        if place != 0:
+            widen(spans, place, at)
+        var source = value if value != 0 else place
+        let (start, count) = ir.argument_range(f, x)
+        for k in 0..<count:
+            let argument = derived(f.args.get(start + k).value, origin)
+            if argument != 0:
+                if x.op == ir.Op.asm_:
+                    spans[argument].low = pinned
+                widen(spans, argument, at)
+                # a call may answer a pointer it was given (`memcpy` its destination)
+                if source != 0 and source != argument:
+                    spans[source].low = pinned
+                    spans[argument].low = pinned
+                source = argument
+        if x.op == ir.Op.call:
+            let call = f.calls.get(x.extra)
+            if call.has_result and call.result_size > 0:
+                widen(spans, call.result_slot + 1, at)
+        # what an address flows into, unless it is only read through
+        if x.dst != 0 and source != 0 and not is_load(x.op) and not ir.is_comparison(x.op):
+            if x.op == ir.Op.copy or origin[x.dst] != 0:
+                # a copy carries a value around a loop: its temporary may be read before
+                # this write, which a forward pass cannot see; a second writer likewise
+                spans[source].low = pinned
+                if origin[x.dst] != 0:
+                    spans[origin[x.dst]].low = pinned
+            origin[x.dst] = source
+        i += 1
+    try over_loops(g, spans)
+    return spans
+
+## A slot's value may cross a back edge: a span that meets a loop covers all of it. The
+## loops' extents are merged into disjoint runs first, so each slot is widened once.
+func over_loops(g: const cfg.Graph*, spans: Span[]) -> !:
+    var lows = try alloc u32[g.blocks.count + 1]
+    defer free(lows)
+    var highs = try alloc u32[g.blocks.count + 1]
+    defer free(highs)
+    var n: usize = 0
+    for b in g.blocks.span():
+        for successor in [b.succ1, b.succ2]:
+            if successor == cfg.none_block:
+                continue
+            let head = g.blocks.get((usize)successor).start
+            if head <= b.start and n < lows.length:
+                lows[n] = 2 * head
+                highs[n] = 2 * b.end
+                n += 1
+    if n == 0:
+        return
+    # sort by start, then merge overlapping extents
+    var k: usize = 1
+    while k < n:
+        let low = lows[k]
+        let high = highs[k]
+        var j = k
+        while j > 0 and lows[j - 1] > low:
+            lows[j] = lows[j - 1]
+            highs[j] = highs[j - 1]
+            j -= 1
+        lows[j] = low
+        highs[j] = high
+        k += 1
+    var runs: usize = 0
+    for r in 0..<n:
+        if runs > 0 and lows[r] <= highs[runs - 1]:
+            if highs[r] > highs[runs - 1]:
+                highs[runs - 1] = highs[r]
+        else:
+            lows[runs] = lows[r]
+            highs[runs] = highs[r]
+            runs += 1
+    for s in 1..<spans.length:
+        let span = spans[s]
+        if span.low >= pinned:
+            continue
+        var low = span.low
+        var high = span.high
+        for r in 0..<runs:
+            if lows[r] < high and highs[r] > low:
+                low = lows[r] if lows[r] < low else low
+                high = highs[r] if highs[r] > high else high
+        spans[s] = Span(low = low, high = high)
+
+## Take in position `at` (an instruction's reads and its result) for slot `k`, 1-based.
+func widen(spans: Span[], k: u32, at: u32):
+    let span = spans[k]
+    if span.low == pinned:
+        return
+    spans[k] = Span(low = at if span.low == unused or at < span.low else span.low, high = at + 2 if at + 2 > span.high else span.high)
+
+## The slot, 1-based, an operand holds the address of (directly or computed from), or 0.
+func derived(r: ir.Ref, origin: u32[]) -> u32:
+    if r.kind == ir.RefKind.slot:
+        return r.index + 1
+    if r.kind == ir.RefKind.temp and (usize)r.index < origin.length:
+        return origin[r.index]
+    return 0
+
+func is_load(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
+
+func is_store(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+# mark: Packing ===============================================================================
+
+## Homes handed out below a frame offset: each item the lowest-placed home of its exact size
+## and alignment whose last value has died, or a new one.
+pub struct Packer:
+    var offset: u64
+    var sizes: u64[]
+    var aligns: u64[]
+    var homes: u64[]
+    var free_at: u32[]
+    var count: usize
+
+    ## An empty packer starting at `offset`, with room for `capacity` homes.
+    pub static func at(offset: u64, capacity: usize) -> Packer!:
+        let room = capacity if capacity > 0 else 1
+        return Packer(offset = offset, sizes = try alloc u64[room], aligns = try alloc u64[room], homes = try alloc u64[room], free_at = try alloc u32[room], count = 0)
+
+    ## The home for a value of `size` bytes at `align`, living over `span`.
+    pub mutating func home(size: u64, align: u64, span: Span) -> u64:
+        if span.low < pinned:
+            for h in 0..<self.count:
+                if self.sizes[h] == size and self.aligns[h] == align and self.free_at[h] != pinned and self.free_at[h] <= span.low:
+                    self.free_at[h] = span.high
+                    return self.homes[h]
+        self.offset = round_up(self.offset + size, align)
+        let h = self.count
+        self.sizes[h] = size
+        self.aligns[h] = align
+        self.homes[h] = self.offset
+        self.free_at[h] = pinned if span.low >= pinned else span.high
+        self.count += 1
+        return self.offset
+
+    ## The lowest offset handed out so far.
+    pub func end() -> u64:
+        return self.offset
+
+    ## Give back the packer's storage.
+    pub mutating func release():
+        free(self.sizes)
+        free(self.aligns)
+        free(self.homes)
+        free(self.free_at)
+
+func round_up(value: u64, align: u64) -> u64:
+    return (value + align - 1) // align * align
+
+## The indices 1..<`length` in their own order, for a build that shares no homes.
+pub func in_order(length: usize) -> u32[]!:
+    let n = length - 1 if length > 0 else 0
+    let order = try alloc u32[n]
+    for k in 0..<n:
+        order[k] = u32(k + 1)
+    return order
+
+## The indices 1..<spans.length ordered by when their values begin, so a packer meets them
+## in order and reuses the homes of those already over; never-used ones last.
+pub func by_start(spans: const Span[]) -> u32[]!:
+    let n = spans.length - 1 if spans.length > 0 else 0
+    let order = try alloc u32[n]
+    for k in 0..<n:
+        order[k] = u32(k + 1)
+    # shell sort: a few thousand values, no allocation
+    var gap = n // 2
+    while gap > 0:
+        var i = gap
+        while i < n:
+            let item = order[i]
+            var j = i
+            while j >= gap and spans[order[j - gap]].low > spans[item].low:
+                order[j] = order[j - gap]
+                j -= gap
+            order[j] = item
+            i += 1
+        gap //= 2
+    return order

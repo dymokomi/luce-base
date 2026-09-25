@@ -1,0 +1,58 @@
+#==============================================================================================
+#
+#   frame_sharing - Frame homes shared only by values whose lives never meet
+#
+#   DESCRIPTION:
+#       Locals of different `match` arms share bytes in the native frame; a slot whose
+#       address a call hands back, a loop carries, or memory keeps must keep its own. Each
+#       case here reads a value after another could have reused its home.
+#
+#==============================================================================================
+
+struct Pair:
+    var a: i64
+    var b: i64
+
+## The pointer it was given, as `memcpy` answers its destination.
+func same(p: Pair*) -> Pair*:
+    return p
+
+func through_call(x: i64) -> i64:
+    var first = Pair(a = x, b = x + 1)
+    let kept = same(&first)
+    var second = Pair(a = 100, b = 200)
+    second.a += kept.a
+    return kept.a + kept.b + second.a
+
+func in_arms(k: i32) -> i64:
+    match k:
+        0:
+            var p = Pair(a = 1, b = 2)
+            return p.a + p.b
+        1:
+            var q = Pair(a = 10, b = 20)
+            return q.a * q.b
+        2:
+            var r: i64[4] = [1, 2, 3, 4]
+            return r[0] + r[3]
+        _:
+            var s = Pair(a = 7, b = 7)
+            return s.a - s.b
+
+func carried(n: i32) -> i64:
+    var cells: Pair[4]
+    var cursor = &cells[0]
+    var total: i64 = 0
+    var i: i32 = 0
+    while i < n:
+        cursor.a = (i64)i
+        var scratch = Pair(a = 1000, b = 1000)
+        total += cursor.a + scratch.a
+        cursor = &cells[(usize)(i % 4)]
+        i += 1
+    return total
+
+test "a home is shared only between values that never meet":
+    assert(through_call(5) == 5 + 6 + 105)
+    assert(in_arms(0) == 3 and in_arms(1) == 200 and in_arms(2) == 5 and in_arms(3) == 0)
+    assert(carried(6) == 15 + 6000)
