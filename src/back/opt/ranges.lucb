@@ -35,6 +35,14 @@ struct Product:
     var right: ir.Ref
     var value: ir.Ref
 
+## One block of the dominator-tree walk: the block, how many of its children were
+## visited, and the facts' and products' counts before the block added its own.
+struct RangeVisit:
+    var block: u32
+    var child: usize
+    var mark: usize
+    var product_mark: usize
+
 struct Search:
     var f: ir.Function*
     var g: cfg.Graph*
@@ -184,9 +192,31 @@ struct Search:
                     try self.add(Relation.equal, comparison.cls, a, b)
             _: discard(0)
 
-    mutating func visit(index: u32) -> !:
-        let mark = self.facts.count
-        let product_mark = self.products.count
+    ## Walk the dominator tree from block `root`: each block's facts hold in the blocks it
+    ## dominates and are dropped after them. An explicit stack, not recursion, as in
+    ## `gvn.number`: a long function is a long chain of blocks.
+    mutating func visit(root: u32) -> !:
+        var stack = try list.List[RangeVisit].create(64)
+        defer stack.destroy()
+        try stack.push(RangeVisit(block = root, child = 0, mark = self.facts.count, product_mark = self.products.count))
+        try self.visit_block(root)
+        while stack.count > 0:
+            var top = stack.get(stack.count - 1)
+            let block = self.g.blocks.get(top.block)
+            if top.child < block.children.count:
+                let child = block.children.get(top.child)
+                top.child += 1
+                stack.set(stack.count - 1, top)
+                try stack.push(RangeVisit(block = child, child = 0, mark = self.facts.count, product_mark = self.products.count))
+                try self.visit_block(child)
+            else:
+                self.facts.count = top.mark
+                self.products.count = top.product_mark
+                stack.count -= 1
+
+    ## Take in block `index`'s incoming facts and its instructions' own, and drop the checks
+    ## the facts make redundant.
+    mutating func visit_block(index: u32) -> !:
         let block = self.g.blocks.get(index)
         try self.incoming(block)
         var at = block.start
@@ -224,10 +254,6 @@ struct Search:
             if checked_product:
                 try self.products.push(Product(cls = instruction.cls, left = instruction.a, right = instruction.b, value = ir.temp_ref(instruction.dst)))
             at += 1
-        for child in block.children.span():
-            try self.visit(child)
-        self.facts.count = mark
-        self.products.count = product_mark
 
 # mark: The pass ==============================================================================
 

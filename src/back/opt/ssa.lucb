@@ -725,8 +725,43 @@ func describe_phi(f: ir.Function*, t: u32, out: list.List[ir.Instr]*, origin: li
                 try origin.push(0)
         i += 1
 
+## One block of the renaming walk: the block, how many of its dominator-tree children
+## were visited, and the undo log's length before the block's names were pushed.
+struct RenameVisit:
+    var block: u32
+    var child: usize
+    var mark: usize
+
+## Rename the temporaries of block `b` and those it dominates, each block seeing the names
+## its dominators left, then taking its own back. An explicit stack, not recursion, as in
+## `gvn.number`: a long function is a long chain of blocks, and a frame per block
+## overflowed the compiler's stack.
 func rename(f: ir.Function*, g: cfg.Graph*, b: u32, renamed: bool[], current: u32[], log: list.List[Undo]*, origin: list.List[u32]*) -> !:
-    let mark = log.count
+    var stack = try list.List[RenameVisit].create(64)
+    defer stack.destroy()
+    let root_mark = log.count
+    try rename_block(f, g, b, renamed, current, log, origin)
+    try stack.push(RenameVisit(block = b, child = 0, mark = root_mark))
+    while stack.count > 0:
+        var top = stack.get(stack.count - 1)
+        let block = g.blocks.get((usize)top.block)
+        if top.child < block.children.count:
+            let child = block.children.get(top.child)
+            top.child += 1
+            stack.set(stack.count - 1, top)
+            let mark = log.count
+            try rename_block(f, g, child, renamed, current, log, origin)
+            try stack.push(RenameVisit(block = child, child = 0, mark = mark))
+        else:
+            while log.count > top.mark:
+                let undo = log.get(log.count - 1)
+                log.count -= 1
+                current[(usize)undo.temp] = undo.previous
+            stack.count -= 1
+
+## Rename one block's temporaries under the current names, pushing each new name on the
+## undo log, and hand its names to its successors' phis.
+func rename_block(f: ir.Function*, g: cfg.Graph*, b: u32, renamed: bool[], current: u32[], log: list.List[Undo]*, origin: list.List[u32]*) -> !:
     let block = g.blocks.get((usize)b)
     var i = block.start
     while i < block.end:
@@ -753,14 +788,6 @@ func rename(f: ir.Function*, g: cfg.Graph*, b: u32, renamed: bool[], current: u3
     try fill_phis(f, g, block.succ1, block.label, current, renamed, origin)
     if block.succ2 != block.succ1:
         try fill_phis(f, g, block.succ2, block.label, current, renamed, origin)
-    var c: usize = 0
-    while c < block.children.count:
-        try rename(f, g, block.children.get(c), renamed, current, log, origin)
-        c += 1
-    while log.count > mark:
-        let undo = log.get(log.count - 1)
-        log.count -= 1
-        current[(usize)undo.temp] = undo.previous
 
 func fill_phis(f: ir.Function*, g: cfg.Graph*, s: u32, from_label: u32, current: u32[], renamed: bool[], origin: list.List[u32]*) -> !:
     if s == cfg.none_block:

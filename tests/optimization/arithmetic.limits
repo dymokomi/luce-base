@@ -12,9 +12,11 @@
 # move; the generators read operands and addresses where they live.
 # 0.17.4: r8, r9, rsi and rdi joined the x86-64 SysV pool the same way; the x86-64 counts
 # lowered to what the passes reach.
-ir 28
+# 0.27: small leaf functions are expanded again once optimised, and the stores, blocks
+# and jumps that leaves behind are tidied: ir 28→25, calls 7→5, asm-arm64 112→99.
+ir 25
 loads 2
 stores 3
-calls 7
-asm-arm64 112
+calls 5
+asm-arm64 99
 asm-x86_64 106

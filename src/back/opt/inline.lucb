@@ -45,11 +45,42 @@ pub func expand(program: ir.Unit*) -> !:
     let order = try post_order(program, &index)
     defer free(order)
     for fi in order:
-        try expand_in(program, &index, &census, fi)
+        discard(try expand_in(program, &index, &census, fi))
     try drop_expanded(program, &index, &census)
     # Keep the inliner's call-count heuristics independent of optional standard
     # modules. Pruning first could turn shared helpers into larger caller bodies.
     try drop_unused_standard(program)
+
+## After the optimiser: expand the calls of leaf functions at most `limit` instructions
+## long as they now stand, the lowerer's scaffolding folded away (an accessor returning a
+## two-word struct lowers to some forty instructions and optimises to under twenty).
+## Answers which functions gained a body, for the optimiser to run over again; the
+## callees stay in the program.
+pub func expand_small(program: ir.Unit*, limit: usize) -> bool[]!:
+    var index = try Index.over(program)
+    defer index.release()
+    var census = try Census.over(program, &index)
+    defer census.release()
+    census.small = limit
+    census.once = 0
+    free(census.leaves)
+    census.leaves = try alloc bool[program.functions.count]
+    for fi in 0..<program.functions.count:
+        census.leaves[fi] = not calls_any(&program.functions.items[fi])
+    let changed = try alloc bool[program.functions.count]
+    clear_flags(changed)
+    let order = try post_order(program, &index)
+    defer free(order)
+    for fi in order:
+        changed[fi] = try expand_in(program, &index, &census, fi)
+    return changed
+
+## Tidy a function the second pass expanded into: drop the stores its expanded bodies'
+## parameters kept once the optimiser forwarded their loads, the blocks after an exit
+## that nothing names any more, and each jump to the label right after it.
+pub func tidy_expanded(f: ir.Function*) -> !:
+    try drop_unread_stores(f)
+    try drop_unreached(f)
 
 ## Retain standard functions reachable from application code, initializers,
 ## witness tables, assembly, and explicit retention attributes. User/package
@@ -336,10 +367,11 @@ func post_order(program: ir.Unit*, index: Index*) -> usize[]!:
 ## Rebuild function `fi`'s instruction list with its expandable calls opened out. The
 ## expansions of one callee in one caller share the callee's slots: an expansion's slots
 ## are dead past its exit, so the next expansion may have them.
-func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> !:
+## Expand the expandable calls of function `fi`; whether there were any.
+func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> bool!:
     var f = &program.functions.items[fi]
     if f.debug or not has_expandable_call(program, index, census, fi):
-        return
+        return false
     var out = Sink(instrs = try list.List[ir.Instr].create(f.instrs.count + 64))
     var bases = try alloc u32[program.functions.count + 1]
     defer free(bases)
@@ -361,6 +393,7 @@ func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> 
     f.instrs.destroy()
     f.instrs = out.instrs
     census.sizes[fi] = unknown
+    return true
 
 ## Whether any call of function `fi` can be expanded, so functions without one are left alone.
 func has_expandable_call(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> bool:
@@ -385,9 +418,11 @@ func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: us
     if info.variadic or (usize)info.args_count != g.params.count:
         return none
     let size = try_size(census, program, gi) else return none
-    if size <= small:
+    if census.leaves.length > 0 and not census.leaves[gi]:
+        return none
+    if size <= census.small:
         return gi
-    if size <= once and census.calls[gi] == 1 and not census.pinned[gi]:
+    if size <= census.once and census.calls[gi] == 1 and not census.pinned[gi]:
         return gi
     return none
 
@@ -496,10 +531,18 @@ struct Census:
     ## Each function's body size as last measured, `unknown` until it is; a function's size
     ## changes only when its own calls are expanded, which clears its entry.
     var sizes: u32[]
+    ## The most instructions a callee may have to be expanded at every call, and at its one
+    ## call (0: no such expansion).
+    var small: usize
+    var once: usize
+    ## For the second pass, which functions were leaves, calling nothing, when it began:
+    ## only those are expanded, so a caller that became a leaf by the pass's own
+    ## expansions is not opened out in turn. Empty for the first pass.
+    var leaves: bool[]
 
     static func over(program: ir.Unit*, index: Index*) -> Census!:
         let n = program.functions.count + 1
-        var c = Census(calls = try alloc u32[n], pinned = try alloc bool[n], expanded = try alloc bool[n], sizes = try alloc u32[n])
+        var c = Census(calls = try alloc u32[n], pinned = try alloc bool[n], expanded = try alloc bool[n], sizes = try alloc u32[n], small = small, once = once, leaves = try alloc bool[0])
         var z: usize = 0
         while z < n:
             c.calls[z] = 0
@@ -561,6 +604,7 @@ struct Census:
         return (usize)self.sizes[gi]
 
     func release():
+        free(self.leaves)
         free(self.calls)
         free(self.pinned)
         free(self.expanded)
@@ -862,3 +906,111 @@ func hash_text(text: str) -> u64:
     for byte in text.bytes:
         h = (h ^ (u64)byte) *% 0x100000001b3
     return h
+
+# mark: After the second pass =================================================================
+
+## Whether `g` calls anything: a leaf's body is all an expansion adds.
+func calls_any(g: ir.Function*) -> bool:
+    for n in g.instrs.span():
+        if n.op == ir.Op.call:
+            return true
+    return false
+
+## Drop the stores into slots nothing reads. A slot counts as unread when every use of it,
+## directly or through an address taken of it, is the place of a store.
+func drop_unread_stores(f: ir.Function*) -> !:
+    let ns = f.slots.count
+    if ns == 0:
+        return
+    # per temporary, 1 + the slot whose address it holds
+    let address_of = try alloc u32[f.temps.count + 1]
+    defer free(address_of)
+    for t in 0..<address_of.length:
+        address_of[t] = 0
+    let read = try alloc bool[ns]
+    defer free(read)
+    clear_flags(read)
+    for n in f.instrs.span():
+        if n.op == ir.Op.addr and n.a.kind == ir.RefKind.slot and n.dst != 0:
+            address_of[n.dst] = n.a.index + 1
+    for n in f.instrs.span():
+        if n.op == ir.Op.addr and n.a.kind == ir.RefKind.slot:
+            continue
+        mark_read(n.a, address_of, read)
+        if not is_store_op(n.op):
+            mark_read(n.b, address_of, read)
+        let (start, count) = ir.argument_range(f, n)
+        for k in 0..<count:
+            mark_read(f.args.get(start + k).value, address_of, read)
+        if n.op == ir.Op.call:
+            let info = f.calls.get(n.extra)
+            if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+                read[info.result_slot] = true
+    for parameter in f.params.span():
+        read[parameter.slot] = true
+    var kept = try list.List[ir.Instr].create(f.instrs.count)
+    for n in f.instrs.span():
+        if is_store_op(n.op):
+            let k = slot_named(n.b, address_of)
+            if k != 0 and not read[(usize)k - 1]:
+                continue
+        try kept.push(n)
+    f.instrs.destroy()
+    f.instrs = kept
+
+## Note the slot an operand names, directly or through an address of it, as read.
+func mark_read(r: ir.Ref, address_of: u32[], read: bool[]):
+    let k = slot_named(r, address_of)
+    if k != 0:
+        read[(usize)k - 1] = true
+
+## The slot, 1-based, an operand names or holds the address of; 0 for none.
+func slot_named(r: ir.Ref, address_of: u32[]) -> u32:
+    if r.kind == ir.RefKind.slot:
+        return r.index + 1
+    if r.kind == ir.RefKind.temp and (usize)r.index < address_of.length:
+        return address_of[r.index]
+    return 0
+
+## Whether `op` stores a register to memory: `storeb` through `storehf`.
+func is_store_op(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+## Drop each block that follows an unconditional exit and whose label no jump names, then
+## each jump to the label that follows it. Only `jmp` and `jnz` name labels once the phis
+## are gone.
+func drop_unreached(f: ir.Function*) -> !:
+    let named = try alloc bool[(usize)f.labels + 1]
+    defer free(named)
+    clear_flags(named)
+    for n in f.instrs.span():
+        if n.op == ir.Op.jmp and (usize)n.extra < named.length:
+            named[n.extra] = true
+        elif n.op == ir.Op.jnz:
+            if (usize)n.extra < named.length:
+                named[n.extra] = true
+            if (usize)n.extra2 < named.length:
+                named[n.extra2] = true
+    var kept = try list.List[ir.Instr].create(f.instrs.count)
+    var skipping = false
+    var exited = false
+    for n in f.instrs.span():
+        if n.op == ir.Op.label:
+            skipping = exited and (usize)n.extra < named.length and not named[n.extra]
+            exited = false
+        if skipping:
+            continue
+        exited = n.op == ir.Op.jmp or n.op == ir.Op.ret or n.op == ir.Op.trap_
+        try kept.push(n)
+    f.instrs.destroy()
+    f.instrs = kept
+    var tidied = try list.List[ir.Instr].create(f.instrs.count)
+    var ix: usize = 0
+    while ix < f.instrs.count:
+        let n = f.instrs.get(ix)
+        ix += 1
+        if n.op == ir.Op.jmp and ix < f.instrs.count and f.instrs.get(ix).op == ir.Op.label and f.instrs.get(ix).extra == n.extra:
+            continue
+        try tidied.push(n)
+    f.instrs.destroy()
+    f.instrs = tidied

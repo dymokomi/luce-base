@@ -475,7 +475,15 @@ to four calls each grew its code by a tenth and made it no faster, because
 values still pass through slots between an expanded body and its caller and
 the optimiser forwards them within one block only. A loop over a struct's
 accessors runs a third faster; the compiler's own build, which is not
-call-bound, does not change. Then `back/native/frame.lucb` shapes each function for
+call-bound, does not change. A second, narrower pass runs after the optimiser
+(`inline.expand_small`, at `--opt 2` and above): a leaf, a function that calls nothing,
+of at most thirty-two instructions as optimised is expanded at every call, and the
+callers that gained bodies are optimised again, then tidied of the parameter stores,
+unreached blocks, and jumps to the next label the expansion leaves. A value maker such as
+luce-js's `js_new_int32` lowers past twenty-four instructions and optimises to under
+twenty: only this pass can open it out. Only functions that were leaves when the pass
+began qualify, so a caller that became a leaf by the pass's own expansions is not opened
+out in turn. Then `back/native/frame.lucb` shapes each function for
 its generator. `plan` measures how many temporaries of each class are live at
 once and splits the callee-saved registers accordingly:
 the temporaries keep up to four of each class, the most-used frame slots take

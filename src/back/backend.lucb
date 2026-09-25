@@ -101,7 +101,16 @@ pub struct NativeBackend: Backend:
         try note(&at, 0)
         try inline.expand(&self.lowerer.program_unit)
         try note(&at, 1)
-        try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count)
+        try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, none)
+        # small leaf functions measured as optimised, expanded where they are called; the
+        # callers that gained bodies are optimised again and tidied
+        if not self.debug and self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
+            let changed = try inline.expand_small(&self.lowerer.program_unit, optimised_small)
+            defer free(changed)
+            try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed)
+            for fi in 0..<changed.length:
+                if changed[fi]:
+                    try inline.tidy_expanded(&self.lowerer.program_unit.functions.items[fi])
         if not self.debug:
             if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
                 try opt.clean(&self.lowerer.program_unit)
@@ -160,11 +169,20 @@ func print_report() -> !:
 ## into single-assignment form, the passes, then the phis back into copies for the
 ## generator. A naked function is its assembly; a function under `--debug` keeps its
 ## locals in their slots, where the frame descriptor says they are.
-func optimise_functions(program: ir.Unit*, level: u32, count: u32) -> !:
+## The most instructions an optimised leaf function may have to be expanded at every
+## call by the second inlining pass (`inline.expand_small`): js_dup_value and its kin in
+## luce-js optimise to 25 to 30.
+let optimised_small: usize = 32
+
+## Optimise every function of `program`, or only those `only` marks.
+func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?) -> !:
     var i: usize = 0
     while i < program.functions.count and i < (usize)count:
         let f = &program.functions.items[i]
         i += 1
+        if let marked = only:
+            if i - 1 >= marked.length or not marked[i - 1]:
+                continue
         if f.naked or f.debug or f.instrs.count == 0 or level == 0:
             continue
         # the passes' working memory is the heap's, returned as each pass finishes; the
