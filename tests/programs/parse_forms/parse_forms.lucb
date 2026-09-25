@@ -1,0 +1,54 @@
+#==============================================================================================
+#
+#   parse_forms - Casts to parenthesised pointer types, returns in inline handlers, extern
+#                 functions in constant tables
+#
+#   DESCRIPTION:
+#       `(const (T*)*)p` is a cast (§5.3, §7.5); a handler written inside parentheses may end
+#       with a bare `return` (§11.4); a constant table may hold an extern function's address
+#       (§6.4).
+#
+#==============================================================================================
+
+let failed: ErrorCode = ErrorCode.package(1)
+
+extern func c_fabs as "fabs"(x: f64) -> f64
+
+let table: (func(f64) -> f64)[1] = [c_fabs]
+
+struct Node:
+    var n: i32
+
+func first_n(p: const void*) -> i32:
+    let pp: const (Node*)* = (const (Node*)*)p
+    return (*pp).n
+
+func fails() -> i32!:
+    error(failed, "no")
+
+var reached: i32 = 0
+
+func caller():
+    discard(fails() catch failure: return)
+    reached = 1
+
+test "a cast to a pointer to a read-only pointer":
+    var a = Node(n = 7)
+    var nodes: Node*[1] = [&a]
+    assert(first_n(&nodes[0]) == 7)
+
+test "a bare return ends an inline handler":
+    caller()
+    assert(reached == 0)
+
+test "an extern function's address in a constant table":
+    let f = table[0]
+    assert(f(-2.0) == 2.0)
+
+func sum_twice(values: i64[], index: usize) -> i64:
+    return (((values[index - 1] + values[index]))) * 2
+
+test "doubled parentheses around an expression stay an expression":
+    var values: i64[3] = [1, 2, 3]
+    assert(sum_twice(values, 1) == 6)
+    assert(((values[0])) - 1 == 0)

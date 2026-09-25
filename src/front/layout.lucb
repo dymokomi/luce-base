@@ -146,6 +146,32 @@ pub struct Formatter:
                 return false
         return true
 
+    ## Whether a comment not yet written begins inside the source's `[start, end)`.
+    func comment_within(start: usize, end: usize) -> bool:
+        var k = self.written
+        while k < self.comment_count:
+            let at = self.comments[k * 2]
+            if at >= end:
+                return false
+            if at >= start:
+                return true
+            k += 1
+        return false
+
+    ## The source's own text of `[start, end)`, as written: an array literal whose rows carry
+    ## comments keeps the rows, the comments and the blank lines its author gave it. The
+    ## comments inside count as written.
+    mutating func verbatim(start: usize, end: usize) -> !:
+        let text = (str)self.src.bytes[start..<end]
+        try self.put(text)
+        var last = text.length
+        while last > 0 and text.bytes[last - 1] != '\n':
+            last -= 1
+        if last > 0:
+            self.column = text.length - last
+        while self.written < self.comment_count and self.comments[self.written * 2] < end:
+            self.written += 1
+
     ## Whether an empty line lies between the previous line of code or comment and `offset`.
     func blank_before(offset: usize) -> bool:
         var i = offset
@@ -963,9 +989,12 @@ pub struct Formatter:
                 try self.list(e.body)
                 try self.put(")")
             .array_lit:
-                try self.put("[")
-                try self.list(e.body)
-                try self.put("]")
+                if self.comment_within(e.start, e.end):
+                    try self.verbatim(e.start, e.end)
+                else:
+                    try self.put("[")
+                    try self.list(e.body)
+                    try self.put("]")
             .lambda:
                 try self.put("(")
                 try self.params(e.right, false)

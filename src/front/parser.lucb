@@ -891,7 +891,8 @@ pub struct Parser:
         if self.at_kw("return"):
             let n = try self.node(ast.Kind.return_, "")
             discard(self.take())
-            if not self.at(token.Kind.newline) and not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            # a bare `return` may end a handler written inside parentheses (§11.4)
+            if not self.at(token.Kind.newline) and not self.at(token.Kind.dedent) and not self.at(token.Kind.eof) and not self.at_op(")"):
                 n.left = try self.parse_expression()
             try self.expect_newline()
             return n
@@ -1266,15 +1267,38 @@ pub struct Parser:
         if t.kind == token.Kind.operator and self.text_of(t) == "@":
             i += 1
             t = self.peek(i)
+        var qualified = false
         while t.kind == token.Kind.keyword and (self.text_of(t) == "const" or self.text_of(t) == "volatile"):
+            qualified = true
             i += 1
             t = self.peek(i)
-        if t.kind != token.Kind.name:
-            return false
-        let head = self.text_of(t)
-        var typed = self.is_type_word(head)
-        var bare = not typed  # a lowercase name: an alias, if anything
-        i += 1
+        var head = ""
+        var typed = false
+        var bare = false
+        if qualified and t.kind == token.Kind.operator and self.text_of(t) == "(":
+            # `(const (T*)*)p`: a parenthesised pointer type after a qualifier, C's
+            # `T *const *` (§5.3); `((x))` alone is a grouped expression
+            var depth: usize = 1
+            i += 1
+            while depth > 0:
+                let inner = self.peek(i)
+                if inner.kind == token.Kind.eof:
+                    return false
+                if inner.kind == token.Kind.operator:
+                    let text = self.text_of(inner)
+                    if text == "(":
+                        depth += 1
+                    elif text == ")":
+                        depth -= 1
+                i += 1
+            typed = true
+        else:
+            if t.kind != token.Kind.name:
+                return false
+            head = self.text_of(t)
+            typed = self.is_type_word(head)
+            bare = not typed  # a lowercase name: an alias, if anything
+            i += 1
         t = self.peek(i)
         while t.kind == token.Kind.operator:
             let s = self.text_of(t)
@@ -1599,7 +1623,10 @@ pub struct Parser:
                     ast.append(&a.body, &tail, e)
                     if not self.eat_op(","):
                         break
+                # the literal's extent, so the formatter can keep a commented one as written
+                let close = self.cur()
                 try self.expect_op("]")
+                a.end = close.end
                 return a
             if s == "(":
                 if self.looks_like_lambda():

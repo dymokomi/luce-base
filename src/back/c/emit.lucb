@@ -2949,8 +2949,13 @@ pub struct Emitter:
             try self.value(r, types.bool_id)
             try self.put(")")
             return
-        let lt = try self.ty(l)
-        let rt = try self.ty(r)
+        # a plain read of an `@T` operand is a load of the `T` (§15.1)
+        var lt = try self.ty(l)
+        if self.is_atomic(lt):
+            lt = self.elem(lt)
+        var rt = try self.ty(r)
+        if self.is_atomic(rt):
+            rt = self.elem(rt)
         let t = try self.ty(e)
         # C arithmetic operators and helper-call arguments have no evaluation
         # order. Snapshot both operands before an effect can change either value.
@@ -3531,6 +3536,15 @@ pub struct Emitter:
             try self.put("((")
             try self.expr(src)
             try self.put(") != 0)")
+            return
+        # a bool is 0 or 1, which every integer holds: a plain cast, which also keeps a
+        # constant such as `(i32)platform.macos` a compile-time constant for a global
+        if st == types.bool_id and d_word:
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")(")
+            try self.expr(src)
+            try self.put("))")
             return
         if s_word and d_word:
             let fb = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else self.bits(st))

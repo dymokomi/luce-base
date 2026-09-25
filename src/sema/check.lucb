@@ -415,7 +415,7 @@ pub struct Checker:
                 return self.all_constant(e.body)
             .name:
                 let d = e.resolved else return false
-                return (d.kind == ast.Kind.constant and not ast.is_linked(d)) or d.kind == ast.Kind.func_ or d.kind == ast.Kind.enum_case
+                return (d.kind == ast.Kind.constant and not ast.is_linked(d)) or d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func or d.kind == ast.Kind.enum_case
             .member:
                 let owner = e.left else return false
                 if owner.kind == ast.Kind.name and owner.text == "luce":
@@ -3360,7 +3360,10 @@ pub struct Checker:
         let saved_effect = self.expression_effect
         let before = self.effect_count
         self.expression_effect = true
-        let lt = try self.check_expr(l, types.none_id)
+        # a failure in the operand must not leave the state set for the rest of the module
+        let lt = self.check_expr(l, types.none_id) catch failure:
+            self.expression_effect = saved_effect
+            error(failure.code, failure.message)
         self.expression_effect = saved_effect
         if self.effect_count == before:
             return try self.fail(l, "`catch` needs a fallible value")
@@ -3376,7 +3379,11 @@ pub struct Checker:
         let saved_result = self.catch_result
         self.in_catch = true
         self.catch_result = result
-        try self.check_block(body)
+        self.check_block(body) catch failure:
+            self.in_catch = saved_in
+            self.catch_result = saved_result
+            self.pop_scope()
+            error(failure.code, failure.message)
         self.in_catch = saved_in
         self.catch_result = saved_result
         self.pop_scope()

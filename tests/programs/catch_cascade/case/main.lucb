@@ -1,0 +1,21 @@
+# One type error inside a `catch` operand is reported alone: the checker's handler state
+# is restored, so a correct `else` fallback on a fallible call later is not refused.
+
+let failed: ErrorCode = ErrorCode.package(1)
+
+func put(c: u32) -> !:
+    if c > 100: error(failed, "no")
+
+func f(x: i32) -> bool!:
+    if x > 1: error(failed, "no")
+    return true
+
+func g() -> !:
+    put('(') catch: recover ()
+
+func h(x: i32) -> i32:
+    discard(f(x) else false)
+    return 1
+
+func main(arguments: str[]) -> i32:
+    return h(3)

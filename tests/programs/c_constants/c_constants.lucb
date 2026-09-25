@@ -1,0 +1,30 @@
+#==============================================================================================
+#
+#   c_constants - Top-level constants the C backend keeps constant
+#
+#   DESCRIPTION:
+#       A global built from `sizeof` in a conditional, or from a `bool` constant cast to an
+#       integer, stays a C constant expression; an `@T` read inside arithmetic is a load of
+#       the `T` (§6.4, §15.1).
+#
+#==============================================================================================
+
+import platform
+
+let bits: usize = 3 if sizeof(usize) >= 8 else 2
+let mask: usize = (1 << bits) - 1
+let is_mac: i32 = (i32)platform.macos
+let flags: i32 = is_mac * 8 + (i32)platform.linux * 1024
+
+var pending: @u64
+
+test "constants from sizeof and platform booleans":
+    assert(mask == 7 or mask == 3)
+    assert(is_mac == 0 or is_mac == 1)
+    assert(flags >= 0)
+
+test "an atomic read in arithmetic":
+    let bit: u64 = 4
+    pending.store(6)
+    assert((pending & bit) != 0)
+    assert((pending | 1) == 7)

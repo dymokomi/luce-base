@@ -57,3 +57,12 @@ test "adds":
 test "wrapped assert":
     assert((f(1,
               2) catch _: recover 0) == 3)
+
+# an array whose rows carry comments keeps its layout
+let grouped: i32[5] = [
+    # the first group
+    1, 2,
+
+    # the second group
+    3, 4, 5,
+]

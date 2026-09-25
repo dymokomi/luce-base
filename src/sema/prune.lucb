@@ -96,7 +96,7 @@ pub func statement_leaves(s: ast.Node*) -> bool:
             return any
         .while_:
             let c = s.left else return false
-            return c.kind == ast.Kind.literal and c.text == "true" and not contains_break(s.body)
+            return c.kind == ast.Kind.literal and c.text == "true" and not breaks_out(s.body, s.text, false, s.body)
         .with_:
             let body = s.body else return false
             return always_leaves(body)
@@ -122,6 +122,34 @@ pub func contains_break(node: ast.Node*?) -> bool:
         if n.kind == ast.Kind.break_:
             return true
         if contains_break(n.left) or contains_break(n.right) or contains_break(n.body) or contains_break(n.ty):
+            return true
+        cursor = n.next
+    return false
+
+## Whether a `break` under `node`, the body of the loop labeled `label` ("" for none),
+## leaves that loop (§8.5): an unlabeled one not inside a nested loop (`nested`), or a
+## labeled one unless it names a loop nested inside `root`, the body.
+func breaks_out(node: ast.Node*?, label: str, nested: bool, root: ast.Node*?) -> bool:
+    var cursor = node
+    while let n = cursor:
+        if n.kind == ast.Kind.break_:
+            if n.text.length == 0 and not nested:
+                return true
+            if n.text.length > 0 and (n.text == label or not names_loop(root, n.text)):
+                return true
+        let loop = n.kind == ast.Kind.while_ or n.kind == ast.Kind.for_
+        if breaks_out(n.left, label, nested, root) or breaks_out(n.right, label, nested, root) or breaks_out(n.body, label, nested or loop, root) or breaks_out(n.ty, label, nested, root):
+            return true
+        cursor = n.next
+    return false
+
+## Whether a loop labeled `name` lies under `node`.
+func names_loop(node: ast.Node*?, name: str) -> bool:
+    var cursor = node
+    while let n = cursor:
+        if (n.kind == ast.Kind.while_ or n.kind == ast.Kind.for_) and n.text == name:
+            return true
+        if names_loop(n.left, name) or names_loop(n.right, name) or names_loop(n.body, name) or names_loop(n.ty, name):
             return true
         cursor = n.next
     return false
@@ -166,7 +194,7 @@ pub func certainly_leaves(s: ast.Node*) -> bool:
             return total
         .while_:
             let c = s.left else return false
-            return c.kind == ast.Kind.literal and c.text == "true" and not contains_break(s.body)
+            return c.kind == ast.Kind.literal and c.text == "true" and not breaks_out(s.body, s.text, false, s.body)
         .with_:
             let body = s.body else return false
             return certainly_leaves_block(body)

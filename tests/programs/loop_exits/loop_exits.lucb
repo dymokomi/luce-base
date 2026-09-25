@@ -1,0 +1,36 @@
+#==============================================================================================
+#
+#   loop_exits - Which `break` leaves an endless loop
+#
+#   DESCRIPTION:
+#       A `while true` ends only by a `break` that leaves it: one in a nested loop leaves the
+#       nested loop, and a labeled one leaves the loop it names (§8.5). A function whose
+#       endless loop no `break` leaves needs no `return` after it.
+#
+#==============================================================================================
+
+func first_past(n: i32) -> i32:
+    var i: i32 = 0
+    while true:
+        i += 1
+        if i > n:
+            return i
+        while true:
+            break
+        for k in 0..<3:
+            if k == 1:
+                break
+
+func labeled(n: i32) -> i32:
+    var i: i32 = 0
+    outer: while true:
+        i += 1
+        inner: while true:
+            if i > n:
+                break outer
+            break inner
+    return i
+
+test "an inner break does not end the outer loop":
+    assert(first_past(3) == 4)
+    assert(labeled(2) == 3)

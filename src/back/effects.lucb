@@ -10,12 +10,19 @@
 
 import front.ast
 
-## Whether evaluating `e` may have an effect another operand could observe (§7.1): a call,
-## a `try`, a `catch`, an allocation, or a formatted string with such a field. A lambda's
+## Whether evaluating `e` may have an effect another operand could observe (§7.1): a call
+## (not `sizeof` and its kin), a `try`, a `catch`, an allocation, or a formatted string
+## with such a field. A lambda's
 ## body runs later, not here.
 pub func may_have_effect(e: ast.Node*) -> bool:
     match e.kind:
-        .call, .catch_, .new_, .alloc_, .match_expr, .propagate:
+        .call:
+            # `sizeof`, `alignof` and `offsetof` are constants, not calls that run
+            if let callee = e.left:
+                if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof" or callee.text == "offsetof"):
+                    return false
+            return true
+        .catch_, .new_, .alloc_, .match_expr, .propagate:
             return true
         .unary:
             if e.text == "try":
