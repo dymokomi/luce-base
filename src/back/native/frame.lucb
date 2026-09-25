@@ -20,6 +20,7 @@
 import back.ir.cfg
 import back.ir.ir
 import back.native.regalloc
+import back.native.remat
 import back.native.sharing
 import memory
 import support.list
@@ -70,6 +71,9 @@ pub struct Frame:
     pub var slot_regs: list.List[u8]
     ## Per temporary, 1 + the slot whose address it holds, or 0.
     pub var temp_slot: list.List[u32]
+    ## Per temporary (1-based), the frame address it is formed again as at each use
+    ## (`remat.find`), 0 for none.
+    var formed: list.List[u64]
     ## Where each temporary's life ends (`regalloc.Lives.end`, a doubled position), for the
     ## DWARF emitter's location lists; 0 for a temporary with no life.
     pub var temp_ends: list.List[u32]
@@ -93,7 +97,7 @@ pub struct Frame:
     ## An empty frame for a target's register set.
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
-                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
+                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
@@ -127,6 +131,18 @@ pub struct Frame:
     pub func uses(code: u8) -> bool:
         return (self.used_mask & ((u64)1 << (u64)(code - 1))) != 0
 
+    ## Whether temporary `t` is formed at each use (`remat`) rather than kept.
+    pub func is_rematerialised(t: u32) -> bool:
+        return (usize)t < self.formed.count and self.formed.get((usize)t) != 0
+
+    ## Where temporary `t` is formed at each use (`remat`): its slot and the byte offset
+    ## within it, as the distance below the frame pointer; none when it lives as others do.
+    pub func rematerialised(t: u32) -> u64?:
+        if (usize)t >= self.formed.count or self.formed.get((usize)t) == 0:
+            return none
+        let k = self.formed.get((usize)t)
+        return self.slot_home(u32((k >> 32) - 1)) - (k & 0xFFFFFFFF)
+
     ## The slot an address temporary stands for, 1-based, or 0. Only meaningful after
     ## `plan`, and only for slots that were promoted.
     pub func promoted_slot(t: u32) -> u32:
@@ -155,9 +171,21 @@ pub struct Frame:
             defer g.release()
             var lives = try regalloc.Lives.over(f, &g)
             defer lives.release()
+            let found = try remat.find(f)
+            defer free(found)
+            self.formed.count = 0
+            for t in 0..<found.length:
+                try self.formed.push(found[t])
+                if found[t] != 0:
+                    lives.forget(u32(t))
             try self.note_spans(f, &g, &lives)
             let (ints, floats) = try lives.pressure(f)
             try self.promote(f, budget(ints, self.registers.ints, self.registers.keep_ints), budget(floats, self.registers.floats, self.registers.keep_floats))
+            # the address of a slot promoted to a register is never formed at all
+            for t in 1..<self.formed.count:
+                let k = self.formed.get(t)
+                if k != 0 and self.slot_regs.get((usize)(k >> 32) - 1) != 0:
+                    self.formed.set(t, 0)
             try self.allocate(f, &lives)
 
     ## Lay the frame out below `base` (what the prologue already pushed): the hidden result
@@ -231,7 +259,7 @@ pub struct Frame:
         defer free(temp_order)
         for t in temp_order:
             let index = (usize)t - 1
-            if self.temp_regs.get(index) != 0 or not live_temps[t]:
+            if self.temp_regs.get(index) != 0 or not live_temps[t] or self.is_rematerialised(t):
                 continue
             # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
             let wide = f.temp_class(t) == ir.Class.v
@@ -431,7 +459,7 @@ func is_float_access(op: ir.Op) -> bool:
     return op == ir.Op.loads or op == ir.Op.loadd or op == ir.Op.loadhf or op == ir.Op.stores or op == ir.Op.stored or op == ir.Op.storehf
 
 ## The bytes a load or store moves.
-func access_width(op: ir.Op) -> u32:
+pub func access_width(op: ir.Op) -> u32:
     match op:
         .loadsb, .loadub, .storeb: return 1
         .loadsh, .loaduh, .storeh, .loadhf, .storehf: return 2

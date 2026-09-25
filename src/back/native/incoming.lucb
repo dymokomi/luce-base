@@ -1,0 +1,109 @@
+#==============================================================================================
+#
+#   incoming - Parameters moved from their argument registers into their registers
+#
+#   DESCRIPTION:
+#       A promoted scalar parameter is read once, by a load at the function's entry
+#       (`selection.entry_loads`). Rather than store the argument to the parameter's slot
+#       in the prologue and load it back, the generator moves it from the register it
+#       arrives in to where the load's result lives. The moves run together, as a parallel
+#       copy: a result may live in another argument's register, so each move waits until
+#       no other move still reads its destination, and a cycle is broken by parking one
+#       argument in the target's scratch register.
+#
+#==============================================================================================
+
+import memory
+import support.list
+
+## A parameter that moves from its argument register into its entry load's result: the
+## load's index, the argument's number among the integer or the float registers.
+pub struct Move:
+    ## The entry load's index.
+    pub var at: u32
+    ## The argument register's number.
+    pub var argument: u8
+    ## Whether it is a float register.
+    pub var float: bool
+
+## Nothing: a destination that is no argument register.
+pub let no_argument: u8 = 0xFF
+
+## One step of the sequence: move `index`, reading its argument's register, or its parked
+## copy when `parked`; or, when `park`, copy that argument into the scratch register first.
+pub struct Step:
+    ## Which move.
+    pub var index: u32
+    ## Copy the move's argument into scratch rather than move it.
+    pub var park: bool
+    ## The move reads the scratch register, not its argument.
+    pub var parked: bool
+
+## An order for the moves from argument registers `sources[k]` to destinations
+## `destinations[k]` (the argument register a destination is, or `no_argument`) that reads
+## every argument before any move overwrites it.
+pub func sequence(sources: const u8[], destinations: const u8[]) -> list.List[Step]!:
+    let n = sources.length
+    var steps = try list.List[Step].create(n + 2)
+    var pending = try alloc bool[n + 1]
+    defer free(pending)
+    var parked = try alloc bool[n + 1]
+    defer free(parked)
+    for k in 0..<n:
+        pending[k] = true
+        parked[k] = false
+    var left = n
+    while left > 0:
+        var moved = false
+        for k in 0..<n:
+            if pending[k] and not read_by_other(sources, destinations[k], pending, parked, k):
+                try steps.push(Step(index = u32(k), park = false, parked = parked[k]))
+                pending[k] = false
+                left -= 1
+                moved = true
+        if not moved:
+            # every pending destination is still read: a cycle; park the first's argument
+            for k in 0..<n:
+                if pending[k]:
+                    try steps.push(Step(index = u32(k), park = true, parked = false))
+                    parked[k] = true
+                    break
+    return steps
+
+## Whether a pending move other than `k`, still reading its argument, reads `register`.
+func read_by_other(sources: const u8[], register: u8, pending: bool[], parked: bool[], k: usize) -> bool:
+    if register == no_argument:
+        return false
+    for j in 0..<sources.length:
+        if j != k and pending[j] and not parked[j] and sources[j] == register:
+            return true
+    return false
+
+## Run `steps` over registers holding their own numbers, with 9 as the scratch; what each
+## destination holds after.
+func simulate(sources: const u8[], destinations: const u8[], steps: Step[]) -> u8[10]:
+    var regs: u8[10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for step in steps:
+        let k = (usize)step.index
+        if step.park:
+            regs[9] = regs[(usize)sources[k]]
+        else:
+            regs[(usize)destinations[k]] = regs[9] if step.parked else regs[(usize)sources[k]]
+    return regs
+
+test "a parallel copy reads every argument before it is overwritten, through a cycle":
+    var backing: u8[65536]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        # 0 -> 1, 1 -> 2, 2 -> 0: a cycle; 3 -> 4 and 4 -> 5: a chain
+        let sources: u8[5] = [0, 1, 2, 3, 4]
+        let destinations: u8[5] = [1, 2, 0, 4, 5]
+        var steps = try sequence(sources[0..<5], destinations[0..<5])
+        let regs = simulate(sources[0..<5], destinations[0..<5], steps.span())
+        assert(regs[1] == 0 and regs[2] == 1 and regs[0] == 2 and regs[4] == 3 and regs[5] == 4)
+        # a swap
+        let two: u8[2] = [0, 1]
+        let back: u8[2] = [1, 0]
+        var swap = try sequence(two[0..<2], back[0..<2])
+        let swapped = simulate(two[0..<2], back[0..<2], swap.span())
+        assert(swapped[0] == 1 and swapped[1] == 0)

@@ -1,0 +1,79 @@
+#==============================================================================================
+#
+#   remat - Frame addresses formed where they are used
+#
+#   DESCRIPTION:
+#       The address of a slot, or of a field inside one, is the frame pointer less a
+#       constant. Value numbering gives each such address one temporary, defined where it
+#       dominates every use, often the function's entry: held in a register it takes one
+#       for the whole function, and spilled it costs a store at the entry and a load at
+#       every use. A temporary assigned once by `addr` of a slot, or by adding a constant
+#       within the slot's bytes to (or copying) another such temporary, is formed again at
+#       each use instead: it takes no register and no home, its definition emits nothing,
+#       and a load or store through it addresses the frame directly.
+#
+#==============================================================================================
+
+import back.ir.ir
+
+## For each temporary (1-based), what it rematerialises as: 0 when it does not, else the
+## slot's index plus one in the high word and the byte offset within the slot in the low.
+pub func find(f: ir.Function*) -> u64[]!:
+    var remat = try alloc u64[f.temps.count + 1]
+    for t in 0..<remat.length:
+        remat[t] = 0
+    if f.debug or f.naked:
+        return remat
+    var defs = try alloc u8[f.temps.count + 1]
+    defer free(defs)
+    for t in 0..<defs.length:
+        defs[t] = 0
+    for x in f.instrs.span():
+        if x.dst != 0 and defs[(usize)x.dst] < 2:
+            defs[(usize)x.dst] += 1
+        # a debugger's description reads the temporary where it lives
+        if x.op == ir.Op.dbg and x.a.kind == ir.RefKind.temp:
+            defs[(usize)x.a.index] = 2
+    # a definition may follow a use in the list (a loop's body before its header's
+    # successor): repeat until nothing more is found
+    var changed = true
+    var rounds: u32 = 0
+    while changed and rounds < 8:
+        changed = false
+        rounds += 1
+        for x in f.instrs.span():
+            if x.dst == 0 or defs[(usize)x.dst] != 1 or remat[(usize)x.dst] != 0 or x.cls != ir.Class.l:
+                continue
+            let found = of(f, remat, x)
+            if found != 0:
+                remat[(usize)x.dst] = found
+                changed = true
+    return remat
+
+## What instruction `x` computes, as `find` spells it, when it is a frame address.
+func of(f: ir.Function*, remat: u64[], x: ir.Instr) -> u64:
+    if x.op == ir.Op.addr and x.a.kind == ir.RefKind.slot:
+        return ((u64)x.a.index + 1) << 32
+    if x.op == ir.Op.copy:
+        return known(remat, x.a)
+    if x.op == ir.Op.add:
+        var base = known(remat, x.a)
+        var step = x.b
+        if base == 0:
+            base = known(remat, x.b)
+            step = x.a
+        if base == 0 or step.kind != ir.RefKind.constant or step.value < 0:
+            return 0
+        # the address stays within the slot (or just past it), below the frame pointer
+        let slot = f.slots.get((usize)(base >> 32) - 1)
+        let offset = (base & 0xFFFFFFFF) + (u64)step.value
+        if offset > (u64)slot.size:
+            return 0
+        return (base & 0xFFFFFFFF00000000) | offset
+    return 0
+
+## The rematerialisation `r` names when it is such a temporary, else 0.
+func known(remat: u64[], r: ir.Ref) -> u64:
+    if r.kind != ir.RefKind.temp or (usize)r.index >= remat.length:
+        return 0
+    return remat[(usize)r.index]

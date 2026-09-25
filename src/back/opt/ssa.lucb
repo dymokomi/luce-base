@@ -144,9 +144,20 @@ pub func promote(f: ir.Function*) -> bool!:
     defer free(has_store)
     var is_param = try alloc bool[ns + 1]
     defer free(is_param)
+    # the bytes a slot's accesses move: its size, or a scalar parameter's own width, since
+    # its slot is a register wide or two and the body reads only the value's bytes
+    var width = try alloc u32[ns + 1]
+    defer free(width)
     var s: usize = 0
     while s < ns:
-        let size = f.slots.get(s).size
+        width[s] = f.slots.get(s).size
+        s += 1
+    for param in f.params.span():
+        if param.size == 0 and param.scalar_width != 0:
+            width[(usize)param.slot] = param.scalar_width
+    s = 0
+    while s < ns:
+        let size = width[s]
         kind[s] = open if size == 1 or size == 2 or size == 4 or size == 8 else no
         cls[s] = ir.Class.w
         has_store[s] = false
@@ -187,12 +198,12 @@ pub func promote(f: ir.Function*) -> bool!:
         let sa = slot_of(addr_of, x.a)
         let sb = slot_of(addr_of, x.b)
         if sa != none_index:
-            if is_load(x.op) and load_fits(x.op, f.slots.get((usize)sa).size):
+            if is_load(x.op) and load_fits(x.op, width[(usize)sa]):
                 discard(0)
             else:
                 kind[(usize)sa] = no
         if sb != none_index:
-            if is_store(x.op) and sa != sb and store_fits(x.op, f.slots.get((usize)sb).size):
+            if is_store(x.op) and sa != sb and store_fits(x.op, width[(usize)sb]):
                 let k = store_class(x.op)
                 if has_store[(usize)sb] and cls[(usize)sb] != k:
                     kind[(usize)sb] = no
@@ -248,7 +259,7 @@ pub func promote(f: ir.Function*) -> bool!:
     while p < f.params.count:
         let param = f.params.get(p)
         if param.size == 0 and temp_of[(usize)param.slot] != 0:
-            let op = ir.load_op((u64)f.slots.get((usize)param.slot).size, false, ir.is_float_class(param.cls))
+            let op = ir.load_op((u64)width[(usize)param.slot], false, ir.is_float_class(param.cls))
             try out.push(ir.Instr(op = op, cls = param.cls, dst = temp_of[(usize)param.slot], a = ir.slot_ref(param.slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             try describe(f, param.slot, temp_of[(usize)param.slot], &out)
         p += 1

@@ -577,6 +577,9 @@ pub struct Function:
     pub var section: str
     ## `noinline`: the body stands in for no call of it (§9.8).
     pub var noinline: bool
+    ## `inline`: the body stands in for every call of it that can be expanded, whatever its
+    ## size up to `opt/inline`'s `forced` (§9.8).
+    pub var always_inline: bool = false
 
     ## An empty function named `name`.
     pub static func create(name: str) -> Function!:

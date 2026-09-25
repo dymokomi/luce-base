@@ -10,8 +10,10 @@
 #       of the result and a jump to one exit label. The callee itself stays in the program for
 #       the calls that are not expanded and for its address.
 #
-#       A function is small when its body has at most `small` instructions besides labels,
-#       measured after its own calls were expanded: callees are visited before callers. A
+#       A function is small when its body has at most `small` instructions besides labels
+#       and the blocks that end in a trap, measured after its own calls were expanded:
+#       callees are visited before callers. A function declared `inline` is expanded at
+#       every call up to `forced` instructions, a guard against a runaway body only. A
 #       function called from one place only is expanded there whatever its size up to
 #       `once`, and a function expanded at every call, which nothing else names, is dropped
 #       from the program. Not expanded: a variadic or naked function, one carrying inline
@@ -33,6 +35,9 @@ import back.ir.ir
 ## tenth and made it no faster.
 let small: usize = 24
 let once: usize = 256
+## The most instructions an `inline` function may have and still be expanded at every
+## call: `inline` is C's always_inline, and this only stops a runaway body.
+let forced: usize = 1024
 
 ## Expand the expandable calls of `program`: callees before callers, so that a function
 ## reaching the callers has its own calls opened out already and is measured as it will
@@ -422,7 +427,7 @@ func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: us
     let size = try_size(census, program, gi) else return none
     if census.leaves.length > 0 and not census.leaves[gi]:
         return none
-    if size <= census.small:
+    if size <= census.small or (g.always_inline and size <= forced):
         return gi
     if size <= census.once and census.calls[gi] == 1 and not census.pinned[gi]:
         return gi
@@ -431,22 +436,39 @@ func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: us
 func try_size(census: Census*, program: ir.Unit*, gi: usize) -> usize?:
     return census.size_of(program, gi)
 
-## How many instructions, labels aside, a function's body has; none when the body may not
-## stand in for a call of it at all.
+## How many instructions, labels aside, a function's body has on its paths that do not
+## trap; none when the body may not stand in for a call of it at all. A block that ends
+## in a trap (an `else trap`, a failed check's message and call) is out of line and runs
+## at most once, so it costs the budget nothing, nor does what follows it unlabelled.
 func body_size(g: ir.Function*) -> usize?:
     if g.variadic or g.naked or g.noinline or g.debug or g.instrs.count == 0:
         return none
     var count: usize = 0
+    # the current block's instructions, counted when it leaves other than by a trap
+    var block: usize = 0
+    var unreached = false
     var ix: usize = 0
     while ix < g.instrs.count:
         let n = g.instrs.get(ix)
         ix += 1
         if n.op == ir.Op.label:
+            count += block
+            block = 0
+            unreached = false
             continue
         if not is_expandable_op(n.op):
             return none
-        count += 1
-    return count
+        if unreached:
+            continue
+        block += 1
+        if n.op == ir.Op.trap_:
+            block = 0
+            unreached = true
+        elif ir.is_terminator(n.op):
+            count += block
+            block = 0
+            unreached = true
+    return count + block
 
 ## Instructions an expansion knows how to renumber; the ones that reach outside the
 ## function's own temporaries, slots, and labels are left to a real call.

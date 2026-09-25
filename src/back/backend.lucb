@@ -108,9 +108,12 @@ pub struct NativeBackend: Backend:
             let changed = try inline.expand_small(&self.lowerer.program_unit, optimised_small)
             defer free(changed)
             try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed)
-            for fi in 0..<changed.length:
-                if changed[fi]:
-                    try inline.tidy_expanded(&self.lowerer.program_unit.functions.items[fi])
+            # every function tidied, not only those this pass changed: the first pass's
+            # expansions leave parameter stores and unreached blocks behind as well
+            for fi in 0..<self.lowerer.program_unit.functions.count:
+                let f = &self.lowerer.program_unit.functions.items[fi]
+                if not f.naked and not f.debug and f.instrs.count > 0:
+                    try inline.tidy_expanded(f)
         if not self.debug:
             if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
                 try opt.clean(&self.lowerer.program_unit)

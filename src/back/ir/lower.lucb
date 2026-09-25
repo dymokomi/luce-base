@@ -691,6 +691,7 @@ pub struct Lowerer:
         self.f.weak = ast.has_attribute(d, "weak")
         self.f.used = ast.has_attribute(d, "used")
         self.f.noinline = ast.has_attribute(d, "noinline")
+        self.f.always_inline = ast.has_attribute(d, "inline")
         self.f.section = section_of(d)
         # parameters: `self` first for methods, each in a slot
         if let o = inst.owner:

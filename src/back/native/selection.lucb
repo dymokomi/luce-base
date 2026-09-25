@@ -4,7 +4,8 @@
 #
 #   DESCRIPTION:
 #       Counting every use prevents a comparison needed elsewhere from being consumed by a
-#       fused branch. The generators ask these questions as they walk a function's IR.
+#       fused branch, or an address needed elsewhere by a fused load or store. The
+#       generators ask these questions as they walk a function's IR.
 #
 #==============================================================================================
 
@@ -29,6 +30,59 @@ func mark(counts: u32[], value: ir.Ref):
     if value.kind == ir.RefKind.temp:
         counts[value.index] += 1
 
+## For each parameter, 1 + the index of the load at the function's entry that reads its
+## slot (`ssa.promote` puts one there for a promoted parameter), when nothing else names
+## that slot: the generator then moves the argument from where it arrives straight into
+## the load's result, and neither stores it nor loads it back. 0 for every other.
+pub func entry_loads(f: ir.Function*) -> u32[]!:
+    var entry = try alloc u32[f.params.count + 1]
+    for p in 0..<entry.length:
+        entry[p] = 0
+    if f.debug or f.symbols:
+        return entry
+    var named = try alloc u32[f.slots.count + 1]
+    defer free(named)
+    for s in 0..<named.length:
+        named[s] = 0
+    for x in f.instrs.span():
+        note_slot(named, x.a)
+        note_slot(named, x.b)
+        let (start, count) = ir.argument_range(f, x)
+        for k in 0..<count:
+            note_slot(named, f.args.get(start + k).value)
+    # the leading loads, each of a slot or through an address of one taken just before
+    let counts = try uses(f)
+    defer free(counts)
+    var slot_of = try alloc u32[f.temps.count + 1]
+    defer free(slot_of)
+    for t in 0..<slot_of.length:
+        slot_of[t] = 0
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.dbg:
+            continue
+        if x.op == ir.Op.addr and x.a.kind == ir.RefKind.slot and x.dst != 0:
+            slot_of[(usize)x.dst] = x.a.index + 1
+            continue
+        if not ((u8)x.op >= (u8)ir.Op.loadsb and (u8)x.op <= (u8)ir.Op.loadd) or x.dst == 0:
+            break
+        var slot: u32 = 0
+        if x.a.kind == ir.RefKind.slot:
+            slot = x.a.index + 1
+        elif x.a.kind == ir.RefKind.temp and counts[(usize)x.a.index] == 1:
+            slot = slot_of[(usize)x.a.index]
+        if slot == 0 or named[(usize)slot - 1] != 1:
+            break
+        for p in 0..<f.params.count:
+            let param = f.params.get(p)
+            if param.size == 0 and param.slot + 1 == slot and entry[p] == 0:
+                entry[p] = u32(i + 1)
+    return entry
+
+func note_slot(named: u32[], value: ir.Ref):
+    if value.kind == ir.RefKind.slot and (usize)value.index < named.length:
+        named[(usize)value.index] += 1
+
 ## The label of the instruction at `at`, or 0 when it is not a label.
 pub func label_at(f: ir.Function*, at: usize) -> u32:
     if at < f.instrs.count:
@@ -45,6 +99,36 @@ pub func branch(f: ir.Function*, at: usize, counts: u32[]) -> bool:
     let x = f.instrs.get(at)
     let next = f.instrs.get(at + 1)
     return ir.is_comparison(x.op) and (x.cls == ir.Class.w or x.cls == ir.Class.l) and x.dst != 0 and counts[x.dst] == 1 and next.op == ir.Op.jnz and next.a.kind == ir.RefKind.temp and next.a.index == x.dst
+
+## When the instruction at `at` adds a constant to an address and its only use is as the
+## address of the load or store right after it: the base and the constant, which the
+## access then addresses itself (`[base, #constant]`) while the base is still in its
+## register. A half-precision access, and a build a debugger reads, keep the two apart.
+pub func offset_access(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, i64)?:
+    if f.debug or f.symbols or at + 1 >= f.instrs.count:
+        return none
+    let x = f.instrs.get(at)
+    if x.op != ir.Op.add or x.cls != ir.Class.l or x.dst == 0 or counts[x.dst] != 1:
+        return none
+    var base = x.a
+    var step = x.b
+    if step.kind != ir.RefKind.constant:
+        base = x.b
+        step = x.a
+    if step.kind != ir.RefKind.constant or base.kind != ir.RefKind.temp or step.value < 0 or step.value > 32760:
+        return none
+    let next = f.instrs.get(at + 1)
+    let through = ir.temp_ref(x.dst)
+    if next.op == ir.Op.loadhf or next.op == ir.Op.storehf:
+        return none
+    let loads = (u8)next.op >= (u8)ir.Op.loadsb and (u8)next.op <= (u8)ir.Op.loadd and same_temp(next.a, through)
+    let stores = (u8)next.op >= (u8)ir.Op.storeb and (u8)next.op <= (u8)ir.Op.stored and same_temp(next.b, through) and not same_temp(next.a, through)
+    if not loads and not stores:
+        return none
+    return (base, step.value)
+
+func same_temp(a: ir.Ref, b: ir.Ref) -> bool:
+    return a.kind == ir.RefKind.temp and b.kind == ir.RefKind.temp and a.index == b.index
 
 ## The comparison that a fused branch inverts to when the fall-through is the taken side.
 pub func inverse(op: ir.Op) -> ir.Op:

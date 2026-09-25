@@ -79,6 +79,20 @@ range and NaN on x86-64. A checked `T(x)` compares the float with the type's bou
 and traps before an exact conversion. The narrower and unsigned saturating casts keep
 `core.f_to_s` and `core.f_to_u`.
 
+Calls and frames. A scalar parameter is promoted like any local, at its own width
+(its slot is a register or two wide), and when its only use is the load `ssa.promote`
+puts at the entry, the argument moves from its register straight to where that load's
+result lives, the moves of all parameters run as one parallel copy (`native/incoming`)
+and nothing is stored in the prologue. The address of a slot, or of a field within one,
+is formed where it is used (`native/remat`) instead of held in a register or spilled from
+the entry, and a load or store through it addresses the frame directly; a load or store
+through `base + constant` whose add has no other use folds the constant into the
+access. Compares carry small immediates. A result returned through memory is copied
+with loads and stores up to 128 bytes, not a call of memcpy, as are aggregate
+parameters. The inliner expands an `inline` function at every call up to 1024
+instructions, a function calling itself excepted, and counts no block that ends in a
+trap against a callee's size; every function is tidied after the second pass.
+
 The assembly-size suite now counts complete function bodies, including code after
 numeric trap labels. Its corrected limits were measured from the unchanged
 `f4306dc` baseline on both target assemblers, rather than raised to accommodate

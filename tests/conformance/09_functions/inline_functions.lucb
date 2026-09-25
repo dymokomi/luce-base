@@ -1,0 +1,32 @@
+## §9.8: `inline` expands a function at its calls whatever its size, as C's always_inline;
+## one that calls itself, or another `inline` function that calls it back, still runs as
+## a call where it cannot be expanded, and every result is the same as the call's.
+inline func mix(a: i64, b: i64) -> i64:
+    var x = a * 31 + b
+    x = x ^ (x >> 7)
+    x = x * 17 + (a - b)
+    if x < 0:
+        x = 0 - x
+    x = x % 1000003
+    x = x + (a * b) % 97
+    x = x ^ (x << 3)
+    return x % 1000033
+
+inline func countdown(n: i64) -> i64:
+    if n <= 0:
+        return 0
+    return n + countdown(n - 1)
+
+inline func even(n: i64) -> bool:
+    return true if n == 0 else odd(n - 1)
+
+inline func odd(n: i64) -> bool:
+    return false if n == 0 else even(n - 1)
+
+pub func main(arguments: str[]) -> i32:
+    let one = (i64)arguments.length
+    var total: i64 = 0
+    for i in 0..<50:
+        total += mix((i64)i * one, 7 - (i64)i)
+    print(f"{total} {countdown(10 * one)} {even(10 * one)} {odd(7 * one)}")
+    return 0

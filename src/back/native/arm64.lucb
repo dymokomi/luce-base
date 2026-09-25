@@ -20,11 +20,13 @@
 import back.native.arm64.object
 import back.native.dwarf
 import back.native.frame
+import back.native.incoming
 import back.native.selection
 import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer
+import support.list
 ## The arm64 generator could not emit the program.
 pub let failed: ErrorCode = ErrorCode.package(15)
 
@@ -175,6 +177,56 @@ pub struct Generator:
         try self.frame_address("x16", offset)
         try self.line3("ldr ", reg, ", [x16]")
 
+    ## How far below the frame pointer the bytes that `address` names lie, when it is a
+    ## slot or a frame address formed at its use (`remat`), for an access by `op` that
+    ## addresses the frame directly; none for any other address, or a half's access.
+    func frame_place(address: ir.Ref, op: ir.Op) -> u64?:
+        if op == ir.Op.loadhf or op == ir.Op.storehf:
+            return none
+        if address.kind == ir.RefKind.slot:
+            return self.slot_home(address.index)
+        if address.kind == ir.RefKind.temp and self.fr.temp_regs.get((usize)address.index - 1) == 0:
+            return self.fr.rematerialised(address.index)
+        return none
+
+    ## A load or store at `base + offset`, the add that formed the address folded into it
+    ## (`selection.offset_access`).
+    mutating func offset_access(n: ir.Instr, base: ir.Ref, offset: i64) -> !:
+        if (u8)n.op <= (u8)ir.Op.loadd:
+            let lc = load_class(n.op)
+            let d = self.target(n.dst, lc, load_register(n.op))
+            let b = try self.source(base, ir.Class.l, "x10")
+            try self.line4(load_mnemonic(n.op), " ", d, ", [")
+            try self.put(b)
+            try self.put(", #")
+            try self.put_i64(offset)
+            try self.put("]")
+            try self.finish(n.dst, lc, d)
+            return
+        let cls = store_class(n.op)
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(base, ir.Class.l, "x10")
+        try self.line4(store_mnemonic(n.op), " ", v, ", [")
+        try self.put(b)
+        try self.put(", #")
+        try self.put_i64(offset)
+        try self.put("]")
+
+    ## `mnemonic reg` to or from the frame `below` bytes under x29, `width` bytes wide:
+    ## through sp when the scaled offset reaches, else x29 with an unscaled one, else an
+    ## address in x16.
+    mutating func frame_access(mnemonic: str, reg: str, below: u64, width: u32) -> !:
+        if self.frame_fits(below, (u64)width):
+            try self.line4(mnemonic, " ", reg, ", ")
+            try self.frame_operand(below)
+        elif below <= 256:
+            try self.line4(mnemonic, " ", reg, ", [x29, #-")
+            try self.put_u64(below)
+            try self.put("]")
+        else:
+            try self.frame_address("x16", below)
+            try self.line4(mnemonic, " ", reg, ", [x16]")
+
     ## `reg = x29 - offset`.
     mutating func frame_address(reg: str, offset: u64) -> !:
         if offset <= 4095:
@@ -265,6 +317,14 @@ pub struct Generator:
             let home = register_view(reg, code)
             if home != reg:
                 try self.register_move(reg, home, code)
+            return
+        if let below = self.fr.rematerialised(t):
+            # a frame address, formed here (`remat`)
+            if reg.bytes[0] == 'x' or reg.bytes[0] == 'w':
+                try self.frame_address(self.as_x(reg), below)
+            else:
+                try self.frame_address("x16", below)
+                try self.fmove(reg, "x16")
             return
         try self.frame_load(reg, self.temp_home(t))
 
@@ -557,13 +617,22 @@ pub struct Generator:
             try self.frame_address("x16", self.fr.indirect_home)
             try self.line("str x8, [x16]")
         try self.save_callee_saved()
-        try self.receive_params()
+        var entry = try selection.entry_loads(self.f)
+        defer free(entry)
+        var moves = try list.List[incoming.Move].create(8)
+        defer moves.destroy()
+        try self.receive_params(entry, &moves)
+        var received = try self.receive_directly(&moves)
+        defer free(received)
         var uses = try selection.uses(self.f)
         defer free(uses)
         var i: usize = 0
         while i < self.f.instrs.count:
             if let dw = self.dw:
                 try dw.mark(&self.out, self.f, &self.fr, index, i)
+            if received[i]:
+                i += 1
+                continue
             if selection.branch(self.f, i, uses):
                 if let dw = self.dw:
                     # the fused branch's own line and labels, ahead of the pair
@@ -576,6 +645,15 @@ pub struct Generator:
                 try self.comparison(comparison, branch, next)
                 i += 2
                 continue
+            if let fused = selection.offset_access(self.f, i, uses):
+                let (base, offset) = fused
+                let access = self.f.instrs.get(i + 1)
+                if not self.fr.is_rematerialised(self.f.instrs.get(i).dst) and offset_reaches(offset, frame.access_width(access.op)):
+                    if let dw = self.dw:
+                        try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+                    try self.offset_access(access, base, offset)
+                    i += 2
+                    continue
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             i += 1
         if let dw = self.dw:
@@ -633,10 +711,16 @@ pub struct Generator:
         try d.put("\n")
 
     ## Store the incoming arguments into their slots.
-    mutating func receive_params() -> !:
+    mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         var next_int: u32 = 0
         var next_float: u32 = 0
         var stack_offset: u64 = 16
+        # an argument copied by memcpy (past 128 bytes) would clobber the ones left in
+        # their registers for `receive_directly`
+        var direct = true
+        for p in self.f.params.span():
+            if p.size > 128 and self.hfa(p.shape) == 0:
+                direct = false
         var i: usize = 0
         while i < self.f.params.count:
             let p = self.f.params.get(i)
@@ -644,8 +728,12 @@ pub struct Generator:
             if p.size == 0:
                 # a scalar; a promoted slot takes the value in its register
                 let code = (usize)self.fr.slot_regs.get((usize)p.slot)
+                let straight = direct and code == 0 and entry[i] != 0 and p.cls != ir.Class.h
                 if ir.is_float_class(p.cls):
-                    if next_float < 8:
+                    if next_float < 8 and straight:
+                        try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_float), float = true))
+                        next_float += 1
+                    elif next_float < 8:
                         if code != 0:
                             try self.line("fmov ")
                             try self.put(try self.hv(class_name((u8)code, p.cls)))
@@ -673,6 +761,9 @@ pub struct Generator:
                             try self.frame_address("x16", home)
                             try self.line("str x9, [x16]")
                         stack_offset += (u64)slot
+                elif next_int < 8 and straight:
+                    try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_int), float = false))
+                    next_int += 1
                 elif next_int < 8:
                     if code != 0:
                         try self.line("mov ")
@@ -781,16 +872,94 @@ pub struct Generator:
             let p = self.f.params.get(i)
             if p.size > 16 and self.hfa(p.shape) == 0:
                 let home = self.slot_home(p.slot)
-                try self.frame_address("x0", home)
-                try self.line("ldr x1, [x0]")
-                try self.load_immediate("x2", (i64)p.size)
-                try self.line("bl ")
-                try self.symbol("memcpy")
+                if p.size <= 128:
+                    # through scratch: arguments may still wait in x0-x7 (`receive_directly`)
+                    try self.frame_address("x9", home)
+                    try self.line("ldr x10, [x9]")
+                    try self.inline_copy("x10", "x9", (u64)p.size)
+                else:
+                    try self.frame_address("x0", home)
+                    try self.line("ldr x1, [x0]")
+                    try self.load_immediate("x2", (i64)p.size)
+                    try self.line("bl ")
+                    try self.symbol("memcpy")
             i += 1
+
+    ## The parameters `receive_params` left in their argument registers, moved into their
+    ## entry loads' results as one parallel copy (`incoming`); answers which instructions
+    ## that leaves with nothing to do. x16 parks an argument to break a cycle; x17 carries
+    ## a value to a frame home, all of which are written before any argument is parked.
+    mutating func receive_directly(moves: list.List[incoming.Move]*) -> bool[]!:
+        var received = try alloc bool[self.f.instrs.count + 1]
+        for k in 0..<received.length:
+            received[k] = false
+        var sources = try alloc u8[moves.count + 1]
+        defer free(sources)
+        var destinations = try alloc u8[moves.count + 1]
+        defer free(destinations)
+        for k in 0..<moves.count:
+            let m = moves.get(k)
+            received[(usize)m.at] = true
+            sources[k] = incoming.no_argument
+            destinations[k] = incoming.no_argument
+            let n = self.f.instrs.get((usize)m.at)
+            if m.float:
+                # no float argument register is ever a temporary's
+                let arrived = d_arguments[(usize)m.argument] if n.cls == ir.Class.d else s_arguments[(usize)m.argument]
+                let code = self.fr.temp_regs.get((usize)n.dst - 1)
+                if code != 0:
+                    try self.fmove(class_name(code, n.cls), arrived)
+                else:
+                    try self.frame_store(arrived, self.temp_home(n.dst))
+                continue
+            sources[k] = m.argument
+            let code = self.fr.temp_regs.get((usize)n.dst - 1)
+            if code >= 23 and code <= 30:
+                destinations[k] = u8(30 - code)
+        var steps = try incoming.sequence(sources[..<moves.count], destinations[..<moves.count])
+        defer steps.destroy()
+        for step in steps.span():
+            let m = moves.get((usize)step.index)
+            if m.float:
+                continue
+            if step.park:
+                try self.line3("mov x16, ", argument_names[(usize)m.argument], "")
+                continue
+            let x = "x16" if step.parked else argument_names[(usize)m.argument]
+            let w = "w16" if step.parked else w_arguments[(usize)m.argument]
+            try self.receive_one(self.f.instrs.get((usize)m.at), x, w)
+        return received
+
+    ## Entry load `n`'s result from the integer register `x` (`w` its narrow view): its
+    ## argument's, or x16; extended as the load from the parameter's slot would have.
+    mutating func receive_one(n: ir.Instr, x: str, w: str) -> !:
+        let code = self.fr.temp_regs.get((usize)n.dst - 1)
+        let d = class_name(code, n.cls) if code != 0 else ("x17" if n.cls == ir.Class.l else "w17")
+        match n.op:
+            .loadl:
+                if d != x:
+                    try self.line4("mov ", d, ", ", x)
+            .loaduw:
+                try self.line4("mov ", d, ", ", w)
+            .loadsw:
+                try self.line4("sxtw " if n.cls == ir.Class.l else "mov ", d, ", ", w)
+            .loaduh:
+                try self.line4("uxth ", narrow_name(d), ", ", w)
+            .loadsh:
+                try self.line4("sxth ", d, ", ", w)
+            .loadub:
+                try self.line4("uxtb ", narrow_name(d), ", ", w)
+            _:
+                try self.line4("sxtb ", d, ", ", w)
+        if code == 0:
+            try self.frame_store(d, self.temp_home(n.dst))
 
     # mark: Instructions =======================================================================
 
     mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
+        if n.dst != 0 and self.fr.is_rematerialised(n.dst):
+            # a frame address is formed where it is used
+            return
         match n.op:
             .dbg:
                 discard(0)
@@ -824,6 +993,12 @@ pub struct Generator:
                         try self.put(".16b")
                     try self.finish(n.dst, ir.Class.v, d)
                     return
+                if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.a.kind == ir.RefKind.constant:
+                    # a constant straight into where the temporary lives
+                    let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                    try self.load_immediate(d, n.a.value if n.cls == ir.Class.l else (i64)((u64)n.a.value & 0xFFFFFFFF))
+                    try self.finish(n.dst, n.cls, d)
+                    return
                 let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 if v != d:
@@ -856,6 +1031,8 @@ pub struct Generator:
                 let from_slot = self.promoted_address(n.a)
                 if from_slot != 0:
                     try self.load_promoted(n.op, from_slot, d)
+                elif let below = self.frame_place(n.a, n.op):
+                    try self.frame_access(load_mnemonic(n.op), d, below, frame.access_width(n.op))
                 else:
                     let address = try self.source(n.a, ir.Class.l, "x9")
                     try self.line(load_mnemonic(n.op))
@@ -871,6 +1048,8 @@ pub struct Generator:
                 let to_slot = self.promoted_address(n.b)
                 if to_slot != 0:
                     try self.store_promoted(n.op, to_slot, v)
+                elif let below = self.frame_place(n.b, n.op):
+                    try self.frame_access(store_mnemonic(n.op), v, below, frame.access_width(n.op))
                 else:
                     let address = try self.source(n.b, ir.Class.l, "x10")
                     try self.line(store_mnemonic(n.op))
@@ -1126,9 +1305,14 @@ pub struct Generator:
 
     mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
         let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
-        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let is_float = ir.is_float_class(n.cls)
-        if n.cls == ir.Class.h and not self.fp16:
+        # an integer constant the instruction can carry: `cmp` up to 4095, `cmn` below 0
+        let immediate = not is_float and n.b.kind == ir.RefKind.constant and n.b.value >= -4095 and n.b.value <= 4095
+        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        if immediate:
+            try self.line3("cmp " if n.b.value >= 0 else "cmn ", a, ", #")
+            try self.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
+        elif n.cls == ir.Class.h and not self.fp16:
             try self.line3("fcvt s16, ", a, "")
             try self.line3("fcvt s17, ", b, "")
             try self.line("fcmp s16, s17")
@@ -1978,11 +2162,15 @@ pub struct Generator:
                 try self.address_operand("x1", n.a)
                 try self.frame_address("x16", self.fr.indirect_home)
                 try self.line("ldr x0, [x16]")
-                try self.load_immediate("x2", (i64)self.f.result_size)
-                try self.line("bl ")
-                try self.symbol("memcpy")
-                try self.frame_address("x16", self.fr.indirect_home)
-                try self.line("ldr x0, [x16]")
+                if self.f.result_size <= 128:
+                    # a few words: loads and stores, not a call, on every return
+                    try self.inline_copy("x1", "x0", (u64)self.f.result_size)
+                else:
+                    try self.load_immediate("x2", (i64)self.f.result_size)
+                    try self.line("bl ")
+                    try self.symbol("memcpy")
+                    try self.frame_address("x16", self.fr.indirect_home)
+                    try self.line("ldr x0, [x16]")
         try self.restore_callee_saved()
         if self.dw != none:
             try self.line(".cfi_remember_state")
@@ -2356,3 +2544,13 @@ func argument_index(name: str) -> i32:
 
 func is_argument_register(name: str) -> bool:
     return argument_index(name) >= 0
+
+## Whether `[base, #offset]` encodes for an access of `width` bytes: the scaled form, or
+## the unscaled one up to 255.
+func offset_reaches(offset: i64, width: u32) -> bool:
+    return offset <= 255 or (offset % (i64)width == 0 and offset // (i64)width <= 4095)
+
+## The argument registers' narrow and float views.
+let w_arguments: str[8] = ["w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"]
+let s_arguments: str[8] = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
+let d_arguments: str[8] = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"]

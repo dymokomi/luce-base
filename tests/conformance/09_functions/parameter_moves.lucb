@@ -1,0 +1,66 @@
+## §9: parameters arrive whatever their width, order and number, and the native backend's
+## moves of them from the argument registers into where the body keeps them (a parallel
+## copy, which may meet a cycle) must deliver each unchanged: narrow signed and unsigned
+## integers, bools, floats, more than eight arguments, aggregates in registers, in memory
+## and past 128 bytes, and calls that pass the same values back in another order.
+struct Pair:
+    var a: i64
+    var b: i64
+
+struct Wide:
+    var words: i64[20]
+
+noinline func narrow(a: u8, b: i8, c: u16, d: i16, e: u32, f: i32, g: bool, h: i64) -> i64:
+    let flag: i64 = 1 if g else 0
+    return (i64)a + (i64)b * 10 + (i64)c * 100 + (i64)d * 1000 + (i64)e * 7 + (i64)f * 3 + flag * 11 + h
+
+noinline func floats(a: f64, b: f32, c: i32, d: f64, e: i64, f: f32) -> f64:
+    return a * 2.0 + (f64)b * 3.0 + (f64)c + d * 5.0 + (f64)e + (f64)f * 7.0
+
+noinline func many(a: i64, b: i64, c: i64, d: i64, e: i64, f: i64, g: i64, h: i64, i: i64, j: i64, k: i32) -> i64:
+    return a - b + c * 2 - d + e * 3 - f + g * 5 - h + i * 7 - j + (i64)k * 11
+
+noinline func rotate(a: i64, b: i64, c: i64, d: i64, depth: i32) -> i64:
+    if depth == 0:
+        return a * 1000 + b * 100 + c * 10 + d
+    # the same values back in another order, so every one crosses the others' registers
+    return rotate(d, a, b, c, depth - 1)
+
+noinline func swap(a: i64, b: i64, depth: i32) -> i64:
+    if depth == 0:
+        return a * 10 + b
+    return swap(b, a, depth - 1)
+
+noinline func pairs(p: Pair, x: i32, q: Pair, y: u8) -> i64:
+    return p.a - p.b * 2 + q.a * 3 - q.b + (i64)x * 5 + (i64)y
+
+noinline func wide(w: Wide, x: i64, y: i32) -> i64:
+    var total: i64 = 0
+    for k in 0..<20:
+        total += w.words[k] * (i64)(k + 1)
+    return total + x * 1000 + (i64)y
+
+noinline func fields(x: i64) -> i64:
+    # locals whose fields are addressed off the frame directly
+    var p = Pair(a = x, b = x * 2)
+    var q = Pair(a = p.b, b = p.a + 1)
+    var arr: i64[6] = [1, 2, 3, 4, 5, 6]
+    arr[2] = q.a
+    arr[5] = p.b + q.b
+    return arr[0] + arr[2] + arr[5] + q.a - p.a
+
+pub func main(arguments: str[]) -> i32:
+    let one = (i64)arguments.length
+    print(f"{narrow(250, -7, 65000, -300, 4000000000, -2000000000, true, one)}")
+    print(f"{narrow(0, 127, 0, 32767, 0, 2147483647, false, -one)}")
+    print(f"{floats(1.5, 2.5, -3, 0.25, 40, -1.5)}")
+    print(f"{many(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)}")
+    print(f"{rotate(1, 2, 3, 4, 1)} {rotate(1, 2, 3, 4, 2)} {rotate(1, 2, 3, 4, 7)}")
+    print(f"{swap(1, 2, 3)} {swap(1, 2, 4)}")
+    print(f"{pairs(Pair(a = 5, b = 6), -7, Pair(a = 8, b = 9), 200)}")
+    var w = Wide(words = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    for k in 0..<20:
+        w.words[k] = (i64)k * 3 - 5
+    print(f"{wide(w, 7, -9)}")
+    print(f"{fields(one * 21)}")
+    return 0

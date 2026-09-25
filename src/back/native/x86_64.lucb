@@ -20,11 +20,13 @@ from back.native.x86_64.object import Format
 from back.native.x86_64.unwind import FrameUnwind
 import back.native.dwarf
 import back.native.frame
+import back.native.incoming
 import back.native.selection
 import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer
+import support.list
 ## The x86-64 generator could not emit the program.
 pub let failed: ErrorCode = ErrorCode.package(21)
 
@@ -179,6 +181,128 @@ pub struct Generator:
         try self.put(reg)
 
     ## `reg = rbp - offset`.
+    ## Where a load or store by `op` through `address` reaches its bytes: a slot, or a
+    ## frame address formed at its use (`remat`), addressed off the frame pointer
+    ## directly, `below` it; any other address (or a half's access) into %r10 first.
+    mutating func memory_place(address: ir.Ref, op: ir.Op) -> u64?!:
+        if op != ir.Op.loadhf and op != ir.Op.storehf:
+            if address.kind == ir.RefKind.slot:
+                return self.slot_home(address.index)
+            if address.kind == ir.RefKind.temp and self.fr.temp_regs.get((usize)address.index - 1) == 0:
+                if let below = self.fr.rematerialised(address.index):
+                    return below
+        try self.address_operand("%r10", address)
+        return none
+
+    ## The parameters `receive_params` left in their argument registers (System V), moved
+    ## into their entry loads' results as one parallel copy (`incoming`); answers which
+    ## instructions that leaves with nothing to do. %r11 parks an argument to break a
+    ## cycle; %rax carries a value to a frame home, all written before any is parked.
+    mutating func receive_directly(moves: list.List[incoming.Move]*) -> bool[]!:
+        var received = try alloc bool[self.f.instrs.count + 1]
+        for k in 0..<received.length:
+            received[k] = false
+        var sources = try alloc u8[moves.count + 1]
+        defer free(sources)
+        var destinations = try alloc u8[moves.count + 1]
+        defer free(destinations)
+        for k in 0..<moves.count:
+            let m = moves.get(k)
+            received[(usize)m.at] = true
+            sources[k] = incoming.no_argument
+            destinations[k] = incoming.no_argument
+            let n = self.f.instrs.get((usize)m.at)
+            let code = self.fr.temp_regs.get((usize)n.dst - 1)
+            if m.float:
+                # no float argument register is ever a temporary's
+                let arrived = float_argument_names[(usize)m.argument]
+                if code != 0:
+                    try self.register_move(class_name(code, n.cls), arrived, n.cls, code)
+                else:
+                    try self.frame_store(arrived, n.cls, self.temp_home(n.dst))
+                continue
+            sources[k] = m.argument
+            if code != 0:
+                let home = class_name(code, ir.Class.l)
+                for a in 0..<argument_names.length:
+                    if argument_names[a] == home:
+                        destinations[k] = u8(a)
+        var steps = try incoming.sequence(sources[..<moves.count], destinations[..<moves.count])
+        defer steps.destroy()
+        for step in steps.span():
+            let m = moves.get((usize)step.index)
+            if m.float:
+                continue
+            if step.park:
+                try self.line3("movq ", argument_names[(usize)m.argument], ", %r11")
+                continue
+            try self.receive_one(self.f.instrs.get((usize)m.at), "%r11" if step.parked else argument_names[(usize)m.argument])
+        return received
+
+    ## Entry load `n`'s result from the integer register `wide`: its argument's, or %r11;
+    ## extended as the load from the parameter's slot would have.
+    mutating func receive_one(n: ir.Instr, wide: str) -> !:
+        let code = self.fr.temp_regs.get((usize)n.dst - 1)
+        let d = class_name(code, n.cls) if code != 0 else ("%rax" if n.cls == ir.Class.l else "%eax")
+        let long = n.cls == ir.Class.l
+        match n.op:
+            .loadl:
+                if d != wide:
+                    try self.line4("movq ", wide, ", ", d)
+            .loaduw:
+                try self.line4("movl ", narrow_name(wide), ", ", d)
+            .loadsw:
+                try self.line4("movslq " if long else "movl ", narrow_name(wide), ", ", d)
+            .loaduh:
+                try self.line4("movzwl ", word_name(wide), ", ", narrow_name(d))
+            .loadsh:
+                try self.line4("movswq " if long else "movswl ", word_name(wide), ", ", d)
+            .loadub:
+                try self.line4("movzbl ", byte_name(wide), ", ", narrow_name(d))
+            _:
+                try self.line4("movsbq " if long else "movsbl ", byte_name(wide), ", ", d)
+        if code == 0:
+            try self.frame_store(d, n.cls, self.temp_home(n.dst))
+
+    ## A load or store at `offset(base)`, the add that formed the address folded into it
+    ## (`selection.offset_access`).
+    mutating func offset_access(n: ir.Instr, base: ir.Ref, offset: i64) -> !:
+        if (u8)n.op <= (u8)ir.Op.loadd:
+            let lc = load_class(n.op)
+            let d = self.target(n.dst, lc, self.reg(lc, 0))
+            let b = try self.source(base, ir.Class.l, "%r10")
+            try self.line(load_mnemonic(n.op))
+            try self.put_i64(offset)
+            try self.put("(")
+            try self.put(b)
+            try self.put2("), ", d)
+            try self.finish(n.dst, lc, d)
+            return
+        let cls = store_class(n.op)
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(base, ir.Class.l, "%r10")
+        if n.op == ir.Op.storeb:
+            try self.line3("movb ", byte_name(v), ", ")
+        elif n.op == ir.Op.storeh:
+            try self.line3("movw ", word_name(v), ", ")
+        else:
+            try self.line3(store_mnemonic(n.op), v, ", ")
+        try self.put_i64(offset)
+        try self.put("(")
+        try self.put(b)
+        try self.put(")")
+
+    ## The memory operand `memory_place` chose.
+    mutating func put_place(place: u64?) -> !:
+        if let below = place:
+            try self.frame_operand(below)
+        else:
+            try self.put("(%r10)")
+
+    mutating func put2(a: str, b: str) -> !:
+        try self.put(a)
+        try self.put(b)
+
     mutating func frame_address(reg: str, offset: u64) -> !:
         try self.line("leaq ")
         try self.frame_operand(offset)
@@ -237,6 +361,14 @@ pub struct Generator:
             let home = class_name(code, cls)
             if home != reg:
                 try self.register_move(reg, home, cls, code)
+            return
+        if let below = self.fr.rematerialised(t):
+            # a frame address, formed here (`remat`)
+            if is_int_class(cls):
+                try self.frame_address(wide_name(reg), below)
+            else:
+                try self.frame_address("%r11", below)
+                try self.line3("movq %r11, ", reg, "")
             return
         try self.frame_load(reg, cls, self.temp_home(t))
 
@@ -445,7 +577,13 @@ pub struct Generator:
             try self.frame_operand(self.fr.indirect_home)
         try self.save_callee_saved()
         try self.unwinding.prologue_complete(&self.out)
-        try self.receive_params()
+        var entry = try selection.entry_loads(self.f)
+        defer free(entry)
+        var moves = try list.List[incoming.Move].create(8)
+        defer moves.destroy()
+        try self.receive_params(entry, &moves)
+        var received = try self.receive_directly(&moves)
+        defer free(received)
         var uses = try selection.uses(self.f)
         defer free(uses)
         var i: usize = 0
@@ -453,6 +591,9 @@ pub struct Generator:
             self.at = i
             if let dw = self.dw:
                 try dw.mark(&self.out, self.f, &self.fr, index, i)
+            if received[i]:
+                i += 1
+                continue
             if selection.branch(self.f, i, uses):
                 if let dw = self.dw:
                     # the fused branch's own line and labels, ahead of the pair
@@ -465,6 +606,14 @@ pub struct Generator:
                 try self.comparison(comparison, branch, next)
                 i += 2
                 continue
+            if let fused = selection.offset_access(self.f, i, uses):
+                let (base, offset) = fused
+                if not self.fr.is_rematerialised(self.f.instrs.get(i).dst):
+                    if let dw = self.dw:
+                        try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+                    try self.offset_access(self.f.instrs.get(i + 1), base, offset)
+                    i += 2
+                    continue
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             i += 1
         if let dw = self.dw:
@@ -608,21 +757,31 @@ pub struct Generator:
             try self.store_bytes(reg, "%r10", offset, width)
 
     ## Store the incoming arguments into their slots.
-    mutating func receive_params() -> !:
+    mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         if self.convention.windows:
             try self.receive_windows()
             return
         var next_int: u32 = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
         var next_float: u32 = 0
         var stack_offset: u64 = 16
+        # a memory argument copied by memcpy (past 128 bytes) would clobber the ones left
+        # in their registers for `receive_directly`
+        var direct = true
+        for p in self.f.params.span():
+            if p.size > 128:
+                direct = false
         var i: usize = 0
         while i < self.f.params.count:
             let p = self.f.params.get(i)
             let home = self.slot_home(p.slot)
             if p.size == 0:
                 let code = (usize)self.fr.slot_regs.get((usize)p.slot)
+                let straight = direct and code == 0 and entry[i] != 0 and p.cls != ir.Class.h
                 if ir.is_float_class(p.cls):
-                    if next_float < 8:
+                    if next_float < 8 and straight:
+                        try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_float), float = true))
+                        next_float += 1
+                    elif next_float < 8:
                         if p.cls == ir.Class.h:
                             try self.line2("movd ", float_argument_names[(usize)next_float])
                             try self.put(", %eax")
@@ -638,6 +797,9 @@ pub struct Generator:
                         try self.put(", ")
                         try self.frame_operand(home)
                         stack_offset += 8
+                elif next_int < 6 and straight:
+                    try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_int), float = false))
+                    next_int += 1
                 elif next_int < 6:
                     let source_name = argument_names[(usize)next_int] if p.cls == ir.Class.l else narrow_name(argument_names[(usize)next_int])
                     if code != 0:
@@ -673,10 +835,15 @@ pub struct Generator:
                     # register is safely stored
                     stack_offset += round_up((u64)p.size, 8)
             i += 1
-        stack_offset = 16
-        next_int = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
-        next_float = 0
-        i = 0
+        try self.copy_memory_params()
+
+    ## The aggregates passed in the caller's stack area copied into their slots, after
+    ## every register argument is safely stored: the same walk over the arguments.
+    mutating func copy_memory_params() -> !:
+        var stack_offset: u64 = 16
+        var next_int: u32 = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
+        var next_float: u32 = 0
+        var i: usize = 0
         while i < self.f.params.count:
             let p = self.f.params.get(i)
             if p.size == 0:
@@ -739,6 +906,9 @@ pub struct Generator:
     # mark: Instructions =======================================================================
 
     mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
+        if n.dst != 0 and self.fr.is_rematerialised(n.dst):
+            # a frame address is formed where it is used
+            return
         match n.op:
             .dbg:
                 discard(0)
@@ -795,12 +965,14 @@ pub struct Generator:
                 if from_slot != 0:
                     try self.load_promoted(n.op, from_slot, d)
                 else:
-                    try self.address_operand("%r10", n.a)
+                    let place = try self.memory_place(n.a, n.op)
                     if n.op == ir.Op.loadhf:
                         try self.line("movzwl (%r10), %eax")
                         try self.line3("movd %eax, ", d, "")
                     else:
-                        try self.line4(load_mnemonic(n.op), "(%r10), ", d, "")
+                        try self.line(load_mnemonic(n.op))
+                        try self.put_place(place)
+                        try self.put2(", ", d)
                 try self.finish(n.dst, lc, d)
             .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
                 let cls = store_class(n.op)
@@ -809,16 +981,18 @@ pub struct Generator:
                 if to_slot != 0:
                     try self.store_promoted(n.op, to_slot, v)
                 else:
-                    try self.address_operand("%r10", n.b)
+                    let place = try self.memory_place(n.b, n.op)
                     if n.op == ir.Op.storehf:
                         try self.line3("movd ", v, ", %eax")
                         try self.line("movw %ax, (%r10)")
-                    elif n.op == ir.Op.storeb:
-                        try self.line3("movb ", byte_name(v), ", (%r10)")
-                    elif n.op == ir.Op.storeh:
-                        try self.line3("movw ", word_name(v), ", (%r10)")
                     else:
-                        try self.line3(store_mnemonic(n.op), v, ", (%r10)")
+                        if n.op == ir.Op.storeb:
+                            try self.line3("movb ", byte_name(v), ", ")
+                        elif n.op == ir.Op.storeh:
+                            try self.line3("movw ", word_name(v), ", ")
+                        else:
+                            try self.line3(store_mnemonic(n.op), v, ", ")
+                        try self.put_place(place)
             .frame:
                 let d = self.target(n.dst, ir.Class.l, "%rax")
                 if self.convention.windows:
@@ -1126,8 +1300,14 @@ pub struct Generator:
     mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
         let cls = n.cls
         let a = try self.source(n.a, cls, self.reg(cls, 0))
-        let b = try self.source(n.b, cls, self.reg(cls, 1))
-        try self.line4("cmpq " if cls == ir.Class.l else "cmpl ", b, ", ", a)
+        # a constant the instruction carries: a sign-extended 32-bit immediate
+        if n.b.kind == ir.RefKind.constant and n.b.value >= -2147483648 and n.b.value <= 2147483647:
+            try self.line("cmpq $" if cls == ir.Class.l else "cmpl $")
+            try self.put_i64(n.b.value)
+            try self.put2(", ", a)
+        else:
+            let b = try self.source(n.b, cls, self.reg(cls, 1))
+            try self.line4("cmpq " if cls == ir.Class.l else "cmpl ", b, ", ", a)
         var cond = "e"
         match n.op:
             .ceq: cond = "e"
@@ -2097,8 +2277,12 @@ pub struct Generator:
                 try self.line("movq ")
                 try self.frame_operand(self.fr.indirect_home)
                 try self.put(", %rdi")
-                try self.load_immediate("%rdx", (i64)self.f.result_size)
-                try self.call_symbol("memcpy")
+                if self.f.result_size <= 128:
+                    # a few words: loads and stores, not a call, on every return
+                    try self.inline_copy("%rsi", "%rdi", (u64)self.f.result_size)
+                else:
+                    try self.load_immediate("%rdx", (i64)self.f.result_size)
+                    try self.call_symbol("memcpy")
                 try self.line("movq ")
                 try self.frame_operand(self.fr.indirect_home)
                 try self.put(", %rax")

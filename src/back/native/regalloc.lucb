@@ -89,6 +89,11 @@ pub struct Lives:
     pub func life_start(t: u32) -> u32:
         return self.start[(usize)t]
 
+    ## Temporary `t` needs no register nor home (`remat`): it has no life to allocate.
+    pub mutating func forget(t: u32):
+        self.start[(usize)t] = no_position
+        self.head[(usize)t] = no_position
+
     ## The doubled position temporary `t`'s life ends at, 0 when it has none.
     pub func life_end(t: u32) -> u32:
         return self.end[(usize)t] if self.start[(usize)t] != no_position else 0
