@@ -4,12 +4,13 @@
 #
 #   DESCRIPTION:
 #       A slot or a spilled temporary needs its home only while its value lives. Two whose
-#       lives do not overlap take the same bytes, as a C compiler colours its stack: the
+#       lives do not overlap take the same bytes, as a C compiler colors its stack: the
 #       locals of one `match` arm and those of the next, the results of fallible calls in
 #       different statements, the spills of unrelated temporaries. A temporary's life is
 #       the register allocator's own. A slot's is the span of every use of its address,
 #       drawn out over each loop it is used in, since its bytes carry a value around the
-#       back edge; a slot whose address is stored or returned keeps its home to itself.
+#       back edge. A slot whose address leaves the function's sight keeps its home to
+#       itself: stored, returned, passed to a call or asm, put in a register or an atomic.
 #
 #==============================================================================================
 
@@ -69,26 +70,25 @@ pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
         let at = 2 * i
         let value = derived(x.a, origin)
         let place = derived(x.b, origin)
-        # the address itself stored, returned or handed to asm: it may be used anywhere
-        if value != 0 and (is_store(x.op) or x.op == ir.Op.ret or x.op == ir.Op.asm_):
+        # the address itself kept where this function cannot see its uses: stored, returned,
+        # put in a register, handed to asm or an atomic operation
+        if value != 0 and escapes_value(x.op):
             spans[value].low = pinned
+        if place != 0 and is_atomic(x.op):
+            spans[place].low = pinned
         if value != 0:
             widen(spans, value, at)
         if place != 0:
             widen(spans, place, at)
-        var source = value if value != 0 else place
+        let source = value if value != 0 else place
+        # an address handed to a call or asm may be kept by it (`push_break_entry(fd, &be)`
+        # stores it for later) or answered back (`memcpy` its destination): its slot is the
+        # local's alone for the whole function
         let (start, count) = ir.argument_range(f, x)
         for k in 0..<count:
             let argument = derived(f.args.get(start + k).value, origin)
             if argument != 0:
-                if x.op == ir.Op.asm_:
-                    spans[argument].low = pinned
-                widen(spans, argument, at)
-                # a call may answer a pointer it was given (`memcpy` its destination)
-                if source != 0 and source != argument:
-                    spans[source].low = pinned
-                    spans[argument].low = pinned
-                source = argument
+                spans[argument].low = pinned
         if x.op == ir.Op.call:
             let call = f.calls.get(x.extra)
             if call.has_result and call.result_size > 0:
@@ -173,6 +173,14 @@ func derived(r: ir.Ref, origin: u32[]) -> u32:
     if r.kind == ir.RefKind.temp and (usize)r.index < origin.length:
         return origin[r.index]
     return 0
+
+## Whether an operation keeps its first operand where this function cannot follow it: a
+## store's value (a vector's too), a returned value, a register's, asm's, an atomic's.
+func escapes_value(op: ir.Op) -> bool:
+    return is_store(op) or op == ir.Op.storev or op == ir.Op.ret or op == ir.Op.asm_ or op == ir.Op.set_reg or is_atomic(op)
+
+func is_atomic(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.atomic_load and (u8)op <= (u8)ir.Op.atomic_cas
 
 func is_load(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf

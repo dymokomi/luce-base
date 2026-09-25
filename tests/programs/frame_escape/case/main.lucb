@@ -1,0 +1,49 @@
+#==============================================================================================
+#
+#   frame_escape - A local whose address a callee keeps has a frame home of its own
+#
+#   DESCRIPTION:
+#       `first`'s address is last named at the call that keeps it, as luce-js's parser
+#       hands a block to push_break_entry; `second`, of the same size and written after,
+#       must not take its bytes, or `pop` reads 2 and the program prints 22, not 21.
+#       Sharing runs only in an optimised native build, so check.sh builds this program
+#       rather than running it as a test.
+#
+#==============================================================================================
+
+struct Env:
+    var depth: i32
+    var prev: Env*?
+
+struct Stack:
+    var top: Env*?
+
+## Keeps `e` for later, as luce-js's push_break_entry keeps a parser's block.
+noinline func push(stack: Stack*, e: Env*):
+    e.prev = stack.top
+    stack.top = e
+
+## Writes `e` and keeps nothing.
+noinline func fill(e: Env*, depth: i32):
+    e.depth = depth
+    e.prev = none
+
+noinline func pop(stack: Stack*) -> i32:
+    let e = stack.top else return -1
+    stack.top = e.prev
+    return e.depth
+
+## `first` is kept by `push`; `second` is written after its last use here.
+noinline func kept_by_callee(stack: Stack*) -> i32:
+    var first: Env = ---
+    fill(&first, 1)
+    push(stack, &first)
+    var second: Env = ---
+    fill(&second, 2)
+    let seen = second.depth
+    return seen * 10 + pop(stack)
+
+pub func main(arguments: str[]) -> i32:
+    var stack = Stack(top = none)
+    print(f"{kept_by_callee(&stack)}")
+    return 0
