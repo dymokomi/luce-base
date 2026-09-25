@@ -9,7 +9,10 @@
 set -eu
 cd "$(dirname "$0")/../.."
 host=$(tools/host.sh)
-flags="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=alignment,function -fno-omit-frame-pointer"
+# GCC has no `function` sanitizer to turn off, and rejects the name.
+excluded=alignment
+if ${CC:-cc} --version 2>/dev/null | grep -qi clang; then excluded=alignment,function; fi
+flags="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=$excluded -fno-omit-frame-pointer"
 programs=0
 for f in tests/conformance/[0-9]*/*.expect tests/robustness/*/*.expect; do
     [ -e "$f" ] || continue
