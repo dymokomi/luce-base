@@ -1247,8 +1247,16 @@ pub struct Lowerer:
             try self.unwind(self.scopes.count - 1, false)
             self.pop_scope()
             return
-        let it = try self.ty(seq)
-        let sequence = try self.expr(seq)
+        # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
+        let indexed = lower_indexed_receiver(seq)
+        var it = try self.ty(seq)
+        var sequence = LowerValue(ref = ir.none_ref(), type_id = types.unit_id, in_memory = false)
+        if let receiver = indexed:
+            let rt = try self.ty(receiver)
+            it = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
+            sequence = try self.value(receiver, it)
+        else:
+            sequence = try self.expr(seq)
         # the data pointer and the count, in slots that outlive the loop's blocks
         let data_slot = try self.f.slot(8, 8)
         let count_slot = try self.f.slot(8, 8)
@@ -1286,7 +1294,17 @@ pub struct Lowerer:
         let i2 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
         let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, i2, ir.const_ref((i64)stride))
         let element_address = try self.f.binary(ir.Op.add, ir.Class.l, base, scaled)
-        if binding.body != none:
+        if binding.body != none and indexed != none:
+            # `(index, element)`
+            let index_name = binding.body else return
+            if index_name.text != "_":
+                let slot = try self.bind_local(index_name, types.usize_id)
+                try self.f.store(ir.Op.storel, i2, try self.slot_address(slot))
+            if let element_name = index_name.next:
+                if element_name.text != "_":
+                    let slot = try self.bind_local(element_name, element_type)
+                    try self.store_to(try self.slot_address(slot), try self.load_from(element_address, element_type))
+        elif binding.body != none:
             let et = self.c.table.get(element_type)
             var offset: u64 = 0
             var k: usize = 0
@@ -2557,7 +2575,7 @@ pub struct Lowerer:
     ## float `min` or `max` skips a NaN lane when another lane compares.
     mutating func vector_fold(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, result: u32) -> LowerValue!:
         let et = self.elem(rt)
-        let v = try self.expr(receiver)
+        let v = try self.receiver_value(receiver, rt)
         let stride = self.c.table.size_of(et)
         let count = self.c.table.get(rt).length
         let acc_slot = try self.new_slot(et)
@@ -3852,14 +3870,14 @@ pub struct Lowerer:
         let first = e.body else return try self.fail(e, "`compare` takes one argument")
         let other = first.left else return try self.fail(e, "empty argument")
         if rt == types.str_id:
-            let lv = try self.expr(receiver)
+            let lv = try self.receiver_value(receiver, rt)
             let rv = try self.expr(other)
             let start = u32(self.f.args.count)
             try self.f.args.push(try self.arg_of(lv))
             try self.f.args.push(try self.arg_of(rv))
             let c = try self.call_named("lb_core_11str_compare", start, 2, ir.Class.w, true, types.i32_id)
             return LowerValue(ref = try self.f.unary(ir.Op.extsw, ir.Class.l, c), type_id = result, in_memory = false)
-        let lv = try self.value(receiver, rt)
+        let lv = try self.receiver_value(receiver, rt)
         let rv = try self.value(other, rt)
         let signed = self.is_float(rt) or self.signed_of(rt) or rt == types.char_id
         let cls = self.class_of(rt)
@@ -3878,7 +3896,16 @@ pub struct Lowerer:
             lines = l.next
         try self.program_unit.module_asm.push(ir.Text(bytes = try names.keep(&text)))
 
-    ## `first()`, `last()`, `indexed()` on spans; `bits()` on floats.
+    ## The receiver of a method the compiler supplies, as a value of type `rt`: a pointer
+    ## receiver (`key.bits()` with `key: const f32*`) is read through.
+    mutating func receiver_value(receiver: ast.Node*, rt: u32) -> LowerValue!:
+        let have = try self.ty(receiver)
+        if self.is_ptr(have) and not self.is_ptr(rt):
+            let address = try self.value(receiver, have)
+            return try self.load_from(address.ref, rt)
+        return try self.value(receiver, rt)
+
+    ## `first()` and `last()` on spans; `bits()` on floats.
     mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> LowerValue!:
         let result = try self.ty(e)
         if callee.text == "compare":
@@ -3886,61 +3913,15 @@ pub struct Lowerer:
         if callee.text == "sum" or callee.text == "min" or callee.text == "max":
             return try self.vector_fold(e, callee, receiver, rt, result)
         if callee.text == "bits":
-            let v = try self.expr(receiver)
+            let v = try self.receiver_value(receiver, rt)
             return LowerValue(ref = try self.f.unary(ir.Op.cast, self.class_of(result), v.ref), type_id = result, in_memory = false)
-        # `first`, `last`, and `indexed` are the span's (§5.4): an array receiver is read as
-        # the span it converts to
+        # `first` and `last` are the span's (§5.4): an array receiver is read as the span it
+        # converts to; `indexed` is a `for` of its own (`for_stmt`)
         let st = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
         let span = try self.value(receiver, st)
         let data = try self.f.load(ir.Op.loadl, ir.Class.l, span.ref)
         let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
         let et = self.elem(rt)
-        if callee.text == "indexed":
-            let pair = self.elem(result)
-            let stride = self.c.table.size_of(pair)
-            let bytes = try self.f.binary(ir.Op.mul, ir.Class.l, length, ir.const_ref((i64)stride))
-            let block = try self.allocate_bytes(try self.allocator_global(), bytes, ir.const_ref((i64)self.c.table.align_of(pair)))
-            let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(block, 16))
-            let ok = self.f.label()
-            let bad = self.f.label()
-            try self.f.branch(present, ok, bad)
-            try self.f.place_label(bad)
-            try self.trap_with("memory.exhausted")
-            try self.f.place_label(ok)
-            let out = try self.f.load(ir.Op.loadl, ir.Class.l, block)
-            # fill the pairs
-            let index_slot = try self.f.slot(8, 8)
-            try self.f.store(ir.Op.storel, ir.const_ref(0), try self.slot_address(index_slot))
-            let head = self.f.label()
-            let body = self.f.label()
-            let done = self.f.label()
-            let length_slot = try self.f.slot(8, 8)
-            try self.f.store(ir.Op.storel, length, try self.slot_address(length_slot))
-            let data_slot = try self.f.slot(8, 8)
-            try self.f.store(ir.Op.storel, data, try self.slot_address(data_slot))
-            let out_slot = try self.f.slot(8, 8)
-            try self.f.store(ir.Op.storel, out, try self.slot_address(out_slot))
-            try self.f.place_label(head)
-            let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
-            let n = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(length_slot))
-            let go = try self.f.binary(ir.Op.cult, ir.Class.l, i, n)
-            try self.f.branch(go, body, done)
-            try self.f.place_label(body)
-            let i2 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
-            let o = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(out_slot))
-            let d = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(data_slot))
-            let target = try self.f.binary(ir.Op.add, ir.Class.l, o, try self.f.binary(ir.Op.mul, ir.Class.l, i2, ir.const_ref((i64)stride)))
-            try self.f.store(ir.Op.storel, i2, target)
-            let source = try self.f.binary(ir.Op.add, ir.Class.l, d, try self.f.binary(ir.Op.mul, ir.Class.l, i2, ir.const_ref((i64)self.c.table.size_of(et))))
-            let element = try self.load_from(source, et)
-            try self.store_to(try self.offset_address(target, self.c.table.offset_of(pair, "a1") if false else lower_round_up(8, self.c.table.align_of(et))), element)
-            let next = try self.f.binary(ir.Op.add, ir.Class.l, i2, ir.const_ref(1))
-            try self.f.store(ir.Op.storel, next, try self.slot_address(index_slot))
-            try self.f.jump(head)
-            try self.f.place_label(done)
-            let out2 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(out_slot))
-            let n2 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(length_slot))
-            return try self.span_of(out2, n2, result)
         # first / last: an optional in memory
         let slot = try self.new_slot(result)
         let a = try self.slot_address(slot)
@@ -5004,6 +4985,9 @@ pub struct Lowerer:
     mutating func test_body(t: ast.Node*, index: u32) -> !:
         let inst = LowerInstance(decl = t, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function(try self.test_name(index), t, inst)
+        # never expanded into the runner's `main`: a module of many small tests would make
+        # one huge function, whose passes are then slower than all the tests apart
+        self.f.noinline = true
         try self.push_scope(false, "", 0, 0)
         if let body = t.body:
             var cursor = body.body
@@ -5253,6 +5237,16 @@ func lower_is_trap_call(e: ast.Node*) -> bool:
 
 func lower_never_valued(e: ast.Node*) -> bool:
     return e.type_id == types.never_id
+
+## The receiver of `items.indexed()`, when `e` is that call of the method the compiler
+## supplies: a `for` over it walks `items` by index (§8.3).
+func lower_indexed_receiver(e: ast.Node*) -> ast.Node*?:
+    if e.kind != ast.Kind.call:
+        return none
+    let callee = e.left else return none
+    if callee.kind != ast.Kind.member or callee.text != "indexed" or callee.resolved != none:
+        return none
+    return callee.left
 
 func lower_unescape_braces(text: str) -> str:
     let b = text.bytes

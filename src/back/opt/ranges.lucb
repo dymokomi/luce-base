@@ -5,7 +5,10 @@
 #   DESCRIPTION:
 #       Facts about immutable SSA values, scoped by dominance. A successful bounds check
 #       supplies a fact just like a branch does. Unknown ranges retain checks; this pass
-#       never derives a fact about a memory location from an earlier load.
+#       never derives a fact about a memory location from an earlier load. Facts are
+#       chained by their left and by their right operand, so a query reads the facts about
+#       its operands rather than every fact in scope: a function with thousands of checks
+#       builds in time near linear in them.
 #
 #==============================================================================================
 
@@ -25,6 +28,13 @@ struct Fact:
     var cls: ir.Class
     var left: ir.Ref
     var right: ir.Ref
+    ## The fact before this one with the same left, and with the same right, operand
+    ## bucket; 1-based, 0 ends the chain.
+    var next_left: u32
+    var next_right: u32
+
+## Operands other than temporaries share this many buckets, by kind and value.
+let shared_buckets: usize = 256
 
 ## A multiplication that has already completed without overflow. Its factors
 ## bound smaller products and row-major indexes without requiring a constant
@@ -48,8 +58,28 @@ struct Search:
     var g: cfg.Graph*
     var definitions: u32[]
     var facts: list.List[Fact]
+    ## The newest fact whose left, and whose right, operand falls in each bucket: one per
+    ## temporary, then `shared_buckets` for the rest; 1-based, 0 when there is none.
+    var left_heads: u32[]
+    var right_heads: u32[]
     var products: list.List[Product]
     var changed: bool = false
+
+    ## The chain bucket of operand `r`: its own for a temporary, a shared one otherwise.
+    func bucket(r: ir.Ref) -> usize:
+        let temps = self.left_heads.length - shared_buckets
+        if r.kind == ir.RefKind.temp and (usize)r.index < temps:
+            return (usize)r.index
+        let mixed = ((u64)r.value +% (u64)(u8)r.kind) *% 11400714819323198485
+        return temps + (usize)(mixed >> 56)
+
+    ## Drop the facts after the first `mark`, newest first, restoring the chains.
+    mutating func truncate(mark: usize):
+        while self.facts.count > mark:
+            let fact = self.facts.get(self.facts.count - 1)
+            self.left_heads[self.bucket(fact.left)] = fact.next_left
+            self.right_heads[self.bucket(fact.right)] = fact.next_right
+            self.facts.count -= 1
 
     ## Equalities are followed only to a bounded depth. Exhausting the search
     ## loses an optimization, never a check that would have been necessary.
@@ -58,12 +88,17 @@ struct Search:
             return true
         if depth >= 3:
             return false
-        for fact in self.facts.span():
-            if fact.relation != Relation.equal or fact.cls != cls:
-                continue
-            if same(a, fact.left) and self.equal(fact.right, b, cls, depth + 1):
+        var at = self.left_heads[self.bucket(a)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_left
+            if fact.relation == Relation.equal and fact.cls == cls and same(a, fact.left) and self.equal(fact.right, b, cls, depth + 1):
                 return true
-            if same(a, fact.right) and self.equal(fact.left, b, cls, depth + 1):
+        at = self.right_heads[self.bucket(a)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_right
+            if fact.relation == Relation.equal and fact.cls == cls and same(a, fact.right) and self.equal(fact.left, b, cls, depth + 1):
                 return true
         return false
 
@@ -84,18 +119,24 @@ struct Search:
                 result = self.upper(definition.a, ir.Class.w, depth + 1)
             elif definition.op == ir.Op.and_ and definition.b.kind == ir.RefKind.constant:
                 result = bits(definition.b, cls)
-        for fact in self.facts.span():
-            if fact.cls != cls:
-                continue
-            var bound = maximum
-            if same(value, fact.left):
-                bound = self.upper(fact.right, cls, depth + 1)
+        var at = self.left_heads[self.bucket(value)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_left
+            if fact.cls == cls and same(value, fact.left):
+                var bound = self.upper(fact.right, cls, depth + 1)
                 if fact.relation == Relation.less and bound > 0:
                     bound -= 1
-            elif fact.relation == Relation.equal and same(value, fact.right):
-                bound = self.upper(fact.left, cls, depth + 1)
-            if bound < result:
-                result = bound
+                if bound < result:
+                    result = bound
+        at = self.right_heads[self.bucket(value)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_right
+            if fact.relation == Relation.equal and fact.cls == cls and same(value, fact.right):
+                let bound = self.upper(fact.left, cls, depth + 1)
+                if bound < result:
+                    result = bound
         return result
 
     func at_most(a: ir.Ref, b: ir.Ref, cls: ir.Class, strict: bool, depth: u32 = 0) -> bool:
@@ -109,20 +150,52 @@ struct Search:
                 return true
         if depth >= 3:
             return false
-        for fact in self.facts.span():
-            if fact.cls != cls:
-                continue
-            if self.equal(a, fact.left, cls):
-                if self.at_most(fact.right, b, cls, strict and fact.relation != Relation.less, depth + 1):
-                    return true
-            if fact.relation == Relation.equal and same(a, fact.right):
+        if self.bounded_through(a, a, b, cls, strict, depth, 0):
+            return true
+        var at = self.right_heads[self.bucket(a)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_right
+            if fact.relation == Relation.equal and fact.cls == cls and same(a, fact.right):
                 if self.at_most(fact.left, b, cls, strict, depth + 1):
                     return true
         return false
 
+    ## Whether a fact whose left is `x`, a value `equal` to `a` within three equalities
+    ## (`hops` taken so far), bounds `a` by `b`: the facts `at_most` would find by asking
+    ## `equal(a, fact.left)` of every fact, reached through the chains instead.
+    func bounded_through(x: ir.Ref, a: ir.Ref, b: ir.Ref, cls: ir.Class, strict: bool, depth: u32, hops: u32) -> bool:
+        var at = self.left_heads[self.bucket(x)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_left
+            if fact.cls == cls and same(x, fact.left):
+                if self.at_most(fact.right, b, cls, strict and fact.relation != Relation.less, depth + 1):
+                    return true
+        if hops >= 3:
+            return false
+        at = self.left_heads[self.bucket(x)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_left
+            if fact.relation == Relation.equal and fact.cls == cls and same(x, fact.left) and self.bounded_through(fact.right, a, b, cls, strict, depth, hops + 1):
+                return true
+        at = self.right_heads[self.bucket(x)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_right
+            if fact.relation == Relation.equal and fact.cls == cls and same(x, fact.right) and self.bounded_through(fact.left, a, b, cls, strict, depth, hops + 1):
+                return true
+        return false
+
     mutating func add(relation: Relation, cls: ir.Class, left: ir.Ref, right: ir.Ref) -> !:
-        if not same(left, right):
-            try self.facts.push(Fact(relation = relation, cls = cls, left = left, right = right))
+        if same(left, right):
+            return
+        let l = self.bucket(left)
+        let r = self.bucket(right)
+        try self.facts.push(Fact(relation = relation, cls = cls, left = left, right = right, next_left = self.left_heads[l], next_right = self.right_heads[r]))
+        self.left_heads[l] = (u32)self.facts.count
+        self.right_heads[r] = (u32)self.facts.count
 
     func product_fits(a: ir.Ref, b: ir.Ref, cls: ir.Class) -> bool:
         for product in self.products.span():
@@ -210,7 +283,7 @@ struct Search:
                 try stack.push(RangeVisit(block = child, child = 0, mark = self.facts.count, product_mark = self.products.count))
                 try self.visit_block(child)
             else:
-                self.facts.count = top.mark
+                self.truncate(top.mark)
                 self.products.count = top.product_mark
                 stack.count -= 1
 
@@ -260,8 +333,14 @@ struct Search:
 ## Run after value numbering/load forwarding, while temporaries still have one
 ## definition. The caller rebuilds its graph when instructions were removed.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
-    var search = Search(f = f, g = g, definitions = try alloc u32[f.temps.count + 1], facts = try list.List[Fact].create(32), products = try list.List[Product].create(8))
+    let buckets = f.temps.count + 1 + shared_buckets
+    var search = Search(f = f, g = g, definitions = try alloc u32[f.temps.count + 1], facts = try list.List[Fact].create(32), left_heads = try alloc u32[buckets], right_heads = try alloc u32[buckets], products = try list.List[Product].create(8))
     defer free(search.definitions)
+    defer free(search.left_heads)
+    defer free(search.right_heads)
+    for index in 0..<buckets:
+        search.left_heads[index] = 0
+        search.right_heads[index] = 0
     defer search.facts.destroy()
     defer search.products.destroy()
     for index in 0..<search.definitions.length:

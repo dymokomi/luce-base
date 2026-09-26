@@ -19,6 +19,7 @@ python3 tools/test_platform_boundaries.py
 python3 tools/test_narrow_extern.py
 python3 tools/test_frame_sharing_time.py
 python3 tools/test_enum_cases_time.py
+python3 tools/test_ranges_time.py
 python3 tools/test_inline_optimised.py
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note

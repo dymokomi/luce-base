@@ -1,0 +1,27 @@
+## §8.3: `for (i, x) in items.indexed()` walks a span or an array by index; the loop makes
+## no pairs, so it allocates nothing, however often it runs.
+struct Point:
+    var x: i64
+    var tag: u8
+
+func weighted(values: const f32[]) -> usize:
+    var total: usize = 0
+    for (i, v) in values.indexed():
+        if v > 5.0:
+            total += i
+    return total
+
+pub func main(arguments: str[]) -> i32:
+    var total: usize = 0
+    let values: f32[4] = [0.0, 9.0, 2.0, 7.0]
+    for _ in 0..<5:
+        total += weighted(values)
+    let points: Point[3] = [Point(x = 1, tag = 2), Point(x = 3, tag = 4), Point(x = 5, tag = 6)]
+    for (k, p) in points.indexed():
+        print(f"{k}: {p.x} {p.tag}")
+    for (k, p) in points.indexed():
+        total += (usize)p.x * k
+    for (k, byte) in "héllo".bytes.indexed():
+        total += k + (usize)(byte & 1)
+    print(f"{total}")
+    return 0

@@ -101,6 +101,15 @@ pub struct Frame:
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
+    ## Keep callee-saved register `code` out of the pools and save it on entry, as an asm
+    ## block of the function names it (§8.9): it holds no value of the function, and the
+    ## caller's survives.
+    pub mutating func reserve(code: u8):
+        self.reserved = self.reserved | ((u64)1 << (u64)(code - 1))
+
+    func is_reserved(code: u8) -> bool:
+        return (self.reserved & ((u64)1 << (u64)(code - 1))) != 0
+
     ## Whether register `code` is a float (or vector) one, and whether a call preserves it.
     pub func float_code(code: u8) -> bool:
         return self.registers.pools().is_float(code)
@@ -370,6 +379,10 @@ pub struct Frame:
                 i += 1
             if best == ns:
                 break
+            while int_code <= ints and self.is_reserved(int_code):
+                int_code += 1
+            while float_code <= self.registers.ints + floats and self.is_reserved(float_code):
+                float_code += 1
             if kind[best] == 1:
                 if int_code > ints:
                     kind[best] = 3

@@ -153,6 +153,13 @@ pub struct Checker:
     var checking_template: bool
     ## Inside a top-level constant initialiser, where `ErrorCode.package` is allowed.
     var at_top_level: bool
+    ## The `.indexed` member of the `for` iterable being checked: the one place `indexed()`
+    ## may appear, since the loop walks the span by index and no pairs are made (§8.3).
+    var indexed_iterable: ast.Node*? = none
+    ## Whether the `if` or `while` just checked had a constant condition that is not a
+    ## literal, `if os.arm64:`: what it rules out goes silently, and so does what follows it
+    ## when it always leaves, since the program meant it for the other targets (§19.6).
+    var folded_quietly: bool = false
     ## The directory of the entry file; dotted imports resolve beneath it.
     var root: str
     ## Imports on the active load path. Completed modules remain in dependency order;
@@ -2566,6 +2573,9 @@ pub struct Checker:
                 if callee.kind != ast.Kind.name or callee.resolved != none:
                     return none
                 let arg = e.resolved else return none
+                # `sizeof(T)` in a generic body is each instance's own, not a constant here
+                if self.mentions_param(arg.type_id):
+                    return none
                 if callee.text == "sizeof":
                     return self.table.size_of(arg.type_id)
                 if callee.text == "alignof":
@@ -3675,6 +3685,8 @@ pub struct Checker:
                 return try self.table.pointer(t.elem, t.is_const, false)
             if t.kind == types.Kind.array and self.table.is_vector(id) and (name == "sum" or name == "min" or name == "max"):
                 return try self.builtin_method(e, id, name)
+            if name == "indexed" and not self.is_indexed_iterable(e):
+                return try self.fail(e, "`indexed()` is iterated by `for`: `for (i, x) in items.indexed()` (§8.3)")
             if name == "first" or name == "last" or name == "indexed":
                 let span = id if t.kind == types.Kind.span else try self.table.span(t.elem, false)
                 return try self.builtin_method(e, span, name)
@@ -4529,11 +4541,14 @@ pub struct Checker:
         self.push_scope()
         var cursor = block.body
         while let s = cursor:
+            let conditional = s.kind == ast.Kind.if_ or s.kind == ast.Kind.while_
+            self.folded_quietly = false
             try self.check_stmt(s)
             if let rest = s.next:
                 if prune.certainly_leaves(s):
-                    var r = self.reporter()
-                    try r.warn(rest, "unreachable code")
+                    if not (conditional and self.folded_quietly):
+                        var r = self.reporter()
+                        try r.warn(rest, "unreachable code")
                     s.next = none
             cursor = s.next
         self.pop_scope()
@@ -4550,6 +4565,7 @@ pub struct Checker:
                 try self.check_if(s)
                 if not s.has(ast.flag_if_let):
                     let quiet = try self.fold_condition(s)
+                    self.folded_quietly = quiet
                     var r = self.reporter()
                     try prune.fold_constant_branch(s, &r, quiet)
             .while_:
@@ -4832,6 +4848,11 @@ pub struct Checker:
             else:
                 try self.check_block(rest)
 
+    ## Whether member `e` is the `.indexed` of the `for` iterable being checked.
+    func is_indexed_iterable(e: ast.Node*) -> bool:
+        let member = self.indexed_iterable else return false
+        return member == e
+
     ## `for x in items`, `for (i, x) in items.indexed()`, `for i in a..<b`,
     ## `for c in text`, `for p in &items` (§8.3).
     mutating func check_for(s: ast.Node*) -> !:
@@ -4840,7 +4861,13 @@ pub struct Checker:
         var declared = types.none_id
         if let t = binding.ty:
             declared = try self.resolve_type(t)
+        self.indexed_iterable = none
+        if iterable.kind == ast.Kind.call:
+            if let callee = iterable.left:
+                if callee.kind == ast.Kind.member and callee.text == "indexed":
+                    self.indexed_iterable = callee
         let got = try self.check_expr(iterable, declared)
+        self.indexed_iterable = none
         let t = self.table.get(got)
         var elem = types.none_id
         if t.kind == types.Kind.span or t.kind == types.Kind.array:

@@ -1,12 +1,20 @@
 ## What the checker warns about and removes (§19.6): the program's answer is unchanged.
 import memory
 import io
+import os
 from io import Writer
 var hits: i64 = 0
 
 func bump() -> i64:
     hits += 1
     return 1
+
+## A branch on a target constant is meant for some targets: neither it nor the code it
+## makes unreachable on this one draws a warning, on any target.
+pub func per_target(a: i64, b: i64) -> i64:
+    if os.x86_64:
+        return a
+    return b
 
 func never_called() -> i64:
     return 7

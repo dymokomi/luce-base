@@ -543,6 +543,7 @@ pub struct Generator:
         # Windows keeps the argument-register codes 6–9 out of the pools (rsi and rdi are
         # nonvolatile there, and its arguments are staged through the shadow area)
         self.fr.reserved = 480 if self.convention.windows else 0
+        self.reserve_asm_registers()
         try self.fr.plan(self.f)
         try self.fr.layout(self.f, 176 if self.convention.windows else 0, self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape))
         try self.object_format.function_start(&self.out, self.f)
@@ -2296,6 +2297,19 @@ pub struct Generator:
         try self.unwinding.popped_frame_pointer(&self.out)
         try self.line("ret")
         try self.unwinding.end_epilogue(&self.out)
+
+    ## The callee-saved registers the function's asm blocks name as operands, `rbx` and
+    ## `r12`-`r15` in any width: reserved, so they are saved and restored like the allocator's.
+    mutating func reserve_asm_registers():
+        for n in self.f.instrs.span():
+            if n.op != ir.Op.set_reg and n.op != ir.Op.get_reg:
+                continue
+            let reg = with_percent(self.program_unit.texts.get((usize)n.b.index).bytes)
+            var c: usize = 1
+            while c <= 5:
+                if reg == q_names[c] or reg == l_names[c] or reg == w_names[c] or reg == b_names[c]:
+                    self.fr.reserve((u8)c)
+                c += 1
 
     mutating func save_callee_saved() -> !:
         if self.convention.windows:

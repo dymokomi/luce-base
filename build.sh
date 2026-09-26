@@ -10,6 +10,13 @@
 set -eu
 cd "$(dirname "$0")"
 mkdir -p build
+# the compiler's package depends on luce-std (package.prisma): the checkout beside this one
+# when there is one, else the commit bootstrap/STD names, fetched once into .luc/deps (by identifier) where
+# the compiler looks when the checkout is absent
+if [ ! -d ../luce-std ] && [ ! -d .luc/deps/luce_std ]; then
+    git clone --quiet https://github.com/dymokomi/luce-std .luc/deps/luce_std
+    git -C .luc/deps/luce_std checkout --quiet "$(cat bootstrap/STD)"
+fi
 python3 tools/embed_version.py > /dev/null
 CC=${CC:-cc}
 host=$(tools/host.sh)

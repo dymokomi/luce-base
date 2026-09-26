@@ -585,6 +585,8 @@ pub struct Generator:
         if let dw = self.dw:
             try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
+        self.fr.reserved = 0
+        self.reserve_asm_registers()
         try self.fr.plan(self.f)
         try self.fr.layout(self.f, 16, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0)
         try self.object_format.function_start(&self.out, self.f)
@@ -2183,6 +2185,19 @@ pub struct Generator:
         try self.line("ret")
         if self.dw != none:
             try self.line(".cfi_restore_state")
+
+    ## The callee-saved registers the function's asm blocks name as operands, `x19`-`x28` and
+    ## `d8`-`d15` in any view: reserved, so they are saved and restored like the allocator's.
+    mutating func reserve_asm_registers():
+        for n in self.f.instrs.span():
+            if n.op != ir.Op.set_reg and n.op != ir.Op.get_reg:
+                continue
+            let reg = self.program_unit.texts.get((usize)n.b.index).bytes
+            var c: usize = 1
+            while c <= 18:
+                if reg == x_names[c] or reg == w_names[c] or reg == h_names[c] or reg == q_names[c] or reg == v_names[c]:
+                    self.fr.reserve((u8)c)
+                c += 1
 
     ## Save every callee-saved register the allocator used, on entry.
     mutating func save_callee_saved() -> !:

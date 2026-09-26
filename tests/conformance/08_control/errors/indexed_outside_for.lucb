@@ -1,0 +1,5 @@
+# error: `indexed()` is iterated by `for`: `for (i, x) in items.indexed()` (§8.3)
+pub func main(arguments: str[]) -> i32:
+    let items: i64[2] = [1, 2]
+    let pairs = items.indexed()
+    return (i32)pairs.length

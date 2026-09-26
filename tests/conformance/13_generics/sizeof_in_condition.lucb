@@ -1,0 +1,17 @@
+## §13: `sizeof(T)` in a generic body is each instance's own size, in a condition as in a
+## binding: the branch is chosen per instance, never folded once for the declaration.
+func pick[T](value: const T*) -> usize:
+    if sizeof(T) % 8 == 0:
+        return 1
+    else:
+        return 2
+
+func bound[T](value: const T*) -> usize:
+    let size = sizeof(T)
+    return 1 if size % 8 == 0 else 2
+
+pub func main(arguments: str[]) -> i32:
+    let a: u32 = 1
+    let b: u64 = 1
+    print(f"{pick(&a)} {pick(&b)} {bound(&a)} {bound(&b)}")
+    return 0

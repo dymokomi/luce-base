@@ -1798,7 +1798,14 @@ pub struct Emitter:
                 try self.put_ident(binding.text)
                 try self.put("++) {")
         else:
-            let it = try self.ty(seq)
+            # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
+            let indexed = indexed_receiver(seq)
+            var it = try self.ty(seq)
+            var sequence = seq
+            if let receiver = indexed:
+                let rt = try self.ty(receiver)
+                it = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
+                sequence = receiver
             let n = self.tmp()
             try self.line("")
             try self.put_type(it)
@@ -1814,7 +1821,7 @@ pub struct Emitter:
                 try self.put(" ")
                 try self.put_tmp("seq", n)
                 try self.put(" = ")
-                try self.value(seq, it)
+                try self.value(sequence, it)
                 try self.put(";")
             # `for character in text` walks the scalars of valid UTF-8 (§5.5): the index
             # advances by each scalar's width
@@ -1843,7 +1850,25 @@ pub struct Emitter:
                 try self.put("++) {")
             self.indent += 1
             # the element, by value or by pointer, or the tuple members
-            if binding.body != none:
+            if binding.body != none and indexed != none:
+                # `(index, element)`
+                let index_name = binding.body else return
+                if index_name.text != "_":
+                    try self.line("size_t ")
+                    try self.put_ident(index_name.text)
+                    try self.put(" __attribute__((unused)) = ")
+                    try self.put_tmp("i", n)
+                    try self.put(";")
+                if let element_name = index_name.next:
+                    if element_name.text != "_":
+                        try self.line("")
+                        try self.put_type(try self.map(element_name.type_id))
+                        try self.put(" ")
+                        try self.put_ident(element_name.text)
+                        try self.put(" __attribute__((unused)) = ")
+                        try self.element_of(it, n)
+                        try self.put(";")
+            elif binding.body != none:
                 let et = try self.map(binding.type_id) if binding.type_id != 0 else self.elem(it)
                 var i: u64 = 0
                 var cursor = binding.body
@@ -2811,10 +2836,6 @@ pub struct Emitter:
             let inner = e.left else return
             try self.address(inner)
             return
-        if e.kind == ast.Kind.name and self.is_array(try self.ty(e)):
-            try self.put_ident(e.text)
-            try self.put(".d")
-            return
         if e.kind == ast.Kind.index:
             try self.put("&(")
             try self.index_at(e, true)
@@ -3249,7 +3270,7 @@ pub struct Emitter:
         try self.put(" ")
         try self.put_tmp("va", n)
         try self.put(" = ")
-        try self.expr(receiver)
+        try self.receiver_value(receiver, rt)
         try self.put("; ")
         try self.put_type(et)
         try self.put(" ")
@@ -4983,14 +5004,14 @@ pub struct Emitter:
         discard(try self.add_func(d, try types.no_args(), t.decl, t.args))
         try self.put_func_name(d, try types.no_args(), t.decl, t.args)
 
-    ## `first()`, `last()`, `indexed()` on spans; `bits()` on floats.
+    ## `first()` and `last()` on spans; `bits()` on floats.
     ## `a.compare(b)` on a number, `char`, or `str`: negative, zero, or positive (§14.4).
     mutating func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
         let first = e.body else return
         let other = first.left else return
         if rt == types.str_id:
             try self.put("((int64_t)lb_str_compare(")
-            try self.value(receiver, rt)
+            try self.receiver_value(receiver, rt)
             try self.put(", ")
             try self.value(other, rt)
             try self.put("))")
@@ -4998,7 +5019,7 @@ pub struct Emitter:
         try self.put("({ ")
         try self.put_type(rt)
         try self.put(" _lb_ca = ")
-        try self.value(receiver, rt)
+        try self.receiver_value(receiver, rt)
         try self.put("; ")
         try self.put_type(rt)
         try self.put(" _lb_cb = ")
@@ -5051,6 +5072,17 @@ pub struct Emitter:
                 try self.put("\");")
             cursor = s.next
 
+    ## The receiver of a method the compiler supplies, as a value of type `rt`: a pointer
+    ## receiver (`key.bits()` with `key: const f32*`) is read through.
+    mutating func receiver_value(receiver: ast.Node*, rt: u32) -> !:
+        let have = try self.ty(receiver)
+        if self.is_ptr(have) and not self.is_ptr(rt):
+            try self.put("(*(")
+            try self.expr(receiver)
+            try self.put("))")
+            return
+        try self.value(receiver, rt)
+
     mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
         if callee.text == "compare":
             try self.compare_call(e, receiver, rt)
@@ -5065,7 +5097,7 @@ pub struct Emitter:
             try self.put(" ")
             try self.put_tmp("fv", n)
             try self.put(" = ")
-            try self.expr(receiver)
+            try self.receiver_value(receiver, rt)
             try self.put("; ")
             try self.put_type(self.c.bits_type(rt))
             try self.put(" ")
@@ -5081,8 +5113,8 @@ pub struct Emitter:
             try self.put("; })")
             return
         let result = try self.ty(e)
-        # `first`, `last`, and `indexed` are the span's (§5.4): an array receiver is read as
-        # the span it converts to
+        # `first` and `last` are the span's (§5.4): an array receiver is read as the span it
+        # converts to; `indexed` is a `for` of its own (`for_stmt`)
         let st = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
         try self.put("({ ")
         try self.put_type(st)
@@ -5092,48 +5124,6 @@ pub struct Emitter:
         try self.value(receiver, st)
         try self.put("; ")
         let et = self.elem(rt)
-        if callee.text == "indexed":
-            # a span of (index, element) pairs built in the current allocator
-            let pair = self.elem(result)
-            try self.put_block_type()
-            try self.put(" ")
-            try self.put_tmp("ix", n)
-            try self.put(" = lb_alloc_call(lb_memory_allocator, sizeof(")
-            try self.put_type(pair)
-            try self.put(") * ")
-            try self.put_tmp("sq", n)
-            try self.put(".length, _Alignof(")
-            try self.put_type(pair)
-            try self.put(")); if (")
-            try self.put_tmp("sq", n)
-            try self.put(".length != 0 && !")
-            try self.put_tmp("ix", n)
-            try self.put(".present) lb_trap(\"memory.exhausted\"); ")
-            try self.put_type(pair)
-            try self.put("* ")
-            try self.put_tmp("ip", n)
-            try self.put(" = (")
-            try self.put_type(pair)
-            try self.put("*)")
-            try self.put_tmp("ix", n)
-            try self.put(".value.data; for (size_t _i = 0; _i < ")
-            try self.put_tmp("sq", n)
-            try self.put(".length; _i++) { ")
-            try self.put_tmp("ip", n)
-            try self.put("[_i].a0 = _i; ")
-            try self.put_tmp("ip", n)
-            try self.put("[_i].a1 = ((")
-            try self.put_type(et)
-            try self.put("*)")
-            try self.put_tmp("sq", n)
-            try self.put(".data)[_i]; } (")
-            try self.put_type(result)
-            try self.put("){ (void*)")
-            try self.put_tmp("ip", n)
-            try self.put(", ")
-            try self.put_tmp("sq", n)
-            try self.put(".length }; })")
-            return
         # first / last
         try self.put_type(result)
         try self.put(" ")
@@ -7254,6 +7244,16 @@ func case_tag(d: ast.Node*, target: ast.Node*) -> u32:
             i += 1
         cursor = node.next
     return 0
+
+## The receiver of `items.indexed()`, when `e` is that call of the method the compiler
+## supplies: a `for` over it walks `items` by index (§8.3).
+func indexed_receiver(e: ast.Node*) -> ast.Node*?:
+    if e.kind != ast.Kind.call:
+        return none
+    let callee = e.left else return none
+    if callee.kind != ast.Kind.member or callee.text != "indexed" or callee.resolved != none:
+        return none
+    return callee.left
 
 ## A float literal without its digit separators.
 ## `{{` and `}}` in a formatted piece are one brace each.

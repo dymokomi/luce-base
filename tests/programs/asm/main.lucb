@@ -84,3 +84,18 @@ func double_and_add(a: u64, b: u64) -> u64:
         leaq ({a}, {a}), {out}
         addq {b}, {out}
     return out
+
+## A block that destroys a callee-saved register, named as a discarded output: the function
+## saves and restores it, so the caller's value in it survives the call.
+noinline func overwrite_saved(marker: usize):
+    asm arm64(in("x9") marker, out("x19") _):
+        mov x19, x9
+    asm x86_64(in("rax") marker, out("rbx") _):
+        movq %rax, %rbx
+
+test "a callee-saved register an asm block destroys is preserved for the caller":
+    var total: usize = 0
+    for i in 0..<10:
+        overwrite_saved(0xdead)
+        total += (usize)i
+    assert(total == 45)
