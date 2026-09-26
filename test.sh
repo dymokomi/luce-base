@@ -21,6 +21,7 @@ python3 tools/test_frame_sharing_time.py
 python3 tools/test_enum_cases_time.py
 python3 tools/test_ranges_time.py
 python3 tools/test_inline_optimised.py
+python3 tools/test_fmt_comments.py
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
 python3 tools/embed_runtime.py --check

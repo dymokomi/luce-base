@@ -722,7 +722,43 @@ pub struct Formatter:
             previous = s
             try self.statement(s)
             cursor = s.next
+        if let last = previous:
+            if let first = b.body:
+                try self.block_end_comments(last, self.indent_of(statement_start(first)))
         self.indent -= 1
+
+    ## Comments on lines of their own right after a block's last statement, at least as deep
+    ## as its statements, end the block: they are written in it, not before what follows.
+    mutating func block_end_comments(last: ast.Node*, depth: usize) -> !:
+        while self.written < self.comment_count:
+            let start = self.comments[self.written * 2]
+            if self.indent_of(start) < depth or not self.only_deeper(statement_start(last), start, depth):
+                return
+            discard(try self.comments_before(start + 1))
+
+    ## How far into its line `offset` stands.
+    func indent_of(offset: usize) -> usize:
+        var i = offset
+        while i > 0 and self.src.bytes[i - 1] != '\n':
+            i -= 1
+        return offset - i
+
+    ## Whether every line of code after the one holding `after`, up to the line holding
+    ## `until`, is at least `depth` deep: nothing shallower ends the block before `until`.
+    func only_deeper(after: usize, until: usize, depth: usize) -> bool:
+        let bytes = self.src.bytes
+        var i = after
+        while i < until:
+            if bytes[i] != '\n':
+                i += 1
+                continue
+            var j = i + 1
+            while j < until and bytes[j] == ' ':
+                j += 1
+            if j < until and bytes[j] != '\n' and bytes[j] != '\r' and bytes[j] != '#' and j - (i + 1) < depth:
+                return false
+            i = j
+        return true
 
     mutating func statement(s: ast.Node*) -> !:
         match s.kind:
