@@ -149,6 +149,8 @@ extern func GetModuleFileNameA(module: void*, name: u8*, size: u32) -> u32
 extern func c_quick_exit as "_exit"(code: i32) -> never
 extern func dladdr(address: const void*, info: DlInfo*) -> i32
 extern func getcontext(context: void*) -> i32
+extern func RtlLookupFunctionEntry(pc: u64, image_base: u64*, history: void*?) -> void*?
+extern func RtlVirtualUnwind(kind: u32, image_base: u64, pc: u64, entry: void*, context: void*, handler_data: void**, establisher: u64*, pointers: void*?) -> void*?
 
 ## `Dl_info`: the module and nearest symbol `dladdr` finds for an address.
 extern struct DlInfo:
@@ -169,6 +171,11 @@ var crash_walking: bool = false
 ## Where `getcontext` puts the registers of a trap on Linux: more than any
 ## `ucontext_t` needs, as words so it is aligned.
 var crash_registers: usize[1024]
+## A Windows fault's CONTEXT, copied so it can be unwound in place: 1232 bytes
+## that must start on 16, with room to move them there.
+var crash_windows_context: u8[1280]
+## The interrupted context of the fatal signal being reported, when there is one.
+var crash_context: const void*? = none
 
 ## Turn crash reports on: a trap from now on also writes `header` and the trap
 ## to the file at `path` (created then, replaced if present), with a native
@@ -222,6 +229,14 @@ func finish_crash_report(at: FaultRegisters):
     if crash_file < 0:
         return
     write_all(crash_file, "\nstack:\n".bytes)
+    var unwound = false
+    if platform.windows:
+        if let context = crash_context:
+            write_windows_unwound(crash_file, context)
+            unwound = true
+    if unwound:
+        close_crash_report()
+        return
     if at.fp != 0 and not platform.wasm32:
         write_walked_stack(crash_file, at)
     elif platform.posix and not platform.wasm32:
@@ -316,6 +331,42 @@ func write_walked_stack(file: i32, at: FaultRegisters):
     crash_walking = false
     for index in 0..<depth:
         write_frame(file, index, frames[index], index == link)
+
+## Windows: unwind a copy of the fault's CONTEXT a frame at a time through the
+## SEH tables the native backend emits (its frame pointer sits below each
+## frame's locals, so there are no frame records to follow). A function with no
+## table entry is a leaf, whose return address is at the stack pointer.
+func write_windows_unwound(file: i32, context: const void*):
+    if platform.windows:
+        let start = (usize)(const void*)&crash_windows_context[0]
+        let copy = &crash_windows_context[(16 - start % 16) % 16]
+        discard(memcpy(copy, context, 1232))
+        var frames: usize[64] = ---
+        var depth: usize = 0
+        crash_walking = true
+        while depth < 64:
+            let pc = word_at(copy, 248)
+            let sp = word_at(copy, 152)
+            if pc == 0:
+                break
+            frames[depth] = pc
+            depth += 1
+            var base: u64 = 0
+            if let entry = RtlLookupFunctionEntry((u64)pc, &base, none):
+                var data: void* = ---
+                var establisher: u64 = 0
+                discard(RtlVirtualUnwind(0, base, (u64)pc, entry, (void*)copy, &data, &establisher, none))
+            else:
+                put_word(copy, 248, ((const usize*)(const void*)sp)[0])
+                put_word(copy, 152, sp + 8)
+            if word_at(copy, 152) <= sp:
+                break
+        crash_walking = false
+        for index in 0..<depth:
+            write_frame(file, index, frames[index], false)
+
+func put_word(base: u8*, offset: usize, value: usize):
+    ((usize*)(void*)(base + offset))[0] = value
 
 ## One frame's line: its number, address, module and offset in it (for
 ## addr2line or atos), and the nearest symbol where the platform names one.
@@ -482,6 +533,7 @@ pub func report_fatal_signal_in(name: str, number: i32, context: const void*?) -
     write_diagnostic("trap: fatal signal ".bytes)
     write_diagnostic(name.bytes)
     write_diagnostic("\n".bytes)
+    crash_context = context
     if let interrupted = context:
         finish_crash_report(context_registers(interrupted))
     else:
