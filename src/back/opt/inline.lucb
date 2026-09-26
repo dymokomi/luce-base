@@ -831,6 +831,8 @@ struct Expansion:
                 m.extra2 = try self.copy_table(m.extra2)
             .call:
                 m.extra = try self.copy_call(m.extra)
+            .fma:
+                m.extra2 = try self.copy_argument(m.extra2)
             .ret:
                 try self.leave(m.a, out)
                 return
@@ -872,6 +874,13 @@ struct Expansion:
             info.result_slot += self.slot_base
         try self.f.calls.push(info)
         return u32(self.f.calls.count - 1)
+
+    ## An argument of the body (`fma`'s addend) joins the caller's list; its new index.
+    func copy_argument(index: u32) -> u32!:
+        var a = self.g.args.get((usize)index)
+        a.value = self.renumber(a.value)
+        try self.f.args.push(a)
+        return u32(self.f.args.count - 1)
 
     ## A reference of the body as the caller numbers it.
     func renumber(r: ir.Ref) -> ir.Ref:

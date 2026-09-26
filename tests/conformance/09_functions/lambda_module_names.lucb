@@ -1,0 +1,17 @@
+## §9.6: a lambda captures nothing of the function it is written in, and sees everything its
+## module declares: a type to convert to, and a function to call.
+enum Color as u8:
+    red = 0
+    green = 1
+
+func apply(convert: func(u64) -> Color, value: u64) -> Color:
+    return convert(value)
+
+func twice(x: u64) -> u64:
+    return x * 2
+
+pub func main(arguments: str[]) -> i32:
+    let color = apply((v: u64) => (Color)(u8)v, 1)
+    let f = (v: u64) => twice(v) + 1
+    print(f"{(u8)color} {f(3)}")
+    return 0

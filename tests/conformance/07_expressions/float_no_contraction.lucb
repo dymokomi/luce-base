@@ -1,0 +1,11 @@
+## §7.2: floating point is IEEE 754 with no contraction: `a * b + c` rounds the product
+## before the sum, in every execution. (1 + 2^-12)^2 is 1 + 2^-11 + 2^-24, whose last term
+## a fused multiply-add would keep and the rounded product loses.
+func multiply_add(a: f32, b: f32, c: f32) -> f32:
+    return a * b + c
+
+pub func main(arguments: str[]) -> i32:
+    let a: f32 = 1.000244140625
+    let r = multiply_add(a, a, -1.00048828125)
+    print(f"{r.bits()}")
+    return 0

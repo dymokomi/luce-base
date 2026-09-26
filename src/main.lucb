@@ -87,7 +87,7 @@ struct Options:
 ## value (§6.1), so the lists hold `c.str?`.
 ## The warnings a legal Base program may raise in the C it becomes, which are not about
 ## the C's types and stay silent: `-Werror` keeps the rest.
-let library_c_flags: c.str[5] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2"]
+let library_c_flags: c.str[6] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-ffp-contract=off", "-O2"]
 let generated_c_silences: c.str[5] = ["-Wno-format", "-Wno-self-assign", "-Wno-tautological-compare", "-Wno-parentheses-equality", "-Wno-uninitialized"]
 
 ## A command line built piece by piece: `c.str` items in a list, each formatted flag in an
@@ -573,6 +573,8 @@ func c_arguments(release: bool) -> Arguments!:
     try arguments.add("-std=gnu11")
     try arguments.add("-Wall")
     try arguments.add("-fno-strict-aliasing")
+    # IEEE 754 with no contraction (§7.2): `a * b + c` rounds twice, as the native backend does
+    try arguments.add("-ffp-contract=off")
     try arguments.add("-Werror")
     try arguments.add("-O2" if release else "-O0")
     if platform.windows:
@@ -875,7 +877,7 @@ func build_library(code: str, header_text: str, name: str) -> !:
         try gen_args.add("-o")
         try gen_args.add((c.str)object_path)
         try run_tool("cc", gen_args.span(), "the C compiler rejected the generated code", dir)
-        var rt_args: c.str[10] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2", (c.str)include, "-c", (c.str)rt_source, "-o", (c.str)rt_object]
+        var rt_args: c.str[11] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-ffp-contract=off", "-O2", (c.str)include, "-c", (c.str)rt_source, "-o", (c.str)rt_object]
         try run_tool("cc", rt_args, "the C compiler rejected the runtime", dir)
         var ar_args = try Arguments.create()
         try ar_args.add("rcs")
@@ -908,6 +910,9 @@ func test_file(path: c.str, native: bool) -> i32!:
         var checker = try checked(path)
         let entry = checker.modules.get(checker.modules.count - 1).tree
         used_mode = try settle_mode(entry, 1)
+        # a function no test reaches is not compiled, so one naming another platform's
+        # symbol builds here as it does in a program that imports the module
+        try check.test_as_library(checker.modules.get(checker.modules.count - 1).name)
         # LUCE_TEST_BINARY keeps the compiled test binary at a path so a memory checker can
         # run it (tools/valgrind_std.sh); otherwise it builds into a scratch dir and removes it.
         if let requested = os.env("LUCE_TEST_BINARY"):

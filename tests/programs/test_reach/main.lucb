@@ -1,0 +1,13 @@
+## A test build compiles what the tests reach (§16.5): a function of the file under test
+## that names another platform's symbol, and that no test calls, is left out, so the tests
+## link here as a program importing the module would.
+extern func symbol_of_another_platform(x: i64) -> i64
+
+pub func elsewhere(x: i64) -> i64:
+    return symbol_of_another_platform(x)
+
+pub func here(x: i64) -> i64:
+    return x + 1
+
+test "only what the tests reach is compiled":
+    assert(here(1) == 2)

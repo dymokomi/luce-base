@@ -1,0 +1,17 @@
+# oracle: none
+## §6.4: a top-level `let` of arithmetic on constants is the value it computes, in every
+## execution and as a C initialiser: shifts, negation, complement, casts, and arithmetic
+## shifts right of negative values.
+let flag: i32 = 3 << 4
+let negative: i32 = -(1 << 4) - 3
+let wide: u64 = ~0u64 ^ 255
+let narrow: i8 = (i8)200
+let halved: i32 = -8 >> 1
+let least: i64 = -9223372036854775807 - 1
+
+noinline func masked(x: i32) -> i32:
+    return x & flag
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{masked(255)} {negative} {wide} {narrow} {halved} {least}")
+    return 0

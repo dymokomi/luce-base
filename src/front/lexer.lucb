@@ -56,7 +56,9 @@ pub struct Lexer:
     var asm_header: bool
     var raw_level: u32
     var in_raw: bool
-    ## Offset just past the last comment, so a `:` inside it does not open a suite.
+    ## Offsets of the last comment's `#` and just past it, so a `:` inside it does not open
+    ## a suite while one before it still does.
+    var comment_start: usize
     var comment_end: usize
     ## The block depth when each open bracket was seen; a closer ends any suite
     ## opened inside it (base.md §3.2: closers on the body's last line).
@@ -70,7 +72,7 @@ pub struct Lexer:
     pub static func over(src: source.Source) -> Lexer:
         return Lexer(src = src, offset = 0, line = 1, line_start = 0, at_line_start = true,
                      depth = 0, pending_dedents = 0, delimiters = 0, mode_depth = 0,
-                     asm_header = false, raw_level = 0, in_raw = false, comment_end = 0,
+                     asm_header = false, raw_level = 0, in_raw = false, comment_start = 0, comment_end = 0,
                      reopened = false, token_start = 0)
 
     ## The one-based line and column of the byte about to be read, for diagnostics.
@@ -143,6 +145,7 @@ pub struct Lexer:
                 let doc = self.peek_at(1) == '#' and start == self.line_start
                 while self.peek() != '\n' and self.peek() != 0:
                     self.offset += 1
+                self.comment_start = start
                 self.comment_end = self.offset
                 if doc:
                     return self.make(token.Kind.doc_comment, start)
@@ -485,11 +488,10 @@ pub struct Lexer:
             return self.make(token.Kind.operator, start)
         return try self.operator(start)
 
-    ## Whether the physical line ending at `end` ends with `:` (a suite inside brackets).
+    ## Whether the physical line ending at `end` ends with `:` (a suite inside brackets); a
+    ## comment ending the line is read past, as the code before it is what ends.
     func colon_ended(end: usize) -> bool:
-        if self.comment_end == end:
-            return false  # the line ends in a comment
-        var i = end
+        var i = self.comment_start if self.comment_end == end else end
         while i > 0:
             i -= 1
             let c = self.src.bytes[i]
@@ -625,6 +627,12 @@ test "a colon in a trailing comment does not open a suite":
     var toks: token.Token[64] = ---
     let n = tokenize("f(1,   # note:\n  2)\n", toks) catch failure: recover 0
     assert(n == 7)
+
+test "a colon before a trailing comment opens a suite":
+    var toks: token.Token[64] = ---
+    let n = tokenize("f(x catch e:   # note\n    recover 0)\ny\n", toks) catch failure: recover 0
+    assert(n == 15)
+    assert(toks[7].kind == token.Kind.indent)
 
 ## The value of a digit in any base up to 16, or 16 for a byte that is no digit.
 func digit_value(c: u8) -> u8:

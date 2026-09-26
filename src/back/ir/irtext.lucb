@@ -157,6 +157,9 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
             if x.b.kind != ir.RefKind.none_:
                 try out.put(", ")
                 try operand(out, x.b)
+            if x.op == ir.Op.fma:
+                try out.put(", ")
+                try operand(out, f.args.get((usize)x.extra2).value)
             if ir.is_vector_op(x.op):
                 # the lane shape: `[4 x s32]`, `[2 x f64]`
                 try out.put(" [")
@@ -320,5 +323,6 @@ func op_name(op: ir.Op) -> str:
         .vshl: return "vshl"
         .vshr: return "vshr"
         .vsplat: return "vsplat"
+        .fma: return "fma"
         .dbg: return "dbg"
         _: return "?"

@@ -1,0 +1,11 @@
+# error: this place is not mutable
+# oracle: none
+## §5.3: `const f32[4]*` is a pointer to a read-only array: the qualifier binds to the
+## element beneath the array suffix, and a store through the pointer is refused.
+func poke(p: const f32[4]*):
+    (*p)[0] = 1.0
+
+pub func main(arguments: str[]) -> i32:
+    var lanes: f32[4] = [0.0, 0.0, 0.0, 0.0]
+    poke(&lanes)
+    return 0

@@ -288,6 +288,9 @@ pub enum Op as u8:
     ## temporary's life; no code, no use of `a` (`ssa.promote` places them, the DWARF
     ## emitter reads them)
     dbg = 161
+    ## `fma dst = a * b + c`, rounded once (`mul_add`, §7.2): `c` is the argument at index
+    ## `extra2`; `extra` is a vector's lane shape and 0 for a scalar of class `cls`
+    fma = 162
     ## The frame pointer of the running function, for the debugger.
     frame = 200
     ## Inline assembly operands: `set_reg a -> named register b` before an `asm` block,
@@ -792,8 +795,8 @@ pub struct Unit:
         return u32(self.texts.count - 1)
 
 ## The arguments an instruction reads from the function's argument list, as a start and a
-## count: a call's, and the expected and desired values of `atomic_cas`, which sit there
-## too. Every pass that walks a call's arguments walks these, so a cas's operands are
+## count: a call's, the expected and desired values of `atomic_cas`, and the addend of
+## `fma`, which sit there too. Every pass that walks a call's arguments walks these, so a cas's operands are
 ## renamed, resolved, counted live, and kept out of promoted slots like any other use.
 pub func argument_range(f: Function*, x: Instr) -> (u32, u32):
     if x.op == Op.call:
@@ -801,6 +804,8 @@ pub func argument_range(f: Function*, x: Instr) -> (u32, u32):
         return (info.args_start, info.args_count)
     if x.op == Op.atomic_cas:
         return ((u32)x.b.value, 2)
+    if x.op == Op.fma:
+        return (x.extra2, 1)
     return (0, 0)
 
 ## The class a scalar of `size` bytes uses; floats are chosen by the caller.

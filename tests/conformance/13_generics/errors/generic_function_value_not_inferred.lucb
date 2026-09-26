@@ -1,0 +1,8 @@
+# error: a type argument of this generic function is not in the expected function type
+# oracle: none
+func make[T]() -> i64:
+    return (i64)sizeof(T)
+
+pub func main(arguments: str[]) -> i32:
+    let f: func() -> i64 = make
+    return (i32)f()

@@ -1,0 +1,31 @@
+# oracle: none
+## §7.2: `a.mul_add(b, c)` is `a * b + c` rounded once, where `a * b + c` written out rounds
+## twice (§7.2 allows no contraction); (1 + 2^-12)^2 - (1 + 2^-11) is 2^-24 fused and 0
+## rounded. §5.12: on a vector it is lane by lane, and a receiver is read through a pointer.
+func scale(lanes: f32[4]*, k: f32) -> f32[4]:
+    return lanes.mul_add(f32[4](k), f32[4](1.0))
+
+pub func main(arguments: str[]) -> i32:
+    let a: f32 = 1.000244140625
+    print(f"{a.mul_add(a, -1.00048828125).bits()} {(a * a + -1.00048828125).bits()}")
+    let x: f64 = 1.0000000000000002
+    print(f"{x.mul_add(x, -1.0000000000000004).bits()} {(x * x + -1.0000000000000004).bits()}")
+    let va: f32[4] = [a, 2.0, 3.0, 4.0]
+    let vb: f32[4] = [a, 0.5, 0.25, 2.0]
+    let vc: f32[4] = [-1.00048828125, 1.0, 1.0, 1.0]
+    let r = va.mul_add(vb, vc)
+    print(f"{r[0].bits()} {r[1]} {r[2]} {r[3]}")
+    let wa: f64[2] = [x, 3.0]
+    let w = wa.mul_add(wa, f64[2](-1.0000000000000004))
+    print(f"{w[0].bits()} {w[1]}")
+    let narrow: f32[2] = [a, 2.0]
+    let n = narrow.mul_add(narrow, f32[2](-1.00048828125))
+    print(f"{n[0].bits()} {n[1]}")
+    var lanes: f32[4] = [1.0, 2.0, 3.0, 4.0]
+    let s = scale(&lanes, 2.0)
+    print(f"{s[0]} {s[1]} {s[2]} {s[3]}")
+    var total: f32 = 0.0
+    for i in 0..<10:
+        total = total.mul_add(1.5, (f32)i)
+    print(f"{total}")
+    return 0

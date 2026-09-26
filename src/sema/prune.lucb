@@ -38,8 +38,9 @@ pub struct Reporter:
         if self.silent:
             return
         var buffer: u8[512]
-        let (line, column) = self.src.position(node.start)
-        let text = try format(buffer, f"{self.path}:{line}:{column}: warning: {what}")
+        # a directory module's warning names its fragment and the fragment's line, as an error does
+        let (name, line, column) = self.src.located(node.start)
+        let text = try format(buffer, f"{name}:{line}:{column}: warning: {what}")
         var kept = try alloc u8[text.length if text.length > 0 else 1]
         memory.copy(kept, text.bytes, text.length)
         try self.warnings.push((str)kept[..<text.length])

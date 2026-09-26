@@ -340,7 +340,7 @@ pub struct Frame:
                 let inner = self.slot_of(n.a)
                 if inner != 0 and n.a.kind == ir.RefKind.temp:
                     kind[(usize)inner - 1] = 3
-            elif n.op == ir.Op.call or n.op == ir.Op.atomic_cas:
+            elif n.op == ir.Op.call or n.op == ir.Op.atomic_cas or n.op == ir.Op.fma:
                 if n.op == ir.Op.call:
                     let info = f.calls.get((usize)n.extra)
                     # an aggregate result is written into its slot by the call sequence itself
@@ -350,6 +350,9 @@ pub struct Frame:
                     let va = self.slot_of(n.a)
                     if va != 0:
                         kind[(usize)va - 1] = 3
+                    let vb = self.slot_of(n.b) if n.op == ir.Op.fma else 0
+                    if vb != 0:
+                        kind[(usize)vb - 1] = 3
                 let (args_start, args_count) = ir.argument_range(f, n)
                 var a: u32 = 0
                 while a < args_count:

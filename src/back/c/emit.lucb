@@ -1118,6 +1118,29 @@ pub struct Emitter:
             return
         try self.put(" {")
 
+    ## The locals a body written into the scratch asked for, declared at its top: the format
+    ## buffers of its formatted texts, and the arrays whose addresses it took.
+    mutating func scratch_declarations() -> !:
+        self.indent += 1
+        var k: usize = 0
+        while k < self.formats.count:
+            try self.line("char ")
+            try self.put_tmp("fb", self.formats.get(k))
+            try self.put("[1024]; lb_fmtbuf ")
+            try self.put_tmp("ff", self.formats.get(k))
+            try self.put(";")
+            k += 1
+        k = 0
+        while k < self.arrays.count:
+            let h = self.arrays.get(k)
+            try self.line("")
+            try self.put_type(h.type_id)
+            try self.put(" ")
+            try self.put_tmp("ad", h.n)
+            try self.put(";")
+            k += 1
+        self.indent -= 1
+
     ## Emit one function instance into the body buffer.
     mutating func function(inst: Instance) -> !:
         let f = inst.decl
@@ -1172,25 +1195,7 @@ pub struct Emitter:
         try self.line("}")
         self.target = to_body
         try self.signature(f, true)
-        self.indent += 1
-        var k: usize = 0
-        while k < self.formats.count:
-            try self.line("char ")
-            try self.put_tmp("fb", self.formats.get(k))
-            try self.put("[1024]; lb_fmtbuf ")
-            try self.put_tmp("ff", self.formats.get(k))
-            try self.put(";")
-            k += 1
-        k = 0
-        while k < self.arrays.count:
-            let h = self.arrays.get(k)
-            try self.line("")
-            try self.put_type(h.type_id)
-            try self.put(" ")
-            try self.put_tmp("ad", h.n)
-            try self.put(";")
-            k += 1
-        self.indent -= 1
+        try self.scratch_declarations()
         try self.body.put(self.scratch.view())
         if names.export_wrapped(&self.c.table, f):
             try self.export_wrapper(f)
@@ -5083,6 +5088,53 @@ pub struct Emitter:
             return
         try self.value(receiver, rt)
 
+    ## `a.mul_add(b, c)` (§7.2): the C library's `fma`, rounded once, on a scalar or on each
+    ## lane of a vector.
+    mutating func mul_add(e: ast.Node*, receiver: ast.Node*, rt: u32, n: u32) -> !:
+        let first = e.body else return
+        let second = first.next else return
+        let b = first.left else return
+        let c = second.left else return
+        let is_vector = self.is_array(rt)
+        let et = self.elem(rt) if is_vector else rt
+        let function = "__builtin_fmaf(" if et == types.f32_id else "__builtin_fma("
+        if not is_vector:
+            try self.put(function)
+            try self.receiver_value(receiver, rt)
+            try self.put(", ")
+            try self.value(b, rt)
+            try self.put(", ")
+            try self.value(c, rt)
+            try self.put(")")
+            return
+        let operands: str[3] = ["ma", "mb", "mc"]
+        try self.put("({ ")
+        for k in 0..<3:
+            try self.put_type(rt)
+            try self.put(" ")
+            try self.put_tmp(operands[k], n)
+            try self.put(" = ")
+            if k == 0:
+                try self.receiver_value(receiver, rt)
+            else:
+                try self.value(b if k == 1 else c, rt)
+            try self.put("; ")
+        try self.put_type(rt)
+        try self.put(" ")
+        try self.put_tmp("mr", n)
+        try self.put("; for (size_t _i = 0; _i < ")
+        try self.put_u64(self.c.table.get(rt).length)
+        try self.put("; _i++) ")
+        try self.put_tmp("mr", n)
+        try self.put(".d[_i] = ")
+        try self.put(function)
+        for k in 0..<3:
+            try self.put_tmp(operands[k], n)
+            try self.put(".d[_i]" if k == 2 else ".d[_i], ")
+        try self.put("); ")
+        try self.put_tmp("mr", n)
+        try self.put("; })")
+
     mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
         if callee.text == "compare":
             try self.compare_call(e, receiver, rt)
@@ -5091,6 +5143,9 @@ pub struct Emitter:
             try self.vector_fold(e, callee, receiver, rt)
             return
         let n = self.tmp()
+        if callee.text == "mul_add":
+            try self.mul_add(e, receiver, rt, n)
+            return
         if callee.text == "bits":
             try self.put("({ ")
             try self.put_type(rt)
@@ -6223,7 +6278,7 @@ pub struct Emitter:
     ## buffer is declared at the function's top (`function`), so the text outlives the
     ## expression, as the value it is passed to may read it after the expression ends.
     mutating func formatted_value(f: ast.Node*) -> !:
-        let n = try self.format_buffer()
+        let n = try self.format_buffer(f)
         try self.put("({ ")
         try self.put_tmp("ff", n)
         try self.put(" = (lb_fmtbuf){ ")
@@ -6236,16 +6291,18 @@ pub struct Emitter:
 
     ## A fresh format buffer of the function being written; its declaration is the
     ## function's, not the expression's.
-    mutating func format_buffer() -> u32!:
+    mutating func format_buffer(at: ast.Node*) -> u32!:
         if self.target != to_scratch:
-            return error(check.unsupported, "a formatted text outside a function body")
+            var room: u8[96] = ---
+            let message = try format(room, f"line {at.line}: a formatted text outside a function body")
+            return error(check.unsupported, try strings.copy(message))
         let n = self.tmp()
         try self.formats.push(n)
         return n
 
     ## A formatted string as `lb_cspan` for a `Writer`, in a format buffer of the function.
     mutating func formatted_bytes(f: ast.Node*) -> !:
-        let n = try self.format_buffer()
+        let n = try self.format_buffer(f)
         try self.put("({ ")
         try self.put_tmp("ff", n)
         try self.put(" = (lb_fmtbuf){ ")
@@ -6290,7 +6347,7 @@ pub struct Emitter:
                 try self.expr(v)
             else:
                 if not buffered:
-                    n = try self.format_buffer()
+                    n = try self.format_buffer(f)
                     buffered = true
                 try self.put("({ ")
                 try self.put_tmp("ff", n)
@@ -6950,6 +7007,23 @@ pub struct Emitter:
     ## `6 if platform.macos else 1`, written as the value it denotes, since C wants a
     ## file-scope initialiser to be a literal. Says whether it wrote one.
     mutating func folded_constant(init: ast.Node*, t: u32) -> bool!:
+        if self.is_int(t) and init.kind != ast.Kind.literal:
+            # arithmetic on constants the checker folds exactly, `~0u64 ^ 255`, as its value
+            let bits = self.c.table.size_of(t) * 8
+            if let v = self.c.exact_integer(init, bits, self.is_signed(t)):
+                try self.put("((")
+                try self.put_type(t)
+                try self.put(")")
+                if self.is_signed(t) and v == -9223372036854775807 - 1:
+                    # C has no literal for the least `i64`
+                    try self.put("(-9223372036854775807LL - 1))")
+                elif self.is_signed(t):
+                    try self.put_i64(v)
+                    try self.put("LL)")
+                else:
+                    try self.put_u64((u64)v & (18446744073709551615 if bits >= 64 else ((u64)1 << bits) - 1))
+                    try self.put("ULL)")
+                return true
         if init.kind != ast.Kind.name and init.kind != ast.Kind.member and init.kind != ast.Kind.conditional:
             return false
         if t == types.bool_id:
@@ -6990,8 +7064,12 @@ pub struct Emitter:
         self.fn_args = try types.no_args()
         self.owner_decl = none
         self.owner_args = try types.no_args()
-        self.target = to_body
-        try self.signature(t, true)
+        # the body into the scratch first, as a function's, so its format buffers and the
+        # arrays it takes the address of are declared at its top
+        self.target = to_scratch
+        self.scratch.clear()
+        self.formats.count = 0
+        self.arrays.count = 0
         self.indent += 1
         try self.push_scope(false, "")
         if let body = t.body:
@@ -7004,6 +7082,10 @@ pub struct Emitter:
         try self.line("return ((lb_r_unit){ .failed = false });")
         self.indent -= 1
         try self.line("}")
+        self.target = to_body
+        try self.signature(t, true)
+        try self.scratch_declarations()
+        try self.body.put(self.scratch.view())
         self.current_fn = saved_fn
 
     ## `main` for a program with `main(arguments)`: the C strings become `str` or `c.str` items.

@@ -1219,6 +1219,8 @@ pub struct Generator:
                 try self.line("dmb ish")
             .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
                 try self.vector(n)
+            .fma:
+                try self.fused(n)
             _:
                 error(failed, "an instruction the arm64 generator does not know")
 
@@ -1418,6 +1420,44 @@ pub struct Generator:
                 try self.line4("mov ", narrow_name(d), ", ", v)
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width.
+    ## `fma`: `fmadd` for a scalar; for a vector, `fmla`, which accumulates into its
+    ## destination: the result's register takes the addend first, or v18 when that register
+    ## holds a factor.
+    mutating func fused(n: ir.Instr) -> !:
+        let addend = self.f.args.get((usize)n.extra2).value
+        if n.cls != ir.Class.v:
+            let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+            let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+            let c = try self.source(addend, n.cls, self.reg(n.cls, 2))
+            let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+            try self.line4("fmadd ", d, ", ", a)
+            try self.put(", ")
+            try self.put(b)
+            try self.put(", ")
+            try self.put(c)
+            try self.finish(n.dst, n.cls, d)
+            return
+        let arr = arrangement(n.extra)
+        let a = vector_view(try self.source(n.a, ir.Class.v, "q16"))
+        let b = vector_view(try self.source(n.b, ir.Class.v, "q17"))
+        let c = vector_view(try self.source(addend, ir.Class.v, "q18"))
+        # the result's own register takes the addend, unless it holds a factor still to read
+        var d = self.target(n.dst, ir.Class.v, "q18")
+        if vector_view(d) == a or vector_view(d) == b:
+            d = "q18"
+        let accumulator = vector_view(d)
+        if c != accumulator:
+            try self.line5("mov ", accumulator, ".16b, ", c, ".16b")
+        try self.line5("fmla ", accumulator, arr, ", ", a)
+        try self.put(arr)
+        try self.put(", ")
+        try self.put(b)
+        try self.put(arr)
+        if d == "q18" and self.target(n.dst, ir.Class.v, "q18") != "q18":
+            d = self.target(n.dst, ir.Class.v, "q18")
+            try self.line3("mov ", vector_view(d), ".16b, v18.16b")
+        try self.finish(n.dst, ir.Class.v, d)
+
     # -- vectors (§5.12) ------------------------------------------------------------------
 
     ## A vector instruction on NEON: the operands come from their homes into v16 and v17,

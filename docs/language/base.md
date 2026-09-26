@@ -425,6 +425,7 @@ counts = counts +% counts               # the wrapping form, as on scalars
 
 - The operators of §7.2 and §7.3 that take two operands of one type take two vectors of one type, or a vector and a scalar of its element type in either position, and yield that vector type: `+`, `-`, `*` (checked; a lane's overflow traps), `+%`, `-%`, `*%`, `+|`, `-|`, `*|`, `/` (float vectors), `&`, `|`, `^`, and the shifts, whose count is a scalar. Unary `-`, `-%`, and `~` apply to every lane. Each lane computes exactly as the scalar operator would, in lane order, traps included, so a vector expression means what the same expression means on each element, and the interpreter and every backend agree to the bit.
 - `T[N](x)` is the vector whose every lane is `x`; it is not the span constructor of §5.4, which takes a pointer and a count.
+- `v.mul_add(b, c)` on a vector of `f32` or `f64` lanes is `mul_add` lane by lane (§7.2): one fused instruction for sixteen bytes of lanes where the target has it.
 - `v.sum()`, `v.min()`, and `v.max()` fold the lanes with `+`, `<`, and `>` in lane order and yield an element; `sum()` traps on integer overflow as `+` does. A float `min()` or `max()` follows the comparison: a NaN lane is skipped when another lane compares, and is the result when every lane is NaN.
 - `//`, `%`, the `?` forms, and lane-wise comparison are not defined on vectors; index a lane, or write the loop.
 - A lane-wise operator computes at run time: it is not a constant expression (§6.4). A top-level `let` of a vector type is an array literal, or `T[N](x)` with a constant `x`.
@@ -534,7 +535,7 @@ Left to right, always: receiver then arguments, operands, array elements, interp
 | `%` | remainder with the sign of the dividend: `-7 % 2 == -1`, as in C |
 | unary `-` | sign; rejected on unsigned types (use `-%`) |
 
-Two integers of one width and signedness compute together, `hash(key) % table.length` with a `u64` and a `usize`, in the pointer-sized type when one operand is; storing the result is still the strict rule of §5.1. Integer division by zero traps. `minimum_signed // -1` traps as overflow. Floor division and modulo are `math.div_floor(a, b)` and `math.mod_floor(a, b)`. Constant folding uses the same rules as runtime. Float arithmetic is IEEE 754 with no contraction or reassociation.
+Two integers of one width and signedness compute together, `hash(key) % table.length` with a `u64` and a `usize`, in the pointer-sized type when one operand is; storing the result is still the strict rule of §5.1. Integer division by zero traps. `minimum_signed // -1` traps as overflow. Floor division and modulo are `math.div_floor(a, b)` and `math.mod_floor(a, b)`. Constant folding uses the same rules as runtime. Float arithmetic is IEEE 754 with no contraction or reassociation. The one fused operation is written out: `a.mul_add(b, c)` on an `f32` or `f64` is `a * b + c` rounded once, one instruction where the target has it (every arm64, x86-64 from `v3`) and the C library's `fma` elsewhere, with the same bits on both.
 
 **Why trapping is the default.** C wraps unsigned arithmetic silently and leaves signed overflow undefined, and both are the source of most exploitable integer bugs. Base traps, because a trap reports the location of the overflow and a wrap does not, and the check is one predicted branch. Hashing, PRNGs, and checksums wrap on purpose and use the `%` operators; overflow-aware code uses `+?` and handles `none`.
 
@@ -1373,7 +1374,7 @@ test "cursor advances by one":
     assert(cursor.offset == 1)
 ```
 
-`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test may use its module's private declarations. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others, and the runner reports which globals it wrote.
+`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test build compiles what its tests reach, of the file under test as of its imports, so a function no test calls is not compiled, and may name a symbol only another platform links. A test may use its module's private declarations. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others, and the runner reports which globals it wrote.
 
 ### 16.6 Standard modules
 

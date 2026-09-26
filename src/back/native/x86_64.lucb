@@ -1107,6 +1107,8 @@ pub struct Generator:
                 try self.compare_and_swap(n)
             .fence:
                 try self.line("mfence")
+            .fma:
+                try self.fused(n)
             .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
                 try self.vector(n)
             _:
@@ -1524,6 +1526,26 @@ pub struct Generator:
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width.
     # -- vectors (§5.12) ------------------------------------------------------------------
+
+    ## `fma` (x86-64-v3, `isa.has_fma`): FMA3 accumulates into its destination, so the addend
+    ## goes to xmm10 and `vfmadd231` adds the product of the other two to it.
+    mutating func fused(n: ir.Instr) -> !:
+        let addend = self.f.args.get((usize)n.extra2).value
+        let a = try self.source(n.a, n.cls, "%xmm8")
+        let b = try self.source(n.b, n.cls, "%xmm9")
+        let c = try self.source(addend, n.cls, "%xmm10")
+        if c != "%xmm10":
+            try self.line4("movaps ", c, ", ", "%xmm10")
+        let wide = n.cls == ir.Class.d or (n.cls == ir.Class.v and ir.lane_bits(n.extra) == 64)
+        let form = ("pd" if wide else "ps") if n.cls == ir.Class.v else ("sd" if wide else "ss")
+        try self.line4("vfmadd231", form, " ", b)
+        try self.put(", ")
+        try self.put(a)
+        try self.put(", %xmm10")
+        let d = self.target(n.dst, n.cls, "%xmm10")
+        if d != "%xmm10":
+            try self.line4("movaps ", "%xmm10", ", ", d)
+        try self.finish(n.dst, n.cls, d)
 
     ## A vector instruction on SSE2: the operands come from their homes into xmm8 and xmm9,
     ## the result computes into xmm8 (xmm10 for a checked form) and goes to its home. An

@@ -105,6 +105,15 @@ pub func has_vector(arch: targets.Arch, level: u32, op: ir.Op, shape: u32) -> bo
         return bits >= 16 and not (bits == 64 and ir.lanes_signed(shape))
     return false
 
+## Whether the architecture at `level` computes `a * b + c` rounded once (`ir.Op.fma`) in one
+## instruction: for a scalar (`shape` 0) or for the lanes of `shape`. arm64 always has
+## `fmadd` and `fmla`; x86-64 has the FMA3 forms from x86-64-v3. Elsewhere the lowerer
+## calls the C library's `fma`, lane by lane for a vector.
+pub func has_fma(arch: targets.Arch, level: u32, shape: u32) -> bool:
+    if shape != 0 and (not ir.lanes_float(shape) or ir.vector_bytes(shape) != 16):
+        return false
+    return arch == targets.Arch.arm64 or level >= 3
+
 ## Whether `arch` is the architecture an `asm ARCH` block names (§8.9).
 pub func is_named(arch: targets.Arch, name: str) -> bool:
     return name == targets.arch_name(arch)
@@ -122,3 +131,13 @@ test "the registers of each architecture":
     assert(not register_of(targets.Arch.x86_64, "%rsi").is_float)
     assert(scratch_ints(targets.Arch.arm64).length == 5)
     assert(scratch_floats(targets.Arch.x86_64)[0] == "%xmm8")
+
+test "fused multiply-add where each target has it":
+    let quad = ir.lanes(32, 4, true, true)
+    let pair = ir.lanes(32, 2, true, true)
+    assert(has_fma(targets.Arch.arm64, 1, 0))
+    assert(has_fma(targets.Arch.arm64, 1, quad))
+    assert(not has_fma(targets.Arch.arm64, 1, pair))
+    assert(not has_fma(targets.Arch.x86_64, 2, 0))
+    assert(has_fma(targets.Arch.x86_64, 3, quad))
+    assert(not has_fma(targets.Arch.x86_64, 3, ir.lanes(32, 4, false, true)))

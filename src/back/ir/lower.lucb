@@ -1822,6 +1822,9 @@ pub struct Lowerer:
     ## an integer or a text, so no initialiser depends on another library member's having
     ## run first (§17.6); none for the rest.
     mutating func folded_constant(e: ast.Node*, t: u32) -> LowerValue?!:
+        if self.is_int(t):
+            if let v = self.folded_integer(e, t):
+                return LowerValue(ref = ir.const_ref(v), type_id = t, in_memory = false)
         let leaf = self.c.constant_leaf(e) else return none
         let b = leaf.text.bytes
         if t == types.bool_id:
@@ -1841,6 +1844,15 @@ pub struct Lowerer:
             let data = try self.f.address_of(ir.text_ref(index))
             return try self.span_of(data, ir.const_ref((i64)text.length), types.str_id)
         return none
+
+    ## An integer constant whose initialiser is arithmetic on constants, `3 << 4`, as the value
+    ## of its type (§6.4), when the checker folds it exactly (`check.exact_integer`).
+    func folded_integer(e: ast.Node*, t: u32) -> i64?:
+        let d = e.resolved else return none
+        if d.kind != ast.Kind.constant:
+            return none
+        let init = d.left else return none
+        return self.c.exact_integer(init, self.scalar_size(t) * 8, self.is_signed(t))
 
     mutating func global_address(d: ast.Node*) -> ir.Ref!:
         let name = try self.global_name(d)
@@ -3896,6 +3908,52 @@ pub struct Lowerer:
             lines = l.next
         try self.program_unit.module_asm.push(ir.Text(bytes = try names.keep(&text)))
 
+    ## `a.mul_add(b, c)` (§7.2): `a * b + c` rounded once, on a scalar or lane by lane on a
+    ## vector; one instruction where the target fuses (`isa.has_fma`), else the C library's.
+    mutating func mul_add(e: ast.Node*, receiver: ast.Node*, rt: u32) -> LowerValue!:
+        let first = e.body else return try self.fail(e, "`mul_add` takes two arguments")
+        let second = first.next else return try self.fail(e, "`mul_add` takes two arguments")
+        let bn = first.left else return try self.fail(e, "empty argument")
+        let cn = second.left else return try self.fail(e, "empty argument")
+        let a = try self.receiver_value(receiver, rt)
+        let b = try self.value(bn, rt)
+        let c = try self.value(cn, rt)
+        if self.kind(rt) != types.Kind.array:
+            return LowerValue(ref = try self.scalar_fma(rt, a.ref, b.ref, c.ref), type_id = rt, in_memory = false)
+        let et = self.elem(rt)
+        let shape = self.lane_shape(rt)
+        let out = try self.slot_address(try self.new_slot(rt))
+        if isa.has_fma(self.target.arch, self.target.level, shape):
+            let va = try self.vector_operand(a, et, shape)
+            let vb = try self.vector_operand(b, et, shape)
+            let vc = try self.vector_operand(c, et, shape)
+            try self.f.emit(ir.Op.storev, ir.Class.v, 0, try self.fused(ir.Class.v, va, vb, vc, shape), out, shape)
+            return LowerValue(ref = out, type_id = rt, in_memory = true)
+        let stride = self.c.table.size_of(et)
+        for i in 0..<self.c.table.get(rt).length:
+            let offset = (u64)i * stride
+            let lane = try self.scalar_fma(et, try self.lane_of(a, et, offset), try self.lane_of(b, et, offset), try self.lane_of(c, et, offset))
+            try self.store_to(try self.offset_address(out, offset), LowerValue(ref = lane, type_id = et, in_memory = false))
+        return LowerValue(ref = out, type_id = rt, in_memory = true)
+
+    ## `a * b + c` rounded once for a float of type `t`: `fma`, or a call of `fma`/`fmaf`.
+    mutating func scalar_fma(t: u32, a: ir.Ref, b: ir.Ref, c: ir.Ref) -> ir.Ref!:
+        let cls = self.class_of(t)
+        if isa.has_fma(self.target.arch, self.target.level, 0):
+            return try self.fused(cls, a, b, c, 0)
+        let start = u32(self.f.args.count)
+        for operand in [a, b, c]:
+            try self.f.args.push(ir.Arg(value = operand, cls = cls, size = 0, align = u32(self.c.table.align_of(t)), type_id = t, shape = 0))
+        return try self.call_named("fmaf" if t == types.f32_id else "fma", start, 3, cls, true, t)
+
+    ## An `fma` instruction: `c` goes in the argument list, where `ir.argument_range` finds it.
+    mutating func fused(cls: ir.Class, a: ir.Ref, b: ir.Ref, c: ir.Ref, shape: u32) -> ir.Ref!:
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = c, cls = cls, size = 0, align = 16 if cls == ir.Class.v else 8, type_id = types.none_id, shape = 0))
+        let t = try self.f.temp(cls)
+        try self.f.instrs.push(ir.Instr(op = ir.Op.fma, cls = cls, dst = t, a = a, b = b, extra = shape, extra2 = start, line = 0, file = 0, scope = 0, site = 0))
+        return ir.temp_ref(t)
+
     ## The receiver of a method the compiler supplies, as a value of type `rt`: a pointer
     ## receiver (`key.bits()` with `key: const f32*`) is read through.
     mutating func receiver_value(receiver: ast.Node*, rt: u32) -> LowerValue!:
@@ -3912,6 +3970,8 @@ pub struct Lowerer:
             return try self.compare_call(e, receiver, rt, result)
         if callee.text == "sum" or callee.text == "min" or callee.text == "max":
             return try self.vector_fold(e, callee, receiver, rt, result)
+        if callee.text == "mul_add":
+            return try self.mul_add(e, receiver, rt)
         if callee.text == "bits":
             let v = try self.receiver_value(receiver, rt)
             return LowerValue(ref = try self.f.unary(ir.Op.cast, self.class_of(result), v.ref), type_id = result, in_memory = false)

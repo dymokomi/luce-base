@@ -1,0 +1,28 @@
+# oracle: none
+## §13: a generic function named where a function type is expected is the instance that
+## type names, at a concrete type or at a parameter of the generic function it is named in;
+## a nullable function type expects it too.
+from luce import Comparable
+
+func negate[T](context: void*?, value: const T*) -> bool:
+    return context == none
+
+func larger[T: Comparable](a: T, b: T) -> T:
+    return a if a.compare(b) >= 0 else b
+
+func outer[T](value: T) -> bool:
+    let callback: func(void*?, const T*) -> bool = negate
+    return callback(none, &value)
+
+func pick(choose: func(i64, i64) -> i64, a: i64, b: i64) -> i64:
+    return choose(a, b)
+
+pub func main(arguments: str[]) -> i32:
+    let callback: func(void*?, const i64*) -> bool = negate
+    var v: i64 = 3
+    let maybe: (func(f64, f64) -> f64)? = larger
+    var wider: f64 = 0.0
+    if let m = maybe:
+        wider = m(1.5, 2.5)
+    print(f"{callback(none, &v)} {outer[u8](7)} {pick(larger, 4, 9)} {wider}")
+    return 0

@@ -1,7 +1,8 @@
 # oracle: none
 ## §5.3: a method the compiler supplies reads its receiver through a pointer as it does a
 ## value: `bits()` of a float, `compare` of a number in a generic body, the folds of a
-## vector; and `&array` of a local array is a pointer to the array, as of a field.
+## vector; `&array` of a local array is a pointer to the array, as of a field; and `const
+## f32[4]*` points to a read-only array.
 from luce import Comparable
 
 func float_bits(key: const f32*) -> u32:
@@ -13,7 +14,7 @@ func double_bits(key: const f64*) -> u64:
 func order[T: Comparable](left: const T*, right: const T*) -> i64:
     return left.compare(*right)
 
-func lane_sum(lanes: f32[4]*) -> f32:
+func lane_sum(lanes: const f32[4]*) -> f32:
     return lanes.sum()
 
 func fill(pair: i32[2]*):

@@ -179,6 +179,9 @@ pub struct Checker:
     ## Inside a lambda body, bindings below this index (the enclosing locals) are hidden:
     ## a lambda captures nothing (§9.6).
     var lambda_floor: usize
+    ## The depth of the module's own scope: its declarations, imports, and the standard
+    ## names; deeper bindings are a function's locals, which a lambda cannot see.
+    var module_depth: u32 = 1
     var lambda_count: u32
     ## The warnings of the whole program, formatted with their positions (§19.6).
     pub var warnings: list.List[str]
@@ -309,7 +312,7 @@ pub struct Checker:
         var at = self.names.head(name)
         while at > 0:
             let b = self.scope.get((usize)at - 1)
-            if (usize)at - 1 < self.lambda_floor and b.depth > 0:
+            if (usize)at - 1 < self.lambda_floor and b.depth > self.module_depth:
                 at = b.shadowed
                 continue
             return at
@@ -910,6 +913,7 @@ pub struct Checker:
         let m = self.modules.get(index)
         let tree = m.tree
         self.push_scope()
+        self.module_depth = self.depth
         try self.bind_standard()
         try self.bind_imports(tree)
         try self.collect(tree)
@@ -942,6 +946,13 @@ pub struct Checker:
                 self.label_count = 0
                 self.checking_template = false
                 self.at_top_level = false
+                # the expression state a failure left mid-expression: a `try` it was under
+                # would make every later `f() else x` read as handled
+                self.expression_effect = false
+                self.calling = false
+                self.catch_result = types.none_id
+                self.indexed_iterable = none
+                self.folded_quietly = false
             cursor = d.next
         if self.errors.count > 0:
             error(type_error, try self.all_errors())
@@ -1473,7 +1484,12 @@ pub struct Checker:
         elif t.has(ast.flag_star):
             let inner = t.left else return try self.fail(t, "a pointer needs a pointee")
             let elem = try self.resolve_type(inner)
-            id = try self.table.pointer(elem, inner.has(ast.flag_const), inner.has(ast.flag_volatile))
+            # a qualifier binds to the innermost type (§5.3): `const f32[4]*` is a pointer to
+            # a read-only array, its `const` on the element beneath the array suffixes
+            var qualified = inner
+            while qualified.has(ast.flag_array):
+                qualified = qualified.left else break
+            id = try self.table.pointer(elem, qualified.has(ast.flag_const), qualified.has(ast.flag_volatile))
         elif t.has(ast.flag_span):
             let inner = t.left else return try self.fail(t, "a span needs an element type")
             let elem = try self.resolve_type(inner)
@@ -2276,7 +2292,7 @@ pub struct Checker:
             .literal:
                 return try self.literal_type(e, hint)
             .name:
-                return try self.name_type(e)
+                return try self.generic_function_value(e, try self.name_type(e), hint)
             .self_:
                 if self.self_type == types.none_id:
                     return try self.fail(e, "`self` outside a method")
@@ -2478,6 +2494,36 @@ pub struct Checker:
         return id
 
     ## A name is a local, a declaration, a module, or a type used as a value.
+    ## A generic function named where a function type is expected, `let f: func(i64) -> bool
+    ## = negate` (§13): the instance whose type that is, its arguments inferred from the
+    ## expected type and recorded on the name as a call records its own.
+    mutating func generic_function_value(e: ast.Node*, t: u32, hint: u32) -> u32!:
+        let d = e.resolved else return t
+        if d.kind != ast.Kind.func_ or e.ty != none:
+            return t
+        let generics = generic_params_of(d) else return t
+        var target = hint
+        if self.table.kind(hint) == types.Kind.optional:
+            target = self.table.get(hint).elem
+        if self.table.kind(target) != types.Kind.func_:
+            return t
+        let n = ast.count(generics)
+        var inferred = try alloc u32[n]
+        for j in 0..<n:
+            inferred[j] = types.none_id
+        try self.infer(d.type_id, target, d, inferred)
+        let holder = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+        var tail: ast.Node*? = none
+        for j in 0..<n:
+            if inferred[j] == types.none_id:
+                return try self.fail(e, "a type argument of this generic function is not in the expected function type")
+            let a = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+            a.type_id = inferred[j]
+            ast.append(&holder.body, &tail, a)
+        try self.check_constraints(d, inferred, e)
+        e.ty = holder
+        return try self.substitute(d.type_id, d, inferred)
+
     mutating func name_type(e: ast.Node*) -> u32!:
         if e.has(ast.flag_format_sink):
             return self.standard_type("io", "Writer")
@@ -2534,6 +2580,22 @@ pub struct Checker:
                 if self.scope.get(i).name == e.text:
                     return try self.fail(e, "a lambda captures nothing; pass the value as a parameter (§9.6)")
         return try self.fail(e, "unknown name")
+
+    ## Constant integer expression `e` as a value of `bits` bits, sign-extended when
+    ## `signed`: only when it is built from literals, constants, casts, and operators whose
+    ## result bits do not depend on signedness (`+ - * & | ^ << ~`, negation), since
+    ## `constant_u64` computes in `u64`; none otherwise.
+    pub func exact_integer(e: ast.Node*, bits: u64, signed: bool) -> i64?:
+        if not sign_agnostic(e, 0):
+            return none
+        let v = self.constant_u64(e) else return none
+        if bits >= 64:
+            return (i64)v
+        let mask = ((u64)1 << bits) - 1
+        let low = v & mask
+        if signed and (low >> (bits - 1)) != 0:
+            return (i64)(low | ~mask)
+        return (i64)low
 
     ## The value of a constant integer expression (§6.4), or `none` when it is not one this
     ## evaluator folds: literals, `sizeof`, `alignof`, constants, the arithmetic, bit, and
@@ -3685,6 +3747,8 @@ pub struct Checker:
                 return try self.table.pointer(t.elem, t.is_const, false)
             if t.kind == types.Kind.array and self.table.is_vector(id) and (name == "sum" or name == "min" or name == "max"):
                 return try self.builtin_method(e, id, name)
+            if t.kind == types.Kind.array and self.table.is_vector(id) and name == "mul_add" and (t.elem == types.f32_id or t.elem == types.f64_id):
+                return try self.builtin_method(e, id, name)
             if name == "indexed" and not self.is_indexed_iterable(e):
                 return try self.fail(e, "`indexed()` is iterated by `for`: `for (i, x) in items.indexed()` (§8.3)")
             if name == "first" or name == "last" or name == "indexed":
@@ -3708,6 +3772,8 @@ pub struct Checker:
                 return types.str_id
             return try self.fail(e, "an `Error` has `code` and `message`")
         if self.table.is_float(id) and name == "bits":
+            return try self.builtin_method(e, id, name)
+        if (id == types.f32_id or id == types.f64_id) and name == "mul_add":
             return try self.builtin_method(e, id, name)
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.union_ or t.kind == types.Kind.enum_:
             let d = t.decl else return try self.fail(e, "no declaration")
@@ -3930,6 +3996,12 @@ pub struct Checker:
             var one = try alloc u32[1]
             one[0] = id
             return try self.table.function(one, types.i64_id, false)
+        if name == "mul_add":
+            # `a.mul_add(b, c)`: `a * b + c` rounded once, a scalar's or each lane's (§7.2)
+            var two = try alloc u32[2]
+            two[0] = id
+            two[1] = id
+            return try self.table.function(two, id, false)
         return try self.fail(e, "no such builtin member")
 
     mutating func location_type() -> u32!:
@@ -5759,6 +5831,11 @@ pub func is_standard_module(name: str) -> bool:
 var library_modules: str[1024]
 var library_module_count: usize = 0
 
+## A test build (§16.5) takes the file under test as library code too: its tests are the
+## program, and what they do not reach is not compiled, as for any import.
+pub func test_as_library(entry_name: str) -> !:
+    try note_library_module(entry_name)
+
 func note_library_module(name: str) -> !:
     for known in library_modules[..<library_module_count]:
         if known == name:
@@ -6523,3 +6600,31 @@ func mark_if_unused(b: Binding):
             if init.kind == ast.Kind.else_:
                 return
         d.flags |= ast.flag_unused
+
+## Whether constant expression `e` is built only from literals, constants, casts, and
+## operators whose result bits do not depend on signedness, so its `u64` fold is exact.
+func sign_agnostic(e: ast.Node*, depth: u32) -> bool:
+    if depth > 64:
+        return false
+    match e.kind:
+        .literal:
+            return true
+        .group, .cast:
+            let inner = e.left else return false
+            return sign_agnostic(inner, depth + 1)
+        .unary:
+            let inner = e.left else return false
+            return (e.text == "-" or e.text == "-%" or e.text == "~" or e.text == "+") and sign_agnostic(inner, depth + 1)
+        .binary:
+            let l = e.left else return false
+            let r = e.right else return false
+            let agnostic = e.text == "+" or e.text == "-" or e.text == "*" or e.text == "+%" or e.text == "-%" or e.text == "*%" or e.text == "&" or e.text == "|" or e.text == "^" or e.text == "<<"
+            return agnostic and sign_agnostic(l, depth + 1) and sign_agnostic(r, depth + 1)
+        .name, .member:
+            let d = e.resolved else return false
+            if d.kind != ast.Kind.constant:
+                return false
+            let init = d.left else return false
+            return sign_agnostic(init, depth + 1)
+        _:
+            return false
