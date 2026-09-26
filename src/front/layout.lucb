@@ -736,6 +736,18 @@ pub struct Formatter:
                 return
             discard(try self.comments_before(start + 1))
 
+    ## Whether a comment ends the block whose last statement is `last` (as
+    ## `block_end_comments` would write it there).
+    func ends_with_comment(last: ast.Node*) -> bool:
+        let depth = self.indent_of(statement_start(last))
+        var k = self.written
+        while k < self.comment_count:
+            let at = self.comments[k * 2]
+            if at > statement_start(last) and self.line_at(at) > self.line_at(statement_start(last)):
+                return self.indent_of(at) >= depth and self.only_deeper(statement_start(last), at, depth)
+            k += 1
+        return false
+
     ## How far into its line `offset` stands.
     func indent_of(offset: usize) -> usize:
         var i = offset
@@ -843,13 +855,17 @@ pub struct Formatter:
                 try self.end_line(s)
 
     ## `free(x)` or `free(x) in allocator`, ending the line.
-    ## `defer statement` for one simple statement on the `defer` line, else `defer:` and the
-    ## block beneath (§8.8); `errdefer` alike.
+    ## `defer statement` for one simple statement, however the source wrote it, else `defer:`
+    ## and the block beneath (§8.8); `errdefer` alike. A one-statement block stays a block
+    ## when its statement spans lines or a comment stands between it and `defer`.
     mutating func deferred(s: ast.Node*) -> !:
         try self.put("defer" if s.kind == ast.Kind.defer_ else "errdefer")
         let b = s.body else return
         if let only = b.body:
-            if only.next == none and self.line_at(statement_start(only)) == self.line_of(s) and not compound(only):
+            let start = statement_start(only)
+            let one_line = self.line_at(start) == self.line_at(only.end - 1 if only.end > start else start)
+            let alone = one_line and not self.comment_within(s.start, start) and not self.ends_with_comment(only)
+            if only.next == none and not compound(only) and (self.line_at(start) == self.line_of(s) or alone):
                 try self.put(" ")
                 try self.statement(only)
                 return

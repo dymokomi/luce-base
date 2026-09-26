@@ -60,6 +60,12 @@ func f() -> !:
 """
         self.assertEqual(self.fmt(canonical), canonical)
         self.assertEqual(self.fmt("func f():\n    defer: note(1)\n"), "func f():\n    defer note(1)\n")
+        # one simple statement is `defer statement`, wherever the source put it
+        self.assertEqual(self.fmt("func f():\n    defer:\n        note(1)\n    errdefer:\n        note(2)\n"),
+                         "func f():\n    defer note(1)\n    errdefer note(2)\n")
+        # a comment before it keeps the block
+        kept = "func f():\n    defer:\n        # why\n        note(1)\n"
+        self.assertEqual(self.fmt(kept), kept)
 
     def test_idempotent(self):
         once = self.fmt(CANONICAL)
