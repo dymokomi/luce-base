@@ -6838,6 +6838,12 @@ pub struct Emitter:
         i = 0
         while i < self.funcs.count:
             let inst = self.funcs.get(i)
+            # Spelling a prototype's types can register a generic type's methods after every
+            # body is written (`interop.Outcome[gpu.Rect]`'s): nothing calls those, and a
+            # `static` prototype with no definition is an error under GCC's -Werror.
+            if not inst.done:
+                i += 1
+                continue
             self.fn_decl = inst.decl
             self.fn_args = inst.args
             self.owner_decl = inst.owner
