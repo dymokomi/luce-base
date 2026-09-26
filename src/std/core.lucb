@@ -147,6 +147,15 @@ extern func RtlCaptureStackBackTrace(skip: u32, count: u32, frames: void**, hash
 extern func GetModuleHandleExA(flags: u32, address: const void*, module: void**) -> i32
 extern func GetModuleFileNameA(module: void*, name: u8*, size: u32) -> u32
 extern func c_quick_exit as "_exit"(code: i32) -> never
+extern func dladdr(address: const void*, info: DlInfo*) -> i32
+extern func getcontext(context: void*) -> i32
+
+## `Dl_info`: the module and nearest symbol `dladdr` finds for an address.
+extern struct DlInfo:
+    file: c.str?
+    base: usize
+    symbol: c.str?
+    start: usize
 
 ## Where a crash report goes, NUL-terminated, and what it starts with; empty when
 ## reports are off. `std.crash` fills them; a trap or fatal signal writes them.
@@ -154,6 +163,12 @@ var crash_path: u8[1024]
 var crash_header: u8[1024]
 var crash_header_length: usize = 0
 var crash_file: i32 = -1
+## Set while a report walks frame pointers: a fault then is the walk's own, at a
+## frame it could not read, and the report ends there.
+var crash_walking: bool = false
+## Where `getcontext` puts the registers of a trap on Linux: more than any
+## `ucontext_t` needs, as words so it is aligned.
+var crash_registers: usize[1024]
 
 ## Turn crash reports on: a trap from now on also writes `header` and the trap
 ## to the file at `path` (created then, replaced if present), with a native
@@ -188,15 +203,28 @@ func begin_crash_report():
 
 ## Finish a trap: the stack into the report, close it, and exit.
 func finish_trap() -> never:
-    finish_crash_report()
+    finish_crash_report(trap_registers())
     c_exit(1)
 
-func finish_crash_report():
+## Where a fault left the program: its instruction, its frame pointer and, on
+## arm64, its link register; zeros where they are not known.
+pub struct FaultRegisters:
+    ## The faulting instruction.
+    pub var pc: usize = 0
+    ## The frame pointer at the fault: the start of the frame chain.
+    pub var fp: usize = 0
+    ## The link register (arm64): the caller of a function that made no frame.
+    pub var lr: usize = 0
+
+## Write the stack into the report and close it: walked from `at` when it has a
+## frame pointer, else as the platform's own backtrace gives it.
+func finish_crash_report(at: FaultRegisters):
     if crash_file < 0:
         return
     write_all(crash_file, "\nstack:\n".bytes)
-    # WASI has no backtrace.
-    if platform.posix and not platform.wasm32:
+    if at.fp != 0 and not platform.wasm32:
+        write_walked_stack(crash_file, at)
+    elif platform.posix and not platform.wasm32:
         # Pointer-sized slots: the addresses backtrace fills in.
         var frames: usize[64]
         let depth = backtrace((void**)&frames[0], 64)
@@ -206,11 +234,176 @@ func finish_crash_report():
         write_windows_stack(crash_file)
     else:
         write_all(crash_file, "(not captured on this platform)\n".bytes)
+    close_crash_report()
+
+func close_crash_report():
     if platform.windows:
         discard(windows_close(crash_file))
     else:
         discard(posix_close(crash_file))
     crash_file = -1
+
+## A trap's own registers on Linux, where `backtrace` needs unwind tables the
+## native backend leaves out of release builds; zeros elsewhere (macOS's
+## backtrace follows frame pointers, Windows' the SEH tables).
+func trap_registers() -> FaultRegisters:
+    if platform.linux and not platform.wasm32:
+        if getcontext((void*)&crash_registers[0]) != 0:
+            return FaultRegisters()
+        return context_registers((const void*)&crash_registers[0])
+    else:
+        return FaultRegisters()
+
+# mark: Walking frame pointers =================================================================
+
+## The registers in a signal's `ucontext_t` (or `getcontext`'s), or in a Windows
+## `CONTEXT` record. Offsets are each platform's C layout.
+func context_registers(context: const void*) -> FaultRegisters:
+    let base = (const u8*)context
+    if platform.windows:
+        return FaultRegisters(pc = word_at(base, 248), fp = word_at(base, 160))
+    elif platform.linux and platform.x86_64:
+        # uc_mcontext.gregs at 40: RIP is register 16, RBP 10.
+        return FaultRegisters(pc = word_at(base, 168), fp = word_at(base, 120))
+    elif platform.linux and platform.arm64:
+        # uc_mcontext at 176: fault_address, then x0..x30, sp, pc.
+        return FaultRegisters(pc = word_at(base, 440), fp = word_at(base, 416), lr = word_at(base, 424))
+    elif platform.macos:
+        # uc_mcontext is a pointer at 48, to the exception state (16 bytes) and the thread state.
+        let machine = (const u8*)(const void*)word_at(base, 48)
+        if platform.arm64:
+            return FaultRegisters(pc = word_at(machine, 272), fp = word_at(machine, 248), lr = word_at(machine, 256))
+        else:
+            return FaultRegisters(pc = word_at(machine, 144), fp = word_at(machine, 64))
+    else:
+        return FaultRegisters()
+
+func word_at(base: const u8*, offset: usize) -> usize:
+    return ((const usize*)(const void*)(base + offset))[0]
+
+## Every frame from `at`: the faulting instruction, the link register on arm64
+## (a leaf keeps its caller there), then each saved return address up the
+## chain of frame records, which the native backend keeps in every function.
+## A record that does not climb the stack ends the walk; one that cannot be
+## read faults, and `report_fatal_signal_in` ends the report there.
+func write_walked_stack(file: i32, at: FaultRegisters):
+    var frames: usize[64] = ---
+    var depth: usize = 0
+    if at.pc != 0:
+        frames[0] = at.pc
+        depth = 1
+    # The link register is the caller only when the faulting function made no
+    # frame of its own; otherwise it is a stale return inside it. Marked so.
+    var link: usize = 64
+    if at.lr != 0 and at.lr != at.pc:
+        link = depth
+        frames[depth] = at.lr
+        depth += 1
+    var frame = at.fp
+    crash_walking = true
+    while depth < 64 and frame != 0 and frame % 8 == 0:
+        let record = (const usize*)(const void*)frame
+        let caller = record[1]
+        let next = record[0]
+        if caller == 0:
+            break
+        if depth == 0 or caller != frames[depth - 1]:
+            frames[depth] = caller
+            depth += 1
+        if next <= frame or next - frame > 16777216:
+            break
+        frame = next
+    crash_walking = false
+    for index in 0..<depth:
+        write_frame(file, index, frames[index], index == link)
+
+## One frame's line: its number, address, module and offset in it (for
+## addr2line or atos), and the nearest symbol where the platform names one.
+func write_frame(file: i32, index: usize, address: usize, link: bool):
+    var line: u8[640] = ---
+    var used: usize = 0
+    line[0] = '#'
+    used = put_decimal(line, 1, index)
+    line[used] = ' '
+    if link:
+        used = put_text(line, used + 1, "lr")
+        line[used] = ' '
+    used = put_hex(line, used + 1, address)
+    line[used] = ' '
+    used += 1
+    if platform.windows:
+        used = put_windows_module(line, used, address)
+    elif platform.posix and not platform.wasm32:
+        var info: DlInfo = ---
+        info.file = none
+        info.symbol = none
+        if dladdr((const void*)address, &info) != 0:
+            if let file_name = info.file:
+                used = put_base_name(line, used, (str)file_name)
+            line[used] = '+'
+            used = put_hex(line, used + 1, address - info.base)
+            if let symbol = info.symbol:
+                line[used] = ' '
+                used = put_text(line, used + 1, (str)symbol)
+                line[used] = '+'
+                used = put_hex(line, used + 1, address - info.start)
+        else:
+            line[used] = '?'
+            used += 1
+    line[used] = '\n'
+    write_all(file, (const u8[])line[..<used + 1])
+
+## The module holding `address` on Windows, as `name+0xoffset`, into `line` at `used`.
+func put_windows_module(line: u8[], used: usize, address: usize) -> usize:
+    if platform.windows:
+        var module: void* = ---
+        var name: u8[260] = ---
+        # 4: from an address; 2: without changing the module's reference count
+        if GetModuleHandleExA(6, (const void*)address, (void**)&module) == 0:
+            line[used] = '?'
+            return used + 1
+        let length = GetModuleFileNameA(module, &name[0], 260)
+        let at = put_base_name(line, used, (str)name[..<length])
+        line[at] = '+'
+        return put_hex(line, at + 1, address - (usize)module)
+    else:
+        return used
+
+## The last component of `path` into `line` at `used`, cut to fit.
+func put_base_name(line: u8[], used: usize, path: str) -> usize:
+    var start: usize = 0
+    for index in 0..<path.length:
+        if path.bytes[index] == '/' or path.bytes[index] == '\\':
+            start = index + 1
+    return put_text(line, used, (str)path.bytes[start..])
+
+## `text` into `line` at `used`, leaving room for what follows it.
+func put_text(line: u8[], used: usize, text: str) -> usize:
+    var at = used
+    for byte in text.bytes:
+        if at + 40 >= line.length:
+            break
+        line[at] = byte
+        at += 1
+    return at
+
+## `value` in decimal into `line` at `used`; the new length.
+func put_decimal(line: u8[], used: usize, value: usize) -> usize:
+    var digits: u8[24] = ---
+    var count: usize = 0
+    var rest = value
+    while true:
+        digits[count] = (u8)('0' + (u8)(rest % 10))
+        count += 1
+        rest = rest // 10
+        if rest == 0:
+            break
+    var at = used
+    while count > 0:
+        count -= 1
+        line[at] = digits[count]
+        at += 1
+    return at
 
 ## The native stack on Windows, a frame a line as `module+0xoffset`, which a debugger or
 ## addr2line resolves against the build. Nothing here allocates.
@@ -272,11 +465,27 @@ func put_hex(line: u8[], used: usize, value: usize) -> usize:
 ## A fatal signal: report it as a trap would, then end with the signal's exit
 ## status. Only async-signal-safe calls are made from here on.
 pub func report_fatal_signal(name: str, number: i32) -> never:
+    report_fatal_signal_in(name, number, none)
+
+## A fatal signal whose handler has the interrupted context (a POSIX
+## `ucontext_t`, or a Windows `CONTEXT`): the stack is walked from where the
+## fault happened rather than from the handler. A fault while the stack is
+## walked ends the report at the frame that could not be read.
+pub func report_fatal_signal_in(name: str, number: i32, context: const void*?) -> never:
+    if crash_walking:
+        crash_walking = false
+        if crash_file >= 0:
+            write_all(crash_file, "(the walk stopped at a frame it could not read)\n".bytes)
+            close_crash_report()
+        c_quick_exit(128 + number)
     begin_crash_report()
     write_diagnostic("trap: fatal signal ".bytes)
     write_diagnostic(name.bytes)
     write_diagnostic("\n".bytes)
-    finish_crash_report()
+    if let interrupted = context:
+        finish_crash_report(context_registers(interrupted))
+    else:
+        finish_crash_report(FaultRegisters())
     c_quick_exit(128 + number)
 
 ## The buffer `format` and f"..." fill: the bytes, their capacity, and the count used.
