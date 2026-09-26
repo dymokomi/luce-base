@@ -5269,6 +5269,10 @@ pub struct Checker:
             self.checking_template = true
         let saved_self = self.self_type
         self.self_type = d.type_id
+        # which cases repeat an earlier case's value, found once for the whole enum
+        let repeated = try types.repeated_cases(d) if d.kind == ast.Kind.enum_ else try alloc bool[0]
+        defer free(repeated)
+        var case_at: usize = 0
         var cursor = d.body
         while let m = cursor:
             match m.kind:
@@ -5286,15 +5290,11 @@ pub struct Checker:
                         discard(try self.expect(value, backing.type_id))
                         if not self.is_constant(value):
                             discard(try self.fail(value, "a case value is a constant"))
-                        var earlier = d.body
-                        while let o = earlier:
-                            if o == m:
-                                break
-                            if o.kind == ast.Kind.enum_case and types.case_value(d, o) == types.case_value(d, m):
-                                discard(try self.fail(m, "two cases share one value"))
-                            earlier = o.next
+                        if repeated[case_at]:
+                            discard(try self.fail(m, "two cases share one value"))
                     elif d.ty != none:
                         discard(try self.fail(m, "an integer-backed enum gives every case its value (§10.3)"))
+                    case_at += 1
                 .func_:
                     try self.check_function(m, d)
                 _:
