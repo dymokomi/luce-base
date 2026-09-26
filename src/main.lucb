@@ -530,6 +530,7 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
         try cc_args.add("-Wl,-dead_strip_dylibs")
     elif platform.linux and not is_wasm32():
         try cc_args.add("-Wl,--as-needed")
+        try cc_args.add("-rdynamic")
     try cc_args.add("-lm")
     if not is_wasm32():
         try cc_args.add("-pthread")
@@ -702,6 +703,9 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
     if t.os == targets.Os.linux:
         # the libraries after it are kept only where the program uses them
         try cc_args.add("-Wl,--as-needed")
+        # the program's functions in the dynamic symbol table, so a crash report
+        # (dladdr) names them
+        try cc_args.add("-rdynamic")
     if t.os == targets.Os.windows:
         # Keep the compiler support runtime self-contained without forcing system import
         # libraries (Vulkan, Winsock, bcrypt) to have nonexistent static variants.

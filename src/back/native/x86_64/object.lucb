@@ -56,8 +56,16 @@ pub struct Format:
             try self.symbol(out, name)
             try out.put(",\"dr\"\n    .p2align 3\n")
 
-    ## Back to the text section after a function placed in a named one.
+    ## End a function: on ELF its symbol's size, which dladdr needs to place an
+    ## address inside it (a crash report's names); then back to the text section
+    ## after a function placed in a named one.
     pub func leave_section(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if self.os == build_target.Os.linux:
+            try out.put("\n    .size ")
+            try self.symbol(out, function.name)
+            try out.put(", .-")
+            try self.symbol(out, function.name)
+            try out.put("\n")
         if function.section.length > 0 or (self.os == build_target.Os.windows and function.weak):
             try out.put("\n    .text\n")
 
