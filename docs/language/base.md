@@ -747,13 +747,24 @@ try fill(buffer)
 return buffer
 ```
 
-`defer call` registers a call for the end of the current lexical scope, run last-in-first-out on normal exit, `return`, `break`, `continue`, and error propagation. The receiver and arguments are captured at registration. The call must produce `unit`: a fallible call is deferred with a `catch` handler that recovers, or wrapped in `discard(...)`. A deferred call may not `return`, `recover` out of the enclosing function, or replace an in-flight error.
+`defer statement` or `defer:` with a block registers that code for the end of the current lexical scope, run last-in-first-out on normal exit, `return`, `break`, `continue`, and error propagation. The statement is a simple one: a call, an assignment, or `free`; anything compound (`if`, a loop, `match`) is written in a block:
 
-`errdefer call` registers a call in the current scope that runs only when control leaves that scope because an error is propagating out of it, from `try` or from `error(...)`, in order with the ordinary `defer` calls of the same scope. It is discarded when the scope exits normally. A `catch` that recovers inside the scope never triggers it, because no error leaves. It is a compile error in a non-fallible function.
+```luce
+defer:
+    for i in 0..<count:
+        free(items[i])
+    free(items)
+```
+
+Nothing is captured at registration: the deferred code is compiled where it is written and runs as the scope is left, reading its names as they are then, as Zig's does. A `return` evaluates its value before the deferred code runs, so a deferred assignment to a local does not change what is returned. A deferred block is a scope of its own, with bindings, loops, handlers, and defers of its own; those run when the deferred block ends.
+
+Nothing leaves deferred code: it may not `return`, let a failure escape (`try`, `error(...)`; a fallible call takes a `catch` handler that recovers), or `break` or `continue` to a loop outside it, so it can never replace an in-flight error.
+
+`errdefer statement` and `errdefer:` register code in the current scope that runs only when control leaves that scope because an error is propagating out of it, from `try` or from `error(...)`, in order with the ordinary deferred code of the same scope. It is discarded when the scope exits normally. A `catch` that recovers inside the scope never triggers it, because no error leaves. It is a compile error in a non-fallible function.
 
 Neither runs on a trap, process abort, or power loss.
 
-**Why.** `defer` is C's `goto cleanup` without the label. `errdefer` is the half of it that runs only on the failure path, which is what the partial-acquisition pattern (allocate A, allocate B, fail, free A) needs and what C spells with a sequence of labels. Zig has both, and its users rely on them.
+**Why.** `defer` is C's `goto cleanup` without the label. `errdefer` is the half of it that runs only on the failure path, which is what the partial-acquisition pattern (allocate A, allocate B, fail, free A) needs and what C spells with a sequence of labels. Zig has both, and its users rely on them. Reading names at exit, not at registration, is Zig's rule too: cleanup sees the state it cleans up, and a block needs no helper function.
 
 ### 8.9 Inline assembly
 
@@ -1835,12 +1846,10 @@ simple_stmt     = binding_stmt | assignment_stmt
                 | "break", [ IDENT ], NEWLINE
                 | "continue", [ IDENT ], NEWLINE
                 | "return", [ expression ], NEWLINE
-                | "defer", deferred_call, NEWLINE
-                | "errdefer", deferred_call, NEWLINE
+                | ( "defer" | "errdefer" ), ( simple_stmt | ":", suite )
                 | "recover", expression, NEWLINE
                 | "free", "(", expression, ")", [ "in", expression ], NEWLINE
                 | expression, NEWLINE ;
-deferred_call   = call_expression, [ "catch", IDENT, ":", suite ] ;
 
 binding_stmt    = "let", binding_pattern, [ ":", type ], "=", expression, NEWLINE
                 | "var", binding_pattern, ":", type, [ "=", ( expression | "---" ) ], NEWLINE

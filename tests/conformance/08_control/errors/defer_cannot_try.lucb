@@ -1,0 +1,12 @@
+# error: a failure cannot escape a deferred block
+pub let broken: ErrorCode = ErrorCode.package(1)
+func might() -> !:
+    return
+func run() -> !:
+    defer:
+        try might()
+    return
+pub func main(arguments: str[]) -> i32:
+    run() catch failure:
+        return 1
+    return 0

@@ -1,0 +1,99 @@
+# oracle: none -- the seed's interpreter predates deferred blocks
+## §8.8: a deferred statement or block runs as its scope is left and reads its names then,
+## not when it was registered; a block may hold bindings, loops, handlers and defers of its
+## own, and is written out on every exit of its scope.
+pub let broken: ErrorCode = ErrorCode.package(1)
+
+var trail: u8[64]
+var length: usize = 0
+
+func note(byte: u8):
+    trail[length] = byte
+    length += 1
+
+func digit(n: i64):
+    note(u8(n) + '0')
+
+## Reached only from a deferred block: it must still be compiled.
+func only_deferred(n: i64):
+    note('o')
+    digit(n)
+
+func late_reading():
+    var x: i64 = 1
+    defer digit(x)
+    x = 2
+
+func assignment() -> i64:
+    var count: i64 = 0
+    defer count += 5
+    count = 1
+    return count
+
+func block(early: bool) -> i64:
+    var total: i64 = 0
+    defer:
+        let doubled = total * 2
+        for i in 0..<5:
+            if i == 3:
+                break
+            note('l')
+        digit(doubled)
+        only_deferred(total)
+    total = 1
+    if early:
+        return total
+    total = 3
+    return total
+
+func nested():
+    defer:
+        defer note('B')
+        note('A')
+    note('0')
+
+func might(fail: bool) -> !:
+    if fail:
+        error(broken, "asked")
+
+func handled():
+    defer:
+        might(true) catch failure:
+            note('c')
+        note('h')
+
+func failing(fail: bool) -> i64!:
+    errdefer:
+        note('E')
+        note('e')
+    defer: note('D')
+    try might(fail)
+    return 1
+
+func with_lambda():
+    defer:
+        let pick = (n: i64) => n + 7
+        digit(pick(2))
+
+func show(name: str):
+    print(f"{name}: {(str)trail[..<length]}")
+    length = 0
+
+pub func main(arguments: str[]) -> i32:
+    late_reading()
+    show("late")
+    digit(assignment())
+    show("assignment")
+    digit(block(true))
+    digit(block(false))
+    show("block")
+    nested()
+    show("nested")
+    handled()
+    show("handled")
+    discard(failing(false) catch failure: recover 0)
+    discard(failing(true) catch failure: recover 0)
+    show("errdefer")
+    with_lambda()
+    show("lambda")
+    return 0

@@ -646,11 +646,9 @@ pub struct Lowerer:
             let d = self.defers.get(i)
             if d.kind == ast.Kind.errdefer_ and not failing:
                 continue
-            let call = d.left else continue
-            if call.kind == ast.Kind.free_:
-                try self.free_stmt(call)
-            else:
-                discard(try self.expr(call))
+            # the deferred block, written out on this exit: it reads its names as they are now
+            let deferred = d.body else continue
+            try self.block(deferred)
         if sc.restore_alloc:
             let saved = try self.slot_address(sc.alloc_slot)
             let target = try self.allocator_global()

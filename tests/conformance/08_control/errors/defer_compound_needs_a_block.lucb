@@ -1,0 +1,5 @@
+# error: a deferred compound statement is written as a block
+pub func main(arguments: str[]) -> i32:
+    var x: i32 = 0
+    defer if x > 0: x = 0
+    return 0

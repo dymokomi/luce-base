@@ -900,13 +900,15 @@ pub struct Parser:
             let is_defer = self.at_kw("defer")
             let n = try self.node(ast.Kind.defer_ if is_defer else ast.Kind.errdefer_, "")
             discard(self.take())
-            if self.at_kw("free"):
-                n.left = try self.parse_free()
+            # `defer: suite` or `defer statement`: either way a block, run as the scope is left
+            if self.eat_op(":"):
+                n.body = try self.parse_suite()
                 return n
-            let call = try self.parse_expression()
-            n.left = call
-            if call.kind != ast.Kind.catch_:
-                try self.expect_newline()
+            if self.at_compound_statement():
+                return try self.fail("a deferred compound statement is written as a block: `defer:` (§8.8)")
+            let block = try self.node(ast.Kind.block, "")
+            block.body = try self.parse_simple_statement()
+            n.body = block
             return n
         if self.at_kw("recover"):
             let n = try self.node(ast.Kind.recover_, "")

@@ -803,13 +803,7 @@ pub struct Formatter:
                 try self.put("recover ")
                 let recovered = s.left else return
                 try self.expr_or_catch(recovered, s)
-            .defer_, .errdefer_:
-                try self.put("defer " if s.kind == ast.Kind.defer_ else "errdefer ")
-                let inner = s.left else return
-                if inner.kind == ast.Kind.free_:
-                    try self.free_statement(inner, s)
-                else:
-                    try self.expr_or_catch(inner, s)
+            .defer_, .errdefer_: try self.deferred(s)
             .free_: try self.free_statement(s, s)
             .if_: try self.if_statement(s, "if ")
             .while_:
@@ -849,6 +843,19 @@ pub struct Formatter:
                 try self.end_line(s)
 
     ## `free(x)` or `free(x) in allocator`, ending the line.
+    ## `defer statement` for one simple statement on the `defer` line, else `defer:` and the
+    ## block beneath (§8.8); `errdefer` alike.
+    mutating func deferred(s: ast.Node*) -> !:
+        try self.put("defer" if s.kind == ast.Kind.defer_ else "errdefer")
+        let b = s.body else return
+        if let only = b.body:
+            if only.next == none and self.line_at(statement_start(only)) == self.line_of(s) and not compound(only):
+                try self.put(" ")
+                try self.statement(only)
+                return
+        try self.open_suite(s)
+        try self.block(b)
+
     mutating func free_statement(f: ast.Node*, s: ast.Node*) -> !:
         try self.put("free(")
         try self.expr(f.left else return)

@@ -1,4 +1,4 @@
-# error: expected an expression
+# error: a deferred block cannot `return`
 pub func main(arguments: str[]) -> i32:
     defer return
     return 0

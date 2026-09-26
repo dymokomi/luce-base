@@ -1,4 +1,4 @@
-# error: a deferred call must handle its failure with `catch`
+# error: a fallible result must be handled
 pub let broken: ErrorCode = ErrorCode.package(1)
 func might() -> !:
     return

@@ -1335,13 +1335,9 @@ pub struct Emitter:
             let d = self.defers.get(i)
             if d.kind == ast.Kind.errdefer_ and not failing:
                 continue
-            let call = d.left else continue
-            if call.kind == ast.Kind.free_:
-                try self.free_stmt(call)
-            else:
-                try self.line("(void)(")
-                try self.expr(call)
-                try self.put(");")
+            # the deferred block, written out on this exit: it reads its names as they are now
+            let deferred = d.body else continue
+            try self.block(deferred)
         if sc.restore_alloc:
             try self.line("lb_memory_allocator = ")
             try self.put_tmp("as", sc.alloc_save)

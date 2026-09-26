@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""The formatter keeps each comment in the block it ends, and moves no comment out of it."""
+"""The formatter keeps each comment in the block it ends, and writes deferred statements and
+blocks the one way (§8.8)."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -43,6 +44,22 @@ class Comments(unittest.TestCase):
 
     def test_comments_stay_in_their_blocks(self):
         self.assertEqual(self.fmt(CANONICAL), CANONICAL)
+
+    def test_deferred_forms(self):
+        canonical = """\
+func f() -> !:
+    defer note(1)
+    defer free(buffer) in memory.heap
+    defer count += 1
+    errdefer:
+        note(2)
+        # a comment ending the deferred block
+    defer:
+        for i in 0..<3:
+            note(i)
+"""
+        self.assertEqual(self.fmt(canonical), canonical)
+        self.assertEqual(self.fmt("func f():\n    defer: note(1)\n"), "func f():\n    defer note(1)\n")
 
     def test_idempotent(self):
         once = self.fmt(CANONICAL)
