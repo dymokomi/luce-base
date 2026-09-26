@@ -28,7 +28,15 @@ int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n) {
     if (b == NULL) {
         return 1;
     }
-    if (n > b->cap || b->used > b->cap - n) {
+    if (b->used > b->cap) {
+        return 1;
+    }
+    if (n > b->cap - b->used) {
+        // what fits is kept; over capacity, `format` fails and `lb_fmtbuf_finish` marks the cut
+        if (s != NULL && b->cap > b->used) {
+            memcpy(b->data + b->used, s, b->cap - b->used);
+        }
+        b->used = b->cap + 1;
         return 1;
     }
     if (s != NULL && n > 0) {
@@ -104,6 +112,20 @@ lb_str lb_fmtbuf_finish(lb_fmtbuf* b) {
     }
     if (b->used < b->cap) {
         b->data[b->used] = 0;
+    }
+    if (b->used > b->cap) {
+        // cut at a character boundary and end in "...", so long text is never silently empty
+        if (b->cap < 3) {
+            return s;
+        }
+        size_t end = b->cap - 3;
+        while (end > 0 && ((unsigned char)b->data[end] & 0xC0) == 0x80) {
+            end--;
+        }
+        memcpy(b->data + end, "...", 3);
+        s.data = b->data;
+        s.length = end + 3;
+        return s;
     }
     s.data = b->data;
     s.length = b->used;
@@ -207,6 +229,17 @@ static void trap_location(void) {
 void lb_trap_text(lb_str message) {
     trap_location();
     if (message.length != 0) fwrite(message.data, 1, message.length, stderr);
+    fputc('\n', stderr);
+    finish_trap();
+}
+
+// `trap(f"...")` streams its pieces to stderr between a begin and
+// `lb_trap_end`, so no format buffer bounds the message.
+void lb_trap_begin(void) {
+    trap_location();
+}
+
+void lb_trap_end(void) {
     fputc('\n', stderr);
     finish_trap();
 }

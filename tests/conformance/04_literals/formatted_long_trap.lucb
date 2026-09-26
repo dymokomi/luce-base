@@ -1,0 +1,12 @@
+# oracle: none
+## §4 formatted strings: a trap's formatted message is written whole, however long its
+## fields, so the text after a long field still reaches the diagnostic.
+func letters(room: u8[], count: usize) -> str:
+    for i in 0..<count:
+        room[i] = 97 + (u8)(i % 26)
+    return (str)room[..<count]
+
+pub func main(arguments: str[]) -> i32:
+    var room: u8[3000] = ---
+    let text = letters(room, 2600)
+    trap(f"got {text} expected {text.length} letters")

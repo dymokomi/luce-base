@@ -5347,8 +5347,10 @@ pub struct Emitter:
                 second = s.left
         if name == "print":
             let v = arg else return
-            if v.kind == ast.Kind.formatted and not displays_a_field(v):
-                try self.print_formatted(v)
+            if v.kind == ast.Kind.formatted:
+                try self.put("(")
+                try self.stream_formatted(v, "stdout")
+                try self.put(", fputc('\\n', stdout))")
                 return
             try self.put("lb_print_str(")
             try self.expr(v)
@@ -5375,6 +5377,11 @@ pub struct Emitter:
             return
         if name == "trap":
             if let msg = arg:
+                if msg.kind == ast.Kind.formatted:
+                    try self.put("(lb_trap_begin(), ")
+                    try self.stream_formatted(msg, "stderr")
+                    try self.put(", lb_trap_end())")
+                    return
                 try self.put("lb_trap_text(")
                 try self.expr(msg)
                 try self.put(")")
@@ -6261,56 +6268,57 @@ pub struct Emitter:
         try self.put_tmp("ff", n)
         try self.put(".used }; })")
 
-    ## `print(f"...")` straight to standard output.
-    mutating func print_formatted(f: ast.Node*) -> !:
+    ## A formatted string written piece by piece to the C stream `stream`, so no buffer
+    ## bounds it: text and `str` fields go as they are, and each other field is displayed
+    ## alone into one format buffer of the function, which the pieces share.
+    mutating func stream_formatted(f: ast.Node*, stream: str) -> !:
         try self.put("({ ")
+        var n: u32 = 0
+        var buffered = false
         var part = f.body
         while let p = part:
+            part = p.next
             if p.kind == ast.Kind.format_text:
                 let text = unescape_braces(check.decode_text(p.text))
                 try self.put("fwrite(")
                 try self.put_c_string(text)
                 try self.put(", 1, ")
                 try self.put_u64((u64)text.length)
-                try self.put(", stdout); ")
-            elif p.kind == ast.Kind.format_field:
-                let v = p.left else return
-                var t = try self.ty(v)
-                if self.is_atomic(t):
-                    t = self.elem(t)
-                if t == types.bool_id:
-                    try self.put("fputs((")
-                    try self.expr(v)
-                    try self.put(") ? \"true\" : \"false\", stdout); ")
-                elif t == types.char_id:
-                    try self.put("{ char lb_cb[4]; fwrite(lb_cb, 1, lucb_rt_utf8_encode(")
-                    try self.expr(v)
-                    try self.put(", lb_cb), stdout); } ")
-                elif t == types.str_id or t == types.fmt_id:
-                    let k = self.tmp()
-                    try self.put("{ lb_str ")
-                    try self.put_tmp("ps", k)
-                    try self.put(" = ")
-                    try self.expr(v)
-                    try self.put("; fwrite(")
-                    try self.put_tmp("ps", k)
-                    try self.put(".data, 1, ")
-                    try self.put_tmp("ps", k)
-                    try self.put(".length, stdout); } ")
-                elif self.is_float(t) or t == types.untyped_float_id:
-                    try self.put("fprintf(stdout, \"%g\", (double)(")
-                    try self.expr(v)
-                    try self.put(")); ")
-                elif (self.is_int(t) and not self.is_signed(t)) or t == types.char_id or self.is_ptr(t) or t == types.error_code_id:
-                    try self.put("fprintf(stdout, \"%llu\", (unsigned long long)(")
-                    try self.expr(v)
-                    try self.put(")); ")
-                else:
-                    try self.put("fprintf(stdout, \"%lld\", (long long)(")
-                    try self.expr(v)
-                    try self.put(")); ")
-            part = p.next
-        try self.put("fputc('\\n', stdout); (void)0; })")
+                try self.put(", ")
+                try self.put(stream)
+                try self.put("); ")
+                continue
+            if p.kind != ast.Kind.format_field:
+                continue
+            let v = p.left else return
+            var t = types.none_id if v.has(ast.flag_format_sink) else try self.ty(v)
+            let k = self.tmp()
+            try self.put("{ lb_str ")
+            try self.put_tmp("ps", k)
+            try self.put(" = ")
+            if t == types.str_id or t == types.fmt_id:
+                try self.expr(v)
+            else:
+                if not buffered:
+                    n = try self.format_buffer()
+                    buffered = true
+                try self.put("({ ")
+                try self.put_tmp("ff", n)
+                try self.put(" = (lb_fmtbuf){ ")
+                try self.put_tmp("fb", n)
+                try self.put(", 1024, 0 }; (void)")
+                try self.display(n, "ff", v)
+                try self.put("; lb_fmtbuf_finish(&")
+                try self.put_tmp("ff", n)
+                try self.put("); })")
+            try self.put("; fwrite(")
+            try self.put_tmp("ps", k)
+            try self.put(".data, 1, ")
+            try self.put_tmp("ps", k)
+            try self.put(".length, ")
+            try self.put(stream)
+            try self.put("); } ")
+        try self.put("(void)0; })")
 
     ## `format(buffer, text)` into the caller's bytes, yielding `str!`.
     mutating func format_call(buf: ast.Node*, msg: ast.Node*) -> !:
@@ -7111,16 +7119,6 @@ func has_out_params(d: ast.Node*) -> bool:
 func declared_result(d: ast.Node*) -> u32:
     let r = d.ty else return types.unit_id
     return r.type_id
-
-## Whether a formatted string has a field that writes itself (§14.4): such a string is built
-## in a buffer rather than written piece by piece.
-func displays_a_field(f: ast.Node*) -> bool:
-    var part = f.body
-    while let p = part:
-        if p.kind == ast.Kind.format_field and p.has(ast.flag_format_sink):
-            return true
-        part = p.next
-    return false
 
 ## The receiver of a `value.display(__sink)` call, the value being formatted.
 func sink_receiver(v: ast.Node*) -> ast.Node*?:

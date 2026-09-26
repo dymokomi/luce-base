@@ -197,6 +197,9 @@ typedef struct lb_str {
 /* Base diagnostic messages are byte spans, not NUL-terminated C strings. */
 LB_NORETURN void lb_trap_text(lb_str message);
 LB_NORETURN void lb_trap_detail(const char* prefix, lb_str detail);
+/* A streamed trap message: a begin, its pieces written to stderr, then the end. */
+void lb_trap_begin(void);
+LB_NORETURN void lb_trap_end(void);
 
 typedef struct lb_span {
     void* data;

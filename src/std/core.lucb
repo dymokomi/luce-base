@@ -88,6 +88,16 @@ pub func trap_text_at(position: c.str, message: str) -> never:
     write_diagnostic("\n".bytes)
     finish_trap()
 
+## `trap(f"...")` streams its message (`stream_put`), so a message longer than a format
+## buffer is whole: the location first, then the message to descriptor 2, then `trap_end`.
+pub func trap_begin_at(position: c.str):
+    diagnostic_location(position)
+
+## The end of a streamed trap message, whose newline the stream wrote: the report, and
+## the exit.
+pub func trap_end() -> never:
+    finish_trap()
+
 ## Assertion prefix plus a Base string detail, preserving the detail's length.
 pub func trap_detail_at(position: c.str, message: c.str, detail: str) -> never:
     diagnostic_location(position)
@@ -288,9 +298,15 @@ pub struct FormatBuffer:
     ## The number of bytes used.
     pub var used: usize
 
-## Append `count` bytes; 1 when they do not fit, and the buffer is then over capacity.
+## Append `count` bytes; 1 when they do not fit: the bytes that fit are kept, and the buffer
+## is then over capacity, which `format` reports and `format_finish` marks.
 pub func format_put(b: FormatBuffer*, text: const void*?, count: usize) -> i32:
-    if count > b.capacity or b.used > b.capacity - count:
+    if b.used > b.capacity:
+        return 1
+    if count > b.capacity - b.used:
+        if let source = text:
+            if b.capacity > b.used:
+                discard(memcpy(&b.data[b.used], source, b.capacity - b.used))
         b.used = b.capacity +% 1
         return 1
     if let source = text:
@@ -360,12 +376,21 @@ pub func format_char(b: FormatBuffer*, value: char) -> i32:
         n = 4
     return format_put(b, (const void*)&out, n)
 
-## The text so far, NUL-terminated when there is room.
+## The text so far, NUL-terminated when there is room. Text over capacity is cut at a
+## character boundary and ends in `...`, so a long f"..." is never silently empty.
 pub func format_finish(b: FormatBuffer*) -> str:
     if b.used < b.capacity:
         b.data[b.used] = 0
     if b.used > b.capacity:
-        return ""
+        if b.capacity < 3:
+            return ""
+        var end = b.capacity - 3
+        while end > 0 and (b.data[end] & 0xC0) == 0x80:
+            end -= 1
+        b.data[end] = 46
+        b.data[end + 1] = 46
+        b.data[end + 2] = 46
+        return (str)u8[](b.data, end + 3)
     return (str)u8[](b.data, b.used)
 
 ## `hex`, `bin`, and `pad` return text in one of four rotating thread-local slots of 255
@@ -514,6 +539,35 @@ pub func print_str(text: str):
     discard(write(1, text.bytes.data, text.length))
     let newline = "\n"
     discard(write(1, newline.bytes.data, 1))
+
+# mark: Streamed text =========================================================================
+
+## `print(f"...")` and `trap(f"...")` fill a format buffer and write it out to `descriptor`
+## (1, standard output; 2, the diagnostic) as it fills, so no buffer bounds the text and a
+## short line is one write. Append `count` bytes at `data` and leave at least half the
+## buffer free, which is room for the fields the compiler displays into it between pieces;
+## a field that displays itself longer than that is cut, as `format_finish` marks.
+pub func stream_put(b: FormatBuffer*, data: const u8*, count: usize, descriptor: i32):
+    if b.used > b.capacity or count > b.capacity - b.used:
+        stream_flush(b, descriptor)
+    if count >= b.capacity:
+        stream_write(descriptor, u8[]((u8*)data, count))
+        return
+    discard(format_put(b, data, count))
+    if b.used > b.capacity // 2:
+        stream_flush(b, descriptor)
+
+## Write out the buffer's text and empty it: the end of a streamed text.
+pub func stream_flush(b: FormatBuffer*, descriptor: i32):
+    if b.used > 0:
+        stream_write(descriptor, format_finish(b).bytes)
+    b.used = 0
+
+func stream_write(descriptor: i32, data: const u8[]):
+    if descriptor == 2:
+        write_diagnostic(data)
+    else:
+        write_all(descriptor, data)
 
 ## Print `value` followed by a newline.
 pub func print_i64(value: i64):

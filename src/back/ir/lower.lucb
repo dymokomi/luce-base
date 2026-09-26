@@ -4057,6 +4057,9 @@ pub struct Lowerer:
         let nothing = LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         if name == "print":
             let v = arg else return try self.fail(e, "no argument")
+            if v.kind == ast.Kind.formatted:
+                try self.print_formatted(v)
+                return nothing
             let text = try self.expr(v)
             let start = u32(self.f.args.count)
             try self.f.args.push(try self.arg_of(LowerValue(ref = text.ref, type_id = types.str_id, in_memory = true)))
@@ -4089,15 +4092,7 @@ pub struct Lowerer:
             try self.f.place_label(ok)
             return nothing
         if name == "trap":
-            if let msg = arg:
-                let m = try self.expr(msg)
-                let start = u32(self.f.args.count)
-                let position = try self.position_ref()
-                try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                try self.f.args.push(try self.arg_of(LowerValue(ref = m.ref, type_id = types.str_id, in_memory = true)))
-                discard(try self.call_named("lb_core_12trap_text_at", start, 2, ir.Class.w, false, types.unit_id))
-            else:
-                try self.trap_with("trap")
+            try self.trap_call(arg)
             return LowerValue(ref = ir.const_ref(0), type_id = types.never_id, in_memory = false)
         if name == "error":
             try self.error_return(e)
@@ -4587,6 +4582,72 @@ pub struct Lowerer:
                 let v = p.left else return
                 try self.display(fb, v)
             part = p.next
+
+    ## `print(f"...")`: the text streamed to standard output, then the newline.
+    mutating func print_formatted(v: ast.Node*) -> !:
+        try self.stream_formatted(v, 1)
+
+    ## `trap(message)`: a formatted message streams to the diagnostic, so its length is not
+    ## bounded by a format buffer; any other text is passed whole.
+    mutating func trap_call(arg: ast.Node*?) -> !:
+        var streamed: ast.Node*? = none
+        if let msg = arg:
+            if msg.kind == ast.Kind.formatted:
+                streamed = msg
+        if let msg = streamed:
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = try self.f.address_of(try self.position_ref()), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+            discard(try self.call_named("lb_core_13trap_begin_at", start, 1, ir.Class.w, false, types.unit_id))
+            try self.stream_formatted(msg, 2)
+            discard(try self.call_named("lb_core_8trap_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        elif let msg = arg:
+            let m = try self.expr(msg)
+            let start = u32(self.f.args.count)
+            let position = try self.position_ref()
+            try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+            try self.f.args.push(try self.arg_of(LowerValue(ref = m.ref, type_id = types.str_id, in_memory = true)))
+            discard(try self.call_named("lb_core_12trap_text_at", start, 2, ir.Class.w, false, types.unit_id))
+        else:
+            try self.trap_with("trap")
+
+    ## A formatted string streamed to `descriptor` through a format buffer that is written out
+    ## as it fills (`core.stream_put`), then a newline: text and `str` fields of any length go
+    ## whole, and every other field is displayed into the half of the buffer kept free.
+    mutating func stream_formatted(f: ast.Node*, descriptor: i64) -> !:
+        let (fb, chars) = try self.fresh_format_buffer(1024)
+        discard(chars)
+        var part = f.body
+        while let p = part:
+            part = p.next
+            if p.kind == ast.Kind.format_text:
+                let text = lower_unescape_braces(check.decode_text(p.text))
+                let data = try self.f.address_of(ir.text_ref(try self.program_unit.text(text)))
+                try self.stream_put(fb, data, ir.const_ref((i64)text.length), descriptor)
+            elif p.kind == ast.Kind.format_field:
+                let v = p.left else return
+                let t = types.none_id if v.has(ast.flag_format_sink) else try self.ty(v)
+                if t == types.str_id or t == types.fmt_id:
+                    let x = try self.value(v, t)
+                    let data = try self.f.load(ir.Op.loadl, ir.Class.l, x.ref)
+                    let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(x.ref, 8))
+                    try self.stream_put(fb, data, length, descriptor)
+                else:
+                    try self.display(fb, v)
+        let newline = try self.f.address_of(ir.text_ref(try self.program_unit.text("\n")))
+        try self.stream_put(fb, newline, ir.const_ref(1), descriptor)
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(descriptor), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        discard(try self.call_named("lb_core_12stream_flush", start, 2, ir.Class.w, false, types.unit_id))
+
+    ## `core.stream_put(fb, data, length, descriptor)`.
+    mutating func stream_put(fb: ir.Ref, data: ir.Ref, length: ir.Ref, descriptor: i64) -> !:
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = length, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(descriptor), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        discard(try self.call_named("lb_core_10stream_put", start, 4, ir.Class.w, false, types.unit_id))
 
     ## A formatted string as `str` in a stack buffer.
     mutating func formatted_value(f: ast.Node*) -> LowerValue!:
