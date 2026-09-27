@@ -88,6 +88,9 @@ pub enum Kind as u8:
     argument = 92
     ## Checked propagation of one fallible operation, inserted before lowering.
     propagate = 93
+    ## `extend Type:` in a fragment of the module that declares `Type`: methods of that type,
+    ## moved into its declaration once the module is parsed (§9.5).
+    extend_ = 94
 
 # mark: Flags =================================================================================
 
@@ -233,6 +236,7 @@ pub func count(list: Node*?) -> usize:
 pub func kind_name(kind: Kind) -> str:
     match kind:
         .propagate: return "propagate"
+        .extend_: return "extend"
         .module: return "module"
         .import_: return "import"
         .from_import: return "from_import"

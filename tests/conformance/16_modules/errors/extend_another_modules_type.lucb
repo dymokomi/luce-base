@@ -1,0 +1,9 @@
+# error: no struct, enum, or union of this module is named `Arena`
+from memory import Arena
+
+extend Arena:
+    func nothing():
+        return
+
+pub func main(arguments: str[]) -> i32:
+    return 0

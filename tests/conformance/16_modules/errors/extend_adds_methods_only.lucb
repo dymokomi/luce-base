@@ -1,0 +1,9 @@
+# error: an extension adds methods; a field belongs in the type's declaration
+struct Point:
+    var x: i64
+
+extend Point:
+    var y: i64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

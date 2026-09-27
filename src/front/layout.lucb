@@ -382,6 +382,11 @@ pub struct Formatter:
                 try self.names(d.body)
                 try self.end_line(d)
             .func_: try self.function(d)
+            .extend_:
+                try self.put("extend ")
+                try self.put(d.text)
+                try self.open_suite(d)
+                try self.members(d.body, true)
             .struct_, .extern_struct:
                 try self.visibility(d)
                 if d.kind == ast.Kind.extern_struct:
@@ -1314,7 +1319,7 @@ func compound(s: ast.Node*) -> bool:
 func has_body(d: ast.Node*) -> bool:
     match d.kind:
         .func_: return d.body != none
-        .struct_, .enum_, .union_, .interface_, .test_, .asm_, .extern_struct, .extern_union:
+        .struct_, .enum_, .union_, .interface_, .test_, .asm_, .extern_struct, .extern_union, .extend_:
             return true
         .extern_type: return d.right != none
         _: return false

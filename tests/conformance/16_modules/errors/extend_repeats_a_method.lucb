@@ -1,0 +1,13 @@
+# error: `length` is already a member of this type
+struct Line:
+    var a: i64
+
+    func length() -> i64:
+        return self.a
+
+extend Line:
+    func length() -> i64:
+        return 0
+
+pub func main(arguments: str[]) -> i32:
+    return 0

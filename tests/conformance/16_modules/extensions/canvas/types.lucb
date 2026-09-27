@@ -1,0 +1,18 @@
+## The canvas type: its fields and its first methods. More of its methods are written in
+## the other fragments of this module, under `extend Canvas:`.
+pub struct Canvas:
+    var width: i64
+    var height: i64
+    var selected: i64
+    pub var strokes: i64
+
+    pub static func create(width: i64, height: i64) -> Canvas:
+        return Canvas(width = width, height = height, selected = 0, strokes = 0)
+
+    pub func area() -> i64:
+        return self.width * self.height
+
+## A tool, with its methods in another fragment.
+pub enum Tool:
+    brush
+    eraser

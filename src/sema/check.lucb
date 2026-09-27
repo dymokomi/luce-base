@@ -668,6 +668,7 @@ pub struct Checker:
         var p = try parser.Parser.over(src, self.scratch)
         p.allow_core_names = is_prelude
         let tree = try p.parse_module()
+        try p.merge_extensions(tree)
         tree.text = name
         if is_prelude:
             var cursor = tree.body
@@ -746,6 +747,7 @@ pub struct Checker:
                 return
         var p = try parser.Parser.over(src, self.scratch)
         let tree = try p.parse_module()
+        try p.merge_extensions(tree)
         if is_standard_module(name):
             let half = self.scratch.length // 2
             let message = try format(self.scratch[..<half], f"{text}:1:1: a module cannot take a standard module's name")

@@ -1,0 +1,7 @@
+# error: no struct, enum, or union of this module is named `Missing`
+extend Missing:
+    func nothing():
+        return
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -252,6 +252,9 @@ pub struct Parser:
             return n
         if self.at_kw("asm") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":"):
             return try self.parse_asm()
+        # `extend` is a word only here, before a type's name and `:` (§9.5)
+        if self.at_name("extend") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":"):
+            return try self.parse_extend()
         var flags: u32 = 0
         if self.eat_kw("pub"):
             flags |= ast.flag_pub
@@ -266,6 +269,62 @@ pub struct Parser:
             d.flags |= flags
             return d
         return try self.parse_decl(flags)
+
+    ## `extend Name:` and methods beneath: more of a type this module declares (§9.5).
+    mutating func parse_extend() -> ast.Node*!:
+        let n = try self.node(ast.Kind.extend_, "")
+        discard(self.take())
+        n.text = try self.expect_name()
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        var tail: ast.Node*? = none
+        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+                discard(self.take())
+                continue
+            let m = try self.parse_member(false)
+            if m.kind != ast.Kind.func_:
+                return try self.fail_at(m, "an extension adds methods; a field belongs in the type's declaration (§9.5)")
+            ast.append(&n.body, &tail, m)
+        discard(self.take())
+        return n
+
+    ## Every `extend Name:` of `module` joined to the declaration of `Name` in the same module,
+    ## its methods after the ones the declaration holds, and gone from the module's list, so
+    ## the checker and the backends see one type with all of its methods (§9.5).
+    pub mutating func merge_extensions(module: ast.Node*) -> !:
+        var previous: ast.Node*? = none
+        var cursor = module.body
+        while let d = cursor:
+            cursor = d.next
+            if d.kind != ast.Kind.extend_:
+                previous = d
+                continue
+            let found = extended_type(module, d.text)
+            if found == none:
+                discard(try self.fail_at(d, try self.spelled("no struct, enum, or union of this module is named ", d.text)))
+            let target = found else return
+            var last = target.body
+            while let m = last:
+                if m.next == none:
+                    break
+                last = m.next
+            if let end = last:
+                end.next = d.body
+            else:
+                target.body = d.body
+            if let p = previous:
+                p.next = d.next
+            else:
+                module.body = d.next
+
+    ## An error at node `n`'s position.
+    func fail_at(n: ast.Node*, what: str) -> ast.Node*!:
+        let half = self.scratch.length // 2
+        let (file, line, column) = self.src.located(n.start)
+        let message = try format(self.scratch[..<half], f"{file}:{line}:{column}: {what}")
+        error(syntax, message)
 
     ## `handle Name:` with `destroy function` beneath (§17.7): an opaque pointer-shaped
     ## type, as `extern type` declares one, whose `right` names the function releasing it.
@@ -2100,6 +2159,15 @@ test "dash operator token":
         assert(p.at(token.Kind.eof))
 
 ## Whether the attribute list names `word`.
+## The struct, enum, or union `module` declares under `name`, which an extension adds to.
+func extended_type(module: ast.Node*, name: str) -> ast.Node*?:
+    var cursor = module.body
+    while let d = cursor:
+        if d.text == name and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_):
+            return d
+        cursor = d.next
+    return none
+
 func names_attribute(attributes: ast.Node*?, word: str) -> bool:
     var cursor = attributes
     while let a = cursor:

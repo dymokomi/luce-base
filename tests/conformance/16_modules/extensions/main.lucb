@@ -1,0 +1,16 @@
+# oracle: none -- fragment directories are this compiler's module layout; the seed reads one file per module
+## §9.5: a type's methods may be declared under `extend Type:` in any fragment of the module
+## that declares it; they are the type's methods like the ones in its body.
+import canvas
+
+pub func main(arguments: str[]) -> i32!:
+    var c = canvas.Canvas.create(4, 3)
+    try c.paint(canvas.Tool.brush)
+    try c.paint(canvas.Tool.brush)
+    try c.paint(canvas.Tool.eraser)
+    let strip = canvas.Canvas.strip(5)
+    print(f"{c.selection()} {c.strokes} {strip.area()} {canvas.Tool.eraser.erases()}")
+    var blank = canvas.Canvas.create(1, 1)
+    blank.paint(canvas.Tool.eraser) catch failure:
+        print(failure.message)
+    return 0

@@ -67,6 +67,22 @@ func f() -> !:
         kept = "func f():\n    defer:\n        # why\n        note(1)\n"
         self.assertEqual(self.fmt(kept), kept)
 
+    def test_extension_blocks(self):
+        canonical = """\
+struct Canvas:
+    var width: i64
+
+# selection, by concern
+extend Canvas:
+    ## Selects everything.
+    pub mutating func select_all():
+        self.width = 0
+
+    pub static func strip() -> Canvas:
+        return Canvas(width = 1)
+"""
+        self.assertEqual(self.fmt(canonical), canonical)
+
     def test_idempotent(self):
         once = self.fmt(CANONICAL)
         self.assertEqual(self.fmt(once), once)

@@ -896,6 +896,22 @@ struct Cursor:
 - `value.member` without `()` is always a field. There are no computed properties.
 - A method named `init` is the initialiser (§10.1); it is never `static`.
 
+A type's methods may also be declared under `extend Type:` at the top level of any fragment of the module that declares `Type` (§16.1), when a type with many methods is better split by concern across files:
+
+```luce
+# canvas/selecting.lucb, a fragment of the module `canvas` that declares `Canvas`
+extend Canvas:
+    pub mutating func select_all():
+        self.selected = self.area()
+```
+
+- An extension holds methods only (`static`, `mutating`, `pub`, attributes, and doc comments as in the body), never fields, so a type's layout stays in its declaration.
+- `Type` is a struct, enum, or union this module declares; extending another module's type is an error, so a type's methods are all found within the module that owns it. It sees the module's private names and the type's private fields, as a method in the body does.
+- The methods are the type's methods like the ones in its body: one type, one set of methods, a name declared twice is an error, and the order of fragments does not matter. `describe` (§17) lists them with the rest, so full Luce sees every one.
+- `extend` is a word only in that position; elsewhere it is an ordinary name.
+
+**Why extensions.** A facade type with hundreds of methods would otherwise hold every one of them in one file, or repeat each as a one-line method calling a function in another file. Swift's extensions and Go's methods anywhere in the package split a type across files; Base keeps Go's limit, the owning module, so the full set of a type's methods is still known in one place.
+
 **Why implicit `self`.** Full Luce writes `self` as the first parameter, which is Python's convention and is justified in a language where a function inside a type may or may not be a method. In Base, having a receiver is what a function inside a type does by default, `mutating` already states what the receiver permits, and a C programmer reading `func distance(other: Point)` inside a struct knows what it is. The explicit parameter would have been a parameter in every method that carries no information, and `static` is the word C programmers already use for the exception.
 
 **Why `self` is a pointer.** In full Luce a non-mutating method receives a copy, which is safe under reference counting and invisible to the caller. In Base a copy of a large struct on every method call is a cost C programmers would notice, and a struct method in C3, Zig, and Odin takes a pointer. Making the convention deterministic, rather than "by value if small", is what lets the generated C header say `const Point*`.
@@ -1335,7 +1351,7 @@ pub func main(arguments: str[]) -> i32!:
 
 ### 16.1 Files and modules
 
-One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. A larger module may be a directory of that name instead, whose `ORDER` file lists its source fragments in order; the fragments share the one module scope, a diagnostic or a trap names the fragment file, and nothing else about the module changes. There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
+One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. A larger module may be a directory of that name instead, whose `ORDER` file lists its source fragments in order; the fragments share the one module scope, a diagnostic or a trap names the fragment file, a type declared in one fragment may take methods in another under `extend` (§9.5), and nothing else about the module changes. There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
 
 ### 16.2 The three module kinds
 
@@ -1780,7 +1796,8 @@ top_decl        = [ "pub" ], ( constant_decl | global_decl | type_alias
                 | "export", function_decl
                 | test_decl
                 | "assert", argument_list, NEWLINE
-                | asm_module_decl ;
+                | asm_module_decl
+                | extension_decl ;
 
 constant_decl   = "let", IDENT, [ ":", type ], "=", constant_expression, NEWLINE ;
 global_decl     = [ "local" ], { attribute }, "var", IDENT, ":", type,
@@ -1806,6 +1823,10 @@ struct_decl     = [ "packed" | "align", "(", constant_expression, ")" ],
 type_member     = [ "pub" ], ( field_decl | [ "export" ], function_decl ) ;
 field_decl      = [ "align", "(", constant_expression, ")" ], ( "let" | "var" ), IDENT, ":", type,
                   [ "=", constant_expression ], NEWLINE ;
+
+extension_decl  = "extend", TYPE_IDENT, ":", NEWLINE, INDENT,
+                  [ "pub" ], [ "export" ], function_decl,
+                  { [ "pub" ], [ "export" ], function_decl }, DEDENT ;
 
 enum_decl       = "enum", TYPE_IDENT, [ generic_params ], [ "as", integer_type ],
                   conformance, ":", NEWLINE, INDENT,
