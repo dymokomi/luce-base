@@ -61,6 +61,10 @@ pub struct Info:
     pub var trace: func(Object*, func(Object*, void*) -> unit, void*) -> unit
     ## An interface adapter preserves the identity of its concrete owner.
     pub var identity: (func(Object*) -> u64)? = none
+    ## No object of this type can be part of a reference cycle (text, a list of numbers, a
+    ## class whose fields are all such): the collector never takes one as a candidate nor
+    ## walks into one, so large acyclic data costs it nothing.
+    pub var acyclic: bool = false
 
 ## Objects alive: allocated and not yet destroyed.
 local var live: usize = 0
@@ -179,7 +183,7 @@ pub func release(o: Object*):
     o.strong -= 1
     if o.strong == 0:
         destroy(o)
-    else:
+    elif not o.info.acyclic:
         possible_root(o)
 
 ## `deinit`, then the fields, then the storage unless a weak reference keeps the shell.

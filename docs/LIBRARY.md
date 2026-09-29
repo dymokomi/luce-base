@@ -386,6 +386,7 @@ What the collector and the destructor need to know about a class.
 - `var drop: func(Object*) -> unit` — Releases the fields in reverse declaration order, tolerating unassigned ones.
 - `var trace: func(Object*, func(Object*, void*) -> unit, void*) -> unit` — Visits every strong reference the object holds, fields in declaration order.
 - `var identity: (func(Object*) -> u64)? = none` — An interface adapter preserves the identity of its concrete owner.
+- `var acyclic: bool = false` — No object of this type can be part of a reference cycle (text, a list of numbers, a class whose fields are all such): the collector never takes one as a candidate nor walks into one, so large acyclic data costs it nothing.
 
 - `func live_count() -> usize` — Allocated objects not yet finalized on the calling runtime thread.
 

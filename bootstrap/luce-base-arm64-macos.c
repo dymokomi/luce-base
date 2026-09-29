@@ -466,6 +466,7 @@ typedef struct lb_ownership_Info {
     lb_fn_0F1_ownership_Object_0p_unit drop;
     lb_fn_0F3_ownership_Object_0p_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit trace;
     lb_fn_0F1_ownership_Object_0p_u64 identity;
+    bool acyclic;
 } lb_ownership_Info;
 typedef void (*lb_fn_0F1_void_0p_unit)(void*);
 typedef struct lb_ownership_Pending {
@@ -6980,9 +6981,9 @@ uint64_t lb_testing_12current_seed = 1ULL;
 static __attribute__((unused)) uint32_t lb_interop_invalid = ((uint32_t)(208273509ULL));
 static __attribute__((unused)) uint32_t lb_interop_12wrong_thread = ((uint32_t)(208273510ULL));
 static __attribute__((unused)) uint32_t lb_interop_expired = ((uint32_t)(208273511ULL));
-lb_ownership_Info lb_interop_10lease_info = {.name = {"native lease", 12}, .size = ((size_t)sizeof(lb_interop_LeaseState)), .finish = ((void*)0), .drop = lb_interop_10drop_lease, .trace = lb_interop_11trace_lease, .identity = ((void*)0)};
+lb_ownership_Info lb_interop_10lease_info = {.name = {"native lease", 12}, .size = ((size_t)sizeof(lb_interop_LeaseState)), .finish = ((void*)0), .drop = lb_interop_10drop_lease, .trace = lb_interop_11trace_lease, .identity = ((void*)0), .acyclic = false};
 static __attribute__((unused)) uint32_t lb_interop_8no_error = ((uint32_t)(208273408ULL));
-lb_ownership_Info lb_interop_9text_info = {.name = {"native owned text", 17}, .size = 0ULL, .finish = ((void*)0), .drop = lb_interop_9drop_text, .trace = lb_interop_10trace_text, .identity = ((void*)0)};
+lb_ownership_Info lb_interop_9text_info = {.name = {"native owned text", 17}, .size = 0ULL, .finish = ((void*)0), .drop = lb_interop_9drop_text, .trace = lb_interop_10trace_text, .identity = ((void*)0), .acyclic = false};
 static __attribute__((unused)) lb_interop_Type_0g1_interop_Connection lb_interop_15connection_type = {.name = {"Connection", 10}, .dispose = lb_interop_Connection_destroy, .trace = lb_interop_Connection_trace, .closeable = false, .main_thread = false};
 static __attribute__((unused)) lb_interop_Transfer_0g1_str lb_interop_13text_transfer = {.copy = lb_interop_PacketBytes_text};
 static __attribute__((unused)) lb_interop_Transfer_0g1_u8_0c lb_interop_14bytes_transfer = {.copy = lb_interop_PacketBytes_copy};
@@ -16437,42 +16438,45 @@ lb_r_i32 lb_main(lb_span lb_arguments) {
 }
 static __attribute__((unused)) void lb_ownership_release(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:169:5";
+    lb_pos = "std/ownership/module.lucb:173:5";
     (void)(lb_ownership_12check_thread(lb_o));
-    lb_pos = "std/ownership/module.lucb:170:5";
+    lb_pos = "std/ownership/module.lucb:174:5";
     if (!!(lb_ownership_has(lb_o, lb_ownership_immortal))) 
     {
-        lb_pos = "std/ownership/module.lucb:171:9";
+        lb_pos = "std/ownership/module.lucb:175:9";
         return;
     }
-    lb_pos = "std/ownership/module.lucb:172:5";
+    lb_pos = "std/ownership/module.lucb:176:5";
     if (!!(lb_ownership_has(lb_o, lb_ownership_collecting))) 
     {
-        lb_pos = "std/ownership/module.lucb:175:9";
+        lb_pos = "std/ownership/module.lucb:179:9";
         if (!!((((uint32_t)((lb_o)->strong)) > ((uint32_t)(0ULL))))) 
         {
-            lb_pos = "std/ownership/module.lucb:176:13";
+            lb_pos = "std/ownership/module.lucb:180:13";
             { uint32_t* lb__cell1705 = &((lb_o)->strong);
             (*(lb__cell1705)) = (uint32_t)(lb_sub_u((uint64_t)((*(lb__cell1705))), (uint64_t)(1ULL), 32)); }
         }
-        lb_pos = "std/ownership/module.lucb:177:9";
+        lb_pos = "std/ownership/module.lucb:181:9";
         return;
     }
-    lb_pos = "std/ownership/module.lucb:178:5";
+    lb_pos = "std/ownership/module.lucb:182:5";
     (void)(lb_ownership_11check_alive(lb_o));
-    lb_pos = "std/ownership/module.lucb:179:5";
+    lb_pos = "std/ownership/module.lucb:183:5";
     { uint32_t* lb__cell1706 = &((lb_o)->strong);
     (*(lb__cell1706)) = (uint32_t)(lb_sub_u((uint64_t)((*(lb__cell1706))), (uint64_t)(1ULL), 32)); }
-    lb_pos = "std/ownership/module.lucb:180:5";
+    lb_pos = "std/ownership/module.lucb:184:5";
     if (!!(((lb_o)->strong == 0ULL))) 
     {
-        lb_pos = "std/ownership/module.lucb:181:9";
+        lb_pos = "std/ownership/module.lucb:185:9";
         (void)(lb_ownership_destroy(lb_o));
     }
-    else 
-    {
-        lb_pos = "std/ownership/module.lucb:183:9";
-        (void)(lb_ownership_13possible_root(lb_o));
+    else {
+        lb_pos = "std/ownership/module.lucb:186:5";
+        if (!!((!((lb_o)->info)->acyclic))) 
+        {
+            lb_pos = "std/ownership/module.lucb:187:9";
+            (void)(lb_ownership_13possible_root(lb_o));
+        }
     }
 }
 static __attribute__((unused)) void lb_interop_Connection_disconnect(lb_interop_Connection* self) {
@@ -16490,10 +16494,10 @@ static __attribute__((unused)) void lb_interop_Connection_disconnect(lb_interop_
 }
 static __attribute__((unused)) void lb_ownership_12check_thread(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:120:5";
+    lb_pos = "std/ownership/module.lucb:124:5";
     if (!!(((!lb_ownership_has(lb_o, lb_ownership_immortal)) && ({ uint64_t _lb_sq1708 __attribute__((unused)) = (lb_o)->context; uint64_t _lb_sq1709 __attribute__((unused)) = lb_ownership_10context_id(); (!(_lb_sq1708 == _lb_sq1709)); })))) 
     {
-        lb_pos = "std/ownership/module.lucb:121:9";
+        lb_pos = "std/ownership/module.lucb:125:9";
         (void)(lb_ownership_stop(((lb_str){"an object belongs to another runtime thread", 43})));
     }
 }
@@ -20290,79 +20294,79 @@ static __attribute__((unused)) lb_r_i32 lb_12bind_command_run(lb_span lb_argumen
 }
 static __attribute__((unused)) bool lb_ownership_has(struct lb_ownership_Object* lb_o, uint8_t lb_flag) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:92:5";
+    lb_pos = "std/ownership/module.lucb:96:5";
     bool _lb_ret2550 = (!((((uint8_t)((lb_o)->flags & lb_flag))) == 0ULL));
     return _lb_ret2550;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) void lb_ownership_11check_alive(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:125:5";
+    lb_pos = "std/ownership/module.lucb:129:5";
     (void)(lb_ownership_12check_thread(lb_o));
-    lb_pos = "std/ownership/module.lucb:126:5";
+    lb_pos = "std/ownership/module.lucb:130:5";
     if (!!((lb_ownership_has(lb_o, lb_ownership_dead) || ((lb_o)->strong == 0ULL)))) 
     {
-        lb_pos = "std/ownership/module.lucb:127:9";
+        lb_pos = "std/ownership/module.lucb:131:9";
         (void)(lb_ownership_stop(((lb_str){"an object has already been destroyed", 36})));
     }
 }
 static __attribute__((unused)) void lb_ownership_destroy(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:187:5";
+    lb_pos = "std/ownership/module.lucb:191:5";
     (void)(lb_ownership_9set_color(lb_o, lb_ownership_black));
-    lb_pos = "std/ownership/module.lucb:188:5";
+    lb_pos = "std/ownership/module.lucb:192:5";
     lb_fn_0F1_ownership_Object_0p_unit _lb_o2551 = ((lb_o)->info)->finish;
     if (_lb_o2551 != ((void*)0)) {
         lb_fn_0F1_ownership_Object_0p_unit lb_f __attribute__((unused)) = _lb_o2551;
         {
-            lb_pos = "std/ownership/module.lucb:189:9";
+            lb_pos = "std/ownership/module.lucb:193:9";
             (lb_o)->strong = 1ULL;
-            lb_pos = "std/ownership/module.lucb:190:9";
+            lb_pos = "std/ownership/module.lucb:194:9";
             (void)((lb_f)(lb_o));
-            lb_pos = "std/ownership/module.lucb:191:9";
+            lb_pos = "std/ownership/module.lucb:195:9";
             if (!!((!((lb_o)->strong == 1ULL)))) 
             {
-                lb_pos = "std/ownership/module.lucb:192:13";
+                lb_pos = "std/ownership/module.lucb:196:13";
                 (void)(lb_trap_text(((lb_str){"`deinit` published `self`", 25})));
             }
-            lb_pos = "std/ownership/module.lucb:193:9";
+            lb_pos = "std/ownership/module.lucb:197:9";
             (lb_o)->strong = 0ULL;
         }
     }
-    lb_pos = "std/ownership/module.lucb:194:5";
+    lb_pos = "std/ownership/module.lucb:198:5";
     (void)((((lb_o)->info)->drop)(lb_o));
-    lb_pos = "std/ownership/module.lucb:195:5";
+    lb_pos = "std/ownership/module.lucb:199:5";
     { size_t* lb__cell2552 = &(lb_ownership_live);
     (*(lb__cell2552)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell2552))), (uint64_t)(1ULL), 64)); }
-    lb_pos = "std/ownership/module.lucb:196:5";
+    lb_pos = "std/ownership/module.lucb:200:5";
     { uint8_t* lb__cell2553 = &((lb_o)->flags);
     (*(lb__cell2553)) = (*(lb__cell2553)) | (lb_ownership_dead); }
-    lb_pos = "std/ownership/module.lucb:197:5";
+    lb_pos = "std/ownership/module.lucb:201:5";
     if (!!((!lb_ownership_has(lb_o, lb_ownership_buffered)))) 
     {
-        lb_pos = "std/ownership/module.lucb:198:9";
+        lb_pos = "std/ownership/module.lucb:202:9";
         (void)(lb_ownership_13release_shell(lb_o));
     }
 }
 static __attribute__((unused)) void lb_ownership_13possible_root(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:48:5";
+    lb_pos = "std/ownership/cycles.lucb:50:5";
     if (!!(({ uint8_t _lb_sq2554 __attribute__((unused)) = lb_ownership_8color_of(lb_o); uint8_t _lb_sq2555 __attribute__((unused)) = lb_ownership_purple; (!(_lb_sq2554 == _lb_sq2555)); }))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:49:9";
+        lb_pos = "std/ownership/cycles.lucb:51:9";
         (void)(lb_ownership_9set_color(lb_o, lb_ownership_purple));
-        lb_pos = "std/ownership/cycles.lucb:50:9";
+        lb_pos = "std/ownership/cycles.lucb:52:9";
         if (!!((!lb_ownership_has(lb_o, lb_ownership_buffered)))) 
         {
-            lb_pos = "std/ownership/cycles.lucb:51:13";
+            lb_pos = "std/ownership/cycles.lucb:53:13";
             { uint8_t* lb__cell2556 = &((lb_o)->flags);
             (*(lb__cell2556)) = (*(lb__cell2556)) | (lb_ownership_buffered); }
-            lb_pos = "std/ownership/cycles.lucb:52:13";
+            lb_pos = "std/ownership/cycles.lucb:54:13";
             (void)(lb_ownership_9push_root(lb_o));
-            lb_pos = "std/ownership/cycles.lucb:53:13";
+            lb_pos = "std/ownership/cycles.lucb:55:13";
             if (!!(((((size_t)(lb_ownership_10root_count)) >= ((size_t)(lb_ownership_15candidate_limit))) && (!lb_ownership_17collector_running)))) 
             {
-                lb_pos = "std/ownership/cycles.lucb:54:17";
+                lb_pos = "std/ownership/cycles.lucb:56:17";
                 (void)(lb_ownership_collect());
             }
         }
@@ -20370,26 +20374,26 @@ static __attribute__((unused)) void lb_ownership_13possible_root(struct lb_owner
 }
 static __attribute__((unused)) uint64_t lb_ownership_10context_id(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:101:5";
+    lb_pos = "std/ownership/module.lucb:105:5";
     if (!!((lb_ownership_14thread_context == 0ULL))) 
     {
-        lb_pos = "std/ownership/module.lucb:102:9";
+        lb_pos = "std/ownership/module.lucb:106:9";
         lb_ownership_14thread_context = ((uint64_t)atomic_fetch_add_explicit(&(lb_ownership_12next_context), (uint64_t)(1ULL), memory_order_relaxed));
-        lb_pos = "std/ownership/module.lucb:103:9";
+        lb_pos = "std/ownership/module.lucb:107:9";
         if (!!((lb_ownership_14thread_context == 0ULL))) 
         {
-            lb_pos = "std/ownership/module.lucb:104:13";
+            lb_pos = "std/ownership/module.lucb:108:13";
             (void)(lb_ownership_stop(((lb_str){"runtime context identity exhausted", 34})));
         }
     }
-    lb_pos = "std/ownership/module.lucb:105:5";
+    lb_pos = "std/ownership/module.lucb:109:5";
     uint64_t _lb_ret2558 = lb_ownership_14thread_context;
     return _lb_ret2558;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) void lb_ownership_stop(lb_str lb_message) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:83:5";
+    lb_pos = "std/ownership/module.lucb:87:5";
     (void)(lb_core_12trap_located(lb_ownership_site, lb_message));
     lb_trap("unreachable");
 }
@@ -30209,273 +30213,273 @@ static __attribute__((unused)) uint32_t lb_9bind_emit_Emitter_14unmapped_count(c
 }
 static __attribute__((unused)) void lb_ownership_9set_color(struct lb_ownership_Object* lb_o, uint8_t lb_c) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:89:5";
+    lb_pos = "std/ownership/module.lucb:93:5";
     (lb_o)->flags = ((uint8_t)((((uint8_t)((lb_o)->flags & ((uint8_t)lb_not_u((uint64_t)(lb_ownership_10color_mask), 8))))) | lb_c));
 }
 static __attribute__((unused)) void lb_ownership_13release_shell(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:202:5";
+    lb_pos = "std/ownership/module.lucb:206:5";
     if (!!(((((lb_o)->weak == 0ULL) && lb_ownership_has(lb_o, lb_ownership_dead)) && (!lb_ownership_has(lb_o, lb_ownership_buffered))))) 
     {
-        lb_pos = "std/ownership/module.lucb:203:9";
+        lb_pos = "std/ownership/module.lucb:207:9";
         lb_iface lb_allocator __attribute__((unused)) = ({ lb_iface _lb_o4749 = (lb_o)->allocator; if (_lb_o4749.data == ((void*)0)) {
             (void)(lb_ownership_stop(((lb_str){"an object has no allocation owner", 33})));
         } _lb_o4749; });
-        lb_pos = "std/ownership/module.lucb:204:9";
+        lb_pos = "std/ownership/module.lucb:208:9";
         lb_span lb_block __attribute__((unused)) = ((lb_span){(void*)(((uint8_t*)(lb_o))), (size_t)((lb_o)->allocation_size)});
-        lb_pos = "std/ownership/module.lucb:205:9";
+        lb_pos = "std/ownership/module.lucb:209:9";
         { lb_span _lb_s4750 = lb_block; lb_release_call(lb_allocator, (lb_span){ (void*)(_lb_s4750.data), lb_mul_u(_lb_s4750.length, sizeof(uint8_t), 64) }); }
     }
 }
 static __attribute__((unused)) uint8_t lb_ownership_8color_of(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/module.lucb:86:5";
+    lb_pos = "std/ownership/module.lucb:90:5";
     uint8_t _lb_ret4751 = ((uint8_t)((lb_o)->flags & lb_ownership_10color_mask));
     return _lb_ret4751;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) void lb_ownership_9push_root(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:20:5";
+    lb_pos = "std/ownership/cycles.lucb:22:5";
     if (!!((lb_ownership_10root_count == (lb_ownership_roots.length)))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:21:9";
+        lb_pos = "std/ownership/cycles.lucb:23:9";
         lb_span lb_grown __attribute__((unused)) = ({ lb_error _lb_fe4752 __attribute__((unused)); lb_span _lb_v4752 __attribute__((unused)) = {}; _lb_v4752 = ({ lb_r_ownership_Object_0p_0s _lb_r4753 = ({ lb_iface _lb_a4754 = lb_memory_heap; size_t _lb_n4754 = (size_t)(((((size_t)((lb_ownership_roots.length))) > ((size_t)(0ULL))) ? (size_t)(lb_mul_u((uint64_t)((lb_ownership_roots.length)), (uint64_t)(2ULL), 64)) : lb_ownership_15candidate_limit)); lb_r_ownership_Object_0p_0s _lb_r4754; if (_lb_n4754 > UINT64_C(576460752303423488)) { _lb_r4754 = ((lb_r_ownership_Object_0p_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes4754 = sizeof(struct lb_ownership_Object*) * _lb_n4754; lb_o_u8_0s _lb_ao4754 = lb_alloc_call(_lb_a4754, _lb_bytes4754, _Alignof(struct lb_ownership_Object*)); if (_lb_bytes4754 != 0 && !_lb_ao4754.present) { _lb_r4754 = ((lb_r_ownership_Object_0p_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r4754.value.data = _lb_ao4754.value.data; _lb_r4754.value.length = _lb_n4754; _lb_r4754.failed = false; } } _lb_r4754; }); if (_lb_r4753.failed) {
             _lb_fe4752 = _lb_r4753.error;
             goto _lb_fh4752;
         } _lb_r4753.value; }); goto _lb_cd4752; _lb_fh4752: { 
             lb_error lb_failure __attribute__((unused)) = _lb_fe4752;
             {
-                lb_pos = "std/ownership/cycles.lucb:22:13";
+                lb_pos = "std/ownership/cycles.lucb:24:13";
                 (void)(lb_trap_text(((lb_str){"out of memory", 13})));
             }
         } _lb_cd4752: __attribute__((unused)); _lb_v4752; });
-        lb_pos = "std/ownership/cycles.lucb:23:9";
+        lb_pos = "std/ownership/cycles.lucb:25:9";
         size_t lb_i __attribute__((unused)) = 0ULL;
-        lb_pos = "std/ownership/cycles.lucb:24:9";
+        lb_pos = "std/ownership/cycles.lucb:26:9";
         for (;;) {
-            lb_pos = "std/ownership/cycles.lucb:24:9";
+            lb_pos = "std/ownership/cycles.lucb:26:9";
             if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_10root_count))))) break;
             {
-                lb_pos = "std/ownership/cycles.lucb:25:13";
+                lb_pos = "std/ownership/cycles.lucb:27:13";
                 (*({ lb_span _lb_ix4755 = lb_grown; &((struct lb_ownership_Object**)_lb_ix4755.data)[lb_at((uint64_t)(lb_i), _lb_ix4755.length)]; })) = (*({ lb_span _lb_ix4756 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4756.data)[lb_at((uint64_t)(lb_i), _lb_ix4756.length)]; }));
-                lb_pos = "std/ownership/cycles.lucb:26:13";
+                lb_pos = "std/ownership/cycles.lucb:28:13";
                 { size_t* lb__cell4757 = &(lb_i);
                 (*(lb__cell4757)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4757))), (uint64_t)(1ULL), 64)); }
             }
         }
-        lb_pos = "std/ownership/cycles.lucb:27:9";
+        lb_pos = "std/ownership/cycles.lucb:29:9";
         if (!!((((size_t)((lb_ownership_roots.length))) > ((size_t)(0ULL))))) 
         {
-            lb_pos = "std/ownership/cycles.lucb:28:13";
+            lb_pos = "std/ownership/cycles.lucb:30:13";
             { lb_span _lb_s4758 = lb_ownership_roots; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s4758.data), lb_mul_u(_lb_s4758.length, sizeof(struct lb_ownership_Object*), 64) }); }
         }
-        lb_pos = "std/ownership/cycles.lucb:29:9";
+        lb_pos = "std/ownership/cycles.lucb:31:9";
         lb_ownership_roots = lb_grown;
     }
-    lb_pos = "std/ownership/cycles.lucb:30:5";
+    lb_pos = "std/ownership/cycles.lucb:32:5";
     (*({ lb_span _lb_ix4759 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4759.data)[lb_at((uint64_t)(lb_ownership_10root_count), _lb_ix4759.length)]; })) = lb_o;
-    lb_pos = "std/ownership/cycles.lucb:31:5";
+    lb_pos = "std/ownership/cycles.lucb:33:5";
     { size_t* lb__cell4760 = &(lb_ownership_10root_count);
     (*(lb__cell4760)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4760))), (uint64_t)(1ULL), 64)); }
 }
 static __attribute__((unused)) void lb_ownership_collect(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:116:5";
+    lb_pos = "std/ownership/cycles.lucb:118:5";
     if (!!(lb_ownership_17collector_running)) 
     {
-        lb_pos = "std/ownership/cycles.lucb:117:9";
+        lb_pos = "std/ownership/cycles.lucb:119:9";
         return;
     }
-    lb_pos = "std/ownership/cycles.lucb:118:5";
-    lb_ownership_17collector_running = true;
     lb_pos = "std/ownership/cycles.lucb:120:5";
-    size_t lb_kept __attribute__((unused)) = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:121:5";
-    size_t lb_i __attribute__((unused)) = 0ULL;
+    lb_ownership_17collector_running = true;
     lb_pos = "std/ownership/cycles.lucb:122:5";
+    size_t lb_kept __attribute__((unused)) = 0ULL;
+    lb_pos = "std/ownership/cycles.lucb:123:5";
+    size_t lb_i __attribute__((unused)) = 0ULL;
+    lb_pos = "std/ownership/cycles.lucb:124:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:122:5";
+        lb_pos = "std/ownership/cycles.lucb:124:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_10root_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:123:9";
+            lb_pos = "std/ownership/cycles.lucb:125:9";
             struct lb_ownership_Object* lb_o __attribute__((unused)) = (*({ lb_span _lb_ix4761 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4761.data)[lb_at((uint64_t)(lb_i), _lb_ix4761.length)]; }));
-            lb_pos = "std/ownership/cycles.lucb:124:9";
+            lb_pos = "std/ownership/cycles.lucb:126:9";
             if (!!(((({ uint8_t _lb_sq4762 __attribute__((unused)) = lb_ownership_8color_of(lb_o); uint8_t _lb_sq4763 __attribute__((unused)) = lb_ownership_purple; (_lb_sq4762 == _lb_sq4763); }) && (((uint32_t)((lb_o)->strong)) > ((uint32_t)(0ULL)))) && (!lb_ownership_has(lb_o, lb_ownership_dead))))) 
             {
-                lb_pos = "std/ownership/cycles.lucb:125:13";
+                lb_pos = "std/ownership/cycles.lucb:127:13";
                 (*({ lb_span _lb_ix4764 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4764.data)[lb_at((uint64_t)(lb_kept), _lb_ix4764.length)]; })) = lb_o;
-                lb_pos = "std/ownership/cycles.lucb:126:13";
+                lb_pos = "std/ownership/cycles.lucb:128:13";
                 { size_t* lb__cell4765 = &(lb_kept);
                 (*(lb__cell4765)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4765))), (uint64_t)(1ULL), 64)); }
             }
             else 
             {
-                lb_pos = "std/ownership/cycles.lucb:128:13";
+                lb_pos = "std/ownership/cycles.lucb:130:13";
                 { uint8_t* lb__cell4766 = &((lb_o)->flags);
                 (*(lb__cell4766)) = (*(lb__cell4766)) & (((uint8_t)lb_not_u((uint64_t)(lb_ownership_buffered), 8))); }
-                lb_pos = "std/ownership/cycles.lucb:129:13";
+                lb_pos = "std/ownership/cycles.lucb:131:13";
                 (void)(lb_ownership_13release_shell(lb_o));
             }
-            lb_pos = "std/ownership/cycles.lucb:130:9";
+            lb_pos = "std/ownership/cycles.lucb:132:9";
             { size_t* lb__cell4767 = &(lb_i);
             (*(lb__cell4767)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4767))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:131:5";
-    lb_ownership_10root_count = lb_kept;
-    lb_pos = "std/ownership/cycles.lucb:132:5";
-    lb_i = 0ULL;
     lb_pos = "std/ownership/cycles.lucb:133:5";
+    lb_ownership_10root_count = lb_kept;
+    lb_pos = "std/ownership/cycles.lucb:134:5";
+    lb_i = 0ULL;
+    lb_pos = "std/ownership/cycles.lucb:135:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:133:5";
+        lb_pos = "std/ownership/cycles.lucb:135:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_10root_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:134:9";
+            lb_pos = "std/ownership/cycles.lucb:136:9";
             (void)(lb_ownership_9mark_gray((*({ lb_span _lb_ix4768 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4768.data)[lb_at((uint64_t)(lb_i), _lb_ix4768.length)]; }))));
-            lb_pos = "std/ownership/cycles.lucb:135:9";
+            lb_pos = "std/ownership/cycles.lucb:137:9";
             { size_t* lb__cell4769 = &(lb_i);
             (*(lb__cell4769)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4769))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:136:5";
+    lb_pos = "std/ownership/cycles.lucb:138:5";
     lb_i = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:137:5";
+    lb_pos = "std/ownership/cycles.lucb:139:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:137:5";
+        lb_pos = "std/ownership/cycles.lucb:139:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_10root_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:138:9";
+            lb_pos = "std/ownership/cycles.lucb:140:9";
             (void)(lb_ownership_scan((*({ lb_span _lb_ix4770 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4770.data)[lb_at((uint64_t)(lb_i), _lb_ix4770.length)]; }))));
-            lb_pos = "std/ownership/cycles.lucb:139:9";
+            lb_pos = "std/ownership/cycles.lucb:141:9";
             { size_t* lb__cell4771 = &(lb_i);
             (*(lb__cell4771)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4771))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:140:5";
-    lb_ownership_11white_count = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:141:5";
-    lb_i = 0ULL;
     lb_pos = "std/ownership/cycles.lucb:142:5";
+    lb_ownership_11white_count = 0ULL;
+    lb_pos = "std/ownership/cycles.lucb:143:5";
+    lb_i = 0ULL;
+    lb_pos = "std/ownership/cycles.lucb:144:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:142:5";
+        lb_pos = "std/ownership/cycles.lucb:144:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_10root_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:143:9";
+            lb_pos = "std/ownership/cycles.lucb:145:9";
             (void)(lb_ownership_gather((*({ lb_span _lb_ix4772 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4772.data)[lb_at((uint64_t)(lb_i), _lb_ix4772.length)]; }))));
-            lb_pos = "std/ownership/cycles.lucb:144:9";
+            lb_pos = "std/ownership/cycles.lucb:146:9";
             { size_t* lb__cell4773 = &(lb_i);
             (*(lb__cell4773)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4773))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:145:5";
+    lb_pos = "std/ownership/cycles.lucb:147:5";
     lb_i = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:146:5";
+    lb_pos = "std/ownership/cycles.lucb:148:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:146:5";
+        lb_pos = "std/ownership/cycles.lucb:148:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_10root_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:147:9";
+            lb_pos = "std/ownership/cycles.lucb:149:9";
             { uint8_t* lb__cell4774 = &(((*({ lb_span _lb_ix4775 = lb_ownership_roots; &((struct lb_ownership_Object**)_lb_ix4775.data)[lb_at((uint64_t)(lb_i), _lb_ix4775.length)]; })))->flags);
             (*(lb__cell4774)) = (*(lb__cell4774)) & (((uint8_t)lb_not_u((uint64_t)(lb_ownership_buffered), 8))); }
-            lb_pos = "std/ownership/cycles.lucb:148:9";
+            lb_pos = "std/ownership/cycles.lucb:150:9";
             { size_t* lb__cell4776 = &(lb_i);
             (*(lb__cell4776)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4776))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:149:5";
+    lb_pos = "std/ownership/cycles.lucb:151:5";
     lb_ownership_10root_count = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:152:5";
+    lb_pos = "std/ownership/cycles.lucb:154:5";
     lb_i = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:153:5";
+    lb_pos = "std/ownership/cycles.lucb:155:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:153:5";
+        lb_pos = "std/ownership/cycles.lucb:155:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_11white_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:154:9";
+            lb_pos = "std/ownership/cycles.lucb:156:9";
             (void)(((((*({ lb_span _lb_ix4777 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix4777.data)[lb_at((uint64_t)(lb_i), _lb_ix4777.length)]; })))->info)->trace)((*({ lb_span _lb_ix4778 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix4778.data)[lb_at((uint64_t)(lb_i), _lb_ix4778.length)]; })), lb_ownership_13visit_restore, ((void*)((*({ lb_span _lb_ix4779 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix4779.data)[lb_at((uint64_t)(lb_i), _lb_ix4779.length)]; }))))));
-            lb_pos = "std/ownership/cycles.lucb:155:9";
+            lb_pos = "std/ownership/cycles.lucb:157:9";
             { size_t* lb__cell4780 = &(lb_i);
             (*(lb__cell4780)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4780))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:156:5";
+    lb_pos = "std/ownership/cycles.lucb:158:5";
     lb_i = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:157:5";
+    lb_pos = "std/ownership/cycles.lucb:159:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:157:5";
+        lb_pos = "std/ownership/cycles.lucb:159:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_11white_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:158:9";
+            lb_pos = "std/ownership/cycles.lucb:160:9";
             struct lb_ownership_Object* lb_o __attribute__((unused)) = (*({ lb_span _lb_ix4781 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix4781.data)[lb_at((uint64_t)(lb_i), _lb_ix4781.length)]; }));
-            lb_pos = "std/ownership/cycles.lucb:159:9";
+            lb_pos = "std/ownership/cycles.lucb:161:9";
             lb_fn_0F1_ownership_Object_0p_unit _lb_o4782 = ((lb_o)->info)->finish;
             if (_lb_o4782 != ((void*)0)) {
                 lb_fn_0F1_ownership_Object_0p_unit lb_f __attribute__((unused)) = _lb_o4782;
                 {
-                    lb_pos = "std/ownership/cycles.lucb:160:13";
+                    lb_pos = "std/ownership/cycles.lucb:162:13";
                     uint32_t lb_before __attribute__((unused)) = (lb_o)->strong;
-                    lb_pos = "std/ownership/cycles.lucb:161:13";
+                    lb_pos = "std/ownership/cycles.lucb:163:13";
                     { uint32_t* lb__cell4783 = &((lb_o)->strong);
                     (*(lb__cell4783)) = (uint32_t)(lb_add_u((uint64_t)((*(lb__cell4783))), (uint64_t)(1ULL), 32)); }
-                    lb_pos = "std/ownership/cycles.lucb:162:13";
+                    lb_pos = "std/ownership/cycles.lucb:164:13";
                     (void)((lb_f)(lb_o));
-                    lb_pos = "std/ownership/cycles.lucb:163:13";
+                    lb_pos = "std/ownership/cycles.lucb:165:13";
                     if (!!((((uint32_t)((lb_o)->strong)) > ((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_before), (uint64_t)(1ULL), 32))))))) 
                     {
-                        lb_pos = "std/ownership/cycles.lucb:164:17";
+                        lb_pos = "std/ownership/cycles.lucb:166:17";
                         (void)(lb_trap_text(((lb_str){"`deinit` published `self`", 25})));
                     }
-                    lb_pos = "std/ownership/cycles.lucb:167:13";
+                    lb_pos = "std/ownership/cycles.lucb:169:13";
                     { uint32_t* lb__cell4784 = &((lb_o)->strong);
                     (*(lb__cell4784)) = (uint32_t)(lb_sub_u((uint64_t)((*(lb__cell4784))), (uint64_t)(1ULL), 32)); }
                 }
             }
-            lb_pos = "std/ownership/cycles.lucb:168:9";
+            lb_pos = "std/ownership/cycles.lucb:170:9";
             { size_t* lb__cell4785 = &(lb_i);
             (*(lb__cell4785)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4785))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:169:5";
+    lb_pos = "std/ownership/cycles.lucb:171:5";
     lb_i = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:170:5";
+    lb_pos = "std/ownership/cycles.lucb:172:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:170:5";
+        lb_pos = "std/ownership/cycles.lucb:172:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_11white_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:171:9";
+            lb_pos = "std/ownership/cycles.lucb:173:9";
             (void)(((((*({ lb_span _lb_ix4786 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix4786.data)[lb_at((uint64_t)(lb_i), _lb_ix4786.length)]; })))->info)->drop)((*({ lb_span _lb_ix4787 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix4787.data)[lb_at((uint64_t)(lb_i), _lb_ix4787.length)]; }))));
-            lb_pos = "std/ownership/cycles.lucb:172:9";
+            lb_pos = "std/ownership/cycles.lucb:174:9";
             { size_t* lb__cell4788 = &(lb_i);
             (*(lb__cell4788)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4788))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:173:5";
+    lb_pos = "std/ownership/cycles.lucb:175:5";
     lb_i = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:174:5";
+    lb_pos = "std/ownership/cycles.lucb:176:5";
     for (;;) {
-        lb_pos = "std/ownership/cycles.lucb:174:5";
+        lb_pos = "std/ownership/cycles.lucb:176:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_11white_count))))) break;
         {
-            lb_pos = "std/ownership/cycles.lucb:175:9";
+            lb_pos = "std/ownership/cycles.lucb:177:9";
             struct lb_ownership_Object* lb_o __attribute__((unused)) = (*({ lb_span _lb_ix4789 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix4789.data)[lb_at((uint64_t)(lb_i), _lb_ix4789.length)]; }));
-            lb_pos = "std/ownership/cycles.lucb:176:9";
+            lb_pos = "std/ownership/cycles.lucb:178:9";
             { size_t* lb__cell4790 = &(lb_ownership_live);
             (*(lb__cell4790)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell4790))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "std/ownership/cycles.lucb:177:9";
-            (lb_o)->strong = 0ULL;
-            lb_pos = "std/ownership/cycles.lucb:178:9";
-            (lb_o)->flags = lb_ownership_dead;
             lb_pos = "std/ownership/cycles.lucb:179:9";
-            (void)(lb_ownership_13release_shell(lb_o));
+            (lb_o)->strong = 0ULL;
             lb_pos = "std/ownership/cycles.lucb:180:9";
+            (lb_o)->flags = lb_ownership_dead;
+            lb_pos = "std/ownership/cycles.lucb:181:9";
+            (void)(lb_ownership_13release_shell(lb_o));
+            lb_pos = "std/ownership/cycles.lucb:182:9";
             { size_t* lb__cell4791 = &(lb_i);
             (*(lb__cell4791)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell4791))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "std/ownership/cycles.lucb:181:5";
+    lb_pos = "std/ownership/cycles.lucb:183:5";
     lb_ownership_11white_count = 0ULL;
-    lb_pos = "std/ownership/cycles.lucb:182:5";
+    lb_pos = "std/ownership/cycles.lucb:184:5";
     lb_ownership_17collector_running = false;
 }
 static __attribute__((unused)) char*** lb_16luce_std_process_19environment_address(void) {
@@ -53120,63 +53124,63 @@ static __attribute__((unused)) lb_r_unit lb_9bind_emit_Emitter_constants(lb_9bin
 }
 static __attribute__((unused)) void lb_ownership_9mark_gray(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:64:5";
+    lb_pos = "std/ownership/cycles.lucb:66:5";
     if (!!(({ uint8_t _lb_sq9984 __attribute__((unused)) = lb_ownership_8color_of(lb_o); uint8_t _lb_sq9985 __attribute__((unused)) = lb_ownership_gray; (!(_lb_sq9984 == _lb_sq9985)); }))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:65:9";
+        lb_pos = "std/ownership/cycles.lucb:67:9";
         (void)(lb_ownership_9set_color(lb_o, lb_ownership_gray));
-        lb_pos = "std/ownership/cycles.lucb:66:9";
+        lb_pos = "std/ownership/cycles.lucb:68:9";
         (void)((((lb_o)->info)->trace)(lb_o, lb_ownership_15visit_mark_gray, ((void*)(lb_o))));
     }
 }
 static __attribute__((unused)) void lb_ownership_scan(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:83:5";
+    lb_pos = "std/ownership/cycles.lucb:85:5";
     if (!!(({ uint8_t _lb_sq9986 __attribute__((unused)) = lb_ownership_8color_of(lb_o); uint8_t _lb_sq9987 __attribute__((unused)) = lb_ownership_gray; (_lb_sq9986 == _lb_sq9987); }))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:84:9";
+        lb_pos = "std/ownership/cycles.lucb:86:9";
         if (!!((((uint32_t)((lb_o)->strong)) > ((uint32_t)(0ULL))))) 
         {
-            lb_pos = "std/ownership/cycles.lucb:85:13";
+            lb_pos = "std/ownership/cycles.lucb:87:13";
             (void)(lb_ownership_10scan_black(lb_o));
         }
         else 
         {
-            lb_pos = "std/ownership/cycles.lucb:87:13";
+            lb_pos = "std/ownership/cycles.lucb:89:13";
             (void)(lb_ownership_9set_color(lb_o, lb_ownership_white));
-            lb_pos = "std/ownership/cycles.lucb:88:13";
+            lb_pos = "std/ownership/cycles.lucb:90:13";
             (void)((((lb_o)->info)->trace)(lb_o, lb_ownership_10visit_scan, ((void*)(lb_o))));
         }
     }
 }
 static __attribute__((unused)) void lb_ownership_gather(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:102:5";
+    lb_pos = "std/ownership/cycles.lucb:104:5";
     if (!!((({ uint8_t _lb_sq9988 __attribute__((unused)) = lb_ownership_8color_of(lb_o); uint8_t _lb_sq9989 __attribute__((unused)) = lb_ownership_white; (_lb_sq9988 == _lb_sq9989); }) && (!lb_ownership_has(lb_o, lb_ownership_collecting))))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:103:9";
+        lb_pos = "std/ownership/cycles.lucb:105:9";
         { uint8_t* lb__cell9990 = &((lb_o)->flags);
         (*(lb__cell9990)) = (*(lb__cell9990)) | (lb_ownership_collecting); }
-        lb_pos = "std/ownership/cycles.lucb:104:9";
+        lb_pos = "std/ownership/cycles.lucb:106:9";
         (void)(lb_ownership_10push_white(lb_o));
-        lb_pos = "std/ownership/cycles.lucb:105:9";
+        lb_pos = "std/ownership/cycles.lucb:107:9";
         (void)((((lb_o)->info)->trace)(lb_o, lb_ownership_12visit_gather, ((void*)(lb_o))));
     }
 }
 static __attribute__((unused)) void lb_ownership_13visit_restore(struct lb_ownership_Object* lb_child, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:108:5";
-    if (!!(lb_ownership_has(lb_child, lb_ownership_immortal))) 
+    lb_pos = "std/ownership/cycles.lucb:110:5";
+    if (!!((lb_ownership_has(lb_child, lb_ownership_immortal) || ((lb_child)->info)->acyclic))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:109:9";
+        lb_pos = "std/ownership/cycles.lucb:111:9";
         return;
     }
-    lb_pos = "std/ownership/cycles.lucb:110:5";
+    lb_pos = "std/ownership/cycles.lucb:112:5";
     (void)(lb_ownership_12check_thread(lb_child));
-    lb_pos = "std/ownership/cycles.lucb:111:5";
+    lb_pos = "std/ownership/cycles.lucb:113:5";
     if (!!(lb_ownership_has(lb_child, lb_ownership_collecting))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:112:9";
+        lb_pos = "std/ownership/cycles.lucb:114:9";
         { uint32_t* lb__cell9991 = &((lb_child)->strong);
         (*(lb__cell9991)) = (uint32_t)(lb_add_u((uint64_t)((*(lb__cell9991))), (uint64_t)(1ULL), 32)); }
     }
@@ -84417,96 +84421,96 @@ static __attribute__((unused)) lb_r_unit lb_9bind_emit_Emitter_constant(lb_9bind
 }
 static __attribute__((unused)) void lb_ownership_15visit_mark_gray(struct lb_ownership_Object* lb_child, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:57:5";
-    if (!!(lb_ownership_has(lb_child, lb_ownership_immortal))) 
+    lb_pos = "std/ownership/cycles.lucb:59:5";
+    if (!!((lb_ownership_has(lb_child, lb_ownership_immortal) || ((lb_child)->info)->acyclic))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:58:9";
+        lb_pos = "std/ownership/cycles.lucb:60:9";
         return;
     }
-    lb_pos = "std/ownership/cycles.lucb:59:5";
+    lb_pos = "std/ownership/cycles.lucb:61:5";
     (void)(lb_ownership_12check_thread(lb_child));
-    lb_pos = "std/ownership/cycles.lucb:60:5";
+    lb_pos = "std/ownership/cycles.lucb:62:5";
     { uint32_t* lb__cell16511 = &((lb_child)->strong);
     (*(lb__cell16511)) = (uint32_t)(lb_sub_u((uint64_t)((*(lb__cell16511))), (uint64_t)(1ULL), 32)); }
-    lb_pos = "std/ownership/cycles.lucb:61:5";
+    lb_pos = "std/ownership/cycles.lucb:63:5";
     (void)(lb_ownership_9mark_gray(lb_child));
 }
 static __attribute__((unused)) void lb_ownership_10scan_black(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:91:5";
+    lb_pos = "std/ownership/cycles.lucb:93:5";
     (void)(lb_ownership_9set_color(lb_o, lb_ownership_black));
-    lb_pos = "std/ownership/cycles.lucb:92:5";
+    lb_pos = "std/ownership/cycles.lucb:94:5";
     (void)((((lb_o)->info)->trace)(lb_o, lb_ownership_16visit_scan_black, ((void*)(lb_o))));
 }
 static __attribute__((unused)) void lb_ownership_10visit_scan(struct lb_ownership_Object* lb_child, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:69:5";
-    if (!!(lb_ownership_has(lb_child, lb_ownership_immortal))) 
+    lb_pos = "std/ownership/cycles.lucb:71:5";
+    if (!!((lb_ownership_has(lb_child, lb_ownership_immortal) || ((lb_child)->info)->acyclic))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:70:9";
+        lb_pos = "std/ownership/cycles.lucb:72:9";
         return;
     }
-    lb_pos = "std/ownership/cycles.lucb:71:5";
+    lb_pos = "std/ownership/cycles.lucb:73:5";
     (void)(lb_ownership_12check_thread(lb_child));
-    lb_pos = "std/ownership/cycles.lucb:72:5";
+    lb_pos = "std/ownership/cycles.lucb:74:5";
     (void)(lb_ownership_scan(lb_child));
 }
 static __attribute__((unused)) void lb_ownership_10push_white(struct lb_ownership_Object* lb_o) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:34:5";
+    lb_pos = "std/ownership/cycles.lucb:36:5";
     if (!!((lb_ownership_11white_count == (lb_ownership_whites.length)))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:35:9";
+        lb_pos = "std/ownership/cycles.lucb:37:9";
         lb_span lb_grown __attribute__((unused)) = ({ lb_error _lb_fe16512 __attribute__((unused)); lb_span _lb_v16512 __attribute__((unused)) = {}; _lb_v16512 = ({ lb_r_ownership_Object_0p_0s _lb_r16513 = ({ lb_iface _lb_a16514 = lb_memory_heap; size_t _lb_n16514 = (size_t)(((((size_t)((lb_ownership_whites.length))) > ((size_t)(0ULL))) ? (size_t)(lb_mul_u((uint64_t)((lb_ownership_whites.length)), (uint64_t)(2ULL), 64)) : 256ULL)); lb_r_ownership_Object_0p_0s _lb_r16514; if (_lb_n16514 > UINT64_C(576460752303423488)) { _lb_r16514 = ((lb_r_ownership_Object_0p_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes16514 = sizeof(struct lb_ownership_Object*) * _lb_n16514; lb_o_u8_0s _lb_ao16514 = lb_alloc_call(_lb_a16514, _lb_bytes16514, _Alignof(struct lb_ownership_Object*)); if (_lb_bytes16514 != 0 && !_lb_ao16514.present) { _lb_r16514 = ((lb_r_ownership_Object_0p_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r16514.value.data = _lb_ao16514.value.data; _lb_r16514.value.length = _lb_n16514; _lb_r16514.failed = false; } } _lb_r16514; }); if (_lb_r16513.failed) {
             _lb_fe16512 = _lb_r16513.error;
             goto _lb_fh16512;
         } _lb_r16513.value; }); goto _lb_cd16512; _lb_fh16512: { 
             lb_error lb_failure __attribute__((unused)) = _lb_fe16512;
             {
-                lb_pos = "std/ownership/cycles.lucb:36:13";
+                lb_pos = "std/ownership/cycles.lucb:38:13";
                 (void)(lb_trap_text(((lb_str){"out of memory", 13})));
             }
         } _lb_cd16512: __attribute__((unused)); _lb_v16512; });
-        lb_pos = "std/ownership/cycles.lucb:37:9";
+        lb_pos = "std/ownership/cycles.lucb:39:9";
         size_t lb_i __attribute__((unused)) = 0ULL;
-        lb_pos = "std/ownership/cycles.lucb:38:9";
+        lb_pos = "std/ownership/cycles.lucb:40:9";
         for (;;) {
-            lb_pos = "std/ownership/cycles.lucb:38:9";
+            lb_pos = "std/ownership/cycles.lucb:40:9";
             if (!((((size_t)(lb_i)) < ((size_t)(lb_ownership_11white_count))))) break;
             {
-                lb_pos = "std/ownership/cycles.lucb:39:13";
+                lb_pos = "std/ownership/cycles.lucb:41:13";
                 (*({ lb_span _lb_ix16515 = lb_grown; &((struct lb_ownership_Object**)_lb_ix16515.data)[lb_at((uint64_t)(lb_i), _lb_ix16515.length)]; })) = (*({ lb_span _lb_ix16516 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix16516.data)[lb_at((uint64_t)(lb_i), _lb_ix16516.length)]; }));
-                lb_pos = "std/ownership/cycles.lucb:40:13";
+                lb_pos = "std/ownership/cycles.lucb:42:13";
                 { size_t* lb__cell16517 = &(lb_i);
                 (*(lb__cell16517)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell16517))), (uint64_t)(1ULL), 64)); }
             }
         }
-        lb_pos = "std/ownership/cycles.lucb:41:9";
+        lb_pos = "std/ownership/cycles.lucb:43:9";
         if (!!((((size_t)((lb_ownership_whites.length))) > ((size_t)(0ULL))))) 
         {
-            lb_pos = "std/ownership/cycles.lucb:42:13";
+            lb_pos = "std/ownership/cycles.lucb:44:13";
             { lb_span _lb_s16518 = lb_ownership_whites; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s16518.data), lb_mul_u(_lb_s16518.length, sizeof(struct lb_ownership_Object*), 64) }); }
         }
-        lb_pos = "std/ownership/cycles.lucb:43:9";
+        lb_pos = "std/ownership/cycles.lucb:45:9";
         lb_ownership_whites = lb_grown;
     }
-    lb_pos = "std/ownership/cycles.lucb:44:5";
+    lb_pos = "std/ownership/cycles.lucb:46:5";
     (*({ lb_span _lb_ix16519 = lb_ownership_whites; &((struct lb_ownership_Object**)_lb_ix16519.data)[lb_at((uint64_t)(lb_ownership_11white_count), _lb_ix16519.length)]; })) = lb_o;
-    lb_pos = "std/ownership/cycles.lucb:45:5";
+    lb_pos = "std/ownership/cycles.lucb:47:5";
     { size_t* lb__cell16520 = &(lb_ownership_11white_count);
     (*(lb__cell16520)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell16520))), (uint64_t)(1ULL), 64)); }
 }
 static __attribute__((unused)) void lb_ownership_12visit_gather(struct lb_ownership_Object* lb_child, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:95:5";
-    if (!!(lb_ownership_has(lb_child, lb_ownership_immortal))) 
+    lb_pos = "std/ownership/cycles.lucb:97:5";
+    if (!!((lb_ownership_has(lb_child, lb_ownership_immortal) || ((lb_child)->info)->acyclic))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:96:9";
+        lb_pos = "std/ownership/cycles.lucb:98:9";
         return;
     }
-    lb_pos = "std/ownership/cycles.lucb:97:5";
+    lb_pos = "std/ownership/cycles.lucb:99:5";
     (void)(lb_ownership_12check_thread(lb_child));
-    lb_pos = "std/ownership/cycles.lucb:98:5";
+    lb_pos = "std/ownership/cycles.lucb:100:5";
     (void)(lb_ownership_gather(lb_child));
 }
 static __attribute__((unused)) lb_r_unit lb_16luce_std_process_14command_append(struct lb_16luce_std_process_CommandState* lb_state, lb_cspan lb_bytes) {
@@ -117427,21 +117431,21 @@ static __attribute__((unused)) lb_r_11bind_cparse_Const lb_11bind_cparse_Parser_
 }
 static __attribute__((unused)) void lb_ownership_16visit_scan_black(struct lb_ownership_Object* lb_child, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "std/ownership/cycles.lucb:75:5";
-    if (!!(lb_ownership_has(lb_child, lb_ownership_immortal))) 
+    lb_pos = "std/ownership/cycles.lucb:77:5";
+    if (!!((lb_ownership_has(lb_child, lb_ownership_immortal) || ((lb_child)->info)->acyclic))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:76:9";
+        lb_pos = "std/ownership/cycles.lucb:78:9";
         return;
     }
-    lb_pos = "std/ownership/cycles.lucb:77:5";
+    lb_pos = "std/ownership/cycles.lucb:79:5";
     (void)(lb_ownership_12check_thread(lb_child));
-    lb_pos = "std/ownership/cycles.lucb:78:5";
+    lb_pos = "std/ownership/cycles.lucb:80:5";
     { uint32_t* lb__cell23461 = &((lb_child)->strong);
     (*(lb__cell23461)) = (uint32_t)(lb_add_u((uint64_t)((*(lb__cell23461))), (uint64_t)(1ULL), 32)); }
-    lb_pos = "std/ownership/cycles.lucb:79:5";
+    lb_pos = "std/ownership/cycles.lucb:81:5";
     if (!!(({ uint8_t _lb_sq23462 __attribute__((unused)) = lb_ownership_8color_of(lb_child); uint8_t _lb_sq23463 __attribute__((unused)) = lb_ownership_black; (!(_lb_sq23462 == _lb_sq23463)); }))) 
     {
-        lb_pos = "std/ownership/cycles.lucb:80:9";
+        lb_pos = "std/ownership/cycles.lucb:82:9";
         (void)(lb_ownership_10scan_black(lb_child));
     }
 }
