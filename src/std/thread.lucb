@@ -54,6 +54,10 @@ pub let failed: ErrorCode = ErrorCode.package(5)
 ## `PTHREAD_STACK_MIN`: 16 KiB on macOS and x86-64 glibc, 128 KiB on arm64 glibc; a
 ## smaller stack is raised to it.
 let least_stack: usize = 131072 if platform.linux and platform.arm64 else 16384
+## The stack of a thread spawned without a size: 8 MiB on every host, the main thread's
+## on Linux, where macOS gives a new thread 512 KiB and Windows 1 MiB. A program may set
+## it before it spawns; `spawn(..., stack = n)` overrides it for one thread.
+pub var default_stack: usize = 8388608
 ## The longest name a thread may carry, with its NUL.
 let name_room: usize = 16
 
@@ -96,9 +100,9 @@ func trampoline(raw: void*) -> void*?:
     entry(context)
     return none
 
-## Start a thread running `entry(context)`. `stack` is its stack in bytes, the host's
-## default when 0, else at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the
-## host's tools show for it, its first fifteen bytes.
+## Start a thread running `entry(context)`. `stack` is its stack in bytes, `default_stack`
+## when 0, at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the host's tools
+## show for it, its first fifteen bytes.
 pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!:
     let copy = try alloc u8[name_room] in memory.heap
     let kept = name.length if name.length < name_room - 1 else name_room - 1
@@ -112,15 +116,15 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
         free(copy) in memory.heap
         free(start) in memory.heap
         error(failed, "spawn")
-    if stack > 0:
-        let page = page_size()
-        var size = stack if stack > least_stack else least_stack
-        size = (size + page - 1) // page * page
-        if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:
-            discard(pthread_attr_destroy((void*)&attributes[0]))
-            free(copy) in memory.heap
-            free(start) in memory.heap
-            error(failed, "the stack size is refused")
+    let wanted = stack if stack > 0 else default_stack
+    let page = page_size()
+    var size = wanted if wanted > least_stack else least_stack
+    size = (size + page - 1) // page * page
+    if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:
+        discard(pthread_attr_destroy((void*)&attributes[0]))
+        free(copy) in memory.heap
+        free(start) in memory.heap
+        error(failed, "the stack size is refused")
     var id: void*? = none
     let created = pthread_create(&id, (void*)&attributes[0], trampoline, (void*)start)
     discard(pthread_attr_destroy((void*)&attributes[0]))

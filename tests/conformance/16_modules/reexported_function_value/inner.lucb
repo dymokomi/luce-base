@@ -1,0 +1,7 @@
+## The function the other modules hand on as a value.
+pub func twice(value: i64) -> i64:
+    return value * 2
+
+## A function taking a function value, to see one handed on twice.
+pub func apply(f: func(i64) -> i64, value: i64) -> i64:
+    return f(value)

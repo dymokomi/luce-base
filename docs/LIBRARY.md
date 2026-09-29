@@ -298,6 +298,8 @@ Spawning, joining and detaching host threads over pthreads (Windows through its 
 
 - `let failed: ErrorCode = ErrorCode.package(5)` — A thread operation failed.
 
+- `var default_stack: usize = 8388608` — The stack of a thread spawned without a size: 8 MiB on every host, the main thread's on Linux, where macOS gives a new thread 512 KiB and Windows 1 MiB. A program may set it before it spawns; `spawn(..., stack = n)` overrides it for one thread.
+
 ### `Handle` (struct)
 
 A running thread; the zero value is no thread at all, so arrays of handles exist.
@@ -305,7 +307,7 @@ A running thread; the zero value is no thread at all, so arrays of handles exist
 - `func join() -> !` — Wait for the thread to finish.
 - `func detach()` — Let the thread run on its own; its resources are reclaimed at exit.
 
-- `func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!` — Start a thread running `entry(context)`. `stack` is its stack in bytes, the host's default when 0, else at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the host's tools show for it, its first fifteen bytes.
+- `func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!` — Start a thread running `entry(context)`. `stack` is its stack in bytes, `default_stack` when 0, at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the host's tools show for it, its first fifteen bytes.
 
 - `func current() -> Handle` — A handle to the calling thread.
 
@@ -416,7 +418,7 @@ What the collector and the destructor need to know about a class.
 
 - `func discard_unpublished(o: Object*)` — Free unpublished storage without invoking the successful object's cleanup. The native initializer owns cleanup of its partially acquired resources.
 
-- `func abandon(o: Object*)` — An `init` that failed: the fields assigned so far go, no `deinit` runs.
+- `func abandon(o: Object*)` — An `init` that failed: the fields assigned so far go, no `deinit` runs. Like `destroy`, the object leaves the collector's candidates first, so a collection the drop sets off never walks fields already released. What the fields held that refers back to the object, a closure over `self` or a child holding its parent, lets go of it in the drop; a reference still held after that was published by the failed `init`, which stops the program rather than leave it pointing at freed storage.
 
 - `func identity(object: Object*) -> u64` — The allocation identity, or the concrete owner's identity through an adapter.
 

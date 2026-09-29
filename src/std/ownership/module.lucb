@@ -27,6 +27,9 @@ let dead: u8 = 8
 let collecting: u8 = 16
 ## A literal's text: never counted, never released, never alive at the end.
 pub let immortal: u8 = 32
+## An object whose `init` failed, while `abandon` releases its fields: a release of it is
+## bookkeeping only and the collector never walks into it.
+let abandoning: u8 = 64
 
 ## The ownership header every managed object carries, before its fields.
 pub struct Object:
@@ -173,9 +176,10 @@ pub func release(o: Object*):
     check_thread(o)
     if has(o, immortal):
         return
-    if has(o, collecting):
-        # a white object's field, released while the collector drops it: the count is
-        # bookkeeping only, the collector frees the object
+    if has(o, collecting) or has(o, abandoning):
+        # a white object's field, released while the collector drops it, or a reference
+        # back to an object `abandon` is dropping: the count is bookkeeping only, the
+        # collector or `abandon` frees the object
         if o.strong > 0:
             o.strong -= 1
         return
@@ -219,10 +223,20 @@ pub func discard_unpublished(o: Object*):
     o.flags |= dead
     release_shell(o)
 
-## An `init` that failed: the fields assigned so far go, no `deinit` runs.
+## An `init` that failed: the fields assigned so far go, no `deinit` runs. Like `destroy`,
+## the object leaves the collector's candidates first, so a collection the drop sets off
+## never walks fields already released. What the fields held that refers back to the
+## object, a closure over `self` or a child holding its parent, lets go of it in the drop;
+## a reference still held after that was published by the failed `init`, which stops the
+## program rather than leave it pointing at freed storage.
 pub func abandon(o: Object*):
     check_alive(o)
+    set_color(o, black)
+    o.flags |= abandoning
     o.info.drop(o)
+    o.flags &= ~abandoning
+    if o.strong != 1:
+        stop("a failed `init` published `self`")
     live -= 1
     o.strong = 0
     o.flags |= dead

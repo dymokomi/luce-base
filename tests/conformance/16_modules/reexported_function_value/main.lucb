@@ -1,0 +1,12 @@
+# oracle: none (the seed calls no module global)
+## §16.3, §7.4: a module's global of function type is called through the module's name, as
+## a local function value is: `outer.doubled(21)` calls what `outer` holds, here a function
+## `outer` imported from `inner`.
+import outer
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{outer.doubled(21)}")
+    print(f"{outer.applied(outer.doubled, 5)}")
+    let f = outer.doubled
+    print(f"{f(4)}")
+    return 0

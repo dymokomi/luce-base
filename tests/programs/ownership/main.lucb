@@ -34,6 +34,12 @@ func worker(context: void*?):
 pub func main(arguments: str[]) -> i32!:
     let operation = strings.parse_i64(arguments[1]) else trap("invalid operation")
     let value = ownership.allocate(&info)
+    if operation == 5:
+        # a failed `init` that handed `self` to something outside its own fields
+        ownership.enter()
+        discard(ownership.retain(value))
+        ownership.abandon(value)
+        return 0
     if operation != 0:
         var delivery = Delivery(value, operation)
         let handle = try thread.spawn(worker, (void*)&delivery)

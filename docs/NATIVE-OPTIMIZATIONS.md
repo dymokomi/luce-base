@@ -91,7 +91,11 @@ access. Compares carry small immediates. A result returned through memory is cop
 with loads and stores up to 128 bytes, not a call of memcpy, as are aggregate
 parameters. The inliner expands an `inline` function at every call up to 1024
 instructions, a function calling itself excepted, and counts no block that ends in a
-trap against a callee's size; every function is tidied after the second pass.
+trap against a callee's size; every function is tidied after the second pass. A
+function whose slots take more than 1 KiB is not expanded unless it is declared
+`inline`: its slots would join the caller's frame for the caller's whole call (a
+once-called session with a 16 KiB buffer grew luce-server's `RouterState.dispatch`
+frame from 3 KB to 35 KB, which overflowed a macOS worker thread's stack).
 
 The assembly-size suite now counts complete function bodies, including code after
 numeric trap labels. Its corrected limits were measured from the unchanged

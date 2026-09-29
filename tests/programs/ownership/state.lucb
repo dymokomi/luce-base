@@ -1,5 +1,5 @@
 import memory
-from ownership import Object, Info, allocate, retain, release, reserve, discard_unpublished, context_id, weak_make, weak_drop, weak_get, pool_object, mark, drain, collect, finish_run, live_count
+from ownership import Object, Info, allocate, retain, release, reserve, discard_unpublished, abandon, context_id, weak_make, weak_drop, weak_get, pool_object, mark, drain, collect, finish_run, live_count
 
 ## A hand-built class, shaped as the emitter shapes one: the header first, then the fields.
 struct Node:
@@ -130,3 +130,53 @@ test "reservation propagates allocation failure without publishing ownership":
         return
     discard(value)
     assert(false)
+
+## A class whose drop runs a collection after releasing its field, and whose trace counts
+## the walks into it that happen while it is being dropped.
+local var dropping: bool = false
+local var walked_while_dropping: usize = 0
+
+func probe_drop(o: Object*):
+    let n = (Node*)o
+    dropping = true
+    if let next = n.next:
+        release((Object*)next)
+    # the field is released but left in place, as a drop that tolerates unassigned fields
+    # may leave it: a walk into the object now would read freed storage
+    collect()
+    dropping = false
+
+func probe_trace(o: Object*, visit: func(Object*, void*) -> unit, context: void*):
+    if dropping:
+        walked_while_dropping += 1
+        return
+    let n = (Node*)o
+    if let next = n.next:
+        visit((Object*)next, context)
+
+var probe_info: Info = Info(name = "Probe", size = sizeof(Node), finish = none, drop = probe_drop, trace = probe_trace)
+
+test "abandon takes the object out of the collector's candidates before its fields go":
+    fresh()
+    let probe = (Node*)allocate(&probe_info)
+    probe.next = node(1)
+    # a release that leaves a count makes the object a purple candidate
+    discard(retain((Object*)probe))
+    release((Object*)probe)
+    abandon((Object*)probe)
+    assert(walked_while_dropping == 0)
+    assert(live_count() == 0)
+    assert((str)log[..<logged] == "1")
+    assert(finish_run(0) == 0)
+
+test "abandon lets go of a field that refers back to the object":
+    fresh()
+    let parent = node(2)
+    let child = node(3)
+    child.next = (Node*)retain((Object*)parent)
+    parent.next = child
+    # the child's release of its parent is bookkeeping; no `deinit` runs for the parent
+    abandon((Object*)parent)
+    assert(live_count() == 0)
+    assert((str)log[..<logged] == "3")
+    assert(finish_run(0) == 0)

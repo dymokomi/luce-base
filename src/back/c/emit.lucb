@@ -2842,7 +2842,13 @@ pub struct Emitter:
             try self.index_at(e, true)
             try self.put(")")
             return
-        if e.kind == ast.Kind.name or e.kind == ast.Kind.member:
+        if e.kind == ast.Kind.name or (e.kind == ast.Kind.member and self.is_place(e)):
+            if let d = self.named_global(e):
+                # the global itself, never its value: a file-scope initialiser folds a
+                # constant's name into its value, which has no address (§6.4)
+                try self.put("&")
+                try self.put_global_name(d)
+                return
             try self.put("&(")
             try self.place(e)
             try self.put(")")
@@ -2871,6 +2877,30 @@ pub struct Emitter:
         try self.put("; &")
         try self.put_tmp("ad", n)
         try self.put("; })")
+
+    ## Whether `e` denotes storage C can take the address of: a name, `self`, a member of a
+    ## place or through a pointer, an element, or a dereference.
+    func is_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name, .self_, .index: return true
+            .group:
+                let inner = e.left else return false
+                return self.is_place(inner)
+            .unary: return e.text == "*"
+            .member:
+                let owner = e.left else return false
+                return self.is_ptr(owner.type_id) or self.kind(owner.type_id) == types.Kind.module or self.is_place(owner)
+            _: return false
+
+    ## The global, constant, or extern variable `e` names, unqualified or through its module.
+    func named_global(e: ast.Node*) -> ast.Node*?:
+        let d = e.resolved else return none
+        if not (d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var):
+            return none
+        if e.kind == ast.Kind.name:
+            return d
+        let owner = e.left else return none
+        return d if self.kind(owner.type_id) == types.Kind.module else none
 
     # -- operators ------------------------------------------------------------------------
 
@@ -3899,9 +3929,16 @@ pub struct Emitter:
             try self.put_type(ot)
             try self.put("* ")
             try self.put_tmp("sp", n)
-            try self.put(" = &(")
-            try self.place(owner)
-            try self.put("); size_t ")
+            try self.put(" = ")
+            if self.is_place(owner):
+                try self.put("&(")
+                try self.place(owner)
+                try self.put(")")
+            else:
+                # an array a call returned, say: sliced from a temporary that lives as long
+                # as the function's own locals, as the native backend's does
+                try self.address(owner)
+            try self.put("; size_t ")
             try self.put_tmp("sn", n)
             try self.put(" = ")
             try self.put_u64(self.c.table.get(ot).length)
@@ -4496,7 +4533,10 @@ pub struct Emitter:
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.direct_call(e, d, none, try types.no_args())
                 return
-        # a function value
+        try self.value_call(e, callee)
+
+    ## `f(args)` where `f` is a function value: a local, a field, or a module's global.
+    mutating func value_call(e: ast.Node*, callee: ast.Node*) -> !:
         let ordered = try self.receiver_first(callee, try self.ty(callee), e.body, false)
         let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
         try self.put("(")
@@ -4837,11 +4877,15 @@ pub struct Emitter:
         # module functions and constructions
         if self.kind(rt_raw) == types.Kind.module:
             let m = self.decl_of(rt_raw) else return
-            let d = e.resolved else return try self.put("0")
-            if d.has(ast.flag_builtin) and (m.text == "atomic" or m.text == "c"):
-                try self.std_call(e, m.text, callee.text, d)
+            if let d = e.resolved:
+                if d.has(ast.flag_builtin) and (m.text == "atomic" or m.text == "c"):
+                    try self.std_call(e, m.text, callee.text, d)
+                    return
+                try self.direct_call(e, d, none, try types.no_args())
                 return
-            try self.direct_call(e, d, none, try types.no_args())
+            # `module.value(args)`: a global of function type the module declares or
+            # re-exports, called through its value
+            try self.value_call(e, callee)
             return
         # a static method or a payload case through the type
         if receiver.has(ast.flag_type_ref):
@@ -4893,18 +4937,7 @@ pub struct Emitter:
         let method = callee.resolved else return try self.put("0")
         if method.kind == ast.Kind.field:
             # `holder.callback(args)`: a field of function type, called through its value
-            let ordered = try self.receiver_first(callee, try self.ty(callee), e.body, false)
-            let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
-            try self.put("(")
-            if ordered != 0:
-                try self.put_tmp("rv", ordered)
-            else:
-                try self.expr(callee)
-            try self.put(")(")
-            try self.arguments(e.body, try self.ty(callee), none, try types.no_args())
-            try self.put(")")
-            try self.end_sequence(hoisted)
-            try self.receiver_done(ordered)
+            try self.value_call(e, callee)
             return
         # interface views dispatch through the table; `view.method()` on a `Writer*`
         # auto-dereferences (§7.3), so the fat pointer is copied out of the pointee first

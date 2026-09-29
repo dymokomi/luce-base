@@ -1,0 +1,16 @@
+## §6.4: the address of a global `let` is a constant expression, so another global may
+## start as a pointer to it, whatever the constant's type; the pointer reads the constant.
+struct Kind:
+    let name: str
+    let rank: i32
+
+let mesh_kind: Kind = Kind("mesh", 3)
+let ranks: i32[3] = [7, 8, 9]
+pub let mesh_pointer = &mesh_kind
+let rank_pointer: const i32* = &ranks[1]
+let ranks_pointer = &ranks
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{mesh_pointer.name} {mesh_pointer.rank} {*rank_pointer} {(*ranks_pointer)[2]}")
+    print(f"{mesh_pointer == &mesh_kind}")
+    return 0

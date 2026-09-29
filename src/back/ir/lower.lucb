@@ -164,11 +164,15 @@ pub struct Lowerer:
                        catch_done = 0, catch_scope = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
                        match_type = 0, src_file = entry.text, at_file = entry.text, at_line = 0, at_column = 0, at_text = 0, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0)
 
+    ## Stop lowering with a diagnostic naming the file and line of `node`, and its text when
+    ## it has one.
     func fail(node: ast.Node*, what: str) -> never!:
         # the checker's scratch outlives the arena the tree lives in, so the report does too
         let half = self.c.scratch.length // 2
-        let message = try format(self.c.scratch[..<half], f"line {node.line}: {what} `{node.text}`")
-        error(native_unsupported, message)
+        let file = self.source_of_current()
+        if node.text.length == 0:
+            error(native_unsupported, try format(self.c.scratch[..<half], f"{file}:{node.line}: {what}"))
+        error(native_unsupported, try format(self.c.scratch[..<half], f"{file}:{node.line}: {what} `{node.text}`"))
 
     # -- types ----------------------------------------------------------------------------
 
@@ -3792,10 +3796,14 @@ pub struct Lowerer:
         let rt_raw = try self.ty(receiver)
         if self.kind(rt_raw) == types.Kind.module:
             let m = self.decl_of(rt_raw) else return try self.fail(e, "no module")
-            let d = e.resolved else return try self.fail(e, "no target")
-            if d.has(ast.flag_builtin) and (m.text == "atomic" or m.text == "c"):
-                return try self.std_call(e, m.text, callee.text, d)
-            return try self.direct_call(e, d, none, try types.no_args())
+            if let d = e.resolved:
+                if d.has(ast.flag_builtin) and (m.text == "atomic" or m.text == "c"):
+                    return try self.std_call(e, m.text, callee.text, d)
+                return try self.direct_call(e, d, none, try types.no_args())
+            # `module.value(args)`: a global of function type the module declares or
+            # re-exports, called through its value
+            let fv = try self.expr(callee)
+            return try self.call_through(fv.ref, try self.ty(callee), none, e.body, ir.none_ref(), false, none, try types.no_args())
         if receiver.has(ast.flag_type_ref):
             if let c = callee.resolved:
                 if c.kind == ast.Kind.enum_case:

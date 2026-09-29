@@ -55,8 +55,12 @@ func possible_root(o: Object*):
             if root_count >= candidate_limit and not collector_running:
                 collect()
 
+## An object no walk enters: a literal, an acyclic one, or one `abandon` is dropping.
+func skipped(child: Object*) -> bool:
+    return has(child, immortal) or child.info.acyclic or has(child, abandoning)
+
 func visit_mark_gray(child: Object*, context: void*):
-    if has(child, immortal) or child.info.acyclic:
+    if skipped(child):
         return
     check_thread(child)
     child.strong -= 1
@@ -68,13 +72,13 @@ func mark_gray(o: Object*):
         o.info.trace(o, visit_mark_gray, (void*)o)
 
 func visit_scan(child: Object*, context: void*):
-    if has(child, immortal) or child.info.acyclic:
+    if skipped(child):
         return
     check_thread(child)
     scan(child)
 
 func visit_scan_black(child: Object*, context: void*):
-    if has(child, immortal) or child.info.acyclic:
+    if skipped(child):
         return
     check_thread(child)
     child.strong += 1
@@ -94,7 +98,7 @@ func scan_black(o: Object*):
     o.info.trace(o, visit_scan_black, (void*)o)
 
 func visit_gather(child: Object*, context: void*):
-    if has(child, immortal) or child.info.acyclic:
+    if skipped(child):
         return
     check_thread(child)
     gather(child)
@@ -107,7 +111,7 @@ func gather(o: Object*):
         o.info.trace(o, visit_gather, (void*)o)
 
 func visit_restore(child: Object*, context: void*):
-    if has(child, immortal) or child.info.acyclic:
+    if skipped(child):
         return
     check_thread(child)
     if has(child, collecting):

@@ -1,0 +1,6 @@
+import inner
+
+## `inner.twice` handed on as a value of this module.
+pub let doubled = inner.twice
+## And through a declared function type.
+pub let applied: func(func(i64) -> i64, i64) -> i64 = inner.apply

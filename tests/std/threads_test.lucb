@@ -98,3 +98,29 @@ test "a condition wakes a waiter after the value it guards is published":
     box.lock.unlock()
     try waiter.join()
     assert(box.observed == 99)
+
+## A frame of 2 MiB: more than macOS gives a thread by default (512 KiB), within the 8 MiB
+## `spawn` gives every thread unless told otherwise.
+func deep_frame(context: void*?):
+    let raw = context else trap("no result")
+    let result = (u64*)raw
+    var room: u8[2097152] = ---
+    for i in 0..<room.length:
+        room[i] = u8(i & 255)
+    var sum: u64 = 0
+    var at: usize = 0
+    while at < room.length:
+        sum += (u64)room[at]
+        at += 4096
+    *result = sum
+
+test "a spawned thread has an 8 MiB stack on every host, and a size of its own when given":
+    assert(thread.default_stack == 8388608)
+    var sum: u64 = 0
+    let worker = try thread.spawn(deep_frame, &sum)
+    try worker.join()
+    assert(sum == 0)
+    var small: u64 = 1
+    let sized = try thread.spawn(deep_frame, &small, stack = 4194304)
+    try sized.join()
+    assert(small == 0)

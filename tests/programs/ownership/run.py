@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory(prefix='base-ownership-') as temporary:
     for flags in MODES:
         subprocess.run([COMPILER, 'build', SOURCE, *flags, '-o', binary],
                        cwd=ROOT, check=True, timeout=120)
-        for operation in range(5):
+        for operation in range(6):
             result = subprocess.run([binary, str(operation)], capture_output=True,
                                     text=True, timeout=15)
             expected = 0 if operation == 0 else 1
@@ -32,6 +32,7 @@ with tempfile.TemporaryDirectory(prefix='base-ownership-') as temporary:
                 assert not result.stderr, result.stderr
             else:
                 message = ('another runtime thread' if operation < 4
-                           else 'needs a runtime entry on this thread')
+                           else 'needs a runtime entry on this thread' if operation == 4
+                           else 'a failed `init` published `self`')
                 assert message in result.stderr, result.stderr
-print('PASS shared ownership: lifecycle, context generations and wrong-thread rejection; six modes')
+print('PASS shared ownership: lifecycle, context generations, wrong-thread rejection and a failed init that published itself; six modes')
