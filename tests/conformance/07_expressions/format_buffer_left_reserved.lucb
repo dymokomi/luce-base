@@ -1,0 +1,42 @@
+## A statement that formats text and never completes, as `return try fail(f"...")` of a
+## function that cannot return, leaves its format buffer's space below the frame reserved to
+## the function's end. The next function's prologue saves the registers it keeps, relative
+## to its own stack pointer; they must land in its own frame and not in its caller's, which
+## still holds these tables.
+let bad = ErrorCode.package(1)
+
+## `message` formatted into `buffer`, or "?" when it does not fit.
+func said(buffer: u8[], message: fmt) -> str:
+    let text = format(buffer, message) catch:
+        return "?"
+    return text
+
+noinline func fail(what: str) -> never!:
+    error(bad, what)
+
+## Ends in the statement that keeps its buffer reserved.
+noinline func refuse(n: i64) -> i64!:
+    var room: u8[64]
+    return try fail(said(room, f"refused {n}"))
+
+## Keeps several values in registers across its calls, so its prologue saves them.
+noinline func mix(a: i64, b: i64, c: i64, d: i64) -> i64:
+    let x = a * 3 + b
+    let y = c * 5 + d
+    let z = refuse(x + y) catch failure:
+        recover (i64)failure.message.length
+    return x * 7 + y * 11 + z + a + b + c + d
+
+noinline func caller(n: i64) -> i64:
+    var table: i64[300] = ---
+    for i in 0..<300:
+        table[i] = (i64)i * n
+    let m = mix(n, n + 1, n + 2, n + 3)
+    var total: i64 = 0
+    for i in 0..<300:
+        total += table[i]
+    return total + m
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{caller(2)} {caller(5)}")
+    return 0

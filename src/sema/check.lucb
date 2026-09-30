@@ -106,6 +106,20 @@ struct SpanWriter: io.Writer:
             i += 1
         return i
 
+## `message` in `buffer`, or as much of it as fits, cut at a character and ending in `...`:
+## a diagnostic quoting a long name or literal still says where it is. `buffer` holds at
+## least the three dots.
+func said(buffer: u8[], message: fmt) -> str:
+    let text = format(buffer, message) catch:
+        # `format` kept the bytes that fit: the last three, from a character's start, go
+        var end = buffer.length - 3
+        while end > 0 and (buffer[end] & 0xC0) == 0x80:
+            end -= 1
+        for k in end..<end + 3:
+            buffer[k] = '.'
+        return (str)buffer[..<end + 3]
+    return text
+
 # mark: The checker ============================================================================
 pub struct Checker:
     ## Development debugging retains named locals after reporting unused bindings.
@@ -204,7 +218,7 @@ pub struct Checker:
     func fail(node: ast.Node*, what: str) -> never!:
         let half = self.scratch.length // 2
         let (name, line, column) = self.located(node)
-        let message = try format(self.scratch[..<half], f"{name}:{line}:{column}: {what}")
+        let message = said(self.scratch[..<half], f"{name}:{line}:{column}: {what}")
         error(type_error, message)
 
     ## A failure with a second site: `note:` names it on a line of its own (§19.6).
@@ -212,7 +226,7 @@ pub struct Checker:
         let half = self.scratch.length // 2
         let (name, line, column) = self.located(node)
         let (other_name, other_line, other_column) = self.located(other)
-        let message = try format(self.scratch[..<half], f"{name}:{line}:{column}: {what}\n  note: {other_name}:{other_line}:{other_column}: {note}")
+        let message = said(self.scratch[..<half], f"{name}:{line}:{column}: {what}\n  note: {other_name}:{other_line}:{other_column}: {note}")
         error(type_error, message)
 
     ## The file, line, and column a node came from, in the module being checked.
@@ -1127,7 +1141,7 @@ pub struct Checker:
                     let member = find_decl(other, n.text) else return try self.fail(n, try format(text, f"`{d.text}` has no public `{n.text}`"))
                     if not member.has(ast.flag_pub):
                         var said1: u8[256]
-                        discard(try self.fail(n, try format(said1, f"`{n.text}` is not public in `{d.text}`")))
+                        discard(try self.fail(n, said(said1, f"`{n.text}` is not public in `{d.text}`")))
                     n.resolved = member
                     try self.bind(n, n.text, member.type_id, member, member.kind == ast.Kind.global or member.kind == ast.Kind.extern_var)
                     self.set_origin(d)
@@ -1635,7 +1649,7 @@ pub struct Checker:
         if let b = self.lookup(t.text):
             self.note_origin(b)
             var said2: u8[256]
-            let d = b.decl else return try self.fail(t, try format(said2, f"`{t.text}` is not a type"))
+            let d = b.decl else return try self.fail(t, said(said2, f"`{t.text}` is not a type"))
             decl = d
         else:
             let dot = find_byte(t.text, '.')
@@ -1651,13 +1665,13 @@ pub struct Checker:
             if self.is_c_module(module) and c_type_id(rest) != types.none_id:
                 return c_type_id(rest)
             var said3: u8[256]
-            let d = find_decl(module, rest) else return try self.fail(t, try format(said3, f"`{module.text}` has no type `{rest}`"))
+            let d = find_decl(module, rest) else return try self.fail(t, said(said3, f"`{module.text}` has no type `{rest}`"))
             if not d.has(ast.flag_pub):
                 var said4: u8[256]
-                return try self.fail(t, try format(said4, f"`{rest}` is not public in `{module.text}`"))
+                return try self.fail(t, said(said4, f"`{rest}` is not public in `{module.text}`"))
             decl = d
         var said5: u8[256]
-        let d = decl else return try self.fail(t, try format(said5, f"`{t.text}` is not a type"))
+        let d = decl else return try self.fail(t, said(said5, f"`{t.text}` is not a type"))
         t.resolved = d
         if d.kind == ast.Kind.type_alias:
             if d.type_id == types.none_id:
@@ -1675,7 +1689,7 @@ pub struct Checker:
             return d.type_id
         var said6: u8[256]
         if not is_type_decl(d):
-            return try self.fail(t, try format(said6, f"`{t.text}` is not a type"))
+            return try self.fail(t, said(said6, f"`{t.text}` is not a type"))
         let arity = ast.count(generic_params_of(d))
         if t.body != none:
             let n = ast.count(t.body)
@@ -2596,7 +2610,7 @@ pub struct Checker:
         let bytes = decode_text(e.text).bytes
         if (u64)bytes.length != length:
             var said22: u8[256]
-            return try self.fail(e, try self.with_type(try format(said22, f"a byte literal of {bytes.length} bytes cannot initialise `"), hint, "`: the lengths differ"))
+            return try self.fail(e, try self.with_type(said(said22, f"a byte literal of {bytes.length} bytes cannot initialise `"), hint, "`: the lengths differ"))
         if bytes.length == 0:
             return try self.fail(e, "an empty byte literal cannot initialise an array: an array literal needs at least one element (§5.4)")
         var head: ast.Node*? = none
@@ -2749,7 +2763,7 @@ pub struct Checker:
                 if self.scope.get(i).name == e.text:
                     return try self.fail(e, "a lambda captures nothing; pass the value as a parameter (§9.6)")
         var said8: u8[256]
-        return try self.fail(e, try format(said8, f"unknown name `{e.text}`"))
+        return try self.fail(e, said(said8, f"unknown name `{e.text}`"))
 
     ## Constant integer expression `e` as a value of `bits` bits, sign-extended when
     ## `signed`: only when it is built from literals, constants, casts, and operators whose
@@ -3686,7 +3700,7 @@ pub struct Checker:
                 e.right = inner.left
                 return try self.check_expr(e, types.none_id)
             var said7: u8[256]
-            return try self.fail(t, try format(said7, f"`{t.text}` is a value, not a type"))
+            return try self.fail(t, said(said7, f"`{t.text}` is a value, not a type"))
         let want = try self.resolve_type(t)
         let got = try self.check_expr(inner, types.none_id)
         # a reinterpreting cast of a local address keeps it local: `(str)local_bytes` (§6.6)
@@ -3927,7 +3941,7 @@ pub struct Checker:
             let d = find_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
             var said9: u8[256]
             if not d.has(ast.flag_pub):
-                return try self.fail(e, try format(said9, f"`{name}` is not public in `{m.text}`"))
+                return try self.fail(e, said(said9, f"`{name}` is not public in `{m.text}`"))
             e.resolved = d
             if d.kind == ast.Kind.constant and d.type_id == types.none_id:
                 let saved = self.current
@@ -3993,7 +4007,7 @@ pub struct Checker:
                 e.resolved = f
                 if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                     var said10: u8[256]
-                    return try self.fail(e, try format(said10, f"field `{name}` is not public"))
+                    return try self.fail(e, said(said10, f"field `{name}` is not public"))
                 if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
                     self.mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
                 return try self.substitute(f.type_id, d, t.args)
@@ -4006,12 +4020,12 @@ pub struct Checker:
                 e.resolved = m
                 var said11: u8[256]
                 if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                    return try self.fail(e, try format(said11, f"method `{name}` is not public"))
+                    return try self.fail(e, said(said11, f"method `{name}` is not public"))
                 return try self.substitute(m.type_id, d, t.args)
             if t.kind == types.Kind.enum_ and find_member(d, name, ast.Kind.enum_case) != none:
                 return try self.fail(e, "a case is named through the type, `Kind.case`")
             var said12: u8[256]
-            return try self.fail(e, try self.with_type("`", id, try format(said12, f"` has no member `{name}`")))
+            return try self.fail(e, try self.with_type("`", id, said(said12, f"` has no member `{name}`")))
         if t.kind == types.Kind.interface_:
             let d = t.decl else return try self.fail(e, "no declaration")
             let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "the interface has no such method")
@@ -4037,7 +4051,7 @@ pub struct Checker:
         if t.kind == types.Kind.pointer and t.elem == types.void_id:
             return try self.fail(e, "`void*` has no members")
         var said13: u8[256]
-        return try self.fail(e, try self.with_type("a `", id, try format(said13, f"` has no members, so no `{name}`")))
+        return try self.fail(e, try self.with_type("a `", id, said(said13, f"` has no members, so no `{name}`")))
 
     func all_params(ids: u32[]) -> bool:
         for id in ids:
@@ -4068,7 +4082,7 @@ pub struct Checker:
                 if let p = positional:
                     positional = p.next
             var said14: u8[256]
-            let f = field else return try self.fail(a, try format(said14, f"no field `{a.text}`"))
+            let f = field else return try self.fail(a, said(said14, f"no field `{a.text}`"))
             var got = try self.check_expr(v, types.none_id if self.mentions_param(f.type_id) else f.type_id)
             got = self.concrete(got) if got != types.none_id else got
             try self.infer(f.type_id, got, d, inferred)
@@ -4164,10 +4178,10 @@ pub struct Checker:
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_ or t.kind == types.Kind.union_:
             let d = t.decl else return try self.fail(e, "no declaration")
             var said15: u8[256]
-            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, try format(said15, f"`{d.text}` has no static member `{name}`"))
+            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, said(said15, f"`{d.text}` has no static member `{name}`"))
             var said16: u8[256]
             if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                return try self.fail(e, try format(said16, f"method `{name}` is not public"))
+                return try self.fail(e, said(said16, f"method `{name}` is not public"))
             e.resolved = m
             e.flags |= ast.flag_static
             let ft = try self.substitute(m.type_id, d, t.args)
@@ -4176,7 +4190,7 @@ pub struct Checker:
                 return try self.method_as_function(ft, id, m.has(ast.flag_mutating))
             return ft
         var said21: u8[256]
-        return try self.fail(e, try self.with_type("`", id, try format(said21, f"` has no member `{name}`")))
+        return try self.fail(e, try self.with_type("`", id, said(said21, f"` has no member `{name}`")))
 
     ## The function type that builds a payload case.
     mutating func case_constructor(case_node: ast.Node*, d: ast.Node*, args: u32[]) -> u32!:
@@ -4488,7 +4502,7 @@ pub struct Checker:
             if a.text.length > 0:
                 let d = decl else return try self.fail(a, "named arguments need a declared function")
                 var said17: u8[256]
-                let index = param_index(d, a.text) else return try self.fail(a, try format(said17, f"`{d.text}` has no parameter `{a.text}`"))
+                let index = param_index(d, a.text) else return try self.fail(a, said(said17, f"`{d.text}` has no parameter `{a.text}`"))
                 if slots[index] != none:
                     return try self.fail(a, "this argument is given twice")
                 slots[index] = a
@@ -4689,7 +4703,7 @@ pub struct Checker:
                 field = find_member(d, a.text, ast.Kind.field)
                 var said18: u8[256]
                 if field == none:
-                    return try self.fail(a, try format(said18, f"`{d.text}` has no field `{a.text}`"))
+                    return try self.fail(a, said(said18, f"`{d.text}` has no field `{a.text}`"))
                 var earlier = args
                 while let o = earlier:
                     if o == a:
@@ -4711,7 +4725,7 @@ pub struct Checker:
             a.text = f.text
             if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                 var said19: u8[256]
-                return try self.fail(a, try format(said19, f"field `{f.text}` of `{d.text}` is not public"))
+                return try self.fail(a, said(said19, f"field `{f.text}` of `{d.text}` is not public"))
             let want = try self.substitute(f.type_id, d, t.args)
             discard(try self.expect(v, want))
             a.resolved = f
@@ -4830,7 +4844,7 @@ pub struct Checker:
                 return try self.fail(fv, "`offsetof` names a field")
             let d = self.table.get(id).decl else return try self.fail(tv, "`offsetof` takes a struct")
             var said20: u8[256]
-            let f = find_member(d, fv.text, ast.Kind.field) else return try self.fail(fv, try format(said20, f"`{d.text}` has no field `{fv.text}`"))
+            let f = find_member(d, fv.text, ast.Kind.field) else return try self.fail(fv, said(said20, f"`{d.text}` has no field `{fv.text}`"))
             fv.resolved = f
             return types.usize_id
         return try self.fail(e, "unknown core function")
@@ -6845,6 +6859,17 @@ test "modules import and qualify names":
 
 test "a function that may fall off its end is rejected":
     try expect_error("func f(b: bool) -> i64:\n    if b:\n        return 1\n", "may reach its end")
+
+test "a diagnostic quoting a literal longer than its buffer is cut short and keeps its position":
+    # `0b1.000…` asks the integer 0b1 for a member named by 300 digits (a fuzzing finding)
+    var text: u8[400]
+    let head = "func f() -> i64:\n    return 0b1."
+    for k in 0..<head.length:
+        text[k] = head.bytes[k]
+    for k in head.length..<head.length + 300:
+        text[k] = '0'
+    text[head.length + 300] = '\n'
+    try expect_error((str)text[..<head.length + 301], "test:2:16: a `<integer>` has no members, so no `000")
 
 ## A binding leaving scope that nothing read: marked for the block to prune (§19.6). Names
 ## beginning with `_` say the silence is intended; a tuple's names are not pruned.

@@ -692,6 +692,10 @@ pub struct Generator:
 
     mutating func function(index: usize) -> !:
         self.index = index
+        # the prologue's saves are relative to sp at the frame's bottom: nothing of the
+        # previous function's dynamic area, which its last instruction may have left
+        # reserved (a statement that never completes), carries over
+        self.dynamic_shift = 0
         if let dw = self.dw:
             try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
