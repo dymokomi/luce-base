@@ -53,7 +53,8 @@ int main(int argc, char **argv) {
     int arrays = !strcmp(argv[1], "transform") || !strcmp(argv[1], "matrix_product");
     int summing = !strcmp(argv[1], "sum_words");
     int chasing = !strcmp(argv[1], "chase");
-    int scanning = !strcmp(argv[1], "byte_scan");
+    int scanning = !strcmp(argv[1], "byte_scan") || !strcmp(argv[1], "word_copy");
+    int copying = !strcmp(argv[1], "word_copy");
     double *a = floating ? calloc(size, sizeof *a) : NULL;
     double *b = arrays ? calloc(size, sizeof *b) : NULL;
     double *out = arrays ? calloc(size, sizeof *out) : NULL;
@@ -61,8 +62,9 @@ int main(int argc, char **argv) {
     uint32_t *links = chasing ? calloc(size, sizeof *links) : NULL;
     uint32_t *order = chasing ? calloc(size, sizeof *order) : NULL;
     uint8_t *bytes = scanning ? calloc(size, sizeof *bytes) : NULL;
+    uint8_t *copied = copying ? calloc(size, sizeof *copied) : NULL;
     if ((floating && !a) || (arrays && (!b || !out)) || (summing && !words) ||
-        (chasing && (!links || !order)) || (scanning && !bytes)) abort();
+        (chasing && (!links || !order)) || (scanning && !bytes) || (copying && !copied)) abort();
     uint64_t state = seed;
     for (size_t i = 0; i < size; ++i) {
         uint64_t word = random_word(&state);
@@ -98,6 +100,10 @@ int main(int argc, char **argv) {
     } else if (!strcmp(argv[1], "byte_scan")) {
         result = byte_scan(bytes, size, 1);
         start = now(); result = byte_scan(bytes, size, work); elapsed = now() - start;
+    } else if (!strcmp(argv[1], "word_copy")) {
+        word_copy(copied, size, bytes, size, 1);
+        start = now(); word_copy(copied, size, bytes, size, work); elapsed = now() - start;
+        result = hash_bytes(copied, size);
     } else if (!strcmp(argv[1], "chase")) {
         result = chase(links, size, 100, 0);
         start = now(); result = chase(links, size, work, 0); elapsed = now() - start;
@@ -117,6 +123,6 @@ int main(int argc, char **argv) {
 #endif
     printf("{\"ns\":%" PRIu64 ",\"checksum\":\"%016" PRIx64 "\",\"rss_bytes\":%" PRIu64 "}\n",
            elapsed, result, rss);
-    free(a); free(b); free(out); free(words); free(links); free(order); free(bytes);
+    free(a); free(b); free(out); free(words); free(links); free(order); free(bytes); free(copied);
     return 0;
 }

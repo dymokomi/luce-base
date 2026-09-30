@@ -1,4 +1,4 @@
-# error: that field is not public
+# error: field `used` is not public
 
 from memory import FixedBuffer
 

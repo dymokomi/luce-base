@@ -1,4 +1,4 @@
-# error: no parameter with that name
+# error: `add` has no parameter `c`
 func add(a: i64, b: i64) -> i64:
     return a + b
 pub func main(arguments: str[]) -> i32:

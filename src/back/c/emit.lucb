@@ -109,6 +109,10 @@ pub struct Emitter:
     var decls_done: list.List[NodeRef]
     var tests: list.List[NodeRef]
     var vtables: list.List[Witness]
+    ## Top-level `let`s whose value runs code (a construction through `init`): zero storage,
+    ## set by `lb_init_runtime_globals` when the program starts, as the native backend sets
+    ## them in `lb_init_globals`.
+    var runtime_globals: list.List[NodeRef]
     ## Emission context: the function, its instance arguments, its owner's.
     var current_fn: ast.Node*?
     var fn_decl: ast.Node*?
@@ -167,7 +171,7 @@ pub struct Emitter:
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
-                       vtables = try list.List[Witness].create(16),
+                       vtables = try list.List[Witness].create(16), runtime_globals = try list.List[NodeRef].create(8),
                        current_fn = none, fn_decl = none, fn_args = try types.no_args(), owner_decl = none,
                        owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
@@ -6827,6 +6831,7 @@ pub struct Emitter:
         try self.line("")
         try self.out.put_bytes(self.body.bytes())
         try self.line("")
+        try self.runtime_globals_initialiser()
         if mode == 1:
             try self.test_runner()
         elif mode == 2:
@@ -7033,6 +7038,13 @@ pub struct Emitter:
             return
         try self.put(" = ")
         if let init = d.left:
+            if not self.c.static_value(init):
+                # a C initialiser cannot run code: the storage starts zero and the program's
+                # start gives it its value (`runtime_globals_initialiser`)
+                try self.zero_value(t)
+                try self.put(";")
+                try self.runtime_globals.push(d)
+                return
             self.folding = true
             if not (try self.folded_constant(init, t)):
                 try self.value(init, t)
@@ -7040,6 +7052,19 @@ pub struct Emitter:
         else:
             try self.zero_value(t)
         try self.put(";")
+
+    ## `lb_init_runtime_globals`: every top-level `let` whose value runs code, given it in
+    ## module order before `main` runs.
+    mutating func runtime_globals_initialiser() -> !:
+        try self.line("static void lb_init_runtime_globals(void) {")
+        for d in self.runtime_globals.span():
+            let init = d.left else continue
+            try self.line("    ")
+            try self.put_global_name(d)
+            try self.put(" = ")
+            try self.value(init, d.type_id)
+            try self.put(";")
+        try self.line("}")
 
     ## A global's initialiser that names another constant, `os.macos = platform.macos` or
     ## `6 if platform.macos else 1`, written as the value it denotes, since C wants a
@@ -7176,6 +7201,7 @@ pub struct Emitter:
         if self.diagnostic:
             try self.line("    lb_memory_diagnostic = true;")
         try self.line("    lb_memory_startup();")
+        try self.line("    lb_init_runtime_globals();")
 
     mutating func test_runner() -> !:
         try self.line("int main(void) {")

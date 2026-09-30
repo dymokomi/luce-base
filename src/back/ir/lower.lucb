@@ -33,6 +33,9 @@ import support.literals
 pub let native_unsupported: ErrorCode = ErrorCode.package(14)
 ## The function that gives a thread its `local var`s' initialisers (`thread_locals_initialiser`).
 let thread_locals_function: str = "lb_init_thread_locals"
+## The largest `memcpy` of a known size lowered to the copy itself (`small_copy`): the
+## generators inline a block copy up to this size.
+let small_copy_limit: u64 = 64
 
 type NodeRef = ast.Node*
 type MaybeNode = ast.Node*?
@@ -3773,6 +3776,9 @@ pub struct Lowerer:
         if args.length > 0:
             fn = try self.c.substitute(fn, d, args)
         var callee = ir.none_ref()
+        if d.kind == ast.Kind.extern_func and names.c_symbol(d) == "memcpy":
+            if let copied = try self.small_copy(e):
+                return copied
         if d.kind == ast.Kind.extern_func:
             callee = ir.function_ref(names.c_symbol(d))
         else:
@@ -3792,6 +3798,39 @@ pub struct Lowerer:
             try self.trap_with("null_foreign")
             try self.f.place_label(ok)
         return v
+
+    ## `memcpy(target, source, n)` with `n` known here, `sizeof(T)` or a literal, and at most
+    ## `small_copy_limit` bytes: the copy itself, the loads and stores the generators inline
+    ## for a block copy, not a call through the dynamic linker's stub. `memory.read[u32]` and
+    ## `memory.write[u32]` are such copies, and then come to one unaligned load or store once
+    ## the copy's local is forwarded. None when the size is anything else; nothing is
+    ## evaluated then.
+    mutating func small_copy(e: ast.Node*) -> LowerValue?!:
+        let first = e.body else return none
+        let second = first.next else return none
+        let third = second.next else return none
+        let target = first.left else return none
+        let source = second.left else return none
+        let count = third.left else return none
+        var n: u64 = 0
+        if count.kind == ast.Kind.call:
+            let callee = count.left else return none
+            let measured = count.body else return none
+            let of = measured.left else return none
+            if callee.kind != ast.Kind.name or callee.text != "sizeof" or callee.resolved != none:
+                return none
+            n = self.c.table.size_of(try self.map(of.type_id))
+        elif count.kind == ast.Kind.literal:
+            n = literals.decode_integer(count.text) catch failure:
+                return none
+        else:
+            return none
+        if n == 0 or n > small_copy_limit:
+            return none
+        let t = try self.value(target, try self.ty(target))
+        let s = try self.value(source, try self.ty(source))
+        try self.f.copy_bytes(t.ref, s.ref, u32(n))
+        return LowerValue(ref = t.ref, type_id = try self.ty(e), in_memory = false)
 
     mutating func member_call(e: ast.Node*, callee: ast.Node*) -> LowerValue!:
         let receiver = callee.left else return try self.fail(e, "no receiver")

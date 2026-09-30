@@ -1,0 +1,35 @@
+## §9.1, §6.4: a default argument is made at each call that leaves it out, so it may be a
+## construction through a type's own `init`, `direction: Vector = Vector(1.0, 1.0, 1.0)`, or
+## one leaving out a field default that calls; only a global's storage needs a value that
+## runs nothing (§6.3). (0.29.0's first cut refused these; luce-3d's lights use them.)
+var made: i64 = 0
+
+func start() -> i64:
+    made += 1
+    return made
+
+struct Vector:
+    var x: f64
+    var y: f64
+    var z: f64
+
+    func init(x: f64, y: f64, z: f64):
+        made += 1
+        self.x = x
+        self.y = y
+        self.z = z
+
+struct Counted:
+    var n: i64 = start()
+    var tag: u8 = 7
+
+func length_sum(direction: Vector = Vector(1.0, 2.0, 3.0), scale: f64 = 1.0) -> f64:
+    return (direction.x + direction.y + direction.z) * scale
+
+func counted(c: Counted = Counted()) -> i64:
+    return c.n * 100 + (i64)c.tag
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{length_sum()} {length_sum(scale = 2.0)} {length_sum(Vector(0.5, 0.5, 0.5))}")
+    print(f"{counted()} {counted()} {made}")
+    return 0

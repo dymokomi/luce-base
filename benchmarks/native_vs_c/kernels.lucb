@@ -1,5 +1,6 @@
 ## The same algorithms and traversal order as kernels.c. Exporting keeps the
 ## measurement driver identical and prevents whole-program constant folding.
+import memory
 
 export func integer_mix(iterations: usize, seed: u64) -> u64:
     var value = seed
@@ -80,4 +81,18 @@ export func matrix_product(a: const f64[], b: const f64[], out: f64[], width: us
                 out[row * width + column] = value
                 column += 1
             row += 1
+        round += 1
+
+## Unaligned 32-bit words read and written through `memory.read` and `memory.write`, the
+## shape of a codec's bit packing; each round changes every word, so no copy is skipped.
+export func word_copy(out: u8[], data: const u8[], rounds: usize):
+    assert(out.length == data.length and data.length > 0)
+    let words = (data.length - 1) // 4
+    var round: usize = 0
+    while round < rounds:
+        var at: usize = 0
+        while at < words:
+            let value = memory.read[u32]((const void*)&data[at * 4 + 1])
+            memory.write[u32]((void*)&out[at * 4 + 1], value ^ (u32)round)
+            at += 1
         round += 1

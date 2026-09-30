@@ -180,3 +180,46 @@ test "abandon lets go of a field that refers back to the object":
     assert(live_count() == 0)
     assert((str)log[..<logged] == "3")
     assert(finish_run(0) == 0)
+
+## A hand-built class with two references, for a cycle that also refers outside itself.
+struct Duo:
+    var header: Object
+    var left: Object*?
+    var right: Object*?
+
+func duo_drop(o: Object*):
+    let d = (Duo*)o
+    if let left = d.left:
+        d.left = none
+        release(left)
+    if let right = d.right:
+        d.right = none
+        release(right)
+
+func duo_trace(o: Object*, visit: func(Object*, void*) -> unit, context: void*):
+    let d = (Duo*)o
+    if let left = d.left:
+        visit(left, context)
+    if let right = d.right:
+        visit(right, context)
+
+var duo_info: Info = Info(name = "Duo", size = sizeof(Duo), finish = none, drop = duo_drop, trace = duo_trace)
+
+test "a garbage cycle's reference to a live object costs the object that one reference":
+    fresh()
+    let kept = node(5)
+    let a = (Duo*)allocate(&duo_info)
+    let b = (Duo*)allocate(&duo_info)
+    a.left = retain((Object*)b)
+    b.left = retain((Object*)a)
+    a.right = retain((Object*)kept)
+    b.right = retain((Object*)kept)
+    release((Object*)b)
+    release((Object*)a)
+    collect()
+    # the cycle is gone and `kept` lost the two references it held, no more
+    assert(live_count() == 1)
+    assert(logged == 0)
+    release((Object*)kept)
+    assert((str)log[..<logged] == "5")
+    assert(live_count() == 0)

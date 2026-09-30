@@ -2,6 +2,7 @@
  * No restrict, fast-math, intrinsics, tiling, or link-time optimization. */
 #include "kernels.h"
 #include <assert.h>
+#include <string.h>
 
 uint64_t integer_mix(size_t iterations, uint64_t seed) {
     uint64_t value = seed;
@@ -68,4 +69,17 @@ void matrix_product(const double *a, size_t a_length,
                     value += a[row * width + inner] * b[inner * width + column];
                 out[row * width + column] = value;
             }
+}
+
+void word_copy(uint8_t *out, size_t out_length, const uint8_t *data, size_t length,
+               size_t rounds) {
+    assert(out_length == length && length > 0);
+    size_t words = (length - 1) / 4;
+    for (size_t round = 0; round < rounds; ++round)
+        for (size_t at = 0; at < words; ++at) {
+            uint32_t value;
+            memcpy(&value, data + at * 4 + 1, sizeof value);
+            value ^= (uint32_t)round;
+            memcpy(out + at * 4 + 1, &value, sizeof value);
+        }
 }

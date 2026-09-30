@@ -11,6 +11,7 @@
 #
 #==============================================================================================
 
+import c
 import io
 import memory
 import core
@@ -92,8 +93,8 @@ pub func stop(message: str) -> never:
 func color_of(o: Object*) -> u8:
     return o.flags & color_mask
 
-func set_color(o: Object*, c: u8):
-    o.flags = (o.flags & ~color_mask) | c
+func set_color(o: Object*, color: u8):
+    o.flags = (o.flags & ~color_mask) | color
 
 func has(o: Object*, flag: u8) -> bool:
     return (o.flags & flag) != 0

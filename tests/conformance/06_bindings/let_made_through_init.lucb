@@ -1,0 +1,22 @@
+## §6.3, §6.4: a top-level `let` may be made through a type's own `init`: the program's start
+## makes it, once, before `main`, through the C backend as through the native one, and a
+## `let` naming it, or its address, follows it. (The C backend once wrote the construction
+## as a file-scope initialiser, which C refuses.) A global `var` still starts from a value
+## that runs nothing.
+var inits: i64 = 0
+
+struct Made:
+    var n: i64
+
+    func init(x: i64):
+        inits += 1
+        self.n = x * 2
+
+let made: Made = Made(3)
+let place: const Made* = &made
+let copy: Made = made
+
+pub func main(arguments: str[]) -> i32:
+    let n = place.n
+    print(f"{made.n} {n} {copy.n} {inits}")
+    return 0

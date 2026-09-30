@@ -24,6 +24,7 @@ CASES = {
     "sum_words": (262144, 10),
     "transform": (262144, 10),
     "byte_scan": (1048576, 10),
+    "word_copy": (1048576, 10),
     "chase": (262144, 1000000),
     "matrix_product": (96 * 96, 10),
 }

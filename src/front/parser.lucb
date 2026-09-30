@@ -1877,6 +1877,8 @@ pub struct Parser:
             o.flags |= ast.flag_optional
             o.left = t
             t = o
+            if self.at_op("["):
+                return try self.fail("`?` suffixes the whole type before it: an array or span of optionals is written `(T?)[N]` or `(T?)[]` (§5.4)")
         if atomic:
             t.flags |= ast.flag_atomic
         if self.eat_op("!"):

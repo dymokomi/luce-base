@@ -22,6 +22,7 @@ python3 tools/test_enum_cases_time.py
 python3 tools/test_ranges_time.py
 python3 tools/test_inline_optimised.py
 python3 tools/test_inline_frames.py
+python3 tools/test_small_copies.py
 python3 tools/test_fmt_comments.py
 python3 tools/test_c_prototypes.py
 # what the binary carries is what the sources say: the standard modules, the C runtime, the

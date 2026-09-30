@@ -17,6 +17,20 @@ local var root_count: usize = 0
 local var whites: Object*[]
 local var white_count: usize = 0
 local var collector_running: bool = false
+## `LUCE_CYCLE_STRESS` in the environment: 0 not read yet, 1 absent, 2 present.
+var stress_state: @u8
+extern func stress_getenv as "getenv"(name: c.str) -> c.str?
+
+## Whether `LUCE_CYCLE_STRESS` is set: the collector then runs at every new candidate, so a
+## collection happens at every release that could leave a cycle, in `clear`, `remove`, a
+## `deinit` and a failed `init` too (the stress mode of luce's tools/cycles_fuzz.py). The
+## environment is read once; every thread reads the same answer.
+func stressed() -> bool:
+    var state = stress_state.load(.relaxed)
+    if state == 0:
+        state = 2 if stress_getenv("LUCE_CYCLE_STRESS") != none else 1
+        stress_state.store(state, .relaxed)
+    return state == 2
 
 func push_root(o: Object*):
     if root_count == roots.length:
@@ -52,7 +66,7 @@ func possible_root(o: Object*):
         if not has(o, buffered):
             o.flags |= buffered
             push_root(o)
-            if root_count >= candidate_limit and not collector_running:
+            if (root_count >= candidate_limit or stressed()) and not collector_running:
                 collect()
 
 ## An object no walk enters: a literal, an acyclic one, or one `abandon` is dropping.
@@ -110,12 +124,16 @@ func gather(o: Object*):
         push_white(o)
         o.info.trace(o, visit_gather, (void*)o)
 
+## Undo the trial deletion of one edge out of a garbage object. `mark_gray` took one count
+## for every edge it walked; `scan_black` gave back those out of objects found reachable, but
+## an edge out of garbage is still missing, whether it points at more garbage or at a live
+## object. Restoring every one lets each field release below be an ordinary release: a live
+## object loses exactly the reference the garbage held, where it once lost two.
 func visit_restore(child: Object*, context: void*):
     if skipped(child):
         return
     check_thread(child)
-    if has(child, collecting):
-        child.strong += 1
+    child.strong += 1
 
 ## Free the garbage: deinits first, then every object's fields, then the storage.
 pub func collect():
@@ -153,8 +171,9 @@ pub func collect():
         roots[i].flags &= ~buffered
         i += 1
     root_count = 0
-    # the counts among the garbage are restored so that every field release below is an
-    # ordinary one; a release of a white object then only lowers its count
+    # the counts the trial deletion took for the garbage's edges are restored, to garbage and
+    # to live objects alike, so that every field release below is an ordinary one; a release
+    # of a white object then only lowers its count
     i = 0
     while i < white_count:
         whites[i].info.trace(whites[i], visit_restore, (void*)whites[i])

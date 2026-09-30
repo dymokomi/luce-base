@@ -23,8 +23,8 @@
             linked list built and released, a `FixedBuffer` arena through `in` and `with`,
             a heap expression tree built under `errdefer`, and a fallible allocator with
             `errdefer` caught by its caller) that print a checksum, and each is
-            run four ways: the C backend, the C backend at -O2, the native backend, and
-            the seed's interpreter. The outputs must agree; a disagreement, a crash, or a
+            run seven ways: the C backend, the C backend at -O2, the native backend at its
+            default level and at --opt 0, 1 and 3, and the seed's interpreter. The outputs must agree; a disagreement, a crash, or a
             hang is a finding. Nothing generated traps: checked operands are masked, every
             index is in range, every divisor is non-zero, every float stays finite.
 
@@ -42,6 +42,10 @@ os.chdir(root)
 compiler = pathlib.Path(os.environ.get("LUCE_BASE_COMPILER", root / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base")))
 seed_binary = root.parent / "luce-seed" / "build" / "lucb"
 out = root / "build" / "fuzz"
+# every program is built these ways and must answer alike: the native backend at its
+# default level and at the others, the C backend and the C backend optimised
+BUILDS = (("native", []), ("native-opt0", ["--opt", "0"]), ("native-opt1", ["--opt", "1"]),
+          ("native-opt3", ["--opt", "3"]), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"]))
 memcheck = None   # the valgrind command when --valgrind is on and valgrind exists; else None
 out.mkdir(parents=True, exist_ok=True)
 
@@ -746,7 +750,7 @@ def differential(text, timeout, findings, label):
     path.write_text(text)
     exe = out / "generated"
     outputs = {}
-    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+    for name, flags in BUILDS:
         status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
         if status != 0:
             findings.report("build-" + name, text.encode(), f"{label}: the build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
@@ -835,7 +839,7 @@ def differential_trap(text, timeout, findings, label):
     path.write_text(text)
     exe = out / "generated"
     results = {}
-    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+    for name, flags in BUILDS:
         status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
         if status != 0:
             findings.report("trap-build-" + name, text.encode(), f"{label}: the build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
@@ -928,7 +932,7 @@ def differential_package(files, timeout, findings, label):
     combined = "\n".join(f"# ===== {n} =====\n{files[n]}" for n in ("geo.lucb", "num.lucb", "main.lucb"))
     exe = d / "prog"
     outputs = {}
-    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+    for name, flags in BUILDS:
         status, so, se = run([str(compiler), "build", str(d / "main.lucb"), *flags, "-o", str(exe)], timeout * 4)
         if status != 0:
             findings.report("pkg-build-" + name, combined.encode(), f"{label}: the package build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
@@ -1063,7 +1067,7 @@ def differential_mem(text, timeout, findings, label):
     path.write_text(text)
     exe = out / "generated"
     outputs = {}
-    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+    for name, flags in BUILDS:
         status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
         if status != 0:
             findings.report("mem-build-" + name, text.encode(), "%s: the build (%s) failed: %r" % (label, name, (so + se).decode("utf-8", "replace")[:300]))
@@ -1211,7 +1215,7 @@ def differential_litmus(text, timeout, findings, label):
     path.write_text(text)
     exe = out / "generated"
     outputs = {}
-    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
+    for name, flags in BUILDS:
         status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
         if status != 0:
             findings.report("litmus-build-" + name, text.encode(), "%s: the build (%s) failed: %r" % (label, name, (so + se).decode("utf-8", "replace")[:300]))

@@ -16,9 +16,10 @@ commands and build durations, and `results.json` with every timed sample. Rebuil
 after changing sources or compilers; `--reuse-build` intentionally uses the existing
 binaries. `--output`, `--base`, `--cc`, `--samples`, and `--target-ms` are configurable.
 
-The seven workloads cover a wrapping integer recurrence, strict floating-point
+The eight workloads cover a wrapping integer recurrence, strict floating-point
 recurrence, integer array reduction, floating-point array transformation, byte
-classification, unpredictable dependent loads, and ordinary i/j/k matrix
+classification, unaligned 32-bit word copies (`memory.read`/`memory.write` against
+`memcpy` of four bytes), unpredictable dependent loads, and ordinary i/j/k matrix
 multiplication. Each pair uses the same types, inputs, algorithm and traversal
 order. Base retains its normal bounds and arithmetic checks. C receives valid
 inputs and retains the same explicit entry assertions; it has no per-access bounds

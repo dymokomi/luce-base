@@ -231,12 +231,17 @@ func report_warnings(checker: check.Checker*) -> !:
 
 ## Check FILE and its imports, then generate C for the whole program.
 ## The mode a program is built in: as asked, unless it is an `answer()` program (§19.4).
-func settle_mode(entry: ast.Node*, mode: u32) -> u32!:
+func settle_mode(entry: ast.Node*, path: c.str, mode: u32) -> u32!:
+    # the message leaves this function with the failure, so its room is the heap's
     if mode == 4 and check.find_decl(entry, "_start") == none:
-        error(build_failed, "a freestanding program supplies `export naked func _start` (§19.4)")
+        let file = (str)path
+        let room = try alloc u8[file.length + 128]
+        error(build_failed, try format(room, f"{file}: a freestanding program supplies `export naked func _start` (§19.4)"))
     if mode == 0 and check.find_decl(entry, "main") == none:
         if check.find_decl(entry, "answer") == none:
-            error(build_failed, "this module has no `main` to build a program from; `check` it, or `test` it")
+            let file = (str)path
+            let room = try alloc u8[file.length + 128]
+            error(build_failed, try format(room, f"{file}: this module has no `main` to build a program from; `check` it, or `test` it"))
         return 2
     return mode
 
@@ -778,7 +783,7 @@ func build_file(path: c.str, options: Options) -> !:
         diagnostic_profile = options.diagnostic
         var checker = try checked(path)
         let entry = checker.modules.get(checker.modules.count - 1).tree
-        used_mode = try settle_mode(entry, 4 if options.freestanding else (1 if options.run_tests else 0))
+        used_mode = try settle_mode(entry, path, 4 if options.freestanding else (1 if options.run_tests else 0))
         if options.emit_c:
             let text = try translate(&checker, entry, used_mode)
             if options.output.length > 0:
@@ -913,7 +918,7 @@ func test_file(path: c.str, native: bool) -> i32!:
         native_backend = native
         var checker = try checked(path)
         let entry = checker.modules.get(checker.modules.count - 1).tree
-        used_mode = try settle_mode(entry, 1)
+        used_mode = try settle_mode(entry, path, 1)
         # a function no test reaches is not compiled, so one naming another platform's
         # symbol builds here as it does in a program that imports the module
         try check.test_as_library(checker.modules.get(checker.modules.count - 1).name)

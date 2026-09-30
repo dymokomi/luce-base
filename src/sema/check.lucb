@@ -336,9 +336,11 @@ pub struct Checker:
             if existing.origin != none and existing.depth < 2 and self.depth >= 2:
                 discard(try self.fail(at, "this name is an import; a local may not shadow it"))
             elif let earlier = existing.decl:
-                discard(try self.fail_at(at, "this name is already in scope", earlier, "the earlier binding"))
+                var text: u8[256]
+                discard(try self.fail_at(at, try format(text, f"`{name}` is already in scope"), earlier, "the earlier binding"))
             else:
-                discard(try self.fail(at, "this name is already in scope"))
+                var text: u8[256]
+                discard(try self.fail(at, try format(text, f"`{name}` is already in scope")))
         try self.push_binding(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false, shadowed = 0))
 
     ## A default argument that is `luce.line`, `luce.file`, or `luce.function` expands at
@@ -464,15 +466,50 @@ pub struct Checker:
         let d = t.decl else return false
         return find_member(d, "init", ast.Kind.func_) != none
 
-    ## A construction `T(...)` or a payload case is constant when its arguments are and so
-    ## is the default of every field it leaves out. A type's own `init` runs, so a
-    ## construction through it is not constant (§6.4).
+    ## A construction `T(...)` or a payload case is constant when its arguments are. What it
+    ## may run, a type's own `init` or a field default that calls, is allowed where the value
+    ## is made at its use, a default argument or a top-level `let`; a global's storage needs
+    ## a value it can hold from the start (`static_value`).
     func constant_construction(e: ast.Node*) -> bool:
-        if let own = e.resolved:
-            if own.kind == ast.Kind.func_:
+        return self.all_constant(e.body)
+
+    ## Whether a constant expression makes its value without running code, as a global's
+    ## storage needs it before anything runs, on every thread for a `local var` (§6.3): no
+    ## construction through a type's own `init`, none leaving out a field default that calls.
+    pub func static_value(e: ast.Node*?) -> bool:
+        let n = e else return true
+        if n.kind == ast.Kind.call:
+            if self.runs_init(n):
                 return false
-        if not self.all_constant(e.body):
-            return false
+            if let callee = n.left:
+                if callee.has(ast.flag_type_ref) and not self.defaults_are_static(n):
+                    return false
+            return self.static_items(n.body)
+        if n.kind == ast.Kind.array_lit or n.kind == ast.Kind.tuple or n.kind == ast.Kind.case_value:
+            return self.static_items(n.body)
+        if n.kind == ast.Kind.name or n.kind == ast.Kind.member:
+            # a top-level `let` whose own value runs code has no value before the program starts
+            if let d = n.resolved:
+                if d.kind == ast.Kind.constant and not ast.is_linked(d) and not self.static_value(d.left):
+                    return false
+            if n.kind == ast.Kind.name:
+                return true
+        if n.kind == ast.Kind.unary and n.text == "&":
+            # an address is known before anything runs, whatever the storage will hold
+            return true
+        return self.static_value(n.left) and self.static_value(n.right) and self.static_value(n.ty)
+
+    ## Every item of a list makes its value without running code (`static_value`).
+    func static_items(items: ast.Node*?) -> bool:
+        var cursor = items
+        while let a = cursor:
+            if not self.static_value(a.left if a.kind == ast.Kind.argument else a):
+                return false
+            cursor = a.next
+        return true
+
+    ## Every field default a construction leaves out is a constant that runs nothing.
+    func defaults_are_static(e: ast.Node*) -> bool:
         let t = self.table.get(e.type_id)
         if t.kind != types.Kind.struct_:
             return true
@@ -488,7 +525,7 @@ pub struct Checker:
         while let f = member:
             if f.kind == ast.Kind.field:
                 if let default = f.left:
-                    if index >= positional and not named_in(e.body, f.text) and not self.is_constant(default):
+                    if index >= positional and not named_in(e.body, f.text) and not (self.is_constant(default) and self.static_value(default)):
                         return false
                 index += 1
             member = f.next
@@ -1086,9 +1123,11 @@ pub struct Checker:
                 # `from io import Writer` brings `Writer` alone; `io` itself needs `import io`
                 var names = d.body
                 while let n = names:
-                    let member = find_decl(other, n.text) else return try self.fail(n, "no such public name in that module")
+                    var text: u8[256]
+                    let member = find_decl(other, n.text) else return try self.fail(n, try format(text, f"`{d.text}` has no public `{n.text}`"))
                     if not member.has(ast.flag_pub):
-                        discard(try self.fail(n, "that name is not public"))
+                        var said1: u8[256]
+                        discard(try self.fail(n, try format(said1, f"`{n.text}` is not public in `{d.text}`")))
                     n.resolved = member
                     try self.bind(n, n.text, member.type_id, member, member.kind == ast.Kind.global or member.kind == ast.Kind.extern_var)
                     self.set_origin(d)
@@ -1595,7 +1634,8 @@ pub struct Checker:
         var decl: ast.Node*? = none
         if let b = self.lookup(t.text):
             self.note_origin(b)
-            let d = b.decl else return try self.fail(t, "that name is not a type")
+            var said2: u8[256]
+            let d = b.decl else return try self.fail(t, try format(said2, f"`{t.text}` is not a type"))
             decl = d
         else:
             let dot = find_byte(t.text, '.')
@@ -1610,11 +1650,14 @@ pub struct Checker:
                 return try self.fail(t, "that is not a module")
             if self.is_c_module(module) and c_type_id(rest) != types.none_id:
                 return c_type_id(rest)
-            let d = find_decl(module, rest) else return try self.fail(t, "no such type in that module")
+            var said3: u8[256]
+            let d = find_decl(module, rest) else return try self.fail(t, try format(said3, f"`{module.text}` has no type `{rest}`"))
             if not d.has(ast.flag_pub):
-                return try self.fail(t, "that type is not public")
+                var said4: u8[256]
+                return try self.fail(t, try format(said4, f"`{rest}` is not public in `{module.text}`"))
             decl = d
-        let d = decl else return try self.fail(t, "that name is not a type")
+        var said5: u8[256]
+        let d = decl else return try self.fail(t, try format(said5, f"`{t.text}` is not a type"))
         t.resolved = d
         if d.kind == ast.Kind.type_alias:
             if d.type_id == types.none_id:
@@ -1630,8 +1673,9 @@ pub struct Checker:
             return d.type_id
         if d.kind == ast.Kind.generic_param:
             return d.type_id
+        var said6: u8[256]
         if not is_type_decl(d):
-            return try self.fail(t, "that name is not a type")
+            return try self.fail(t, try format(said6, f"`{t.text}` is not a type"))
         let arity = ast.count(generic_params_of(d))
         if t.body != none:
             let n = ast.count(t.body)
@@ -2631,7 +2675,8 @@ pub struct Checker:
                 i -= 1
                 if self.scope.get(i).name == e.text:
                     return try self.fail(e, "a lambda captures nothing; pass the value as a parameter (§9.6)")
-        return try self.fail(e, "unknown name")
+        var said8: u8[256]
+        return try self.fail(e, try format(said8, f"unknown name `{e.text}`"))
 
     ## Constant integer expression `e` as a value of `bits` bits, sign-extended when
     ## `signed`: only when it is built from literals, constants, casts, and operators whose
@@ -3558,7 +3603,8 @@ pub struct Checker:
                 e.left = l
                 e.right = inner.left
                 return try self.check_expr(e, types.none_id)
-            return try self.fail(t, "that name is a value, not a type")
+            var said7: u8[256]
+            return try self.fail(t, try format(said7, f"`{t.text}` is a value, not a type"))
         let want = try self.resolve_type(t)
         let got = try self.check_expr(inner, types.none_id)
         # a reinterpreting cast of a local address keeps it local: `(str)local_bytes` (§6.6)
@@ -3795,9 +3841,11 @@ pub struct Checker:
             if self.is_c_module(m) and c_type_id(name) != types.none_id:
                 e.flags |= ast.flag_type_ref
                 return c_type_id(name)
-            let d = find_decl(m, name) else return try self.fail(e, "no such public name in that module")
+            var text: u8[256]
+            let d = find_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
+            var said9: u8[256]
             if not d.has(ast.flag_pub):
-                return try self.fail(e, "that name is not public")
+                return try self.fail(e, try format(said9, f"`{name}` is not public in `{m.text}`"))
             e.resolved = d
             if d.kind == ast.Kind.constant and d.type_id == types.none_id:
                 let saved = self.current
@@ -3862,7 +3910,8 @@ pub struct Checker:
             if let f = find_member(d, name, ast.Kind.field):
                 e.resolved = f
                 if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                    return try self.fail(e, "that field is not public")
+                    var said10: u8[256]
+                    return try self.fail(e, try format(said10, f"field `{name}` is not public"))
                 if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
                     self.mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
                 return try self.substitute(f.type_id, d, t.args)
@@ -3873,12 +3922,14 @@ pub struct Checker:
                     # `value.member` without `()` is always a field (§9.5)
                     return try self.fail(e, "a method is called; write `name()`")
                 e.resolved = m
+                var said11: u8[256]
                 if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                    return try self.fail(e, "that method is not public")
+                    return try self.fail(e, try format(said11, f"method `{name}` is not public"))
                 return try self.substitute(m.type_id, d, t.args)
             if t.kind == types.Kind.enum_ and find_member(d, name, ast.Kind.enum_case) != none:
                 return try self.fail(e, "a case is named through the type, `Kind.case`")
-            return try self.fail(e, "no such member")
+            var said12: u8[256]
+            return try self.fail(e, try self.with_type("`", id, try format(said12, f"` has no member `{name}`")))
         if t.kind == types.Kind.interface_:
             let d = t.decl else return try self.fail(e, "no declaration")
             let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "the interface has no such method")
@@ -3903,7 +3954,8 @@ pub struct Checker:
             return try self.fail(e, "no constraint of this parameter has that method")
         if t.kind == types.Kind.pointer and t.elem == types.void_id:
             return try self.fail(e, "`void*` has no members")
-        return try self.fail(e, "this value has no members")
+        var said13: u8[256]
+        return try self.fail(e, try self.with_type("a `", id, try format(said13, f"` has no members, so no `{name}`")))
 
     func all_params(ids: u32[]) -> bool:
         for id in ids:
@@ -3933,7 +3985,8 @@ pub struct Checker:
                 field = positional
                 if let p = positional:
                     positional = p.next
-            let f = field else return try self.fail(a, "no field with that name")
+            var said14: u8[256]
+            let f = field else return try self.fail(a, try format(said14, f"no field `{a.text}`"))
             var got = try self.check_expr(v, types.none_id if self.mentions_param(f.type_id) else f.type_id)
             got = self.concrete(got) if got != types.none_id else got
             try self.infer(f.type_id, got, d, inferred)
@@ -4028,9 +4081,11 @@ pub struct Checker:
                 return id
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_ or t.kind == types.Kind.union_:
             let d = t.decl else return try self.fail(e, "no declaration")
-            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "no such static member")
+            var said15: u8[256]
+            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, try format(said15, f"`{d.text}` has no static member `{name}`"))
+            var said16: u8[256]
             if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                return try self.fail(e, "that method is not public")
+                return try self.fail(e, try format(said16, f"method `{name}` is not public"))
             e.resolved = m
             e.flags |= ast.flag_static
             let ft = try self.substitute(m.type_id, d, t.args)
@@ -4349,7 +4404,8 @@ pub struct Checker:
         while let a = cursor:
             if a.text.length > 0:
                 let d = decl else return try self.fail(a, "named arguments need a declared function")
-                let index = param_index(d, a.text) else return try self.fail(a, "no parameter with that name")
+                var said17: u8[256]
+                let index = param_index(d, a.text) else return try self.fail(a, try format(said17, f"`{d.text}` has no parameter `{a.text}`"))
                 if slots[index] != none:
                     return try self.fail(a, "this argument is given twice")
                 slots[index] = a
@@ -4548,8 +4604,9 @@ pub struct Checker:
             if a.text.length > 0:
                 named = true
                 field = find_member(d, a.text, ast.Kind.field)
+                var said18: u8[256]
                 if field == none:
-                    return try self.fail(a, "no field with that name")
+                    return try self.fail(a, try format(said18, f"`{d.text}` has no field `{a.text}`"))
                 var earlier = args
                 while let o = earlier:
                     if o == a:
@@ -4570,7 +4627,8 @@ pub struct Checker:
             let f = field else return try self.fail(a, "no field")
             a.text = f.text
             if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                return try self.fail(a, "that field is not public")
+                var said19: u8[256]
+                return try self.fail(a, try format(said19, f"field `{f.text}` of `{d.text}` is not public"))
             let want = try self.substitute(f.type_id, d, t.args)
             discard(try self.expect(v, want))
             a.resolved = f
@@ -4688,7 +4746,8 @@ pub struct Checker:
             if fv.kind != ast.Kind.name:
                 return try self.fail(fv, "`offsetof` names a field")
             let d = self.table.get(id).decl else return try self.fail(tv, "`offsetof` takes a struct")
-            let f = find_member(d, fv.text, ast.Kind.field) else return try self.fail(fv, "no such field")
+            var said20: u8[256]
+            let f = find_member(d, fv.text, ast.Kind.field) else return try self.fail(fv, try format(said20, f"`{d.text}` has no field `{fv.text}`"))
             fv.resolved = f
             return types.usize_id
         return try self.fail(e, "unknown core function")
@@ -5346,10 +5405,9 @@ pub struct Checker:
                     discard(try self.expect(init, d.type_id))
                     self.at_top_level = saved
                     if not self.is_constant(init):
-                        if self.runs_init(init):
-                            discard(try self.fail(init, "a global's initialiser is a constant expression and this type's `init` runs (§6.3); make the global optional and set it where it is first needed"))
-                        else:
-                            discard(try self.fail(init, "a global's initialiser is a constant expression (§6.3)"))
+                        discard(try self.fail(init, "a global's initialiser is a constant expression (§6.3)"))
+                    elif not self.static_value(init):
+                        discard(try self.fail(init, "a global's initialiser is a constant expression that runs nothing, and this one runs a type's `init` or a field default that calls (§6.3); make the global optional and set it where it is first needed"))
                 elif not d.has(ast.flag_uninit) and not self.table.zeroable(d.type_id) and not self.modules.get(self.current).is_prelude:
                     # the startup shim initialises the prelude's own globals (§12.3)
                     if self.has_own_init(d.type_id):

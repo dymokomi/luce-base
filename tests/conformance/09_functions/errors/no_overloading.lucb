@@ -1,4 +1,4 @@
-# error: this name is already in scope
+# error: is already in scope
 func f(a: i64) -> i64:
     return a
 func f(a: str) -> str:
