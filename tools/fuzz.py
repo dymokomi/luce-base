@@ -1427,8 +1427,9 @@ def main():
             if deadline and time.time() > deadline:
                 break
         for k in range(packages):
-            files = gen_package(random.Random(rng.randrange(1 << 30)))
-            differential_package(files, 20, findings, f"package {done_k + 1} (seed {seed})")
+            # its own name: `files` is the mutation corpus the next round draws from
+            package_files = gen_package(random.Random(rng.randrange(1 << 30)))
+            differential_package(package_files, 20, findings, f"package {done_k + 1} (seed {seed})")
             done_k += 1
             if deadline and time.time() > deadline:
                 break
