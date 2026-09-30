@@ -271,8 +271,9 @@ class Gen:
         if k == 5:
             return f"({self.expr(depth - 1, ty)} if {self.cond(depth - 1)} else {self.expr(depth - 1, ty)})"
         if k == 6:
-            # checked arithmetic on operands masked well inside the width never traps
-            mask = {"i64": 4095, "u8": 15, "u32": 4095, "i32": 4095, "u16": 255, "u64": 4095, "i8": 3, "i16": 255, "usize": 4095, "isize": 4095}[ty]
+            # checked arithmetic on operands masked well inside the width never traps: the mask
+            # squared fits the type (`i16`: 127 * 127, where 255 * 255 overflowed)
+            mask = {"i64": 4095, "u8": 15, "u32": 4095, "i32": 4095, "u16": 255, "u64": 4095, "i8": 3, "i16": 127, "usize": 4095, "isize": 4095}[ty]
             return f"(({self.expr(depth - 1, ty)} & {mask}) {r.choice(['+', '-', '*']) if ty in ('i64', 'i32', 'i8', 'i16', 'isize') else r.choice(['+', '*'])} ({self.expr(depth - 1, ty)} & {mask}))"
         if k == 7:
             # division and remainder: a non-negative dividend, a divisor that is never zero

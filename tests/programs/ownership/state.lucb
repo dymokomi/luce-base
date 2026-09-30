@@ -50,7 +50,7 @@ test "a release at zero destroys: deinit, then the fields":
     assert((str)log[..<logged] == "12")
     assert(live_count() == 0)
 
-test "a cycle is collected with its deinits in discovery order":
+test "a cycle is collected with its deinits in the order its objects were made":
     fresh()
     let a = node(3)
     let b = node(4)
@@ -61,8 +61,8 @@ test "a cycle is collected with its deinits in discovery order":
     assert(live_count() == 2)
     collect()
     assert(live_count() == 0)
-    # `b` became a candidate first, so the walk finds it first
-    assert((str)log[..<logged] == "43")
+    # `a` was made first, though `b` became a candidate first
+    assert((str)log[..<logged] == "34")
 
 test "a weak reference outlives its object and answers none":
     fresh()

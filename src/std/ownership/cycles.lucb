@@ -117,7 +117,7 @@ func visit_gather(child: Object*, context: void*):
     check_thread(child)
     gather(child)
 
-## The white objects in discovery order, each once, flagged as being collected.
+## The white objects, each once, flagged as being collected (`sort_whites` orders them).
 func gather(o: Object*):
     if color_of(o) == white and not has(o, collecting):
         o.flags |= collecting
@@ -134,6 +134,35 @@ func visit_restore(child: Object*, context: void*):
         return
     check_thread(child)
     child.strong += 1
+
+## The garbage in the order its objects were made, oldest first (their generations): what a
+## cycle's deinits and the releases of its fields follow, the same in a compiled program and
+## Luce's interpreter whatever let go of what when (a heap sort, in place).
+func sort_whites():
+    var start = white_count // 2
+    while start > 0:
+        start -= 1
+        sift_white(start, white_count)
+    var end = white_count
+    while end > 1:
+        end -= 1
+        let top = whites[0]
+        whites[0] = whites[end]
+        whites[end] = top
+        sift_white(0, end)
+
+func sift_white(first: usize, end: usize):
+    var root = first
+    while root * 2 + 1 < end:
+        var child = root * 2 + 1
+        if child + 1 < end and whites[child + 1].generation > whites[child].generation:
+            child += 1
+        if whites[root].generation >= whites[child].generation:
+            return
+        let held = whites[root]
+        whites[root] = whites[child]
+        whites[child] = held
+        root = child
 
 ## Free the garbage: deinits first, then every object's fields, then the storage.
 pub func collect():
@@ -171,6 +200,7 @@ pub func collect():
         roots[i].flags &= ~buffered
         i += 1
     root_count = 0
+    sort_whites()
     # the counts the trial deletion took for the garbage's edges are restored, to garbage and
     # to live objects alike, so that every field release below is an ordinary one; a release
     # of a white object then only lowers its count
