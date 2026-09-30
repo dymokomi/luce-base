@@ -1,0 +1,4 @@
+description 9
+module reexport_source
+func add(x: i64, y: i64 = default) -> i64
+func scale(value: i64, by: i64 = default) -> i64

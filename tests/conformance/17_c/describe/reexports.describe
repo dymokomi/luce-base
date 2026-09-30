@@ -1,0 +1,5 @@
+description 9
+module reexports
+func add(x: i64, y: i64 = default) -> i64
+func doubled(value: i64, by: i64 = default) -> i64
+let limit: i64

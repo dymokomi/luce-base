@@ -2901,7 +2901,7 @@ pub struct Checker:
     ## the function under another name (§9.4), so a use of the constant resolves to the
     ## function and a call through it takes the function's defaults and named arguments. None
     ## for any other constant, and for one whose declared type differs from the function's.
-    func function_alias(d: ast.Node*) -> ast.Node*?:
+    pub func function_alias(d: ast.Node*) -> ast.Node*?:
         if d.kind != ast.Kind.constant or ast.is_linked(d):
             return none
         let init = d.left else return none

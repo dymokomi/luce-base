@@ -89,6 +89,10 @@ struct DescriptionWriter:
             .func_:
                 try self.signature(d, "func ")
             .constant:
+                # a re-exported function is the function under this name (§9.4)
+                if let target = self.checker.function_alias(d):
+                    try self.signature_as(target, "func ", d.text)
+                    return
                 if interop.standard(self.checker, d.type_id, "Type") or interop.standard(self.checker, d.type_id, "ViewType"):
                     discard(try interop.owned(self.checker, self.checker.table.get(d.type_id).args[0]))
                     return
@@ -233,7 +237,11 @@ struct DescriptionWriter:
             cursor = member.next
 
     mutating func signature(d: ast.Node*, prefix: str) -> !:
-        try self.out.write(f"{prefix}{d.text}(")
+        try self.signature_as(d, prefix, d.text)
+
+    ## `d`'s signature under `name`, the name a re-export gives it.
+    mutating func signature_as(d: ast.Node*, prefix: str, name: str) -> !:
+        try self.out.write(f"{prefix}{name}(")
         var first = true
         var cursor = d.right
         while let param = cursor:

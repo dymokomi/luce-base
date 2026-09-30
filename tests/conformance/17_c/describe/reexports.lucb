@@ -1,0 +1,8 @@
+import reexport_source
+
+## §9.4, §17.7: a re-exported function is described as the function, under the name the
+## module gives it, with its parameters and defaults, so a Luce program calls it as it
+## calls any Base function.
+pub let add = reexport_source.add
+pub let doubled = reexport_source.scale
+pub let limit: i64 = 3

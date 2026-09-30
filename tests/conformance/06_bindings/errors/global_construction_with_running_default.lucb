@@ -1,5 +1,4 @@
 # error: a global's initialiser is a constant expression (§6.3)
-# oracle: none (the seed does not look at the defaults a construction leaves out)
 ## §6.4: a construction is constant only when the defaults it leaves out are; this field's
 ## default calls a function, which runs.
 func start() -> i64:
