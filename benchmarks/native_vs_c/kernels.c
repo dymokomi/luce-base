@@ -2,6 +2,7 @@
  * No restrict, fast-math, intrinsics, tiling, or link-time optimization. */
 #include "kernels.h"
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 uint64_t integer_mix(size_t iterations, uint64_t seed) {
@@ -141,6 +142,19 @@ uint64_t bit_decode(const uint8_t *data, size_t length, const uint32_t *table, s
             acc >>= (e & 15);
             bits -= (e & 15);
             total += (uint64_t)(e >> 4);
+        }
+    }
+    return total;
+}
+
+double number_scan(const uint8_t *text, size_t length, size_t rounds) {
+    double total = 0.0;
+    for (size_t round = 0; round < rounds; ++round) {
+        size_t at = 0;
+        while (at < length) {
+            char *end;
+            total += strtod((const char *)text + at, &end);
+            at = (size_t)((const uint8_t *)end - text) + 2;
         }
     }
     return total;

@@ -62,9 +62,9 @@ pub struct Generator:
     var text_count: usize
     ## `--debug`: the frame descriptors, gathered while each function's frame is known.
     var descriptors: buffer.Buffer
-    ## Register allocation: for each temporary, the callee-saved register it lives in
-    ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
-    ## Bit c-1 is set when register code c is used (1..10 = x19..x28, 11..18 = d8..d15);
+    ## By temporary, in the function being emitted: a `w` value whose register's upper half
+    ## is zero (`selection.zero_extended`), which an `extuw` in the same register leaves be.
+    var zero_upper: bool[]
     ## How far sp is below the frame's bottom while a call sequence has moved it; frame
     ## operands relative to sp add it back.
     var sp_shift: u64
@@ -225,6 +225,18 @@ pub struct Generator:
         if let dw = self.dw:
             try dw.mark(&self.out, self.f, &self.fr, index, at + 2)
         try self.indexed_access(self.f.instrs.get(at + 2), base, scaled_index, shift)
+        return true
+
+    ## Emit instructions `at` and `at + 1` as one register-offset access when they are one
+    ## (`selection.summed_access`); whether they were.
+    mutating func summed_access_at(at: usize, uses: u32[], index: usize) -> bool!:
+        let summed = selection.summed_access(self.f, at, uses) else return false
+        let (base, offset) = summed
+        if self.fr.is_rematerialised(self.f.instrs.get(at).dst):
+            return false
+        if let dw = self.dw:
+            try dw.mark(&self.out, self.f, &self.fr, index, at + 1)
+        try self.indexed_access(self.f.instrs.get(at + 1), base, offset, 0)
         return true
 
     ## A load or store through `base + (index << shift)` (`selection.scaled_access`), the
@@ -646,26 +658,9 @@ pub struct Generator:
     mutating func leave_section() -> !:
         try self.object_format.leave_section(&self.out, self.f)
 
-    mutating func function(index: usize) -> !:
-        self.index = index
-        if let dw = self.dw:
-            try dw.entry(&self.out)
-        self.f = &self.program_unit.functions.items[index]
-        self.fr.reserved = 0
-        self.reserve_asm_registers()
-        try self.fr.plan(self.f)
-        self.crossing = 0
-        try self.fr.layout(self.f, 16, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0)
-        try self.object_format.function_start(&self.out, self.f)
-        if self.f.naked:
-            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
-            var k: usize = 0
-            while k < self.f.instrs.count:
-                try self.instruction(self.f.instrs.get(k))
-                k += 1
-            try self.object_format.function_end(&self.out, self.f)
-            try self.leave_section()
-            return
+    ## The prologue: the frame record, the frame below it, the hidden result pointer kept,
+    ## and the callee-saved registers the function uses saved.
+    mutating func open_frame() -> !:
         if self.dw != none:
             try self.line(".cfi_startproc")
         try self.line("stp x29, x30, [sp, #-16]!")
@@ -686,6 +681,28 @@ pub struct Generator:
             try self.frame_address("x16", self.fr.indirect_home)
             try self.line("str x8, [x16]")
         try self.save_callee_saved()
+
+    mutating func function(index: usize) -> !:
+        self.index = index
+        if let dw = self.dw:
+            try dw.entry(&self.out)
+        self.f = &self.program_unit.functions.items[index]
+        self.fr.reserved = 0
+        self.reserve_asm_registers()
+        try self.fr.plan(self.f)
+        self.crossing = 0
+        try self.fr.layout(self.f, 16, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0)
+        try self.object_format.function_start(&self.out, self.f)
+        if self.f.naked:
+            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
+            var k: usize = 0
+            while k < self.f.instrs.count:
+                try self.instruction(self.f.instrs.get(k))
+                k += 1
+            try self.object_format.function_end(&self.out, self.f)
+            try self.leave_section()
+            return
+        try self.open_frame()
         var entry = try selection.entry_loads(self.f)
         defer free(entry)
         var moves = try list.List[incoming.Move].create(8)
@@ -695,6 +712,9 @@ pub struct Generator:
         defer free(received)
         var uses = try selection.uses(self.f)
         defer free(uses)
+        var zero_upper = try selection.zero_extended(self.f, entry)
+        defer free(zero_upper)
+        self.zero_upper = zero_upper
         var i: usize = 0
         while i < self.f.instrs.count:
             if let dw = self.dw:
@@ -702,16 +722,22 @@ pub struct Generator:
             if received[i]:
                 i += 1
                 continue
-            if selection.branch(self.f, i, uses):
+            if selection.branch(self.f, i, uses, true):
                 if let dw = self.dw:
                     # the fused branch's own line and labels, ahead of the pair
                     try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
                 let branch = self.f.instrs.get(i + 1)
                 var comparison = self.f.instrs.get(i)
                 let next = selection.label_at(self.f, i + 2)
+                # jumping when the comparison fails: the opposite comparison of integers,
+                # the opposite condition of floats, true when either is a NaN as `not` is
+                var negate = false
                 if next == branch.extra:
-                    comparison.op = selection.inverse(comparison.op)
-                try self.comparison(comparison, branch, next)
+                    if ir.is_float_class(comparison.cls):
+                        negate = true
+                    else:
+                        comparison.op = selection.inverse(comparison.op)
+                try self.comparison(comparison, branch, next, negate)
                 i += 2
                 continue
             if let fused = selection.offset_access(self.f, i, uses):
@@ -725,6 +751,9 @@ pub struct Generator:
                     continue
             if try self.scaled_access_at(i, uses, index):
                 i += 3
+                continue
+            if try self.summed_access_at(i, uses, index):
+                i += 2
                 continue
             try self.save_crossing(i)
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
@@ -1141,7 +1170,10 @@ pub struct Generator:
             .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
                 let v = try self.source(n.a, ir.Class.w, "w9")
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-                try self.extend_from(n.op, v, d)
+                # a word already zero above, in the result's own register, is extended
+                let extended = n.op == ir.Op.extuw and n.a.kind == ir.RefKind.temp and (usize)n.a.index < self.zero_upper.length and self.zero_upper[(usize)n.a.index] and v == narrow_name(d)
+                if not extended:
+                    try self.extend_from(n.op, v, d)
                 try self.finish(n.dst, n.cls, d)
             .exth, .exts, .truncs, .truncd:
                 let src_cls = float_source_class(n.op)
@@ -1388,7 +1420,7 @@ pub struct Generator:
         try self.put(b)
         try self.finish(n.dst, n.cls, d)
 
-    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
+    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0, negate: bool = false) -> !:
         let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
         let is_float = ir.is_float_class(n.cls)
         # an integer constant the instruction can carry: `cmp` up to 4095, `cmn` below 0
@@ -1419,6 +1451,8 @@ pub struct Generator:
             .cugt: cond = "hi"
             .cuge: cond = "hs"
             _: cond = "eq"
+        if negate:
+            cond = opposite_condition(cond)
         if let jump = branch:
             try self.line("b.")
             try self.put(cond)
@@ -1703,7 +1737,9 @@ pub struct Generator:
     mutating func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
         let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
-        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        # `adds x1, x2, #8`: an addend or subtrahend of 0..4095 is the instruction's own
+        let immediate = n.op != ir.Op.mulo and n.b.kind == ir.RefKind.constant and n.b.value >= 0 and n.b.value <= 4095
+        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
         if n.op == ir.Op.mulo:
             if n.cls == ir.Class.w:
                 # multiply at 64 bits and check the range
@@ -1743,7 +1779,11 @@ pub struct Generator:
         try self.put(", ")
         try self.put(a)
         try self.put(", ")
-        try self.put(b)
+        if immediate:
+            try self.put("#")
+            try self.put_i64(n.b.value)
+        else:
+            try self.put(b)
         if signed:
             try self.line("b.vc 1f")
         elif add:
@@ -2550,6 +2590,24 @@ func vector_view(reg: str) -> str:
     return "v18"
 
 ## `x21` -> `w21`, `x9` -> `w9`: the 32-bit view of an integer register.
+## The condition true exactly when `cond` is false, after a `cmp` or an `fcmp` alike: after
+## an `fcmp` of a NaN, `mi`, `ls`, `gt`, `ge` and `eq` are false and their opposites true.
+func opposite_condition(cond: str) -> str:
+    match cond:
+        "eq": return "ne"
+        "ne": return "eq"
+        "mi": return "pl"
+        "pl": return "mi"
+        "ls": return "hi"
+        "hi": return "ls"
+        "gt": return "le"
+        "le": return "gt"
+        "ge": return "lt"
+        "lt": return "ge"
+        "lo": return "hs"
+        "hs": return "lo"
+        _: return cond
+
 func narrow_name(reg: str) -> str:
     if reg.bytes[0] != 'x':
         return reg

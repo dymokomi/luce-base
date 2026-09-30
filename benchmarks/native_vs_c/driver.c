@@ -117,6 +117,25 @@ int main(int argc, char **argv) {
         result = bit_decode(bytes, size, table, 4096, 1);
         start = now(); result = bit_decode(bytes, size, table, 4096, work); elapsed = now() - start;
         free(table);
+    } else if (!strcmp(argv[1], "number_scan")) {
+        /* at least `size` bytes of numbers joined by ", ": short decimals as a mesh's
+           points print, and shortest round-trip doubles; NUL-terminated for strtod */
+        char *text = malloc(size + 64);
+        if (!text) abort();
+        size_t length = 0;
+        do {
+            if (length) { text[length++] = ','; text[length++] = ' '; }
+            uint64_t word = random_word(&state);
+            if (word % 10 < 6)
+                length += (size_t)snprintf(text + length, 40, "%.3f", (double)((int64_t)(word >> 40) % 200000 - 100000) / 1000.0);
+            else
+                length += (size_t)snprintf(text + length, 40, "%.17g", (double)(word >> 11) / 9007199254740992.0 - 0.5);
+        } while (length < size && length + 64 <= size + 16);
+        text[length] = 0;
+        double value = number_scan((const uint8_t *)text, length, 1);
+        start = now(); value = number_scan((const uint8_t *)text, length, work); elapsed = now() - start;
+        memcpy(&result, &value, sizeof result);
+        free(text);
     } else if (!strcmp(argv[1], "chase")) {
         result = chase(links, size, 100, 0);
         start = now(); result = chase(links, size, work, 0); elapsed = now() - start;

@@ -29,17 +29,24 @@ pub func clean(program: ir.Unit*) -> !:
         i += 1
         if f.naked:
             continue
-        discard(try narrow_stores(f))
         discard(powers_of_two(f))
+        discard(negations(f))
+        discard(try low_bits(f))
         discard(fold(f))
-        discard(try sweep(f))
+        # a chain of values the rewrites left unread goes one link per sweep
+        var swept = try sweep(f)
+        while swept:
+            swept = try sweep(f)
 
-## A narrow store writes only its value's low bytes: an extension or a mask that keeps
-## those bytes as they were is not needed before it. `out[o] = (u8)(e >> 16)` loses the
-## zero-extension and the `& 255` its conversions left between the shift and the `strb`.
-## Only a value one instruction defines is followed; the extensions go if nothing else
-## reads them (`sweep`). Whether any store changed.
-func narrow_stores(f: ir.Function*) -> bool!:
+## Operands of which only the low bits are read: a narrow store writes its value's low
+## bytes, and a shift reads its count's low five or six bits (the count modulo the width,
+## as every target's shift instruction takes it; a count at or past the width traps
+## before the shift is reached). An extension or a mask that keeps those bits as they were
+## is not needed before either: `out[o] = (u8)(e >> 16)` loses the zero-extension and the
+## `& 255` its conversions left between the shift and the `strb`, and `acc << (bits & 63)`
+## shifts by `bits` itself (`lsl x0, x0, x1`). Only a value one instruction defines is
+## followed; the extensions go if nothing else reads them (`sweep`). Whether any changed.
+func low_bits(f: ir.Function*) -> bool!:
     var definition = try alloc u32[f.temps.count + 1]
     defer free(definition)
     var assigned = try alloc u32[f.temps.count + 1]
@@ -55,20 +62,30 @@ func narrow_stores(f: ir.Function*) -> bool!:
     var changed = false
     for i in 0..<f.instrs.count:
         var x = f.instrs.get(i)
-        let width: u64 = 1 if x.op == ir.Op.storeb else 2 if x.op == ir.Op.storeh else 4 if x.op == ir.Op.storew else 0
-        if width == 0:
+        let shift = (x.op == ir.Op.shl or x.op == ir.Op.lshr or x.op == ir.Op.ashr) and (x.cls == ir.Class.w or x.cls == ir.Class.l)
+        var bits: u64 = 8 if x.op == ir.Op.storeb else 16 if x.op == ir.Op.storeh else 32 if x.op == ir.Op.storew else 0
+        if shift:
+            bits = 6 if x.cls == ir.Class.l else 5
+        if bits == 0:
             continue
-        var value = x.a
+        let operand = x.b if shift else x.a
+        var value = operand
         var steps: u32 = 0
         while value.kind == ir.RefKind.temp and (usize)value.index < definition.length and assigned[(usize)value.index] == 1 and steps < 8:
             let d = f.instrs.get((usize)definition[(usize)value.index] - 1)
             steps += 1
-            if keeps_low_bytes(d, width):
+            if keeps_low_bits(d, bits):
                 value = d.a
             else:
                 break
-        if value.kind != x.a.kind or value.index != x.a.index or value.value != x.a.value:
-            x.a = value
+        if shift and value.kind != ir.RefKind.temp:
+            # a constant count stays in range, as the folding and the immediates want it
+            continue
+        if value.kind != operand.kind or value.index != operand.index or value.value != operand.value:
+            if shift:
+                x.b = value
+            else:
+                x.a = value
             f.instrs.set(i, x)
             changed = true
     return changed
@@ -99,22 +116,65 @@ func powers_of_two(f: ir.Function*) -> bool:
         changed = true
     return changed
 
-## Whether `d`'s result has the same low `width` bytes as its first operand, an integer:
-## an extension from at least that width, or a mask whose low bytes are all ones.
-func keeps_low_bytes(d: ir.Instr, width: u64) -> bool:
+## A comparison negated right after it is the opposite comparison: `a != b`, lowered as
+## `a == b` and then `== 0`, compares once and branches on the flags. Only the pair of
+## neighbours is taken, so neither operand can have changed between them; of a float
+## comparison only equality turns, since an ordering is false both ways on a NaN. The first
+## comparison goes if nothing else reads it (`sweep`). Whether any changed.
+func negations(f: ir.Function*) -> bool:
+    var changed = false
+    for i in 1..<f.instrs.count:
+        var x = f.instrs.get(i)
+        if (x.op != ir.Op.ceq and x.op != ir.Op.cne) or x.cls != ir.Class.w or x.b.kind != ir.RefKind.constant or x.b.value != 0 or x.a.kind != ir.RefKind.temp:
+            continue
+        let d = f.instrs.get(i - 1)
+        if d.dst != x.a.index or not ir.is_comparison(d.op) or d.dst == 0 or same_ref(d.a, ir.temp_ref(d.dst)) or same_ref(d.b, ir.temp_ref(d.dst)):
+            continue
+        let integer = d.cls == ir.Class.w or d.cls == ir.Class.l
+        if x.op == ir.Op.ceq and not integer and d.op != ir.Op.ceq and d.op != ir.Op.cne:
+            continue
+        x.op = d.op if x.op == ir.Op.cne else opposite(d.op)
+        x.cls = d.cls
+        x.a = d.a
+        x.b = d.b
+        f.instrs.set(i, x)
+        changed = true
+    return changed
+
+func same_ref(a: ir.Ref, b: ir.Ref) -> bool:
+    return a.kind == b.kind and a.index == b.index and a.value == b.value
+
+## The comparison true exactly when `op` is false, on integers (and on floats for the two
+## equalities).
+func opposite(op: ir.Op) -> ir.Op:
+    match op:
+        .ceq: return ir.Op.cne
+        .cne: return ir.Op.ceq
+        .cslt: return ir.Op.csge
+        .csle: return ir.Op.csgt
+        .csgt: return ir.Op.csle
+        .csge: return ir.Op.cslt
+        .cult: return ir.Op.cuge
+        .cule: return ir.Op.cugt
+        .cugt: return ir.Op.cule
+        _: return ir.Op.cult
+
+## Whether `d`'s result has the same low `bits` bits as its first operand, an integer:
+## an extension from at least that width, or a mask whose low bits are all ones.
+func keeps_low_bits(d: ir.Instr, bits: u64) -> bool:
     match d.op:
         .extub, .extsb:
-            return width <= 1
+            return bits <= 8
         .extuh, .extsh:
-            return width <= 2
+            return bits <= 16
         .extuw, .extsw:
-            return width <= 4
+            return bits <= 32
         .copy:
             return d.cls == ir.Class.w or d.cls == ir.Class.l
         .and_:
             if d.b.kind != ir.RefKind.constant:
                 return false
-            let low: u64 = ((u64)1 << (width * 8)) - 1
+            let low: u64 = ((u64)1 << bits) - 1
             return ((u64)d.b.value & low) == low
         _:
             return false

@@ -16,9 +16,9 @@
 #       when the two do not overlap. A temporary that crosses a call takes a callee-saved
 #       register if one is free, else a caller-saved one that the generator saves to the
 #       temporary's frame home before each barrier it crosses and reloads after (`saved`).
-#       When every register is taken, the temporaries whose reads still to come weigh least,
-#       loops counted (`cost`), go to the frame for their whole life; nothing is split,
-#       since the generators read a temporary from one place.
+#       When every register is taken, the temporaries whose reads and writes weigh least,
+#       ten times as much in a loop as outside it (`cost`), go to the frame for their whole
+#       life; nothing is split, since the generators read a temporary from one place.
 #
 #==============================================================================================
 
@@ -92,6 +92,13 @@ pub struct Lives:
     pub var saved: bool[]
     ## The temporary whose register this one prefers, 0 for none: a copy's source.
     var hint: u32[]
+    ## What a read at each instruction weighs: its block's loop weight (`cfg.loops`), ten
+    ## for each loop the block is inside, so the paths that leave a loop weigh as little
+    ## as code outside it, however the blocks are laid out.
+    var weights: u32[]
+    ## By temporary, the weight of the instructions that write it: the stores it would take
+    ## living in the frame.
+    var writes: u64[]
     var ranges: list.List[Range]
     var uses: list.List[Use]
 
@@ -108,13 +115,14 @@ pub struct Lives:
     pub func life_end(t: u32) -> u32:
         return self.end[(usize)t] if self.start[(usize)t] != no_position else 0
 
-    ## The lives of `f`'s temporaries over its graph `g`. Every allocation is the current
-    ## allocator's; `release` gives them back.
+    ## The lives of `f`'s temporaries over its graph `g`, whose loops are found
+    ## (`cfg.Graph.loops`). Every allocation is the current allocator's; `release` gives
+    ## them back.
     pub static func over(f: ir.Function*, g: cfg.Graph*) -> Lives!:
         let n = f.temps.count
         let m = f.instrs.count
         var l = Lives(count = n, start = try alloc u32[n + 1], end = try alloc u32[n + 1], head = try alloc u32[n + 1], use_head = try alloc u32[n + 1],
-                      crosses = try alloc bool[n + 1], asm_bound = try alloc bool[n + 1], saved = try alloc bool[n + 1], hint = try alloc u32[n + 1], ranges = try list.List[Range].create(2 * m + n + 2),
+                      crosses = try alloc bool[n + 1], asm_bound = try alloc bool[n + 1], saved = try alloc bool[n + 1], hint = try alloc u32[n + 1], weights = try alloc u32[m + 1], writes = try alloc u64[n + 1], ranges = try list.List[Range].create(2 * m + n + 2),
                       uses = try list.List[Use].create(3 * m + 2))
         var t: usize = 0
         while t <= n:
@@ -126,7 +134,9 @@ pub struct Lives:
             l.asm_bound[t] = false
             l.saved[t] = false
             l.hint[t] = 0
+            l.writes[t] = 0
             t += 1
+        l.weigh(f, g)
         var live = try ssa.Liveness.over(f, g)
         defer live.release()
         # blocks from the last to the first, and each backwards, so that a range is always
@@ -165,7 +175,9 @@ pub struct Lives:
                 while a < args_count:
                     try l.use_at(f.args.get((usize)(args_start + a)).value, 2 * block.start, 2 * i)
                     a += 1
-                if x.op == ir.Op.copy and x.a.kind == ir.RefKind.temp and x.dst != 0:
+                # a copy, and a word's zero-extension, which the generator leaves out when
+                # the two share a register and the word's upper half is zero already
+                if (x.op == ir.Op.copy or x.op == ir.Op.extuw) and x.a.kind == ir.RefKind.temp and x.dst != 0:
                     l.hint[(usize)x.dst] = x.a.index
                     # A loop phi is usually allocated before its backedge value.
                     # The reverse preference lets that later value reuse the phi's
@@ -238,8 +250,26 @@ pub struct Lives:
         free(self.asm_bound)
         free(self.saved)
         free(self.hint)
+        free(self.weights)
+        free(self.writes)
         self.ranges.destroy()
         self.uses.destroy()
+
+    ## Each instruction's weight, its block's loop weight, and what the writes of each
+    ## temporary weigh.
+    mutating func weigh(f: ir.Function*, g: cfg.Graph*):
+        for i in 0..<self.weights.length:
+            self.weights[i] = 1
+        for block in g.blocks.span():
+            # a label belongs to the block it heads
+            let labelled = block.start > 0 and f.instrs.get((usize)block.start - 1).op == ir.Op.label
+            let first = block.start - 1 if labelled else block.start
+            for i in first..<block.end:
+                self.weights[(usize)i] = block.loop_weight if block.loop_weight > 0 else 1
+        for i in 0..<f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.dst != 0 and (usize)x.dst <= self.count:
+                self.writes[(usize)x.dst] += (u64)self.weights[i]
 
     ## Add `[low, high)` to temporary `t`: merged into the head range when they touch.
     mutating func add_range(t: u32, low: u32, high: u32) -> !:
@@ -264,9 +294,12 @@ pub struct Lives:
         let h = self.head[(usize)t]
         let k = (usize)h
         if h != no_position and self.ranges.items[k].low <= at and at < self.ranges.items[k].high:
+            # the blocks are walked last first, so the head range is the lowest and the
+            # temporary's life now starts at its definition, not where its block does: a
+            # value read for the last time by the instruction defining another leaves its
+            # register to that one (a loop's `acc |= x` keeps acc's register)
             self.ranges.items[k].low = at
-            if at < self.start[(usize)t]:
-                self.start[(usize)t] = at
+            self.start[(usize)t] = at
             return
         try self.add_range(t, at, at + 1)
 
@@ -324,21 +357,17 @@ pub struct Lives:
                 rb = y.next
         return no_position
 
-    ## What keeping `t` out of a register from `p` on would cost: each read at or after `p`
-    ## weighs 8 to the power of the loops around it, and when `t` is still live where the
-    ## innermost loop around `p` jumps back, that loop's reads before `p` count too: the
-    ## next pass reads them (a loop's bound, tested at its head).
-    func cost(t: u32, p: u32, shape: LoopShape*) -> u64:
-        let (low, high) = shape.around(p)
-        let carried = high != no_position and self.covers(t, high)
+    ## What keeping `t` in the frame for its whole life costs, as eviction would: a load
+    ## for each read and a store for each write, each weighing its block's loop weight.
+    func cost(t: u32) -> u64:
         var total: u64 = 0
         var u = self.use_head[(usize)t]
         while u != no_position:
             let use = self.uses.items[(usize)u]
-            if use.at >= p or (carried and use.at >= low):
-                total += (u64)shape.weight(use.at)
+            let i = (usize)(use.at // 2)
+            total += (u64)(self.weights[i] if i < self.weights.length else 1)
             u = use.next
-        return total
+        return total + self.writes[(usize)t]
 
     ## The most temporaries of each class live at one position: integers, then floats.
     pub func pressure(f: ir.Function*) -> (u32, u32)!:
@@ -433,8 +462,11 @@ pub struct Lives:
         defer free(free_until)
         var holders_cost = try alloc u64[codes + 1]
         defer free(holders_cost)
-        var shape = try LoopShape.of(f)
-        defer shape.release()
+        # what each temporary would cost in the frame, once: eviction asks it of every holder
+        var costs = try alloc u64[n + 1]
+        defer free(costs)
+        for each in 1..<costs.length:
+            costs[each] = self.cost(u32(each))
         var i: usize = 0
         while i < alive:
             let cur = order[i]
@@ -539,11 +571,10 @@ pub struct Lives:
             if chosen == 0 and low_saved != 0:
                 chosen = pick_free(free_until, held, low_saved, high_saved, my_end)
             if chosen == 0:
-                # every register is taken: the one whose holders' reads still to come weigh
-                # least, a read in a loop eight times one outside it and a loop's reads
-                # counted again when the value is carried round it (`cost`), goes to this
-                # temporary when they weigh less than its own; else it lives in the frame
-                let mine = self.cost(cur, s, &shape)
+                # every register is taken: the one whose holders would cost least in the
+                # frame, a read or write in a loop ten times one outside it (`cost`), goes to
+                # this temporary when they cost less than it would; else it lives there
+                let mine = costs[(usize)cur]
                 if mine > 0:
                     c = 1
                     while c <= codes:
@@ -552,13 +583,13 @@ pub struct Lives:
                     a = 0
                     while a < active_count:
                         let h = active[a]
-                        holders_cost[(usize)regs[(usize)h - 1]] += self.cost(h, s, &shape)
+                        holders_cost[(usize)regs[(usize)h - 1]] += costs[(usize)h]
                         a += 1
                     a = 0
                     while a < inactive_count:
                         let h = inactive[a]
                         if self.first_intersection(h, cur) != no_position:
-                            holders_cost[(usize)regs[(usize)h - 1]] += self.cost(h, s, &shape)
+                            holders_cost[(usize)regs[(usize)h - 1]] += costs[(usize)h]
                         a += 1
                     var far: usize = 0
                     var far_cost: u64 = 0xFFFFFFFFFFFFFFFF
@@ -596,72 +627,6 @@ pub struct Lives:
                 active_count += 1
             i += 1
         return used
-
-# mark: Loops ================================================================================
-
-## Where a function's loops lie, as the positions from a label to a jump back to it, and
-## what a read weighs at each instruction: 8 to the power of the loops around it, capped.
-struct LoopShape:
-    var weights: u32[]
-    var lows: list.List[u32]
-    var highs: list.List[u32]
-
-    static func of(f: ir.Function*) -> LoopShape!:
-        let n = f.instrs.count
-        var shape = LoopShape(weights = try alloc u32[n + 1], lows = try list.List[u32].create(8), highs = try list.List[u32].create(8))
-        var at_label = try alloc u32[(usize)f.labels + 2]
-        defer free(at_label)
-        for k in 0..<at_label.length:
-            at_label[k] = no_position
-        for i in 0..<n:
-            let x = f.instrs.get(i)
-            if x.op == ir.Op.label and (usize)x.extra < at_label.length:
-                at_label[(usize)x.extra] = (u32)i
-        var change = try alloc i32[n + 1]
-        defer free(change)
-        for k in 0..<change.length:
-            change[k] = 0
-        for i in 0..<n:
-            let x = f.instrs.get(i)
-            if x.op != ir.Op.jmp and x.op != ir.Op.jnz:
-                continue
-            for target in [x.extra, x.extra2]:
-                if (usize)target < at_label.length and at_label[(usize)target] != no_position and (usize)at_label[(usize)target] <= i:
-                    change[(usize)at_label[(usize)target]] += 1
-                    change[i + 1] -= 1
-                    try shape.lows.push(2 * at_label[(usize)target])
-                    try shape.highs.push(2 * (u32)i + 1)
-                if x.op == ir.Op.jmp:
-                    break
-        var depth: i32 = 0
-        for i in 0..<n + 1:
-            depth += change[i]
-            let level = depth if depth < 6 else 6
-            shape.weights[i] = (u32)1 << (u32)(3 * (level if level > 0 else 0))
-        return shape
-
-    mutating func release():
-        free(self.weights)
-        self.lows.destroy()
-        self.highs.destroy()
-
-    ## What a read at the doubled position `p` weighs.
-    func weight(p: u32) -> u32:
-        let i = (usize)(p // 2)
-        return self.weights[i] if i < self.weights.length else 1
-
-    ## The innermost loop around `p`, as its first and last positions; `no_position` twice
-    ## when none is.
-    func around(p: u32) -> (u32, u32):
-        var low = no_position
-        var high = no_position
-        for k in 0..<self.lows.count:
-            let l = self.lows.get(k)
-            let h = self.highs.get(k)
-            if l <= p and p <= h and (high == no_position or h - l < high - low):
-                low = l
-                high = h
-        return (low, high)
 
 # mark: Barriers and free registers ===========================================================
 

@@ -192,6 +192,7 @@ pub struct Frame:
         with memory.heap:
             var g = try cfg.Graph.blocks_of(f)
             defer g.release()
+            try g.loops()
             var lives = try regalloc.Lives.over(f, &g)
             defer lives.release()
             let found = try remat.find(f)

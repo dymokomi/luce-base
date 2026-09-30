@@ -52,7 +52,7 @@ pub struct Block:
     pub var children: list.List[u32]
     ## The depth below the entry in the dominator tree.
     pub var depth: u32
-    ## 1 outside every loop, 10 inside one, 100 inside a nested one.
+    ## 1 outside every loop, 10 inside one, 100 inside a nested one, at most a million.
     pub var loop_weight: u32
 
 ## The control-flow graph of one function.
@@ -346,7 +346,7 @@ pub struct Graph:
 
     ## Loop weights: a back-edge into a header marks every block that reaches the header
     ## inside the loop (QBE's `loopiter`).
-    mutating func loops() -> !:
+    pub mutating func loops() -> !:
         let n = self.blocks.count
         var visit = try alloc u32[n + 1]
         defer free(visit)
@@ -375,7 +375,8 @@ pub struct Graph:
                             continue
                         visit[(usize)b] = head
                         var marked = self.blocks.get((usize)b)
-                        marked.loop_weight = marked.loop_weight *% 10
+                        # ten per loop, up to a million: six deep weighs as much as deeper
+                        marked.loop_weight = marked.loop_weight * 10 if marked.loop_weight < 1000000 else marked.loop_weight
                         self.blocks.set((usize)b, marked)
                         var q: usize = 0
                         while q < inner.preds.count:

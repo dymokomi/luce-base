@@ -4,13 +4,15 @@
 #
 #   DESCRIPTION:
 #       Decimal text to f64 and f32, correctly rounded to nearest with ties to even, and
-#       back as the shortest digits that read back to the same value. Parsing is Eisel-Lemire
+#       back as the shortest digits that read back to the same value. Parsing takes a
+#       mantissa and a power of ten that are both exact (up to 2^53 and 10^22) through one
+#       float multiplication or division (Clinger's fast path, correctly rounded in the
+#       default rounding mode Luce never changes), and the rest through Eisel-Lemire
 #       (Lemire, "Number Parsing at a Gigabyte per Second", 2021, in the form of Go's
-#       strconv) over float_tables' 128-bit powers of ten; what it cannot decide (a tie, a
-#       subnormal, digits past the 19th that matter) goes to a decimal of up to 800 digits
-#       scaled by powers of two (strconv's slow path). Formatting is float_text's shortest
-#       digits (Ryu). Integer arithmetic throughout: no C library, no locale, and the
-#       thread's rounding mode changes nothing.
+#       strconv) over float_tables' 128-bit powers of ten; what that cannot decide (a tie,
+#       a subnormal, digits past the 19th that matter) goes to a decimal of up to 800 digits
+#       scaled by powers of two (strconv's slow path), in integer arithmetic. Formatting is
+#       float_text's shortest digits (Ryu), in integers. No C library and no locale.
 #
 #==============================================================================================
 
@@ -41,7 +43,9 @@ pub func parse_f32(text: str) -> f32!:
 ## from there, and names that position when what follows is not what it expects. Fails with
 ## invalid_number when no number starts `text`, number_out_of_range as parse_f64 does.
 pub func scan_f64(text: const u8[]) -> (f64, usize)!:
-    let number = try scan(text)
+    let number = scan(text)
+    if number.kind == nothing_kind:
+        error(invalid_number, "no number starts the text")
     let sign: u64 = 0x8000000000000000 if number.negative else 0
     if number.kind == infinity_kind:
         return (f64.bits(sign | 0x7FF0000000000000), number.used)
@@ -49,10 +53,16 @@ pub func scan_f64(text: const u8[]) -> (f64, usize)!:
         return (f64.bits(sign | 0x7FF8000000000000), number.used)
     if number.mantissa == 0:
         return (f64.bits(sign), number.used)
-    if not number.truncated and number.exponent == 0 and number.mantissa <= 0x20000000000000:
-        let exact = (f64)number.mantissa
+    if not number.truncated and number.mantissa <= 0x20000000000000 and number.exponent >= -22 and number.exponent <= 22:
+        # Clinger's fast path: the mantissa and the power of ten are both exact, so one
+        # correctly rounded multiplication or division is the nearest f64
+        var exact = (f64)number.mantissa
+        if number.exponent > 0:
+            exact = exact * exact_powers[(usize)number.exponent]
+        elif number.exponent < 0:
+            exact = exact / exact_powers[(usize)(-number.exponent)]
         return (-exact if number.negative else exact, number.used)
-    let magnitude = number.decimal_exponent()
+    let magnitude = number.exponent + number.digits - 1
     if magnitude > 309:
         error(number_out_of_range, "the number is beyond the largest f64")
     if magnitude < -330:
@@ -73,7 +83,9 @@ pub func scan_f64(text: const u8[]) -> (f64, usize)!:
 
 ## The f32 counterpart of scan_f64.
 pub func scan_f32(text: const u8[]) -> (f32, usize)!:
-    let number = try scan(text)
+    let number = scan(text)
+    if number.kind == nothing_kind:
+        error(invalid_number, "no number starts the text")
     let sign: u32 = 0x80000000 if number.negative else 0
     if number.kind == infinity_kind:
         return (f32.bits(sign | 0x7F800000), number.used)
@@ -84,7 +96,7 @@ pub func scan_f32(text: const u8[]) -> (f32, usize)!:
     if not number.truncated and number.exponent == 0 and number.mantissa <= 0x1000000:
         let exact = (f32)number.mantissa
         return (-exact if number.negative else exact, number.used)
-    let magnitude = number.decimal_exponent()
+    let magnitude = number.exponent + number.digits - 1
     if magnitude > 39:
         error(number_out_of_range, "the number is beyond the largest f32")
     if magnitude < -66:
@@ -102,9 +114,17 @@ pub func scan_f32(text: const u8[]) -> (f32, usize)!:
         error(number_out_of_range, "the number is beyond the largest f32")
     return (f32.bits((u32)bits | sign), number.used)
 
+## Every power of ten an f64 holds exactly, 10^0 to 10^22.
+let exact_powers: f64[23] = [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0,
+                             100000000.0, 1000000000.0, 10000000000.0, 100000000000.0, 1000000000000.0, 10000000000000.0,
+                             100000000000000.0, 1000000000000000.0, 10000000000000000.0, 100000000000000000.0,
+                             1000000000000000000.0, 10000000000000000000.0, 100000000000000000000.0,
+                             1000000000000000000000.0, 10000000000000000000000.0]
+
 let finite_kind: u8 = 0
 let infinity_kind: u8 = 1
 let nan_kind: u8 = 2
+let nothing_kind: u8 = 3
 
 ## A number as scanned: `mantissa * 10^exponent` from its first 19 significant digits.
 struct Scanned:
@@ -117,59 +137,86 @@ struct Scanned:
     var truncated: bool = false
     var used: usize = 0
 
-    ## The power of ten of the leading digit.
-    func decimal_exponent() -> i64:
-        return self.exponent + self.digits - 1
-
-## The number at the start of `text`: its sign, kind, leading digits and length.
-func scan(text: const u8[]) -> Scanned!:
+## The number at the start of `text`: its sign, kind, leading digits and length. The digits
+## before the point and after it are read by a loop each, as the digits come: a number of
+## a usda array or a JSON document costs a compare and a multiply-add a digit.
+inline func scan(text: const u8[]) -> Scanned:
     var number = Scanned()
+    let end = text.length
     var at: usize = 0
-    if at < text.length and (text[at] == '-' or text[at] == '+'):
+    if at < end and (text[at] == '-' or text[at] == '+'):
         number.negative = text[at] == '-'
         at += 1
-    let word = text[at..]
-    if let length = special_word(word):
-        number.kind = infinity_kind if length != 3 or ascii_lower(word[0]) == 'i' else nan_kind
-        number.used = at + length
+    if at < end and text[at] > '9':
+        # a letter: only the special words start with one
+        if let length = special_word(text[at..]):
+            number.kind = infinity_kind if length != 3 or ascii_lower(text[at]) == 'i' else nan_kind
+            number.used = at + length
+            return number
+        number.kind = nothing_kind
         return number
-    var seen = false
-    var point = false
-    while at < text.length:
-        let byte = text[at]
-        if byte == '.' and not point:
-            point = true
-        elif byte >= '0' and byte <= '9':
-            seen = true
-            let digit = (u64)(byte - '0')
-            if number.mantissa == 0 and digit == 0:
-                # a leading zero: after the point it scales what follows
-                if point:
-                    number.exponent -= 1
-            elif number.digits < 19:
-                number.mantissa = number.mantissa * 10 + digit
-                number.digits += 1
-                if point:
-                    number.exponent -= 1
-            else:
-                number.truncated = number.truncated or digit != 0
-                if not point:
-                    number.exponent += 1
-        else:
-            break
+    let whole = at
+    # leading zeros say nothing
+    while at < end and text[at] == '0':
         at += 1
+    # counts, not checked: none can pass the text's length
+    var mantissa: u64 = 0
+    var digits: usize = 0
+    var dropped: usize = 0
+    var scaled: usize = 0
+    var truncated = false
+    while at < end:
+        let digit = text[at] -% '0'
+        if digit > 9:
+            break
+        if digits < 19:
+            # nineteen digits stay below 2^64
+            mantissa = mantissa *% 10 +% (u64)digit
+            digits = digits +% 1
+        else:
+            if digit != 0:
+                truncated = true
+            dropped = dropped +% 1
+        at = at +% 1
+    var seen = at > whole
+    if at < end and text[at] == '.':
+        at += 1
+        let fraction = at
+        if digits == 0:
+            # zeros after the point and before the first digit scale what follows
+            while at < end and text[at] == '0':
+                at = at +% 1
+            scaled = at -% fraction
+        while at < end:
+            let digit = text[at] -% '0'
+            if digit > 9:
+                break
+            if digits < 19:
+                mantissa = mantissa *% 10 +% (u64)digit
+                digits = digits +% 1
+                scaled = scaled +% 1
+            elif digit != 0:
+                truncated = true
+            at = at +% 1
+        seen = seen or at > fraction
     if not seen:
-        error(invalid_number, "no number starts the text")
+        number.kind = nothing_kind
+        return number
+    let exponent = (i64)dropped - (i64)scaled
+    number.mantissa = mantissa
+    number.digits = (i64)digits
+    number.exponent = exponent
+    number.truncated = truncated
     number.used = at
-    if at < text.length and (text[at] == 'e' or text[at] == 'E'):
+    if at < end and (text[at] == 'e' or text[at] == 'E'):
         var after = at + 1
         var down = false
-        if after < text.length and (text[after] == '-' or text[after] == '+'):
+        if after < end and (text[after] == '-' or text[after] == '+'):
             down = text[after] == '-'
             after += 1
         var power: i64 = 0
         let first = after
-        while after < text.length and text[after] >= '0' and text[after] <= '9':
+        while after < end and text[after] >= '0' and text[after] <= '9':
             # beyond any f64 either way; the cap keeps the sum from wrapping
             if power < 100000:
                 power = power * 10 + (i64)(text[after] - '0')
@@ -180,7 +227,7 @@ func scan(text: const u8[]) -> Scanned!:
     return number
 
 ## The length of `inf`, `infinity` or `nan` (any case) at the start of `word`, the longest.
-func special_word(word: const u8[]) -> usize?:
+noinline func special_word(word: const u8[]) -> usize?:
     if starts_word(word, "infinity"):
         return 8
     if starts_word(word, "inf") or starts_word(word, "nan"):
@@ -299,7 +346,7 @@ inline func product(a: u64, b: u64, low: u64*) -> u64:
     return p11 + (p01 >> 32) + (p10 >> 32) + (middle >> 32)
 
 ## Leading zero bits of a nonzero value.
-func leading_zeros(value: u64) -> u64:
+inline func leading_zeros(value: u64) -> u64:
     var v = value
     var count: u64 = 0
     if v & 0xFFFFFFFF00000000 == 0:

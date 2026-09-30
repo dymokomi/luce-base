@@ -150,6 +150,8 @@ pub enum Op as u8:
     and_ = 17
     or_ = 18
     xor = 19
+    ## shifts read the count's low five (`w`) or six (`l`) bits, of either integer class,
+    ## as every target's shift instruction does; the lowering traps on a count past them
     shl = 20
     lshr = 21
     ashr = 22

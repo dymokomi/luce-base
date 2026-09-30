@@ -153,11 +153,119 @@ struct Search:
                     result = bound
         return result
 
+    ## The least `value` can be: a constant, a count that starts somewhere and only goes up
+    ## (a loop's `at` from 2, stepped by a checked `+ 1`), a product or a sum of such, or
+    ## what a fact puts below it.
+    func lower(value: ir.Ref, cls: ir.Class, depth: u32 = 0) -> u64:
+        if value.kind == ir.RefKind.constant:
+            return bits(value, cls)
+        if value.kind != ir.RefKind.temp or depth >= 4:
+            return 0
+        var result: u64 = 0
+        if self.definitions[value.index] != 0:
+            let definition = self.f.instrs.get(self.definitions[value.index] - 1)
+            if definition.op == ir.Op.phi:
+                result = self.lower_phi(definition, cls, depth)
+            elif (definition.op == ir.Op.addo and definition.extra == 0) and definition.cls == cls:
+                # a checked sum never wraps: it is at least its operands' least
+                let low_a = self.lower(definition.a, cls, depth + 1)
+                let low_b = self.lower(definition.b, cls, depth + 1)
+                result = low_a + low_b if low_a <= limit(cls) - low_b else limit(cls)
+            elif (definition.op == ir.Op.mul or (definition.op == ir.Op.mulo and definition.extra == 0)) and definition.b.kind == ir.RefKind.constant and definition.cls == cls:
+                # a product that cannot wrap is at least the least factor times the constant
+                let factor = bits(definition.b, cls)
+                let low = self.lower(definition.a, cls, depth + 1)
+                if factor > 0 and self.upper(definition.a, cls, depth + 1) <= limit(cls) // factor:
+                    result = low * factor
+        var at = self.right_heads[self.bucket(value)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_right
+            if fact.cls == cls and same(value, fact.right):
+                var bound = self.lower(fact.left, cls, depth + 1)
+                if fact.relation == Relation.less and bound < limit(cls):
+                    bound += 1
+                if bound > result:
+                    result = bound
+        return result
+
+    ## A phi's least: the least of what enters it, where a value that is the phi itself
+    ## plus a checked non-negative step (which traps rather than wraps) counts as no less.
+    func lower_phi(phi: ir.Instr, cls: ir.Class, depth: u32) -> u64:
+        var result = limit(cls)
+        for k in 0..<phi.extra2:
+            let incoming = self.f.phi_args.get((usize)(phi.extra + k)).value
+            if self.steps_up(incoming, phi.dst):
+                continue
+            let low = self.lower(incoming, cls, depth + 1)
+            if low < result:
+                result = low
+        return result if result != limit(cls) else 0
+
+    ## Whether `value` is temporary `origin` plus a constant through a checked addition.
+    func steps_up(value: ir.Ref, origin: u32) -> bool:
+        if value.kind != ir.RefKind.temp or self.definitions[value.index] == 0:
+            return false
+        let definition = self.f.instrs.get(self.definitions[value.index] - 1)
+        if definition.op != ir.Op.addo or definition.extra != 0:
+            return false
+        let through = ir.temp_ref(origin)
+        return (same(definition.a, through) and definition.b.kind == ir.RefKind.constant) or (same(definition.b, through) and definition.a.kind == ir.RefKind.constant)
+
+    ## Whether `index`, some `i * c + k` with `k < c`, is below `length` because `i` is below
+    ## `length // c`: then `index < (length // c) * c <= length` (a loop over the points of
+    ## a flat array of coordinates, `values[at * 3 + 2]` while `at < values.length // 3`).
+    func scaled_below(index: ir.Ref, length: ir.Ref) -> bool:
+        if index.kind != ir.RefKind.temp or self.definitions[index.index] == 0:
+            return false
+        var scaled = index
+        var offset: u64 = 0
+        let sum = self.f.instrs.get(self.definitions[index.index] - 1)
+        if (sum.op == ir.Op.add or (sum.op == ir.Op.addo and sum.extra == 0)) and sum.cls == ir.Class.l and sum.b.kind == ir.RefKind.constant:
+            scaled = sum.a
+            offset = bits(sum.b, ir.Class.l)
+        if scaled.kind != ir.RefKind.temp or self.definitions[scaled.index] == 0:
+            return false
+        let product = self.f.instrs.get(self.definitions[scaled.index] - 1)
+        if (product.op != ir.Op.mul and not (product.op == ir.Op.mulo and product.extra == 0)) or product.cls != ir.Class.l or product.b.kind != ir.RefKind.constant:
+            return false
+        let factor = bits(product.b, ir.Class.l)
+        if factor == 0 or offset >= factor:
+            return false
+        var at = self.left_heads[self.bucket(product.a)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_left
+            if fact.relation != Relation.less or fact.cls != ir.Class.l or not same(product.a, fact.left) or fact.right.kind != ir.RefKind.temp or self.definitions[fact.right.index] == 0:
+                continue
+            let quotient = self.f.instrs.get(self.definitions[fact.right.index] - 1)
+            if quotient.op == ir.Op.udiv and quotient.cls == ir.Class.l and quotient.b.kind == ir.RefKind.constant and bits(quotient.b, ir.Class.l) == factor and self.equal(quotient.a, length, ir.Class.l):
+                return true
+        return false
+
+    ## Whether `index`, some `x - c` that cannot wrap (`x` is at least `c`), is below
+    ## `length` because `x` is, or is below it as a scaled index (`values[at * 3 - 2]`).
+    func below_through_difference(index: ir.Ref, length: ir.Ref) -> bool:
+        if index.kind != ir.RefKind.temp or self.definitions[index.index] == 0:
+            return false
+        let difference = self.f.instrs.get(self.definitions[index.index] - 1)
+        if (difference.op != ir.Op.sub and not (difference.op == ir.Op.subo and difference.extra == 0)) or difference.cls != ir.Class.l or difference.b.kind != ir.RefKind.constant:
+            return false
+        if self.lower(difference.a, ir.Class.l) < bits(difference.b, ir.Class.l):
+            return false
+        return self.at_most(difference.a, length, ir.Class.l, true) or self.scaled_below(difference.a, length)
+
     func at_most(a: ir.Ref, b: ir.Ref, cls: ir.Class, strict: bool, depth: u32 = 0) -> bool:
         if a.kind == ir.RefKind.constant and b.kind == ir.RefKind.constant:
             return bits(a, cls) < bits(b, cls) if strict else bits(a, cls) <= bits(b, cls)
         if not strict and self.equal(a, b, cls):
             return true
+        if depth == 0:
+            # the most `a` can be against the least `b` can be
+            let high = self.upper(a, cls)
+            let low = self.lower(b, cls)
+            if high < low or (not strict and high == low):
+                return true
         if b.kind == ir.RefKind.constant:
             let high = self.upper(a, cls)
             if high < bits(b, cls) or (not strict and high == bits(b, cls)):
@@ -172,6 +280,22 @@ struct Search:
             at = fact.next_right
             if fact.relation == Relation.equal and fact.cls == cls and same(a, fact.right):
                 if self.at_most(fact.left, b, cls, strict, depth + 1):
+                    return true
+        # what `b` equals bounds `a` as well: `table.length == 4096` once asserted puts
+        # `acc & 4095` inside the table
+        at = self.left_heads[self.bucket(b)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_left
+            if fact.relation == Relation.equal and fact.cls == cls and same(b, fact.left) and not same(a, fact.right):
+                if self.at_most(a, fact.right, cls, strict, depth + 1):
+                    return true
+        at = self.right_heads[self.bucket(b)]
+        while at != 0:
+            let fact = self.facts.get((usize)at - 1)
+            at = fact.next_right
+            if fact.relation == Relation.equal and fact.cls == cls and same(b, fact.right) and not same(a, fact.left):
+                if self.at_most(a, fact.left, cls, strict, depth + 1):
                     return true
         return false
 
@@ -342,7 +466,7 @@ struct Search:
                     self.f.instrs.set(at, instruction)
                     self.changed = true
             elif instruction.op == ir.Op.bounds:
-                if self.at_most(instruction.a, instruction.b, ir.Class.l, true) or self.packed_bound(instruction.a, instruction.b):
+                if self.at_most(instruction.a, instruction.b, ir.Class.l, true) or self.packed_bound(instruction.a, instruction.b) or self.scaled_below(instruction.a, instruction.b) or self.below_through_difference(instruction.a, instruction.b):
                     # Keep graph instruction ranges stable until the walk ends.
                     instruction = ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
                     self.f.instrs.set(at, instruction)
@@ -358,7 +482,7 @@ struct Search:
                 if instruction.op == ir.Op.addo:
                     safe = high_a <= maximum - high_b or self.sum_fits(instruction.a, instruction.b, instruction.cls)
                 elif instruction.op == ir.Op.subo:
-                    safe = self.at_most(instruction.b, instruction.a, instruction.cls, false)
+                    safe = self.at_most(instruction.b, instruction.a, instruction.cls, false) or self.upper(instruction.b, instruction.cls) <= self.lower(instruction.a, instruction.cls)
                     operation = ir.Op.sub
                 else:
                     safe = high_b == 0 or high_a <= maximum // high_b or self.product_fits(instruction.a, instruction.b, instruction.cls)

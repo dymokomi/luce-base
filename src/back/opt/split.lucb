@@ -227,8 +227,10 @@ struct Plan:
         return at
 
     ## Slots copied into each other split alike: one group, one layout. A copy between a slot
-    ## that may split and one that may not leaves both whole, and so does one between slots of
-    ## different sizes.
+    ## that may split and one that may not (a parameter's, one whose address escapes) splits
+    ## the one and leaves the other whole: the copy becomes a load and a store a field, at the
+    ## field's offset in the whole one (a span parameter's copy that an expansion made).
+    ## A copy between slots of different sizes leaves both whole.
     mutating func join_copies(f: ir.Function*):
         var changed = true
         while changed:
@@ -244,11 +246,13 @@ struct Plan:
                     continue
                 let ra = self.root(a)
                 let rb = self.root(b)
-                if self.ok[(usize)a] != self.ok[(usize)b] or f.slots.get((usize)a).size != f.slots.get((usize)b).size:
+                if f.slots.get((usize)a).size != f.slots.get((usize)b).size:
                     if self.ok[(usize)a] or self.ok[(usize)b]:
                         self.ok[(usize)a] = false
                         self.ok[(usize)b] = false
                         changed = true
+                elif self.ok[(usize)a] != self.ok[(usize)b]:
+                    continue
                 elif ra != rb:
                     self.group[(usize)ra] = rb
 

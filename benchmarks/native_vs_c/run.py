@@ -29,6 +29,7 @@ CASES = {
     "matrix_product": (96 * 96, 10),
     "vector_normals": (3 * 87381, 10),
     "bit_decode": (1048576, 10),
+    "number_scan": (1048576, 10),
 }
 
 
@@ -72,7 +73,7 @@ def main():
     cpu = "neon" if arm else "v1"
     architecture = "-march=armv8-a" if arm else "-march=x86-64"
     common = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-ffp-contract=off", architecture]
-    variants = [f"base-{level}" for level in range(4)] + ["c-O3", "c-scalar"]
+    variants = [f"base-{level}" for level in range(4)] + ["base-c", "c-O3", "c-scalar"]
     binaries = {name: out / name for name in variants}
     build_commands = []
     source_hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
@@ -101,6 +102,15 @@ def main():
                    "-o", binaries[f"base-{level}"]])
             build([args.base.resolve(), "build", SOURCE / "kernels.lucb", "--native",
                    "--cpu", cpu, "--opt", level, "--lib", "--emit=asm", "-o", out / f"base-{level}.s"])
+        # Base's C backend, as `--backend=c --release` builds it: the same kernels through
+        # the emitted C and the C compiler, so a C-release regression shows as a row
+        library = out / "kernels-c"
+        build([args.base.resolve(), "build", SOURCE / "kernels.lucb", "--backend=c", "--release",
+               "--lib", "-o", library])
+        if library.with_suffix(".h").read_bytes() != (out / "kernels.h").read_bytes():
+            raise RuntimeError("the C backend's exported C interface differs from the native one")
+        build([args.cc, out / "driver.o", library.with_suffix(".a"), "-lm", "-pthread",
+               "-o", binaries["base-c"]])
         for name in ("c-O3", "c-scalar"):
             flags = [*common, "-O3"]
             if name == "c-scalar":
@@ -130,7 +140,7 @@ def main():
                                 for name in variants]
                 if len(set(observations)) != 1:
                     raise RuntimeError(f"checksum disagreement: {kernel}, {seed}, {size}: {observations}")
-        print(f"verified {kernel}: six variants, three seeds, three sizes", flush=True)
+        print(f"verified {kernel}: {len(variants)} variants, three seeds, three sizes", flush=True)
     if args.verify_only:
         return
 
@@ -180,7 +190,8 @@ def main():
                                        samples=rows, summary=summary)
         (out / "results.json").write_text(json.dumps(record, indent=2) + "\n")
         ratio = summary["base-3"]["median_ns"] / summary["c-O3"]["median_ns"]
-        print(f"{kernel}: native opt 3 / C -O3 = {ratio:.3f}x elapsed time", flush=True)
+        through_c = summary["base-c"]["median_ns"] / summary["c-O3"]["median_ns"]
+        print(f"{kernel}: native opt 3 / C -O3 = {ratio:.3f}x, C backend release / C -O3 = {through_c:.3f}x elapsed time", flush=True)
     print(f"results: {out / 'results.json'}")
 
 

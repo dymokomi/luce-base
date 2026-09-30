@@ -190,10 +190,6 @@ void lb_trap_two(const char* message, const char* detail) {
 
 _Thread_local const char* lb_pos = "";
 
-void lb_restore_pos(const char** saved) {
-    lb_pos = *saved;
-}
-
 static LB_NORETURN void finish_trap(void) {
     // `LB_TRACE=1` in the environment adds the C frames, for finding a trap in a C build
     if (getenv("LB_TRACE") != NULL) {

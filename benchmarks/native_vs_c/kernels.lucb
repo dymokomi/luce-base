@@ -2,6 +2,7 @@
 ## measurement driver identical and prevents whole-program constant folding.
 import geometry
 import memory
+import strings
 
 export func integer_mix(iterations: usize, seed: u64) -> u64:
     var value = seed
@@ -137,5 +138,20 @@ export func bit_decode(data: const u8[], table: const u32[], rounds: usize) -> u
             acc >>= (u64)(e & 15)
             bits = bits -% (e & 15)
             total = total +% (u64)(e >> 4)
+        round += 1
+    return total
+
+## Numbers as a usda array or a JSON document writes them, `12.5, -0.375, 0.1234567890123456`,
+## read back and summed: std's strings.scan_f64 against the C library's strtod.
+export func number_scan(text: const u8[], rounds: usize) -> f64:
+    var total: f64 = 0.0
+    var round: usize = 0
+    while round < rounds:
+        var at: usize = 0
+        while at < text.length:
+            let (value, used) = strings.scan_f64(text[at..]) catch failure:
+                recover (0.0, text.length)
+            total += value
+            at += used + 2
         round += 1
     return total

@@ -4226,10 +4226,10 @@ pub struct Lowerer:
             return try self.format_call(buf, msg)
         if name == "assert":
             let cond = arg else return try self.fail(e, "no condition")
-            let c = try self.value(cond, types.bool_id)
             let ok = self.f.label()
             let bad = self.f.label()
-            try self.f.branch(c.ref, ok, bad)
+            # `and`/`or` branch on each comparison, as an `if` does
+            try self.branch_on(cond, ok, bad)
             try self.f.place_label(bad)
             # the text is as long as the condition's source, however long that is
             let where = try assert_text(e.text, "")

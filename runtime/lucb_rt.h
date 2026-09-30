@@ -35,7 +35,11 @@
 /* The statement the thread is running, `file:line:column`, set by the code before each
    statement and restored when a function returns: what a trap names (§11.5). */
 extern _Thread_local const char* lb_pos;
-void lb_restore_pos(const char** saved);
+/* inline, so that a function the C compiler expands where it is called (`memory.read[T]`)
+   leaves two stores of the position behind, not a call */
+static inline void lb_restore_pos(const char** saved) {
+    lb_pos = *saved;
+}
 LB_NORETURN void lb_trap(const char* message);
 LB_NORETURN void lb_trap_two(const char* message, const char* detail);
 void lb_pause(void);
