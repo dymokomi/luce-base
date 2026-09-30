@@ -91,3 +91,57 @@ jobs:
             luce-base/build/fuzz/
             luce-base/build/hardware-skip.txt
           retention-days: 14
+  stress:
+    # every fuzzing generator on x86-64, for a bounded time, and the compile budget: real
+    # packages built for every target within a time and a memory, so a compiler that hangs
+    # or grows without bound on them fails here rather than as a dead runner elsewhere
+    name: Fuzz and compile budget (x86_64-linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: luce-base
+    env:
+      CC: clang
+      CXX: clang++
+      LUCE_CI_HOST: x86_64-linux
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: luce-base
+      - name: Read the library pin
+        id: pins
+        run: echo "std=$(cat bootstrap/STD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          repository: dymokomi/luce-std
+          ref: ${{ steps.pins.outputs.std }}
+          path: luce-std
+      - name: Fetch the packages the budget builds
+        working-directory: .
+        run: |
+          for repo in luce-js luce-regex luce-compress luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-browser-engine; do
+            git clone -q --depth 1 "https://github.com/dymokomi/$repo" "$repo"
+          done
+      - name: Build pinned seed
+        run: bash tools/ci_dependencies.sh
+      - name: Select Clang for generated C
+        run: |
+          mkdir -p "$RUNNER_TEMP/luce-bin"
+          ln -s "$(command -v clang)" "$RUNNER_TEMP/luce-bin/cc"
+          echo "$RUNNER_TEMP/luce-bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: ./build.sh
+      - name: Compile budget
+        run: python3 tools/compile_budget.py --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/luce_browser_engine/web/module.lucb
+      - name: Differential fuzz, every generator, 20 minutes
+        run: python3 tools/fuzz.py --seed ${{ github.run_number }} --minutes 20 --mutations 400 --programs 60 --trap-programs 40 --packages 12 --mem-programs 24 --atomic-programs 12 --litmus-programs 8 --width-programs 60
+      - name: Retain the findings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: luce-base-stress-${{ github.sha }}
+          path: |
+            luce-base/build/fuzz/
+          retention-days: 14

@@ -76,6 +76,8 @@ jobs:
         run: |
           python tools/test_windows.py --suite samples --c
           python tools/fuzz.py --gate
+      - name: Differential fuzz, every generator, 15 minutes
+        run: python tools/fuzz.py --seed ${{ github.run_number }} --minutes 15 --mutations 200 --programs 30 --trap-programs 20 --packages 6 --mem-programs 12 --atomic-programs 6 --litmus-programs 4 --width-programs 30
       - name: Retain diagnostics
         if: always()
         uses: actions/upload-artifact@v7
