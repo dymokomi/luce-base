@@ -777,6 +777,11 @@ func windows_arguments() -> c.str[]:
         return windows_argument_vector
     return c.str[]((c.str*)0, 0)
 
+## The error of the fallible call that failed last on this thread, as the native backends
+## pass it: a failing function leaves its error here and returns its flag set, and `try`
+## passes the flag up with the error left where it is (§11.2's representation).
+pub local var failure: Error
+
 ## A failed `main`: its error on stderr, exit status 1.
 pub func main_failed(code: i32, message: str) -> i32:
     var bytes: u8[1024] = ---

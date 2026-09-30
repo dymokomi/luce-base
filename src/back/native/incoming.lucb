@@ -62,12 +62,25 @@ pub func sequence(sources: const u8[], destinations: const u8[]) -> list.List[St
                 left -= 1
                 moved = true
         if not moved:
-            # every pending destination is still read: a cycle; park the first's argument
+            # every pending destination is still read: the moves wait on a cycle. The one
+            # that reads the first pending move's destination parks its argument, which lets
+            # that move go and the cycle unwind; parking a move nobody waits on (the head of
+            # a chain that leads into the cycle) would free nothing, and the next round would
+            # be stuck the same way for ever
+            var first = n
             for k in 0..<n:
                 if pending[k]:
-                    try steps.push(Step(index = u32(k), park = true, parked = false))
-                    parked[k] = true
+                    first = k
                     break
+            var blocker = n
+            for k in 0..<n:
+                if k != first and pending[k] and not parked[k] and sources[k] == destinations[first]:
+                    blocker = k
+                    break
+            # a move reads every pending destination, or none would be stuck
+            assert(blocker != n)
+            try steps.push(Step(index = u32(blocker), park = true, parked = false))
+            parked[blocker] = true
     return steps
 
 ## Whether a pending move other than `k`, still reading its argument, reads `register`.
@@ -107,3 +120,9 @@ test "a parallel copy reads every argument before it is overwritten, through a c
         var swap = try sequence(two[0..<2], back[0..<2])
         let swapped = simulate(two[0..<2], back[0..<2], swap.span())
         assert(swapped[0] == 1 and swapped[1] == 0)
+        # the first move waits on a swap it is not part of: 5 -> 0 wants register 0, which
+        # the swap 0 -> 1, 1 -> 0 still reads; parking the 5 would free nothing
+        let chained: u8[3] = [5, 0, 1]
+        let into: u8[3] = [0, 1, 0]
+        var chain = try sequence(chained[0..<3], into[0..<3])
+        assert(chain.count <= 5)

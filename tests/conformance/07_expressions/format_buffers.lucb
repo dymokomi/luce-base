@@ -1,0 +1,42 @@
+## A formatted string lowers to appends on its sink (§5.5), through a buffer its
+## statement owns: a later statement may use the same bytes, and a statement left early by
+## `break` or `continue` from a handler gives its buffer back all the same. The native
+## backends keep such a buffer below the frame only while its statement runs, so a recursive
+## function whose rare path formats text keeps none in every frame of the recursion; these
+## read values back across such statements, in an eight-kilobyte frame and a deep recursion.
+let bad = ErrorCode.package(1)
+
+noinline func describe(n: i64) -> str!:
+    if n > 5:
+        error(bad, "too large")
+    return "fine"
+
+noinline func big(n: i64) -> i64:
+    var table: i64[1000] = ---
+    for i in 0..<1000:
+        table[i] = (i64)i * n
+    var total: i64 = 0
+    for i in 0..<10:
+        let d = describe((i64)i) catch failure:
+            print(f"at {i}: {failure.message} (table {table[i]})")
+            if i > 7:
+                break
+            continue
+        print(f"{i} {d} {table[i * 3]}")
+        total += table[i]
+    return total
+
+noinline func deep(n: i64) -> i64:
+    if n == 0:
+        return 0
+    if n % 97 == 0:
+        print(f"deep {n}")
+    return 1 + deep(n - 1)
+
+pub func main(arguments: str[]) -> i32:
+    let a = big(3)
+    let b = big(5)
+    print(f"big {a} {b}")
+    let d = deep(300)
+    print(f"deep {d}")
+    return 0

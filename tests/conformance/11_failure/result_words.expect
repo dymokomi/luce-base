@@ -1,0 +1,12 @@
+-1: negative
+-1 -> -1
+2: two
+2 -> -1
+5 -> 5
+7: seven
+7 -> -1
+pair 4000000028 3
+three 11 22 33
+kept: negative
+odd 4 9 -9 3 1.5 2199023255552 2
+recovered 0 6

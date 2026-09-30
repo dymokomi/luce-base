@@ -73,6 +73,10 @@ pub func lanes_signed(shape: u32) -> bool:
 pub func vector_bytes(shape: u32) -> u32:
     return lane_bits(shape) * lane_count(shape) // 8
 
+## The bytes of one level of a function's dynamic area (`Op.reserve`): a format buffer's
+## 1024 characters and its 24-byte state, to sixteen.
+pub let level_bytes: u32 = 1056
+
 ## Whether `op` ends a basic block: control leaves through it, or never returns.
 pub func is_terminator(op: Op) -> bool:
     return op == Op.jmp or op == Op.jnz or op == Op.switch_ or op == Op.ret or op == Op.trap_
@@ -219,11 +223,18 @@ pub enum Op as u8:
     fill = 83
     ## `call`: `a` is the callee, arguments follow in the function's argument list
     call = 90
+    ## `dst = word extra`: word `extra` of the result of the call just before, which comes
+    ## back in registers (`CallInfo.result_words`); a call's words follow it directly, one
+    ## `word` each at most, and the generator moves them all out as the call returns.
+    ## `extra2` is 1 for a failure flag, which is 0 or 1.
+    word = 92
     ## `dst = phi` at a block's head: the value from each predecessor, in `phi_args` from
     ## `extra` for `extra2` entries. Only the optimiser's passes see phis: `dessa` turns
     ## them into copies before a generator does.
     phi = 91
-    ## control: `label extra`, `jmp extra`, `jnz a, extra (then), value (else)`, `ret [a]`
+    ## control: `label extra`, `jmp extra`, `jnz a, extra (then), value (else)`, `ret [a]`;
+    ## a `ret` with `extra2` words returns the arguments from index `extra` of the
+    ## function's `args` as the words of a private result (`Function.result_private`)
     label = 100
     jmp = 101
     jnz = 102
@@ -293,6 +304,10 @@ pub enum Op as u8:
     ## `fma dst = a * b + c`, rounded once (`mul_add`, §7.2): `c` is the argument at index
     ## `extra2`; `extra` is a vector's lane shape and 0 for a scalar of class `cls`
     fma = 162
+    ## `reserve extra`: from here the dynamic area below the fixed frame holds `extra`
+    ## levels of `level_bytes` each (0: none), and the stack pointer is below them, so the
+    ## calls made meanwhile leave them be; a statement's format buffers live in its levels.
+    reserve = 107
     ## The frame pointer of the running function, for the debugger.
     frame = 200
     ## Inline assembly operands: `set_reg a -> named register b` before an `asm` block,
@@ -396,6 +411,15 @@ pub struct CallInfo:
     pub var result_slot: u32
     ## The result aggregate's shape (1-based), 0 for none.
     pub var result_shape: u32
+    ## Whether the result comes back in the program's own convention rather than the C one:
+    ## a fallible result of at most four words, in the first four integer result registers
+    ## (x0-x3, or rax, rdx, rcx and r8), never through a hidden pointer. Nothing outside the
+    ## program calls a function whose result is fallible (§17.6's status form wraps it).
+    pub var result_private: bool = false
+    ## Whether the private result's words are left in their registers for the `word`
+    ## instructions right after the call, which store them to `result_slot`: the call
+    ## itself writes no memory for its result.
+    pub var result_words: bool = false
 
 ## The jump table of a `switch`: its labels are `jump_labels[start ..< start + count]`,
 ## entry `k` for the value `low + k`.
@@ -413,6 +437,11 @@ pub struct Slot:
     pub var size: u32
     ## The slot's alignment.
     pub var align: u32
+    ## 0 for a slot of the fixed frame; `k` for one in level `k` of the dynamic area below
+    ## it (`Op.reserve`), at `offset` bytes into the level.
+    pub var level: u32 = 0
+    ## Where in its level a dynamic slot starts.
+    pub var offset: u32 = 0
 
 ## A parameter as the function receives it.
 pub struct Param:
@@ -558,6 +587,8 @@ pub struct Function:
     pub var jump_labels: list.List[u32]
     ## How many labels have been handed out.
     pub var labels: u32
+    ## The most levels the dynamic area below the frame holds (`Op.reserve`).
+    pub var dynamic_levels: u32 = 0
     ## Whether the function returns a value.
     pub var has_result: bool
     ## The result's register class.
@@ -570,6 +601,8 @@ pub struct Function:
     pub var result_type: u32
     ## The result aggregate's shape (1-based), 0 for none.
     pub var result_shape: u32
+    ## Whether the result goes back in the program's own convention (CallInfo.result_private).
+    pub var result_private: bool = false
     ## Whether the function is variadic.
     pub var variadic: bool
     ## The attributes of §9.8 that reach the object file.
@@ -610,6 +643,15 @@ pub struct Function:
         # an aggregate that travels in two registers lands as two words
         let size = 16 if wanted > 8 and wanted < 16 else wanted
         try self.slots.push(Slot(size = size if size > 0 else 1, align = align if align > 0 else 1))
+        return u32(self.slots.count - 1)
+
+    ## A slot of `size` bytes at `offset` into level `level` of the dynamic area: the
+    ## stack pointer moves below it while the level is reserved, rather than the fixed
+    ## frame keeping its bytes for the whole call (a format buffer of an error path in a
+    ## recursive function).
+    pub mutating func dynamic_slot(level: u32, offset: u32, size: u32, align: u32) -> u32!:
+        try self.slots.push(Slot(size = size, align = align, level = level, offset = offset))
+        self.dynamic_levels = level if level > self.dynamic_levels else self.dynamic_levels
         return u32(self.slots.count - 1)
 
     ## A fresh label number.
@@ -808,6 +850,8 @@ pub func argument_range(f: Function*, x: Instr) -> (u32, u32):
         return ((u32)x.b.value, 2)
     if x.op == Op.fma:
         return (x.extra2, 1)
+    if x.op == Op.ret and x.extra2 > 0:
+        return (x.extra, x.extra2)
     return (0, 0)
 
 ## The class a scalar of `size` bytes uses; floats are chosen by the caller.

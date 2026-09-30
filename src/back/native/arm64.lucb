@@ -22,6 +22,7 @@ import back.native.dwarf
 import back.native.frame
 import back.native.regalloc
 import back.native.incoming
+import back.native.levels
 import back.native.selection
 import back.ir.ir
 import back.target as build_target
@@ -68,6 +69,13 @@ pub struct Generator:
     ## How far sp is below the frame's bottom while a call sequence has moved it; frame
     ## operands relative to sp add it back.
     var sp_shift: u64
+    ## The index of the instruction being emitted, for a call to find its `word`s after it.
+    var at: usize = 0
+    ## How far sp is below the fixed frame for the dynamic area's levels reserved at the
+    ## instruction being emitted (`levels`); frame operands relative to sp add it back.
+    var dynamic_shift: u64 = 0
+    ## By label, the loops' heads of the function being emitted (`selection.loop_heads`).
+    var loop_heads: bool[]
 
     ## A generator for `program_unit`, targeting `os` with the given C symbol prefix.
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
@@ -151,12 +159,12 @@ pub struct Generator:
     func frame_fits(offset: u64, width: u64) -> bool:
         if offset > self.fr.size:
             return false
-        let n = self.fr.size - offset + self.sp_shift
+        let n = self.fr.size - offset + self.sp_shift + self.dynamic_shift
         return n % width == 0 and n // width <= 4095
 
     mutating func frame_operand(offset: u64) -> !:
         try self.put("[sp, #")
-        try self.put_u64(self.fr.size - offset + self.sp_shift)
+        try self.put_u64(self.fr.size - offset + self.sp_shift + self.dynamic_shift)
         try self.put("]")
 
     ## `reg` stored to or loaded from the frame home `offset`: through sp when the offset
@@ -677,7 +685,7 @@ pub struct Generator:
         else:
             try self.load_immediate("x16", (i64)self.fr.size)
             try self.line("sub sp, sp, x16")
-        if self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0:
+        if self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0 and not self.f.result_private:
             try self.frame_address("x16", self.fr.indirect_home)
             try self.line("str x8, [x16]")
         try self.save_callee_saved()
@@ -689,9 +697,14 @@ pub struct Generator:
         self.f = &self.program_unit.functions.items[index]
         self.fr.reserved = 0
         self.reserve_asm_registers()
+        try selection.canonical_labels(self.f)
         try self.fr.plan(self.f)
         self.crossing = 0
-        try self.fr.layout(self.f, 16, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0)
+        var entry = try selection.entry_loads(self.f)
+        defer free(entry)
+        let straight = try self.straight_params(entry)
+        defer free(straight)
+        try self.fr.layout(self.f, 0, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0 and not self.f.result_private, straight)
         try self.object_format.function_start(&self.out, self.f)
         if self.f.naked:
             # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
@@ -703,41 +716,32 @@ pub struct Generator:
             try self.leave_section()
             return
         try self.open_frame()
-        var entry = try selection.entry_loads(self.f)
-        defer free(entry)
         var moves = try list.List[incoming.Move].create(8)
         defer moves.destroy()
         try self.receive_params(entry, &moves)
-        var received = try self.receive_directly(&moves)
-        defer free(received)
         var uses = try selection.uses(self.f)
         defer free(uses)
+        var received = try self.receive_directly(&moves, uses)
+        defer free(received)
         var zero_upper = try selection.zero_extended(self.f, entry)
         defer free(zero_upper)
         self.zero_upper = zero_upper
+        var dynamic = try levels.over(self.f)
+        defer dynamic.release()
+        self.dynamic_shift = 0
+        var heads = try selection.loop_heads(self.f)
+        defer free(heads)
+        self.loop_heads = heads
         var i: usize = 0
         while i < self.f.instrs.count:
             if let dw = self.dw:
                 try dw.mark(&self.out, self.f, &self.fr, index, i)
+            self.dynamic_shift = (u64)dynamic.before[i] * (u64)ir.level_bytes
             if received[i]:
                 i += 1
                 continue
             if selection.branch(self.f, i, uses, true):
-                if let dw = self.dw:
-                    # the fused branch's own line and labels, ahead of the pair
-                    try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
-                let branch = self.f.instrs.get(i + 1)
-                var comparison = self.f.instrs.get(i)
-                let next = selection.label_at(self.f, i + 2)
-                # jumping when the comparison fails: the opposite comparison of integers,
-                # the opposite condition of floats, true when either is a NaN as `not` is
-                var negate = false
-                if next == branch.extra:
-                    if ir.is_float_class(comparison.cls):
-                        negate = true
-                    else:
-                        comparison.op = selection.inverse(comparison.op)
-                try self.comparison(comparison, branch, next, negate)
+                try self.branch_pair(i, index)
                 i += 2
                 continue
             if let fused = selection.offset_access(self.f, i, uses):
@@ -756,9 +760,14 @@ pub struct Generator:
                 i += 2
                 continue
             try self.save_crossing(i)
+            self.at = i
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             try self.restore_crossing(i)
+            if dynamic.settle[i]:
+                # edges bring different levels: sp goes below the most of them
+                try self.reserve_levels(dynamic.before[i + 1])
             i += 1
+        self.loop_heads = heads[0..<0]
         if let dw = self.dw:
             try dw.mark(&self.out, self.f, &self.fr, index, i)
             if self.f.debug or self.f.symbols:
@@ -772,6 +781,24 @@ pub struct Generator:
         if self.f.debug:
             try self.describe_frame()
         try self.leave_section()
+
+    ## The comparison at `i` and the branch on it after, as one conditional branch.
+    mutating func branch_pair(i: usize, index: usize) -> !:
+        if let dw = self.dw:
+            # the fused branch's own line and labels, ahead of the pair
+            try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+        let branch = self.f.instrs.get(i + 1)
+        var comparison = self.f.instrs.get(i)
+        let next = selection.label_at(self.f, i + 2)
+        # jumping when the comparison fails: the opposite comparison of integers, the
+        # opposite condition of floats, true when either is a NaN as `not` is
+        var negate = false
+        if next == branch.extra:
+            if ir.is_float_class(comparison.cls):
+                negate = true
+            else:
+                comparison.op = selection.inverse(comparison.op)
+        try self.comparison(comparison, branch, next, negate)
 
     ## `lbd_<name>`: the function's name and source, then each named local's name, type
     ## spelling, distance below the frame pointer, and size; every text is a `str`.
@@ -814,6 +841,31 @@ pub struct Generator:
         try d.put("\n")
 
     ## Store the incoming arguments into their slots.
+    ## By slot, the parameters `receive_params` moves straight from their argument registers
+    ## into their entry loads' results (`incoming`): their slots are never written, so they
+    ## need no home. It walks the registers as `receive_params` does, for a function whose
+    ## parameters are all scalars; with an aggregate among them, every slot keeps its home.
+    func straight_params(entry: u32[]) -> bool[]!:
+        var straight = try alloc bool[self.f.slots.count + 1]
+        for k in 0..<straight.length:
+            straight[k] = false
+        for p in self.f.params.span():
+            if p.size != 0:
+                return straight
+        var next_int: u32 = 0
+        var next_float: u32 = 0
+        for i in 0..<self.f.params.count:
+            let p = self.f.params.get(i)
+            let moved = self.fr.slot_regs.get((usize)p.slot) == 0 and entry[i] != 0 and p.cls != ir.Class.h
+            if ir.is_float_class(p.cls):
+                if next_float < 8:
+                    straight[(usize)p.slot] = moved
+                    next_float += 1
+            elif next_int < 8:
+                straight[(usize)p.slot] = moved
+                next_int += 1
+        return straight
+
     mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         var next_int: u32 = 0
         var next_float: u32 = 0
@@ -992,7 +1044,7 @@ pub struct Generator:
     ## entry loads' results as one parallel copy (`incoming`); answers which instructions
     ## that leaves with nothing to do. x16 parks an argument to break a cycle; x17 carries
     ## a value to a frame home, all of which are written before any argument is parked.
-    mutating func receive_directly(moves: list.List[incoming.Move]*) -> bool[]!:
+    mutating func receive_directly(moves: list.List[incoming.Move]*, uses: const u32[]) -> bool[]!:
         var received = try alloc bool[self.f.instrs.count + 1]
         for k in 0..<received.length:
             received[k] = false
@@ -1006,6 +1058,10 @@ pub struct Generator:
             sources[k] = incoming.no_argument
             destinations[k] = incoming.no_argument
             let n = self.f.instrs.get((usize)m.at)
+            if (usize)n.dst < uses.length and uses[(usize)n.dst] == 0:
+                # an unread parameter: its register may be another's, which a copy of this
+                # one into it would overwrite
+                continue
             if m.float:
                 # no float argument register is ever a temporary's
                 let arrived = d_arguments[(usize)m.argument] if n.cls == ir.Class.d else s_arguments[(usize)m.argument]
@@ -1023,7 +1079,7 @@ pub struct Generator:
         defer steps.destroy()
         for step in steps.span():
             let m = moves.get((usize)step.index)
-            if m.float:
+            if m.float or sources[(usize)step.index] == incoming.no_argument:
                 continue
             if step.park:
                 try self.line3("mov x16, ", argument_names[(usize)m.argument], "")
@@ -1067,6 +1123,9 @@ pub struct Generator:
             .dbg:
                 discard(0)
             .label:
+                if (usize)n.extra < self.loop_heads.length and self.loop_heads[(usize)n.extra]:
+                    # a loop starts on a sixteen-byte boundary
+                    try self.put("\n    .p2align 4")
                 try self.put("\n")
                 try self.label_name(n.extra)
                 try self.put(":")
@@ -1077,15 +1136,21 @@ pub struct Generator:
                 try self.label_name(n.extra)
             .jnz:
                 let c = try self.source(n.a, n.cls, "x9" if n.cls == ir.Class.l else "w9")
-                try self.line("cbnz ")
-                try self.put(c)
-                try self.put(", ")
+                # into whichever target comes next, one branch to the other
+                if n.extra == next_label:
+                    try self.line3("cbz ", c, ", ")
+                    try self.label_name(n.extra2)
+                    return
+                try self.line3("cbnz ", c, ", ")
                 try self.label_name(n.extra)
-                try self.line("b ")
-                try self.label_name(n.extra2)
+                if n.extra2 != next_label:
+                    try self.line("b ")
+                    try self.label_name(n.extra2)
             .switch_:
                 try self.jump_table(n)
             .ret:
+                if n.extra2 > 0:
+                    try self.return_words(n)
                 try self.return_value(n)
             .copy:
                 if n.cls == ir.Class.v:
@@ -1256,6 +1321,11 @@ pub struct Generator:
                 try self.symbol("memset")
             .call:
                 try self.call(n)
+            .word:
+                # moved out by the call before it (`take_words`)
+                discard(0)
+            .reserve:
+                try self.reserve_levels(n.extra)
             .trap_:
                 if n.b.kind == ir.RefKind.text:
                     # the position first, then the reason (§11.5)
@@ -2198,7 +2268,7 @@ pub struct Generator:
             i += 1
         try self.integer_arguments(info, placements)
         # a large aggregate result arrives through x8
-        if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0:
+        if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0 and not info.result_private:
             try self.frame_address("x8", self.slot_home(info.result_slot))
         if through_register:
             try self.line("ldr x17, [sp], #16")
@@ -2226,6 +2296,9 @@ pub struct Generator:
             else:
                 try self.store_temp("x0", n.dst)
             return
+        if info.result_words:
+            try self.take_words()
+            return
         let home = self.slot_home(info.result_slot)
         if self.hfa(info.result_shape) > 0:
             let each = (u64)info.result_size // (u64)self.hfa(info.result_shape)
@@ -2240,14 +2313,17 @@ pub struct Generator:
                 try self.put("]")
                 k += 1
             return
-        if info.result_size <= 16:
+        if info.result_size <= 16 or info.result_private:
             # each word is stored only as far as the value reaches: the slot is exactly the
-            # result's size, and its neighbour keeps its bytes
+            # result's size, and its neighbour keeps its bytes; a fallible result of up to
+            # four words arrives in x0-x3 (CallInfo.result_private)
             try self.frame_address("x16", home)
             let size = (u64)info.result_size
-            try self.store_low("x0", "w0", 0, size if size < 8 else 8)
-            if size > 8:
-                try self.store_low("x1", "w1", 8, size - 8)
+            var word: u64 = 0
+            while word * 8 < size:
+                let rest = size - word * 8
+                try self.store_low(x_names[result_codes[word]], w_names[result_codes[word]], word * 8, rest if rest < 8 else 8)
+                word += 1
 
     ## Exactly `width` bytes (1 to 8) of the register `x` (`w` its narrow view) to
     ## `[x16, #offset]`, nothing past them; the odd widths go in two pieces through x17.
@@ -2291,8 +2367,103 @@ pub struct Generator:
             return "d16" if n == 0 else "d17"
         return self.reg(cls, n)
 
+    ## sp below `count` levels of the dynamic area under the fixed frame (`ir.Op.reserve`),
+    ## set from x29 whatever it was.
+    mutating func reserve_levels(count: u32) -> !:
+        let below = self.fr.size + (u64)count * (u64)ir.level_bytes
+        if below <= 4095:
+            try self.line("sub sp, x29, #")
+            try self.put_u64(below)
+            return
+        try self.load_immediate("x16", (i64)below)
+        try self.line("sub sp, x29, x16")
+
+    ## The words of a private result, from x0-x3 into the `word`s right after the call at
+    ## `self.at`: those kept in the frame stored first, then the rest as one parallel copy
+    ## (`incoming`), since a word may live in another's register; x16 parks one to break
+    ## a cycle.
+    mutating func take_words() -> !:
+        var sources: u8[4] = [0, 0, 0, 0]
+        var destinations: u8[4] = [0, 0, 0, 0]
+        var targets: u8[4] = [0, 0, 0, 0]
+        var dsts: u32[4] = [0, 0, 0, 0]
+        var count: usize = 0
+        var j = self.at + 1
+        while j < self.f.instrs.count and self.f.instrs.get(j).op == ir.Op.word:
+            let w = self.f.instrs.get(j)
+            j += 1
+            if w.dst == 0 or w.extra >= 4:
+                continue
+            let narrow = w.cls == ir.Class.w
+            let code = self.fr.temp_regs.get((usize)w.dst - 1)
+            if code == 0:
+                let reg = result_codes[(usize)w.extra]
+                try self.frame_store(w_names[reg] if narrow else x_names[reg], self.temp_home(w.dst))
+                continue
+            sources[count] = u8(w.extra)
+            destinations[count] = u8(30 - code) if code >= 27 and code <= 30 else incoming.no_argument
+            targets[count] = code
+            dsts[count] = w.dst
+            count += 1
+        var steps = try incoming.sequence(sources[..<count], destinations[..<count])
+        defer steps.destroy()
+        for step in steps.span():
+            let k = (usize)step.index
+            let reg = result_codes[(usize)sources[k]]
+            if step.park:
+                try self.line3("mov x16, ", x_names[reg], "")
+                continue
+            # a word of class w moves its low half, which zeroes the upper
+            let narrow = self.f.temp_class(dsts[k]) == ir.Class.w
+            let to = w_names[(usize)targets[k]] if narrow else x_names[(usize)targets[k]]
+            let read = ("w16" if narrow else "x16") if step.parked else (w_names[reg] if narrow else x_names[reg])
+            if to != read or narrow:
+                try self.line4("mov ", to, ", ", read)
+
+    ## A `ret` of a private result's words, arrived its arguments into x0-x3: those living in
+    ## registers as one parallel copy, x17 parking one to break a cycle; then the rest,
+    ## loaded or formed straight into theirs.
+    mutating func return_words(n: ir.Instr) -> !:
+        let count = (usize)n.extra2 if n.extra2 <= 4 else 4
+        var reads: str[4] = ["", "", "", ""]
+        var pending: bool[4] = [false, false, false, false]
+        for k in 0..<count:
+            let v = self.f.args.get((usize)n.extra + k).value
+            if v.kind == ir.RefKind.temp and not self.fr.is_rematerialised(v.index):
+                let code = self.fr.temp_regs.get((usize)v.index - 1)
+                if code != 0 and not self.fr.float_code(code):
+                    reads[k] = x_names[(usize)code]
+                    pending[k] = true
+        var left = true
+        while left:
+            left = false
+            var moved = false
+            for k in 0..<count:
+                if not pending[k]:
+                    continue
+                left = true
+                let target = x_names[result_codes[k]]
+                var blocked = false
+                for other in 0..<count:
+                    if other != k and pending[other] and reads[other] == target:
+                        blocked = true
+                if not blocked:
+                    if reads[k] != target:
+                        try self.line4("mov ", target, ", ", reads[k])
+                    pending[k] = false
+                    moved = true
+            if left and not moved:
+                for k in 0..<count:
+                    if pending[k]:
+                        try self.line3("mov x17, ", reads[k], "")
+                        reads[k] = "x17"
+                        break
+        for k in 0..<count:
+            if reads[k].length == 0:
+                try self.operand(x_names[result_codes[k]], ir.Class.l, self.f.args.get((usize)n.extra + k).value)
+
     mutating func return_value(n: ir.Instr) -> !:
-        if self.f.has_result:
+        if self.f.has_result and n.extra2 == 0:
             if self.f.result_size == 0:
                 # straight into the result register, from wherever the value lives
                 if self.f.result_cls == ir.Class.s:
@@ -2315,12 +2486,14 @@ pub struct Generator:
                     try self.put_u64((u64)k * each)
                     try self.put("]")
                     k += 1
-            elif self.f.result_size <= 16:
+            elif self.f.result_size <= 16 or self.f.result_private:
                 try self.address_operand("x16", n.a)
                 let size = (u64)self.f.result_size
-                try self.load_low("x0", "w0", 0, size if size < 8 else 8)
-                if size > 8:
-                    try self.load_low("x1", "w1", 8, size - 8)
+                var word: u64 = 0
+                while word * 8 < size:
+                    let rest = size - word * 8
+                    try self.load_low(x_names[result_codes[word]], w_names[result_codes[word]], word * 8, rest if rest < 8 else 8)
+                    word += 1
             else:
                 try self.address_operand("x1", n.a)
                 try self.frame_address("x16", self.fr.indirect_home)
@@ -2462,6 +2635,8 @@ pub struct Generator:
 ## caller-saved x14, x15, x12, x13 and x7 down to x0 (the argument registers, which a
 ## call's parallel move fills last), 31–38 the caller-saved d24–d31, which a vector
 ## temporary sees as q24–q31.
+## The register codes of x0, x1, x2 and x3: where a result of up to four words comes back.
+let result_codes: usize[4] = [30, 29, 28, 27]
 let x_names: str[39] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"]
 let w_names: str[39] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"]
 let h_names: str[39] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31"]

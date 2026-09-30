@@ -22,6 +22,7 @@ import back.native.dwarf
 import back.native.frame
 import back.native.regalloc
 import back.native.incoming
+import back.native.levels
 import back.native.selection
 import back.ir.ir
 import back.target as build_target
@@ -51,6 +52,8 @@ pub struct Generator:
     var index: usize
     ## The instruction being emitted, for an asm block to see the operands around it.
     var at: usize
+    ## By label, the loops' heads of the function being emitted (`selection.loop_heads`).
+    var loop_heads: bool[]
     ## Below x86-64-v3 there is no F16C: halves convert through the unit's own routines,
     ## emitted once at its end when a function needed them.
     var half_routines: bool
@@ -152,10 +155,15 @@ pub struct Generator:
         try self.put(", ")
         try self.put(reg)
 
-    ## `-offset(%rbp)`: the home `offset` bytes below the frame pointer.
+    ## `-offset(%rbp)`: the home `offset` bytes below the frame pointer. On Windows %rbp is
+    ## the fixed frame's bottom, and a slot of the dynamic area lies below it.
     mutating func frame_operand(offset: u64) -> !:
         if self.convention.windows:
-            try self.put_u64(self.fr.size - offset)
+            if offset > self.fr.size:
+                try self.put("-")
+                try self.put_u64(offset - self.fr.size)
+            else:
+                try self.put_u64(self.fr.size - offset)
         else:
             try self.put("-")
             try self.put_u64(offset)
@@ -201,10 +209,12 @@ pub struct Generator:
     ## into their entry loads' results as one parallel copy (`incoming`); answers which
     ## instructions that leaves with nothing to do. %r11 parks an argument to break a
     ## cycle; %rax carries a value to a frame home, all written before any is parked.
-    mutating func receive_directly(moves: list.List[incoming.Move]*) -> bool[]!:
+    mutating func receive_directly(moves: list.List[incoming.Move]*, uses: const u32[]) -> bool[]!:
         var received = try alloc bool[self.f.instrs.count + 1]
         for k in 0..<received.length:
             received[k] = false
+        # the integer argument registers: rcx, rdx, r8 and r9 on Windows
+        let names = windows_arguments[0..<4] if self.convention.windows else argument_names[0..<6]
         var sources = try alloc u8[moves.count + 1]
         defer free(sources)
         var destinations = try alloc u8[moves.count + 1]
@@ -215,6 +225,10 @@ pub struct Generator:
             sources[k] = incoming.no_argument
             destinations[k] = incoming.no_argument
             let n = self.f.instrs.get((usize)m.at)
+            if (usize)n.dst < uses.length and uses[(usize)n.dst] == 0:
+                # an unread parameter: its register may be another's, which a copy of this
+                # one into it would overwrite
+                continue
             let code = self.fr.temp_regs.get((usize)n.dst - 1)
             if m.float:
                 # no float argument register is ever a temporary's
@@ -227,19 +241,19 @@ pub struct Generator:
             sources[k] = m.argument
             if code != 0:
                 let home = class_name(code, ir.Class.l)
-                for a in 0..<argument_names.length:
-                    if argument_names[a] == home:
+                for a in 0..<names.length:
+                    if names[a] == home:
                         destinations[k] = u8(a)
         var steps = try incoming.sequence(sources[..<moves.count], destinations[..<moves.count])
         defer steps.destroy()
         for step in steps.span():
             let m = moves.get((usize)step.index)
-            if m.float:
+            if m.float or sources[(usize)step.index] == incoming.no_argument:
                 continue
             if step.park:
-                try self.line3("movq ", argument_names[(usize)m.argument], ", %r11")
+                try self.line3("movq ", names[(usize)m.argument], ", %r11")
                 continue
-            try self.receive_one(self.f.instrs.get((usize)m.at), "%r11" if step.parked else argument_names[(usize)m.argument])
+            try self.receive_one(self.f.instrs.get((usize)m.at), "%r11" if step.parked else names[(usize)m.argument])
         return received
 
     ## Entry load `n`'s result from the integer register `wide`: its argument's, or %r11;
@@ -558,6 +572,18 @@ pub struct Generator:
             _:
                 error(failed, "a float store into a promoted slot")
 
+    ## The comparison at `i` and the branch on it after, as one conditional jump.
+    mutating func branch_pair(i: usize, index: usize) -> !:
+        if let dw = self.dw:
+            # the fused branch's own line and labels, ahead of the pair
+            try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+        let branch = self.f.instrs.get(i + 1)
+        var comparison = self.f.instrs.get(i)
+        let next = selection.label_at(self.f, i + 2)
+        if next == branch.extra:
+            comparison.op = selection.inverse(comparison.op)
+        try self.comparison(comparison, branch, next)
+
     ## `.weak` for a weak symbol (§9.8); ELF has no directive for `used`, which only matters
     ## to a linker that discards sections, so it is left to the section's own flags.
     mutating func function(index: usize) -> !:
@@ -569,9 +595,15 @@ pub struct Generator:
         # nonvolatile there, and its arguments are staged through the shadow area)
         self.fr.reserved = 480 if self.convention.windows else 0
         self.reserve_asm_registers()
+        try selection.canonical_labels(self.f)
         try self.fr.plan(self.f)
         self.crossing = 0
-        try self.fr.layout(self.f, 176 if self.convention.windows else 0, self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape))
+        var entry = try selection.entry_loads(self.f)
+        defer free(entry)
+        let straight = try self.straight_params(entry)
+        defer free(straight)
+        try self.fr.layout(self.f, 176 if self.convention.windows else 0, self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private), straight)
+        let text_start = self.out.used
         try self.object_format.function_start(&self.out, self.f)
         if self.f.naked:
             # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
@@ -599,20 +631,23 @@ pub struct Generator:
         if self.convention.windows:
             try self.line("movq %rsp, %rbp")
             try self.unwinding.established_frame(&self.out, self.fr.size)
-        if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape):
+        if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private):
             try self.line("movq %rcx, " if self.convention.windows else "movq %rdi, ")
             try self.frame_operand(self.fr.indirect_home)
         try self.save_callee_saved()
         try self.unwinding.prologue_complete(&self.out)
-        var entry = try selection.entry_loads(self.f)
-        defer free(entry)
         var moves = try list.List[incoming.Move].create(8)
         defer moves.destroy()
         try self.receive_params(entry, &moves)
-        var received = try self.receive_directly(&moves)
-        defer free(received)
         var uses = try selection.uses(self.f)
         defer free(uses)
+        var received = try self.receive_directly(&moves, uses)
+        defer free(received)
+        var dynamic = try levels.over(self.f)
+        defer dynamic.release()
+        var heads = try selection.loop_heads(self.f)
+        defer free(heads)
+        self.loop_heads = heads
         var i: usize = 0
         while i < self.f.instrs.count:
             self.at = i
@@ -622,15 +657,7 @@ pub struct Generator:
                 i += 1
                 continue
             if selection.branch(self.f, i, uses):
-                if let dw = self.dw:
-                    # the fused branch's own line and labels, ahead of the pair
-                    try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
-                let branch = self.f.instrs.get(i + 1)
-                var comparison = self.f.instrs.get(i)
-                let next = selection.label_at(self.f, i + 2)
-                if next == branch.extra:
-                    comparison.op = selection.inverse(comparison.op)
-                try self.comparison(comparison, branch, next)
+                try self.branch_pair(i, index)
                 i += 2
                 continue
             if let fused = selection.offset_access(self.f, i, uses):
@@ -644,9 +671,18 @@ pub struct Generator:
             try self.save_crossing(i)
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             try self.restore_crossing(i)
+            if dynamic.settle[i]:
+                # edges bring different levels: %rsp goes below the most of them
+                try self.reserve_levels(dynamic.before[i + 1])
             i += 1
+        self.loop_heads = heads[0..<0]
+        try self.finish_function(index, i, text_start)
+
+    ## After function `index`'s last instruction (`end`): its debug information, unwinding
+    ## and Windows saves (its text began at `text_start`), then out of its section.
+    mutating func finish_function(index: usize, end: usize, text_start: usize) -> !:
         if let dw = self.dw:
-            try dw.mark(&self.out, self.f, &self.fr, index, i)
+            try dw.mark(&self.out, self.f, &self.fr, index, end)
             if self.f.debug or self.f.symbols:
                 try self.put("\nLdw_end_")
                 try self.put_u64((u64)index)
@@ -655,6 +691,7 @@ pub struct Generator:
             try dw.function(self.f, &self.fr, index)
         try self.unwinding.complete(&self.out)
         try self.put("\n")
+        try self.settle_windows_saves(text_start)
         if self.f.debug:
             try self.describe_frame()
         try self.object_format.leave_section(&self.out, self.f)
@@ -786,11 +823,44 @@ pub struct Generator:
             try self.store_bytes(reg, "%r10", offset, width)
 
     ## Store the incoming arguments into their slots.
+    ## By slot, the parameters `receive_params` moves straight from their argument registers
+    ## into their entry loads' results (`incoming`, System V only): their slots are never
+    ## written, so they need no home. It walks the registers as `receive_params` does, for a
+    ## function whose parameters are all scalars; otherwise every slot keeps its home.
+    func straight_params(entry: u32[]) -> bool[]!:
+        var straight = try alloc bool[self.f.slots.count + 1]
+        for k in 0..<straight.length:
+            straight[k] = false
+        if self.convention.windows:
+            # by position: the first four arguments, integer or float, in their registers
+            let hidden: usize = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
+            for i in 0..<self.f.params.count:
+                let p = self.f.params.get(i)
+                if i + hidden < 4 and p.size == 0 and p.cls != ir.Class.h and entry[i] != 0 and self.fr.slot_regs.get((usize)p.slot) == 0:
+                    straight[(usize)p.slot] = true
+            return straight
+        for p in self.f.params.span():
+            if p.size != 0:
+                return straight
+        var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
+        var next_float: u32 = 0
+        for i in 0..<self.f.params.count:
+            let p = self.f.params.get(i)
+            let moved = self.fr.slot_regs.get((usize)p.slot) == 0 and entry[i] != 0 and p.cls != ir.Class.h
+            if ir.is_float_class(p.cls):
+                if next_float < 8:
+                    straight[(usize)p.slot] = moved
+                    next_float += 1
+            elif next_int < 6:
+                straight[(usize)p.slot] = moved
+                next_int += 1
+        return straight
+
     mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         if self.convention.windows:
-            try self.receive_windows()
+            try self.receive_windows(entry, moves)
             return
-        var next_int: u32 = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
+        var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
         var next_float: u32 = 0
         var stack_offset: u64 = 16
         # a memory argument copied by memcpy (past 128 bytes) would clobber the ones left
@@ -870,7 +940,7 @@ pub struct Generator:
     ## every register argument is safely stored: the same walk over the arguments.
     mutating func copy_memory_params() -> !:
         var stack_offset: u64 = 16
-        var next_int: u32 = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
+        var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
         var next_float: u32 = 0
         var i: usize = 0
         while i < self.f.params.count:
@@ -942,6 +1012,9 @@ pub struct Generator:
             .dbg:
                 discard(0)
             .label:
+                if (usize)n.extra < self.loop_heads.length and self.loop_heads[(usize)n.extra]:
+                    # a loop starts on a sixteen-byte boundary
+                    try self.put("\n    .p2align 4")
                 try self.put("\n")
                 try self.label_name(n.extra)
                 try self.put(":")
@@ -954,13 +1027,21 @@ pub struct Generator:
                 let cls = ir.Class.l if n.cls == ir.Class.l else ir.Class.w
                 let c = try self.source(n.a, cls, self.reg(cls, 0))
                 try self.line5("testq " if cls == ir.Class.l else "testl ", c, ", ", c, "")
+                # into whichever target comes next, one jump to the other
+                if n.extra == next_label:
+                    try self.line("je ")
+                    try self.label_name(n.extra2)
+                    return
                 try self.line("jne ")
                 try self.label_name(n.extra)
-                try self.line("jmp ")
-                try self.label_name(n.extra2)
+                if n.extra2 != next_label:
+                    try self.line("jmp ")
+                    try self.label_name(n.extra2)
             .switch_:
                 try self.jump_table(n)
             .ret:
+                if n.extra2 > 0:
+                    try self.return_words(n)
                 try self.return_value(n)
             .copy:
                 if n.cls == ir.Class.v:
@@ -1085,6 +1166,11 @@ pub struct Generator:
                 try self.call_symbol("memset")
             .call:
                 try self.call(n)
+            .word:
+                # moved out by the call before it (`take_words`)
+                discard(0)
+            .reserve:
+                try self.reserve_levels(n.extra)
             .trap_:
                 if n.b.kind == ir.RefKind.text:
                     # the position first, then the reason (§11.5)
@@ -1969,33 +2055,87 @@ pub struct Generator:
 
     # mark: Calls ==============================================================================
 
-    ## Preserve Windows' additional nonvolatile registers used by shared instruction code.
-    mutating func windows_saved(restore: bool) -> !:
-        let regs: str[12] = ["%rdi", "%rsi", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+    ## Windows' nonvolatile registers beyond the allocator's (rdi, rsi and xmm6-xmm15, which
+    ## shared instruction sequences use), saved or restored where `marker` left a line, and
+    ## only those `used` marks (`settle_windows_saves`).
+    mutating func windows_saved(restore: bool, used: const bool[]) -> !:
         for i in 0..<12:
+            if not used[i]:
+                continue
             let cls = ir.Class.l if i < 2 else ir.Class.v
             let offset = (i + 1) * 8 if i < 2 else (i - 1) * 16 + 16
             if restore:
-                try self.frame_load(regs[i], cls, (u64)offset)
+                try self.frame_load(windows_nonvolatile[i], cls, (u64)offset)
             else:
-                try self.frame_store(regs[i], cls, (u64)offset)
-                try self.unwinding.saved_register(&self.out, regs[i], self.fr.size - (u64)offset, i >= 2)
+                try self.frame_store(windows_nonvolatile[i], cls, (u64)offset)
+                try self.unwinding.saved_register(&self.out, windows_nonvolatile[i], self.fr.size - (u64)offset, i >= 2)
 
-    mutating func receive_windows() -> !:
-        let hidden: usize = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
-        for i in 0..<4:
-            try self.line3("movq ", windows_arguments[i], ", ")
-            try self.put_u64(self.fr.size + (u64)(16 + i * 8))
-            try self.put("(%rbp)")
+    ## Windows x64: the function's text since `start` has a marker line where the prologue
+    ## saves, and one where each exit restores, Windows' further nonvolatile registers; the
+    ## text is scanned for the ones it names, and the markers become the saves and restores
+    ## of those alone, so a function that names none keeps its prologue to the allocator's.
+    mutating func settle_windows_saves(start: usize) -> !:
+        if not self.convention.windows or self.f.naked:
+            return
+        let length = self.out.used - start
+        var text = try alloc u8[length]
+        defer free(text)
+        memory.copy(text, self.out.bytes()[start..<self.out.used], length)
+        var used: bool[12] = [false, false, false, false, false, false, false, false, false, false, false, false]
+        var at: usize = 0
+        while at < length:
+            var end = at
+            while end < length and text[end] != '\n':
+                end += 1
+            let line = (str)text[at..<end]
+            if line != windows_save_marker and line != windows_restore_marker:
+                for i in 0..<12:
+                    used[i] = used[i] or names_register(line, (usize)i)
+            at = end + 1
+        self.out.used = start
+        at = 0
+        while at < length:
+            var end = at
+            while end < length and text[end] != '\n':
+                end += 1
+            let line = (str)text[at..<end]
+            if line == windows_save_marker or line == windows_restore_marker:
+                # each line the saves or restores put starts with its newline: end the last
+                try self.windows_saved(line == windows_restore_marker, used[0..<12])
+                try self.out.put_byte('\n')
+            else:
+                try self.out.put_bytes(text[at..<end])
+                if end < length:
+                    try self.out.put_byte('\n')
+            at = end + 1
+
+    ## Windows x64: a scalar parameter among the first four that `straight_params` marks goes
+    ## from its argument register straight to its entry load's result, by the parallel copy
+    ## `receive_directly` makes (no argument register is ever a temporary's here); every
+    ## other parameter is read from where the convention leaves it, the shadow area its
+    ## register was stored to or the caller's stack, into its slot or promoted register.
+    mutating func receive_windows(entry: u32[], moves: list.List[incoming.Move]*) -> !:
+        let hidden: usize = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
+        let straight = try self.straight_params(entry)
+        defer free(straight)
         for i in 0..<self.f.params.count:
             let p = self.f.params.get(i)
             let ordinal = i + hidden
-            if ordinal < 4 and p.size == 0 and ir.is_float_class(p.cls):
+            if ordinal >= 4:
+                continue
+            if straight[(usize)p.slot]:
+                try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(ordinal), float = p.size == 0 and ir.is_float_class(p.cls)))
+                continue
+            if p.size == 0 and ir.is_float_class(p.cls):
                 try self.line3("movsd ", float_argument_names[ordinal], ", ")
-                try self.put_u64(self.fr.size + (u64)(16 + ordinal * 8))
-                try self.put("(%rbp)")
+            else:
+                try self.line3("movq ", windows_arguments[ordinal], ", ")
+            try self.put_u64(self.fr.size + (u64)(16 + ordinal * 8))
+            try self.put("(%rbp)")
         for i in 0..<self.f.params.count:
             let p = self.f.params.get(i)
+            if straight[(usize)p.slot]:
+                continue
             let home = self.slot_home(p.slot)
             let ordinal = i + hidden
             if p.size == 0:
@@ -2022,7 +2162,7 @@ pub struct Generator:
 
     mutating func call_windows(n: ir.Instr) -> !:
         let info = self.f.calls.get((usize)n.extra)
-        let hidden = info.has_result and self.convention.in_memory(info.result_size, info.result_shape)
+        let hidden = info.has_result and self.result_in_memory(info.result_size, info.result_shape, info.result_private)
         let first: u64 = 1 if hidden else 0
         let count = (u64)info.args_count + first
         let slots = round_up((count if count > 4 else 4) * 8, 16)
@@ -2091,6 +2231,11 @@ pub struct Generator:
                 try self.store_temp("%xmm0", info.result_cls, n.dst)
             else:
                 try self.store_temp("%rax" if info.result_cls == ir.Class.l else "%eax", info.result_cls, n.dst)
+        elif info.result_words:
+            try self.take_words()
+        elif info.result_private:
+            try self.frame_address("%r10", self.slot_home(info.result_slot))
+            try self.private_words(info.result_size, true)
         else:
             try self.frame_address("%r10", self.slot_home(info.result_slot))
             try self.store_bytes("%rax", "%r10", 0, (u64)info.result_size)
@@ -2200,7 +2345,7 @@ pub struct Generator:
             try self.call_windows(n)
             return
         let info = self.f.calls.get((usize)n.extra)
-        let hidden = info.has_result and self.convention.in_memory(info.result_size, info.result_shape)
+        let hidden = info.has_result and self.result_in_memory(info.result_size, info.result_shape, info.result_private)
         var next_int: u32 = 1 if hidden else 0
         var next_float: u32 = 0
         var stack: u32 = 0
@@ -2284,9 +2429,33 @@ pub struct Generator:
             return
         if hidden:
             return
+        if info.result_words:
+            try self.take_words()
+            return
         try self.frame_address("%r10", self.slot_home(info.result_slot))
+        if info.result_private:
+            try self.private_words(info.result_size, true)
+            return
         let sse = self.convention.sse_of(info.result_cls, info.result_size, info.result_shape)
         try self.result_eightbytes(info.result_size, sse, true)
+
+    ## Whether a result goes through the hidden pointer: an aggregate the C convention
+    ## passes in memory, unless it takes the program's own (CallInfo.result_private).
+    func result_in_memory(size: u32, shape: u32, private: bool) -> bool:
+        return not private and self.convention.in_memory(size, shape)
+
+    ## The words of a fallible result of up to four words between (%r10) and rax, rdx, rcx
+    ## and r8, the program's own convention on both System V and Windows (all four are
+    ## caller-saved on both); `store` into the memory from the registers, else the reverse.
+    mutating func private_words(size: u32, store: bool) -> !:
+        var k: u32 = 0
+        while k * 8 < size:
+            let reg = private_result_registers[(usize)k]
+            if store:
+                try self.store_eightbyte(reg, k, size, false)
+            else:
+                try self.load_eightbyte(reg, "%r10", k, size, false)
+            k += 1
 
     ## The eightbytes of a small aggregate result between (%r10) and rax/rdx and xmm0/xmm1,
     ## `store` into the memory from the registers, else the reverse.
@@ -2312,14 +2481,127 @@ pub struct Generator:
                     try self.load_eightbyte(reg, "%r10", k, size, false)
             k += 1
 
+    ## %rsp below `count` levels of the dynamic area under the fixed frame (`ir.Op.reserve`),
+    ## set from %rbp whatever it was; on Windows a call's 32-byte shadow area stays below
+    ## the levels too.
+    mutating func reserve_levels(count: u32) -> !:
+        var below = (u64)count * (u64)ir.level_bytes
+        if self.convention.windows:
+            below += 32 if count > 0 else 0
+            # Windows commits the stack a guard page at a time: touch each page on the way
+            var page: u64 = 4096
+            while page < below:
+                try self.line("orq $0, -")
+                try self.put_u64(page)
+                try self.put("(%rbp)")
+                page += 4096
+        else:
+            below += self.fr.size
+        try self.line("leaq -")
+        try self.put_u64(below)
+        try self.put("(%rbp), %rsp")
+
+    ## The words of a private result, from rax, rdx, rcx and r8 into the `word`s right
+    ## after the call at `self.at`: those kept in the frame stored first, then the rest as
+    ## one parallel copy (`incoming`), since a word may live in r8, another's register;
+    ## r11 parks one to break a cycle.
+    mutating func take_words() -> !:
+        var sources: u8[4] = [0, 0, 0, 0]
+        var destinations: u8[4] = [0, 0, 0, 0]
+        var targets: u8[4] = [0, 0, 0, 0]
+        var dsts: u32[4] = [0, 0, 0, 0]
+        var count: usize = 0
+        var j = self.at + 1
+        while j < self.f.instrs.count and self.f.instrs.get(j).op == ir.Op.word:
+            let w = self.f.instrs.get(j)
+            j += 1
+            if w.dst == 0 or w.extra >= 4:
+                continue
+            let code = self.fr.temp_regs.get((usize)w.dst - 1)
+            if code == 0:
+                let arrived = private_result_narrow[(usize)w.extra] if w.cls == ir.Class.w else private_result_registers[(usize)w.extra]
+                try self.frame_store(arrived, w.cls, self.temp_home(w.dst))
+                continue
+            sources[count] = u8(w.extra)
+            destinations[count] = incoming.no_argument
+            for r in 0..<private_result_registers.length:
+                if private_result_registers[r] == q_names[(usize)code]:
+                    destinations[count] = u8(r)
+            targets[count] = code
+            dsts[count] = w.dst
+            count += 1
+        var steps = try incoming.sequence(sources[..<count], destinations[..<count])
+        defer steps.destroy()
+        for step in steps.span():
+            let k = (usize)step.index
+            let arrived = private_result_registers[(usize)sources[k]]
+            if step.park:
+                try self.line3("movq ", arrived, ", %r11")
+                continue
+            # a word of class w moves its low half, which zeroes the upper
+            if self.f.temp_class(dsts[k]) == ir.Class.w:
+                let read = "%r11d" if step.parked else private_result_narrow[(usize)sources[k]]
+                try self.line4("movl ", read, ", ", l_names[(usize)targets[k]])
+                continue
+            let to = q_names[(usize)targets[k]]
+            let read = "%r11" if step.parked else arrived
+            if to != read:
+                try self.line4("movq ", read, ", ", to)
+
+    ## A `ret` of a private result's words, arrived its arguments into rax, rdx, rcx and r8:
+    ## those living in registers as one parallel copy (only r8 is both an allocated
+    ## register and a result's), r11 parking one to break a cycle; then the rest, loaded
+    ## or formed straight into theirs.
+    mutating func return_words(n: ir.Instr) -> !:
+        let count = (usize)n.extra2 if n.extra2 <= 4 else 4
+        var reads: str[4] = ["", "", "", ""]
+        var pending: bool[4] = [false, false, false, false]
+        for k in 0..<count:
+            let v = self.f.args.get((usize)n.extra + k).value
+            if v.kind == ir.RefKind.temp and not self.fr.is_rematerialised(v.index):
+                let code = self.fr.temp_regs.get((usize)v.index - 1)
+                if code != 0 and not self.fr.float_code(code):
+                    reads[k] = q_names[(usize)code]
+                    pending[k] = true
+        var left = true
+        while left:
+            left = false
+            var moved = false
+            for k in 0..<count:
+                if not pending[k]:
+                    continue
+                left = true
+                let target = private_result_registers[k]
+                var blocked = false
+                for other in 0..<count:
+                    if other != k and pending[other] and reads[other] == target:
+                        blocked = true
+                if not blocked:
+                    if reads[k] != target:
+                        try self.line4("movq ", reads[k], ", ", target)
+                    pending[k] = false
+                    moved = true
+            if left and not moved:
+                for k in 0..<count:
+                    if pending[k]:
+                        try self.line3("movq ", reads[k], ", %r11")
+                        reads[k] = "%r11"
+                        break
+        for k in 0..<count:
+            if reads[k].length == 0:
+                try self.operand(private_result_registers[k], ir.Class.l, self.f.args.get((usize)n.extra + k).value)
+
     mutating func return_value(n: ir.Instr) -> !:
-        if self.f.has_result:
+        if self.f.has_result and n.extra2 == 0:
             if self.f.result_size == 0:
                 if ir.is_float_class(self.f.result_cls):
                     try self.operand("%xmm0", self.f.result_cls, n.a)
                 else:
                     try self.operand("%rax" if self.f.result_cls == ir.Class.l else "%eax", self.f.result_cls, n.a)
-            elif not self.convention.in_memory(self.f.result_size, self.f.result_shape):
+            elif self.f.result_private:
+                try self.address_operand("%r10", n.a)
+                try self.private_words(self.f.result_size, false)
+            elif not self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private):
                 try self.address_operand("%r10", n.a)
                 let sse = self.convention.sse_of(self.f.result_cls, self.f.result_size, self.f.result_shape)
                 try self.result_eightbytes(self.f.result_size, sse, false)
@@ -2363,7 +2645,8 @@ pub struct Generator:
 
     mutating func save_callee_saved() -> !:
         if self.convention.windows:
-            try self.windows_saved(false)
+            try self.put("\n")
+            try self.put(windows_save_marker)
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
@@ -2374,7 +2657,8 @@ pub struct Generator:
 
     mutating func restore_callee_saved() -> !:
         if self.convention.windows:
-            try self.windows_saved(true)
+            try self.put("\n")
+            try self.put(windows_restore_marker)
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
@@ -2460,7 +2744,47 @@ pub struct Generator:
         try self.put("\"")
 
 # mark: Helpers ================================================================================
+## The registers a fallible result of up to four words comes back in (private_words).
+let private_result_registers: str[4] = ["%rax", "%rdx", "%rcx", "%r8"]
+let private_result_narrow: str[4] = ["%eax", "%edx", "%ecx", "%r8d"]
 let windows_arguments: str[4] = ["%rcx", "%rdx", "%r8", "%r9"]
+
+## Windows' nonvolatile registers the allocator does not hand out, and the lines that stand
+## for their saves and restores until the function's text shows which it names.
+let windows_nonvolatile: str[12] = ["%rdi", "%rsi", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let windows_save_marker: str = "# lb: windows saves"
+let windows_restore_marker: str = "# lb: windows restores"
+
+## Whether an assembly line names Windows nonvolatile register `i`, in any width.
+func names_register(line: str, i: usize) -> bool:
+    if i == 0:
+        return has_text(line, "%rdi") or has_text(line, "%edi") or has_text(line, "%di")
+    if i == 1:
+        return has_text(line, "%rsi") or has_text(line, "%esi") or has_text(line, "%si")
+    let name = windows_nonvolatile[i]
+    var position: usize = 0
+    while position + name.length <= line.length:
+        if has_text_at(line, name, position):
+            # %xmm1 is not %xmm10: the name ends where the digits do
+            let next = position + name.length
+            if next >= line.length or line.bytes[next] < '0' or line.bytes[next] > '9':
+                return true
+        position += 1
+    return false
+
+func has_text(line: str, part: str) -> bool:
+    var position: usize = 0
+    while position + part.length <= line.length:
+        if has_text_at(line, part, position):
+            return true
+        position += 1
+    return false
+
+func has_text_at(line: str, part: str, at: usize) -> bool:
+    for k in 0..<part.length:
+        if line.bytes[at + k] != part.bytes[k]:
+            return false
+    return true
 
 ## The callee-saved registers the allocator hands out, codes 1..5, in their four widths.
 ## Register codes: 1–5 the callee-saved rbx and r12–r15; 6–9 the caller-saved argument

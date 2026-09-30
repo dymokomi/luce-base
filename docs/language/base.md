@@ -1070,7 +1070,7 @@ Evaluation remains left to right, exactly once, including named arguments in sou
 
 `T!` is a result effect, not a storable type: it cannot be a parameter, field, or element; a program that must hold a result declares an enum with a success and a failure case. `T?!` is a fallible optional.
 
-Representation: a `T!` is returned as the value plus an `Error` and a flag, in registers where the ABI allows. Exported fallible functions use the status form of §17.6.
+Representation: a `T!` is returned as the value and a flag, in registers where they fit, and a failure's `Error` travels beside them: the native backends leave it in the thread's `core.failure`, where `try` passes it up untouched, and return a result of up to four words in the first four integer result registers (x0–x3 on arm64; rax, rdx, rcx and r8 on x86-64). Exported fallible functions use the status form of §17.6.
 
 ### 11.3 Errors
 

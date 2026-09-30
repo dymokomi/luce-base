@@ -214,8 +214,9 @@ pub struct Frame:
 
     ## Lay the frame out below `base` (what the prologue already pushed): the hidden result
     ## pointer's home when `indirect_result`, a word per callee-saved register used, every
-    ## slot at its alignment, then a word per temporary left in the frame.
-    pub mutating func layout(f: ir.Function*, base: u64, indirect_result: bool) -> !:
+    ## slot at its alignment, then a word per temporary left in the frame. A parameter whose
+    ## slot `straight` marks arrives in its register and a promoted slot lives in one: no home.
+    pub mutating func layout(f: ir.Function*, base: u64, indirect_result: bool, straight: const bool[]) -> !:
         self.temp_homes.count = 0
         self.slot_homes.count = 0
         var live_slots = try alloc bool[f.slots.count + 1]
@@ -238,7 +239,7 @@ pub struct Frame:
                 live_temps[x.dst] = true
             if x.op == ir.Op.call:
                 let call = f.calls.get(x.extra)
-                if call.has_result and call.result_size > 0:
+                if call.has_result and call.result_size > 0 and not call.result_words:
                     live_slots[call.result_slot] = true
             let (start, count) = ir.argument_range(f, x)
             for k in 0..<count:
@@ -257,40 +258,50 @@ pub struct Frame:
             else:
                 self.save_offset[c] = 0
             c += 1
-        # every slot, then every temporary left in the frame, takes a home; values whose
-        # lives never meet share one (`sharing`), except in a build a debugger reads
+        # every slot and every temporary left in the frame takes a home; values whose lives
+        # never meet share bytes (`sharing`), except in a build a debugger reads
         let shared = not f.debug and not f.symbols and f.instrs.count <= 200000 and self.slot_spans.count == f.slots.count + 1 and self.temp_spans.count == f.temps.count + 1
-        var packer = try sharing.Packer.at(offset, f.slots.count + f.temps.count)
-        defer packer.release()
+        let whole = sharing.Span(low = sharing.pinned, high = 0)
+        var items = try list.List[sharing.Item].create(f.slots.count + f.temps.count + 1)
+        defer items.destroy()
+        # per item, 1 + the slot or 1 + the temporary index (as a negative count) it homes
+        var owners = try list.List[i64].create(f.slots.count + f.temps.count + 1)
+        defer owners.destroy()
         var i: usize = 0
         while i < f.slots.count:
             try self.slot_homes.push(0)
+            # a slot promoted to a register, or a parameter's taken straight into one, is
+            # never in memory; a dynamic one is below the frame (after the packing)
+            if live_slots[i] and self.slot_regs.get(i) == 0 and not (i < straight.length and straight[i]) and f.slots.get(i).level == 0:
+                let s = f.slots.get(i)
+                try items.push(sharing.Item(size = (u64)s.size, align = (u64)s.align, span = self.slot_spans.get(i + 1) if shared else whole))
+                try owners.push((i64)i + 1)
             i += 1
         i = 0
         while i < f.temps.count:
             try self.temp_homes.push(0)
+            let t = i + 1
+            let saved = i < self.temp_saved.count and self.temp_saved.get(i)
+            if (self.temp_regs.get(i) == 0 or saved) and live_temps[t] and not self.is_rematerialised(u32(t)):
+                # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
+                let wide = f.temp_class(u32(t)) == ir.Class.v
+                try items.push(sharing.Item(size = 16 if wide else 8, align = 16 if wide else 8, span = self.temp_spans.get(t) if shared else whole))
+                try owners.push(-(i64)t)
             i += 1
-        let slot_order = try sharing.by_start(self.slot_spans.span()) if shared else try sharing.in_order(f.slots.count + 1)
-        defer free(slot_order)
-        for k in slot_order:
-            let slot = (usize)k - 1
-            if not live_slots[slot]:
-                continue
-            let s = f.slots.get(slot)
-            let span = self.slot_spans.get((usize)k) if shared else sharing.Span(low = sharing.pinned, high = 0)
-            self.slot_homes.set(slot, packer.home((u64)s.size if s.size > 0 else 1, (u64)s.align if s.align > 0 else 1, span))
-        let temp_order = try sharing.by_start(self.temp_spans.span()) if shared else try sharing.in_order(f.temps.count + 1)
-        defer free(temp_order)
-        for t in temp_order:
-            let index = (usize)t - 1
-            let saved = index < self.temp_saved.count and self.temp_saved.get(index)
-            if (self.temp_regs.get(index) != 0 and not saved) or not live_temps[t] or self.is_rematerialised(t):
-                continue
-            # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
-            let wide = f.temp_class(t) == ir.Class.v
-            let span = self.temp_spans.get((usize)t) if shared else sharing.Span(low = sharing.pinned, high = 0)
-            self.temp_homes.set(index, packer.home(16 if wide else 8, 16 if wide else 8, span))
-        self.size = round_up(packer.end(), 16)
+        let (homes, end) = try sharing.pack(items.span(), offset)
+        defer free(homes)
+        for k in 0..<homes.length:
+            let owner = owners.get(k)
+            if owner > 0:
+                self.slot_homes.set((usize)owner - 1, homes[k])
+            else:
+                self.temp_homes.set((usize)(-owner) - 1, homes[k])
+        self.size = round_up(end, 16)
+        # the dynamic area's levels begin below the fixed frame (`ir.Op.reserve`)
+        for k in 0..<f.slots.count:
+            let s = f.slots.get(k)
+            if s.level > 0:
+                self.slot_homes.set(k, self.size + (u64)s.level * (u64)ir.level_bytes - (u64)s.offset)
 
     ## Record when each temporary and slot lives, for `layout` to share their homes.
     mutating func note_spans(f: ir.Function*, g: cfg.Graph*, lives: regalloc.Lives*) -> !:
@@ -360,7 +371,7 @@ pub struct Frame:
                 if n.op == ir.Op.call:
                     let info = f.calls.get((usize)n.extra)
                     # an aggregate result is written into its slot by the call sequence itself
-                    if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+                    if info.has_result and info.result_size > 0 and not info.result_words and (usize)info.result_slot < ns:
                         kind[(usize)info.result_slot] = 3
                 else:
                     let va = self.slot_of(n.a)

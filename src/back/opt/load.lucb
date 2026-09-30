@@ -369,7 +369,7 @@ func find_value(s: Search*, address: Alias, width: i64, op: ir.Op, cls: ir.Class
             if s.aliases.escaped(address):
                 return none
             let info = s.f.calls.get((usize)x.extra)
-            if info.has_result and info.result_size > 0 and s.aliases.relation(address, width, ir.slot_ref(info.result_slot), (i64)info.result_size) != no_alias:
+            if info.has_result and info.result_size > 0 and not info.result_words and s.aliases.relation(address, width, ir.slot_ref(info.result_slot), (i64)info.result_size) != no_alias:
                 return none
             continue
         if is_store(x.op):

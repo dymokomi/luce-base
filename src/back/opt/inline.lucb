@@ -203,12 +203,19 @@ func drop_unused_standard(program: ir.Unit*) -> !:
 func drop_dead_initialiser_calls(f: ir.Function*, index: Index*, retained: bool[]):
     var kept: usize = 0
     var i: usize = 0
+    var dropped_call = false
     while i < f.instrs.count:
         let instruction = f.instrs.get(i)
         var live = true
         if instruction.op == ir.Op.call and instruction.a.kind == ir.RefKind.function:
             if let position = index.find(instruction.a.name):
                 live = retained[position]
+            dropped_call = not live
+        elif instruction.op == ir.Op.word:
+            # a dropped call's words go with it
+            live = not dropped_call
+        else:
+            dropped_call = false
         if live:
             f.instrs.items[kept] = instruction
             kept += 1
@@ -403,12 +410,28 @@ func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> 
             try expansion.run(&out)
             bases[gi] = expansion.slot_base
             census.expanded[gi] = true
+            # the call's words are loaded from its slot now, where the body left them
+            while expansion.info.result_words and ix < f.instrs.count and f.instrs.get(ix).op == ir.Op.word:
+                let w = f.instrs.get(ix)
+                ix += 1
+                let at = try word_address(f, &out, expansion.info.result_slot, w.extra)
+                try out.push(ir.Instr(op = load_op(w.cls), cls = w.cls, dst = w.dst, a = at, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
         else:
             try out.push(n)
     f.instrs.destroy()
     f.instrs = out.instrs
     census.sizes[fi] = unknown
     return true
+
+## The address of word `k` of slot `slot`, formed in `out` when past the first.
+func word_address(f: ir.Function*, out: Sink*, slot: u32, k: u32) -> ir.Ref!:
+    if k == 0:
+        return ir.slot_ref(slot)
+    let base = try f.temp(ir.Class.l)
+    try out.push(ir.Instr(op = ir.Op.addr, cls = ir.Class.l, dst = base, a = ir.slot_ref(slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+    let at = try f.temp(ir.Class.l)
+    try out.push(ir.Instr(op = ir.Op.add, cls = ir.Class.l, dst = at, a = ir.temp_ref(base), b = ir.const_ref((i64)k * 8), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+    return ir.temp_ref(at)
 
 ## Whether any call of function `fi` can be expanded, so functions without one are left alone.
 func has_expandable_call(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> bool:
@@ -775,7 +798,12 @@ struct Expansion:
     mutating func join_frames() -> !:
         var i: usize = 0
         while i < self.g.slots.count and not self.shares_slots:
-            try self.f.slots.push(self.g.slots.get(i))
+            # the body's dynamic levels are the callee's own: expanded, their slots are the
+            # caller's fixed frame, and the body's `reserve`s go (copy_instr)
+            var s = self.g.slots.get(i)
+            s.level = 0
+            s.offset = 0
+            try self.f.slots.push(s)
             i += 1
         if self.shares_slots and self.g.params.count > 0:
             self.own_slots = try alloc u32[self.g.slots.count]
@@ -869,6 +897,8 @@ struct Expansion:
             m.line = 0
             m.file = 0
         match m.op:
+            .reserve:
+                return
             .dbg:
                 if not self.described:
                     return
@@ -886,7 +916,10 @@ struct Expansion:
             .fma:
                 m.extra2 = try self.copy_argument(m.extra2)
             .ret:
-                try self.leave(m.a, out)
+                if n.extra2 > 0:
+                    try self.leave_words(n, out)
+                else:
+                    try self.leave(m.a, out)
                 return
             _:
                 discard(0)
@@ -900,6 +933,17 @@ struct Expansion:
             else:
                 # a record result is built where the caller's call sequence would have put it
                 try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+        try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+
+    ## A `ret` of the body's private result words: each goes to its place in the caller's
+    ## result slot, where the call's `word`s are loaded from after the exit (`expand_in`).
+    mutating func leave_words(n: ir.Instr, out: Sink*) -> !:
+        var k: u32 = 0
+        while k < n.extra2:
+            let word = self.g.args.get((usize)(n.extra + k))
+            let at = try word_address(self.f, out, self.info.result_slot, k)
+            try out.push(ir.Instr(op = store_op(word.cls), cls = ir.Class.l, dst = 0, a = self.renumber(word.value), b = at, extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+            k += 1
         try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
 
     ## A jump table of the body joins the caller's, its labels renumbered; its new index.
@@ -1051,7 +1095,7 @@ func drop_unread_stores(f: ir.Function*) -> !:
             mark_read(f.args.get(start + k).value, address_of, read)
         if n.op == ir.Op.call:
             let info = f.calls.get(n.extra)
-            if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+            if info.has_result and info.result_size > 0 and not info.result_words and (usize)info.result_slot < ns:
                 read[info.result_slot] = true
     for parameter in f.params.span():
         read[parameter.slot] = true

@@ -222,7 +222,7 @@ pub func promote(f: ir.Function*) -> bool!:
     i = 0
     while i < f.calls.count:
         let info = f.calls.get(i)
-        if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+        if info.has_result and info.result_size > 0 and not info.result_words and (usize)info.result_slot < ns:
             kind[(usize)info.result_slot] = no
         i += 1
     i = 0

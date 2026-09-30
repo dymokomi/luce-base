@@ -1,0 +1,83 @@
+#==============================================================================================
+#
+#   levels - How much of the dynamic area is reserved at each instruction
+#
+#   DESCRIPTION:
+#       A statement's format buffers live in levels of a dynamic area below the fixed frame
+#       (`ir.Op.reserve`), and while they are reserved the stack pointer sits below them, so
+#       the calls made meanwhile leave them be. A generator that reaches the fixed frame
+#       through the stack pointer must know, at each instruction, how many levels lie in
+#       between: one pass forwards over the blocks takes each `reserve` and carries the
+#       count along the edges. Where edges bring different counts (a `break` out of a
+#       statement that reserved one), the block begins by setting the stack pointer for the
+#       most of them, which leaves every level any path still uses below it.
+#
+#==============================================================================================
+
+import back.ir.cfg
+import back.ir.ir
+import memory
+
+## The levels reserved before each instruction, and where a block must first set the stack
+## pointer for them.
+pub struct Levels:
+    ## By instruction, the levels reserved as it runs.
+    pub var before: u32[]
+    ## By instruction, whether it is the label of a block that edges enter with different
+    ## levels, after which the stack pointer is set for the most of them.
+    pub var settle: bool[]
+
+    ## Give back the storage.
+    pub mutating func release():
+        free(self.before)
+        free(self.settle)
+
+## The levels of `f`, all 0 for a function without a dynamic area.
+pub func over(f: ir.Function*) -> Levels!:
+    let n = f.instrs.count
+    var levels = Levels(before = try alloc u32[n + 1], settle = try alloc bool[n + 1])
+    for i in 0..<n + 1:
+        levels.before[i] = 0
+        levels.settle[i] = false
+    if f.dynamic_levels == 0:
+        return levels
+    with memory.heap:
+        var g = try cfg.Graph.blocks_of(f)
+        defer g.release()
+        let count = g.blocks.count
+        let entering = try alloc u32[count]
+        defer free(entering)
+        let leaving = try alloc u32[count]
+        defer free(leaving)
+        for b in 0..<count:
+            entering[b] = 0
+            leaving[b] = 0
+        # levels only grow along the edges, to at most `dynamic_levels`: a fixpoint soon
+        var changed = true
+        while changed:
+            changed = false
+            for b in 0..<count:
+                let block = g.blocks.get(b)
+                var level: u32 = 0
+                for p in block.preds.span():
+                    level = leaving[(usize)p] if leaving[(usize)p] > level else level
+                entering[b] = level
+                for i in block.start..<block.end:
+                    let x = f.instrs.get((usize)i)
+                    if x.op == ir.Op.reserve:
+                        level = x.extra
+                if level != leaving[b]:
+                    leaving[b] = level
+                    changed = true
+        for b in 0..<count:
+            let block = g.blocks.get(b)
+            var level = entering[b]
+            for p in block.preds.span():
+                if leaving[(usize)p] != level and block.label != 0 and block.start > 0:
+                    levels.settle[(usize)block.start - 1] = true
+            for i in block.start..<block.end:
+                levels.before[(usize)i] = level
+                let x = f.instrs.get((usize)i)
+                if x.op == ir.Op.reserve:
+                    level = x.extra
+    return levels

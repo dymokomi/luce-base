@@ -210,9 +210,14 @@ pub struct Lowerer:
         return self.c.table.get(id).elem
 
     func size(id: u32) -> u32:
+        if self.kind(id) == types.Kind.fallible:
+            # the value, then the flag: the error waits in `core.failure` (failure_address)
+            return u32(self.failed_offset(id) + 8)
         return u32(self.c.table.size_of(id))
 
     func align(id: u32) -> u32:
+        if self.kind(id) == types.Kind.fallible:
+            return 8
         return u32(self.c.table.align_of(id))
 
     func is_int(id: u32) -> bool:
@@ -372,14 +377,10 @@ pub struct Lowerer:
                 try self.push_leaves(t.elem, base)
                 try self.program_unit.leaves.push(ir.Leaf(offset = u32(base + self.c.table.size_of(t.elem)), size = 1, cls = ir.Class.w))
             .fallible:
-                # the value, then the error's code, message words, and flag
+                # the value, then the flag
                 if t.elem != types.unit_id and t.elem != types.never_id:
                     try self.push_leaves(t.elem, base)
-                let at = base + self.error_offset(id)
-                try self.program_unit.leaves.push(ir.Leaf(offset = u32(at), size = 8, cls = ir.Class.l))
-                try self.program_unit.leaves.push(ir.Leaf(offset = u32(at + 8), size = 8, cls = ir.Class.l))
-                try self.program_unit.leaves.push(ir.Leaf(offset = u32(at + 16), size = 8, cls = ir.Class.l))
-                try self.program_unit.leaves.push(ir.Leaf(offset = u32(at + 24), size = 1, cls = ir.Class.w))
+                try self.program_unit.leaves.push(ir.Leaf(offset = u32(base + self.failed_offset(id)), size = 1, cls = ir.Class.w))
             .enum_:
                 if self.is_int_enum(id):
                     try self.program_unit.leaves.push(ir.Leaf(offset = u32(base), size = (u8)size, cls = self.class_of(id)))
@@ -866,7 +867,7 @@ pub struct Lowerer:
             let good = self.f.label()
             try self.f.branch(failed, bad, good)
             try self.f.place_label(bad)
-            let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(result.ref, self.error_offset(result_type)))
+            let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.failure_address())
             try self.f.emit(ir.Op.ret, ir.Class.w, 0, code, ir.none_ref(), 0)
             try self.f.place_label(good)
             if payload != types.unit_id:
@@ -989,17 +990,146 @@ pub struct Lowerer:
     mutating func end_function() -> !:
         if self.f.debug or self.f.symbols:
             self.f.debug_scopes.items[0].end = self.f.instrs.count
+        # a fallible result of up to four words comes back in registers, both ways
+        self.f.result_private = self.f.has_result and self.private_result(self.f.result_type, self.f.result_size)
+        for k in 0..<self.f.calls.count:
+            var info = self.f.calls.get(k)
+            if info.has_result and self.private_result(info.result_type, info.result_size):
+                info.result_private = true
+                self.f.calls.set(k, info)
+        if not (self.f.debug or self.f.symbols):
+            try self.result_words()
         try self.program_unit.functions.push(self.f)
 
-    ## Where a result keeps its error and its flag.
-    func error_offset(result: u32) -> u64:
+    ## A private result's words as values of their own: after each call answering one, a
+    ## `word` for each register it comes back in, stored to the call's slot; each `ret` of
+    ## one loads its words from the result slot and returns them. Neither slot's address
+    ## then leaves the function, so the optimiser takes them apart into temporaries
+    ## (`split`, `promote`) and a failure's flag is tested in the register it arrives in.
+    ## A build with symbols keeps the slots: its scopes count instructions this would move.
+    mutating func result_words() -> !:
+        let returned = self.register_words(self.f.has_result, self.f.result_type, self.f.result_size, self.f.result_shape, self.f.result_private)
+        var any = returned > 0
+        for info in self.f.calls.span():
+            any = any or self.register_words(info.has_result, info.result_type, info.result_size, info.result_shape, info.result_private) > 0
+        if not any:
+            return
+        var old = self.f.instrs
+        self.f.instrs = try list.List[ir.Instr].create(old.count + 32)
+        defer old.destroy()
+        for x in old.span():
+            if x.op == ir.Op.ret and returned > 0 and x.a.kind != ir.RefKind.none_:
+                let start = u32(self.f.args.count)
+                let words = returned
+                for k in 0..<words:
+                    let (cls, store, load) = self.word_access(self.f.result_type, k)
+                    discard(store)
+                    let v = try self.f.temp(cls)
+                    var read = stamped(x, load, v, try self.word_address(x, x.a, k), ir.none_ref())
+                    read.cls = cls
+                    try self.f.instrs.push(read)
+                    try self.f.args.push(ir.Arg(value = ir.temp_ref(v), cls = cls, size = 0, align = 8, type_id = types.u64_id, shape = 0))
+                var r = x
+                r.a = ir.none_ref()
+                r.extra = start
+                r.extra2 = words
+                try self.f.instrs.push(r)
+                continue
+            try self.f.instrs.push(x)
+            if x.op != ir.Op.call:
+                continue
+            var info = self.f.calls.get((usize)x.extra)
+            let words = self.register_words(info.has_result, info.result_type, info.result_size, info.result_shape, info.result_private)
+            if words == 0:
+                continue
+            info.result_words = true
+            self.f.calls.set((usize)x.extra, info)
+            var got: u32[4] = [0, 0, 0, 0]
+            for k in 0..<words:
+                let (cls, store, load) = self.word_access(info.result_type, k)
+                discard(store)
+                discard(load)
+                got[k] = try self.f.temp(cls)
+                var w = stamped(x, ir.Op.word, got[k], ir.none_ref(), ir.none_ref())
+                w.cls = cls
+                w.extra = k
+                # the failure flag comes back 0 or 1 (`opt.failure_flags`)
+                w.extra2 = 1 if info.result_private and (u64)k * 8 == self.failed_offset(info.result_type) else 0
+                try self.f.instrs.push(w)
+            let base = try self.f.temp(ir.Class.l)
+            try self.f.instrs.push(stamped(x, ir.Op.addr, base, ir.slot_ref(info.result_slot), ir.none_ref()))
+            for k in 0..<words:
+                let (cls, store, load) = self.word_access(info.result_type, k)
+                discard(cls)
+                discard(load)
+                try self.f.instrs.push(stamped(x, store, 0, ir.temp_ref(got[k]), try self.word_address(x, ir.temp_ref(base), k)))
+
+    ## How word `k` of a private result of type `result` is moved to and from its slot: as
+    ## the lowerer reaches that part of the slot, so the two agree and the optimiser keeps
+    ## the word in a temporary; the flag as a byte, a scalar payload at its own width,
+    ## anything else (a float, an aggregate's words) whole.
+    func word_access(result: u32, k: u32) -> (ir.Class, ir.Op, ir.Op):
+        let offset = (u64)k * 8
+        if self.kind(result) != types.Kind.fallible:
+            return (ir.Class.l, ir.Op.storel, ir.Op.loadl)
+        if offset == self.failed_offset(result):
+            return (ir.Class.w, ir.Op.storeb, ir.Op.loadub)
+        let payload = self.elem(result)
+        if offset == 0 and self.is_scalar(payload) and not self.is_float(payload) and self.kind(payload) != types.Kind.atomic:
+            let size = self.scalar_size(payload)
+            if size == 1 or size == 2 or size == 4 or size == 8:
+                return (ir.Class.w if size <= 4 else ir.Class.l, ir.store_op(size, false), ir.load_op(size, false, false))
+        return (ir.Class.l, ir.Op.storel, ir.Op.loadl)
+
+    ## How many integer registers a result of `size` bytes and shape `shape` comes back in,
+    ## for `result_words`: a private result's words (up to four); an aggregate of whole
+    ## words that the C convention returns in integer registers, two at most on arm64 and
+    ## on System V (every word holding an integer member, none a float, none misaligned),
+    ## one on Windows x64; 0 for a scalar, for a result through memory, and for an array,
+    ## whose lanes a vector register holds (§5.12).
+    func register_words(has_result: bool, result: u32, size: u32, shape: u32, private: bool) -> u32:
+        if not has_result or size == 0:
+            return 0
+        if private:
+            return (size + 7) // 8
+        if size % 8 != 0 or shape == 0 or size > 16 or result == 0 or self.kind(result) == types.Kind.array:
+            return 0
+        if self.target.os == targets.Os.windows:
+            return 1 if size == 8 else 0
+        var covered: u32 = 0
+        for leaf in self.program_unit.leaves_of(shape):
+            if leaf.cls != ir.Class.w and leaf.cls != ir.Class.l:
+                return 0
+            if leaf.size > 1 and leaf.offset % (u32)leaf.size != 0:
+                return 0
+            covered = covered | ((u32)1 << (leaf.offset // 8))
+        let words = size // 8
+        return words if covered == ((u32)1 << words) - 1 else 0
+
+    ## The address of word `k` of the result at `base`, for `result_words`.
+    mutating func word_address(x: ir.Instr, base: ir.Ref, k: u32) -> ir.Ref!:
+        if k == 0:
+            return base
+        let p = try self.f.temp(ir.Class.l)
+        try self.f.instrs.push(stamped(x, ir.Op.add, p, base, ir.const_ref((i64)k * 8)))
+        return ir.temp_ref(p)
+
+    ## Whether a result of type `result`, `size` bytes, takes the program's own convention.
+    func private_result(result: u32, size: u32) -> bool:
+        return result != 0 and self.kind(result) == types.Kind.fallible and size > 0 and size <= 32
+
+    ## Where a result keeps its flag: after its value, whose error is `core.failure`'s.
+    func failed_offset(result: u32) -> u64:
         let payload = self.elem(result)
         if payload == types.unit_id or payload == types.never_id:
             return 0
         return round_up8(self.c.table.size_of(payload))
 
-    func failed_offset(result: u32) -> u64:
-        return self.error_offset(result) + 24
+    ## The address of `core.failure`, the thread's error of the call that failed last.
+    mutating func failure_address() -> ir.Ref!:
+        let t = try self.temp(ir.Class.l)
+        try self.f.emit(ir.Op.addr_tls, ir.Class.l, t.index, ir.global_ref("lb_core_failure"), ir.none_ref(), 0)
+        return t
 
     mutating func trap_with(reason: str) -> !:
         let t = try self.program_unit.text(reason)
@@ -1018,10 +1148,19 @@ pub struct Lowerer:
         self.pop_scope()
 
     mutating func stmt(s: ast.Node*) -> !:
-        # the format buffers this statement takes are free again when it is lowered
+        # the format buffers this statement takes are free again when it is lowered, and
+        # their levels of the dynamic area once it has run
         let pooled = self.pool_used
         try self.statement(s)
-        self.pool_used = pooled
+        if self.pool_used != pooled:
+            self.pool_used = pooled
+            let count = self.f.instrs.count
+            if count == 0 or not ir.is_terminator(self.f.instrs.get(count - 1).op):
+                try self.reserve_levels()
+
+    ## `reserve`: the dynamic area holds the levels of the format buffers taken so far.
+    mutating func reserve_levels() -> !:
+        try self.f.emit(ir.Op.reserve, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), u32(self.pool_used))
 
     mutating func statement(s: ast.Node*) -> !:
         if s.kind != ast.Kind.block:
@@ -1439,7 +1578,10 @@ pub struct Lowerer:
             let r = try self.slot_address(self.result_slot)
             if self.fn_fallible():
                 try self.f.store(ir.Op.storeb, ir.const_ref(1 if failing else 0), try self.offset_address(r, self.failed_offset(self.f.result_type)))
-            try self.unwind_from(0, failing)
+            if failing:
+                try self.unwind_keeping_failure()
+            else:
+                try self.unwind_from(0, failing)
             try self.debug_leave()
             let again = try self.slot_address(self.result_slot)
             let out = try self.load_from(again, self.f.result_type)
@@ -1449,6 +1591,17 @@ pub struct Lowerer:
             try self.debug_leave()
             try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.f.place_label(self.f.label())
+
+    ## Run the cleanup of a failing exit with the error kept: deferred code may fail and
+    ## recover inside itself, which writes `core.failure` over the error on its way out.
+    mutating func unwind_keeping_failure() -> !:
+        if self.defers.count == 0:
+            try self.unwind_from(0, true)
+            return
+        let kept = try self.f.slot(24, 8)
+        try self.f.copy_bytes(try self.slot_address(kept), try self.failure_address(), 24)
+        try self.unwind_from(0, true)
+        try self.f.copy_bytes(try self.failure_address(), try self.slot_address(kept), 24)
 
     mutating func debug_leave() -> !:
         if self.f.debug:
@@ -1460,10 +1613,12 @@ pub struct Lowerer:
         let code = first.left else return
         let second = first.next else return
         let message = second.left else return
-        let err = try self.slot_address(self.failure_slot) if self.failure_target != 0 else try self.offset_address(try self.slot_address(self.result_slot), self.error_offset(self.f.result_type))
+        # the code and the message first: reaching `core.failure` may set up the thread's
+        # storage, which can change errno before a code computed from it is read
         let c = try self.value(code, types.error_code_id)
-        try self.f.store(ir.Op.storew, c.ref, err)
         let m = try self.value(message, types.str_id)
+        let err = try self.slot_address(self.failure_slot) if self.failure_target != 0 else try self.failure_address()
+        try self.f.store(ir.Op.storew, c.ref, err)
         try self.f.copy_bytes(try self.offset_address(err, 8), m.ref, 16)
         if self.failure_target != 0:
             try self.unwind_from(self.failure_scope, true)
@@ -1471,17 +1626,16 @@ pub struct Lowerer:
         else:
             try self.leave(true)
 
-    ## Copy the failure of a result at `source` into the function's result and leave.
+    ## Pass on the failure of a result at `source`: to the enclosing handler, which takes
+    ## the error from `core.failure`, or out of the function with the error left there.
     mutating func propagate(source: ir.Ref, source_type: u32) -> !:
-        let source_error = try self.offset_address(source, self.error_offset(source_type))
+        discard(source)
+        discard(source_type)
         if self.failure_target != 0:
-            try self.f.copy_bytes(try self.slot_address(self.failure_slot), source_error, 24)
+            try self.f.copy_bytes(try self.slot_address(self.failure_slot), try self.failure_address(), 24)
             try self.unwind_from(self.failure_scope, true)
             try self.f.jump(self.failure_target)
             return
-        let r = try self.slot_address(self.result_slot)
-        let target_error = try self.offset_address(r, self.error_offset(self.f.result_type))
-        try self.f.copy_bytes(target_error, source_error, 24)
         try self.leave(true)
 
     mutating func recover_stmt(s: ast.Node*) -> !:
@@ -3111,9 +3265,9 @@ pub struct Lowerer:
         try self.f.place_label(done)
         return LowerValue(ref = a, type_id = result, in_memory = true)
 
-    ## Fill the error and flag of a result at `a` with a code and a message.
+    ## Fail a result at `a` with a code and a message: its flag, and `core.failure`.
     mutating func store_error(a: ir.Ref, result: u32, code: i64, message: str) -> !:
-        let err = try self.offset_address(a, self.error_offset(result))
+        let err = try self.failure_address()
         try self.f.store(ir.Op.storew, ir.const_ref(code), err)
         let index = try self.program_unit.text(message)
         let data = try self.f.address_of(ir.text_ref(index))
@@ -4194,8 +4348,7 @@ pub struct Lowerer:
         let result = try self.c.table.fallible(id)
         let out_slot = try self.new_slot(result)
         let out = try self.slot_address(out_slot)
-        try self.f.copy_bytes(try self.offset_address(out, self.error_offset(result)), try self.offset_address(r.ref, 0), 24)
-        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, 24))
+        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
         try self.f.store(ir.Op.storeb, failed, try self.offset_address(out, self.failed_offset(result)))
         try self.f.copy_bytes(out, a, self.size(id))
         return LowerValue(ref = out, type_id = result, in_memory = true)
@@ -4595,9 +4748,12 @@ pub struct Lowerer:
                 let broke = self.f.label()
                 try self.f.branch(failed, broke, fine)
                 try self.f.place_label(broke)
-                try self.f.copy_bytes(try self.offset_address(a, self.error_offset(result)), try self.offset_address(status.ref, self.error_offset(status.type_id)), 24)
                 try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.failed_offset(result)))
+                # the allocator may fail and recover inside itself: the error stays the init's
+                let kept = try self.f.slot(24, 8)
+                try self.f.copy_bytes(try self.slot_address(kept), try self.failure_address(), 24)
                 try self.allocator_release(view, block)
+                try self.f.copy_bytes(try self.failure_address(), try self.slot_address(kept), 24)
                 try self.f.jump(done)
                 try self.f.place_label(fine)
         elif let body = e.body:
@@ -4653,7 +4809,10 @@ pub struct Lowerer:
 
     # mark: Text ===============================================================================
 
-    ## A fresh `lb_fmtbuf` over `capacity` stack bytes: its address and the bytes'.
+    ## A fresh `lb_fmtbuf` over `capacity` stack bytes: its address and the bytes'. A pooled
+    ## buffer is a level of the dynamic area below the frame, reserved from here to the end
+    ## of the statement (`stmt`): a recursive function whose error path formats a message
+    ## keeps no kilobyte in every frame of the recursion.
     mutating func fresh_format_buffer(capacity: u32) -> (ir.Ref, ir.Ref)!:
         var chars: u32 = 0
         var fb: u32 = 0
@@ -4661,14 +4820,19 @@ pub struct Lowerer:
             chars = self.pool_chars[self.pool_used]
             fb = self.pool_fb[self.pool_used]
             self.pool_used += 1
+            try self.reserve_levels()
+        elif capacity == 1024 and self.pool_count < self.pool_chars.length and self.pool_used == self.pool_count:
+            let level = u32(self.pool_count + 1)
+            chars = try self.f.dynamic_slot(level, 0, capacity, 8)
+            fb = try self.f.dynamic_slot(level, capacity, 24, 8)
+            self.pool_chars[self.pool_count] = chars
+            self.pool_fb[self.pool_count] = fb
+            self.pool_count += 1
+            self.pool_used += 1
+            try self.reserve_levels()
         else:
             chars = try self.f.slot(capacity, 8)
             fb = try self.f.slot(24, 8)
-            if capacity == 1024 and self.pool_count < self.pool_chars.length and self.pool_used == self.pool_count:
-                self.pool_chars[self.pool_count] = chars
-                self.pool_fb[self.pool_count] = fb
-                self.pool_count += 1
-                self.pool_used += 1
         let chars_address = try self.slot_address(chars)
         let fb_address = try self.slot_address(fb)
         try self.f.store(ir.Op.storel, chars_address, fb_address)
@@ -5302,7 +5466,7 @@ pub struct Lowerer:
                 let index = try self.program_unit.text(title)
                 let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
                 let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
-                let message = LowerValue(ref = try self.offset_address(r.ref, self.error_offset(r.type_id) + 8), type_id = types.str_id, in_memory = true)
+                let message = LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
                 let s2 = u32(self.f.args.count)
                 try self.f.args.push(try self.arg_of(name))
                 try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
@@ -5329,7 +5493,7 @@ pub struct Lowerer:
                 try self.f.branch(failed, bad, ok)
                 try self.f.place_label(bad)
                 let s4 = u32(self.f.args.count)
-                try self.push_error_pieces(try self.offset_address(r.ref, self.error_offset(r.type_id)))
+                try self.push_error_pieces(try self.failure_address())
                 let code = try self.call_named("lb_core_11main_failed", s4, 2, ir.Class.w, true, types.i32_id)
                 try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
                 try self.f.jump(self.f.labels + 1)
@@ -5367,7 +5531,7 @@ pub struct Lowerer:
                 try self.f.branch(failed, bad, ok)
                 try self.f.place_label(bad)
                 let s7 = u32(self.f.args.count)
-                try self.push_error_pieces(try self.offset_address(r.ref, self.error_offset(r.type_id)))
+                try self.push_error_pieces(try self.failure_address())
                 let code = try self.call_named("lb_core_11main_failed", s7, 2, ir.Class.w, true, types.i32_id)
                 try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
                 try self.f.jump(done)
@@ -5746,3 +5910,7 @@ func sort_cases(values: i64[], branches: u32[], signed: bool):
         values[j] = value
         branches[j] = target
         i += 1
+
+## An instruction of class `l` at `x`'s source position, for the lowerer's rewrites.
+func stamped(x: ir.Instr, op: ir.Op, dst: u32, a: ir.Ref, b: ir.Ref) -> ir.Instr:
+    return ir.Instr(op = op, cls = ir.Class.l, dst = dst, a = a, b = b, extra = 0, extra2 = 0, line = x.line, file = x.file, scope = x.scope, site = x.site)

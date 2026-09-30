@@ -164,7 +164,9 @@ pub struct Lives:
                 i -= 1
                 let x = f.instrs.get((usize)i)
                 if x.dst != 0 and (usize)x.dst <= n:
-                    try l.define_at(x.dst, 2 * i + 1)
+                    # a call's words are all written as it returns (`word`), so they are all
+                    # defined where the first is: an unread one still keeps its own register
+                    try l.define_at(x.dst, 2 * word_start(f, i) + 1 if x.op == ir.Op.word else 2 * i + 1)
                 if x.op == ir.Op.dbg:
                     # what a debugger reads is no use: the value's life is its own
                     continue
@@ -628,6 +630,13 @@ pub struct Lives:
             i += 1
         return used
 
+## The index of the first of the `word`s in a row that the one at `i` belongs to.
+func word_start(f: ir.Function*, i: u32) -> u32:
+    var j = i
+    while j > 0 and f.instrs.get((usize)j - 1).op == ir.Op.word:
+        j -= 1
+    return j
+
 # mark: Barriers and free registers ===========================================================
 
 ## An instruction that may clobber the caller-saved registers: a call, an asm block, and
@@ -733,5 +742,31 @@ test "intervals have holes: two values alive in different arms share one registe
         discard(try lives.allocate(&f, pools, 0, regs[..<5]))
         # one callee-saved register serves both arms: a and b never meet
         assert(regs[(usize)a - 1] == 1 and regs[(usize)b - 1] == 1)
+        lives.release()
+        g.release()
+
+test "a call's words take their own registers even when one is never read":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var f = try ir.Function.create("t")
+        # call g() -> two words; w0 = word 0 (unread); w1 = word 1; t = w1 + 1
+        try f.calls.push(ir.CallInfo(args_start = 0, args_count = 0, fixed_count = 0, variadic = false, result_cls = ir.Class.l, has_result = true, result_size = 16, result_align = 8, result_type = 0, result_slot = 0, result_shape = 0, result_private = true, result_words = true))
+        try f.emit(ir.Op.call, ir.Class.l, 0, ir.function_ref("g"), ir.none_ref(), 0)
+        let w0 = try f.temp(ir.Class.w)
+        try f.emit(ir.Op.word, ir.Class.w, w0, ir.none_ref(), ir.none_ref(), 0)
+        let w1 = try f.temp(ir.Class.w)
+        try f.emit(ir.Op.word, ir.Class.w, w1, ir.none_ref(), ir.none_ref(), 1)
+        let t = try f.temp(ir.Class.w)
+        try f.emit(ir.Op.add, ir.Class.w, t, ir.temp_ref(w1), ir.const_ref(1), 0)
+        try f.emit(ir.Op.ret, ir.Class.w, 0, ir.temp_ref(t), ir.none_ref(), 0)
+        var g = try cfg.Graph.over(&f)
+        var lives = try Lives.over(&f, &g)
+        # both are written as the call returns, so both live from the first word on
+        assert(lives.start[(usize)w0] == lives.start[(usize)w1])
+        var regs: u8[8]
+        let pools = Pools(callee_ints = 1, callee_floats = 0, scratch_ints = 2, scratch_floats = 0)
+        discard(try lives.allocate(&f, pools, 0, regs[..<3]))
+        assert(regs[(usize)w0 - 1] != regs[(usize)w1 - 1])
         lives.release()
         g.release()

@@ -49,16 +49,19 @@ pub func temp_spans(f: ir.Function*, lives: const regalloc.Lives*) -> Span[]!:
             spans[t] = Span(low = lives.life_start(u32(t)), high = end + 2)
     return spans
 
-## The spans of every slot: its address's uses, over the loops they are in; `pinned` for a
-## slot whose address escapes into memory or out of the function, or reaches a temporary
-## a copy defines (a loop's carried value, used before it is written). One pass forwards.
+## The spans of every slot: its address's uses, over the loops they are in, from the
+## function's start for a parameter's; `pinned` for a slot whose address escapes into
+## memory or out of the function, or reaches a temporary a copy defines (a loop's carried
+## value, used before it is written). One pass forwards.
 pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
     let ns = f.slots.count
     let spans = try alloc Span[ns + 1]
     for s in 0..<ns + 1:
         spans[s] = Span(low = unused, high = 0)
+    # a parameter's slot is written by the prologue, before the first instruction, and
+    # lives on only as far as its uses reach: once promoted, that is its entry load
     for parameter in f.params.span():
-        spans[parameter.slot + 1].low = pinned
+        spans[parameter.slot + 1] = Span(low = 0, high = 1)
     # 1 + the slot whose address a temporary holds or was computed from, 0 for none
     let origin = try alloc u32[f.temps.count + 1]
     defer free(origin)
@@ -91,7 +94,7 @@ pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
                 spans[argument].low = pinned
         if x.op == ir.Op.call:
             let call = f.calls.get(x.extra)
-            if call.has_result and call.result_size > 0:
+            if call.has_result and call.result_size > 0 and not call.result_words:
                 widen(spans, call.result_slot + 1, at)
         # what an address flows into, unless it is only read through
         if x.dst != 0 and source != 0 and not is_load(x.op) and not ir.is_comparison(x.op):
@@ -192,77 +195,122 @@ func is_store(op: ir.Op) -> bool:
 
 # mark: Packing ===============================================================================
 
-## Homes handed out below a frame offset: each item the lowest-placed home of its exact size
-## and alignment whose last value has died, or a new one.
-pub struct Packer:
-    var offset: u64
-    var sizes: u64[]
-    var aligns: u64[]
-    var homes: u64[]
-    var free_at: u32[]
-    var count: usize
+## A value wanting a frame home: its bytes, their alignment, and when it lives.
+pub struct Item:
+    ## How many bytes it needs.
+    pub var size: u64
+    ## The alignment of its home.
+    pub var align: u64
+    ## When it lives.
+    pub var span: Span
 
-    ## An empty packer starting at `offset`, with room for `capacity` homes.
-    pub static func at(offset: u64, capacity: usize) -> Packer!:
-        let room = capacity if capacity > 0 else 1
-        return Packer(offset = offset, sizes = try alloc u64[room], aligns = try alloc u64[room], homes = try alloc u64[room], free_at = try alloc u32[room], count = 0)
+## The home of each item below `base`, an offset below the frame pointer, and the lowest
+## offset handed out. Items are placed in the order their lives begin, each at the first
+## offset where it meets no item still alive -- first fit, as a C compiler colors its
+## stack -- so a dead value's bytes go to any later one they fit, not only to one of the
+## same size. A pinned or never-used item lives the whole function: it takes the first
+## gap no item placed before it covers.
+pub func pack(items: const Item[], base: u64) -> (u64[], u64)!:
+    let n = items.length
+    let homes = try alloc u64[n]
+    errdefer free(homes)
+    let order = try by_low(items)
+    defer free(order)
+    # the items placed whose lives may still meet the next ones, as indices
+    let active = try alloc u32[n if n > 0 else 1]
+    defer free(active)
+    var live: usize = 0
+    var end = base
+    # how many of `order` have their homes
+    var done: usize = 0
+    for k in order:
+        let item = items[(usize)k]
+        let size = bytes(item)
+        let align = item.align if item.align > 0 else 1
+        var home: u64 = 0
+        if item.span.low < pinned:
+            # a later item begins no earlier, so one that has died stays dead
+            var kept: usize = 0
+            for a in 0..<live:
+                let other = items[(usize)active[a]].span
+                if other.low >= pinned or other.high > item.span.low:
+                    active[kept] = active[a]
+                    kept += 1
+            live = kept
+            home = round_up(base + size, align)
+            var moved = true
+            while moved:
+                moved = false
+                for a in 0..<live:
+                    let at = homes[(usize)active[a]]
+                    let low = at - bytes(items[(usize)active[a]])
+                    if low < home and home - size < at:
+                        home = round_up(at + size, align)
+                        moved = true
+        elif done > most_searched:
+            home = round_up(end + size, align)
+        else:
+            # a whole-function item meets every other: the first gap none of them covers
+            home = round_up(base + size, align)
+            var moved = true
+            while moved:
+                moved = false
+                for placed in order[..<done]:
+                    let at = homes[(usize)placed]
+                    let low = at - bytes(items[(usize)placed])
+                    if low < home and home - size < at:
+                        home = round_up(at + size, align)
+                        moved = true
+        homes[(usize)k] = home
+        done += 1
+        end = home if home > end else end
+        active[live] = k
+        live += 1
+    return (homes, end)
 
-    ## The home for a value of `size` bytes at `align`, living over `span`.
-    pub mutating func home(size: u64, align: u64, span: Span) -> u64:
-        if span.low < pinned:
-            for h in 0..<self.count:
-                if self.sizes[h] == size and self.aligns[h] == align and self.free_at[h] != pinned and self.free_at[h] <= span.low:
-                    self.free_at[h] = span.high
-                    return self.homes[h]
-        self.offset = round_up(self.offset + size, align)
-        let h = self.count
-        self.sizes[h] = size
-        self.aligns[h] = align
-        self.homes[h] = self.offset
-        self.free_at[h] = pinned if span.low >= pinned else span.high
-        self.count += 1
-        return self.offset
+## The most items placed before a whole-function one that `pack` searches for a gap in;
+## past it, the item goes below them all, so a function of thousands of kept locals
+## lays out in time.
+let most_searched: usize = 4096
 
-    ## The lowest offset handed out so far.
-    pub func end() -> u64:
-        return self.offset
+## The bytes an item takes: an empty one still one.
+func bytes(item: Item) -> u64:
+    return item.size if item.size > 0 else 1
 
-    ## Give back the packer's storage.
-    pub mutating func release():
-        free(self.sizes)
-        free(self.aligns)
-        free(self.homes)
-        free(self.free_at)
+## The item indices ordered by when their lives begin, equal ones in their own order;
+## pinned and never-used ones (the highest `low`) last.
+func by_low(items: const Item[]) -> u32[]!:
+    let n = items.length
+    var order = try alloc u32[n]
+    errdefer free(order)
+    var other = try alloc u32[n]
+    defer free(other)
+    for k in 0..<n:
+        order[k] = u32(k)
+    # bottom-up merge sort: stable, and n log n for the largest functions
+    var width: usize = 1
+    while width < n:
+        var start: usize = 0
+        while start < n:
+            let middle = start + width if start + width < n else n
+            let stop = start + 2 * width if start + 2 * width < n else n
+            var i = start
+            var j = middle
+            var out = start
+            while out < stop:
+                if i < middle and (j >= stop or items[(usize)order[i]].span.low <= items[(usize)order[j]].span.low):
+                    other[out] = order[i]
+                    i += 1
+                else:
+                    other[out] = order[j]
+                    j += 1
+                out += 1
+            start = stop
+        let swap = order
+        order = other
+        other = swap
+        width *= 2
+    return order
 
 func round_up(value: u64, align: u64) -> u64:
     return (value + align - 1) // align * align
-
-## The indices 1..<`length` in their own order, for a build that shares no homes.
-pub func in_order(length: usize) -> u32[]!:
-    let n = length - 1 if length > 0 else 0
-    let order = try alloc u32[n]
-    for k in 0..<n:
-        order[k] = u32(k + 1)
-    return order
-
-## The indices 1..<spans.length ordered by when their values begin, so a packer meets them
-## in order and reuses the homes of those already over; never-used ones last.
-pub func by_start(spans: const Span[]) -> u32[]!:
-    let n = spans.length - 1 if spans.length > 0 else 0
-    let order = try alloc u32[n]
-    for k in 0..<n:
-        order[k] = u32(k + 1)
-    # shell sort: a few thousand values, no allocation
-    var gap = n // 2
-    while gap > 0:
-        var i = gap
-        while i < n:
-            let item = order[i]
-            var j = i
-            while j >= gap and spans[order[j - gap]].low > spans[item].low:
-                order[j] = order[j - gap]
-                j -= gap
-            order[j] = item
-            i += 1
-        gap //= 2
-    return order

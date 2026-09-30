@@ -1,0 +1,95 @@
+## A fallible result of up to four words comes back in registers (§11.2): its value, its
+## flag, and the words of an aggregate value each in their own. A caller that reads only
+## the flag (`discard(try ...)`) or only some of the words still sees each word as the
+## callee left it, and an error set before a deferred call that fails and recovers inside
+## itself is the one passed up.
+
+let bad = ErrorCode.package(1)
+let worse = ErrorCode.package(2)
+
+struct Pair:
+    var a: i64
+    var b: i32
+
+noinline func number(x: i32) -> u32!:
+    if x < 0:
+        error(bad, "negative")
+    return (u32)x + 5
+
+noinline func flag(x: i32) -> bool!:
+    if x > 100:
+        error(bad, "large")
+    return x > 3
+
+noinline func pair(x: i32) -> Pair!:
+    if x == 7:
+        error(worse, "seven")
+    return Pair(a = (i64)x * 1000000007, b = x - 1)
+
+noinline func three(x: i64) -> (i64, i64, i64)!:
+    if x == 0:
+        error(bad, "zero")
+    return (x, x * 2, x * 3)
+
+noinline func nothing(x: i32) -> !:
+    if x == 2:
+        error(worse, "two")
+
+struct Two:
+    var low: i32
+    var high: i32
+
+struct Mixed:
+    var count: i64
+    var scale: f64
+
+noinline func text(x: i32) -> str:
+    return "even" if x % 2 == 0 else "odd"
+
+noinline func two(x: i32) -> Two:
+    return Two(low = x, high = -x)
+
+noinline func mixed(x: i32) -> Mixed:
+    return Mixed(count = (i64)x, scale = (f64)x * 0.5)
+
+noinline func pairs(x: i32) -> Pair:
+    return Pair(a = (i64)x << 40, b = x)
+
+noinline func only_flags(x: i32) -> i32!:
+    discard(try number(x))
+    discard(try flag(x))
+    discard(try pair(x))
+    try nothing(x)
+    return x
+
+noinline func recovered(x: i32) -> i32!:
+    defer:
+        let inner = number(-1) catch failure:
+            recover 0
+        discard(inner)
+    return (i32)(try number(x))
+
+pub func main(arguments: str[]) -> i32:
+    for x in [(i32)-1, 2, 5, 7]:
+        let n = only_flags(x) catch failure:
+            print(f"{x}: {failure.message}")
+            recover -1
+        print(f"{x} -> {n}")
+    let p = pair(4) catch failure:
+        recover Pair(a = 0, b = 0)
+    print(f"pair {p.a} {p.b}")
+    let (a, b, c) = three(11) catch failure:
+        recover (0, 0, 0)
+    print(f"three {a} {b} {c}")
+    let r = recovered(-3) catch failure:
+        print(f"kept: {failure.message}")
+        recover 0
+    # aggregates the C convention returns in registers, and one it does not split so
+    let t = two(9)
+    let m = mixed(3)
+    let q = pairs(2)
+    print(f"{text(3)} {text(4).length} {t.low} {t.high} {m.count} {m.scale} {q.a} {q.b}")
+    let one = number(1) catch failure:
+        recover 0
+    print(f"recovered {r} {one}")
+    return 0

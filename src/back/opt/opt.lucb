@@ -29,6 +29,7 @@ pub func clean(program: ir.Unit*) -> !:
         i += 1
         if f.naked:
             continue
+        discard(try failure_flags(f))
         discard(powers_of_two(f))
         discard(negations(f))
         discard(try low_bits(f))
@@ -37,6 +38,31 @@ pub func clean(program: ir.Unit*) -> !:
         var swept = try sweep(f)
         while swept:
             swept = try sweep(f)
+
+## A call's failure flag comes back 0 or 1 (`ir.Op.word` with `extra2` 1): the zero-extension
+## the flag's byte takes on its way through the result's slot is the flag itself. Whether
+## any changed.
+func failure_flags(f: ir.Function*) -> bool!:
+    var flag = try alloc bool[f.temps.count + 1]
+    defer free(flag)
+    for t in 0..<flag.length:
+        flag[t] = false
+    var any = false
+    for x in f.instrs.span():
+        if x.op == ir.Op.word and x.extra2 == 1 and x.dst != 0 and (usize)x.dst < flag.length:
+            flag[(usize)x.dst] = true
+            any = true
+    if not any:
+        return false
+    var changed = false
+    for i in 0..<f.instrs.count:
+        var x = f.instrs.get(i)
+        let extension = x.op == ir.Op.extub or x.op == ir.Op.extuh or x.op == ir.Op.extsb or x.op == ir.Op.extsh
+        if extension and x.cls == ir.Class.w and x.a.kind == ir.RefKind.temp and (usize)x.a.index < flag.length and flag[(usize)x.a.index]:
+            x.op = ir.Op.copy
+            f.instrs.set(i, x)
+            changed = true
+    return changed
 
 ## Operands of which only the low bits are read: a narrow store writes its value's low
 ## bytes, and a shift reads its count's low five or six bits (the count modulo the width,

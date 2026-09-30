@@ -1,0 +1,23 @@
+0 fine 0
+1 fine 9
+2 fine 18
+3 fine 27
+4 fine 36
+5 fine 45
+at 6: too large (table 18)
+at 7: too large (table 21)
+at 8: too large (table 24)
+0 fine 0
+1 fine 15
+2 fine 30
+3 fine 45
+4 fine 60
+5 fine 75
+at 6: too large (table 30)
+at 7: too large (table 35)
+at 8: too large (table 40)
+big 45 75
+deep 291
+deep 194
+deep 97
+deep 300

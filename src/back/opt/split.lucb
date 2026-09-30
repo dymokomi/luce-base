@@ -195,7 +195,7 @@ struct Plan:
             let call = f.calls.get((usize)x.extra)
             for k in 0..<(usize)call.args_count:
                 self.escape(f.args.get((usize)call.args_start + k).value)
-            if call.has_result and call.result_size > 0 and (usize)call.result_slot < self.ok.length:
+            if call.has_result and call.result_size > 0 and not call.result_words and (usize)call.result_slot < self.ok.length:
                 self.ok[(usize)call.result_slot] = false
         for phi in f.phi_args.span():
             self.escape(phi.value)
