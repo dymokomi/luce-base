@@ -1208,7 +1208,32 @@ pub struct Lowerer:
                 try self.f.store(ir.Op.storel, v.ref, try self.slot_address(slot))
                 try self.f.jump(then_label)
             return
-        let v = try self.value(c, types.bool_id)
+        try self.branch_on(c, then_label, else_label)
+
+    ## Branch to `then_label` when `e` holds, else to `else_label`: `and`, `or` and `not` as
+    ## jumps, so that `while a < b and c <= d:` branches on each comparison as it is made
+    ## rather than on a byte the two leave in a slot, the value `and` has in an expression.
+    mutating func branch_on(e: ast.Node*, then_label: u32, else_label: u32) -> !:
+        if e.kind == ast.Kind.group:
+            let inner = e.left else return try self.fail(e, "empty group")
+            try self.branch_on(inner, then_label, else_label)
+            return
+        if e.kind == ast.Kind.binary and (e.text == "and" or e.text == "or") and not self.is_vector(try self.ty(e)):
+            let l = e.left else return try self.fail(e, "no operand")
+            let r = e.right else return try self.fail(e, "no operand")
+            let more = self.f.label()
+            if e.text == "and":
+                try self.branch_on(l, more, else_label)
+            else:
+                try self.branch_on(l, then_label, more)
+            try self.f.place_label(more)
+            try self.branch_on(r, then_label, else_label)
+            return
+        if e.kind == ast.Kind.unary and e.text == "not" and not self.is_vector(try self.ty(e)):
+            let inner = e.left else return try self.fail(e, "no operand")
+            try self.branch_on(inner, else_label, then_label)
+            return
+        let v = try self.value(e, types.bool_id)
         try self.f.branch(v.ref, then_label, else_label)
 
     mutating func while_stmt(s: ast.Node*) -> !:
@@ -2283,12 +2308,37 @@ pub struct Lowerer:
             return try self.narrow(wide, t)
         if op == "//" or op == "%":
             return try self.divide(op == "//", t, a, b)
+        if (op == "+|" or op == "-|") and not signed:
+            return try self.saturate_unsigned(op == "+|", t, a, b)
         if op == "+|" or op == "-|" or op == "*|":
             let helper = "adds" if op == "+|" else ("subs" if op == "-|" else "muls")
             return try self.runtime_arith(helper, t, a, b)
         if op == "<<" or op == ">>":
             return try self.shift(op == "<<", t, a, b)
         return try self.fail(at, "unknown operator")
+
+    ## Unsigned `a +| b` and `a -| b` in a few instructions, no branch and no call: the
+    ## difference masked to 0 when `b` exceeds `a`; the sum turned to all ones when it
+    ## passed the type's largest value, then cut to the type's width.
+    mutating func saturate_unsigned(adding: bool, t: u32, a: ir.Ref, b: ir.Ref) -> ir.Ref!:
+        let cls = self.class_of(t)
+        let bits = self.scalar_size(t) * 8
+        let full = (cls == ir.Class.w and bits == 32) or (cls == ir.Class.l and bits == 64)
+        if not adding:
+            let difference = try self.f.binary(ir.Op.sub, cls, a, b)
+            let under = try self.f.binary(ir.Op.cult, cls, a, b)
+            let wide = try self.f.unary(ir.Op.extuw, cls, under) if cls == ir.Class.l else under
+            let keep = try self.f.binary(ir.Op.sub, cls, wide, ir.const_ref(1))
+            return try self.f.binary(ir.Op.and_, cls, difference, keep)
+        let sum = try self.f.binary(ir.Op.add, cls, a, b)
+        let largest = ir.const_ref((i64)(((u64)1 << (u64)bits) - 1)) if bits < 64 else ir.const_ref(-1)
+        let over = try self.f.binary(ir.Op.cult, cls, sum, a) if full else try self.f.binary(ir.Op.cugt, cls, sum, largest)
+        let wide = try self.f.unary(ir.Op.extuw, cls, over) if cls == ir.Class.l else over
+        let all = try self.f.unary(ir.Op.neg, cls, wide)
+        let clamped = try self.f.binary(ir.Op.or_, cls, sum, all)
+        if full:
+            return clamped
+        return try self.f.binary(ir.Op.and_, cls, clamped, largest)
 
     ## `a // b` and `a % b`: a zero divisor traps, so does the one overflowing quotient.
     mutating func divide(quotient: bool, t: u32, a: ir.Ref, b: ir.Ref) -> ir.Ref!:

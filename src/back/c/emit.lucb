@@ -4037,12 +4037,17 @@ pub struct Emitter:
         try self.put(" > ")
         try self.put_tmp("se", n)
         try self.put(") lb_trap(\"index out of bounds\"); (")
+        # the address as an integer: a zero span (its data null) sliced from 0 stays null
+        # with no arithmetic on a null pointer, which C leaves undefined (UBSan's
+        # "applying zero offset to null pointer"); clang compiles it to the same add
         try self.put_type(result)
-        try self.put("){ (void*)(")
+        try self.put("){ (void*)((uintptr_t)")
         try self.put_tmp("sd", n)
         try self.put(" + ")
         try self.put_tmp("ss", n)
-        try self.put("), ")
+        try self.put(" * sizeof(*")
+        try self.put_tmp("sd", n)
+        try self.put(")), ")
         try self.put_tmp("se", n)
         try self.put(" - ")
         try self.put_tmp("ss", n)

@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <math.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -149,45 +150,390 @@ static inline uint64_t lb_mul_u(uint64_t a, uint64_t b, int bits) {
     return zext(a * b, bits);
 }
 
-int64_t lb_div_s(int64_t a, int64_t b, int bits);
-uint64_t lb_div_u(uint64_t a, uint64_t b, int bits);
-int64_t lb_mod_s(int64_t a, int64_t b, int bits);
-uint64_t lb_mod_u(uint64_t a, uint64_t b, int bits);
-int64_t lb_neg_s(int64_t a, int bits);
 
-int64_t lb_addw_s(int64_t a, int64_t b, int bits);
-uint64_t lb_addw_u(uint64_t a, uint64_t b, int bits);
-int64_t lb_subw_s(int64_t a, int64_t b, int bits);
-uint64_t lb_subw_u(uint64_t a, uint64_t b, int bits);
-int64_t lb_mulw_s(int64_t a, int64_t b, int bits);
-uint64_t lb_mulw_u(uint64_t a, uint64_t b, int bits);
-int64_t lb_negw_s(int64_t a, int bits);
-uint64_t lb_negw_u(uint64_t a, int bits);
 
-int64_t lb_adds_s(int64_t a, int64_t b, int bits);
-uint64_t lb_adds_u(uint64_t a, uint64_t b, int bits);
-int64_t lb_subs_s(int64_t a, int64_t b, int bits);
-uint64_t lb_subs_u(uint64_t a, uint64_t b, int bits);
-int64_t lb_muls_s(int64_t a, int64_t b, int bits);
-uint64_t lb_muls_u(uint64_t a, uint64_t b, int bits);
 
-int64_t lb_shl_s(int64_t a, uint64_t n, int bits);
-uint64_t lb_shl_u(uint64_t a, uint64_t n, int bits);
-int64_t lb_shr_s(int64_t a, uint64_t n, int bits);
-uint64_t lb_shr_u(uint64_t a, uint64_t n, int bits);
-uint64_t lb_not_u(uint64_t a, int bits);
 
 /* mode 0 = checked T(x), mode 1 = C cast (truncate / bit-reinterpret). */
-int64_t lb_conv_s(int64_t a, int from_bits, int from_signed, int to_bits, int to_signed, int mode);
-uint64_t lb_conv_u(uint64_t a, int from_bits, int from_signed, int to_bits, int to_signed,
-                   int mode);
 
-int64_t lb_f_to_s(double a, int bits, int mode);
 // A `char` from an integer's bits: a scalar value or, when checked, a trap (§7.5).
-uint32_t lb_to_char(uint64_t a, int mode);
-uint64_t lb_f_to_u(double a, int bits, int mode);
-double lb_to_f(int64_t a, int from_signed);
-float lb_f64_to_f32(double a);
+
+/* The arithmetic, shifts and conversions the generated C calls at every operation, inline
+   so that a release build compiles them into the expression that uses them. */
+static inline int64_t lb_div_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    if (b == 0) {
+        lb_trap("division by zero");
+    }
+    if (a == smin(bits) && b == -1) {
+        lb_trap("integer overflow");
+    }
+    return a / b;
+}
+
+static inline uint64_t lb_div_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (b == 0) {
+        lb_trap("division by zero");
+    }
+    return a / b;
+}
+
+static inline int64_t lb_mod_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    if (b == 0) {
+        lb_trap("division by zero");
+    }
+    if (a == smin(bits) && b == -1) {
+        lb_trap("integer overflow");
+    }
+    return a % b;
+}
+
+static inline uint64_t lb_mod_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (b == 0) {
+        lb_trap("division by zero");
+    }
+    return a % b;
+}
+
+static inline int lb_qadd_s(int64_t a, int64_t b, int bits, int64_t* out) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_add_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        return 0;
+    }
+    *out = r;
+    return 1;
+}
+
+static inline int lb_qadd_u(uint64_t a, uint64_t b, int bits, uint64_t* out) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (bits >= 64) {
+        if (a > UINT64_MAX - b) {
+            return 0;
+        }
+        *out = a + b;
+        return 1;
+    }
+    uint64_t r = a + b;
+    if (r > mask_bits(bits)) {
+        return 0;
+    }
+    *out = r;
+    return 1;
+}
+
+static inline int lb_qsub_s(int64_t a, int64_t b, int bits, int64_t* out) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_sub_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        return 0;
+    }
+    *out = r;
+    return 1;
+}
+
+static inline int lb_qsub_u(uint64_t a, uint64_t b, int bits, uint64_t* out) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (a < b) {
+        return 0;
+    }
+    *out = a - b;
+    return 1;
+}
+
+static inline int lb_qmul_s(int64_t a, int64_t b, int bits, int64_t* out) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_mul_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        return 0;
+    }
+    *out = r;
+    return 1;
+}
+
+static inline int lb_qmul_u(uint64_t a, uint64_t b, int bits, uint64_t* out) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (b != 0 && a > mask_bits(bits) / b) {
+        return 0;
+    }
+    *out = zext(a * b, bits);
+    return 1;
+}
+
+static inline int64_t lb_neg_s(int64_t a, int bits) {
+    a = sext(a, bits);
+    if (a == smin(bits)) {
+        lb_trap("integer overflow");
+    }
+    return -a;
+}
+
+static inline int64_t lb_addw_s(int64_t a, int64_t b, int bits) {
+    uint64_t r = (uint64_t)sext(a, bits) + (uint64_t)sext(b, bits);
+    return sext((int64_t)(r & mask_bits(bits)), bits);
+}
+
+static inline uint64_t lb_addw_u(uint64_t a, uint64_t b, int bits) {
+    return zext(a + b, bits);
+}
+
+static inline int64_t lb_subw_s(int64_t a, int64_t b, int bits) {
+    uint64_t r = (uint64_t)sext(a, bits) - (uint64_t)sext(b, bits);
+    return sext((int64_t)(r & mask_bits(bits)), bits);
+}
+
+static inline uint64_t lb_subw_u(uint64_t a, uint64_t b, int bits) {
+    return zext(a - b, bits);
+}
+
+static inline int64_t lb_mulw_s(int64_t a, int64_t b, int bits) {
+    uint64_t r = (uint64_t)sext(a, bits) * (uint64_t)sext(b, bits);
+    return sext((int64_t)(r & mask_bits(bits)), bits);
+}
+
+static inline uint64_t lb_mulw_u(uint64_t a, uint64_t b, int bits) {
+    return zext(a * b, bits);
+}
+
+static inline int64_t lb_negw_s(int64_t a, int bits) {
+    uint64_t r = 0u - (uint64_t)sext(a, bits);
+    return sext((int64_t)(r & mask_bits(bits)), bits);
+}
+
+static inline uint64_t lb_negw_u(uint64_t a, int bits) {
+    return zext(0u - zext(a, bits), bits);
+}
+
+static inline int64_t lb_adds_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_add_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        return (a < 0) ? smin(bits) : smax(bits);
+    }
+    return r;
+}
+
+static inline uint64_t lb_adds_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (bits >= 64) {
+        if (a > UINT64_MAX - b) {
+            return UINT64_MAX;
+        }
+        return a + b;
+    }
+    uint64_t r = a + b;
+    if (r > mask_bits(bits)) {
+        return mask_bits(bits);
+    }
+    return r;
+}
+
+static inline int64_t lb_subs_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_sub_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        return (a < 0) ? smin(bits) : smax(bits);
+    }
+    return r;
+}
+
+static inline uint64_t lb_subs_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (a < b) {
+        return 0;
+    }
+    return a - b;
+}
+
+static inline int64_t lb_muls_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_mul_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        return ((a < 0) != (b < 0)) ? smin(bits) : smax(bits);
+    }
+    return r;
+}
+
+static inline uint64_t lb_muls_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (b != 0 && a > mask_bits(bits) / b) {
+        return mask_bits(bits);
+    }
+    return zext(a * b, bits);
+}
+
+static inline int64_t lb_shl_s(int64_t a, uint64_t n, int bits) {
+    a = sext(a, bits);
+    if (n >= (uint64_t)bits) {
+        lb_trap("shift count out of range");
+    }
+    return sext((int64_t)(((uint64_t)a << n) & mask_bits(bits)), bits);
+}
+
+static inline uint64_t lb_shl_u(uint64_t a, uint64_t n, int bits) {
+    a = zext(a, bits);
+    if (n >= (uint64_t)bits) {
+        lb_trap("shift count out of range");
+    }
+    return zext(a << n, bits);
+}
+
+static inline int64_t lb_shr_s(int64_t a, uint64_t n, int bits) {
+    a = sext(a, bits);
+    if (n >= (uint64_t)bits) {
+        lb_trap("shift count out of range");
+    }
+    return a >> n;
+}
+
+static inline uint64_t lb_shr_u(uint64_t a, uint64_t n, int bits) {
+    a = zext(a, bits);
+    if (n >= (uint64_t)bits) {
+        lb_trap("shift count out of range");
+    }
+    return a >> n;
+}
+
+static inline uint64_t lb_not_u(uint64_t a, int bits) {
+    return zext(~a, bits);
+}
+
+static inline int fits_u(uint64_t v, int bits) {
+    return v <= mask_bits(bits);
+}
+
+// The source of an integer conversion: `negative` when it is below zero, else the
+// magnitude in `bits`; a 64-bit unsigned source above `INT64_MAX` is a magnitude too.
+typedef struct {
+    int negative;
+    uint64_t bits;
+} lb_source;
+
+static inline lb_source source_of(uint64_t a, int from_bits, int from_signed) {
+    lb_source s;
+    if (from_signed) {
+        int64_t v = sext((int64_t)a, from_bits);
+        s.negative = v < 0;
+        s.bits = (uint64_t)v;
+    } else {
+        s.negative = 0;
+        s.bits = zext(a, from_bits);
+    }
+    return s;
+}
+
+// A checked conversion's result, as bits: out of the destination's range traps (§7.5).
+static inline uint64_t checked_bits(lb_source s, int to_bits, int to_signed) {
+    int bad;
+    if (to_signed) {
+        bad = s.negative ? (int64_t)s.bits < smin(to_bits) : s.bits > (uint64_t)smax(to_bits);
+    } else {
+        bad = s.negative || !fits_u(s.bits, to_bits);
+    }
+    if (bad) {
+        lb_trap("integer conversion out of range");
+    }
+    return s.bits;
+}
+
+static inline int64_t lb_conv_s(int64_t a, int from_bits, int from_signed, int to_bits, int to_signed, int mode) {
+    lb_source s = source_of((uint64_t)a, from_bits, from_signed);
+    if (mode == 0) {
+        return (int64_t)checked_bits(s, to_bits, to_signed);
+    }
+    uint64_t bits = s.bits & mask_bits(to_bits);
+    if (to_signed) {
+        return sext((int64_t)bits, to_bits);
+    }
+    return (int64_t)bits;
+}
+
+static inline uint64_t lb_conv_u(uint64_t a, int from_bits, int from_signed, int to_bits, int to_signed,
+                   int mode) {
+    lb_source s = source_of(a, from_bits, from_signed);
+    if (mode == 0) {
+        return checked_bits(s, to_bits, to_signed);
+    }
+    return zext(s.bits, to_bits);
+}
+
+static inline uint32_t lb_to_char(uint64_t a, int mode) {
+    int bad = a > 0x10FFFF || (a >= 0xD800 && a <= 0xDFFF);
+    if (bad && mode == 0) {
+        lb_trap("integer conversion out of range");
+    }
+    return (uint32_t)a;
+}
+
+// `2^(bits-1)` and `2^bits` are exact doubles; the range checks compare against them
+// rather than against the rounded `(double)smax`, which is `2^63` itself for 64 bits.
+static inline int64_t lb_f_to_s(double a, int bits, int mode) {
+    double hi = ldexp(1.0, bits - 1);
+    double lo = -hi;
+    if (mode == 0) {
+        if (!isfinite(a) || a < lo || a >= hi) {
+            lb_trap("integer conversion out of range");
+        }
+        return (int64_t)a;
+    }
+    if (isnan(a)) {
+        return 0;
+    }
+    if (a <= lo) {
+        return smin(bits);
+    }
+    if (a >= hi) {
+        return smax(bits);
+    }
+    return (int64_t)a;
+}
+
+static inline uint64_t lb_f_to_u(double a, int bits, int mode) {
+    double hi = ldexp(1.0, bits);
+    if (mode == 0) {
+        if (!isfinite(a) || a < 0 || a >= hi) {
+            lb_trap("integer conversion out of range");
+        }
+        return (uint64_t)a;
+    }
+    if (isnan(a) || a < 0) {
+        return 0;
+    }
+    if (a >= hi) {
+        return mask_bits(bits);
+    }
+    return (uint64_t)a;
+}
+
+static inline double lb_to_f(int64_t a, int from_signed) {
+    if (from_signed) {
+        return (double)a;
+    }
+    return (double)(uint64_t)a;
+}
+
+static inline float lb_f64_to_f32(double a) {
+    return (float)a;
+}
 
 typedef struct lb_str {
     const char* data;
@@ -301,9 +647,3 @@ int lb_entry_failed(lb_error error);
 void lb_test_report(lb_str name, const lb_r_unit* result);
 int lb_test_summary(int32_t total, int32_t failed);
 
-int lb_qadd_s(int64_t a, int64_t b, int bits, int64_t* out);
-int lb_qadd_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
-int lb_qsub_s(int64_t a, int64_t b, int bits, int64_t* out);
-int lb_qsub_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
-int lb_qmul_s(int64_t a, int64_t b, int bits, int64_t* out);
-int lb_qmul_u(uint64_t a, uint64_t b, int bits, uint64_t* out);

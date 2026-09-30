@@ -1,0 +1,30 @@
+## §7.7: a span no one has pointed anywhere yet, a record's field left at its zero value,
+## slices to an empty span in every form, `[..<0]`, `[0..]`, `[0..<0]`, `[0..<length]`, and the
+## slice is as empty as the span; through the C backend no pointer arithmetic is done on
+## the span's null data, which C leaves undefined (the sanitizer suite runs this program
+## under UBSan).
+struct Growing:
+    var items: i64[]
+    var count: usize = 0
+
+    func view() -> const i64[]:
+        return self.items[..<self.count]
+
+func total(values: const i64[]) -> i64:
+    var sum: i64 = 0
+    for v in values:
+        sum += v
+    return sum
+
+pub func main(arguments: str[]) -> i32:
+    let growing = Growing()
+    let view = growing.view()
+    print(f"{view.length} {total(view)}")
+    let tail = growing.items[0..]
+    let nothing = growing.items[0..<0]
+    let whole = growing.items[0..<growing.items.length]
+    print(f"{tail.length} {nothing.length} {whole.length} {total(whole[..<whole.length])}")
+    var bytes: u8[]
+    let text = (str)bytes[0..]
+    print(f"[{text}] {text.length}")
+    return 0

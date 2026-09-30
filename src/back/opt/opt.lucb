@@ -29,8 +29,95 @@ pub func clean(program: ir.Unit*) -> !:
         i += 1
         if f.naked:
             continue
+        discard(try narrow_stores(f))
+        discard(powers_of_two(f))
         discard(fold(f))
         discard(try sweep(f))
+
+## A narrow store writes only its value's low bytes: an extension or a mask that keeps
+## those bytes as they were is not needed before it. `out[o] = (u8)(e >> 16)` loses the
+## zero-extension and the `& 255` its conversions left between the shift and the `strb`.
+## Only a value one instruction defines is followed; the extensions go if nothing else
+## reads them (`sweep`). Whether any store changed.
+func narrow_stores(f: ir.Function*) -> bool!:
+    var definition = try alloc u32[f.temps.count + 1]
+    defer free(definition)
+    var assigned = try alloc u32[f.temps.count + 1]
+    defer free(assigned)
+    for t in 0..<definition.length:
+        definition[t] = 0
+        assigned[t] = 0
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst != 0 and (usize)x.dst < definition.length:
+            definition[(usize)x.dst] = (u32)i + 1
+            assigned[(usize)x.dst] += 1
+    var changed = false
+    for i in 0..<f.instrs.count:
+        var x = f.instrs.get(i)
+        let width: u64 = 1 if x.op == ir.Op.storeb else 2 if x.op == ir.Op.storeh else 4 if x.op == ir.Op.storew else 0
+        if width == 0:
+            continue
+        var value = x.a
+        var steps: u32 = 0
+        while value.kind == ir.RefKind.temp and (usize)value.index < definition.length and assigned[(usize)value.index] == 1 and steps < 8:
+            let d = f.instrs.get((usize)definition[(usize)value.index] - 1)
+            steps += 1
+            if keeps_low_bytes(d, width):
+                value = d.a
+            else:
+                break
+        if value.kind != x.a.kind or value.index != x.a.index or value.value != x.a.value:
+            x.a = value
+            f.instrs.set(i, x)
+            changed = true
+    return changed
+
+## An unsigned division or remainder by a power of two is a shift or a mask: `(len - 1) // 4`
+## is `lsr #2`, not a division. Whether any changed.
+func powers_of_two(f: ir.Function*) -> bool:
+    var changed = false
+    for i in 0..<f.instrs.count:
+        var x = f.instrs.get(i)
+        if (x.op != ir.Op.udiv and x.op != ir.Op.urem) or x.b.kind != ir.RefKind.constant or (x.cls != ir.Class.w and x.cls != ir.Class.l):
+            continue
+        let divisor = (u64)x.b.value if x.cls == ir.Class.l else (u64)(u32)x.b.value
+        if divisor == 0 or (divisor & (divisor - 1)) != 0:
+            continue
+        if x.op == ir.Op.urem:
+            x.op = ir.Op.and_
+            x.b = ir.const_ref((i64)(divisor - 1))
+        else:
+            var shift: i64 = 0
+            var rest = divisor
+            while rest > 1:
+                rest >>= 1
+                shift += 1
+            x.op = ir.Op.lshr
+            x.b = ir.const_ref(shift)
+        f.instrs.set(i, x)
+        changed = true
+    return changed
+
+## Whether `d`'s result has the same low `width` bytes as its first operand, an integer:
+## an extension from at least that width, or a mask whose low bytes are all ones.
+func keeps_low_bytes(d: ir.Instr, width: u64) -> bool:
+    match d.op:
+        .extub, .extsb:
+            return width <= 1
+        .extuh, .extsh:
+            return width <= 2
+        .extuw, .extsw:
+            return width <= 4
+        .copy:
+            return d.cls == ir.Class.w or d.cls == ir.Class.l
+        .and_:
+            if d.b.kind != ir.RefKind.constant:
+                return false
+            let low: u64 = ((u64)1 << (width * 8)) - 1
+            return ((u64)d.b.value & low) == low
+        _:
+            return false
 
 ## Run the passes over every function of `program`.
 pub func optimise(program: ir.Unit*) -> !:

@@ -20,6 +20,7 @@
 import back.native.arm64.object
 import back.native.dwarf
 import back.native.frame
+import back.native.regalloc
 import back.native.incoming
 import back.native.selection
 import back.ir.ir
@@ -43,6 +44,8 @@ pub struct Generator:
     ## `--debug` or `--release --debug`: the DWARF emitter, else none.
     pub var dw: dwarf.Emitter*?
     var out: buffer.Buffer
+    ## The next of the frame's `crossings` not yet passed, in the function being emitted.
+    var crossing: usize = 0
     ## What precedes a C symbol in this target's assembler: `_` on macOS (§19.5).
     pub var symbol_prefix: str
     ## Mach-O or ELF: what differs between arm64-macos and arm64-linux.
@@ -212,6 +215,47 @@ pub struct Generator:
         try self.put_i64(offset)
         try self.put("]")
 
+    ## Emit instructions `at` to `at + 2` as one scaled-index access when they are one
+    ## (`selection.scaled_access`); whether they were.
+    mutating func scaled_access_at(at: usize, uses: u32[], index: usize) -> bool!:
+        let scaled = selection.scaled_access(self.f, at, uses) else return false
+        let (base, scaled_index, shift) = scaled
+        if self.fr.is_rematerialised(self.f.instrs.get(at).dst) or self.fr.is_rematerialised(self.f.instrs.get(at + 1).dst):
+            return false
+        if let dw = self.dw:
+            try dw.mark(&self.out, self.f, &self.fr, index, at + 2)
+        try self.indexed_access(self.f.instrs.get(at + 2), base, scaled_index, shift)
+        return true
+
+    ## A load or store through `base + (index << shift)` (`selection.scaled_access`), the
+    ## scaling and the sum done by the addressing: `ldr w0, [x1, x2, lsl #2]`.
+    mutating func indexed_access(n: ir.Instr, base: ir.Ref, index: ir.Ref, shift: u32) -> !:
+        let b = try self.source(base, ir.Class.l, "x10")
+        let x = try self.source(index, ir.Class.l, "x11")
+        if (u8)n.op <= (u8)ir.Op.loadd:
+            let lc = load_class(n.op)
+            let d = self.target(n.dst, lc, load_register(n.op))
+            try self.line4(load_mnemonic(n.op), " ", d, ", [")
+            try self.put(b)
+            try self.put(", ")
+            try self.put(x)
+            if shift != 0:
+                try self.put(", lsl #")
+                try self.put_u64((u64)shift)
+            try self.put("]")
+            try self.finish(n.dst, lc, d)
+            return
+        let cls = store_class(n.op)
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        try self.line4(store_mnemonic(n.op), " ", v, ", [")
+        try self.put(b)
+        try self.put(", ")
+        try self.put(x)
+        if shift != 0:
+            try self.put(", lsl #")
+            try self.put_u64((u64)shift)
+        try self.put("]")
+
     ## `mnemonic reg` to or from the frame `below` bytes under x29, `width` bytes wide:
     ## through sp when the scaled offset reaches, else x29 with an unscaled one, else an
     ## address in x16.
@@ -239,6 +283,28 @@ pub struct Generator:
         try self.line("sub ")
         try self.put(reg)
         try self.put(", x29, x16")
+
+    ## Before the barrier at instruction `at`: each temporary that keeps a caller-saved
+    ## register across it goes to its home (`frame.Frame.crossings`).
+    mutating func save_crossing(at: usize) -> !:
+        while self.crossing < self.fr.crossings.count and (usize)self.fr.crossings.get(self.crossing).at < at:
+            self.crossing += 1
+        var k = self.crossing
+        while k < self.fr.crossings.count and (usize)self.fr.crossings.get(k).at == at:
+            let c = self.fr.crossings.get(k)
+            let code = self.fr.temp_regs.get((usize)c.temp - 1)
+            let cls = self.f.temp_class(c.temp)
+            try self.frame_store(class_name(code, cls), self.temp_home(c.temp))
+            k += 1
+
+    ## After it: each comes back from its home.
+    mutating func restore_crossing(at: usize) -> !:
+        while self.crossing < self.fr.crossings.count and (usize)self.fr.crossings.get(self.crossing).at == at:
+            let c = self.fr.crossings.get(self.crossing)
+            let code = self.fr.temp_regs.get((usize)c.temp - 1)
+            let cls = self.f.temp_class(c.temp)
+            try self.frame_load(class_name(code, cls), self.temp_home(c.temp))
+            self.crossing += 1
 
     func temp_home(t: u32) -> u64:
         return self.fr.temp_home(t)
@@ -588,6 +654,7 @@ pub struct Generator:
         self.fr.reserved = 0
         self.reserve_asm_registers()
         try self.fr.plan(self.f)
+        self.crossing = 0
         try self.fr.layout(self.f, 16, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0)
         try self.object_format.function_start(&self.out, self.f)
         if self.f.naked:
@@ -656,7 +723,12 @@ pub struct Generator:
                     try self.offset_access(access, base, offset)
                     i += 2
                     continue
+            if try self.scaled_access_at(i, uses, index):
+                i += 3
+                continue
+            try self.save_crossing(i)
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
+            try self.restore_crossing(i)
             i += 1
         if let dw = self.dw:
             try dw.mark(&self.out, self.f, &self.fr, index, i)
@@ -1119,7 +1191,7 @@ pub struct Generator:
                 try self.object_format.thread_address(&self.out, n.a.name)
                 try self.store_temp("x0", n.dst)
             .blit:
-                if n.extra <= 128:
+                if n.extra <= regalloc.inline_block:
                     # a record copy: loads and stores in place of a call, from and to the
                     # addresses where they live
                     let origin = try self.source(n.b, ir.Class.l, "x10")
@@ -1135,7 +1207,7 @@ pub struct Generator:
                     try self.line("bl ")
                     try self.symbol("memcpy")
             .zero:
-                if n.extra <= 128:
+                if n.extra <= regalloc.inline_block:
                     let to = try self.source(n.a, ir.Class.l, "x11")
                     try self.inline_zero(to, (u64)n.extra)
                 else:
@@ -1228,7 +1300,9 @@ pub struct Generator:
         let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
         if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.b.kind == ir.RefKind.constant:
             let value = n.b.value
-            let immediate = ((n.op == ir.Op.add or n.op == ir.Op.sub) and value >= 0 and value <= 4095) or ((n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr) and value >= 0 and value < (64 if n.cls == ir.Class.l else 32))
+            let width: u32 = 64 if n.cls == ir.Class.l else 32
+            let logical = (n.op == ir.Op.and_ or n.op == ir.Op.or_ or n.op == ir.Op.xor) and bitmask_immediate((u64)value, width)
+            let immediate = ((n.op == ir.Op.add or n.op == ir.Op.sub) and value >= 0 and value <= 4095) or ((n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr) and value >= 0 and value < (64 if n.cls == ir.Class.l else 32)) or logical
             var shift: i64 = 0
             if n.op == ir.Op.mul and value > 0 and ((u64)value & ((u64)value - 1)) == 0:
                 var bits = (u64)value
@@ -1243,10 +1317,17 @@ pub struct Generator:
                     .shl, .mul: mnemonic = "lsl "
                     .lshr: mnemonic = "lsr "
                     .ashr: mnemonic = "asr "
+                    .and_: mnemonic = "and "
+                    .or_: mnemonic = "orr "
+                    .xor: mnemonic = "eor "
                     _: discard(0)
                 try self.line4(mnemonic, d, ", ", a)
                 try self.put(", #")
-                try self.put_i64(shift if n.op == ir.Op.mul else value)
+                if logical:
+                    # the mask as the assembler reads it: the operand's width of it, unsigned
+                    try self.put_u64((u64)value if width == 64 else (u64)value & 0xFFFFFFFF)
+                else:
+                    try self.put_i64(shift if n.op == ir.Op.mul else value)
                 try self.finish(n.dst, n.cls, d)
                 return
         let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
@@ -2406,6 +2487,34 @@ func arg_register(n: u32) -> str:
     return argument_names[(usize)n]
 
 ## Register code `code` viewed as class `cls`: `w`/`s` names for the narrow classes, `h` for a half.
+## Whether `value`, at `width` bits, is an arm64 logical immediate: a pattern of 2, 4, 8,
+## 16, 32 or 64 bits repeated across the register, each a rotation of one run of ones, and
+## neither no bits nor all of them (`and x0, x1, #0xfff`).
+func bitmask_immediate(value: u64, width: u32) -> bool:
+    var v = value
+    if width == 32:
+        v = (value & 0xFFFFFFFF) | ((value & 0xFFFFFFFF) << 32)
+    if v == 0 or v == 0xFFFFFFFFFFFFFFFF:
+        return false
+    # the smallest element the value repeats
+    var size: u64 = 64
+    while size > 2:
+        let half = size // 2
+        let mask = ((u64)1 << half) - 1
+        if (v & mask) != ((v >> half) & mask):
+            break
+        size = half
+    let element_mask = 0xFFFFFFFFFFFFFFFF if size == 64 else ((u64)1 << size) - 1
+    let element = v & element_mask
+    # one run of ones around the ring: exactly two places where a bit differs from the next
+    let rotated = ((element >> 1) | (element << (size - 1))) & element_mask
+    var changes = element ^ rotated
+    var count: u32 = 0
+    while changes != 0:
+        changes &= changes - 1
+        count += 1
+    return count == 2
+
 func class_name(code: u8, cls: ir.Class) -> str:
     if cls == ir.Class.h:
         return h_names[(usize)code]

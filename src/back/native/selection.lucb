@@ -11,6 +11,8 @@
 
 import back.ir.ir
 
+# mark: Uses and entry ========================================================================
+
 ## The number of times each temporary is used, by index; a comparison used once may fuse.
 pub func uses(f: ir.Function*) -> u32[]!:
     var counts = try alloc u32[f.temps.count + 1]
@@ -83,6 +85,8 @@ func note_slot(named: u32[], value: ir.Ref):
     if value.kind == ir.RefKind.slot and (usize)value.index < named.length:
         named[(usize)value.index] += 1
 
+# mark: Fusions ===============================================================================
+
 ## The label of the instruction at `at`, or 0 when it is not a label.
 pub func label_at(f: ir.Function*, at: usize) -> u32:
     if at < f.instrs.count:
@@ -126,6 +130,61 @@ pub func offset_access(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, i6
     if not loads and not stores:
         return none
     return (base, step.value)
+
+## An index scaled by a power of two and added to a base, the sum the address of the load
+## or store right after, each used once: `a[i]` over `u32`s (`mul i, 4`, `add base`,
+## `loaduw`). The base, the index, and the shift, which is 0 or the access's own width, as
+## arm64's register-offset addressing takes it (`ldr w0, [x1, x2, lsl #2]`).
+pub func scaled_access(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, ir.Ref, u32)?:
+    if f.debug or f.symbols or at + 2 >= f.instrs.count:
+        return none
+    let scale = f.instrs.get(at)
+    if scale.cls != ir.Class.l or scale.dst == 0 or counts[scale.dst] != 1 or scale.b.kind != ir.RefKind.constant or scale.a.kind != ir.RefKind.temp:
+        return none
+    var shift: u32 = 0
+    if scale.op == ir.Op.mul:
+        let factor = scale.b.value
+        if factor <= 0 or (factor & (factor - 1)) != 0:
+            return none
+        var rest = factor
+        while rest > 1:
+            rest >>= 1
+            shift += 1
+    elif scale.op == ir.Op.shl:
+        if scale.b.value < 0 or scale.b.value > 3:
+            return none
+        shift = (u32)scale.b.value
+    else:
+        return none
+    let sum = f.instrs.get(at + 1)
+    if sum.op != ir.Op.add or sum.cls != ir.Class.l or sum.dst == 0 or counts[sum.dst] != 1:
+        return none
+    var base = sum.b
+    if not same_temp(sum.a, ir.temp_ref(scale.dst)):
+        if not same_temp(sum.b, ir.temp_ref(scale.dst)):
+            return none
+        base = sum.a
+    if base.kind != ir.RefKind.temp or same_temp(base, ir.temp_ref(scale.dst)):
+        return none
+    let access = f.instrs.get(at + 2)
+    if access.op == ir.Op.loadhf or access.op == ir.Op.storehf:
+        return none
+    let through = ir.temp_ref(sum.dst)
+    let loads = (u8)access.op >= (u8)ir.Op.loadsb and (u8)access.op <= (u8)ir.Op.loadd and same_temp(access.a, through)
+    let stores = (u8)access.op >= (u8)ir.Op.storeb and (u8)access.op <= (u8)ir.Op.stored and same_temp(access.b, through) and not same_temp(access.a, through)
+    if not loads and not stores:
+        return none
+    if shift != 0 and ((u32)1 << shift) != access_bytes(access.op):
+        return none
+    return (base, scale.a, shift)
+
+## The bytes a load or store moves.
+func access_bytes(op: ir.Op) -> u32:
+    match op:
+        .loadsb, .loadub, .storeb: return 1
+        .loadsh, .loaduh, .storeh: return 2
+        .loadsw, .loaduw, .loads, .storew, .stores: return 4
+        _: return 8
 
 func same_temp(a: ir.Ref, b: ir.Ref) -> bool:
     return a.kind == ir.RefKind.temp and b.kind == ir.RefKind.temp and a.index == b.index

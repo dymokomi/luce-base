@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     int arrays = !strcmp(argv[1], "transform") || !strcmp(argv[1], "matrix_product");
     int summing = !strcmp(argv[1], "sum_words");
     int chasing = !strcmp(argv[1], "chase");
-    int scanning = !strcmp(argv[1], "byte_scan") || !strcmp(argv[1], "word_copy");
+    int scanning = !strcmp(argv[1], "byte_scan") || !strcmp(argv[1], "word_copy") || !strcmp(argv[1], "bit_decode");
     int copying = !strcmp(argv[1], "word_copy");
     double *a = floating ? calloc(size, sizeof *a) : NULL;
     double *b = arrays ? calloc(size, sizeof *b) : NULL;
@@ -109,6 +109,14 @@ int main(int argc, char **argv) {
         double value = vector_normals(a, size, 1);
         start = now(); value = vector_normals(a, size, work); elapsed = now() - start;
         memcpy(&result, &value, sizeof result);
+    } else if (!strcmp(argv[1], "bit_decode")) {
+        if (size <= 16) return 2;
+        uint32_t *table = calloc(4096, sizeof *table);
+        if (!table) abort();
+        for (size_t i = 0; i < 4096; ++i) table[i] = (uint32_t)(((i * 2654435761u) >> 8) & 0xFFF0) | (uint32_t)(1 + i % 12);
+        result = bit_decode(bytes, size, table, 4096, 1);
+        start = now(); result = bit_decode(bytes, size, table, 4096, work); elapsed = now() - start;
+        free(table);
     } else if (!strcmp(argv[1], "chase")) {
         result = chase(links, size, 100, 0);
         start = now(); result = chase(links, size, work, 0); elapsed = now() - start;

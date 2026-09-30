@@ -122,3 +122,26 @@ double vector_normals(const double *values, size_t length, size_t rounds) {
         }
     return total;
 }
+
+uint64_t bit_decode(const uint8_t *data, size_t length, const uint32_t *table, size_t table_length,
+                    size_t rounds) {
+    assert(length > 16 && table_length == 4096);
+    uint64_t total = 0;
+    for (size_t round = 0; round < rounds; ++round) {
+        uint64_t acc = 0;
+        uint32_t bits = 0;
+        size_t pos = 0;
+        while (pos + 8 <= length && total != 1) {
+            while (bits <= 56 && pos < length) {
+                acc |= (uint64_t)data[pos] << (bits & 63);
+                bits += 8;
+                pos += 1;
+            }
+            uint32_t e = table[acc & 4095];
+            acc >>= (e & 15);
+            bits -= (e & 15);
+            total += (uint64_t)(e >> 4);
+        }
+    }
+    return total;
+}

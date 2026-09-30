@@ -116,3 +116,26 @@ export func vector_normals(values: const f64[], rounds: usize) -> f64:
             at += 1
         round += 1
     return total
+
+## A Huffman-style bit reader, the shape of inflate's inner loop: a 64-bit accumulator refilled
+## a byte at a time under a masked shift, a 12-bit table lookup, the symbol's length shifted
+## out, and a loop condition of two comparisons joined by `and`.
+export func bit_decode(data: const u8[], table: const u32[], rounds: usize) -> u64:
+    assert(data.length > 16 and table.length == 4096)
+    var total: u64 = 0
+    var round: usize = 0
+    while round < rounds:
+        var acc: u64 = 0
+        var bits: u32 = 0
+        var pos: usize = 0
+        while pos + 8 <= data.length and total != 1:
+            while bits <= 56 and pos < data.length:
+                acc |= (u64)data[pos] << (u64)(bits & 63)
+                bits = bits +% 8
+                pos += 1
+            let e = table[(usize)(acc & 4095)]
+            acc >>= (u64)(e & 15)
+            bits = bits -% (e & 15)
+            total = total +% (u64)(e >> 4)
+        round += 1
+    return total

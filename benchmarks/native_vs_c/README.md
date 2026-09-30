@@ -16,13 +16,14 @@ commands and build durations, and `results.json` with every timed sample. Rebuil
 after changing sources or compilers; `--reuse-build` intentionally uses the existing
 binaries. `--output`, `--base`, `--cc`, `--samples`, and `--target-ms` are configurable.
 
-The nine workloads cover a wrapping integer recurrence, strict floating-point
+The ten workloads cover a wrapping integer recurrence, strict floating-point
 recurrence, integer array reduction, floating-point array transformation, byte
 classification, unaligned 32-bit word copies (`memory.read`/`memory.write` against
 `memcpy` of four bytes), unpredictable dependent loads, ordinary i/j/k matrix
 multiplication, and per-point normals through a `Vector3`'s `subtract` and `cross`
 methods of another module (geometry.lucb, as luce-geocore's are to its users) against C
-`static` functions on a struct by value. Each pair uses the same types, inputs, algorithm and traversal
+`static` functions on a struct by value, and a Huffman-style bit reader shaped like
+inflate's inner loop (masked shift counts, a table lookup, `and`-joined conditions). Each pair uses the same types, inputs, algorithm and traversal
 order. Base retains its normal bounds and arithmetic checks. C receives valid
 inputs and retains the same explicit entry assertions; it has no per-access bounds
 checks. Differences in generated checks are part of what the comparison measures.

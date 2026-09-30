@@ -54,6 +54,13 @@ let held: u32 = 4294967295
 
 # mark: Frame layout ==========================================================================
 
+## A saved temporary live across the barrier at instruction `at` (`Frame.crossings`).
+pub struct Crossing:
+    ## The barrier's instruction index.
+    pub var at: u32
+    ## The temporary.
+    pub var temp: u32
+
 ## What a generator settles before emitting a function: where each slot and temporary lives
 ## and which callee-saved registers it uses.
 pub struct Frame:
@@ -66,6 +73,13 @@ pub struct Frame:
     pub var slot_homes: list.List[u64]
     ## Per temporary, the register code it lives in, or 0 when it is in the frame.
     pub var temp_regs: list.List[u8]
+    ## Per temporary, whether it holds a caller-saved register across barriers it crosses
+    ## (`regalloc.Lives.saved`): it has a frame home as well, which `crossings` save it to.
+    pub var temp_saved: list.List[bool]
+    ## Each barrier instruction and a saved temporary live across it, in instruction order:
+    ## the generator stores the temporary to its home before the instruction and loads it
+    ## back after.
+    pub var crossings: list.List[Crossing]
     ## Per slot, the register code it was promoted to, or 0; per temporary, 1 + the slot
     ## whose address it holds, or 0.
     pub var slot_regs: list.List[u8]
@@ -97,7 +111,7 @@ pub struct Frame:
     ## An empty frame for a target's register set.
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
-                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
+                      temp_regs = try list.List[u8].create(256), temp_saved = try list.List[bool].create(256), crossings = try list.List[Crossing].create(16), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
@@ -268,7 +282,8 @@ pub struct Frame:
         defer free(temp_order)
         for t in temp_order:
             let index = (usize)t - 1
-            if self.temp_regs.get(index) != 0 or not live_temps[t] or self.is_rematerialised(t):
+            let saved = index < self.temp_saved.count and self.temp_saved.get(index)
+            if (self.temp_regs.get(index) != 0 and not saved) or not live_temps[t] or self.is_rematerialised(t):
                 continue
             # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
             let wide = f.temp_class(t) == ir.Class.v
@@ -424,6 +439,8 @@ pub struct Frame:
     ## slot's register is held for the whole function.
     mutating func allocate(f: ir.Function*, lives: regalloc.Lives*) -> !:
         self.temp_regs.count = 0
+        self.temp_saved.count = 0
+        self.crossings.count = 0
         self.temp_ends.count = 0
         let n = f.temps.count
         var i: usize = 0
@@ -448,8 +465,24 @@ pub struct Frame:
         while i < n:
             # an address temporary of a promoted slot is never materialised
             self.temp_regs.set(i, codes[i] if self.promoted_slot(u32(i + 1)) == 0 else 0)
+            try self.temp_saved.push(lives.saved[i + 1] and self.temp_regs.get(i) != 0)
             i += 1
         self.used_mask = self.used_mask | used
+        # where the saved temporaries go to their homes and back: the saved are few, so
+        # each barrier asks each of them
+        var saved = try list.List[u32].create(8)
+        defer saved.destroy()
+        for t in 1..<n + 1:
+            if self.temp_saved.get(t - 1):
+                try saved.push(u32(t))
+        if saved.count == 0:
+            return
+        for at in 0..<f.instrs.count:
+            if not regalloc.is_barrier(f.instrs.get(at)):
+                continue
+            for t in saved.span():
+                if lives.covers_across(t, u32(2 * at)):
+                    try self.crossings.push(Crossing(at = u32(at), temp = t))
 
 # mark: Instruction classification ============================================================
 
