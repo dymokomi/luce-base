@@ -1,0 +1,27 @@
+## §13.1: written type arguments give a generic function's parameters their types, so a
+## literal argument is checked against them as it is against a plain function's:
+## `count[i64?]([none, 2])` is a span of optionals, not a literal whose first element
+## decides its type.
+type MaybeInt = i64?
+
+func count[T](items: const T[]) -> usize:
+    return items.length
+
+func first_or[T](items: const T[], fallback: T) -> T:
+    if items.length == 0:
+        return fallback
+    return items[0]
+
+func known(values: const MaybeInt[]) -> i64:
+    var total: i64 = 0
+    for v in values:
+        total += v else 100
+    return total
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{count[i64?]([none, 2])} {count[MaybeInt]([2, none, 3])}")
+    let picked = first_or[i64?]([none, 5], 7)
+    print(f"{picked else -1} {known([none, 2])}")
+    let names = count[str?]([none, "a", none])
+    print(f"{names}")
+    return 0

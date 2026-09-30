@@ -4377,7 +4377,9 @@ pub struct Checker:
             var want = f.args[i]
             if let t = template:
                 if self.mentions_param(want):
-                    want = types.none_id
+                    # written type arguments give the parameter its type, so an argument is
+                    # checked against it (`count[i64?]([none, 2])`); otherwise it is inferred
+                    want = try self.substitute(want, t, inferred) if explicit != none else types.none_id
             if let a = slots[i]:
                 let v = a.left else return try self.fail(a, "empty argument")
                 var got = try self.check_expr(v, want)
