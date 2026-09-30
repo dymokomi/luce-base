@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory(prefix='hot-loop-') as work:
             asm = function_asm(asm_path.read_text(), 'refill')
             if level == '2':
                 continue
-            inner = re.search(r'\n\s*ldrb (w\d+), \[x\d+, x\d+\]\n(.*?)\n\s*b L', asm, re.S)
+            inner = re.search(r'\n\s*ldrb (w\d+), \[x\d+, x\d+\]\n(.*?)\n\s*b \.?L', asm, re.S)
             if not inner:
                 sys.exit(f'FAIL: a byte read at a register index is not one register-offset load at --opt {level}')
             if re.search(r'\bmov |\[sp|\[x29', inner.group(2)) or len(inner.group(2).strip().splitlines()) > 6:
