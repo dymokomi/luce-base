@@ -7551,32 +7551,32 @@ static __attribute__((unused)) void lb_14luce_std_files_Entries_close(lb_14luce_
 }
 static __attribute__((unused)) void lb_16luce_std_process_Command_close(lb_16luce_std_process_Command* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/main.lucb:895:1";
+    lb_pos = "src/main.lucb:892:5";
     lb_thread_Handle lb_worker __attribute__((unused)) = ({ lb_o_thread_Handle _lb_o20 = self->worker; if (!_lb_o20.present) {
         return;
     } _lb_o20.value; });
-    lb_pos = "src/main.lucb:896:1";
+    lb_pos = "src/main.lucb:893:5";
     (void)(lb_16luce_std_process_Command_cancel(self));
-    lb_pos = "src/main.lucb:899:5";
+    lb_pos = "src/main.lucb:896:1";
     (void)(({ lb_error _lb_fe21 __attribute__((unused)); int32_t _lb_v21 __attribute__((unused)) = 0; (void)(({ lb_r_unit _lb_r22 = lb_thread_Handle_join(&(lb_worker)); if (_lb_r22.failed) {
         _lb_fe21 = _lb_r22.error;
         goto _lb_fh21;
     } (void)0; })); goto _lb_cd21; _lb_fh21: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe21;
         {
-            lb_pos = "src/main.lucb:898:5";
+            lb_pos = "src/main.lucb:895:1";
             (void)(lb_trap_text(((lb_str){"a command worker could not be joined", 36})));
         }
     } _lb_cd21: __attribute__((unused)); (void)0; }));
-    lb_pos = "src/main.lucb:899:5";
+    lb_pos = "src/main.lucb:896:1";
     self->worker = ((lb_o_thread_Handle){ .present = false });
-    lb_pos = "src/main.lucb:900:9";
+    lb_pos = "src/main.lucb:897:1";
     struct lb_16luce_std_process_CommandState* lb_state __attribute__((unused)) = ({ struct lb_16luce_std_process_CommandState* _lb_o23 = self->storage; if (_lb_o23 == ((void*)0)) {
         return;
     } _lb_o23; });
-    lb_pos = "src/main.lucb:901:5";
+    lb_pos = "src/main.lucb:898:5";
     self->storage = ((void*)0);
-    lb_pos = "src/main.lucb:902:5";
+    lb_pos = "src/main.lucb:899:5";
     (void)(lb_16luce_std_process_15command_dispose(lb_state));
 }
 static __attribute__((unused)) bool lb_core_17on_initial_thread(void) {
@@ -16934,12 +16934,12 @@ static __attribute__((unused)) void lb_14luce_std_files_12release_list(lb_span l
 }
 static __attribute__((unused)) void lb_16luce_std_process_Command_cancel(const lb_16luce_std_process_Command* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/main.lucb:890:9";
+    lb_pos = "src/main.lucb:887:9";
     struct lb_16luce_std_process_CommandState* _lb_o1758 = self->storage;
     if (_lb_o1758 != ((void*)0)) {
         struct lb_16luce_std_process_CommandState* lb_state __attribute__((unused)) = _lb_o1758;
         {
-            lb_pos = "src/main.lucb:891:9";
+            lb_pos = "src/main.lucb:888:9";
             (void)((atomic_store_explicit(&((lb_state)->cancelled), (bool)(true), memory_order_release), (void)0));
         }
     }
@@ -16962,66 +16962,66 @@ static __attribute__((unused)) lb_r_unit lb_thread_Handle_join(const lb_thread_H
 }
 static __attribute__((unused)) void lb_16luce_std_process_15command_dispose(struct lb_16luce_std_process_CommandState* lb_state) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:140:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:137:5";
     {
         lb_iface _lb_as1765 = lb_memory_allocator;
         lb_memory_allocator = lb_memory_heap;
         {
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:141:9";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:138:9";
             if (!!((((size_t)(((lb_state)->program.length))) > ((size_t)(0ULL))))) 
             {
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:142:13";
+                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:139:13";
                 (void)(lb_strings_release((lb_state)->program));
             }
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:144:9";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:141:9";
             if (!!((!(((size_t)(((const uint8_t*)(((lb_cspan){(void*)((lb_state)->directory.data), (lb_state)->directory.length}).data)))) == 0ULL)))) 
             {
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:145:13";
+                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:142:13";
                 (void)(lb_strings_release((lb_state)->directory));
             }
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:147:9";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:143:9";
+            lb_span _lb_seq1766 = ({ lb_span _lb_sv1767 = (lb_state)->arguments; size_t _lb_sn1767 = _lb_sv1767.length; char** _lb_sd1767 = (char**)_lb_sv1767.data; size_t _lb_ss1767 = 0; size_t _lb_se1767 = (size_t)((lb_state)->argument_count); lb_check_index(_lb_ss1767, _lb_sn1767 + 1); lb_check_index(_lb_se1767, _lb_sn1767 + 1); if (_lb_ss1767 > _lb_se1767) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd1767 + _lb_ss1767), _lb_se1767 - _lb_ss1767 }; });
+            for (size_t _lb_i1766 = 0; _lb_i1766 < _lb_seq1766.length; _lb_i1766++) {
+                char* lb_argument __attribute__((unused)) = ((char**)_lb_seq1766.data)[_lb_i1766];
+                {
+                    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:144:13";
+                    (void)(lb_strings_release(({ const char* _lb_sb1768 = lb_argument; size_t _lb_sl1768 = _lb_sb1768 == NULL ? 0 : strlen(_lb_sb1768); (lb_str){ _lb_sb1768, _lb_sl1768 }; })));
+                }
+            }
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:145:9";
             if (!!((!(((size_t)(((char**)((lb_state)->arguments.data)))) == 0ULL)))) 
             {
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:148:13";
-                lb_span _lb_seq1766 = ({ lb_span _lb_sv1767 = (lb_state)->arguments; size_t _lb_sn1767 = _lb_sv1767.length; char** _lb_sd1767 = (char**)_lb_sv1767.data; size_t _lb_ss1767 = 0; size_t _lb_se1767 = (size_t)((lb_state)->argument_count); lb_check_index(_lb_ss1767, _lb_sn1767 + 1); lb_check_index(_lb_se1767, _lb_sn1767 + 1); if (_lb_ss1767 > _lb_se1767) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd1767 + _lb_ss1767), _lb_se1767 - _lb_ss1767 }; });
-                for (size_t _lb_i1766 = 0; _lb_i1766 < _lb_seq1766.length; _lb_i1766++) {
-                    char* lb_argument __attribute__((unused)) = ((char**)_lb_seq1766.data)[_lb_i1766];
-                    {
-                        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:149:17";
-                        (void)(lb_strings_release(({ const char* _lb_sb1768 = lb_argument; size_t _lb_sl1768 = _lb_sb1768 == NULL ? 0 : strlen(_lb_sb1768); (lb_str){ _lb_sb1768, _lb_sl1768 }; })));
-                    }
-                }
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:150:13";
+                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:146:13";
                 { lb_span _lb_s1769 = (lb_state)->arguments; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s1769.data), lb_mul_u(_lb_s1769.length, sizeof(char*), 64) }); }
             }
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:151:9";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:147:9";
+            lb_span _lb_seq1770 = ({ lb_span _lb_sv1771 = (lb_state)->environment; size_t _lb_sn1771 = _lb_sv1771.length; char** _lb_sd1771 = (char**)_lb_sv1771.data; size_t _lb_ss1771 = 0; size_t _lb_se1771 = (size_t)((lb_state)->environment_count); lb_check_index(_lb_ss1771, _lb_sn1771 + 1); lb_check_index(_lb_se1771, _lb_sn1771 + 1); if (_lb_ss1771 > _lb_se1771) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd1771 + _lb_ss1771), _lb_se1771 - _lb_ss1771 }; });
+            for (size_t _lb_i1770 = 0; _lb_i1770 < _lb_seq1770.length; _lb_i1770++) {
+                char* lb_override __attribute__((unused)) = ((char**)_lb_seq1770.data)[_lb_i1770];
+                {
+                    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:148:13";
+                    (void)(lb_strings_release(({ const char* _lb_sb1772 = lb_override; size_t _lb_sl1772 = _lb_sb1772 == NULL ? 0 : strlen(_lb_sb1772); (lb_str){ _lb_sb1772, _lb_sl1772 }; })));
+                }
+            }
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:149:9";
             if (!!((!(((size_t)(((char**)((lb_state)->environment.data)))) == 0ULL)))) 
             {
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:152:13";
-                lb_span _lb_seq1770 = ({ lb_span _lb_sv1771 = (lb_state)->environment; size_t _lb_sn1771 = _lb_sv1771.length; char** _lb_sd1771 = (char**)_lb_sv1771.data; size_t _lb_ss1771 = 0; size_t _lb_se1771 = (size_t)((lb_state)->environment_count); lb_check_index(_lb_ss1771, _lb_sn1771 + 1); lb_check_index(_lb_se1771, _lb_sn1771 + 1); if (_lb_ss1771 > _lb_se1771) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd1771 + _lb_ss1771), _lb_se1771 - _lb_ss1771 }; });
-                for (size_t _lb_i1770 = 0; _lb_i1770 < _lb_seq1770.length; _lb_i1770++) {
-                    char* lb_override __attribute__((unused)) = ((char**)_lb_seq1770.data)[_lb_i1770];
-                    {
-                        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:153:17";
-                        (void)(lb_strings_release(({ const char* _lb_sb1772 = lb_override; size_t _lb_sl1772 = _lb_sb1772 == NULL ? 0 : strlen(_lb_sb1772); (lb_str){ _lb_sb1772, _lb_sl1772 }; })));
-                    }
-                }
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:154:13";
+                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:150:13";
                 { lb_span _lb_s1773 = (lb_state)->environment; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s1773.data), lb_mul_u(_lb_s1773.length, sizeof(char*), 64) }); }
             }
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:155:9";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:151:9";
             if (!!((((size_t)(((lb_state)->output.length))) > ((size_t)(0ULL))))) 
             {
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:156:13";
+                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:152:13";
                 { lb_span _lb_s1774 = (lb_state)->output; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s1774.data), lb_mul_u(_lb_s1774.length, sizeof(uint8_t), 64) }); }
             }
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:157:9";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:153:9";
             if (!!((((size_t)(((lb_state)->failure.length))) > ((size_t)(0ULL))))) 
             {
-                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:158:13";
+                lb_pos = "luce_std/src/luce_std/process/command/module.lucb:154:13";
                 (void)(lb_strings_release((lb_state)->failure));
             }
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:159:9";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:155:9";
             lb_release_call(lb_memory_allocator, (lb_span){ (void*)(lb_state), sizeof(lb_16luce_std_process_CommandState) });
         }
         lb_memory_allocator = _lb_as1765;
@@ -120056,41 +120056,41 @@ static __attribute__((unused)) lb_cspan lb_16luce_std_process_23environment_wind
 }
 static __attribute__((unused)) size_t lb_16luce_std_process_13math_min_size(size_t lb_a, size_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:189:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:185:5";
     size_t _lb_ret23979 = ((((size_t)(lb_a)) < ((size_t)(lb_b))) ? lb_a : lb_b);
     return _lb_ret23979;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) lb_r_unit lb_16luce_std_process_14command_append(struct lb_16luce_std_process_CommandState* lb_state, lb_cspan lb_bytes) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:173:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:169:5";
     (void)(lb_sync_Mutex_lock(&((lb_state)->lock)));
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:174:5";
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:175:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:170:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:171:5";
     if (!!((((size_t)((lb_bytes.length))) > ((size_t)((size_t)(lb_sub_u((uint64_t)((lb_state)->limit), (uint64_t)((lb_state)->used), 64))))))) 
     {
-        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:176:9";
+        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:172:9";
         lb_r_unit _lb_err23980 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_16luce_std_process_failed), .message = ((lb_str){"the command exceeded its output limit", 37}) }, .failed = true });
         {
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:174:5";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:170:5";
             (void)(lb_sync_Mutex_unlock(&((lb_state)->lock)));
         }
         return _lb_err23980;
     }
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:177:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:173:5";
     size_t lb_size __attribute__((unused)) = (size_t)(lb_add_u((uint64_t)((lb_state)->used), (uint64_t)((lb_bytes.length)), 64));
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:178:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:174:5";
     if (!!((((size_t)(lb_size)) > ((size_t)(((lb_state)->output.length)))))) 
     {
-        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:179:9";
+        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:175:9";
         size_t lb_capacity __attribute__((unused)) = ({ size_t _lb_sq23981 __attribute__((unused)) = (lb_state)->limit; size_t _lb_sq23982 __attribute__((unused)) = ({ size_t _lb_sq23983 __attribute__((unused)) = lb_size; size_t _lb_sq23984 __attribute__((unused)) = lb_16luce_std_process_13math_max_size(4096ULL, (size_t)(lb_mul_u((uint64_t)(((lb_state)->output.length)), (uint64_t)(2ULL), 64))); lb_16luce_std_process_13math_max_size(_lb_sq23983, _lb_sq23984); }); lb_16luce_std_process_13math_min_size(_lb_sq23981, _lb_sq23982); });
-        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:180:9";
+        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:176:9";
         if (!!((((lb_state)->output.length) == 0ULL))) 
         {
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:181:13";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:177:13";
             (lb_state)->output = (({ lb_r_u8_0s _lb_r23985 = ({ lb_iface _lb_a23986 = lb_memory_allocator; size_t _lb_n23986 = (size_t)(lb_capacity); lb_r_u8_0s _lb_r23986; if (_lb_n23986 > UINT64_C(4611686018427387904)) { _lb_r23986 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes23986 = sizeof(uint8_t) * _lb_n23986; lb_o_u8_0s _lb_ao23986 = lb_alloc_call(_lb_a23986, _lb_bytes23986, _Alignof(uint8_t)); if (_lb_bytes23986 != 0 && !_lb_ao23986.present) { _lb_r23986 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r23986.value.data = _lb_ao23986.value.data; _lb_r23986.value.length = _lb_n23986; _lb_r23986.failed = false; } } _lb_r23986; }); if (_lb_r23985.failed) {
                 {
-                    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:174:5";
+                    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:170:5";
                     (void)(lb_sync_Mutex_unlock(&((lb_state)->lock)));
                 }
                 return ((lb_r_unit){ .error = _lb_r23985.error, .failed = true });
@@ -120098,24 +120098,24 @@ static __attribute__((unused)) lb_r_unit lb_16luce_std_process_14command_append(
         }
         else 
         {
-            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:183:13";
+            lb_pos = "luce_std/src/luce_std/process/command/module.lucb:179:13";
             (lb_state)->output = (({ lb_r_u8_0s _lb_r23987 = lb_memory_grow((lb_state)->output, lb_capacity); if (_lb_r23987.failed) {
                 {
-                    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:174:5";
+                    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:170:5";
                     (void)(lb_sync_Mutex_unlock(&((lb_state)->lock)));
                 }
                 return ((lb_r_unit){ .error = _lb_r23987.error, .failed = true });
             } _lb_r23987.value; }));
         }
     }
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:184:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:180:5";
     (void)(lb_memory_copy_0g1_u8(({ lb_span _lb_sv23988 = (lb_state)->output; size_t _lb_sn23988 = _lb_sv23988.length; uint8_t* _lb_sd23988 = (uint8_t*)_lb_sv23988.data; size_t _lb_ss23988 = (size_t)((lb_state)->used); size_t _lb_se23988 = _lb_sn23988; lb_check_index(_lb_ss23988, _lb_sn23988 + 1); lb_check_index(_lb_se23988, _lb_sn23988 + 1); if (_lb_ss23988 > _lb_se23988) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd23988 + _lb_ss23988), _lb_se23988 - _lb_ss23988 }; }), lb_bytes, (lb_bytes.length)));
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:185:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:181:5";
     (lb_state)->used = lb_size;
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:186:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:182:5";
     (void)(((void)(((uint64_t)atomic_fetch_add_explicit(&((lb_state)->changed), (uint64_t)(1ULL), memory_order_release)))));
     {
-        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:174:5";
+        lb_pos = "luce_std/src/luce_std/process/command/module.lucb:170:5";
         (void)(lb_sync_Mutex_unlock(&((lb_state)->lock)));
     }
     return ((lb_r_unit){ .failed = false });
@@ -144668,7 +144668,7 @@ static __attribute__((unused)) void lb_sync_Mutex_unlock(lb_sync_Mutex* self) {
 }
 static __attribute__((unused)) size_t lb_16luce_std_process_13math_max_size(size_t lb_a, size_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:192:5";
+    lb_pos = "luce_std/src/luce_std/process/command/module.lucb:188:5";
     size_t _lb_ret29254 = ((((size_t)(lb_a)) > ((size_t)(lb_b))) ? lb_a : lb_b);
     return _lb_ret29254;
     lb_trap("unreachable");
