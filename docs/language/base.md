@@ -224,7 +224,7 @@ Context chooses the float type; absent context the default is `f64`, or `c.doubl
 ```luce
 'A'                          # one Unicode scalar: char; adapts to u8 when ASCII
 "hello"                      # UTF-8 text: str, static, NUL-terminated
-b"\x89PNG\r\n"               # bytes: const u8[6] static data
+b"\x89PNG\r\n"               # bytes: const u8[] static data; u8[6] where one is expected
 r"C:\studio\shots"           # raw: no escapes, no interpolation
 f"frame {frame}: {status}"   # formatted; see §5.5
 """multiline
@@ -233,7 +233,7 @@ text"""
 
 - A character literal is one Unicode scalar after escapes. In a `u8` context an ASCII character literal is that byte, so `byte == '\n'` needs no conversion; in an index position it is that integer, so `table['P']` indexes.
 - A string literal is valid UTF-8, stored once in static data, and followed by a NUL byte that is not part of its length. Its type is `str`, and it converts implicitly to `c.str` (§5.5) because the NUL is guaranteed.
-- A byte literal `b"..."` is a view of static data, of type `const u8[]`, with `\xNN` escapes and ASCII text; it is not NUL-terminated.
+- A byte literal `b"..."` is a view of static data, of type `const u8[]`, with `\xNN` escapes and ASCII text; it is not NUL-terminated. Where a byte array `u8[N]` is expected it is that array, as the array literal of its bytes, and N must be its length: `let magic: u8[4] = b"\x89PNG"`.
 - Triple-quoted strings drop a newline that directly follows the opening delimiter, strip indentation by the closing delimiter's column, and normalise CRLF to `\n` before escapes are decoded.
 - Escapes in text are `\\`, `\"`, `\'`, `\n`, `\r`, `\t`, `\0`, and `\u{HEX}` with one to six hex digits. There is no `\x` in text; it exists in byte literals.
 - A formatted string is not a value. It is consumed by `print`, by a `Writer`, by `format`, or by a parameter of type `fmt` (§5.5). `{{` and `}}` are literal braces. Each field is `{expression}`, evaluated once, left to right; there is no format specification inside the braces, and radix and padding are one-word functions applied in the field, `{hex(value)}`.

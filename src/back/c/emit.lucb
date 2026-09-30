@@ -64,6 +64,10 @@ struct Scope:
     var label: str
     var restore_alloc: bool
     var alloc_save: u32
+    ## A loop's own exit label, `lb_brk_N`, which an unlabelled `break` jumps to: C's
+    ## `break` inside a `switch`, which a `match` may be, would leave the switch alone.
+    var exit: u32 = 0
+    var exit_used: bool = false
 
 ## The buffer `put` writes to.
 let to_out: u8 = 0
@@ -113,6 +117,9 @@ pub struct Emitter:
     ## set by `lb_init_runtime_globals` when the program starts, as the native backend sets
     ## them in `lb_init_globals`.
     var runtime_globals: list.List[NodeRef]
+    ## Every global written, declared ahead of all of them (`global_declarations`), so an
+    ## initialiser may take the address of one defined after it.
+    var defined_globals: list.List[NodeRef]
     ## Emission context: the function, its instance arguments, its owner's.
     var current_fn: ast.Node*?
     var fn_decl: ast.Node*?
@@ -172,6 +179,7 @@ pub struct Emitter:
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
                        vtables = try list.List[Witness].create(16), runtime_globals = try list.List[NodeRef].create(8),
+                       defined_globals = try list.List[NodeRef].create(64),
                        current_fn = none, fn_decl = none, fn_args = try types.no_args(), owner_decl = none,
                        owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
@@ -1321,7 +1329,23 @@ pub struct Emitter:
     # -- scopes and cleanup ---------------------------------------------------------------
 
     mutating func push_scope(loop: bool, label: str) -> !:
-        try self.scopes.push(Scope(defer_base = self.defers.count, loop = loop, label = label, restore_alloc = false, alloc_save = 0))
+        let exit = self.tmp() if loop else 0
+        try self.scopes.push(Scope(defer_base = self.defers.count, loop = loop, label = label, restore_alloc = false, alloc_save = 0, exit = exit))
+
+    ## The label after a loop that its unlabelled `break`s jump to, when one did.
+    mutating func loop_exit(sc: Scope) -> !:
+        if sc.exit_used:
+            try self.line("")
+            try self.put_tmp("brk", sc.exit)
+            try self.put(": __attribute__((unused));")
+
+    ## `goto` the exit of the loop at `target`, marking the label as needed.
+    mutating func break_to(target: usize) -> !:
+        var sc = self.scopes.get(target)
+        sc.exit_used = true
+        self.scopes.set(target, sc)
+        try self.put("goto ")
+        try self.put_tmp("brk", sc.exit)
 
     mutating func pop_scope():
         let sc = self.scopes.get(self.scopes.count - 1)
@@ -1746,7 +1770,9 @@ pub struct Emitter:
         self.indent -= 1
         try self.line("}")
         try self.unwind(self.scopes.count - 1, false)
+        let finished = self.scopes.get(self.scopes.count - 1)
         self.pop_scope()
+        try self.loop_exit(finished)
         if s.text.length > 0:
             try self.line("lb_brk_")
             try self.put(s.text)
@@ -1916,7 +1942,9 @@ pub struct Emitter:
         self.indent -= 1
         try self.line("}")
         try self.unwind(self.scopes.count - 1, false)
+        let finished = self.scopes.get(self.scopes.count - 1)
         self.pop_scope()
+        try self.loop_exit(finished)
         if s.text.length > 0:
             try self.line("lb_brk_")
             try self.put(s.text)
@@ -1951,8 +1979,13 @@ pub struct Emitter:
     mutating func jump(s: ast.Node*) -> !:
         let target = self.loop_scope(s.text)
         try self.unwind_from(target + 1, false)
+        if s.text.length == 0 and s.kind == ast.Kind.break_:
+            try self.line("")
+            try self.break_to(target)
+            try self.put(";")
+            return
         if s.text.length == 0:
-            try self.line("break;" if s.kind == ast.Kind.break_ else "continue;")
+            try self.line("continue;")
             return
         try self.line("goto ")
         try self.put("lb_brk_" if s.kind == ast.Kind.break_ else "lb_cont_")
@@ -2580,7 +2613,7 @@ pub struct Emitter:
                 let target = self.loop_scope(e.text)
                 try self.unwind_from(target + 1, false)
                 if e.text.length == 0:
-                    try self.put("break")
+                    try self.break_to(target)
                 else:
                     try self.put("goto lb_brk_")
                     try self.put(e.text)
@@ -6819,6 +6852,7 @@ pub struct Emitter:
         # the prototypes first, so the types they spell are noted before the typedefs
         self.target = to_protos
         try self.prototypes()
+        try self.global_declarations()
         # the header: prologue, types, prototypes, globals, tables
         self.target = to_out
         try self.prologue()
@@ -6855,6 +6889,25 @@ pub struct Emitter:
         try self.put("typedef struct {} lb_unit;\n")
 
     ## Prototypes of every function instance and extern, and the interface tables' types.
+    ## `lb_x` declared before any global is defined: a table's initialiser takes the
+    ## address of the class description written after it, and the description the table's
+    ## (luce-browser-foundation's streams). A standard constant is `static` as its
+    ## definition is, a thread-local `_Thread_local`; a global with attributes is left to its
+    ## definition, which must not disagree with a declaration.
+    mutating func global_declarations() -> !:
+        for d in self.defined_globals.span():
+            try self.line("")
+            if d.kind == ast.Kind.constant and check.is_library_module(names.module_of(d)):
+                try self.put("static __attribute__((unused)) ")
+            else:
+                try self.put("extern ")
+            if d.has(ast.flag_thread_local):
+                try self.put("_Thread_local ")
+            try self.put_type(d.type_id)
+            try self.put(" ")
+            try self.put_global_name(d)
+            try self.put(";")
+
     mutating func prototypes() -> !:
         var i: usize = 0
         while i < self.modules.count:
@@ -7019,6 +7072,8 @@ pub struct Emitter:
 
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:
+        if not ast.is_linked(d) and d.attrs == none:
+            try self.defined_globals.push(d)
         try self.line("")
         if ast.is_linked(d):
             try self.put("extern ")

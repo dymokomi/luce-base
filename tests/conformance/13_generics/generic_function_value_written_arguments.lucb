@@ -1,0 +1,27 @@
+# oracle: none (the seed has no generic function values, as 13_generics/generic_function_values)
+## §13: a generic function named as a value with its type arguments written is that instance:
+## `twice[i64]`, `twice[Point]`, `pick[i32, Point]`, including a type parameter its function
+## type does not mention, which no expected type could infer. An index by a constant stays an
+## index.
+struct Point:
+    var x: i64
+
+func twice[T](context: void*?, value: const T*) -> bool:
+    return context == none
+
+func pick[A, B](context: void*?, value: const A*) -> bool:
+    return sizeof(B) == 8
+
+var table: i64[4]
+let Count: usize = 2
+
+pub func main(arguments: str[]) -> i32:
+    let one = twice[Point]
+    let two = twice[i64]
+    let three: func(void*?, const i32*) -> bool = pick[i32, Point]
+    var p = Point(x = 1)
+    var n: i64 = 2
+    var m: i32 = 3
+    table[Count] = 5
+    print(f"{one(none, &p)} {two(none, &n)} {three(none, &m)} {table[Count]}")
+    return 0

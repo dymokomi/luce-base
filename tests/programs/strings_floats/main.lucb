@@ -2,76 +2,14 @@ import c
 import files
 import io
 import memory
-import platform
 import strings
 
 extern func float_environment_begin() -> i32
 extern func float_environment_check()
 extern func float_rounding(kind: i32)
+## The reference library (reference.c) keeps a thread locale with a decimal comma active and
+## sets the rounding mode; the conversions must read neither and change neither.
 extern func float_environment_end()
-extern func float_fault_begin(mode: i32)
-extern func float_fault_end(expected_hits: i32)
-
-func check_failures() -> !:
-    for mode in 1..<(8 if platform.macos or platform.windows else 9):
-        let expected = memory.exhausted if mode == 1 or mode == 3 else strings.invalid_number if mode == 5 else strings.conversion_failed
-        for narrow in 0..<2:
-            var failed = false
-            float_fault_begin((i32)mode)
-            if mode < 6:
-                if narrow == 0:
-                    discard(strings.parse_f64("12.5") catch failure:
-                        assert(failure.code == expected)
-                        failed = true
-                        recover 0.0)
-                else:
-                    discard(strings.parse_f32("12.5") catch failure:
-                        assert(failure.code == expected)
-                        failed = true
-                        recover (f32)0)
-            else:
-                var output: u8[32]
-                memory.set(output, 85)
-                if narrow == 0:
-                    discard(strings.format_f64(12.5, output) catch failure:
-                        assert(failure.code == expected)
-                        failed = true
-                        recover "")
-                else:
-                    discard(strings.format_f32((f32)12.5, output) catch failure:
-                        assert(failure.code == expected)
-                        failed = true
-                        recover "")
-                for byte in output:
-                    assert(byte == 85)
-            assert(failed)
-            float_fault_end(1)
-    var empty: u8[]
-    var refusing = memory.FixedBuffer.over(empty)
-    with refusing:
-        for narrow in 0..<2:
-            float_fault_begin(9)
-            var failed = false
-            if narrow == 0:
-                discard(strings.parse_f64("12.5") catch failure:
-                    assert(failure.code == memory.exhausted)
-                    failed = true
-                    recover 0.0)
-            else:
-                discard(strings.parse_f32("12.5") catch failure:
-                    assert(failure.code == memory.exhausted)
-                    failed = true
-                    recover (f32)0)
-            assert(failed)
-            float_fault_end(0)
-        # Special values need neither an input copy nor a numeric locale.
-        float_fault_begin(1)
-        discard(try strings.parse_f64("-inf"))
-        discard(try strings.parse_f32("nan"))
-        float_fault_end(0)
-        var output: u8[32]
-        assert(try strings.format_f64(12.5, output) == "12.5")
-        assert(try strings.format_f32((f32)12.5, output) == "12.5")
 
 func check64(text: str, status: u32, bits: u64) -> !:
     var failed = false
@@ -154,9 +92,10 @@ pub func main(arguments: c.str[]) -> i32!:
     for kind in 0..<4:
         float_rounding((i32)kind)
         let value = try strings.parse_f64("1.00000000000000011102230246251565404236316680908203125")
-        assert(memory.read[u64](&value) == (4607182418800017409 if kind == 2 else 4607182418800017408))
+        # ties to even in every rounding mode: the conversion is integer arithmetic
+        assert(memory.read[u64](&value) == 4607182418800017408)
         let narrow = try strings.parse_f32("1.000000059604644775390625")
-        assert(memory.read[u32](&narrow) == (1065353217 if kind == 2 else 1065353216))
+        assert(memory.read[u32](&narrow) == 1065353216)
         var failed = false
         discard(strings.parse_f64("1e1000") catch failure:
             assert(failure.code == strings.number_out_of_range)
@@ -175,6 +114,5 @@ pub func main(arguments: c.str[]) -> i32!:
         discard(try strings.format_f32(narrow, output))
         float_environment_check()
     float_rounding(0)
-    try check_failures()
     print("ok floating-point text conversion")
     return 0

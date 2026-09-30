@@ -1,0 +1,6 @@
+# error: `i64` has no member `max`
+## §5.1: a scalar type has no members but a float's `bits`; the diagnostic names the type and
+## the member.
+pub func main(arguments: str[]) -> i32:
+    let m = i64.max
+    return 0

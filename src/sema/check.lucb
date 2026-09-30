@@ -2429,6 +2429,19 @@ pub struct Checker:
             .member:
                 return try self.member_type(e)
             .index:
+                if self.names_instantiation(e):
+                    # `negate[Point]`: a generic function and a type, the instance (§13)
+                    let owner = e.left else return try self.fail(e, "missing operand")
+                    let arg = e.body else return try self.fail(e, "missing index")
+                    let holder = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+                    let named = try ast.Node.make(ast.Kind.type_, arg.text, arg.start, arg.line)
+                    holder.body = named
+                    e.kind = ast.Kind.name
+                    e.text = owner.text
+                    e.ty = holder
+                    e.left = none
+                    e.body = none
+                    return try self.generic_function_value(e, try self.name_type(e), hint)
                 return try self.index_type(e)
             .slice:
                 return try self.slice_type(e)
@@ -2558,6 +2571,8 @@ pub struct Checker:
             return types.str_id
         if first == 'r' or first == 'b':
             if first == 'b':
+                if self.table.kind(hint) == types.Kind.array and self.table.get(hint).elem == types.u8_id:
+                    return try self.bytes_as_array(e, hint)
                 return try self.table.span(types.u8_id, true)
             return types.str_id
         let suffix = literals.literal_suffix(e.text)
@@ -2573,6 +2588,33 @@ pub struct Checker:
         discard(value)
         return types.untyped_int_id
 
+    ## `let magic: u8[4] = b"\x89PNG"`: a byte literal where a byte array is expected is an
+    ## array literal of its bytes, and must have the array's length (§4.4). The node becomes
+    ## that array literal, so every backend builds it as it builds `[0x89, 0x50, ...]`.
+    mutating func bytes_as_array(e: ast.Node*, hint: u32) -> u32!:
+        let length = self.table.get(hint).length
+        let bytes = decode_text(e.text).bytes
+        if (u64)bytes.length != length:
+            var said22: u8[256]
+            return try self.fail(e, try self.with_type(try format(said22, f"a byte literal of {bytes.length} bytes cannot initialise `"), hint, "`: the lengths differ"))
+        if bytes.length == 0:
+            return try self.fail(e, "an empty byte literal cannot initialise an array: an array literal needs at least one element (§5.4)")
+        var head: ast.Node*? = none
+        var tail: ast.Node*? = none
+        for byte in bytes:
+            var room = try alloc u8[4]
+            let spelled = try format(room, f"{byte}")
+            let element = try ast.Node.make(ast.Kind.literal, spelled, e.start, e.line)
+            if let last = tail:
+                last.next = element
+            else:
+                head = element
+            tail = element
+        e.kind = ast.Kind.array_lit
+        e.text = ""
+        e.body = head
+        return try self.array_type(e, hint)
+
     ## `255u8`, `0.5f32`: the suffix names the literal's exact type (§4.2, §4.3), and the
     ## literal must fit it.
     mutating func suffixed_literal(e: ast.Node*, suffix: str) -> u32!:
@@ -2587,15 +2629,46 @@ pub struct Checker:
             try self.check_float_fits(e, id)
         return id
 
+    ## Whether `name[Name]` names a generic function and a type: an instantiation, not an
+    ## index (the parser reads a single capitalised name as either).
+    func names_instantiation(e: ast.Node*) -> bool:
+        let owner = e.left else return false
+        let arg = e.body else return false
+        if owner.kind != ast.Kind.name or arg.kind != ast.Kind.name:
+            return false
+        let fb = self.lookup(owner.text) else return false
+        let f = fb.decl else return false
+        if f.kind != ast.Kind.func_ or generic_params_of(f) == none:
+            return false
+        let tb = self.lookup(arg.text) else return false
+        let t = tb.decl else return false
+        return is_type_decl(t) or t.kind == ast.Kind.type_alias or t.kind == ast.Kind.generic_param
+
     ## A name is a local, a declaration, a module, or a type used as a value.
     ## A generic function named where a function type is expected, `let f: func(i64) -> bool
     ## = negate` (§13): the instance whose type that is, its arguments inferred from the
     ## expected type and recorded on the name as a call records its own.
     mutating func generic_function_value(e: ast.Node*, t: u32, hint: u32) -> u32!:
         let d = e.resolved else return t
-        if d.kind != ast.Kind.func_ or e.ty != none:
+        if d.kind != ast.Kind.func_:
             return t
         let generics = generic_params_of(d) else return t
+        if let written = e.ty:
+            # `negate[i64]`, `pick[i32, u64]`: the instance the written arguments name, for a
+            # function type that does not mention every type parameter too
+            let n = ast.count(generics)
+            if ast.count(written.body) != n:
+                return try self.fail(e, "wrong number of type arguments")
+            var args = try alloc u32[n]
+            var j: usize = 0
+            var cursor = written.body
+            while let a = cursor:
+                args[j] = try self.resolve_type(a)
+                a.type_id = args[j]
+                j += 1
+                cursor = a.next
+            try self.check_constraints(d, args, e)
+            return try self.substitute(d.type_id, d, args)
         var target = hint
         if self.table.kind(hint) == types.Kind.optional:
             target = self.table.get(hint).elem
@@ -4093,7 +4166,8 @@ pub struct Checker:
                 # `Point.distance` through its type is a function taking the receiver first (§5.6)
                 return try self.method_as_function(ft, id, m.has(ast.flag_mutating))
             return ft
-        return try self.fail(e, "this type has no such member")
+        var said21: u8[256]
+        return try self.fail(e, try self.with_type("`", id, try format(said21, f"` has no member `{name}`")))
 
     ## The function type that builds a payload case.
     mutating func case_constructor(case_node: ast.Node*, d: ast.Node*, args: u32[]) -> u32!:

@@ -1,0 +1,15 @@
+## §7: an index that starts with a type word is still an index when the word converts
+## (`usize(i)`) or names a member (`Origin.x`): only a bracket that can hold
+## nothing but types instantiates a generic function value (§13).
+struct Point:
+    var x: usize
+
+let Origin: Point = Point(x = 1)
+
+pub func main(arguments: str[]) -> i32:
+    let table: i64[4] = [10, 20, 30, 40]
+    let k: i32 = 2
+    let counts: i64[2] = [7, 9]
+    let wide: u64[1] = [0]
+    print(f"{table[usize(k)]} {table[usize(k) + 1]} {counts[Origin.x]} {table[usize(3) - 2]} {wide[u8(0)]}")
+    return 0

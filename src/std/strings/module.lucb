@@ -9,8 +9,6 @@
 #
 #==============================================================================================
 
-import c
-import platform
 import io
 import memory
 ## An empty separator or needle where one is required.
@@ -23,5 +21,3 @@ pub let invalid_radix: ErrorCode = ErrorCode.package(50)
 pub let invalid_number: ErrorCode = ErrorCode.package(51)
 ## The parsed value does not fit its type.
 pub let number_out_of_range: ErrorCode = ErrorCode.package(52)
-## The C library could not format or parse the value.
-pub let conversion_failed: ErrorCode = ErrorCode.package(53)

@@ -468,8 +468,6 @@ Text operations over `str` views; what allocates says so and uses the current al
 
 - `let number_out_of_range: ErrorCode = ErrorCode.package(52)` — The parsed value does not fit its type.
 
-- `let conversion_failed: ErrorCode = ErrorCode.package(53)` — The C library could not format or parse the value.
-
 - `func starts_with(text: str, prefix: str) -> bool` — Whether `text` begins with `prefix`.
 
 - `func ends_with(text: str, suffix: str) -> bool` — Whether `text` ends with `suffix`.
@@ -521,13 +519,17 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 
 - `func format_u64(value: u64, buffer: u8[], radix: u32 = 10) -> str!` — Unsigned counterpart of format_i64; at most 64 bytes are needed. io.full reports insufficient capacity and invalid_radix reports a radix outside 2 through 36.
 
-- `func parse_f64(text: str) -> f64!` — Parse `text` as a 64-bit float, or fail when it is not a number.
+- `func parse_f64(text: str) -> f64!` — Parse `text`, all of it, as the f64 nearest its value, ties to even: an optional sign, then digits with an optional point (`1`, `1.5`, `.5`, `5.`) and an optional exponent (`e` or `E`, an optional sign, digits), or `inf`, `infinity` or `nan` in any case. NaN is the quiet NaN with the written sign. Fails with invalid_number when `text` is not a number or goes on past one (scan_f64 says where it ends), and with number_out_of_range when it rounds past the largest finite f64; a smaller magnitude than the least subnormal is a signed zero. No locale, whitespace, underscore or hex form is read.
 
-- `func parse_f32(text: str) -> f32!` — The f32 counterpart of parse_f64. It calls the single-precision converter directly, avoiding a second rounding step through f64.
+- `func parse_f32(text: str) -> f32!` — The f32 counterpart of parse_f64, rounded once from the decimal (never through f64).
 
-- `func format_f64(value: f64, buffer: u8[]) -> str!` — Format with 17 significant decimal digits in the C numeric locale. This is sufficient for finite-value round trips under round-to-nearest, not a promise of shortest text. Signed zero is retained; NaN payloads are not. The current rounding mode is honored. Return a borrowed view without a terminator; 32 bytes suffice. The destination is unchanged on failure. A temporary libc locale may allocate; no current-allocator storage is needed and no global locale is changed.
+- `func scan_f64(text: const u8[]) -> (f64, usize)!` — The number that starts `text`, read as parse_f64 reads one, and how many bytes spell it: the longest prefix that is a number (`1e` is the number `1`, one byte). A reader continues from there, and names that position when what follows is not what it expects. Fails with invalid_number when no number starts `text`, number_out_of_range as parse_f64 does.
 
-- `func format_f32(value: f32, buffer: u8[]) -> str!` — The f32 counterpart of format_f64, with nine significant decimal digits. The exact promotion to f64 is only for C's variadic formatting argument.
+- `func scan_f32(text: const u8[]) -> (f32, usize)!` — The f32 counterpart of scan_f64.
+
+- `func format_f64(value: f64, buffer: u8[]) -> str!` — The shortest decimal text that parse_f64 reads back as `value`, the closest to it of those, as double-conversion's ToShortest lays it out: decimal notation for a decimal exponent from -6 to 14 (`0.000001`, `123456789012345`, `1.5`), otherwise one digit, the rest after a point, and `e` with the exponent (`1e-7`, `1.2345e15`, `5e-324`); `-0`, `inf`, `-inf`, `nan` (no sign, no payload). Written into `buffer` (32 bytes always suffice), and a view of it; io.full when it does not fit, the buffer unchanged. Neither allocates, locale or rounding mode.
+
+- `func format_f32(value: f32, buffer: u8[]) -> str!` — The f32 counterpart of format_f64: the f32's own shortest digits (`0.1` for 0.1f32, not the digits of its f64 value).
 
 ### `Builder` (struct : io.Writer)
 

@@ -1,223 +1,934 @@
 #==============================================================================================
 #
-#   floats - Float formatting and parsing
+#   floats - Floating-point text: correctly rounded parsing, shortest formatting
 #
 #   DESCRIPTION:
-#       Locale-independent formatting and parsing of `f64`/`f32`, through the C library under a
-#       C locale so the decimal point is a dot on every host.
+#       Decimal text to f64 and f32, correctly rounded to nearest with ties to even, and
+#       back as the shortest digits that read back to the same value. Parsing is Eisel-Lemire
+#       (Lemire, "Number Parsing at a Gigabyte per Second", 2021, in the form of Go's
+#       strconv) over float_tables' 128-bit powers of ten; what it cannot decide (a tie, a
+#       subnormal, digits past the 19th that matter) goes to a decimal of up to 800 digits
+#       scaled by powers of two (strconv's slow path). Formatting is Ryu (Adams, "Ryu: Fast
+#       Float-to-String Conversion", PLDI 2018), each width with its own shortest digits,
+#       laid out as double-conversion's ToShortest. Integer arithmetic throughout: no C
+#       library, no locale, and the thread's rounding mode changes nothing.
 #
 #==============================================================================================
 
-extern func new_numeric_locale as "newlocale"(mask: i32, name: c.str, base: void*?) -> void*?
-extern func free_locale_macos as "freelocale"(locale: void*) -> i32
-extern func free_locale_linux as "freelocale"(locale: void*)
-extern func use_locale as "uselocale"(locale: void*) -> void*?
-extern func convert_f64 as "strtod_l"(text: c.str, end: u8*?*, locale: void*) -> f64
-extern func convert_f32 as "strtof_l"(text: c.str, end: u8*?*, locale: void*) -> f32
-extern func print_float_macos as "snprintf_l"(output: u8*, size: usize, locale: void*, format: c.str, ...) -> i32
-extern func print_float_linux as "snprintf"(output: u8*, size: usize, format: c.str, ...) -> i32
-extern func create_locale_windows as "_create_locale"(category: i32, name: c.str) -> void*?
-extern func free_locale_windows as "_free_locale"(locale: void*)
-extern func convert_f64_windows as "_strtod_l"(text: c.str, end: u8*?*, locale: void*) -> f64
-extern func convert_f32_windows as "_strtof_l"(text: c.str, end: u8*?*, locale: void*) -> f32
-## The UCRT's `_snprintf_l` is a header inline no native program can link; the export
-## behind it takes the arguments as a `va_list`, which on x64 points at them, eight bytes each.
-extern func print_float_windows as "__stdio_common_vsprintf"(options: u64, output: u8*, size: usize, format: c.str, locale: void*?, arguments: void*) -> i32
+# mark: Parsing ================================================================================
 
-func parse_native_f64(text: c.str, end: u8*?*, locale: void*) -> f64:
-    if platform.windows:
-        return convert_f64_windows(text, end, locale)
-    return convert_f64(text, end, locale)
-
-func parse_native_f32(text: c.str, end: u8*?*, locale: void*) -> f32:
-    if platform.windows:
-        return convert_f32_windows(text, end, locale)
-    return convert_f32(text, end, locale)
-
-## Parse complete ASCII decimal text with an optional sign, decimal point and
-## exponent. Whitespace, hex, underscores, embedded NUL and trailing bytes are
-## invalid_number. Case-insensitive inf/infinity/nan are also accepted; NaNs are
-## canonical quiet values. Numeric overflow reports number_out_of_range; rounded
-## underflow/subnormals and signed zero are valid. Conversion uses the C numeric
-## locale and the calling thread's rounding mode. Decimal input is copied through
-## the current allocator and uses a temporary libc locale, both released on return.
-# mark: Formatting and parsing ==============================================================
-
-## Parse `text` as a 64-bit float, or fail when it is not a number.
+## Parse `text`, all of it, as the f64 nearest its value, ties to even: an optional sign, then
+## digits with an optional point (`1`, `1.5`, `.5`, `5.`) and an optional exponent (`e` or
+## `E`, an optional sign, digits), or `inf`, `infinity` or `nan` in any case. NaN is the
+## quiet NaN with the written sign. Fails with invalid_number when `text` is not a number or
+## goes on past one (scan_f64 says where it ends), and with number_out_of_range when it
+## rounds past the largest finite f64; a smaller magnitude than the least subnormal is a
+## signed zero. No locale, whitespace, underscore or hex form is read.
 pub func parse_f64(text: str) -> f64!:
-    let kind = float_syntax(text) else error(invalid_number, "invalid floating-point text")
-    if kind != 0:
-        var bits: u64 = 9218868437227405312 if kind == 1 else 9221120237041090560
-        if text.bytes[0] == '-':
-            bits |= 9223372036854775808
-        return memory.read[f64](&bits)
-    var locale = try NumericLocale.create()
-    defer locale.destroy()
-    let input = try copy(text)
-    defer release(input)
-    var end: u8*? = none
-    c.set_errno(0)
-    let value = parse_native_f64((c.str)input, &end, locale.handle())
-    let number = c.errno()
-    try check_float_conversion(input, end, number)
-    let magnitude = memory.read[u64](&value) & 9223372036854775807
-    if magnitude >= 9218868437227405312 or (number == 34 and magnitude >= 4607182418800017408):
-        error(number_out_of_range, "the decimal value exceeds f64 range")
+    let (value, used) = try scan_f64(text.bytes)
+    if used != text.length:
+        error(invalid_number, "the text goes on past the number")
     return value
 
-## The f32 counterpart of parse_f64. It calls the single-precision converter
-## directly, avoiding a second rounding step through f64.
+## The f32 counterpart of parse_f64, rounded once from the decimal (never through f64).
 pub func parse_f32(text: str) -> f32!:
-    let kind = float_syntax(text) else error(invalid_number, "invalid floating-point text")
-    if kind != 0:
-        var bits: u32 = 2139095040 if kind == 1 else 2143289344
-        if text.bytes[0] == '-':
-            bits |= 2147483648
-        return memory.read[f32](&bits)
-    var locale = try NumericLocale.create()
-    defer locale.destroy()
-    let input = try copy(text)
-    defer release(input)
-    var end: u8*? = none
-    c.set_errno(0)
-    let value = parse_native_f32((c.str)input, &end, locale.handle())
-    let number = c.errno()
-    try check_float_conversion(input, end, number)
-    let magnitude = memory.read[u32](&value) & 2147483647
-    if magnitude >= 2139095040 or (number == 34 and magnitude >= 1065353216):
-        error(number_out_of_range, "the decimal value exceeds f32 range")
+    let (value, used) = try scan_f32(text.bytes)
+    if used != text.length:
+        error(invalid_number, "the text goes on past the number")
     return value
 
-## Format with 17 significant decimal digits in the C numeric locale. This is
-## sufficient for finite-value round trips under round-to-nearest, not a promise
-## of shortest text. Signed zero is retained; NaN payloads are not. The current
-## rounding mode is honored. Return a borrowed view without a terminator; 32 bytes
-## suffice. The destination is unchanged on failure. A temporary libc locale may
-## allocate; no current-allocator storage is needed and no global locale is changed.
-pub func format_f64(value: f64, buffer: u8[]) -> str!:
-    return try format_float(value, 17, buffer)
+## The number that starts `text`, read as parse_f64 reads one, and how many bytes spell it:
+## the longest prefix that is a number (`1e` is the number `1`, one byte). A reader continues
+## from there, and names that position when what follows is not what it expects. Fails with
+## invalid_number when no number starts `text`, number_out_of_range as parse_f64 does.
+pub func scan_f64(text: const u8[]) -> (f64, usize)!:
+    let number = try scan(text)
+    let sign: u64 = 0x8000000000000000 if number.negative else 0
+    if number.kind == infinity_kind:
+        return (f64.bits(sign | 0x7FF0000000000000), number.used)
+    if number.kind == nan_kind:
+        return (f64.bits(sign | 0x7FF8000000000000), number.used)
+    if number.mantissa == 0:
+        return (f64.bits(sign), number.used)
+    if not number.truncated and number.exponent == 0 and number.mantissa <= 0x20000000000000:
+        let exact = (f64)number.mantissa
+        return (-exact if number.negative else exact, number.used)
+    let magnitude = number.decimal_exponent()
+    if magnitude > 309:
+        error(number_out_of_range, "the number is beyond the largest f64")
+    if magnitude < -330:
+        return (f64.bits(sign), number.used)
+    if let value = lemire64(number.mantissa, number.exponent, number.negative):
+        # digits past the 19th: the value lies between mantissa and mantissa + 1 units
+        if not number.truncated:
+            return (value, number.used)
+        if let above = lemire64(number.mantissa + 1, number.exponent, number.negative):
+            if above.bits() == value.bits():
+                return (value, number.used)
+    var slow = Decimal()
+    slow.read(text[..<number.used])
+    let (bits, overflow) = slow.float_bits(52, 11, -1023)
+    if overflow:
+        error(number_out_of_range, "the number is beyond the largest f64")
+    return (f64.bits(bits | sign), number.used)
 
-## The f32 counterpart of format_f64, with nine significant decimal digits. The
-## exact promotion to f64 is only for C's variadic formatting argument.
-pub func format_f32(value: f32, buffer: u8[]) -> str!:
-    return try format_float((f64)value, 9, buffer)
+## The f32 counterpart of scan_f64.
+pub func scan_f32(text: const u8[]) -> (f32, usize)!:
+    let number = try scan(text)
+    let sign: u32 = 0x80000000 if number.negative else 0
+    if number.kind == infinity_kind:
+        return (f32.bits(sign | 0x7F800000), number.used)
+    if number.kind == nan_kind:
+        return (f32.bits(sign | 0x7FC00000), number.used)
+    if number.mantissa == 0:
+        return (f32.bits(sign), number.used)
+    if not number.truncated and number.exponent == 0 and number.mantissa <= 0x1000000:
+        let exact = (f32)number.mantissa
+        return (-exact if number.negative else exact, number.used)
+    let magnitude = number.decimal_exponent()
+    if magnitude > 39:
+        error(number_out_of_range, "the number is beyond the largest f32")
+    if magnitude < -66:
+        return (f32.bits(sign), number.used)
+    if let value = lemire32(number.mantissa, number.exponent, number.negative):
+        if not number.truncated:
+            return (value, number.used)
+        if let above = lemire32(number.mantissa + 1, number.exponent, number.negative):
+            if above.bits() == value.bits():
+                return (value, number.used)
+    var slow = Decimal()
+    slow.read(text[..<number.used])
+    let (bits, overflow) = slow.float_bits(23, 8, -127)
+    if overflow:
+        error(number_out_of_range, "the number is beyond the largest f32")
+    return (f32.bits((u32)bits | sign), number.used)
 
-struct NumericLocale:
-    var value: void*?
+let finite_kind: u8 = 0
+let infinity_kind: u8 = 1
+let nan_kind: u8 = 2
 
-    static func create() -> NumericLocale!:
-        if platform.windows:
-            let handle = create_locale_windows(4, "C") else error(memory.exhausted if c.errno() == 12 else conversion_failed, "the C numeric locale could not be created")
-            return NumericLocale(value = handle)
-        let value = new_numeric_locale(16 if platform.macos else 2, "C", none) else error(memory.exhausted if c.errno() == 12 else conversion_failed, "the C numeric locale could not be created")
-        return NumericLocale(value = value)
+## A number as scanned: `mantissa * 10^exponent` from its first 19 significant digits.
+struct Scanned:
+    var negative: bool = false
+    var kind: u8 = 0
+    var mantissa: u64 = 0
+    var digits: i64 = 0
+    var exponent: i64 = 0
+    ## Whether a nonzero digit past the 19th was left out of `mantissa`.
+    var truncated: bool = false
+    var used: usize = 0
 
-    func handle() -> void*:
-        return self.value else trap("the numeric locale is closed")
+    ## The power of ten of the leading digit.
+    func decimal_exponent() -> i64:
+        return self.exponent + self.digits - 1
 
-    mutating func destroy():
-        if let value = self.value:
-            self.value = none
-            if platform.windows:
-                free_locale_windows(value)
-            elif platform.macos:
-                discard(free_locale_macos(value))
+## The number at the start of `text`: its sign, kind, leading digits and length.
+func scan(text: const u8[]) -> Scanned!:
+    var number = Scanned()
+    var at: usize = 0
+    if at < text.length and (text[at] == '-' or text[at] == '+'):
+        number.negative = text[at] == '-'
+        at += 1
+    let word = text[at..]
+    if let length = special_word(word):
+        number.kind = infinity_kind if length != 3 or ascii_lower(word[0]) == 'i' else nan_kind
+        number.used = at + length
+        return number
+    var seen = false
+    var point = false
+    while at < text.length:
+        let byte = text[at]
+        if byte == '.' and not point:
+            point = true
+        elif byte >= '0' and byte <= '9':
+            seen = true
+            let digit = (u64)(byte - '0')
+            if number.mantissa == 0 and digit == 0:
+                # a leading zero: after the point it scales what follows
+                if point:
+                    number.exponent -= 1
+            elif number.digits < 19:
+                number.mantissa = number.mantissa * 10 + digit
+                number.digits += 1
+                if point:
+                    number.exponent -= 1
             else:
-                free_locale_linux(value)
+                number.truncated = number.truncated or digit != 0
+                if not point:
+                    number.exponent += 1
+        else:
+            break
+        at += 1
+    if not seen:
+        error(invalid_number, "no number starts the text")
+    number.used = at
+    if at < text.length and (text[at] == 'e' or text[at] == 'E'):
+        var after = at + 1
+        var down = false
+        if after < text.length and (text[after] == '-' or text[after] == '+'):
+            down = text[after] == '-'
+            after += 1
+        var power: i64 = 0
+        let first = after
+        while after < text.length and text[after] >= '0' and text[after] <= '9':
+            # beyond any f64 either way; the cap keeps the sum from wrapping
+            if power < 100000:
+                power = power * 10 + (i64)(text[after] - '0')
+            after += 1
+        if after > first:
+            number.exponent += -power if down else power
+            number.used = after
+    return number
 
-func format_float(value: f64, precision: i32, buffer: u8[]) -> str!:
-    let bits = memory.read[u64](&value)
-    let magnitude = bits & 9223372036854775807
-    if magnitude >= 9218868437227405312:
-        let word = "nan" if magnitude > 9218868437227405312 else "-inf" if (bits >> 63) != 0 else "inf"
-        if buffer.length < word.length:
-            error(io.full, "the destination cannot hold the formatted floating-point value")
-        memory.copy(buffer, word.bytes, word.length)
-        return (str)buffer[..<word.length]
-    var locale = try NumericLocale.create()
-    defer locale.destroy()
-    var temporary: u8[32]
-    var count: i32 = 0
-    if platform.windows:
-        # `_CRT_INTERNAL_PRINTF_STANDARD_SNPRINTF_BEHAVIOR`: C99's count and termination
-        var arguments: u64[2] = [(u64)precision, memory.read[u64](&value)]
-        count = print_float_windows(2, &temporary[0], temporary.length, "%.*g", locale.handle(), (void*)&arguments[0])
-    elif platform.macos:
-        count = print_float_macos(&temporary[0], temporary.length, locale.handle(), "%.*g", precision, value)
-    else:
-        # glibc has no snprintf_l. Change only this thread's locale and restore it
-        # before releasing the temporary locale, including on formatting failure.
-        let previous = use_locale(locale.handle()) else error(conversion_failed, "the thread numeric locale could not be selected")
-        defer restore_numeric_locale(previous)
-        count = print_float_linux(&temporary[0], temporary.length, "%.*g", precision, value)
-    if count < 0 or (usize)count >= temporary.length:
-        error(conversion_failed, "floating-point formatting failed")
-    if buffer.length < (usize)count:
-        error(io.full, "the destination cannot hold the formatted floating-point value")
-    memory.copy(buffer, temporary, (usize)count)
-    return (str)buffer[..<(usize)count]
+## The length of `inf`, `infinity` or `nan` (any case) at the start of `word`, the longest.
+func special_word(word: const u8[]) -> usize?:
+    if starts_word(word, "infinity"):
+        return 8
+    if starts_word(word, "inf") or starts_word(word, "nan"):
+        return 3
+    return none
 
-func restore_numeric_locale(previous: void*):
-    # previous is a valid handle returned by uselocale, including LC_GLOBAL_LOCALE.
-    let restored = use_locale(previous) else trap("a valid thread locale could not be restored")
-    discard(restored)
-
-func check_float_conversion(input: str, end: u8*?, number: i32) -> !:
-    if number == 12:
-        error(memory.exhausted, "floating-point conversion ran out of memory")
-    if number != 0 and number != 34:
-        error(conversion_failed, "floating-point conversion failed")
-    let end_pointer = end else error(invalid_number, "floating-point conversion did not return an end pointer")
-    if (usize)end_pointer != (usize)input.bytes.data + input.length:
-        error(invalid_number, "floating-point conversion did not consume the input")
-
-## Result zero means decimal, one infinity, two NaN; none means invalid syntax.
-func float_syntax(text: str) -> u8?:
-    if text.length == 0:
-        return none
-    var position: usize = 0
-    if text.bytes[0] == '+' or text.bytes[0] == '-':
-        position = 1
-    if position == text.length:
-        return none
-    let word = (str)text.bytes[position..]
-    if ascii_word(word, "inf") or ascii_word(word, "infinity"):
-        return 1
-    if ascii_word(word, "nan"):
-        return 2
-    var digits: usize = 0
-    while position < text.length and decimal_digit(text.bytes[position]):
-        digits += 1
-        position += 1
-    if position < text.length and text.bytes[position] == '.':
-        position += 1
-        while position < text.length and decimal_digit(text.bytes[position]):
-            digits += 1
-            position += 1
-    if digits == 0:
-        return none
-    if position < text.length and (text.bytes[position] == 'e' or text.bytes[position] == 'E'):
-        position += 1
-        if position < text.length and (text.bytes[position] == '+' or text.bytes[position] == '-'):
-            position += 1
-        let start = position
-        while position < text.length and decimal_digit(text.bytes[position]):
-            position += 1
-        if position == start:
-            return none
-    return 0 if position == text.length else none
-
-func decimal_digit(byte: u8) -> bool:
-    return byte >= '0' and byte <= '9'
-
-func ascii_word(text: str, word: str) -> bool:
-    if text.length != word.length:
+func starts_word(text: const u8[], word: str) -> bool:
+    if text.length < word.length:
         return false
-    var position: usize = 0
-    while position < text.length:
-        let byte = text.bytes[position]
-        let lower = byte + 32 if byte >= 'A' and byte <= 'Z' else byte
-        if lower != word.bytes[position]:
+    var at: usize = 0
+    while at < word.length:
+        if ascii_lower(text[at]) != word.bytes[at]:
             return false
-        position += 1
+        at += 1
     return true
+
+func ascii_lower(byte: u8) -> u8:
+    return byte + 32 if byte >= 'A' and byte <= 'Z' else byte
+
+# mark: Eisel-Lemire ===========================================================================
+
+## The decimal exponents lemire_powers covers.
+let smallest_power: i64 = -348
+let largest_power: i64 = 347
+
+## `mantissa * 10^exponent` as the nearest f64, or none when the 128-bit product cannot
+## decide it (a tie, a subnormal, past the range): the slow path decides then.
+func lemire64(mantissa: u64, exponent: i64, negative: bool) -> f64?:
+    if exponent < smallest_power or exponent > largest_power:
+        return none
+    let zeros = leading_zeros(mantissa)
+    let man = mantissa << zeros
+    var binary = (u64)(((217706 * exponent) >> 16) + 64 + 1023 - (i64)zeros)
+    let row = (usize)(exponent - smallest_power) * 2
+    var low: u64 = 0
+    var high = product(man, lemire_powers[row], &low)
+    # the top 55 bits may be off by the truncated low word: widen when unsure
+    if high & 0x1FF == 0x1FF and low +% man < man:
+        var extra_low: u64 = 0
+        let extra_high = product(man, lemire_powers[row + 1], &extra_low)
+        var merged_high = high
+        let merged_low = low +% extra_high
+        if merged_low < low:
+            merged_high = merged_high +% 1
+        if merged_high & 0x1FF == 0x1FF and merged_low +% 1 == 0 and extra_low +% man < man:
+            return none
+        high = merged_high
+        low = merged_low
+    let top = high >> 63
+    var result = high >> (top + 9)
+    binary = binary -% (1 ^ top)
+    # an exact halfway case needs the whole decimal to break the tie
+    if low == 0 and high & 0x1FF == 0 and result & 3 == 1:
+        return none
+    result = (result + (result & 1)) >> 1
+    if (result >> 53) > 0:
+        result >>= 1
+        binary = binary +% 1
+    # zero or wrapped: subnormal; 0x7FF or more: infinite
+    if binary -% 1 >= 0x7FF - 1:
+        return none
+    var bits = (binary << 52) | (result & 0xFFFFFFFFFFFFF)
+    if negative:
+        bits |= 0x8000000000000000
+    return f64.bits(bits)
+
+## lemire64 for f32: 24 bits kept of the product's top 64.
+func lemire32(mantissa: u64, exponent: i64, negative: bool) -> f32?:
+    if exponent < smallest_power or exponent > largest_power:
+        return none
+    let zeros = leading_zeros(mantissa)
+    let man = mantissa << zeros
+    var binary = (u64)(((217706 * exponent) >> 16) + 64 + 127 - (i64)zeros)
+    let row = (usize)(exponent - smallest_power) * 2
+    var low: u64 = 0
+    var high = product(man, lemire_powers[row], &low)
+    if high & 0x3FFFFFFFFF == 0x3FFFFFFFFF and low +% man < man:
+        var extra_low: u64 = 0
+        let extra_high = product(man, lemire_powers[row + 1], &extra_low)
+        var merged_high = high
+        let merged_low = low +% extra_high
+        if merged_low < low:
+            merged_high = merged_high +% 1
+        if merged_high & 0x3FFFFFFFFF == 0x3FFFFFFFFF and merged_low +% 1 == 0 and extra_low +% man < man:
+            return none
+        high = merged_high
+        low = merged_low
+    let top = high >> 63
+    var result = high >> (top + 38)
+    binary = binary -% (1 ^ top)
+    if low == 0 and high & 0x3FFFFFFFFF == 0 and result & 3 == 1:
+        return none
+    result = (result + (result & 1)) >> 1
+    if (result >> 24) > 0:
+        result >>= 1
+        binary = binary +% 1
+    if binary -% 1 >= 0xFF - 1:
+        return none
+    var bits = (u32)((binary << 23) | (result & 0x7FFFFF))
+    if negative:
+        bits |= 0x80000000
+    return f32.bits(bits)
+
+## The 128-bit product a * b: the high word, the low word stored in `low`.
+inline func product(a: u64, b: u64, low: u64*) -> u64:
+    let a0 = a & 0xFFFFFFFF
+    let a1 = a >> 32
+    let b0 = b & 0xFFFFFFFF
+    let b1 = b >> 32
+    let p00 = a0 * b0
+    let p01 = a0 * b1
+    let p10 = a1 * b0
+    let p11 = a1 * b1
+    let middle = (p00 >> 32) + (p01 & 0xFFFFFFFF) + (p10 & 0xFFFFFFFF)
+    *low = (middle << 32) | (p00 & 0xFFFFFFFF)
+    return p11 + (p01 >> 32) + (p10 >> 32) + (middle >> 32)
+
+## Leading zero bits of a nonzero value.
+func leading_zeros(value: u64) -> u64:
+    var v = value
+    var count: u64 = 0
+    if v & 0xFFFFFFFF00000000 == 0:
+        count += 32
+        v <<= 32
+    if v & 0xFFFF000000000000 == 0:
+        count += 16
+        v <<= 16
+    if v & 0xFF00000000000000 == 0:
+        count += 8
+        v <<= 8
+    if v & 0xF000000000000000 == 0:
+        count += 4
+        v <<= 4
+    if v & 0xC000000000000000 == 0:
+        count += 2
+        v <<= 2
+    if v & 0x8000000000000000 == 0:
+        count += 1
+    return count
+
+# mark: The slow path ==========================================================================
+
+## How many digits a Decimal keeps; a nonzero digit past them only marks it truncated.
+let decimal_capacity: usize = 800
+## The most a Decimal shifts by in one pass: nine times 2^60 and a carry fit a u64.
+let largest_shift: u32 = 60
+## For a decimal point at d, 10^d < 2^powers_of_two[d]: how far a shift brings it down.
+let powers_of_two: i64[9] = [1, 3, 6, 9, 13, 16, 19, 23, 26]
+
+## A decimal `0.d[0]d[1]... * 10^point`, digits 0 through 9, no trailing zeros: exact for
+## any text up to 800 significant digits, and scaled by powers of two to find the binary
+## value when Eisel-Lemire cannot (strconv's slow path).
+struct Decimal:
+    var digits: u8[800]
+    var count: usize = 0
+    var point: i64 = 0
+    var truncated: bool = false
+
+    ## The finite number `text` spells, which scan has read already.
+    mutating func read(text: const u8[]):
+        var at: usize = 0
+        if at < text.length and (text[at] == '-' or text[at] == '+'):
+            at += 1
+        var after_point = false
+        while at < text.length:
+            let byte = text[at]
+            if byte == '.':
+                after_point = true
+            elif byte >= '0' and byte <= '9':
+                let digit = byte - '0'
+                if self.count == 0 and digit == 0:
+                    if after_point:
+                        self.point -= 1
+                else:
+                    if not after_point:
+                        self.point += 1
+                    if self.count < decimal_capacity:
+                        self.digits[self.count] = digit
+                        self.count += 1
+                    elif digit != 0:
+                        self.truncated = true
+            else:
+                break
+            at += 1
+        if at < text.length and (text[at] == 'e' or text[at] == 'E'):
+            at += 1
+            var down = false
+            if at < text.length and (text[at] == '-' or text[at] == '+'):
+                down = text[at] == '-'
+                at += 1
+            var power: i64 = 0
+            while at < text.length and text[at] >= '0' and text[at] <= '9':
+                if power < 100000:
+                    power = power * 10 + (i64)(text[at] - '0')
+                at += 1
+            self.point += -power if down else power
+        self.trim()
+
+    ## The value's bits in a format of `mantissa_bits` stored mantissa bits, `exponent_bits`
+    ## exponent bits and exponent bias `-bias`, rounded to nearest, ties to even; and
+    ## whether it overflowed to infinity (then the bits are infinity's).
+    mutating func float_bits(mantissa_bits: u32, exponent_bits: u32, bias: i64) -> (u64, bool):
+        let largest = ((i64)1 << (i64)exponent_bits) - 1
+        var exponent: i64 = 0
+        var mantissa: u64 = 0
+        var overflow = false
+        if self.count == 0 or self.point < -330:
+            exponent = bias
+        elif self.point > 310:
+            overflow = true
+        else:
+            # into [0.5, 1) by powers of two
+            while self.point > 0:
+                let n = 27 if self.point >= 9 else powers_of_two[(usize)self.point]
+                self.shift(-n)
+                exponent += n
+            while self.point < 0 or (self.point == 0 and self.digits[0] < 5):
+                let n = 27 if -self.point >= 9 else powers_of_two[(usize)(-self.point)]
+                self.shift(n)
+                exponent -= n
+            # the format's range is [1, 2)
+            exponent -= 1
+            # below the least normal exponent: a subnormal, with fewer bits
+            if exponent < bias + 1:
+                let n = bias + 1 - exponent
+                self.shift(-n)
+                exponent += n
+            if exponent - bias >= largest:
+                overflow = true
+            else:
+                self.shift((i64)mantissa_bits + 1)
+                mantissa = self.rounded_integer()
+                # rounding carried into a new bit
+                if mantissa == (u64)2 << (u64)mantissa_bits:
+                    mantissa >>= 1
+                    exponent += 1
+                    if exponent - bias >= largest:
+                        overflow = true
+                if mantissa & ((u64)1 << (u64)mantissa_bits) == 0:
+                    exponent = bias
+        if overflow:
+            mantissa = 0
+            exponent = largest + bias
+        var bits = mantissa & (((u64)1 << (u64)mantissa_bits) - 1)
+        bits |= (u64)((exponent - bias) & largest) << (u64)mantissa_bits
+        return (bits, overflow)
+
+    ## Multiply by 2^k, or divide by 2^-k when k is negative.
+    mutating func shift(k: i64):
+        if self.count == 0:
+            return
+        var left = k
+        while left > (i64)largest_shift:
+            self.shift_left(largest_shift)
+            left -= (i64)largest_shift
+        while left < -(i64)largest_shift:
+            self.shift_right(largest_shift)
+            left += (i64)largest_shift
+        if left > 0:
+            self.shift_left((u32)left)
+        elif left < 0:
+            self.shift_right((u32)(-left))
+
+    ## Multiply by 2^k, k at most largest_shift: the digits times 2^k written right to left.
+    mutating func shift_left(k: u32):
+        var scratch: u8[820] = ---
+        let end = self.count + 20
+        var write = end
+        var carry: u64 = 0
+        var read = self.count
+        while read > 0:
+            read -= 1
+            carry += (u64)self.digits[read] << (u64)k
+            let quotient = carry // 10
+            write -= 1
+            scratch[write] = (u8)(carry - quotient * 10)
+            carry = quotient
+        while carry > 0:
+            let quotient = carry // 10
+            write -= 1
+            scratch[write] = (u8)(carry - quotient * 10)
+            carry = quotient
+        let produced = end - write
+        let kept = produced if produced < decimal_capacity else decimal_capacity
+        var at: usize = 0
+        while at < produced:
+            if at < kept:
+                self.digits[at] = scratch[write + at]
+            elif scratch[write + at] != 0:
+                self.truncated = true
+            at += 1
+        self.point += (i64)produced - (i64)self.count
+        self.count = kept
+        self.trim()
+
+    ## Divide by 2^k, k at most largest_shift.
+    mutating func shift_right(k: u32):
+        var read: usize = 0
+        var write: usize = 0
+        var n: u64 = 0
+        # enough leading digits to cover the first quotient digit
+        while (n >> (u64)k) == 0:
+            if read >= self.count:
+                if n == 0:
+                    self.count = 0
+                    return
+                while (n >> (u64)k) == 0:
+                    n = n * 10
+                    read += 1
+                break
+            n = n * 10 + (u64)self.digits[read]
+            read += 1
+        self.point -= (i64)read - 1
+        let mask = ((u64)1 << (u64)k) - 1
+        while read < self.count:
+            let next = self.digits[read]
+            self.digits[write] = (u8)(n >> (u64)k)
+            write += 1
+            n = (n & mask) * 10 + (u64)next
+            read += 1
+        while n > 0:
+            let digit = n >> (u64)k
+            n &= mask
+            if write < decimal_capacity:
+                self.digits[write] = (u8)digit
+                write += 1
+            elif digit > 0:
+                self.truncated = true
+            n = n * 10
+        self.count = write
+        self.trim()
+
+    ## The integer part, rounded to nearest, ties to even (a truncated tail breaks a tie up).
+    func rounded_integer() -> u64:
+        if self.point > 20:
+            return 0xFFFFFFFFFFFFFFFF
+        var n: u64 = 0
+        var at: i64 = 0
+        while at < self.point and at < (i64)self.count:
+            n = n * 10 + (u64)self.digits[(usize)at]
+            at += 1
+        while at < self.point:
+            n *= 10
+            at += 1
+        if self.rounds_up(self.point):
+            n += 1
+        return n
+
+    func rounds_up(at: i64) -> bool:
+        if at < 0 or at >= (i64)self.count:
+            return false
+        let digit = self.digits[(usize)at]
+        if digit == 5 and at + 1 == (i64)self.count:
+            # exactly half, unless digits were dropped past the capacity
+            if self.truncated:
+                return true
+            return at > 0 and self.digits[(usize)(at - 1)] % 2 == 1
+        return digit >= 5
+
+    mutating func trim():
+        while self.count > 0 and self.digits[self.count - 1] == 0:
+            self.count -= 1
+        if self.count == 0:
+            self.point = 0
+
+# mark: Formatting =============================================================================
+
+## The shortest decimal text that parse_f64 reads back as `value`, the closest to it of
+## those, as double-conversion's ToShortest lays it out: decimal notation for a decimal
+## exponent from -6 to 14 (`0.000001`, `123456789012345`, `1.5`), otherwise one digit, the
+## rest after a point, and `e` with the exponent (`1e-7`, `1.2345e15`, `5e-324`); `-0`,
+## `inf`, `-inf`, `nan` (no sign, no payload). Written into `buffer` (32 bytes always
+## suffice), and a view of it; io.full when it does not fit, the buffer unchanged. Neither
+## allocates, locale or rounding mode.
+pub func format_f64(value: f64, buffer: u8[]) -> str!:
+    var text: u8[32] = ---
+    let bits = value.bits()
+    let negative = (bits >> 63) != 0
+    let exponent_bits = (u32)((bits >> 52) & 0x7FF)
+    let mantissa_bits = bits & 0xFFFFFFFFFFFFF
+    var length: usize = 0
+    if exponent_bits == 0x7FF:
+        length = special(text, negative, mantissa_bits != 0)
+    elif exponent_bits == 0 and mantissa_bits == 0:
+        length = zero(text, negative)
+    else:
+        let (digits, exponent) = shortest64(mantissa_bits, exponent_bits)
+        length = layout(text, negative, digits, exponent)
+    return try deliver(text[..<length], buffer)
+
+## The f32 counterpart of format_f64: the f32's own shortest digits (`0.1` for 0.1f32, not
+## the digits of its f64 value).
+pub func format_f32(value: f32, buffer: u8[]) -> str!:
+    var text: u8[32] = ---
+    let bits = value.bits()
+    let negative = (bits >> 31) != 0
+    let exponent_bits = (bits >> 23) & 0xFF
+    let mantissa_bits = bits & 0x7FFFFF
+    var length: usize = 0
+    if exponent_bits == 0xFF:
+        length = special(text, negative, mantissa_bits != 0)
+    elif exponent_bits == 0 and mantissa_bits == 0:
+        length = zero(text, negative)
+    else:
+        let (digits, exponent) = shortest32(mantissa_bits, exponent_bits)
+        length = layout(text, negative, (u64)digits, exponent)
+    return try deliver(text[..<length], buffer)
+
+func deliver(text: const u8[], buffer: u8[]) -> str!:
+    if buffer.length < text.length:
+        error(io.full, "the destination cannot hold the formatted floating-point value")
+    memory.copy(buffer, text, text.length)
+    return (str)buffer[..<text.length]
+
+func special(text: u8[], negative: bool, nan: bool) -> usize:
+    if nan:
+        return copy_word(text, "nan")
+    return copy_word(text, "-inf" if negative else "inf")
+
+func zero(text: u8[], negative: bool) -> usize:
+    return copy_word(text, "-0" if negative else "0")
+
+func copy_word(text: u8[], word: str) -> usize:
+    memory.copy(text, word.bytes, word.length)
+    return word.length
+
+## ToShortest's layout of `digits * 10^exponent` into `text`; its length.
+func layout(text: u8[], negative: bool, digits: u64, exponent: i32) -> usize:
+    var reversed: u8[20] = ---
+    var count: usize = 0
+    var rest = digits
+    while rest > 0:
+        reversed[count] = (u8)(48 + rest % 10)
+        count += 1
+        rest = rest // 10
+    let point = (i64)exponent + (i64)count
+    let decimal_exponent = point - 1
+    var at: usize = 0
+    if negative:
+        text[0] = '-'
+        at = 1
+    if decimal_exponent >= -6 and decimal_exponent < 15:
+        if point <= 0:
+            text[at] = '0'
+            text[at + 1] = '.'
+            at += 2
+            for _ in 0..<(usize)(-point):
+                text[at] = '0'
+                at += 1
+            for index in 0..<count:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+        elif (usize)point >= count:
+            for index in 0..<count:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+            for _ in 0..<((usize)point - count):
+                text[at] = '0'
+                at += 1
+        else:
+            for index in 0..<(usize)point:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+            text[at] = '.'
+            at += 1
+            for index in (usize)point..<count:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+        return at
+    text[at] = reversed[count - 1]
+    at += 1
+    if count > 1:
+        text[at] = '.'
+        at += 1
+        for index in 1..<count:
+            text[at] = reversed[count - 1 - index]
+            at += 1
+    text[at] = 'e'
+    at += 1
+    var power = decimal_exponent
+    if power < 0:
+        text[at] = '-'
+        at += 1
+        power = -power
+    var power_digits: u8[8] = ---
+    var width: usize = 0
+    while true:
+        power_digits[width] = (u8)(48 + power % 10)
+        width += 1
+        power = power // 10
+        if power == 0:
+            break
+    while width > 0:
+        width -= 1
+        text[at] = power_digits[width]
+        at += 1
+    return at
+
+# mark: Ryu ====================================================================================
+
+## Ryu's d2d: the shortest decimal digits * 10^exponent of a finite, nonzero f64, given its
+## mantissa and exponent fields.
+func shortest64(ieee_mantissa: u64, ieee_exponent: u32) -> (u64, i32):
+    var e2: i32 = 0
+    var m2: u64 = 0
+    if ieee_exponent == 0:
+        e2 = 1 - 1023 - 52 - 2
+        m2 = ieee_mantissa
+    else:
+        e2 = (i32)ieee_exponent - 1023 - 52 - 2
+        m2 = ((u64)1 << 52) | ieee_mantissa
+    let accept_bounds = (m2 & 1) == 0
+    let mv = 4 * m2
+    let mm_shift: u64 = 1 if ieee_mantissa != 0 or ieee_exponent <= 1 else 0
+    var vr: u64 = 0
+    var vp: u64 = 0
+    var vm: u64 = 0
+    var e10: i32 = 0
+    var vm_trailing_zeros = false
+    var vr_trailing_zeros = false
+    if e2 >= 0:
+        let q = log10_pow2(e2) - (1 if e2 > 3 else 0)
+        e10 = q
+        let k = 125 + pow5_bits(q) - 1
+        let i = -e2 + q + k
+        let row = (usize)q * 2
+        vr = mul_shift64(4 * m2, pow5_inv_split[row], pow5_inv_split[row + 1], i)
+        vp = mul_shift64(4 * m2 + 2, pow5_inv_split[row], pow5_inv_split[row + 1], i)
+        vm = mul_shift64(4 * m2 - 1 - mm_shift, pow5_inv_split[row], pow5_inv_split[row + 1], i)
+        if q <= 21:
+            if mv % 5 == 0:
+                vr_trailing_zeros = pow5_factor(mv) >= (u32)q
+            elif accept_bounds:
+                vm_trailing_zeros = pow5_factor(mv - 1 - mm_shift) >= (u32)q
+            elif pow5_factor(mv + 2) >= (u32)q:
+                vp -= 1
+    else:
+        let q = log10_pow5(-e2) - (1 if -e2 > 1 else 0)
+        e10 = q + e2
+        let i = -e2 - q
+        let k = pow5_bits(i) - 125
+        let j = q - k
+        let row = (usize)i * 2
+        vr = mul_shift64(4 * m2, pow5_split[row], pow5_split[row + 1], j)
+        vp = mul_shift64(4 * m2 + 2, pow5_split[row], pow5_split[row + 1], j)
+        vm = mul_shift64(4 * m2 - 1 - mm_shift, pow5_split[row], pow5_split[row + 1], j)
+        if q <= 1:
+            vr_trailing_zeros = true
+            if accept_bounds:
+                vm_trailing_zeros = mm_shift == 1
+            else:
+                vp -= 1
+        elif q < 63:
+            vr_trailing_zeros = (mv & (((u64)1 << (u64)q) - 1)) == 0
+    return trimmed64(vr, vp, vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros)
+
+## Ryu's digit removal for d2d: drop digits while the bounds still differ, then round.
+func trimmed64(start_vr: u64, start_vp: u64, start_vm: u64, e10: i32, accept_bounds: bool, start_vm_zeros: bool, start_vr_zeros: bool) -> (u64, i32):
+    var vr = start_vr
+    var vp = start_vp
+    var vm = start_vm
+    var vm_trailing_zeros = start_vm_zeros
+    var vr_trailing_zeros = start_vr_zeros
+    var removed: i32 = 0
+    var last_removed: u64 = 0
+    if vm_trailing_zeros or vr_trailing_zeros:
+        while vp // 10 > vm // 10:
+            vm_trailing_zeros = vm_trailing_zeros and vm % 10 == 0
+            vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+            last_removed = vr % 10
+            vr = vr // 10
+            vp = vp // 10
+            vm = vm // 10
+            removed += 1
+        if vm_trailing_zeros:
+            while vm % 10 == 0:
+                vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+                last_removed = vr % 10
+                vr = vr // 10
+                vp = vp // 10
+                vm = vm // 10
+                removed += 1
+        if vr_trailing_zeros and last_removed == 5 and vr % 2 == 0:
+            last_removed = 4
+        let up = (vr == vm and (not accept_bounds or not vm_trailing_zeros)) or last_removed >= 5
+        return (vr + (1 if up else 0), e10 + removed)
+    var round_up = false
+    if vp // 100 > vm // 100:
+        round_up = vr % 100 >= 50
+        vr = vr // 100
+        vp = vp // 100
+        vm = vm // 100
+        removed += 2
+    while vp // 10 > vm // 10:
+        round_up = vr % 10 >= 5
+        vr = vr // 10
+        vp = vp // 10
+        vm = vm // 10
+        removed += 1
+    return (vr + (1 if vr == vm or round_up else 0), e10 + removed)
+
+## Ryu's f2s over the same tables: the shortest decimal digits * 10^exponent of a finite,
+## nonzero f32.
+func shortest32(ieee_mantissa: u32, ieee_exponent: u32) -> (u32, i32):
+    var e2: i32 = 0
+    var m2: u32 = 0
+    if ieee_exponent == 0:
+        e2 = 1 - 127 - 23 - 2
+        m2 = ieee_mantissa
+    else:
+        e2 = (i32)ieee_exponent - 127 - 23 - 2
+        m2 = ((u32)1 << 23) | ieee_mantissa
+    let accept_bounds = (m2 & 1) == 0
+    let mv = 4 * m2
+    let mp = 4 * m2 + 2
+    let mm_shift: u32 = 1 if ieee_mantissa != 0 or ieee_exponent <= 1 else 0
+    let mm = 4 * m2 - 1 - mm_shift
+    var vr: u32 = 0
+    var vp: u32 = 0
+    var vm: u32 = 0
+    var e10: i32 = 0
+    var vm_trailing_zeros = false
+    var vr_trailing_zeros = false
+    var last_removed: u32 = 0
+    if e2 >= 0:
+        let q = log10_pow2(e2)
+        e10 = q
+        let k = 61 + pow5_bits(q) - 1
+        let i = -e2 + q + k
+        vr = pow5_inv_div_pow2(mv, q, i)
+        vp = pow5_inv_div_pow2(mp, q, i)
+        vm = pow5_inv_div_pow2(mm, q, i)
+        if q != 0 and (vp - 1) // 10 <= vm // 10:
+            let l = 61 + pow5_bits(q - 1) - 1
+            last_removed = pow5_inv_div_pow2(mv, q - 1, -e2 + q - 1 + l) % 10
+        if q <= 9:
+            if mv % 5 == 0:
+                vr_trailing_zeros = pow5_factor((u64)mv) >= (u32)q
+            elif accept_bounds:
+                vm_trailing_zeros = pow5_factor((u64)mm) >= (u32)q
+            elif pow5_factor((u64)mp) >= (u32)q:
+                vp -= 1
+    else:
+        let q = log10_pow5(-e2)
+        e10 = q + e2
+        let i = -e2 - q
+        let k = pow5_bits(i) - 61
+        var j = q - k
+        vr = pow5_div_pow2(mv, i, j)
+        vp = pow5_div_pow2(mp, i, j)
+        vm = pow5_div_pow2(mm, i, j)
+        if q != 0 and (vp - 1) // 10 <= vm // 10:
+            j = q - 1 - (pow5_bits(i + 1) - 61)
+            last_removed = pow5_div_pow2(mv, i + 1, j) % 10
+        if q <= 1:
+            vr_trailing_zeros = true
+            if accept_bounds:
+                vm_trailing_zeros = mm_shift == 1
+            else:
+                vp -= 1
+        elif q < 31:
+            vr_trailing_zeros = (mv & (((u32)1 << (u32)(q - 1)) - 1)) == 0
+    return trimmed32(vr, vp, vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros, last_removed)
+
+## Ryu's digit removal for f2s.
+func trimmed32(start_vr: u32, start_vp: u32, start_vm: u32, e10: i32, accept_bounds: bool, start_vm_zeros: bool, start_vr_zeros: bool, start_last: u32) -> (u32, i32):
+    var vr = start_vr
+    var vp = start_vp
+    var vm = start_vm
+    var vm_trailing_zeros = start_vm_zeros
+    var vr_trailing_zeros = start_vr_zeros
+    var last_removed = start_last
+    var removed: i32 = 0
+    if vm_trailing_zeros or vr_trailing_zeros:
+        while vp // 10 > vm // 10:
+            vm_trailing_zeros = vm_trailing_zeros and vm % 10 == 0
+            vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+            last_removed = vr % 10
+            vr = vr // 10
+            vp = vp // 10
+            vm = vm // 10
+            removed += 1
+        if vm_trailing_zeros:
+            while vm % 10 == 0:
+                vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+                last_removed = vr % 10
+                vr = vr // 10
+                vp = vp // 10
+                vm = vm // 10
+                removed += 1
+        if vr_trailing_zeros and last_removed == 5 and vr % 2 == 0:
+            last_removed = 4
+        let up = (vr == vm and (not accept_bounds or not vm_trailing_zeros)) or last_removed >= 5
+        return (vr + (1 if up else 0), e10 + removed)
+    while vp // 10 > vm // 10:
+        last_removed = vr % 10
+        vr = vr // 10
+        vp = vp // 10
+        vm = vm // 10
+        removed += 1
+    return (vr + (1 if vr == vm or last_removed >= 5 else 0), e10 + removed)
+
+## floor(log2(5^e)) + 1 for 0 <= e <= 3528.
+inline func pow5_bits(e: i32) -> i32:
+    return (i32)((((u32)e) * 1217359) >> 19) + 1
+
+## floor(log10(2^e)) for 0 <= e <= 1650.
+inline func log10_pow2(e: i32) -> i32:
+    return (i32)((((u32)e) * 78913) >> 18)
+
+## floor(log10(5^e)) for 0 <= e <= 2620.
+inline func log10_pow5(e: i32) -> i32:
+    return (i32)((((u32)e) * 732923) >> 20)
+
+## How many times 5 divides `value` (nonzero).
+func pow5_factor(value: u64) -> u32:
+    var rest = value
+    var count: u32 = 0
+    while rest % 5 == 0:
+        rest = rest // 5
+        count += 1
+    return count
+
+## (m * (high:low)) >> j for Ryu's 125-bit multipliers.
+inline func mul_shift64(m: u64, low: u64, high: u64, j: i32) -> u64:
+    var b0_low: u64 = 0
+    let b0_high = product(m, low, &b0_low)
+    var b2_low: u64 = 0
+    var b2_high = product(m, high, &b2_low)
+    let sum_low = b2_low +% b0_high
+    if sum_low < b2_low:
+        b2_high += 1
+    let shift = (u64)(j - 64)
+    if shift == 0:
+        return sum_low
+    if shift >= 64:
+        return b2_high >> (shift - 64)
+    return (b2_high << (64 - shift)) | (sum_low >> shift)
+
+inline func mul_shift32(m: u32, factor: u64, shift: i32) -> u32:
+    let low = (u64)m * (factor & 0xFFFFFFFF)
+    let high = (u64)m * (factor >> 32)
+    let sum = (low >> 32) + high
+    return (u32)(sum >> (u64)(shift - 32))
+
+inline func pow5_inv_div_pow2(m: u32, q: i32, j: i32) -> u32:
+    return mul_shift32(m, pow5_inv_split[(usize)q * 2 + 1] + 1, j)
+
+inline func pow5_div_pow2(m: u32, i: i32, j: i32) -> u32:
+    return mul_shift32(m, pow5_split[(usize)i * 2 + 1], j)

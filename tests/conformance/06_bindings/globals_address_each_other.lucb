@@ -1,0 +1,18 @@
+## §6.4, §17: top-level `let`s may take each other's address, a table naming its class
+## description and the description naming the table: the C backend declares every global
+## before any is defined, so an initialiser may name one written after it.
+struct Info:
+    let name: str
+    let table: const void*
+
+struct Table:
+    let info: const Info*
+    let value: i32
+
+let thing_table: Table = Table(info = &thing_info, value = 7)
+let thing_info: Info = Info(name = "Thing", table = (const void*)&thing_table)
+
+pub func main(arguments: str[]) -> i32:
+    let table = (const Table*)thing_info.table
+    print(f"{table.info.name} {table.value}")
+    return 0

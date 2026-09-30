@@ -1,0 +1,10 @@
+## §4.4: a byte literal where a byte array is expected is that array, its bytes the elements:
+## a global, a local, and a `var` whose bytes change after.
+let magic: u8[4] = b"\x89PNG"
+
+pub func main(arguments: str[]) -> i32:
+    let t: u8[3] = b"abc"
+    var w: u8[2] = b"\x00\xff"
+    w[0] += 1
+    print(f"{t[1]} {magic[0]} {magic[3]} {w[0]} {w[1]}")
+    return 0

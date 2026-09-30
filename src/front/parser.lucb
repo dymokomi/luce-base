@@ -1447,7 +1447,7 @@ pub struct Parser:
                 else:
                     call.body = try self.parse_arguments()
                 e = call
-            elif self.at_op("[") and self.looks_like_type_args():
+            elif self.at_op("[") and (self.looks_like_type_args() or (e.kind == ast.Kind.name and e.ty == none and self.value_type_args_ahead())):
                 let args = try self.parse_type_args()
                 if self.at_op("("):
                     let call = try self.node(ast.Kind.call, "")
@@ -1529,6 +1529,60 @@ pub struct Parser:
         if not self.is_type_word(self.text_of(first)) and not qualified:
             return false
         return self.peek_op(i, "(") or self.peek_op(i, ".")
+
+    ## `f[i64]` or `pick[i32, u64]` used as a value, the function instantiated: a bracket
+    ## after a plain name whose content can only be types: `const`, `func`, `@`, a core type
+    ## word, a tuple type, or a list with a comma, each starting with a type word that is not
+    ## converting (`usize(i)`) or naming a member (`i64.max`, `Kind.a`). A single capitalised
+    ## name stays an index here; the checker decides it by what it names (§13).
+    func value_type_args_ahead() -> bool:
+        let first = self.peek(1)
+        if first.kind == token.Kind.keyword:
+            let word = self.text_of(first)
+            if word == "const" or word == "func":
+                return true
+        if first.kind == token.Kind.operator and self.text_of(first) == "@":
+            return true
+        if first.kind == token.Kind.operator and self.text_of(first) == "(":
+            return self.tuple_type_at(2) and self.type_word_as_type_at(2)
+        if first.kind != token.Kind.name or self.bracket_holds_expression() or not self.type_word_as_type_at(1):
+            return false
+        let word = self.text_of(first)
+        let core: str[20] = ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "usize", "isize", "f16", "f32", "f64", "bool", "char", "str", "fmt", "unit", "never", "void"]
+        for core_name in core:
+            if core_name == word:
+                return true
+        # a comma at the bracket's own depth: a list of types, never an index
+        var i: usize = 1
+        var depth: u32 = 0
+        while true:
+            let t = self.peek(i)
+            if t.kind == token.Kind.eof or t.kind == token.Kind.newline:
+                return false
+            if t.kind == token.Kind.operator:
+                let s = self.text_of(t)
+                if s == "(" or s == "[":
+                    depth += 1
+                elif s == ")" or s == "]":
+                    if depth == 0:
+                        return false
+                    depth -= 1
+                elif s == "," and depth == 0:
+                    return true
+            i += 1
+        return false
+
+    ## Whether the token at `at` is a type word (a core type or a capitalised name) not
+    ## followed by `(` or `.`, which would make it a conversion or a member: a value. A nested
+    ## `(` is left to the caller.
+    func type_word_as_type_at(at: usize) -> bool:
+        let t = self.peek(at)
+        if t.kind == token.Kind.operator and self.text_of(t) == "(":
+            return true
+        if t.kind != token.Kind.name or not self.is_type_word(self.text_of(t)):
+            return false
+        let after = self.peek(at + 1)
+        return not (after.kind == token.Kind.operator and (self.text_of(after) == "(" or self.text_of(after) == "."))
 
     ## Whether a tuple type opens at `at`, just after a `(`: a type word, or a nested `(`
     ## opening one, then a comma at the same depth before the close.

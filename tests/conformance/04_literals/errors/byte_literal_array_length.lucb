@@ -1,0 +1,5 @@
+# error: a byte literal of 3 bytes cannot initialise `u8[4]`
+## §4.4: a byte literal where a byte array is expected must have the array's length.
+pub func main(arguments: str[]) -> i32:
+    let magic: u8[4] = b"PNG"
+    return magic[0] - 80

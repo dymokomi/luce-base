@@ -1,0 +1,135 @@
+## `strings`' floating-point text against reference cases (tests/std/cases/float_cases.lucb,
+## written by tools/float_cases.py): shortest f64 and f32 digits laid out as
+## double-conversion's ToShortest, correctly rounded parsing to f64 and to f32, and the
+## scanning, special values and failures docs/LIBRARY.md promises.
+import strings
+import cases.float_cases as cases
+
+test "f64s format as their shortest digits":
+    var room: u8[32]
+    var failures: usize = 0
+    for case in cases.double_cases:
+        let text = try strings.format_f64(f64.bits(case.bits), room[0..])
+        if text != case.text:
+            if failures < 10:
+                print(f"f64 {hex(case.bits)}: {text}, expected {case.text}")
+            failures += 1
+    assert(failures == 0)
+
+test "f32s format as their own shortest digits":
+    var room: u8[32]
+    var failures: usize = 0
+    for case in cases.float_cases:
+        let text = try strings.format_f32(f32.bits(case.bits), room[0..])
+        if text != case.text:
+            if failures < 10:
+                print(f"f32 {hex(case.bits)}: {text}, expected {case.text}")
+            failures += 1
+    assert(failures == 0)
+
+test "decimal text parses to the nearest f64 and the nearest f32":
+    var failures: usize = 0
+    for case in cases.parse_cases:
+        let value = try strings.parse_f64(case.text)
+        if value.bits() != case.bits:
+            if failures < 10:
+                print(f"f64 {case.text}: {hex(value.bits())}, expected {hex(case.bits)}")
+            failures += 1
+    for case in cases.parse_cases_32:
+        let value = try strings.parse_f32(case.text)
+        if value.bits() != case.bits:
+            if failures < 20:
+                print(f"f32 {case.text}: {hex(value.bits())}, expected {hex(case.bits)}")
+            failures += 1
+    assert(failures == 0)
+
+test "formatting reads back to the same bits":
+    var room: u8[32]
+    for case in cases.double_cases:
+        let back = try strings.parse_f64(try strings.format_f64(f64.bits(case.bits), room[0..]))
+        assert(back.bits() == case.bits)
+    for case in cases.float_cases:
+        let back = try strings.parse_f32(try strings.format_f32(f32.bits(case.bits), room[0..]))
+        assert(back.bits() == case.bits)
+
+test "ties, the slow path, and the ends of the range":
+    # exactly halfway between 1 and the next f64 (f32): ties to even, whatever the rounding mode
+    assert((try strings.parse_f64("1.00000000000000011102230246251565404236316680908203125")).bits() == 0x3FF0000000000000)
+    assert((try strings.parse_f64("1.00000000000000011102230246251565404236316680908203126")).bits() == 0x3FF0000000000001)
+    assert((try strings.parse_f32("1.000000059604644775390625")).bits() == 0x3F800000)
+    assert((try strings.parse_f32("1.000000059604644775390626")).bits() == 0x3F800001)
+    # the least subnormal, half of it (a tie to zero), and just past half
+    assert((try strings.parse_f64("4.9406564584124654e-324")).bits() == 1)
+    assert((try strings.parse_f64("2.4703282292062327e-324")).bits() == 0)
+    assert((try strings.parse_f64("2.4703282292062328e-324")).bits() == 1)
+    assert((try strings.parse_f64("-1e-400")).bits() == 0x8000000000000000)
+    assert((try strings.parse_f64("1.7976931348623157e308")).bits() == 0x7FEFFFFFFFFFFFFF)
+    assert((try strings.parse_f32("3.4028234663852886e38")).bits() == 0x7F7FFFFF)
+    # 800 significant digits and more: the tail still breaks the tie
+    var long: u8[1200]
+    long[0] = '1'
+    long[1] = '.'
+    var at: usize = 2
+    while at < 1199:
+        long[at] = '0'
+        at += 1
+    long[1199] = '1'
+    assert((try strings.parse_f64((str)long[0..])).bits() == 0x3FF0000000000000)
+    assert(try strings.parse_f64("123456789012345678901234567890") == 123456789012345678901234567890.0)
+
+test "special words, signs and zeros":
+    assert((try strings.parse_f64("inf")).bits() == 0x7FF0000000000000)
+    assert((try strings.parse_f64("-Infinity")).bits() == 0xFFF0000000000000)
+    assert((try strings.parse_f64("NaN")).bits() == 0x7FF8000000000000)
+    assert((try strings.parse_f64("-nan")).bits() == 0xFFF8000000000000)
+    assert((try strings.parse_f32("+INF")).bits() == 0x7F800000)
+    assert((try strings.parse_f64("-0")).bits() == 0x8000000000000000)
+    assert((try strings.parse_f64("0e5000")).bits() == 0)
+    assert(try strings.parse_f64(".5") == 0.5 and try strings.parse_f64("5.") == 5.0 and try strings.parse_f64("+1E-2") == 0.01)
+    var room: u8[32]
+    assert(try strings.format_f64(-0.0, room[0..]) == "-0")
+    assert(try strings.format_f64(f64.bits(0x7FF8000000000001), room[0..]) == "nan")
+    assert(try strings.format_f64(f64.bits(0xFFF0000000000000), room[0..]) == "-inf")
+    assert(try strings.format_f64(0.1 + 0.2, room[0..]) == "0.30000000000000004")
+    assert(try strings.format_f64(1e15, room[0..]) == "1e15")
+    assert(try strings.format_f64(0.000001, room[0..]) == "0.000001")
+    assert(try strings.format_f32(0.1, room[0..]) == "0.1")
+
+test "scanning stops where the number does":
+    let (value, used) = try strings.scan_f64("12.5e3xyz".bytes)
+    assert(value == 12500.0 and used == 6)
+    let (short, short_used) = try strings.scan_f64("1e+".bytes)
+    assert(short == 1.0 and short_used == 1)
+    let (word, word_used) = try strings.scan_f32("infinite".bytes)
+    assert(word == f32.bits(0x7F800000) and word_used == 3)
+    let (dotted, dotted_used) = try strings.scan_f64("1.5.3".bytes)
+    assert(dotted == 1.5 and dotted_used == 3)
+
+test "what is not a number, what is too large, what does not fit":
+    for text in ["", "+", ".", "e5", " 1", "1 ", "0x1p0", "1_0", "nan(1)", "--1", "1e5x"]:
+        var failed = false
+        discard(strings.parse_f64(text) catch failure:
+            assert(failure.code == strings.invalid_number)
+            failed = true
+            recover 0.0)
+        assert(failed)
+    for text in ["1e309", "-1.8e308", "1e5000"]:
+        var failed = false
+        discard(strings.parse_f64(text) catch failure:
+            assert(failure.code == strings.number_out_of_range)
+            failed = true
+            recover 0.0)
+        assert(failed)
+    var failed = false
+    discard(strings.parse_f32("3.5e38") catch failure:
+        assert(failure.code == strings.number_out_of_range)
+        failed = true
+        recover (f32)0)
+    assert(failed)
+    var small: u8[4]
+    failed = false
+    discard(strings.format_f64(0.125, small[0..]) catch failure:
+        failed = true
+        recover "")
+    assert(failed)
+    assert(try strings.format_f64(0.5, small[0..]) == "0.5")
