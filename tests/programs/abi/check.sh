@@ -10,7 +10,7 @@ LB=${1:-./build/luce-base}
 ./build/abi-check-c > build/abi-check-c.out
 ./build/abi-check > build/abi-check.out
 cmp -s build/abi-check.out build/abi-check-c.out || { echo "FAIL tests/programs/abi: backends disagree"; diff build/abi-check-c.out build/abi-check.out; exit 1; }
-printf '107 7 100\n43 3 40\n3 5 3.5 6 6\n200\n3405\n' | cmp -s - build/abi-check.out || { echo "FAIL tests/programs/abi: wrong output"; cat build/abi-check.out; exit 1; }
+printf '107 7 100\n43 3 40\n3.0 5.0 3.5 6 6.0\n200\n3405\n' | cmp -s - build/abi-check.out || { echo "FAIL tests/programs/abi: wrong output"; cat build/abi-check.out; exit 1; }
 rm -f build/abi-check build/abi-check-c build/abi-check.out build/abi-check-c.out
 # the promised export shapes survive the header, a C consumer, linking, and running (§17.6)
 for native in "--backend=c" ""; do

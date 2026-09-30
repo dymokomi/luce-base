@@ -435,11 +435,25 @@ func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: us
     let size = try_size(census, program, gi) else return none
     if census.leaves.length > 0 and not census.leaves[gi]:
         return none
-    if size <= census.small or (g.always_inline and size <= forced):
+    # the second pass lets a leaf that moves aggregates through memory be larger (aggregate_words)
+    let budget = census.small + (2 * aggregate_words(g) if census.leaves.length > 0 else 0)
+    if size <= budget or (g.always_inline and size <= forced):
         return gi
     if size <= census.once and census.calls[gi] == 1 and not census.pinned[gi]:
         return gi
     return none
+
+## The words of the aggregates a function takes by value and returns: each is copied through
+## memory at every call (the argument into the callee's frame, the result out of it), which
+## an expansion lets the optimiser forward into registers instead. A `Vector3.cross` of two
+## 24-byte vectors moves six words so, and costs its callers more called than expanded.
+func aggregate_words(g: ir.Function*) -> usize:
+    var words: usize = 0
+    for p in g.params.span():
+        words += ((usize)p.size + 7) // 8
+    if g.has_result:
+        words += ((usize)g.result_size + 7) // 8
+    return words
 
 func try_size(census: Census*, program: ir.Unit*, gi: usize) -> usize?:
     return census.size_of(program, gi)
@@ -559,6 +573,11 @@ func note_reached(index: Index*, referenced: bool[], initialisers: bool[], r: ir
 
 ## No slots shared yet: the marker in `expand_in`'s table of slot bases.
 let no_slots: u32 = 0xFFFFFFFF
+
+## An empty own_slots: no parameter has a slot of its own.
+func no_own_slots() -> u32[]:
+    var none_yet: u32[]
+    return none_yet
 
 # mark: The census =============================================================================
 
@@ -719,6 +738,11 @@ struct Expansion:
     var result_slot: u32
     ## Whether the body's slots are an earlier expansion's, already in the caller's frame.
     var shares_slots: bool
+    ## Per body slot, when the slots are shared: a parameter's own new slot, `no_slots` for
+    ## the shared rest. A parameter's slot is the expansion's own, so what each call passes
+    ## (a `self` pointer among them) stays a value of its own once promoted, which the
+    ## optimiser follows; the body's other slots are dead past its exit and shared.
+    var own_slots: u32[]
     ## `--release --debug`, both functions described: the inlined subroutine this expansion
     ## is in the caller (1-based), and what the body's scope numbers shift by.
     var site: u32
@@ -730,7 +754,7 @@ struct Expansion:
         return Expansion(program = program, f = f, g = g, call = call, info = f.calls.get((usize)call.extra),
                          slot_base = u32(f.slots.count) if shared == no_slots else shared,
                          temp_base = u32(f.temps.count), label_base = f.labels, exit_label = 0, result_slot = 0,
-                         shares_slots = shared != no_slots, site = 0, scope_base = 0, locals_base = 0, described = false)
+                         shares_slots = shared != no_slots, own_slots = no_own_slots(), site = 0, scope_base = 0, locals_base = 0, described = false)
 
     mutating func run(out: Sink*) -> !:
         try self.join_frames()
@@ -742,6 +766,8 @@ struct Expansion:
             ix += 1
         try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
         try self.take_result(out)
+        if self.own_slots.length > 0:
+            free(self.own_slots)
 
     ## The callee's slots and temporaries join the caller's; its labels get fresh numbers,
     ## plus one for the exit; a scalar result gets a slot to cross the exit through.
@@ -750,6 +776,14 @@ struct Expansion:
         while i < self.g.slots.count and not self.shares_slots:
             try self.f.slots.push(self.g.slots.get(i))
             i += 1
+        if self.shares_slots and self.g.params.count > 0:
+            self.own_slots = try alloc u32[self.g.slots.count]
+            for k in 0..<self.own_slots.length:
+                self.own_slots[k] = no_slots
+            for p in self.g.params.span():
+                if (usize)p.slot < self.own_slots.length:
+                    self.own_slots[(usize)p.slot] = u32(self.f.slots.count)
+                    try self.f.slots.push(self.g.slots.get((usize)p.slot))
         i = 0
         while i < self.g.temps.count:
             try self.f.temps.push(self.g.temps.get(i))
@@ -765,7 +799,7 @@ struct Expansion:
         while i < self.g.params.count:
             let p = self.g.params.get(i)
             let a = self.f.args.get((usize)self.info.args_start + i)
-            let target = ir.slot_ref(self.slot_base + p.slot)
+            let target = ir.slot_ref(self.slot_of(p.slot))
             if p.size == 0:
                 try out.push(ir.Instr(op = store_op(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             else:
@@ -802,7 +836,7 @@ struct Expansion:
             k += 1
         for described in self.g.locals.span():
             var moved = described
-            moved.slot += self.slot_base
+            moved.slot = self.slot_of(moved.slot)
             moved.scope = (usize)self.scope_of(u32(described.scope))
             moved.site = self.site_of(described.site)
             try self.f.locals.push(moved)
@@ -888,7 +922,7 @@ struct Expansion:
             k += 1
         info.args_start = start
         if info.has_result and info.result_size > 0:
-            info.result_slot += self.slot_base
+            info.result_slot = self.slot_of(info.result_slot)
         try self.f.calls.push(info)
         return u32(self.f.calls.count - 1)
 
@@ -905,8 +939,15 @@ struct Expansion:
         if r.kind == ir.RefKind.temp:
             out.index += self.temp_base
         elif r.kind == ir.RefKind.slot:
-            out.index += self.slot_base
+            out.index = self.slot_of(r.index)
         return out
+
+    ## The body's slot `old` as the caller numbers it: a parameter's own when the rest are
+    ## shared (own_slots).
+    func slot_of(old: u32) -> u32:
+        if (usize)old < self.own_slots.length and self.own_slots[(usize)old] != no_slots:
+            return self.own_slots[(usize)old]
+        return self.slot_base + old
 
 ## The store and load that move a scalar of class `cls` through an eight-byte slot.
 func store_op(cls: ir.Class) -> ir.Op:

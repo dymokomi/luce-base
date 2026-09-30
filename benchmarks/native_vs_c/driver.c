@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     size_t size = (size_t)argument(argv[3]);
     uint64_t seed = argument(argv[4]);
     if (!work || !size || size > (1u << 24) || !seed) return 2;
-    int floating = !strcmp(argv[1], "float_recurrence") || !strcmp(argv[1], "transform") || !strcmp(argv[1], "matrix_product");
+    int floating = !strcmp(argv[1], "float_recurrence") || !strcmp(argv[1], "transform") || !strcmp(argv[1], "matrix_product") || !strcmp(argv[1], "vector_normals");
     int arrays = !strcmp(argv[1], "transform") || !strcmp(argv[1], "matrix_product");
     int summing = !strcmp(argv[1], "sum_words");
     int chasing = !strcmp(argv[1], "chase");
@@ -104,6 +104,11 @@ int main(int argc, char **argv) {
         word_copy(copied, size, bytes, size, 1);
         start = now(); word_copy(copied, size, bytes, size, work); elapsed = now() - start;
         result = hash_bytes(copied, size);
+    } else if (!strcmp(argv[1], "vector_normals")) {
+        if (size % 3 != 0 || size < 9) return 2;
+        double value = vector_normals(a, size, 1);
+        start = now(); value = vector_normals(a, size, work); elapsed = now() - start;
+        memcpy(&result, &value, sizeof result);
     } else if (!strcmp(argv[1], "chase")) {
         result = chase(links, size, 100, 0);
         start = now(); result = chase(links, size, work, 0); elapsed = now() - start;

@@ -1272,7 +1272,7 @@ Using an interface as a type denotes a two-word value, a pointer to the conformi
 
 `Iterable[T, I]` and `Iterator[T]` are what `for` consumes (§8.3): `interface Iterable[T, I: Iterator[T]]: func iterator() -> I`, and `interface Iterator[T]: mutating func next() -> T?`. The iterator type is a parameter, so `for` resolves it statically.
 
-`Display` writes a value to a sink: `func display(sink: Writer) -> !`. The compiler supplies it for integers (decimal), floats (shortest decimal that round-trips, `-5.0` keeps its `.0`, `inf` and `nan` spelled so), `bool`, `char`, `str`, and pointers (hexadecimal with `0x`). Formatted strings call it for each field; `hex(value)`, `bin(value)`, and `pad(value, width)` are one-word functions that answer a value whose `Display` is the requested form.
+`Display` writes a value to a sink: `func display(sink: Writer) -> !`. The compiler supplies it for integers (decimal), floats (the shortest decimal that reads back as the value, the closest of those: decimal notation for a decimal exponent from -6 to 14 and `1.5e-7`, `1e15` otherwise; digits without a point keep a `.0`, `-5.0`, `-0.0`; `inf`, `-inf`, `nan`; an `f32` shows its own shortest digits, `0.1` for `0.1f32`, and an `f16` those of its value as an `f32`), `bool`, `char`, `str`, and pointers (hexadecimal with `0x`). Formatted strings call it for each field; `hex(value)`, `bin(value)`, and `pad(value, width)` are one-word functions that answer a value whose `Display` is the requested form.
 
 `Writer` (§14.1) is the standard sink. `io.stdout()` and `io.stderr()` answer one. `print(text)` and `print(f"...")` write to standard output with a newline and ignore a failed write.
 

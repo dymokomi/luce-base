@@ -64,15 +64,6 @@ int lb_fmtbuf_u64(lb_fmtbuf* b, uint64_t v) {
     return lb_fmtbuf_put(b, tmp, (size_t)n);
 }
 
-int lb_fmtbuf_f64(lb_fmtbuf* b, double v) {
-    char tmp[64];
-    int n = snprintf(tmp, sizeof(tmp), "%g", v);
-    if (n < 0) {
-        return 1;
-    }
-    return lb_fmtbuf_put(b, tmp, (size_t)n);
-}
-
 int lb_fmtbuf_bool(lb_fmtbuf* b, bool v) {
     const char* s = v ? "true" : "false";
     return lb_fmtbuf_put(b, s, v ? 4 : 5);
@@ -858,6 +849,3 @@ void lb_print_str(lb_str value) {
     printf("%.*s\n", (int)value.length, value.data != NULL ? value.data : "");
 }
 
-void lb_print_f64(double value) {
-    printf("%g\n", value);
-}

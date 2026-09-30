@@ -1,0 +1,73 @@
+## §10: small struct values behave as values however the optimiser keeps them: built, zeroed,
+## copied whole, passed and returned by value through small methods, with padding between
+## fields of different widths, a union read through another member, a struct holding an array
+## indexed at run time, and one whose address is taken. Every build prints the same.
+struct Vector3:
+    var x: f64
+    var y: f64
+    var z: f64
+
+    func subtract(other: Vector3) -> Vector3:
+        return Vector3(self.x - other.x, self.y - other.y, self.z - other.z)
+
+    func cross(other: Vector3) -> Vector3:
+        return Vector3(self.y * other.z - self.z * other.y, self.z * other.x - self.x * other.z, self.x * other.y - self.y * other.x)
+
+struct Mixed:
+    var tag: u8
+    var count: u16
+    var scale: f32
+    var total: f64
+
+union Bits:
+    word: u64
+    value: f64
+
+struct Row:
+    var cells: i32[4]
+    var used: usize
+
+func mixed(tag: u8, n: u16) -> Mixed:
+    var m = Mixed(tag = tag, count = n, scale = 0.5, total = 0.0)
+    m.total = (f64)m.scale * (f64)m.count
+    return m
+
+func bump(m: Mixed*):
+    m.count += 1
+
+func pick(values: const Vector3[], at: usize) -> (Vector3, bool)?:
+    if at >= values.length:
+        return none
+    return (values[at], at % 2 == 0)
+
+pub func main(arguments: str[]) -> i32:
+    var points: Vector3[5] = ---
+    for i in 0..<5:
+        points[i] = Vector3((f64)i, (f64)(i * i), 1.0 + (f64)(i % 2))
+    var sum: f64 = 0.0
+    var i: usize = 2
+    while i < 5:
+        let n = points[i].subtract(points[i - 1]).cross(points[i - 2].subtract(points[i - 1]))
+        var copy = n
+        copy.x += 1.0
+        sum += n.x + n.y + n.z + copy.x
+        i += 1
+    var m = mixed(7, 40)
+    let kept = m
+    bump(&m)
+    var zeroed = Mixed(tag = 0, count = 0, scale = 0.0, total = 0.0)
+    zeroed = kept
+    var bits: Bits = ---
+    bits.value = 1.5
+    let word = bits.word
+    bits.word = word + 1
+    var row = Row(cells = [1, 2, 3, 4], used = 0)
+    for k in 0..<4:
+        row.used += (usize)row.cells[(k * 3) % 4]
+    let second = row
+    var found: f64 = 0.0
+    if let picked = pick(points[0..], 3):
+        let (v, even) = picked
+        found = v.y + (1.0 if even else 0.0)
+    print(f"{sum} {m.count} {kept.count} {zeroed.total} {zeroed.tag} {word} {bits.value > 1.5} {second.used} {found}")
+    return 0

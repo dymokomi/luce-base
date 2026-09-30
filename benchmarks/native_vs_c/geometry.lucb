@@ -1,0 +1,29 @@
+## Vectors for the `vector_normals` workload, in a module of their own as luce-geocore's
+## Vector3 is to luce-fbx: small methods of another module, taking and returning a vector
+## by value, which the native backend must expand where the kernel calls them.
+
+## A point or a direction.
+pub struct Vector3:
+    pub var x: f64
+    pub var y: f64
+    pub var z: f64
+
+    ## self - other
+    pub func subtract(other: Vector3) -> Vector3:
+        return Vector3(self.x - other.x, self.y - other.y, self.z - other.z)
+
+    ## self x other
+    pub func cross(other: Vector3) -> Vector3:
+        return Vector3(self.y * other.z - self.z * other.y,
+                       self.z * other.x - self.x * other.z,
+                       self.x * other.y - self.y * other.x)
+
+## The larger, NaN first, +0 over -0 (luce-std's math.max).
+pub func max(a: f64, b: f64) -> f64:
+    if a != a:
+        return a
+    if b != b:
+        return b
+    if a == 0.0 and b == 0.0:
+        return f64.bits(a.bits() & b.bits())
+    return a if a > b else b

@@ -4640,11 +4640,14 @@ pub struct Lowerer:
             discard(try self.call_named("lb_core_10format_put", start, 3, ir.Class.w, true, types.i32_id))
             return
         if self.is_float(t) or t == types.untyped_float_id:
-            let wide = try self.convert_float(x.ref, t, types.f64_id)
+            # an f32 or f16 shows the f32's own shortest digits, an f64 the f64's (§14)
+            let single = t == types.f32_id or t == types.f16_id
+            let width = types.f32_id if single else types.f64_id
+            let wide = try self.convert_float(x.ref, t, width)
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.d, size = 0, align = 8, type_id = types.f64_id, shape = 0))
-            discard(try self.call_named("lb_core_10format_f64", start, 2, ir.Class.w, true, types.i32_id))
+            try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.s if single else ir.Class.d, size = 0, align = 4 if single else 8, type_id = width, shape = 0))
+            discard(try self.call_named("lb_core_10format_f32" if single else "lb_core_10format_f64", start, 2, ir.Class.w, true, types.i32_id))
             return
         let unsigned = self.is_ptr(t) or (self.is_int(t) and not self.is_signed(t)) or t == types.char_id or (self.is_int_enum(t) and not self.signed_of(t)) or t == types.error_code_id or t == types.cstr_id
         let word = try self.to_word(x.ref, t) if t != types.untyped_int_id and not self.is_ptr(t) and t != types.cstr_id else x.ref

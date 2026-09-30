@@ -1,0 +1,16 @@
+## §7: a tuple or array literal where an optional or fallible of one is expected takes its
+## members' types from inside it: `(k, 0)` for `(u32, u32)?` is two u32s, `[1, 2, 3]` for
+## `u8[3]!` three bytes.
+func pair(k: u32) -> (u32, u32)?:
+    if k == 0:
+        return none
+    return (k, 0)
+
+func bytes() -> u8[3]!:
+    return [1, 2, 250]
+
+pub func main(arguments: str[]) -> i32!:
+    let p = pair(7) else (u32(1), u32(1))
+    let b = try bytes()
+    print(f"{p.0} {p.1} {b[2]} {pair(0) == none}")
+    return 0

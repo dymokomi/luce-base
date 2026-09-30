@@ -1,0 +1,528 @@
+#==============================================================================================
+#
+#   split - Small aggregates in the frame taken apart into their fields
+#
+#   DESCRIPTION:
+#       A struct value the lowerer keeps in a slot (a local, a temporary construction, an
+#       expanded call's argument or result) is read and written a field at a time, zeroed
+#       whole, and copied whole with `blit`. When nothing else ever sees the slot's address,
+#       the slot is a set of fields: this pass gives each field a slot of its own, makes
+#       each access one of those slots', and turns a whole zero or copy into one store or
+#       one load and store a field, so that `promote` can then keep every field in a
+#       temporary. `a.subtract(b).cross(c)` on 24-byte vectors, expanded, loses its
+#       zeroing, its three copies through memory and its reloads (scalar replacement of
+#       aggregates). Slots joined by a copy between them split alike, into the fields both
+#       are accessed by; bytes no access names (padding) become fields too, so a copy stays
+#       exact. A slot is left whole when its address escapes (a call, a store of it, a phi,
+#       any other use), when a call writes its aggregate result there, when a build with
+#       symbols describes it as a local, when an access overlaps another at a different
+#       width, when a zero or copy covers only part of it, and when it is larger than
+#       `largest` bytes or would need more than `most_fields` fields.
+#
+#==============================================================================================
+
+import support.list
+import back.ir.ir
+
+## The largest slot split, in bytes, and the most fields one splits into.
+let largest: u32 = 64
+let most_fields: usize = 16
+
+## One field of a split layout: its offset, width and class.
+struct Field:
+    var offset: u32
+    var width: u32
+    var cls: ir.Class
+
+## Split the small aggregate slots of `f` whose addresses stay within the accesses this pass
+## understands; whether it split any.
+pub func run(f: ir.Function*) -> bool!:
+    let ns = f.slots.count
+    if ns == 0 or f.debug:
+        return false
+    var plan = try Plan.over(f)
+    defer plan.release()
+    try plan.find_origins(f)
+    try plan.check_uses(f)
+    plan.join_copies(f)
+    if not try plan.lay_out(f):
+        return false
+    try plan.rewrite(f)
+    return true
+
+# mark: The plan ===============================================================================
+
+## What the pass learns about `f`'s slots before it changes anything.
+struct Plan:
+    ## Per slot: whether it may still split.
+    var ok: bool[]
+    ## Per slot: the group of slots joined by copies it belongs to (a union-find parent).
+    var group: u32[]
+    ## Per temporary: 1 + the slot whose address plus `offset_of` it holds, 0 for none.
+    var origin: u32[]
+    var offset_of: u32[]
+    ## Per temporary: how many instructions assign it.
+    var defs: u32[]
+    ## Every access seen: slot, offset, width, class.
+    var accesses: Field[]
+    var access_slot: u32[]
+    var access_count: usize
+    ## Per group root: its fields, from `field_start` for `field_count`, in `fields`.
+    var fields: Field[]
+    var field_start: u32[]
+    var field_count: u32[]
+    ## Per slot and field: the new slot, from `field_start` of the slot's root.
+    var new_slot: u32[]
+
+    static func over(f: ir.Function*) -> Plan!:
+        let ns = f.slots.count
+        let nt = f.temps.count + 1
+        var plan = Plan(ok = try alloc bool[ns], group = try alloc u32[ns], origin = try alloc u32[nt],
+                        offset_of = try alloc u32[nt], defs = try alloc u32[nt], accesses = try alloc Field[f.instrs.count + 1],
+                        access_slot = try alloc u32[f.instrs.count + 1], access_count = 0, fields = try alloc Field[0],
+                        field_start = try alloc u32[ns], field_count = try alloc u32[ns], new_slot = try alloc u32[0])
+        for s in 0..<ns:
+            let size = f.slots.get(s).size
+            plan.ok[s] = size > 0 and size <= largest
+            plan.group[s] = (u32)s
+            plan.field_start[s] = 0
+            plan.field_count[s] = 0
+        for p in f.params.span():
+            if (usize)p.slot < ns:
+                plan.ok[(usize)p.slot] = false
+        # a local the debugger is told of lives in its slot (--release --debug)
+        if f.symbols:
+            for described in f.locals.span():
+                if (usize)described.slot < ns:
+                    plan.ok[(usize)described.slot] = false
+        for t in 0..<nt:
+            plan.origin[t] = 0
+            plan.offset_of[t] = 0
+            plan.defs[t] = 0
+        return plan
+
+    mutating func release():
+        free(self.ok)
+        free(self.group)
+        free(self.origin)
+        free(self.offset_of)
+        free(self.defs)
+        free(self.accesses)
+        free(self.access_slot)
+        free(self.fields)
+        free(self.field_start)
+        free(self.field_count)
+        free(self.new_slot)
+
+    ## Which temporaries hold a slot's address, and at what offset: `addr`, then `add` of a
+    ## constant and `copy`, each the temporary's only assignment.
+    mutating func find_origins(f: ir.Function*) -> !:
+        for x in f.instrs.span():
+            if x.dst != 0 and (usize)x.dst < self.defs.length:
+                self.defs[(usize)x.dst] += 1
+        var changed = true
+        var rounds: u32 = 0
+        while changed and rounds < 8:
+            changed = false
+            rounds += 1
+            for x in f.instrs.span():
+                if x.dst == 0 or (usize)x.dst >= self.origin.length or self.origin[(usize)x.dst] != 0:
+                    continue
+                var slot: u32 = 0
+                var offset: u32 = 0
+                if x.op == ir.Op.addr and x.a.kind == ir.RefKind.slot and (usize)x.a.index < self.ok.length:
+                    slot = x.a.index + 1
+                elif x.op == ir.Op.copy or (x.op == ir.Op.add and x.cls == ir.Class.l):
+                    if let found = self.address(x.a):
+                        let (s, o) = found
+                        if x.op == ir.Op.copy:
+                            slot = s + 1
+                            offset = o
+                        elif x.b.kind == ir.RefKind.constant and x.b.value >= 0 and x.b.value < (i64)largest:
+                            slot = s + 1
+                            offset = o + (u32)x.b.value
+                if slot != 0:
+                    if self.defs[(usize)x.dst] != 1:
+                        # assigned again elsewhere: the address may be anything there
+                        self.ok[(usize)slot - 1] = false
+                    else:
+                        self.origin[(usize)x.dst] = slot
+                        self.offset_of[(usize)x.dst] = offset
+                        changed = true
+
+    ## The slot and offset `r` is the address of, if it is one.
+    func address(r: ir.Ref) -> (u32, u32)?:
+        if r.kind == ir.RefKind.slot and (usize)r.index < self.ok.length:
+            return (r.index, u32(0))
+        if r.kind == ir.RefKind.temp and (usize)r.index < self.origin.length and self.origin[(usize)r.index] != 0:
+            return (self.origin[(usize)r.index] - 1, self.offset_of[(usize)r.index])
+        return none
+
+    ## Every use of a slot's address: a load or store of a scalar at an offset is an access;
+    ## a zero or copy of the whole slot is kept for the rewrite; an address derived by
+    ## `add` or `copy` is followed; anything else leaves the slot whole.
+    mutating func check_uses(f: ir.Function*) -> !:
+        for x in f.instrs.span():
+            if x.dst != 0 and (usize)x.dst < self.origin.length and self.origin[(usize)x.dst] != 0:
+                # an address derived from another: its uses are what count
+                continue
+            if x.op == ir.Op.addr:
+                continue
+            if is_load(x.op):
+                self.access(f, x.a, access_width(x.op), load_class(x.op, x.cls))
+                self.escape(x.b)
+            elif is_store(x.op):
+                self.escape(x.a)
+                self.access(f, x.b, access_width(x.op), store_class(x.op))
+            elif x.op == ir.Op.zero:
+                self.whole(f, x.a, x.extra)
+                self.escape(x.b)
+            elif x.op == ir.Op.blit:
+                self.whole(f, x.a, x.extra)
+                self.whole(f, x.b, x.extra)
+            else:
+                self.escape(x.a)
+                self.escape(x.b)
+        # a call's arguments, and the slot a call writes an aggregate result into whole,
+        # naming no address; the argument list keeps the entries of calls an expansion
+        # removed, which are not uses any more
+        for x in f.instrs.span():
+            if x.op == ir.Op.atomic_cas and x.b.value >= 0 and (usize)x.b.value + 1 < f.args.count:
+                self.escape(f.args.get((usize)x.b.value).value)
+                self.escape(f.args.get((usize)x.b.value + 1).value)
+            if x.op != ir.Op.call or (usize)x.extra >= f.calls.count:
+                continue
+            let call = f.calls.get((usize)x.extra)
+            for k in 0..<(usize)call.args_count:
+                self.escape(f.args.get((usize)call.args_start + k).value)
+            if call.has_result and call.result_size > 0 and (usize)call.result_slot < self.ok.length:
+                self.ok[(usize)call.result_slot] = false
+        for phi in f.phi_args.span():
+            self.escape(phi.value)
+
+    mutating func escape(r: ir.Ref):
+        if let found = self.address(r):
+            self.ok[(usize)found.0] = false
+
+    mutating func access(f: ir.Function*, r: ir.Ref, width: u32, cls: ir.Class):
+        let found = self.address(r) else return
+        let (s, offset) = found
+        if width == 0 or offset + width > f.slots.get((usize)s).size:
+            self.ok[(usize)s] = false
+            return
+        self.accesses[self.access_count] = Field(offset = offset, width = width, cls = cls)
+        self.access_slot[self.access_count] = s
+        self.access_count += 1
+
+    mutating func whole(f: ir.Function*, r: ir.Ref, bytes: u32):
+        let found = self.address(r) else return
+        let (s, offset) = found
+        if offset != 0 or bytes != f.slots.get((usize)s).size:
+            self.ok[(usize)s] = false
+
+    func root(s: u32) -> u32:
+        var at = s
+        while self.group[(usize)at] != at:
+            at = self.group[(usize)at]
+        return at
+
+    ## Slots copied into each other split alike: one group, one layout. A copy between a slot
+    ## that may split and one that may not leaves both whole, and so does one between slots of
+    ## different sizes.
+    mutating func join_copies(f: ir.Function*):
+        var changed = true
+        while changed:
+            changed = false
+            for x in f.instrs.span():
+                if x.op != ir.Op.blit:
+                    continue
+                let found_a = self.address(x.a) else continue
+                let found_b = self.address(x.b) else continue
+                let a = found_a.0
+                let b = found_b.0
+                if a == b:
+                    continue
+                let ra = self.root(a)
+                let rb = self.root(b)
+                if self.ok[(usize)a] != self.ok[(usize)b] or f.slots.get((usize)a).size != f.slots.get((usize)b).size:
+                    if self.ok[(usize)a] or self.ok[(usize)b]:
+                        self.ok[(usize)a] = false
+                        self.ok[(usize)b] = false
+                        changed = true
+                elif ra != rb:
+                    self.group[(usize)ra] = rb
+
+    ## Each group's fields: every access of every member, sorted by offset, no two
+    ## overlapping unless alike, and the bytes between them filled; a group that cannot be
+    ## laid out stays whole. Whether any group splits.
+    mutating func lay_out(f: ir.Function*) -> bool!:
+        let ns = f.slots.count
+        # a member that may not split keeps its whole group whole
+        for s in 0..<ns:
+            if not self.ok[s]:
+                self.ok[(usize)self.root((u32)s)] = false
+        for s in 0..<ns:
+            if not self.ok[(usize)self.root((u32)s)]:
+                self.ok[s] = false
+        var all = try alloc Field[self.access_count + ns * most_fields + 1]
+        var used: usize = 0
+        var splits = false
+        var scratch = try alloc Field[self.access_count + 1]
+        defer free(scratch)
+        for r in 0..<ns:
+            if self.root((u32)r) != (u32)r or not self.ok[r]:
+                continue
+            # the group's accesses, deduplicated and sorted by offset
+            var n: usize = 0
+            for k in 0..<self.access_count:
+                if self.root(self.access_slot[k]) != (u32)r:
+                    continue
+                let a = self.accesses[k]
+                var seen = false
+                for j in 0..<n:
+                    if scratch[j].offset == a.offset and scratch[j].width == a.width:
+                        seen = true
+                if not seen:
+                    var at = n
+                    while at > 0 and scratch[at - 1].offset > a.offset:
+                        scratch[at] = scratch[at - 1]
+                        at -= 1
+                    scratch[at] = a
+                    n += 1
+            let size = f.slots.get(r).size
+            let start = used
+            var cursor: u32 = 0
+            var fits = n > 0
+            for j in 0..<n:
+                let a = scratch[j]
+                if a.offset < cursor:
+                    # overlaps the field before at another width
+                    fits = false
+                    break
+                while cursor < a.offset and fits:
+                    let piece = filler(cursor, a.offset - cursor)
+                    if used - start >= most_fields:
+                        fits = false
+                    else:
+                        all[used] = piece
+                        used += 1
+                        cursor += piece.width
+                if not fits or used - start >= most_fields:
+                    fits = false
+                    break
+                all[used] = a
+                used += 1
+                cursor = a.offset + a.width
+            while fits and cursor < size:
+                let piece = filler(cursor, size - cursor)
+                if used - start >= most_fields:
+                    fits = false
+                else:
+                    all[used] = piece
+                    used += 1
+                    cursor += piece.width
+            if not fits:
+                used = start
+                self.ok[r] = false
+                for s in 0..<ns:
+                    if self.root((u32)s) == (u32)r:
+                        self.ok[s] = false
+                continue
+            self.field_start[r] = (u32)start
+            self.field_count[r] = (u32)(used - start)
+            splits = true
+        free(self.fields)
+        self.fields = all
+        return splits
+
+    ## Give every member of a split group a slot per field, then rebuild the instructions.
+    mutating func rewrite(f: ir.Function*) -> !:
+        let ns = f.slots.count
+        free(self.new_slot)
+        self.new_slot = try alloc u32[ns * most_fields + 1]
+        for s in 0..<ns:
+            if not self.ok[s]:
+                continue
+            let r = (usize)self.root((u32)s)
+            for k in 0..<(usize)self.field_count[r]:
+                let field = self.fields[(usize)self.field_start[r] + k]
+                self.new_slot[s * most_fields + k] = try f.slot(field.width, field.width)
+        var old = f.instrs
+        f.instrs = try list.List[ir.Instr].create(old.count + 64)
+        for x in old.span():
+            try self.emit_rewritten(f, x)
+        old.destroy()
+
+    ## The field of slot `s` at `offset`, as its new slot and its layout.
+    func field_at(s: u32, offset: u32) -> (u32, Field)?:
+        let r = (usize)self.root(s)
+        for k in 0..<(usize)self.field_count[r]:
+            let field = self.fields[(usize)self.field_start[r] + k]
+            if field.offset == offset:
+                return (self.new_slot[(usize)s * most_fields + k], field)
+        return none
+
+    func split_address(r: ir.Ref) -> (u32, u32)?:
+        let found = self.address(r) else return none
+        if not self.ok[(usize)found.0]:
+            return none
+        return found
+
+    mutating func emit_rewritten(f: ir.Function*, x: ir.Instr) -> !:
+        if is_load(x.op):
+            if let found = self.split_address(x.a):
+                let field = self.field_at(found.0, found.1) else trap("split: a load between fields")
+                let slot = field.0
+                var y = x
+                y.a = try self.slot_address(f, x, slot)
+                try f.instrs.push(y)
+                return
+        elif is_store(x.op):
+            if let found = self.split_address(x.b):
+                let field = self.field_at(found.0, found.1) else trap("split: a store between fields")
+                let slot = field.0
+                var y = x
+                y.b = try self.slot_address(f, x, slot)
+                try f.instrs.push(y)
+                return
+        elif x.op == ir.Op.zero:
+            if let found = self.split_address(x.a):
+                let s = found.0
+                let r = (usize)self.root(s)
+                for k in 0..<(usize)self.field_count[r]:
+                    let field = self.fields[(usize)self.field_start[r] + k]
+                    let value = try self.zero_of(f, x, field.cls)
+                    let target = try self.slot_address(f, x, self.new_slot[(usize)s * most_fields + k])
+                    try push(f, x, store_op(field), ir.Class.l, 0, value, target, 0)
+                return
+        elif x.op == ir.Op.blit:
+            let target_of = self.split_address(x.a)
+            let source_of = self.split_address(x.b)
+            if target_of != none or source_of != none:
+                var s: u32 = 0
+                if let known = target_of:
+                    s = known.0
+                elif let known = source_of:
+                    s = known.0
+                let r = (usize)self.root(s)
+                for k in 0..<(usize)self.field_count[r]:
+                    let field = self.fields[(usize)self.field_start[r] + k]
+                    var source = x.b
+                    if let known = source_of:
+                        source = try self.slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
+                    else:
+                        source = try offset_address(f, x, x.b, field.offset)
+                    var target = x.a
+                    if let known = target_of:
+                        target = try self.slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
+                    else:
+                        target = try offset_address(f, x, x.a, field.offset)
+                    let value = try f.temp(field.cls)
+                    try push(f, x, load_op(field), field.cls, value, source, ir.none_ref(), 0)
+                    try push(f, x, store_op(field), ir.Class.l, 0, ir.temp_ref(value), target, 0)
+                return
+        try f.instrs.push(x)
+
+    ## A fresh temporary holding the address of `slot`, for an access to it.
+    mutating func slot_address(f: ir.Function*, at: ir.Instr, slot: u32) -> ir.Ref!:
+        let t = try f.temp(ir.Class.l)
+        try push(f, at, ir.Op.addr, ir.Class.l, t, ir.slot_ref(slot), ir.none_ref(), 0)
+        return ir.temp_ref(t)
+
+    ## Zero in a field's class: a float's through its bits.
+    mutating func zero_of(f: ir.Function*, at: ir.Instr, cls: ir.Class) -> ir.Ref!:
+        if cls == ir.Class.w or cls == ir.Class.l:
+            return ir.const_ref(0)
+        let t = try f.temp(cls)
+        try push(f, at, ir.Op.cast, cls, t, ir.const_ref(0), ir.none_ref(), 0)
+        return ir.temp_ref(t)
+
+# mark: Helpers ================================================================================
+
+## An instruction positioned where `at` came from.
+func push(f: ir.Function*, at: ir.Instr, op: ir.Op, cls: ir.Class, dst: u32, a: ir.Ref, b: ir.Ref, extra: u32) -> !:
+    try f.instrs.push(ir.Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0, line = at.line, file = at.file, scope = at.scope, site = at.site))
+
+## `base + offset` as an address operand.
+func offset_address(f: ir.Function*, at: ir.Instr, base: ir.Ref, offset: u32) -> ir.Ref!:
+    if offset == 0:
+        return base
+    let t = try f.temp(ir.Class.l)
+    try push(f, at, ir.Op.add, ir.Class.l, t, base, ir.const_ref((i64)offset), 0)
+    return ir.temp_ref(t)
+
+## The widest aligned piece of `bytes` bytes at `offset`: padding as a field.
+func filler(offset: u32, bytes: u32) -> Field:
+    var width: u32 = 8
+    while width > 1 and (offset % width != 0 or width > bytes):
+        width = width // 2
+    return Field(offset = offset, width = width, cls = ir.Class.l if width == 8 else ir.Class.w)
+
+func is_load(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
+
+func is_store(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+## The bytes a load or store moves.
+func access_width(op: ir.Op) -> u32:
+    match op:
+        .loadsb, .loadub, .storeb:
+            return 1
+        .loadsh, .loaduh, .loadhf, .storeh, .storehf:
+            return 2
+        .loadsw, .loaduw, .loads, .storew, .stores:
+            return 4
+        .loadl, .loadd, .storel, .stored:
+            return 8
+        _:
+            return 0
+
+func load_class(op: ir.Op, cls: ir.Class) -> ir.Class:
+    match op:
+        .loads:
+            return ir.Class.s
+        .loadd:
+            return ir.Class.d
+        .loadhf:
+            return ir.Class.h
+        .loadl:
+            return ir.Class.l
+        _:
+            return ir.Class.w
+
+func store_class(op: ir.Op) -> ir.Class:
+    match op:
+        .stores:
+            return ir.Class.s
+        .stored:
+            return ir.Class.d
+        .storehf:
+            return ir.Class.h
+        .storel:
+            return ir.Class.l
+        _:
+            return ir.Class.w
+
+## The load and store that move a field whole in its class.
+func load_op(field: Field) -> ir.Op:
+    match field.width:
+        1:
+            return ir.Op.loadub
+        2:
+            return ir.Op.loadhf if field.cls == ir.Class.h else ir.Op.loaduh
+        4:
+            return ir.Op.loads if field.cls == ir.Class.s else ir.Op.loaduw
+        _:
+            return ir.Op.loadd if field.cls == ir.Class.d else ir.Op.loadl
+
+func store_op(field: Field) -> ir.Op:
+    match field.width:
+        1:
+            return ir.Op.storeb
+        2:
+            return ir.Op.storehf if field.cls == ir.Class.h else ir.Op.storeh
+        4:
+            return ir.Op.stores if field.cls == ir.Class.s else ir.Op.storew
+        _:
+            return ir.Op.stored if field.cls == ir.Class.d else ir.Op.storel

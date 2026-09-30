@@ -16,7 +16,7 @@ cat > build/wasm-check.expected <<'END'
 target wasm32 pointer bits 32 wasm32 true posix true
 sizes usize 4 pointer 4 long 4 str 8
 point 3 4 sum 7
-areas 3.14159 6.25
+areas 3.141592653589793 6.25
 filled 7168
 joined wasm runs base upper WASM RUNS BASE
 file written from wasm

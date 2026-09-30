@@ -6136,9 +6136,11 @@ pub struct Emitter:
             try self.put(".length); })")
             return
         if self.is_float(t) or t == types.untyped_float_id:
-            try self.put("lb_fmtbuf_f64(&")
+            # core's own text, the native backend's (§14): an f32 or f16 shows the f32's digits
+            let single = t == types.f32_id or t == types.f16_id
+            try self.put("lb_core_10format_f32((struct lb_core_FormatBuffer*)&" if single else "lb_core_10format_f64((struct lb_core_FormatBuffer*)&")
             try self.put_tmp(prefix, n)
-            try self.put(", (double)(")
+            try self.put(", (float)(" if single else ", (double)(")
             try self.expr(v)
             try self.put("))")
             return

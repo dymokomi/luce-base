@@ -25,6 +25,7 @@ import back.opt.gvn
 import back.opt.load
 import back.opt.loops
 import back.opt.ranges
+import back.opt.split
 import back.opt.ssa
 import back.opt.vectorize
 import back.target as targets
@@ -175,7 +176,7 @@ func print_report() -> !:
 ## The most instructions an optimised leaf function may have to be expanded at every
 ## call by the second inlining pass (`inline.expand_small`): js_dup_value and its kin in
 ## luce-js optimise to 25 to 30.
-let optimised_small: usize = 32
+let optimised_small: usize = 48
 
 ## Optimise every function of `program`, or only those `only` marks.
 func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?) -> !:
@@ -194,6 +195,13 @@ func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?
             var at = ticks()
             var g = try cfg.Graph.over(f)
             if try ssa.promote(f):
+                g.release()
+                g = try cfg.Graph.over(f)
+            # small aggregates whose address stays in the frame, taken apart into their
+            # fields once promote has made the addresses an expansion passed through its
+            # parameters' slots plain temporaries; promote then keeps each field in one
+            if level >= 2 and try split.run(f):
+                discard(try ssa.promote(f))
                 g.release()
                 g = try cfg.Graph.over(f)
             try note(&at, 2)

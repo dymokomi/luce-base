@@ -11,6 +11,7 @@
 
 from windows_abi import WideCharToMultiByte
 import c
+import float_text
 import platform
 extern func set_binary_mode as "_setmode"(descriptor: i32, mode: i32) -> i32
 extern func GetCurrentThreadId() -> u32
@@ -43,7 +44,6 @@ extern func malloc(size: usize) -> void*?
 extern func memcpy(target: void*, source: const void*, count: usize) -> void*
 extern func memcmp(a: const void*, b: const void*, count: usize) -> i32
 extern func strlen(text: c.str) -> usize
-extern func snprintf(buffer: void*, size: usize, format: c.str, ...) -> i32
 
 ## Stop the program with its reason on stderr (§8.7).
 pub func trap(message: c.str) -> never:
@@ -599,13 +599,18 @@ pub func format_i64(b: FormatBuffer*, value: i64) -> i32:
         return format_u64(b, 0 -% (u64)value)
     return format_u64(b, (u64)value)
 
-## `%g`, as the C library spells it, so both backends print one text.
+## A float field (base.md §14): the shortest decimal that reads back as `value`, a `.0`
+## after digits with no point (float_text.display_f64); both backends call this.
 pub func format_f64(b: FormatBuffer*, value: f64) -> i32:
-    var text: u8[64] = ---
-    let n = snprintf((void*)&text[0], 64, "%g", value)
-    if n < 0:
-        return 1
-    return format_put(b, &text[0], (usize)n)
+    var text: u8[40] = ---
+    let n = float_text.display_f64(value, text[0..])
+    return format_put(b, &text[0], n)
+
+## format_f64 for an f32 (or an f16, widened): the f32's own shortest digits.
+pub func format_f32(b: FormatBuffer*, value: f32) -> i32:
+    var text: u8[40] = ---
+    let n = float_text.display_f32(value, text[0..])
+    return format_put(b, &text[0], n)
 
 ## Append `true` or `false` to `b`; the bytes written.
 pub func format_bool(b: FormatBuffer*, value: bool) -> i32:

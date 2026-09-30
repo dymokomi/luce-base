@@ -20,7 +20,7 @@ case "$OUT" in
             exit 0
         fi
         echo "FAIL tests/programs/metal: this Mac has no Metal device; the gate cannot run in full"; rm -f build/metal-check; exit 1;;
-    "squared on the GPU: 1 4 9 16 25 36 49 64") ;;
+    "squared on the GPU: 1.0 4.0 9.0 16.0 25.0 36.0 49.0 64.0") ;;
     *) echo "FAIL tests/programs/metal: $OUT"; rm -f build/metal-check; exit 1;;
 esac
 rm -f build/metal-check build/metal-bind.txt

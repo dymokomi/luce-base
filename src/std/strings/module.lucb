@@ -9,6 +9,7 @@
 #
 #==============================================================================================
 
+import float_text
 import io
 import memory
 ## An empty separator or needle where one is required.

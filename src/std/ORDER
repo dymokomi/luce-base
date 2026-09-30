@@ -1,6 +1,7 @@
 platform
 c
 windows_abi
+float_text
 core
 memory
 windows_text

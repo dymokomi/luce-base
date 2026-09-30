@@ -1,5 +1,6 @@
 ## The same algorithms and traversal order as kernels.c. Exporting keeps the
 ## measurement driver identical and prevents whole-program constant folding.
+import geometry
 import memory
 
 export func integer_mix(iterations: usize, seed: u64) -> u64:
@@ -96,3 +97,22 @@ export func word_copy(out: u8[], data: const u8[], rounds: usize):
             memory.write[u32]((void*)&out[at * 4 + 1], value ^ (u32)round)
             at += 1
         round += 1
+
+## Each point's normal from its two predecessors, through another module's Vector3 methods
+## (geometry.lucb), the largest z kept and the x summed: luce-geocore's per-face kernels.
+export func vector_normals(values: const f64[], rounds: usize) -> f64:
+    assert(values.length >= 9 and values.length % 3 == 0)
+    let points = values.length // 3
+    var total: f64 = 0.0
+    var round: usize = 0
+    while round < rounds:
+        var at: usize = 2
+        while at < points:
+            let a = geometry.Vector3(values[at * 3], values[at * 3 + 1], values[at * 3 + 2])
+            let b = geometry.Vector3(values[at * 3 - 3], values[at * 3 - 2], values[at * 3 - 1])
+            let c = geometry.Vector3(values[at * 3 - 6], values[at * 3 - 5], values[at * 3 - 4])
+            let n = a.subtract(b).cross(c.subtract(b))
+            total = geometry.max(total * 0.5, n.z) + n.x
+            at += 1
+        round += 1
+    return total

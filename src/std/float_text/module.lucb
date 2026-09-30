@@ -1,0 +1,147 @@
+#==============================================================================================
+#
+#   float_text - The shortest decimal text of a float
+#
+#   DESCRIPTION:
+#       The fewest significant digits that read back as the value, of those the closest
+#       (Ryu: Adams, "Ryu: Fast Float-to-String Conversion", PLDI 2018), each width with its
+#       own digits, laid out as double-conversion's ToShortest: decimal notation for a decimal
+#       exponent from -6 to 14, otherwise one digit, the rest after a point, and `e` with the
+#       exponent. Integer arithmetic only. strings' format_f64 writes this text, and a
+#       formatted string's float field this text with a `.0` after digits that have no point
+#       (base.md §14). It comes before `core` and needs nothing else.
+#
+#==============================================================================================
+
+# mark: Text ===================================================================================
+
+## The shortest text of `value` into `text`, at least 32 bytes: `0.1`, `1e15`, `5e-324`,
+## `-0`, `inf`, `-inf`, `nan`. Its length.
+pub func write_f64(value: f64, text: u8[]) -> usize:
+    let bits = value.bits()
+    let negative = (bits >> 63) != 0
+    let exponent_bits = (u32)((bits >> 52) & 0x7FF)
+    let mantissa_bits = bits & 0xFFFFFFFFFFFFF
+    if exponent_bits == 0x7FF:
+        return special(text, negative, mantissa_bits != 0)
+    if exponent_bits == 0 and mantissa_bits == 0:
+        return copy_word(text, "-0" if negative else "0")
+    let (digits, exponent) = shortest64(mantissa_bits, exponent_bits)
+    return layout(text, negative, digits, exponent)
+
+## The f32 counterpart of write_f64: the f32's own shortest digits (`0.1` for 0.1f32).
+pub func write_f32(value: f32, text: u8[]) -> usize:
+    let bits = value.bits()
+    let negative = (bits >> 31) != 0
+    let exponent_bits = (bits >> 23) & 0xFF
+    let mantissa_bits = bits & 0x7FFFFF
+    if exponent_bits == 0xFF:
+        return special(text, negative, mantissa_bits != 0)
+    if exponent_bits == 0 and mantissa_bits == 0:
+        return copy_word(text, "-0" if negative else "0")
+    let (digits, exponent) = shortest32(mantissa_bits, exponent_bits)
+    return layout(text, negative, (u64)digits, exponent)
+
+## A formatted string's field of `value` (base.md §14): write_f64's text, with `.0` after
+## digits that have no point or exponent (`5.0`, `-0.0`, `123456789012345.0`). Its length.
+pub func display_f64(value: f64, text: u8[]) -> usize:
+    return with_point(text, write_f64(value, text))
+
+## display_f64 for an f32: its own shortest digits.
+pub func display_f32(value: f32, text: u8[]) -> usize:
+    return with_point(text, write_f32(value, text))
+
+func with_point(text: u8[], length: usize) -> usize:
+    var at: usize = 0
+    while at < length:
+        let byte = text[at]
+        if byte == '.' or byte == 'e' or byte == 'i' or byte == 'n':
+            return length
+        at += 1
+    text[length] = '.'
+    text[length + 1] = '0'
+    return length + 2
+
+func special(text: u8[], negative: bool, nan: bool) -> usize:
+    if nan:
+        return copy_word(text, "nan")
+    return copy_word(text, "-inf" if negative else "inf")
+
+func copy_word(text: u8[], word: str) -> usize:
+    var at: usize = 0
+    while at < word.length:
+        text[at] = word.bytes[at]
+        at += 1
+    return word.length
+
+## ToShortest's layout of `digits * 10^exponent` into `text`; its length.
+func layout(text: u8[], negative: bool, digits: u64, exponent: i32) -> usize:
+    var reversed: u8[20] = ---
+    var count: usize = 0
+    var rest = digits
+    while rest > 0:
+        reversed[count] = (u8)(48 + rest % 10)
+        count += 1
+        rest = rest // 10
+    let point = (i64)exponent + (i64)count
+    let decimal_exponent = point - 1
+    var at: usize = 0
+    if negative:
+        text[0] = '-'
+        at = 1
+    if decimal_exponent >= -6 and decimal_exponent < 15:
+        if point <= 0:
+            text[at] = '0'
+            text[at + 1] = '.'
+            at += 2
+            for _ in 0..<(usize)(-point):
+                text[at] = '0'
+                at += 1
+            for index in 0..<count:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+        elif (usize)point >= count:
+            for index in 0..<count:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+            for _ in 0..<((usize)point - count):
+                text[at] = '0'
+                at += 1
+        else:
+            for index in 0..<(usize)point:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+            text[at] = '.'
+            at += 1
+            for index in (usize)point..<count:
+                text[at] = reversed[count - 1 - index]
+                at += 1
+        return at
+    text[at] = reversed[count - 1]
+    at += 1
+    if count > 1:
+        text[at] = '.'
+        at += 1
+        for index in 1..<count:
+            text[at] = reversed[count - 1 - index]
+            at += 1
+    text[at] = 'e'
+    at += 1
+    var power = decimal_exponent
+    if power < 0:
+        text[at] = '-'
+        at += 1
+        power = -power
+    var power_digits: u8[8] = ---
+    var width: usize = 0
+    while true:
+        power_digits[width] = (u8)(48 + power % 10)
+        width += 1
+        power = power // 10
+        if power == 0:
+            break
+    while width > 0:
+        width -= 1
+        text[at] = power_digits[width]
+        at += 1
+    return at

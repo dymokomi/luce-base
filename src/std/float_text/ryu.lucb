@@ -1,0 +1,276 @@
+#==============================================================================================
+#
+#   ryu - The shortest digits of a float (float_text)
+#
+#   DESCRIPTION:
+#       Ryu's d2d and f2s over float_text's tables of powers of five: the fewest decimal
+#       digits, and their power of ten, that read back as a finite nonzero f64 or f32.
+#
+#==============================================================================================
+
+# mark: Ryu ====================================================================================
+
+## Ryu's d2d: the shortest decimal digits * 10^exponent of a finite, nonzero f64, given its
+## mantissa and exponent fields.
+func shortest64(ieee_mantissa: u64, ieee_exponent: u32) -> (u64, i32):
+    var e2: i32 = 0
+    var m2: u64 = 0
+    if ieee_exponent == 0:
+        e2 = 1 - 1023 - 52 - 2
+        m2 = ieee_mantissa
+    else:
+        e2 = (i32)ieee_exponent - 1023 - 52 - 2
+        m2 = ((u64)1 << 52) | ieee_mantissa
+    let accept_bounds = (m2 & 1) == 0
+    let mv = 4 * m2
+    let mm_shift: u64 = 1 if ieee_mantissa != 0 or ieee_exponent <= 1 else 0
+    var vr: u64 = 0
+    var vp: u64 = 0
+    var vm: u64 = 0
+    var e10: i32 = 0
+    var vm_trailing_zeros = false
+    var vr_trailing_zeros = false
+    if e2 >= 0:
+        let q = log10_pow2(e2) - (1 if e2 > 3 else 0)
+        e10 = q
+        let k = 125 + pow5_bits(q) - 1
+        let i = -e2 + q + k
+        let row = (usize)q * 2
+        vr = mul_shift64(4 * m2, pow5_inv_split[row], pow5_inv_split[row + 1], i)
+        vp = mul_shift64(4 * m2 + 2, pow5_inv_split[row], pow5_inv_split[row + 1], i)
+        vm = mul_shift64(4 * m2 - 1 - mm_shift, pow5_inv_split[row], pow5_inv_split[row + 1], i)
+        if q <= 21:
+            if mv % 5 == 0:
+                vr_trailing_zeros = pow5_factor(mv) >= (u32)q
+            elif accept_bounds:
+                vm_trailing_zeros = pow5_factor(mv - 1 - mm_shift) >= (u32)q
+            elif pow5_factor(mv + 2) >= (u32)q:
+                vp -= 1
+    else:
+        let q = log10_pow5(-e2) - (1 if -e2 > 1 else 0)
+        e10 = q + e2
+        let i = -e2 - q
+        let k = pow5_bits(i) - 125
+        let j = q - k
+        let row = (usize)i * 2
+        vr = mul_shift64(4 * m2, pow5_split[row], pow5_split[row + 1], j)
+        vp = mul_shift64(4 * m2 + 2, pow5_split[row], pow5_split[row + 1], j)
+        vm = mul_shift64(4 * m2 - 1 - mm_shift, pow5_split[row], pow5_split[row + 1], j)
+        if q <= 1:
+            vr_trailing_zeros = true
+            if accept_bounds:
+                vm_trailing_zeros = mm_shift == 1
+            else:
+                vp -= 1
+        elif q < 63:
+            vr_trailing_zeros = (mv & (((u64)1 << (u64)q) - 1)) == 0
+    return trimmed64(vr, vp, vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros)
+
+## Ryu's digit removal for d2d: drop digits while the bounds still differ, then round.
+func trimmed64(start_vr: u64, start_vp: u64, start_vm: u64, e10: i32, accept_bounds: bool, start_vm_zeros: bool, start_vr_zeros: bool) -> (u64, i32):
+    var vr = start_vr
+    var vp = start_vp
+    var vm = start_vm
+    var vm_trailing_zeros = start_vm_zeros
+    var vr_trailing_zeros = start_vr_zeros
+    var removed: i32 = 0
+    var last_removed: u64 = 0
+    if vm_trailing_zeros or vr_trailing_zeros:
+        while vp // 10 > vm // 10:
+            vm_trailing_zeros = vm_trailing_zeros and vm % 10 == 0
+            vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+            last_removed = vr % 10
+            vr = vr // 10
+            vp = vp // 10
+            vm = vm // 10
+            removed += 1
+        if vm_trailing_zeros:
+            while vm % 10 == 0:
+                vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+                last_removed = vr % 10
+                vr = vr // 10
+                vp = vp // 10
+                vm = vm // 10
+                removed += 1
+        if vr_trailing_zeros and last_removed == 5 and vr % 2 == 0:
+            last_removed = 4
+        let up = (vr == vm and (not accept_bounds or not vm_trailing_zeros)) or last_removed >= 5
+        return (vr + (1 if up else 0), e10 + removed)
+    var round_up = false
+    if vp // 100 > vm // 100:
+        round_up = vr % 100 >= 50
+        vr = vr // 100
+        vp = vp // 100
+        vm = vm // 100
+        removed += 2
+    while vp // 10 > vm // 10:
+        round_up = vr % 10 >= 5
+        vr = vr // 10
+        vp = vp // 10
+        vm = vm // 10
+        removed += 1
+    return (vr + (1 if vr == vm or round_up else 0), e10 + removed)
+
+## Ryu's f2s over the same tables: the shortest decimal digits * 10^exponent of a finite,
+## nonzero f32.
+func shortest32(ieee_mantissa: u32, ieee_exponent: u32) -> (u32, i32):
+    var e2: i32 = 0
+    var m2: u32 = 0
+    if ieee_exponent == 0:
+        e2 = 1 - 127 - 23 - 2
+        m2 = ieee_mantissa
+    else:
+        e2 = (i32)ieee_exponent - 127 - 23 - 2
+        m2 = ((u32)1 << 23) | ieee_mantissa
+    let accept_bounds = (m2 & 1) == 0
+    let mv = 4 * m2
+    let mp = 4 * m2 + 2
+    let mm_shift: u32 = 1 if ieee_mantissa != 0 or ieee_exponent <= 1 else 0
+    let mm = 4 * m2 - 1 - mm_shift
+    var vr: u32 = 0
+    var vp: u32 = 0
+    var vm: u32 = 0
+    var e10: i32 = 0
+    var vm_trailing_zeros = false
+    var vr_trailing_zeros = false
+    var last_removed: u32 = 0
+    if e2 >= 0:
+        let q = log10_pow2(e2)
+        e10 = q
+        let k = 61 + pow5_bits(q) - 1
+        let i = -e2 + q + k
+        vr = pow5_inv_div_pow2(mv, q, i)
+        vp = pow5_inv_div_pow2(mp, q, i)
+        vm = pow5_inv_div_pow2(mm, q, i)
+        if q != 0 and (vp - 1) // 10 <= vm // 10:
+            let l = 61 + pow5_bits(q - 1) - 1
+            last_removed = pow5_inv_div_pow2(mv, q - 1, -e2 + q - 1 + l) % 10
+        if q <= 9:
+            if mv % 5 == 0:
+                vr_trailing_zeros = pow5_factor((u64)mv) >= (u32)q
+            elif accept_bounds:
+                vm_trailing_zeros = pow5_factor((u64)mm) >= (u32)q
+            elif pow5_factor((u64)mp) >= (u32)q:
+                vp -= 1
+    else:
+        let q = log10_pow5(-e2)
+        e10 = q + e2
+        let i = -e2 - q
+        let k = pow5_bits(i) - 61
+        var j = q - k
+        vr = pow5_div_pow2(mv, i, j)
+        vp = pow5_div_pow2(mp, i, j)
+        vm = pow5_div_pow2(mm, i, j)
+        if q != 0 and (vp - 1) // 10 <= vm // 10:
+            j = q - 1 - (pow5_bits(i + 1) - 61)
+            last_removed = pow5_div_pow2(mv, i + 1, j) % 10
+        if q <= 1:
+            vr_trailing_zeros = true
+            if accept_bounds:
+                vm_trailing_zeros = mm_shift == 1
+            else:
+                vp -= 1
+        elif q < 31:
+            vr_trailing_zeros = (mv & (((u32)1 << (u32)(q - 1)) - 1)) == 0
+    return trimmed32(vr, vp, vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros, last_removed)
+
+## Ryu's digit removal for f2s.
+func trimmed32(start_vr: u32, start_vp: u32, start_vm: u32, e10: i32, accept_bounds: bool, start_vm_zeros: bool, start_vr_zeros: bool, start_last: u32) -> (u32, i32):
+    var vr = start_vr
+    var vp = start_vp
+    var vm = start_vm
+    var vm_trailing_zeros = start_vm_zeros
+    var vr_trailing_zeros = start_vr_zeros
+    var last_removed = start_last
+    var removed: i32 = 0
+    if vm_trailing_zeros or vr_trailing_zeros:
+        while vp // 10 > vm // 10:
+            vm_trailing_zeros = vm_trailing_zeros and vm % 10 == 0
+            vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+            last_removed = vr % 10
+            vr = vr // 10
+            vp = vp // 10
+            vm = vm // 10
+            removed += 1
+        if vm_trailing_zeros:
+            while vm % 10 == 0:
+                vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
+                last_removed = vr % 10
+                vr = vr // 10
+                vp = vp // 10
+                vm = vm // 10
+                removed += 1
+        if vr_trailing_zeros and last_removed == 5 and vr % 2 == 0:
+            last_removed = 4
+        let up = (vr == vm and (not accept_bounds or not vm_trailing_zeros)) or last_removed >= 5
+        return (vr + (1 if up else 0), e10 + removed)
+    while vp // 10 > vm // 10:
+        last_removed = vr % 10
+        vr = vr // 10
+        vp = vp // 10
+        vm = vm // 10
+        removed += 1
+    return (vr + (1 if vr == vm or last_removed >= 5 else 0), e10 + removed)
+
+## floor(log2(5^e)) + 1 for 0 <= e <= 3528.
+inline func pow5_bits(e: i32) -> i32:
+    return (i32)((((u32)e) * 1217359) >> 19) + 1
+
+## floor(log10(2^e)) for 0 <= e <= 1650.
+inline func log10_pow2(e: i32) -> i32:
+    return (i32)((((u32)e) * 78913) >> 18)
+
+## floor(log10(5^e)) for 0 <= e <= 2620.
+inline func log10_pow5(e: i32) -> i32:
+    return (i32)((((u32)e) * 732923) >> 20)
+
+## How many times 5 divides `value` (nonzero).
+func pow5_factor(value: u64) -> u32:
+    var rest = value
+    var count: u32 = 0
+    while rest % 5 == 0:
+        rest = rest // 5
+        count += 1
+    return count
+
+## (m * (high:low)) >> j for Ryu's 125-bit multipliers.
+inline func mul_shift64(m: u64, low: u64, high: u64, j: i32) -> u64:
+    var b0_low: u64 = 0
+    let b0_high = product(m, low, &b0_low)
+    var b2_low: u64 = 0
+    var b2_high = product(m, high, &b2_low)
+    let sum_low = b2_low +% b0_high
+    if sum_low < b2_low:
+        b2_high += 1
+    let shift = (u64)(j - 64)
+    if shift == 0:
+        return sum_low
+    if shift >= 64:
+        return b2_high >> (shift - 64)
+    return (b2_high << (64 - shift)) | (sum_low >> shift)
+
+inline func mul_shift32(m: u32, factor: u64, shift: i32) -> u32:
+    let low = (u64)m * (factor & 0xFFFFFFFF)
+    let high = (u64)m * (factor >> 32)
+    let sum = (low >> 32) + high
+    return (u32)(sum >> (u64)(shift - 32))
+
+inline func pow5_inv_div_pow2(m: u32, q: i32, j: i32) -> u32:
+    return mul_shift32(m, pow5_inv_split[(usize)q * 2 + 1] + 1, j)
+
+inline func pow5_div_pow2(m: u32, i: i32, j: i32) -> u32:
+    return mul_shift32(m, pow5_split[(usize)i * 2 + 1], j)
+
+## The 128-bit product a * b: the high word, the low word stored in `low`.
+inline func product(a: u64, b: u64, low: u64*) -> u64:
+    let a0 = a & 0xFFFFFFFF
+    let a1 = a >> 32
+    let b0 = b & 0xFFFFFFFF
+    let b1 = b >> 32
+    let p00 = a0 * b0
+    let p01 = a0 * b1
+    let p10 = a1 * b0
+    let p11 = a1 * b1
+    let middle = (p00 >> 32) + (p01 & 0xFFFFFFFF) + (p10 & 0xFFFFFFFF)
+    *low = (middle << 32) | (p00 & 0xFFFFFFFF)
+    return p11 + (p01 >> 32) + (p10 >> 32) + (middle >> 32)

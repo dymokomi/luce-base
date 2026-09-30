@@ -27,6 +27,7 @@ CASES = {
     "word_copy": (1048576, 10),
     "chase": (262144, 1000000),
     "matrix_product": (96 * 96, 10),
+    "vector_normals": (3 * 87381, 10),
 }
 
 
@@ -123,7 +124,7 @@ def main():
     # specialization, skipped stores, and tail errors before any timings are kept.
     for kernel in CASES:
         for seed in (7, 103, 65537):
-            for size in ((1, 9, 25) if kernel == "matrix_product" else (1, 7, 257)):
+            for size in ((1, 9, 25) if kernel == "matrix_product" else (9, 21, 255) if kernel == "vector_normals" else (1, 7, 257)):
                 observations = [measure(binaries[name], kernel, 3, size, seed)["checksum"]
                                 for name in variants]
                 if len(set(observations)) != 1:

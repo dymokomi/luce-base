@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Writes src/std/strings/float_tables.lucb, the constant tables of strings' floating-point
-text (floats.lucb): Eisel-Lemire's 128-bit powers of ten for q in -348..=347, rounded down
-(Go's strconv detailedPowersOfTen), high word then low word; Ryu's DOUBLE_POW5_SPLIT (5^i to
-125 bits) and DOUBLE_POW5_INV_SPLIT (2^(len-1+125) / 5^i + 1), low word then high word.
-Run it from anywhere; it rewrites the file whole."""
+"""Writes the constant tables of floating-point text: src/std/strings/float_tables.lucb,
+Eisel-Lemire's 128-bit powers of ten for q in -348..=347, rounded down (Go's strconv
+detailedPowersOfTen), high word then low word, for strings' parsing; and
+src/std/float_text/tables.lucb, Ryu's DOUBLE_POW5_SPLIT (5^i to 125 bits) and
+DOUBLE_POW5_INV_SPLIT (2^(len-1+125) / 5^i + 1), low word then high word, for the shortest
+formatting. Run it from anywhere; it rewrites both files whole."""
 from pathlib import Path
 import textwrap
 
 MASK = (1 << 64) - 1
-OUT = Path(__file__).resolve().parent.parent / "src/std/strings/float_tables.lucb"
 
 
 def lemire(q):
@@ -52,32 +52,30 @@ def table(doc, name, rows):
     return "\n".join(out)
 
 
-HEADER = """#==============================================================================================
-#
-#   float_tables - The constant tables of floating-point text
-#
-#   DESCRIPTION:
-#       Written by tools/float_tables.py; do not edit. Eisel-Lemire's truncated 128-bit
-#       powers of ten, for parsing (floats.lucb), and Ryu's 125-bit powers of five and their
-#       inverses, for the shortest formatting.
-#
-#=============================================================================================="""
+STRINGS = Path(__file__).resolve().parent.parent / "src/std/strings/float_tables.lucb"
+FLOAT_TEXT = Path(__file__).resolve().parent.parent / "src/std/float_text/tables.lucb"
 
-parts = [
-    HEADER,
-    "",
+
+def header(name, what):
+    return "\n".join([
+        "#" + "=" * 94, "#", f"#   {name} - {what}", "#", "#   DESCRIPTION:",
+        "#       Written by tools/float_tables.py; do not edit.", "#", "#" + "=" * 94, ""])
+
+
+STRINGS.write_text("\n".join([
+    header("float_tables", "Eisel-Lemire's powers of ten, for strings' parsing"),
     "# mark: Parsing ================================================================================",
     "",
     table("10^q for q in -348..=347 as the top 128 bits of its binary expansion, rounded down: "
           "the high word, then the low word.", "lemire_powers", [lemire(q) for q in range(-348, 348)]),
-    "",
-    "# mark: Formatting =============================================================================",
+    ""]))
+FLOAT_TEXT.write_text("\n".join([
+    header("tables", "Ryu's powers of five, for float_text"),
+    "# mark: Powers of five =========================================================================",
     "",
     table("5^i for i in 0..<326 to 125 bits: the low word, then the high word.", "pow5_split",
           [pow5_split(i) for i in range(326)]),
     "",
     table("2^(bits(5^i) - 1 + 125) / 5^i + 1 for i in 0..<342: the low word, then the high word.",
           "pow5_inv_split", [pow5_inv_split(i) for i in range(342)]),
-    "",
-]
-OUT.write_text("\n".join(parts))
+    ""]))
