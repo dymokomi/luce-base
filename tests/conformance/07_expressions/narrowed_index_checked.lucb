@@ -1,0 +1,10 @@
+## §7.7: an index narrowed from a 64-bit shift is checked against the length as the word it
+## is: the check stays, and a word past the end traps (0x40f0000000000000 >> 42 is 0x103c00).
+noinline func pick(values: const i64[], a: u64) -> i64:
+    let i = (u32)(a >> 42)
+    return values[(usize)i]
+
+pub func main(arguments: str[]) -> i32:
+    let values: i64[4] = [1, 2, 3, 4]
+    print(f"{pick(values[0..], 0x40f0000000000000 + (u64)arguments.length)}")
+    return 0

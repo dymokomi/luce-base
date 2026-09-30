@@ -1,0 +1,23 @@
+## §7.3: a 64-bit value shifted, divided or reduced and then narrowed to 32 bits compares as
+## the word it narrows to: the optimiser's bounds of the 64-bit operation hold for the word
+## only when they fit it (QuickJS's tofp16 clamps `(u32)((a + addend) >> 42)` to 0x7c00).
+noinline func clamped(a: u64) -> u32:
+    var v = (u32)((a + 5) >> 42)
+    if v > 0x7c00:
+        v = 0x7c00
+    return v
+
+noinline func quotient_word(a: u64) -> u32:
+    let v = (u32)(a // 1024)
+    return 1 if v > 5000000 else 0
+
+noinline func remainder_word(a: u64) -> u32:
+    let v = (u32)(a % 10000000000)
+    return 1 if v > 1500000000 else 0
+
+pub func main(arguments: str[]) -> i32:
+    let base = (u64)arguments.length
+    print(f"{clamped(0x40f0000000000000 + base)} {clamped(0x3c00000000000000 + base)}")
+    print(f"{quotient_word(0x7c000000000 + base)} {quotient_word(1024 + base)}")
+    print(f"{remainder_word(4000000000 + base)} {remainder_word(12 + base)}")
+    return 0

@@ -111,6 +111,10 @@ struct Search:
         var result = maximum
         if value.kind == ir.RefKind.temp and self.definitions[value.index] != 0:
             let definition = self.f.instrs.get(self.definitions[value.index] - 1)
+            # an operation computes in its own class; asked in another (the low word of a
+            # 64-bit shift, as `(u32)(a >> 42)` compares it), its bound holds only when it
+            # fits that class
+            let own = definition.cls if definition.cls == ir.Class.w or definition.cls == ir.Class.l else cls
             if definition.op == ir.Op.extub:
                 result = 255
             elif definition.op == ir.Op.extuh:
@@ -118,21 +122,23 @@ struct Search:
             elif definition.op == ir.Op.extuw:
                 result = self.upper(definition.a, ir.Class.w, depth + 1)
             elif definition.op == ir.Op.and_ and definition.b.kind == ir.RefKind.constant:
-                result = bits(definition.b, cls)
+                result = bits(definition.b, own)
             elif definition.op == ir.Op.and_ and definition.a.kind == ir.RefKind.constant:
-                result = bits(definition.a, cls)
-            elif definition.op == ir.Op.urem and definition.b.kind == ir.RefKind.constant and bits(definition.b, cls) > 0:
-                result = bits(definition.b, cls) - 1
-            elif definition.op == ir.Op.lshr and definition.b.kind == ir.RefKind.constant and bits(definition.b, cls) < 64:
-                result = self.upper(definition.a, cls, depth + 1) >> bits(definition.b, cls)
-            elif definition.op == ir.Op.udiv and definition.b.kind == ir.RefKind.constant and bits(definition.b, cls) > 0:
-                result = self.upper(definition.a, cls, depth + 1) // bits(definition.b, cls)
+                result = bits(definition.a, own)
+            elif definition.op == ir.Op.urem and definition.b.kind == ir.RefKind.constant and bits(definition.b, own) > 0:
+                result = bits(definition.b, own) - 1
+            elif definition.op == ir.Op.lshr and definition.b.kind == ir.RefKind.constant and bits(definition.b, own) < 64:
+                result = self.upper(definition.a, own, depth + 1) >> bits(definition.b, own)
+            elif definition.op == ir.Op.udiv and definition.b.kind == ir.RefKind.constant and bits(definition.b, own) > 0:
+                result = self.upper(definition.a, own, depth + 1) // bits(definition.b, own)
             elif (definition.op == ir.Op.mul or definition.op == ir.Op.shl) and definition.b.kind == ir.RefKind.constant and definition.cls == cls:
                 # a product that cannot wrap bounds the result; one that might, nothing
                 let factor = bits(definition.b, cls) if definition.op == ir.Op.mul else ((u64)1 << bits(definition.b, cls) if bits(definition.b, cls) < 64 else 0)
                 let high = self.upper(definition.a, cls, depth + 1)
                 if factor > 0 and high <= maximum // factor:
                     result = high * factor
+            if result > maximum:
+                result = maximum
         var at = self.left_heads[self.bucket(value)]
         while at != 0:
             let fact = self.facts.get((usize)at - 1)
@@ -164,7 +170,7 @@ struct Search:
         var result: u64 = 0
         if self.definitions[value.index] != 0:
             let definition = self.f.instrs.get(self.definitions[value.index] - 1)
-            if definition.op == ir.Op.phi:
+            if definition.op == ir.Op.phi and self.f.temp_class(definition.dst) == cls:
                 result = self.lower_phi(definition, cls, depth)
             elif (definition.op == ir.Op.addo and definition.extra == 0) and definition.cls == cls:
                 # a checked sum never wraps: it is at least its operands' least

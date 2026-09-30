@@ -1,0 +1,9 @@
+## §7.5: a shift count narrowed from a 64-bit shift keeps its range check: (a >> 32) narrows
+## to 100, past a u64's width.
+noinline func shifted(x: u64, a: u64) -> u64:
+    let count = (u32)(a >> 32)
+    return x << (u64)count
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{shifted(1, 0x6400000000 + (u64)arguments.length - 1)}")
+    return 0

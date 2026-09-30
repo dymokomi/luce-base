@@ -27,9 +27,15 @@
             default level and at --opt 0, 1 and 3, and the seed's interpreter. The outputs must agree; a disagreement, a crash, or a
             hang is a finding. Nothing generated traps: checked operands are masked, every
             index is in range, every divisor is non-zero, every float stays finite.
+            Trap programs and width programs may trap, and every execution must reach the
+            same value or the same trap: width programs (width_program) mix integer widths,
+            narrowing shifted, divided and masked 64-bit values and comparing them at the
+            edges of the narrow width, where the optimiser's range facts must keep each
+            value's class apart.
 
 Usage:
-  tools/fuzz.py [--seed N] [--mutations N] [--programs N] [--minutes M] [--gate]
+  tools/fuzz.py [--seed N] [--mutations N] [--programs N] [--trap-programs N]
+                [--width-programs N] [--minutes M] [--gate]
 
 `--gate` is the gate's short run: a fixed seed and a small count, so it is the same on
 every host. `--minutes` runs until the budget is spent, printing findings as they come.
@@ -818,6 +824,108 @@ def trap_program(rng):
     return "\n".join(lines) + "\n"
 
 
+WIDTHS = {"u8": 8, "u16": 16, "u32": 32, "u64": 64, "i8": 8, "i16": 16, "i32": 32, "i64": 64}
+
+
+def width_program(rng):
+    """A program that mixes integer widths the way hand-written bit code does, where the
+    optimiser's range facts must keep each value's class apart: 64-bit values from an opaque
+    seed shifted, divided, reduced, masked and multiplied, then narrowed with a truncating
+    cast (`(u32)(x >> 42)`) or widened back, compared against constants at the edges of the
+    narrow width (0x7fffffff, 0x80000000, 0x7c00, 255, 256, 65535...), used as indexes
+    (checked: an index past the end traps), in checked sums (overflow traps), as shift counts
+    (a count past the width traps), and as the bounds of counting loops that index
+    `values[at * 3 + k]`. Run like trap_program: every execution must reach the same value
+    or the same trap."""
+    lines = ["noinline func opaque(x: u64) -> u64:",
+             "    return x",
+             "",
+             "pub func main(arguments: str[]) -> i32!:",
+             "    var s: u64 = opaque(0x9E3779B97F4A7C15 +% (u64)arguments.length)",
+             "    var acc: u64 = 0",
+             "    var table: u32[16] = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3]",
+             "    var values: i64[30] = ---",
+             "    for i in 0..<30:",
+             "        values[i] = (i64)i *% 7 -% 11"]
+    edges = {8: [0, 1, 127, 128, 255], 16: [255, 256, 0x7c00, 0x7fff, 0x8000, 65535],
+             32: [255, 65535, 65536, 0x7c00, 0x7fffffff, 0x80000000, 0xfffffffe, 0xffffffff],
+             64: [0xffffffff, 0x100000000, 0x7fffffffffffffff, 0x8000000000000000]}
+
+    def wide(depth):
+        """A u64 expression over the seed, opaque to folding."""
+        if depth <= 0 or rng.random() < 0.3:
+            return rng.choice(["s", "acc", "(s ^ acc)", "opaque(s *% 0x100000001B3)", "(s >> %d)" % rng.randrange(1, 64)])
+        k = rng.randrange(8)
+        x = wide(depth - 1)
+        if k == 0:
+            return f"({x} >> {rng.randrange(1, 64)})"
+        if k == 1:
+            return f"({x} // {rng.choice([3, 7, 1024, 1000000007, 10000000000, 0x100000000])})"
+        if k == 2:
+            return f"({x} % {rng.choice([3, 10, 256, 65536, 10000000000, 0x100000000])})"
+        if k == 3:
+            return f"({x} & {rng.choice(['0xffff', '0xffffffff', '0xff0000ff00', '0x1ffffffff', '0xfff0000000000000'])})"
+        if k == 4:
+            return f"({x} *% {rng.choice([3, 1024, 0x100000001, 6364136223846793005])})"
+        if k == 5:
+            return f"({x} | {rng.choice(['1', '0x80000000', '0x100000000'])})"
+        if k == 6:
+            return f"(u64)(u32)(({x}) & 0xffffffff)"
+        return f"({x} +% {wide(depth - 1)})"
+
+    def narrow(depth):
+        ty = rng.choice(["u8", "u16", "u32", "u32", "i8", "i16", "i32", "i32"])
+        return ty, f"({ty})({wide(depth)})"
+
+    def compare(depth):
+        ty, n = narrow(depth)
+        bits = WIDTHS[ty]
+        signed = ty.startswith("i")
+        c = rng.choice(edges[bits])
+        if signed:
+            c = c - (1 << bits) if c >= (1 << (bits - 1)) else c
+        # the least value of a signed width is not a literal of it: `-2147483648` negates
+        # 2147483648, which an i32 does not hold
+        text = f"({c + 1} - 1)" if signed and c == -(1 << (bits - 1)) else str(c)
+        return f"({n} {rng.choice(['<', '<=', '>', '>=', '==', '!='])} {text})"
+
+    for _ in range(rng.randint(4, 12)):
+        k = rng.randrange(7)
+        if k == 0:
+            lines.append(f"    if {compare(3)}:")
+            lines.append(f"        acc = acc +% {rng.randint(1, 1000)}")
+            lines.append(f"    else:")
+            lines.append(f"        acc = acc ^ {rng.randint(1, 1000)}")
+        elif k == 1:
+            ty, n = narrow(3)
+            lines.append(f"    let w{len(lines)} = {n}")
+            lines.append(f"    acc = acc +% ((u64)w{len(lines) - 1} if {compare(2)} else 7)")
+        elif k == 2:
+            # an index derived from a narrowed value: past the end traps
+            ty = rng.choice(["u8", "u16", "u32"])
+            lines.append(f"    acc = acc +% (u64)table[(usize)(({ty})({wide(3)}) >> {rng.randrange(0, WIDTHS[ty])})]")
+        elif k == 3:
+            # a checked sum of a narrowed word: overflow traps
+            lines.append(f"    acc = acc +% (u64)((u32)({wide(3)}) + {rng.choice([1, 0x7c00, 0x20000000, 0x80000000])})")
+        elif k == 4:
+            # a shift count from a narrowed value: past the width traps
+            lines.append(f"    acc = acc ^ (s << (u64)((u8)({wide(2)}) >> {rng.randrange(0, 8)}))")
+        elif k == 5:
+            # a counting loop over points of a flat array
+            n = rng.choice(["values.length // 3", f"(usize)((u8)({wide(2)}) % 11)", "10"])
+            lines.append(f"    var at{len(lines)}: usize = {rng.choice([0, 1, 2])}")
+            v = f"at{len(lines) - 1}"
+            lines.append(f"    while {v} < {n}:")
+            lines.append(f"        acc = acc *% 31 +% (u64)values[{v} * 3 + {rng.randrange(0, 3)}] +% (u64)values[{v} * 3 -| {rng.randrange(0, 7)}]")
+            lines.append(f"        {v} += 1")
+        else:
+            lines.append(f"    acc = acc +% (u64)({rng.choice(['u32', 'i32', 'u16'])})({wide(3)})")
+        lines.append("    s = s *% 6364136223846793005 +% 1442695040888963407")
+    lines.append('    print(f"{acc}")')
+    lines.append("    return 0")
+    return "\n".join(lines) + "\n"
+
+
 trap_position = re.compile(rb"trap: [^ ]+:(\d+:\d+): (.*)")
 
 
@@ -1245,6 +1353,7 @@ def main():
     mem_programs = 0
     atomic_programs = 0
     litmus_programs = 0
+    width_programs = 0
     minutes = 0.0
     gate = "--gate" in args
     for i, a in enumerate(args):
@@ -1264,6 +1373,8 @@ def main():
             atomic_programs = int(args[i + 1])
         elif a == "--litmus-programs":
             litmus_programs = int(args[i + 1])
+        elif a == "--width-programs":
+            width_programs = int(args[i + 1])
         elif a == "--minutes":
             minutes = float(args[i + 1])
     if "--valgrind" in args:
@@ -1273,7 +1384,7 @@ def main():
         if not memcheck:
             print("fuzz: --valgrind requested but valgrind is not installed; running without memory checks", flush=True)
     if gate:
-        seed, mutations, programs, trap_programs, packages, mem_programs, atomic_programs, litmus_programs = 7, 120, 12, 12, 6, 8, 6, 4
+        seed, mutations, programs, trap_programs, packages, mem_programs, atomic_programs, litmus_programs, width_programs = 7, 120, 12, 12, 6, 8, 6, 4, 12
     rng = random.Random(seed)
     findings = Findings()
     files = corpus()
@@ -1281,14 +1392,14 @@ def main():
         print("no corpus")
         return 1
     deadline = time.time() + minutes * 60 if minutes > 0 else None
-    done_m = done_p = done_t = done_k = done_x = done_a = done_l = 0
+    done_m = done_p = done_t = done_k = done_x = done_a = done_l = done_w = 0
     round_ = 0
     while True:
         round_ += 1
         if deadline and round_ > 1:
             # a long run says where it is, through a pipe or a file as well as a terminal
             left = max(0, int(deadline - time.time()))
-            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {findings.count} findings, {left // 60} min left", flush=True)
+            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {done_w} width-programs, {findings.count} findings, {left // 60} min left", flush=True)
         for k in range(mutations):
             name, source = rng.choice(files)
             text = mutate(source, rng)
@@ -1307,6 +1418,12 @@ def main():
             text = trap_program(random.Random(rng.randrange(1 << 30)))
             differential_trap(text, 20, findings, f"trap-program {done_t + 1} (seed {seed})")
             done_t += 1
+            if deadline and time.time() > deadline:
+                break
+        for k in range(width_programs):
+            text = width_program(random.Random(rng.randrange(1 << 30)))
+            differential_trap(text, 20, findings, f"width-program {done_w + 1} (seed {seed})")
+            done_w += 1
             if deadline and time.time() > deadline:
                 break
         for k in range(packages):
@@ -1339,7 +1456,7 @@ def main():
         p = out / name
         if p.exists():
             p.unlink()
-    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {findings.count} findings (seed {seed})", flush=True)
+    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {done_w} width-programs, {findings.count} findings (seed {seed})", flush=True)
     return min(findings.count, 100)
 
 
