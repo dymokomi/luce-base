@@ -1,4 +1,4 @@
-# error: no zero value
+# error: this global's type has an `init`, which a global cannot run
 struct Account:
     var balance: i64
 

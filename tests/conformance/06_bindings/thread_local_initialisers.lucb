@@ -1,0 +1,55 @@
+# oracle: none (the seed's interpreter starts a spawned thread's thread-locals at zero)
+## §6.3: a `local var` is one variable per thread, and every thread's starts with its
+## initialiser, not only the initial thread's: numbers, arrays, a construction from its
+## fields' defaults, a generic one, text, a function, and the address of a global. The
+## native backend's thread-local storage starts zeroed, so each spawned thread runs the
+## initialisers first; a thread's writes stay its own.
+import thread
+
+struct Counter:
+    var n: i64 = 5
+    var step: i64 = 2
+
+struct Growing[T]:
+    pub var items: T[]
+    pub var count: usize = 3
+
+func triple(value: i64) -> i64:
+    return value * 3
+
+var shared: i64 = 40
+
+local var number: i64 = 7
+local var pair: i64[2] = [3, 4]
+local var counter: Counter = Counter(step = 10)
+local var growing: Growing[i64] = Growing[i64]()
+local var label: str = "worker"
+local var operation: func(i64) -> i64 = triple
+local var target: i64* = &shared
+
+## Read every thread-local, then change them, so the next reader sees whether the
+## writes crossed threads.
+func report(who: str) -> i64:
+    let total = number + pair[1] + counter.n + counter.step + (i64)growing.count + (i64)label.length + operation(1) + *target
+    print(f"{who}: {number} {pair[0]} {pair[1]} {counter.n} {counter.step} {growing.count} {label} {operation(2)} {*target} = {total}")
+    number += 100
+    counter.n += 100
+    growing.count += 100
+    label = "changed"
+    return total
+
+func worker(context: void*?):
+    let raw = context else trap("no context")
+    let out = (i64*)raw
+    *out = report("thread")
+
+pub func main(arguments: str[]) -> i32:
+    let first = report("main")
+    var seen: i64 = 0
+    let t = thread.spawn(worker, &seen) catch failure:
+        return 1
+    t.join() catch failure:
+        return 1
+    print(f"same start: {first == seen}")
+    print(f"main kept its own: {number} {counter.n} {growing.count} {label}")
+    return 0

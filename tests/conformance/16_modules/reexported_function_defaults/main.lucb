@@ -1,0 +1,16 @@
+# oracle: none (the seed calls no module global)
+## §9.4, §16.3: a top-level `let` naming a function, `pub let add = lib.add`, is that function
+## under another name. A call through it takes the function's defaults and named arguments,
+## however it is reached: qualified, through a chain of re-exports, imported by name, or
+## from the re-exporting module's own code. As a value it is the function's value.
+import kernel
+import outer
+from kernel import scale
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{kernel.add(2)} {kernel.add(2, 5)} {kernel.add(y = 10, x = 1)}")
+    print(f"{outer.add(40)} {kernel.add_one(6)}")
+    print(f"{scale(3)} {scale(3, offset = 1)} {kernel.scale(value = 4, by = 3)}")
+    let f = kernel.add
+    print(f"{f(7, 8)}")
+    return 0

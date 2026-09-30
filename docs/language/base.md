@@ -488,13 +488,13 @@ local var current_arena: Arena*?
 pub let max_header: usize = 16 * 1024
 ```
 
-A module may declare `var` at top level. It is zero before `main` runs, or holds the constant its initialiser names; the initialiser must be a constant expression (§6.4), so there is no initialisation order. `local var` is one such variable per thread, C11's `_Thread_local`: ordinary zero-initialised or constant-initialised storage in each thread, with no per-access guard. A top-level `let` is a constant. C's function-scope `static` local is a module-level `var`.
+A module may declare `var` at top level. It is zero before `main` runs, or holds the constant its initialiser names; the initialiser must be a constant expression (§6.4), so there is no initialisation order. `local var` is one such variable per thread, C11's `_Thread_local`: ordinary zero-initialised or constant-initialised storage in each thread, with no per-access guard; every thread's copy starts with the initialiser, a spawned thread's as the initial thread's. A type with an `init` of its own is not a global's type: the `init` runs, which neither a constant nor guard-free thread-local storage can do, so the program keeps an optional and sets it where it is first needed. A top-level `let` is a constant. C's function-scope `static` local is a module-level `var`.
 
 **Why.** Full Luce forbids mutable globals because their initialisation order and their effect on test isolation are unmanageable. Base cannot forbid them, because a C replacement without globals is not a C replacement, but it removes the two hazards: a constant initialiser is static data with nothing to order, and the test runner reports which globals a test wrote (§16.5).
 
 ### 6.4 Constant expressions
 
-A constant expression is built from literals; `sizeof`, `alignof`, and `offsetof`; `luce.location`, `luce.file`, `luce.line`, and `luce.function`; arithmetic, bit, comparison, and cast operators on scalar constants (a lane-wise operator of §5.12 is not one); array and tuple literals of constants; enum cases and `|` on integer-backed enums; struct construction from constants; the address of a global or a function, or of a global's element or field reached by constant steps; and top-level `let` names. It may appear as a top-level initialiser, an array length, a default parameter value, and the condition of a module-level `assert`. `luce.location` (and its pieces) expand to the file, line, and function of the use site; when used as a default argument they expand at the call site.
+A constant expression is built from literals; `sizeof`, `alignof`, and `offsetof`; `luce.location`, `luce.file`, `luce.line`, and `luce.function`; arithmetic, bit, comparison, and cast operators on scalar constants (a lane-wise operator of §5.12 is not one); array and tuple literals of constants; enum cases and `|` on integer-backed enums; struct construction from constants, when the type has no `init` of its own and every field default the construction leaves out is constant; the address of a global or a function, or of a global's element or field reached by constant steps; and top-level `let` names. It may appear as a top-level initialiser, an array length, a default parameter value, and the condition of a module-level `assert`. `luce.location` (and its pieces) expand to the file, line, and function of the use site; when used as a default argument they expand at the call site.
 
 ### 6.5 Assignment
 
@@ -862,7 +862,7 @@ func main(arguments: str[]) -> i32:
     return i32(operation(2, 3))
 ```
 
-A function value is a C function pointer (§5.6). A non-fallible function converts to the corresponding fallible function type; nothing else converts.
+A function value is a C function pointer (§5.6). A non-fallible function converts to the corresponding fallible function type; nothing else converts. A top-level `let` that names a function, `pub let add = lib.add`, is that function under another name: a call through it, qualified or not, takes the function's defaults and named arguments, so a module hands on another's function unchanged.
 
 ### 9.5 Methods
 

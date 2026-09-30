@@ -1,0 +1,43 @@
+## §7.1, §10: a method is called on a place reached through a `const T*` while an argument
+## has an effect of its own. The receiver is computed first, into a temporary that is a
+## pointer to const as the method's `self` is (the C backend once typed it `T*` and the C
+## compiler refused the discarded qualifier). A mutating method on a writable place keeps a
+## writable temporary.
+struct Inner:
+    var value: u32
+
+    func get(extra: u32) -> u32!:
+        return self.value + extra
+
+    mutating func bump(by: u32) -> u32:
+        self.value += by
+        return self.value
+
+struct Node:
+    var inner: Inner
+
+struct Graph:
+    var nodes: Node[2]
+
+    func node(at: usize) -> const Node*:
+        return &self.nodes[at]
+
+    mutating func slot(at: usize) -> Node*:
+        return &self.nodes[at]
+
+struct Holder:
+    var graph: Graph
+
+func run(holder: Holder*) -> u32!:
+    let graph = &holder.graph
+    return try graph.node(1).inner.get(graph.node(0).inner.value)
+
+pub func main(arguments: str[]) -> i32:
+    var holder = Holder(graph = Graph(nodes = [Node(inner = Inner(value = 1)), Node(inner = Inner(value = 2))]))
+    let result = run(&holder) catch failure:
+        return 1
+    print(f"{result}")
+    let graph = &holder.graph
+    print(f"{graph.slot(1).inner.bump(graph.node(0).inner.value)}")
+    print(f"{holder.graph.nodes[1].inner.value}")
+    return 0

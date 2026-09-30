@@ -300,6 +300,8 @@ Spawning, joining and detaching host threads over pthreads (Windows through its 
 
 - `var default_stack: usize = 8388608` — The stack of a thread spawned without a size: 8 MiB on every host, the main thread's on Linux, where macOS gives a new thread 512 KiB and Windows 1 MiB. A program may set it before it spawns; `spawn(..., stack = n)` overrides it for one thread.
 
+- `var locals_start: (func() -> unit)?` — What gives a new thread's `local var`s their initialisers (§6.3), run before its entry. The native backend's startup sets it when the program has such initialisers, since its thread-local storage starts zeroed; under C, `_Thread_local` storage starts initialised and it stays none.
+
 ### `Handle` (struct)
 
 A running thread; the zero value is no thread at all, so arrays of handles exist.

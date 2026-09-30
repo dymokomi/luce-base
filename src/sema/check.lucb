@@ -444,10 +444,55 @@ pub struct Checker:
                     if f.kind == ast.Kind.func_ or f.kind == ast.Kind.extern_func:
                         return false
                 if callee.has(ast.flag_type_ref) or callee.has(ast.flag_static):
-                    return self.all_constant(e.body)
+                    return self.constant_construction(e)
                 return false
             _:
                 return false
+
+    ## Whether `e` constructs a value through its type's own `init`.
+    func runs_init(e: ast.Node*) -> bool:
+        if e.kind != ast.Kind.call:
+            return false
+        let own = e.resolved else return false
+        return own.kind == ast.Kind.func_ and own.text == "init"
+
+    ## Whether `id` is a struct with an `init` of its own.
+    func has_own_init(id: u32) -> bool:
+        let t = self.table.get(id)
+        if t.kind != types.Kind.struct_:
+            return false
+        let d = t.decl else return false
+        return find_member(d, "init", ast.Kind.func_) != none
+
+    ## A construction `T(...)` or a payload case is constant when its arguments are and so
+    ## is the default of every field it leaves out. A type's own `init` runs, so a
+    ## construction through it is not constant (§6.4).
+    func constant_construction(e: ast.Node*) -> bool:
+        if let own = e.resolved:
+            if own.kind == ast.Kind.func_:
+                return false
+        if not self.all_constant(e.body):
+            return false
+        let t = self.table.get(e.type_id)
+        if t.kind != types.Kind.struct_:
+            return true
+        let d = t.decl else return true
+        var positional: usize = 0
+        var cursor = e.body
+        while let a = cursor:
+            if a.text.length == 0:
+                positional += 1
+            cursor = a.next
+        var index: usize = 0
+        var member = d.body
+        while let f = member:
+            if f.kind == ast.Kind.field:
+                if let default = f.left:
+                    if index >= positional and not named_in(e.body, f.text) and not self.is_constant(default):
+                        return false
+                index += 1
+            member = f.next
+        return true
 
     ## Every item of a list is constant; an argument node wraps its expression, an array or
     ## tuple element is the expression itself.
@@ -2571,6 +2616,8 @@ pub struct Checker:
             .constant:
                 if d.type_id == types.none_id:
                     try self.check_constant(d)
+                if let f = self.function_alias(d):
+                    e.resolved = f
                 return d.type_id
             _:
                 return b.type_id
@@ -2849,6 +2896,28 @@ pub struct Checker:
         if d.type_id == types.none_id:
             discard(try self.fail(d, "`none` needs a type"))
         try self.rebind(d.text, d.type_id)
+
+    ## The function a checked top-level `let` names, `pub let add = lib.add` or `let add = sum`:
+    ## the function under another name (§9.4), so a use of the constant resolves to the
+    ## function and a call through it takes the function's defaults and named arguments. None
+    ## for any other constant, and for one whose declared type differs from the function's.
+    func function_alias(d: ast.Node*) -> ast.Node*?:
+        if d.kind != ast.Kind.constant or ast.is_linked(d):
+            return none
+        let init = d.left else return none
+        let target = init.resolved else return none
+        if target.kind != ast.Kind.func_ and target.kind != ast.Kind.extern_func:
+            return none
+        if generic_params_of(target) != none or d.type_id != target.type_id:
+            return none
+        if init.kind == ast.Kind.name:
+            return target
+        # `module.name`: a free function; a type's static method needs its type to call it
+        if init.kind == ast.Kind.member:
+            let owner = init.left else return none
+            if self.table.kind(owner.type_id) == types.Kind.module:
+                return target
+        return none
 
     mutating func unary_type(e: ast.Node*, hint: u32) -> u32!:
         let inner = e.left else return try self.fail(e, "missing operand")
@@ -3734,6 +3803,8 @@ pub struct Checker:
                 let saved = self.current
                 try self.check_constant_in(m, d)
                 self.current = saved
+            if let f = self.function_alias(d):
+                e.resolved = f
             if is_type_decl(d) or d.kind == ast.Kind.type_alias:
                 e.flags |= ast.flag_type_ref
                 if d.kind == ast.Kind.type_alias and d.type_id == types.none_id:
@@ -5273,10 +5344,16 @@ pub struct Checker:
                     discard(try self.expect(init, d.type_id))
                     self.at_top_level = saved
                     if not self.is_constant(init):
-                        discard(try self.fail(init, "a global's initialiser is a constant expression (§6.3)"))
+                        if self.runs_init(init):
+                            discard(try self.fail(init, "a global's initialiser is a constant expression and this type's `init` runs (§6.3); make the global optional and set it where it is first needed"))
+                        else:
+                            discard(try self.fail(init, "a global's initialiser is a constant expression (§6.3)"))
                 elif not d.has(ast.flag_uninit) and not self.table.zeroable(d.type_id) and not self.modules.get(self.current).is_prelude:
                     # the startup shim initialises the prelude's own globals (§12.3)
-                    discard(try self.fail(d, "this global's type has no zero value; give it one"))
+                    if self.has_own_init(d.type_id):
+                        discard(try self.fail(d, "this global's type has an `init`, which a global cannot run (§6.3); make the global optional and set it where it is first needed"))
+                    else:
+                        discard(try self.fail(d, "this global's type has no zero value; give it an initialiser (§6.3)"))
             .struct_, .union_, .enum_:
                 try self.check_type_body(d)
             .interface_:
@@ -5754,6 +5831,15 @@ func param_index(d: ast.Node*, name: str) -> usize?:
             i += 1
         cursor = p.next
     return none
+
+## Whether an argument list names `name`, `name = value`.
+func named_in(args: ast.Node*?, name: str) -> bool:
+    var cursor = args
+    while let a = cursor:
+        if a.text == name:
+            return true
+        cursor = a.next
+    return false
 
 ## The parameter at `index` among the ones a caller supplies.
 func param_at(d: ast.Node*, index: usize) -> ast.Node*?:

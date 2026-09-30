@@ -1,0 +1,14 @@
+# error: a global's initialiser is a constant expression and this type's `init` runs
+## §6.3, §6.4: a type's own `init` runs, so constructing through it is not a constant, and a
+## `local var` is plain storage each thread starts from, with no guard to run code on first
+## use. The program keeps an optional and sets it where it is first needed.
+struct Scratch:
+    var size: i64
+
+    pub func init():
+        self.size = 64
+
+local var scratch: Scratch = Scratch()
+
+pub func main(arguments: str[]) -> i32:
+    return (i32)scratch.size

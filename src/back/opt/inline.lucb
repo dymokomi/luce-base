@@ -176,7 +176,7 @@ func drop_unused_standard(program: ir.Unit*) -> !:
     while i < count:
         var f = program.functions.get(i)
         if retained[i]:
-            if f.name == "lb_init_globals":
+            if f.name == "lb_init_globals" or f.name == "lb_init_thread_locals":
                 drop_dead_initialiser_calls(&f, &index, retained)
             try kept.push(f)
         else:
@@ -198,7 +198,8 @@ func drop_unused_standard(program: ir.Unit*) -> !:
     try drop_unused_storage(program, &texts)
     try drop_unused_texts(program)
 
-## The calls of `lb_init_globals` to initialisers the pruner dropped go with them.
+## The calls of `lb_init_globals` and `lb_init_thread_locals` to initialisers the pruner
+## dropped go with them.
 func drop_dead_initialiser_calls(f: ir.Function*, index: Index*, retained: bool[]):
     var kept: usize = 0
     var i: usize = 0

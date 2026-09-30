@@ -1,0 +1,4 @@
+import kernel
+
+## A re-export of a re-export is still the function.
+pub let add = kernel.add

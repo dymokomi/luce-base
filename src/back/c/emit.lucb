@@ -5005,7 +5005,10 @@ pub struct Emitter:
         # its own is computed first, into a temporary, when an argument has one too
         var ordered: u32 = 0
         if not impl.has(ast.flag_static) and not by_value:
-            let receiver_type = rt_raw if self.is_ptr(rt_raw) else try self.c.table.pointer(rt, false, false)
+            # a place's address is typed as the method's `self`: a pointer to const unless the
+            # method mutates, since the place may be reached through a `const T*`
+            let reads_only = not (impl.has(ast.flag_mutating) or impl.text == "init")
+            let receiver_type = rt_raw if self.is_ptr(rt_raw) else try self.c.table.pointer(rt, reads_only, false)
             ordered = try self.receiver_first(receiver, receiver_type, e.body, not self.is_ptr(rt_raw))
         let hoisted = try self.begin_sequence(e.body, fn, impl)
         try self.put_func_name(impl, args, owner, owner_args)

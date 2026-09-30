@@ -60,6 +60,11 @@ let least_stack: usize = 131072 if platform.linux and platform.arm64 else 16384
 pub var default_stack: usize = 8388608
 ## The longest name a thread may carry, with its NUL.
 let name_room: usize = 16
+## What gives a new thread's `local var`s their initialisers (§6.3), run before its entry.
+## The native backend's startup sets it when the program has such initialisers, since its
+## thread-local storage starts zeroed; under C, `_Thread_local` storage starts initialised
+## and it stays none.
+pub var locals_start: (func() -> unit)?
 
 ## A running thread; the zero value is no thread at all, so arrays of handles exist.
 pub struct Handle:
@@ -86,6 +91,8 @@ struct Start:
 
 func trampoline(raw: void*) -> void*?:
     let start = (Start*)raw
+    if let initialise = locals_start:
+        initialise()
     memory.allocator = memory.heap
     let entry = start.entry
     let context = start.context

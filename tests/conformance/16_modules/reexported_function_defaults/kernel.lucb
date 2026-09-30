@@ -1,0 +1,9 @@
+import lib
+
+## `lib.add` under this module's name: the function itself, defaults included.
+pub let add = lib.add
+pub let scale = lib.scale
+
+## The module's own code calls the re-export as it calls the function.
+pub func add_one(x: i32) -> i32:
+    return add(x)

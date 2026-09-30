@@ -31,6 +31,8 @@ import support.list
 import support.literals
 ## The native backend does not support the build's target (§19.5).
 pub let native_unsupported: ErrorCode = ErrorCode.package(14)
+## The function that gives a thread its `local var`s' initialisers (`thread_locals_initialiser`).
+let thread_locals_function: str = "lb_init_thread_locals"
 
 type NodeRef = ast.Node*
 type MaybeNode = ast.Node*?
@@ -4991,6 +4993,7 @@ pub struct Lowerer:
                     try self.global_initialiser(d)
                 cursor = d.next
             i += 1
+        let locals = try self.thread_locals_initialiser()
         let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function("lb_init_globals", none, inst)
         self.fn_decl = none
@@ -4998,11 +5001,57 @@ pub struct Lowerer:
         # kept whole: the pruner drops the calls to dead initialisers here, not in `main`
         self.f.noinline = true
         try self.push_scope(false, "", 0, 0)
+        if locals:
+            # the initial thread's `local var`s
+            discard(try self.call_named(thread_locals_function, u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
         i = 0
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if self.initialised(d):
+                if self.initialised(d) and not d.has(ast.flag_thread_local):
+                    if check.is_library_module(names.module_of(d)):
+                        discard(try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+                    elif let init = d.left:
+                        let v = try self.value(init, d.type_id)
+                        try self.store_to(try self.global_address(d), v)
+                cursor = d.next
+            i += 1
+        if locals:
+            # and every thread `thread.spawn` starts; last, so no initialiser overwrites it
+            if let hook = self.thread_start_hook():
+                try self.f.store(ir.Op.storel, try self.f.address_of(ir.function_ref(thread_locals_function)), try self.global_address(hook))
+        self.pop_scope()
+        try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+        try self.end_function()
+
+    ## `lb_init_thread_locals`, the initialisers of every `local var` (§6.3). Thread-local
+    ## storage starts zeroed here, so a thread runs these before anything else: the
+    ## initial thread from `lb_init_globals`, a spawned one through `thread.locals_start`.
+    ## Answers whether there is any; none, no function.
+    mutating func thread_locals_initialiser() -> bool!:
+        var any = false
+        var i: usize = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if self.initialised(d) and d.has(ast.flag_thread_local):
+                    any = true
+                cursor = d.next
+            i += 1
+        if not any:
+            return false
+        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        try self.begin_function(thread_locals_function, none, inst)
+        self.fn_decl = none
+        self.current_fn = none
+        # kept whole, as `lb_init_globals` is: the pruner drops its calls to dead initialisers
+        self.f.noinline = true
+        try self.push_scope(false, "", 0, 0)
+        i = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if self.initialised(d) and d.has(ast.flag_thread_local):
                     if check.is_library_module(names.module_of(d)):
                         discard(try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
                     elif let init = d.left:
@@ -5013,6 +5062,20 @@ pub struct Lowerer:
         self.pop_scope()
         try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.end_function()
+        return true
+
+    ## `thread.locals_start`, which `thread.spawn`'s new thread calls first, when the program
+    ## has the `thread` module.
+    func thread_start_hook() -> ast.Node*?:
+        var i: usize = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if d.kind == ast.Kind.global and d.text == "locals_start" and names.module_of(d) == "thread":
+                    return d
+                cursor = d.next
+            i += 1
+        return none
 
     ## Whether a top-level declaration has an initialiser this unit runs.
     func initialised(d: ast.Node*) -> bool:
