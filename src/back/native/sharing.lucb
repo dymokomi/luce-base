@@ -59,9 +59,14 @@ pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
     for s in 0..<ns + 1:
         spans[s] = Span(low = unused, high = 0)
     # a parameter's slot is written by the prologue, before the first instruction, and
-    # lives on only as far as its uses reach: once promoted, that is its entry load
+    # lives on only as far as its uses reach: once promoted, that is its entry load. The
+    # entry loads a generator takes straight from their registers are all done in the
+    # prologue too, so every parameter's slot lives through all of them
+    var entry: u32 = 0
+    while (usize)entry < f.instrs.count and entry_instruction(f.instrs.get((usize)entry).op):
+        entry += 1
     for parameter in f.params.span():
-        spans[parameter.slot + 1] = Span(low = 0, high = 1)
+        spans[parameter.slot + 1] = Span(low = 0, high = 2 * entry + 2)
     # 1 + the slot whose address a temporary holds or was computed from, 0 for none
     let origin = try alloc u32[f.temps.count + 1]
     defer free(origin)
@@ -108,6 +113,10 @@ pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
         i += 1
     try over_loops(g, spans)
     return spans
+
+## Whether `op` may be among a function's leading entry loads (`selection.entry_loads`).
+func entry_instruction(op: ir.Op) -> bool:
+    return op == ir.Op.addr or op == ir.Op.dbg or ((u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadd)
 
 ## A slot's value may cross a back edge: a span that meets a loop covers all of it. The
 ## loops' extents are merged into disjoint runs first, so each slot is widened once.

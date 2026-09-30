@@ -831,6 +831,11 @@ pub struct Generator:
         var straight = try alloc bool[self.f.slots.count + 1]
         for k in 0..<straight.length:
             straight[k] = false
+        for p in self.f.params.span():
+            if p.size != 0:
+                # an aggregate is copied into its slot first, by a call past 128 bytes, which
+                # leaves no argument register as it was
+                return straight
         if self.convention.windows:
             # by position: the first four arguments, integer or float, in their registers
             let hidden: usize = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
@@ -839,9 +844,6 @@ pub struct Generator:
                 if i + hidden < 4 and p.size == 0 and p.cls != ir.Class.h and entry[i] != 0 and self.fr.slot_regs.get((usize)p.slot) == 0:
                     straight[(usize)p.slot] = true
             return straight
-        for p in self.f.params.span():
-            if p.size != 0:
-                return straight
         var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
         var next_float: u32 = 0
         for i in 0..<self.f.params.count:
