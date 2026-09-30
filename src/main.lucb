@@ -536,13 +536,6 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
     elif platform.linux and not is_wasm32():
         try cc_args.add("-Wl,--as-needed")
         try cc_args.add("-rdynamic")
-    try cc_args.add("-lm")
-    if not is_wasm32():
-        try cc_args.add("-pthread")
-    if platform.windows:
-        # the runtime's waits and its random bytes (os.random_bytes)
-        try cc_args.add("-lsynchronization")
-        try cc_args.add("-lbcrypt")
     try cc_args.add("-o")
     try cc_args.add((c.str)linked_exe)
     # the manifest's C sources, under the package root (§17.4), and what it links
@@ -563,6 +556,16 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
         try pkg_config_flags(&cc_args, name, "--cflags", false)
         try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, platform.macos)
+    # the system libraries after every object and source that may use them: under
+    # --as-needed a library named before its users is dropped (a package's C source calling
+    # pow, when nothing before it did)
+    try cc_args.add("-lm")
+    if not is_wasm32():
+        try cc_args.add("-pthread")
+    if platform.windows:
+        # the runtime's waits and its random bytes (os.random_bytes)
+        try cc_args.add("-lsynchronization")
+        try cc_args.add("-lbcrypt")
     let result = try run_cc(cc_args.span(), dir)
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)

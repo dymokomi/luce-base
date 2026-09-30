@@ -1,0 +1,7 @@
+## A package's C source calling pow, floor, sin and log links in every build (§17.4).
+extern func tables_wave(step: i32) -> f64
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    print(f"{tables_wave(12)} {tables_wave(0)}")
+    return 0

@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "c_source_libm" {
+    def native "inputs" {
+        str[] sources = ["tables.c"]
+    }
+}
