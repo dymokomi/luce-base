@@ -8,7 +8,11 @@
 set -eu
 cd "$(dirname "$0")/.."
 command -v valgrind > /dev/null 2>&1 || { echo "valgrind_std: no valgrind (apt install valgrind)"; exit 1; }
-vg="valgrind --error-exitcode=99 --leak-check=no --track-origins=yes -q"
+# --max-stackframe: a Luce frame may be as large as a thread's stack (thread.default_stack,
+# 8 MiB). Valgrind's default of 2,000,000 bytes reads a larger drop of the stack pointer as a
+# switch to another stack and leaves the new frame unaddressable, so every access to it is
+# reported as an "invalid write ... on thread N's stack" although the stack is real.
+vg="valgrind --error-exitcode=99 --leak-check=no --track-origins=yes --max-stackframe=8388608 -q"
 n=0
 for f in tests/std/*.lucb; do
     [ -e "$f" ] || continue

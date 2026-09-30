@@ -757,7 +757,8 @@ def differential(text, timeout, findings, label):
             return
         outputs[name] = so
         if memcheck and name == "native":
-            vstatus, vout, verr = run([memcheck, "--error-exitcode=99", "--leak-check=no", "-q", str(exe)], timeout * 8)
+            # frames up to a thread's 8 MiB stack are real frames, not stack switches (tools/valgrind_std.sh)
+            vstatus, vout, verr = run([memcheck, "--error-exitcode=99", "--leak-check=no", "--max-stackframe=8388608", "-q", str(exe)], timeout * 8)
             if vstatus == 99:
                 findings.report("valgrind", text.encode(), f"{label}: valgrind found a memory error in the native binary: {verr.decode('utf-8', 'replace')[:400]!r}")
                 return

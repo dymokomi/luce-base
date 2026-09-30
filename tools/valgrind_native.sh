@@ -15,7 +15,11 @@ command -v valgrind > /dev/null 2>&1 || { echo "valgrind_native: no valgrind (ap
 host=$(tools/host.sh)
 # 99 is valgrind's own exit when it finds a memory error, kept distinct from a program's
 # own non-zero exit (a trap), so the two are never confused.
-vg="valgrind --error-exitcode=99 --leak-check=no --track-origins=yes -q"
+# --max-stackframe: a Luce frame may be as large as a thread's stack (thread.default_stack,
+# 8 MiB). Valgrind's default of 2,000,000 bytes reads a larger drop of the stack pointer as a
+# switch to another stack and leaves the new frame unaddressable, so every access to it is
+# reported as an "invalid write ... on thread N's stack" although the stack is real.
+vg="valgrind --error-exitcode=99 --leak-check=no --track-origins=yes --max-stackframe=8388608 -q"
 n=0
 for f in tests/conformance/[0-9]*/*.expect tests/robustness/*/*.expect; do
     [ -e "$f" ] || continue
