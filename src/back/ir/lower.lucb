@@ -149,6 +149,15 @@ pub struct Lowerer:
     var mode: u32
     ## The format buffer a `Display` field writes into, while lowering its call.
     var format_sink: ir.Ref
+    ## The function's pool of 1024-byte format buffers (a `fmt` argument's, a streamed
+    ## print's): the chars and buffer slots of each made so far, and how many the statement
+    ## being lowered and those around it hold. A statement gives back what it took when it
+    ## ends, so the f-strings of disjoint statements share one buffer, where each call site
+    ## once had its own (luce-js COMPILER-REQUESTS item 6: a 3.4 KB frame for three).
+    var pool_chars: u32[16]
+    var pool_fb: u32[16]
+    var pool_count: usize = 0
+    var pool_used: usize = 0
     ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
     pub var diagnostic: bool
     ## The target of the build (§19.5): which `asm` arms are taken and how a library
@@ -897,6 +906,8 @@ pub struct Lowerer:
     ## Open a function: its result shape and the slot the result is built in.
     mutating func begin_function(name: str, d: ast.Node*?, inst: LowerInstance) -> !:
         self.f = try ir.Function.create(name)
+        self.pool_count = 0
+        self.pool_used = 0
         # the program's own functions are described and hooked; the standard modules are not
         self.f.debug = false
         self.f.symbols = false
@@ -1007,6 +1018,12 @@ pub struct Lowerer:
         self.pop_scope()
 
     mutating func stmt(s: ast.Node*) -> !:
+        # the format buffers this statement takes are free again when it is lowered
+        let pooled = self.pool_used
+        try self.statement(s)
+        self.pool_used = pooled
+
+    mutating func statement(s: ast.Node*) -> !:
         if s.kind != ast.Kind.block:
             self.set_position(s)
         if self.f.debug and s.kind != ast.Kind.block and s.line > 0:
@@ -4588,8 +4605,20 @@ pub struct Lowerer:
 
     ## A fresh `lb_fmtbuf` over `capacity` stack bytes: its address and the bytes'.
     mutating func fresh_format_buffer(capacity: u32) -> (ir.Ref, ir.Ref)!:
-        let chars = try self.f.slot(capacity, 8)
-        let fb = try self.f.slot(24, 8)
+        var chars: u32 = 0
+        var fb: u32 = 0
+        if capacity == 1024 and self.pool_used < self.pool_count:
+            chars = self.pool_chars[self.pool_used]
+            fb = self.pool_fb[self.pool_used]
+            self.pool_used += 1
+        else:
+            chars = try self.f.slot(capacity, 8)
+            fb = try self.f.slot(24, 8)
+            if capacity == 1024 and self.pool_count < self.pool_chars.length and self.pool_used == self.pool_count:
+                self.pool_chars[self.pool_count] = chars
+                self.pool_fb[self.pool_count] = fb
+                self.pool_count += 1
+                self.pool_used += 1
         let chars_address = try self.slot_address(chars)
         let fb_address = try self.slot_address(fb)
         try self.f.store(ir.Op.storel, chars_address, fb_address)

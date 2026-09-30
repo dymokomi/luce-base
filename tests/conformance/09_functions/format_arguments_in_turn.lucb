@@ -1,0 +1,23 @@
+## §5.5: formatted strings passed as `fmt` arguments, two to one call and in statements one after
+## another, in a loop and on a path not taken: each call reads its own text, whichever of them
+## share a buffer.
+noinline func two(a: fmt, b: fmt) -> i32!:
+    var one: u8[64] = ---
+    var other: u8[64] = ---
+    let x = try format(one, a)
+    let y = try format(other, b)
+    print(f"[{x}] [{y}]")
+    return (i32)(x.length + y.length)
+
+noinline func run(n: i32) -> i32!:
+    var total: i32 = 0
+    for i in 0..<3:
+        total += try two(f"first {n + (i32)i}", f"second {n * 2}")
+        if n > 100:
+            total += try two(f"never {n}", f"never")
+        total += try two(f"third {i}", f"fourth {total}")
+    return total
+
+pub func main(arguments: str[]) -> i32!:
+    print(f"{try run((i32)arguments.length + 6)}")
+    return 0

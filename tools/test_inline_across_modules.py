@@ -2,8 +2,9 @@
 """Small methods of another module are expanded where they are called, as luce-geocore's
 Vector3 and luce-std's math.max are in luce-fbx's hot loops: a `cross` and a `subtract`
 that take and return a 24-byte vector (whose copies through memory at every call make them
-worth more expanded than their instruction count says), and a `max` of NaN and signed-zero
-branches, each called from several places of the program's own module. At --opt 2, --opt 3
+worth more expanded than their instruction count says), a `max` of NaN and signed-zero
+branches, and a `length` that calls the C library's hypot, each called from several
+places of the program's own module. At --opt 2, --opt 3
 and --release no call of them is left in the program's loops, a `noinline` method stays a
 call, and the program answers as it does at --opt 0 and through the C backend."""
 from pathlib import Path
@@ -11,7 +12,13 @@ import re, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPILER = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / 'build/luce-base'
-VECTOR = '''## A point or a direction.
+VECTOR = '''extern func c_hypot as "hypot"(x: f64, y: f64) -> f64
+
+## sqrt(x^2 + y^2), as luce-std's math.hypot wraps the C library's.
+pub func hypot(x: f64, y: f64) -> f64:
+    return c_hypot(x, y)
+
+## A point or a direction.
 pub struct Vector3:
     pub var x: f64
     pub var y: f64
@@ -26,6 +33,10 @@ pub struct Vector3:
         return Vector3(self.y * other.z - self.z * other.y,
                        self.z * other.x - self.x * other.z,
                        self.x * other.y - self.y * other.x)
+
+    ## The length, through the C library: a leaf still, since nothing of the program is called.
+    pub func length() -> f64:
+        return hypot(hypot(self.x, self.y), self.z)
 
     ## The same as cross, kept out of line.
     pub noinline func cross_kept(other: Vector3) -> Vector3:
@@ -50,7 +61,7 @@ func normals(points: const geometry.Vector3[]) -> f64:
     var i: usize = 2
     while i < points.length:
         let n = points[i].subtract(points[i - 1]).cross(points[i - 2].subtract(points[i - 1]))
-        total = geometry.max(total, n.z)
+        total = geometry.max(total, n.z) + n.length()
         i += 1
     return total
 
@@ -58,7 +69,7 @@ func twisted(points: const geometry.Vector3[]) -> f64:
     var total: f64 = 0.0
     for i in 1..<points.length:
         total += points[i].cross(points[i - 1]).x + points[i - 1].subtract(points[i]).y
-        total = geometry.max(total, 0.5)
+        total = geometry.max(total, 0.5) + points[i].length()
     return total
 
 func kept(points: const geometry.Vector3[]) -> f64:
@@ -80,7 +91,7 @@ with tempfile.TemporaryDirectory(prefix='inline-across-') as work:
         subprocess.run([COMPILER, 'build', source, '--native', *flags, '--emit=asm', '-o', asm], check=True)
         text = asm.read_text()
         calls = lambda name: len(re.findall(r'\b(?:bl|call)\s+_?lb_\w*geometry\w*_(?:\d+)?' + name + r'\b', text))
-        for name in ('subtract', 'cross', 'max'):
+        for name in ('subtract', 'cross', 'max', 'length'):
             if calls(name):
                 sys.exit(f'FAIL: {name} of another module was left a call at {" ".join(flags)}')
         if calls('cross_kept') == 0:

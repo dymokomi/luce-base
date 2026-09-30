@@ -78,7 +78,7 @@ pub func expand_small(program: ir.Unit*, limit: usize) -> bool[]!:
     free(census.leaves)
     census.leaves = try alloc bool[program.functions.count]
     for fi in 0..<program.functions.count:
-        census.leaves[fi] = not calls_any(&program.functions.items[fi])
+        census.leaves[fi] = not calls_the_program(&program.functions.items[fi], &index)
     let changed = try alloc bool[program.functions.count]
     clear_flags(changed)
     let order = try post_order(program, &index)
@@ -595,9 +595,10 @@ struct Census:
     ## call (0: no such expansion).
     var small: usize
     var once: usize
-    ## For the second pass, which functions were leaves, calling nothing, when it began:
-    ## only those are expanded, so a caller that became a leaf by the pass's own
-    ## expansions is not opened out in turn. Empty for the first pass.
+    ## For the second pass, which functions were leaves, calling nothing of the program
+    ## (the C library aside), when it began: only those are expanded, so a caller that
+    ## became a leaf by the pass's own expansions is not opened out in turn. Empty for the
+    ## first pass.
     var leaves: bool[]
 
     static func over(program: ir.Unit*, index: Index*) -> Census!:
@@ -1013,10 +1014,13 @@ func hash_text(text: str) -> u64:
 # mark: After the second pass =================================================================
 
 ## Whether `g` calls anything: a leaf's body is all an expansion adds.
-func calls_any(g: ir.Function*) -> bool:
+## Whether `g` calls a function of the program: a call of the C library (`hypot` in a
+## `Vector3.length`) leaves it a leaf, since nothing it calls can be expanded in turn.
+func calls_the_program(g: ir.Function*, index: Index*) -> bool:
     for n in g.instrs.span():
         if n.op == ir.Op.call:
-            return true
+            if n.a.kind != ir.RefKind.function or index.find(n.a.name) != none:
+                return true
     return false
 
 ## Drop the stores into slots nothing reads. A slot counts as unread when every use of it,
