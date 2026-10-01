@@ -217,6 +217,34 @@ pub func loop_heads(f: ir.Function*) -> bool[]!:
                 heads[(usize)x.extra2] = true
     return heads
 
+## By label, for a loop's head that only tests whether to go round (the label, then a
+## comparison and the branch it fuses with): 1 + the comparison's index; 0 for any other.
+## A jump to such a head tests it itself instead (the loop is rotated), so a round takes
+## one branch rather than two. Each temporary keeps one register throughout, so the
+## comparison reads the same values at the jump; a head where the dynamic area settles, or
+## a build a debugger reads, keeps its jumps.
+pub func rotations(f: ir.Function*, heads: bool[], counts: u32[], floats: bool) -> u32[]!:
+    var tests = try alloc u32[heads.length]
+    for k in 0..<tests.length:
+        tests[k] = 0
+    if f.debug or f.symbols or f.dynamic_levels != 0:
+        return tests
+    for k in 0..<f.instrs.count:
+        let x = f.instrs.get(k)
+        if x.op == ir.Op.label and (usize)x.extra < heads.length and heads[(usize)x.extra] and branch(f, k + 1, counts, floats):
+            tests[(usize)x.extra] = (u32)k + 2
+    return tests
+
+## After `rotations`: a rotated loop goes round from its body's first label, which is then
+## the one aligned, not the head it enters by once.
+pub func rotate_heads(f: ir.Function*, heads: bool[], tests: u32[]):
+    for k in 0..<tests.length:
+        if tests[k] != 0:
+            let body = f.instrs.get((usize)tests[k]).extra
+            heads[k] = false
+            if (usize)body < heads.length:
+                heads[(usize)body] = true
+
 ## The label of the instruction at `at`, or 0 when it is not a label.
 pub func label_at(f: ir.Function*, at: usize) -> u32:
     if at < f.instrs.count:
@@ -236,10 +264,10 @@ pub func branch(f: ir.Function*, at: usize, counts: u32[], floats: bool = false)
     let fuses = x.cls == ir.Class.w or x.cls == ir.Class.l or (floats and ir.is_float_class(x.cls))
     return ir.is_comparison(x.op) and fuses and x.dst != 0 and counts[x.dst] == 1 and next.op == ir.Op.jnz and next.a.kind == ir.RefKind.temp and next.a.index == x.dst
 
-## When the instruction at `at` adds a constant to an address and its only use is as the
-## address of the load or store right after it: the base and the constant, which the
-## access then addresses itself (`[base, #constant]`) while the base is still in its
-## register. A half-precision access, and a build a debugger reads, keep the two apart.
+## When the instruction at `at` adds a constant (-256 to 32760) to an address and its only
+## use is as the address of the load or store right after it: the base and the constant,
+## which the access then addresses itself (`[base, #constant]`) while the base is still in
+## its register. A half-precision access, and a build a debugger reads, keep the two apart.
 pub func offset_access(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, i64)?:
     if f.debug or f.symbols or at + 1 >= f.instrs.count:
         return none
@@ -251,7 +279,7 @@ pub func offset_access(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, i6
     if step.kind != ir.RefKind.constant:
         base = x.b
         step = x.a
-    if step.kind != ir.RefKind.constant or base.kind != ir.RefKind.temp or step.value < 0 or step.value > 32760:
+    if step.kind != ir.RefKind.constant or base.kind != ir.RefKind.temp or step.value < -256 or step.value > 32760:
         return none
     let next = f.instrs.get(at + 1)
     let through = ir.temp_ref(x.dst)
@@ -330,6 +358,42 @@ pub func summed_access(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, ir
     if not loads and not stores:
         return none
     return (sum.a, sum.b)
+
+## A value shifted left by a constant (or multiplied by a power of two), used once, by the
+## add right after it: `base + i * 8` (`shl i, 3`, `add base`). The other addend, the shifted value and the shift, which arm64's
+## shifted-register add takes itself (`add x0, x1, x2, lsl #3`).
+pub func shifted_add(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, ir.Ref, u32)?:
+    if f.debug or f.symbols or at + 1 >= f.instrs.count:
+        return none
+    let shift = f.instrs.get(at)
+    if (shift.op != ir.Op.shl and shift.op != ir.Op.mul) or (shift.cls != ir.Class.l and shift.cls != ir.Class.w) or shift.dst == 0 or counts[shift.dst] != 1:
+        return none
+    if shift.a.kind != ir.RefKind.temp or shift.b.kind != ir.RefKind.constant:
+        return none
+    # a multiply by 2^k is a shift by k
+    var bits = shift.b.value
+    if shift.op == ir.Op.mul:
+        if bits <= 1 or (bits & (bits - 1)) != 0:
+            return none
+        var k: i64 = 0
+        while bits > 1:
+            bits >>= 1
+            k += 1
+        bits = k
+    if bits < 0 or bits >= (64 if shift.cls == ir.Class.l else 32):
+        return none
+    let sum = f.instrs.get(at + 1)
+    if sum.op != ir.Op.add or sum.cls != shift.cls:
+        return none
+    let through = ir.temp_ref(shift.dst)
+    var other = sum.a
+    if not same_temp(sum.b, through):
+        if not same_temp(sum.a, through):
+            return none
+        other = sum.b
+    if other.kind != ir.RefKind.temp or same_temp(other, through):
+        return none
+    return (other, shift.a, (u32)bits)
 
 ## The bytes a load or store moves.
 func access_bytes(op: ir.Op) -> u32:

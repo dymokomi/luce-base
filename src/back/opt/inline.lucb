@@ -913,7 +913,7 @@ struct Expansion:
                 m.extra2 = try self.copy_table(m.extra2)
             .call:
                 m.extra = try self.copy_call(m.extra)
-            .fma:
+            .fma, .select:
                 m.extra2 = try self.copy_argument(m.extra2)
             .ret:
                 if n.extra2 > 0:

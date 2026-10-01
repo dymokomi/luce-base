@@ -304,6 +304,9 @@ pub enum Op as u8:
     ## `fma dst = a * b + c`, rounded once (`mul_add`, §7.2): `c` is the argument at index
     ## `extra2`; `extra` is a vector's lane shape and 0 for a scalar of class `cls`
     fma = 162
+    ## `dst = select a, b, c`: `b` when the word `a` is not 0, else `c`, the argument at
+    ## index `extra2`; neither is evaluated for it, both are values already (`ifconvert`)
+    select = 163
     ## `reserve extra`: from here the dynamic area below the fixed frame holds `extra`
     ## levels of `level_bytes` each (0: none), and the stack pointer is below them, so the
     ## calls made meanwhile leave them be; a statement's format buffers live in its levels.
@@ -848,7 +851,7 @@ pub func argument_range(f: Function*, x: Instr) -> (u32, u32):
         return (info.args_start, info.args_count)
     if x.op == Op.atomic_cas:
         return ((u32)x.b.value, 2)
-    if x.op == Op.fma:
+    if x.op == Op.fma or x.op == Op.select:
         return (x.extra2, 1)
     if x.op == Op.ret and x.extra2 > 0:
         return (x.extra, x.extra2)

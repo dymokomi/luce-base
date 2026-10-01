@@ -1,0 +1,318 @@
+#==============================================================================================
+#
+#   ifconvert - Branches that only choose a value become selects
+#
+#   DESCRIPTION:
+#       On data a branch cannot predict (a byte of text, the larger of two coordinates) a
+#       mispredicted branch costs more than computing both sides. Where a block ends in a
+#       branch whose arms do nothing but compute a few values without effects or traps and
+#       meet at a join, the arms' work moves above the branch, the branch becomes a jump,
+#       and each value the join takes from the arms (its phis) becomes a `select` of the
+#       two, which the generators emit as `csel`, `fcsel` or `cmov`. A chain of comparisons
+#       joined by `or` (or by `and`) that all branch to one arm is taken whole: the
+#       comparisons are computed and joined into one condition first. A loop's own branch
+#       has no arm that meets it again and stays a branch.
+#
+#==============================================================================================
+
+import back.ir.cfg
+import back.ir.ir
+import memory
+import support.list
+
+## The most instructions an arm, or a link of a chain, may move above the branch.
+let largest_arm: usize = 8
+
+## Convert what can be, one region at a time; whether anything changed.
+pub func run(f: ir.Function*) -> bool!:
+    var changed = false
+    var budget: u32 = 256
+    while budget > 0:
+        budget -= 1
+        var g = try cfg.Graph.blocks_of(f)
+        let converted = try convert_one(f, &g)
+        g.release()
+        if not converted:
+            break
+        changed = true
+    return changed
+
+# mark: Recognising a region ======================================================================
+
+## A branch and what it chooses between: the head block, the condition's links (the head
+## and every block of an `or` or `and` chain after it), the arms, and the join.
+struct Region:
+    var head: u32
+    ## The chain's blocks after the head, in order.
+    var links: list.List[u32]
+    ## The block taken when the whole condition holds, and when it does not; either may be
+    ## the join itself (a triangle).
+    var yes: u32
+    var no: u32
+    var join: u32
+    ## Whether the chain joins its comparisons with `or` (else with `and`).
+    var any: bool
+
+    mutating func release():
+        self.links.destroy()
+
+## Whether `op` computes a value from its operands alone and cannot trap: what may run on
+## a path that did not ask for it.
+func speculable(op: ir.Op) -> bool:
+    match op:
+        .copy, .addr, .add, .sub, .mul, .and_, .or_, .xor, .shl, .lshr, .ashr, .neg: return true
+        .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge: return true
+        .extsb, .extub, .extsh, .extuh, .extsw, .extuw, .exts, .truncd, .cast: return true
+        .swtof, .uwtof, .sltof, .ultof: return true
+        .select: return true
+        _: return false
+
+## Whether block `b`'s instructions before its terminator may all move above a branch, and
+## are few; `phis` too when they may be there (never in an arm, which has one predecessor).
+func movable_body(f: ir.Function*, block: cfg.Block) -> bool:
+    var count: usize = 0
+    for i in block.start..<block.end:
+        let x = f.instrs.get((usize)i)
+        if ir.is_terminator(x.op) and i + 1 == block.end:
+            break
+        if x.op == ir.Op.label or x.op == ir.Op.dbg:
+            continue
+        if not speculable(x.op) or x.cls == ir.Class.v or x.cls == ir.Class.h:
+            return false
+        count += 1
+    return count <= largest_arm
+
+## Whether block `b` only goes on to `join`: by a jump, or by falling into it.
+func goes_to(f: ir.Function*, g: cfg.Graph*, b: u32, join: u32) -> bool:
+    let block = g.blocks.get((usize)b)
+    if block.succs.count != 1 or block.succs.get(0) != join:
+        return false
+    if block.end == block.start:
+        return true
+    let last = f.instrs.get((usize)block.end - 1)
+    return last.op == ir.Op.jmp or not ir.is_terminator(last.op)
+
+## Whether the value `r` is a comparison's 0 or 1.
+func boolean(f: ir.Function*, definitions: u32[], r: ir.Ref) -> bool:
+    if r.kind != ir.RefKind.temp or (usize)r.index >= definitions.length or definitions[(usize)r.index] == 0:
+        return false
+    return ir.is_comparison(f.instrs.get((usize)definitions[(usize)r.index] - 1).op)
+
+## The branch at the end of block `b`, when it ends in one.
+func branch_of(f: ir.Function*, block: cfg.Block) -> ir.Instr?:
+    if block.end == block.start:
+        return none
+    let last = f.instrs.get((usize)block.end - 1)
+    if last.op != ir.Op.jnz:
+        return none
+    return last
+
+## The region headed by block `h`, when there is one to convert.
+func region_at(f: ir.Function*, g: cfg.Graph*, definitions: u32[], h: u32) -> Region?!:
+    let head = branch_of(f, g.blocks.get((usize)h)) else return none
+    var region = Region(head = h, links = try list.List[u32].create(4), yes = g.block_of(head.extra), no = g.block_of(head.extra2), join = cfg.none_block, any = true)
+    # an `or` chain keeps its true target and continues through the false one; an `and`
+    # chain the other way round
+    var at = h
+    var condition = head
+    while true:
+        let next_or = g.block_of(condition.extra2)
+        let next_and = g.block_of(condition.extra)
+        var next = cfg.none_block
+        var any = true
+        if next_or != h and next_or != cfg.none_block and g.blocks.get((usize)next_or).preds.count == 1:
+            if let link = branch_of(f, g.blocks.get((usize)next_or)):
+                if g.block_of(link.extra) == region.yes and movable_body(f, g.blocks.get((usize)next_or)):
+                    next = next_or
+                    any = true
+        if next == cfg.none_block and next_and != h and next_and != cfg.none_block and g.blocks.get((usize)next_and).preds.count == 1:
+            if let link = branch_of(f, g.blocks.get((usize)next_and)):
+                if g.block_of(link.extra2) == region.no and movable_body(f, g.blocks.get((usize)next_and)):
+                    next = next_and
+                    any = false
+        if next == cfg.none_block or (region.links.count > 0 and any != region.any):
+            break
+        if not boolean(f, definitions, condition.a):
+            break
+        let link = branch_of(f, g.blocks.get((usize)next)) else break
+        if not boolean(f, definitions, link.a):
+            break
+        region.any = any
+        try region.links.push(next)
+        at = next
+        condition = link
+        if any:
+            region.no = g.block_of(link.extra2)
+        else:
+            region.yes = g.block_of(link.extra)
+    discard(at)
+    # the arms: each a small block of the region's alone that goes on to one join, or the
+    # join itself
+    let yes = g.blocks.get((usize)region.yes)
+    let no = g.blocks.get((usize)region.no)
+    if region.yes == region.no:
+        region.release()
+        return none
+    if arm_of(f, g, &region, region.yes) and arm_of(f, g, &region, region.no) and yes.succs.count == 1 and yes.succs.get(0) == no.succs.get(0):
+        region.join = yes.succs.get(0)
+    elif arm_of(f, g, &region, region.yes) and yes.succs.count == 1 and yes.succs.get(0) == region.no:
+        region.join = region.no
+    elif arm_of(f, g, &region, region.no) and no.succs.count == 1 and no.succs.get(0) == region.yes:
+        region.join = region.yes
+    if region.join == cfg.none_block or region.join == h or joins_region(g, &region, region.join):
+        region.release()
+        return none
+    return region
+
+## Whether block `b` is an arm of the region: small and movable, entered only from the
+## region's blocks, going on only to one block.
+func arm_of(f: ir.Function*, g: cfg.Graph*, region: Region*, b: u32) -> bool:
+    let block = g.blocks.get((usize)b)
+    if b == region.head or block.succs.count != 1 or not movable_body(f, block) or not goes_to(f, g, b, block.succs.get(0)):
+        return false
+    for p in block.preds.span():
+        if p != region.head and not in_links(region, p):
+            return false
+    return block.preds.count > 0
+
+func in_links(region: Region*, b: u32) -> bool:
+    for link in region.links.span():
+        if link == b:
+            return true
+    return false
+
+## Whether the join is itself one of the region's blocks (a loop around the branch).
+func joins_region(g: cfg.Graph*, region: Region*, join: u32) -> bool:
+    discard(g)
+    return join == region.head or in_links(region, join)
+
+# mark: Rewriting ==================================================================================
+
+## Find one region and convert it; whether one was found.
+func convert_one(f: ir.Function*, g: cfg.Graph*) -> bool!:
+    var definitions = try alloc u32[f.temps.count + 1] in memory.heap
+    defer free(definitions) in memory.heap
+    for t in 0..<definitions.length:
+        definitions[t] = 0
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst != 0 and (usize)x.dst < definitions.length:
+            definitions[(usize)x.dst] = u32(i + 1)
+    for h in 0..<g.blocks.count:
+        if let found = try region_at(f, g, definitions, u32(h)):
+            var region = found
+            try rewrite(f, g, &region)
+            region.release()
+            return true
+    return false
+
+## Move the region's work above its branch, join its condition, and turn the join's phis
+## over the arms into selects in the head, which then jumps to the join.
+func rewrite(f: ir.Function*, g: cfg.Graph*, region: Region*) -> !:
+    let head = g.blocks.get((usize)region.head)
+    let join = g.blocks.get((usize)region.join)
+    let branch = f.instrs.get((usize)head.end - 1)
+    var gone = try alloc bool[g.blocks.count] in memory.heap
+    defer free(gone) in memory.heap
+    for b in 0..<gone.length:
+        gone[b] = false
+    for link in region.links.span():
+        gone[(usize)link] = true
+    if region.yes != region.join:
+        gone[(usize)region.yes] = true
+    if region.no != region.join:
+        gone[(usize)region.no] = true
+    # what the head now ends with: the links' and arms' work, the condition joined, one
+    # select for each of the join's phis over the arms, and the jump
+    var tail = try list.List[ir.Instr].create(32)
+    defer tail.destroy()
+    var condition = branch.a
+    var wide = condition.kind == ir.RefKind.temp and f.temp_class(condition.index) == ir.Class.l
+    for link in region.links.span():
+        let lb = g.blocks.get((usize)link)
+        try move_body(f, lb, &tail)
+        let next = f.instrs.get((usize)lb.end - 1)
+        let joined = try f.temp(ir.Class.w)
+        try tail.push(stamped(branch, ir.Op.or_ if region.any else ir.Op.and_, ir.Class.w, joined, condition, next.a))
+        condition = ir.temp_ref(joined)
+        wide = false
+    if region.yes != region.join:
+        try move_body(f, g.blocks.get((usize)region.yes), &tail)
+    if region.no != region.join:
+        try move_body(f, g.blocks.get((usize)region.no), &tail)
+    # the labels the join's phis name the arms by
+    let yes_label = head.label if region.yes == region.join else g.blocks.get((usize)region.yes).label
+    let no_label = head.label if region.no == region.join else g.blocks.get((usize)region.no).label
+    var phis = try list.List[ir.Instr].create(8)
+    defer phis.destroy()
+    var at = join.start
+    while at < join.end and f.instrs.get((usize)at).op == ir.Op.phi:
+        var phi = f.instrs.get((usize)at)
+        let yes = phi_value(f, phi, yes_label)
+        let no = phi_value(f, phi, no_label)
+        # every other entry is kept; the arms' two become one select, from the head
+        let start = u32(f.phi_args.count)
+        for k in 0..<phi.extra2:
+            let entry = f.phi_args.get((usize)(phi.extra + k))
+            if entry.pred != yes_label and entry.pred != no_label:
+                try f.phi_args.push(entry)
+        let chosen = try f.temp(phi.cls)
+        var select = stamped(branch, ir.Op.select, phi.cls, chosen, condition, yes)
+        select.extra = 1 if wide else 0
+        select.extra2 = u32(f.args.count)
+        try f.args.push(ir.Arg(value = no, cls = phi.cls, size = 0, align = 8, type_id = 0, shape = 0))
+        try tail.push(select)
+        try f.phi_args.push(ir.PhiArg(value = ir.temp_ref(chosen), pred = head.label))
+        phi.extra = start
+        phi.extra2 = u32(f.phi_args.count) - start
+        if phi.extra2 == 1:
+            # the head was the join's one way in: the phi is the select
+            phi = stamped(phi, ir.Op.copy, phi.cls, phi.dst, ir.temp_ref(chosen), ir.none_ref())
+        try phis.push(phi)
+        at += 1
+    try tail.push(stamped(branch, ir.Op.jmp, ir.Class.l, 0, ir.none_ref(), ir.none_ref()))
+    tail.items[tail.count - 1].extra = join.label
+    var out = try list.List[ir.Instr].create(f.instrs.count + 16)
+    for b in 0..<g.blocks.count:
+        let block = g.blocks.get(b)
+        if gone[b]:
+            continue
+        if block.label != 0:
+            try out.push(stamped(branch, ir.Op.label, ir.Class.l, 0, ir.none_ref(), ir.none_ref()))
+            out.items[out.count - 1].extra = block.label
+        if b == (usize)region.head:
+            for i in block.start..<block.end - 1:
+                try out.push(f.instrs.get((usize)i))
+            for x in tail.span():
+                try out.push(x)
+        elif b == (usize)region.join:
+            for phi in phis.span():
+                try out.push(phi)
+            for i in block.start + u32(phis.count)..<block.end:
+                try out.push(f.instrs.get((usize)i))
+        else:
+            for i in block.start..<block.end:
+                try out.push(f.instrs.get((usize)i))
+    f.instrs.destroy()
+    f.instrs = out
+
+## The value a phi takes from the predecessor labelled `pred`.
+func phi_value(f: ir.Function*, phi: ir.Instr, pred: u32) -> ir.Ref:
+    for k in 0..<phi.extra2:
+        let entry = f.phi_args.get((usize)(phi.extra + k))
+        if entry.pred == pred:
+            return entry.value
+    return ir.const_ref(0)
+
+## An instruction at `at`'s source position.
+func stamped(at: ir.Instr, op: ir.Op, cls: ir.Class, dst: u32, a: ir.Ref, b: ir.Ref) -> ir.Instr:
+    return ir.Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = 0, extra2 = 0, line = at.line, file = at.file, scope = at.scope, site = at.site)
+
+## An arm's or a link's work, without its terminator.
+func move_body(f: ir.Function*, block: cfg.Block, out: list.List[ir.Instr]*) -> !:
+    for i in block.start..<block.end:
+        let x = f.instrs.get((usize)i)
+        if ir.is_terminator(x.op) and i + 1 == block.end:
+            break
+        if x.op != ir.Op.label:
+            try out.push(x)

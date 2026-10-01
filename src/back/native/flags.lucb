@@ -1,0 +1,229 @@
+#==============================================================================================
+#
+#   flags - Conditions kept in the flags from their comparisons to the select that reads them
+#
+#   DESCRIPTION:
+#       `ifconvert` turns `if a == 10 or a == 13: n += 1` into comparisons joined by `or`
+#       and one `select`. Each comparison would set a register (`cset`) for the `or`s, and
+#       the select test the joined word against 0 again. A generator with conditional
+#       comparisons (arm64's `ccmp`) instead keeps the chain in its flags: the first
+#       comparison sets them, each later one compares only while the chain so far leaves
+#       the answer open and otherwise sets flags that settle it, and the select reads the
+#       last condition. Its `add x, 1` arm, when the other arm is `x`, is the select's own
+#       increment (`cinc`).
+#
+#       `plan` gives each instruction its role, from what the generators share: a chain
+#       is comparisons of integers or of `f32`s and `f64`s (`fccmp`), every one used once,
+#       joined by one kind of `or` or `and`, all in the select's block before it, with only
+#       instructions between them that no generator lowers with the flags (arithmetic,
+#       loads, stores, extensions).
+#
+#==============================================================================================
+
+import back.ir.ir
+
+# mark: Roles ==================================================================================
+
+## Selected as ever.
+pub let plain: u8 = 0
+## The chain's first comparison: it sets the flags.
+pub let first: u8 = 1
+## A later comparison joined to the chain by `or`: it compares while the chain is false.
+pub let either: u8 = 2
+## A later comparison joined by `and`: it compares while the chain is true.
+pub let both: u8 = 4
+## An `or` or `and` of the chain: there is nothing to select.
+pub let joined: u8 = 8
+## The select that reads the chain's condition from the flags.
+pub let reads: u8 = 16
+## An `add x, 1` its select computes itself: there is nothing to select.
+pub let folded: u8 = 32
+## A select whose value when true is its value when false plus 1.
+pub let then_increments: u8 = 64
+## A select whose value when false is its value when true plus 1.
+pub let else_increments: u8 = 128
+
+## The most comparisons and joins in one chain.
+let most_nodes: usize = 16
+
+## By instruction, its role: a sum of the values above. `counts` is every temporary's uses
+## (`selection.uses`). A build a debugger reads keeps every value where it can see it.
+pub func plan(f: ir.Function*, counts: u32[]) -> u8[]!:
+    var roles = try alloc u8[f.instrs.count + 1]
+    for k in 0..<roles.length:
+        roles[k] = plain
+    if f.debug or f.symbols:
+        return roles
+    # 1 + the index of each temporary's one definition; 0 when it has none or several
+    var defs = try alloc u32[f.temps.count + 1]
+    defer free(defs)
+    var several = try alloc bool[f.temps.count + 1]
+    defer free(several)
+    for k in 0..<defs.length:
+        defs[k] = 0
+        several[k] = false
+    for k in 0..<f.instrs.count:
+        let x = f.instrs.get(k)
+        if x.dst != 0 and (usize)x.dst < defs.length:
+            if defs[x.dst] != 0:
+                several[x.dst] = true
+            defs[x.dst] = (u32)k + 1
+    for k in 0..<defs.length:
+        if several[k]:
+            defs[k] = 0
+    for k in 0..<f.instrs.count:
+        let x = f.instrs.get(k)
+        if x.op != ir.Op.select or x.cls == ir.Class.h or x.cls == ir.Class.v:
+            continue
+        fold(f, k, counts, defs, roles)
+        chain(f, k, counts, defs, roles)
+    return roles
+
+# mark: Increments =============================================================================
+
+## The instruction defining temporary `r` alone, when it is before `at` in `at`'s block:
+## its index, else `at` itself.
+func defined_in_block(f: ir.Function*, r: ir.Ref, defs: u32[], at: usize) -> usize:
+    if r.kind != ir.RefKind.temp or defs[r.index] == 0:
+        return at
+    let d = (usize)defs[r.index] - 1
+    if d >= at:
+        return at
+    for j in (d + 1)..<at:
+        if ends_block(f.instrs.get(j).op):
+            return at
+    return d
+
+func ends_block(op: ir.Op) -> bool:
+    return op == ir.Op.label or op == ir.Op.jmp or op == ir.Op.jnz or op == ir.Op.switch_ or op == ir.Op.ret or op == ir.Op.trap_
+
+## The select at `at` choosing between `x` and `x + 1` becomes an increment of `x` by its
+## condition, and the `add` is not selected: when that is the sum's only use, the sum is
+## in the select's block, and `x` is not assigned between the two.
+func fold(f: ir.Function*, at: usize, counts: u32[], defs: u32[], roles: u8[]):
+    let x = f.instrs.get(at)
+    if x.cls != ir.Class.w and x.cls != ir.Class.l:
+        return
+    let other = f.args.get((usize)x.extra2).value
+    if let d = increment(f, x.b, other, at, counts, defs):
+        roles[d] = folded
+        roles[at] |= then_increments
+    elif let d = increment(f, other, x.b, at, counts, defs):
+        roles[d] = folded
+        roles[at] |= else_increments
+
+## Where `sum` is `base + 1`, used once, in the block before `at`, with `base` unchanged
+## until `at`: the index of the `add`.
+func increment(f: ir.Function*, sum: ir.Ref, base: ir.Ref, at: usize, counts: u32[], defs: u32[]) -> usize?:
+    if sum.kind != ir.RefKind.temp or counts[sum.index] != 1:
+        return none
+    let d = defined_in_block(f, sum, defs, at)
+    if d == at:
+        return none
+    let add = f.instrs.get(d)
+    if add.op != ir.Op.add or add.cls != f.instrs.get(at).cls:
+        return none
+    let one_after = (same(add.a, base) and add.b.kind == ir.RefKind.constant and add.b.value == 1) or (same(add.b, base) and add.a.kind == ir.RefKind.constant and add.a.value == 1)
+    if not one_after:
+        return none
+    if base.kind == ir.RefKind.temp:
+        # `base` read at the add must be the one the select reads
+        for j in (d + 1)..<at:
+            if f.instrs.get(j).dst == base.index:
+                return none
+    elif base.kind != ir.RefKind.constant:
+        return none
+    return d
+
+func same(a: ir.Ref, b: ir.Ref) -> bool:
+    if a.kind != b.kind:
+        return false
+    if a.kind == ir.RefKind.constant:
+        return a.value == b.value
+    return a.kind == ir.RefKind.temp and a.index == b.index
+
+# mark: Chains =================================================================================
+
+## The select at `at` reads its condition from the flags when the condition is a chain:
+## integer comparisons joined by one kind of `or` or `and`, each used once, in the select's
+## block, with only instructions between the first and the select that leave the flags be.
+func chain(f: ir.Function*, at: usize, counts: u32[], defs: u32[], roles: u8[]):
+    let x = f.instrs.get(at)
+    if x.extra != 0 or x.a.kind != ir.RefKind.temp:
+        return
+    var nodes: usize[16] = ---
+    var pending: u32[16] = ---
+    var count: usize = 0
+    var waiting: usize = 1
+    pending[0] = x.a.index
+    var join = ir.Op.copy
+    while waiting > 0:
+        waiting -= 1
+        let r = ir.temp_ref(pending[waiting])
+        if counts[r.index] != 1 or count == most_nodes:
+            return
+        let d = defined_in_block(f, r, defs, at)
+        if d == at or roles[d] != plain:
+            return
+        let n = f.instrs.get(d)
+        if ir.is_comparison(n.op) and (n.cls == ir.Class.w or n.cls == ir.Class.l or n.cls == ir.Class.s or n.cls == ir.Class.d):
+            nodes[count] = d
+            count += 1
+            continue
+        if (n.op != ir.Op.or_ and n.op != ir.Op.and_) or n.cls != ir.Class.w or n.a.kind != ir.RefKind.temp or n.b.kind != ir.RefKind.temp:
+            return
+        if join != ir.Op.copy and join != n.op:
+            return
+        join = n.op
+        if waiting + 2 > most_nodes:
+            return
+        nodes[count] = d
+        count += 1
+        pending[waiting] = n.a.index
+        pending[waiting + 1] = n.b.index
+        waiting += 2
+    var low = at
+    for k in 0..<count:
+        if nodes[k] < low:
+            low = nodes[k]
+    # between the first and the select: the chain, and what leaves the flags be
+    for j in low..<at:
+        if member(nodes[0..<count], j):
+            continue
+        if roles[j] != plain and roles[j] != folded:
+            return
+        if not leaves_flags(f.instrs.get(j).op):
+            return
+    var seen_first = false
+    for j in low..<at:
+        if not member(nodes[0..<count], j):
+            continue
+        if not ir.is_comparison(f.instrs.get(j).op):
+            roles[j] = joined
+        elif not seen_first:
+            roles[j] = first
+            seen_first = true
+        else:
+            roles[j] = either if join == ir.Op.or_ else both
+    roles[at] |= reads
+
+func member(nodes: usize[], j: usize) -> bool:
+    for n in nodes:
+        if n == j:
+            return true
+    return false
+
+## Whether every generator lowers `op` without the flags: plain arithmetic, loads, stores
+## and extensions (division, checked arithmetic, bounds, calls and branches may use them).
+func leaves_flags(op: ir.Op) -> bool:
+    match op:
+        .copy, .add, .sub, .mul, .and_, .or_, .xor, .shl, .lshr, .ashr, .neg, .addr, .dbg:
+            return true
+        .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd:
+            return true
+        .storeb, .storeh, .storew, .storel, .stores, .stored:
+            return true
+        .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
+            return true
+        _:
+            return false

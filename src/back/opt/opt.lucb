@@ -634,7 +634,7 @@ func ends_block(op: ir.Op) -> bool:
 ## comparisons, conversions, loads, and addresses.
 func pure(op: ir.Op) -> bool:
     let code = (u8)op
-    if op == ir.Op.copy or op == ir.Op.addr or op == ir.Op.addr_tls:
+    if op == ir.Op.copy or op == ir.Op.addr or op == ir.Op.addr_tls or op == ir.Op.select:
         return true
     if code >= (u8)ir.Op.add and code <= (u8)ir.Op.neg:
         return op != ir.Op.sdiv and op != ir.Op.udiv and op != ir.Op.srem and op != ir.Op.urem

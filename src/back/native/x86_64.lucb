@@ -54,6 +54,9 @@ pub struct Generator:
     var at: usize
     ## By label, the loops' heads of the function being emitted (`selection.loop_heads`).
     var loop_heads: bool[]
+    ## By label, 1 + the index of the comparison a jump to that loop's head makes itself
+    ## (`selection.rotations`); 0 for every other label.
+    var head_tests: u32[]
     ## Below x86-64-v3 there is no F16C: halves convert through the unit's own routines,
     ## emitted once at its end when a function needed them.
     var half_routines: bool
@@ -577,9 +580,14 @@ pub struct Generator:
         if let dw = self.dw:
             # the fused branch's own line and labels, ahead of the pair
             try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+        try self.fused_branch(i, selection.label_at(self.f, i + 2))
+
+    ## The comparison at `i` and the branch on it after, with `next` as the fall-through:
+    ## the pair in place, or a rotated loop's head test at a jump to that head
+    ## (`selection.rotations`).
+    mutating func fused_branch(i: usize, next: u32) -> !:
         let branch = self.f.instrs.get(i + 1)
         var comparison = self.f.instrs.get(i)
-        let next = selection.label_at(self.f, i + 2)
         if next == branch.extra:
             comparison.op = selection.inverse(comparison.op)
         try self.comparison(comparison, branch, next)
@@ -647,7 +655,11 @@ pub struct Generator:
         defer dynamic.release()
         var heads = try selection.loop_heads(self.f)
         defer free(heads)
+        var tests = try selection.rotations(self.f, heads, uses, false)
+        defer free(tests)
+        selection.rotate_heads(self.f, heads, tests)
         self.loop_heads = heads
+        self.head_tests = tests
         var i: usize = 0
         while i < self.f.instrs.count:
             self.at = i
@@ -676,6 +688,7 @@ pub struct Generator:
                 try self.reserve_levels(dynamic.before[i + 1])
             i += 1
         self.loop_heads = heads[0..<0]
+        self.head_tests = tests[0..<0]
         try self.finish_function(index, i, text_start)
 
     ## After function `index`'s last instruction (`end`): its debug information, unwinding
@@ -1023,6 +1036,10 @@ pub struct Generator:
             .jmp:
                 if n.extra == next_label:
                     return
+                if (usize)n.extra < self.head_tests.length and self.head_tests[(usize)n.extra] != 0:
+                    # the head's own test, falling through to what follows the jump
+                    try self.fused_branch((usize)self.head_tests[(usize)n.extra] - 1, next_label)
+                    return
                 try self.line("jmp ")
                 try self.label_name(n.extra)
             .jnz:
@@ -1225,6 +1242,8 @@ pub struct Generator:
                 try self.line("mfence")
             .fma:
                 try self.fused(n)
+            .select:
+                try self.selected(n)
             .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
                 try self.vector(n)
             _:
@@ -1645,6 +1664,32 @@ pub struct Generator:
 
     ## `fma` (x86-64-v3, `isa.has_fma`): FMA3 accumulates into its destination, so the addend
     ## goes to xmm10 and `vfmadd231` adds the product of the other two to it.
+    ## `select`: both values read first (a move leaves the flags be), the condition word
+    ## tested, then a `cmov` into r11 for integers, a branch around the float's move.
+    mutating func selected(n: ir.Instr) -> !:
+        let other = self.f.args.get((usize)n.extra2).value
+        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let e = try self.source(other, n.cls, self.reg(n.cls, 2))
+        let wide = ir.Class.l if n.extra == 1 else ir.Class.w
+        let c = try self.source(n.a, wide, self.reg(wide, 0))
+        if n.cls == ir.Class.w or n.cls == ir.Class.l:
+            let long = n.cls == ir.Class.l
+            let r = "%r11" if long else "%r11d"
+            try self.line4("movq " if long else "movl ", e, ", ", r)
+            try self.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
+            try self.line4("cmovneq " if long else "cmovnel ", t, ", ", r)
+            try self.finish(n.dst, n.cls, r)
+            return
+        let r = "%xmm8"
+        let move = "movaps " if n.cls == ir.Class.s else "movapd "
+        if e != r:
+            try self.line4(move, e, ", ", r)
+        try self.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
+        try self.line("je 1f")
+        try self.line4(move, t, ", ", r)
+        try self.put("\n1:")
+        try self.finish(n.dst, n.cls, r)
+
     mutating func fused(n: ir.Instr) -> !:
         let addend = self.f.args.get((usize)n.extra2).value
         let a = try self.source(n.a, n.cls, "%xmm8")

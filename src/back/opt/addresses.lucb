@@ -1,0 +1,173 @@
+#==============================================================================================
+#
+#   addresses - Accesses at constant distances from one address share it
+#
+#   DESCRIPTION:
+#       `values[at * 3 - 2]` is `base + (at * 3 - 2) * 8`: each neighbouring element costs its
+#       own index arithmetic, a multiply and an add before the load. Addresses wrap as every
+#       `l` sum does, so `base + (x + k) * s` is `(base + x * s) + k * s` exactly, and the
+#       accesses of one block at `x + k` for several constants `k` all add a constant to
+#       one address, `base + x * s`, formed once; the generators then fold each constant into
+#       its load or store (`[x1, #-16]`). Only an access's address is rewritten, so what an
+#       index is checked against is unchanged.
+#
+#==============================================================================================
+
+import back.ir.ir
+import support.list
+
+# mark: The pass ================================================================================
+
+## One address `base + x * scale` formed in the block being rewritten: the temporary
+## holding it, and the index of the instruction forming it.
+struct Anchor:
+    var base: ir.Ref
+    var index: ir.Ref
+    var op: ir.Op
+    var scale: i64
+    var at: u32
+    var formed: usize
+
+## The rewrite over `f`, in single-assignment form; whether anything changed.
+pub func run(f: ir.Function*) -> bool!:
+    var counts = try alloc u32[f.temps.count + 1]
+    defer free(counts)
+    var defs = try alloc u32[f.temps.count + 1]
+    defer free(defs)
+    for k in 0..<counts.length:
+        counts[k] = 0
+        defs[k] = 0
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst != 0 and (usize)x.dst < defs.length:
+            defs[x.dst] = (u32)i + 1
+        count(counts, x.a)
+        count(counts, x.b)
+        let (start, n) = ir.argument_range(f, x)
+        for k in 0..<n:
+            count(counts, f.args.get(start + k).value)
+    for k in 0..<f.phi_args.count:
+        count(counts, f.phi_args.get(k).value)
+    var anchors = try list.List[Anchor].create(8)
+    defer anchors.destroy()
+    var block_start: usize = 0
+    var changed = false
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if ends_block(x.op):
+            anchors.count = 0
+            block_start = i + 1
+            continue
+        if let address = accessed(x):
+            if try rewrite(f, address, block_start, i, counts, defs, &anchors):
+                changed = true
+    return changed
+
+func count(counts: u32[], r: ir.Ref):
+    if r.kind == ir.RefKind.temp and (usize)r.index < counts.length:
+        counts[r.index] += 1
+
+func ends_block(op: ir.Op) -> bool:
+    return op == ir.Op.label or op == ir.Op.jmp or op == ir.Op.jnz or op == ir.Op.switch_ or op == ir.Op.ret or op == ir.Op.trap_
+
+## The address a load or store reads, when it is a temporary.
+func accessed(x: ir.Instr) -> ir.Ref?:
+    let loads = (u8)x.op >= (u8)ir.Op.loadsb and (u8)x.op <= (u8)ir.Op.loadd
+    let stores = (u8)x.op >= (u8)ir.Op.storeb and (u8)x.op <= (u8)ir.Op.stored
+    let address = x.a if loads else x.b
+    if (loads or stores) and address.kind == ir.RefKind.temp:
+        return address
+    return none
+
+## The instruction defining `r` when it is in the block, before `at`: its index.
+func defined_between(r: ir.Ref, defs: u32[], low: usize, at: usize) -> usize?:
+    if r.kind != ir.RefKind.temp or defs[r.index] == 0:
+        return none
+    let d = (usize)defs[r.index] - 1
+    if d < low or d >= at:
+        return none
+    return d
+
+# mark: One access ==============================================================================
+
+## The access at `at` reads `address`, `base + (x + k) * scale`: it becomes an existing
+## anchor for `base`, `x` and `scale` plus `k * scale`, or, when there is none yet, the
+## index and the product it goes through (each read only there) become that anchor.
+func rewrite(f: ir.Function*, address: ir.Ref, low: usize, at: usize, counts: u32[], defs: u32[], anchors: list.List[Anchor]*) -> bool!:
+    let a_at = defined_between(address, defs, low, at) else return false
+    let sum = f.instrs.get(a_at)
+    if sum.op != ir.Op.add or sum.cls != ir.Class.l:
+        return false
+    # `base + product`, in either order
+    var base = sum.a
+    var product = sum.b
+    var p_found = defined_between(product, defs, low, a_at)
+    if not scaled(f, p_found):
+        base = sum.b
+        product = sum.a
+        p_found = defined_between(product, defs, low, a_at)
+        if not scaled(f, p_found):
+            return false
+    let p_at = p_found else return false
+    let times = f.instrs.get(p_at)
+    let scale = times.b.value if times.op == ir.Op.mul else (i64)1 << times.b.value
+    # the index, `x + k`, `x - k` or `x` alone
+    var index = times.a
+    var k: i64 = 0
+    if let i_at = defined_between(times.a, defs, low, p_at):
+        let step = f.instrs.get(i_at)
+        if step.cls == ir.Class.l and step.b.kind == ir.RefKind.constant and step.a.kind == ir.RefKind.temp:
+            if step.op == ir.Op.add:
+                index = step.a
+                k = step.b.value
+            elif step.op == ir.Op.sub:
+                index = step.a
+                k = 0 -% step.b.value
+    for anchor in anchors.span():
+        # an anchor formed after this address (which an earlier access used later) is no use
+        if same(anchor.base, base) and same(anchor.index, index) and anchor.op == times.op and anchor.scale == scale and anchor.formed < a_at:
+            if anchor.at == address.index:
+                return false
+            set(f, a_at, ir.Op.add, ir.temp_ref(anchor.at), ir.const_ref(k *% scale))
+            return true
+    if k == 0:
+        try anchors.push(Anchor(base = base, index = index, op = times.op, scale = scale, at = address.index, formed = a_at))
+        return false
+    # no anchor yet: the index becomes `x * scale`, the product `base + x * scale`, which
+    # later accesses share, and the address that plus `k * scale`
+    let i_at = defined_between(times.a, defs, low, p_at) else return false
+    if counts[times.a.index] != 1 or counts[times.dst] != 1:
+        return false
+    if let b_at = defined_between(base, defs, low, at):
+        if b_at >= p_at:
+            return false
+    set(f, i_at, times.op, index, times.b)
+    set(f, p_at, ir.Op.add, base, times.a)
+    set(f, a_at, ir.Op.add, ir.temp_ref(times.dst), ir.const_ref(k *% scale))
+    try anchors.push(Anchor(base = base, index = index, op = times.op, scale = scale, at = times.dst, formed = p_at))
+    return true
+
+## Whether the instruction at `found` multiplies an `l` temporary by a constant, or shifts
+## it left by one.
+func scaled(f: ir.Function*, found: usize?) -> bool:
+    let at = found else return false
+    let x = f.instrs.get(at)
+    if x.cls != ir.Class.l or x.a.kind != ir.RefKind.temp or x.b.kind != ir.RefKind.constant:
+        return false
+    return (x.op == ir.Op.mul and x.b.value > 0) or (x.op == ir.Op.shl and x.b.value >= 0 and x.b.value < 63)
+
+func set(f: ir.Function*, at: usize, op: ir.Op, a: ir.Ref, b: ir.Ref):
+    var x = f.instrs.get(at)
+    x.op = op
+    x.a = a
+    x.b = b
+    f.instrs.set(at, x)
+
+func same(a: ir.Ref, b: ir.Ref) -> bool:
+    if a.kind != b.kind:
+        return false
+    if a.kind == ir.RefKind.temp:
+        return a.index == b.index
+    if a.kind == ir.RefKind.constant:
+        return a.value == b.value
+    return false
