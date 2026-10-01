@@ -10,6 +10,8 @@
 #
 #==============================================================================================
 
+import memory
+
 ## A name's innermost binding, as its index in the scope list plus one; 0 when unbound.
 pub struct NameIndex:
     ## Slot keys; the empty string marks a slot never used. A slot keeps its name once
@@ -18,6 +20,8 @@ pub struct NameIndex:
     var heads: u32[]
     ## Slots with a key.
     var used: usize
+    ## The allocator the slots were made with, which their growth goes on using.
+    var allocator: memory.Allocator
 
     ## An empty index, with room for five hundred names before it grows.
     pub static func create() -> NameIndex!:
@@ -26,7 +30,7 @@ pub struct NameIndex:
         for i in 0..<names.length:
             names[i] = ""
             heads[i] = 0
-        return NameIndex(names = names, heads = heads, used = 0)
+        return NameIndex(names = names, heads = heads, used = 0, allocator = memory.allocator)
 
     ## The innermost binding of `name`, its scope index plus one, or 0.
     pub func head(name: str) -> u32:
@@ -61,8 +65,8 @@ pub struct NameIndex:
     mutating func grow() -> !:
         let old_names = self.names
         let old_heads = self.heads
-        self.names = try alloc str[old_names.length * 2]
-        self.heads = try alloc u32[old_names.length * 2]
+        self.names = try alloc str[old_names.length * 2] in self.allocator
+        self.heads = try alloc u32[old_names.length * 2] in self.allocator
         for i in 0..<self.names.length:
             self.names[i] = ""
             self.heads[i] = 0
@@ -70,8 +74,8 @@ pub struct NameIndex:
         for i in 0..<old_names.length:
             if old_names[i].length > 0 and old_heads[i] != 0:
                 try self.set(old_names[i], old_heads[i])
-        free(old_names)
-        free(old_heads)
+        free(old_names) in self.allocator
+        free(old_heads) in self.allocator
 
 ## FNV-1a over the name's bytes.
 func spread(name: str) -> usize:

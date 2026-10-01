@@ -100,49 +100,59 @@ pub struct NativeBackend: Backend:
         self.lowerer.debug = self.debug
         self.lowerer.target = t
         var at = ticks()
-        try self.lowerer.program(mode)
+        # the IR's lists grow by copying: from the heap their old storage goes back to it,
+        # where the driver's arena would keep every outgrown copy until the build ends
+        with memory.heap:
+            try self.lowerer.program(mode)
         try note(&at, 0)
-        try inline.expand(&self.lowerer.program_unit)
-        try note(&at, 1)
-        try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, none)
-        # small leaf functions measured as optimised, expanded where they are called; the
-        # callers that gained bodies are optimised again and tidied
-        if not self.debug and self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
-            let changed = try inline.expand_small(&self.lowerer.program_unit, optimised_small)
-            defer free(changed)
-            try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed)
-            # every function tidied, not only those this pass changed: the first pass's
-            # expansions leave parameter stores and unreached blocks behind as well
-            for fi in 0..<self.lowerer.program_unit.functions.count:
-                let f = &self.lowerer.program_unit.functions.items[fi]
-                if not f.naked and not f.debug and f.instrs.count > 0:
-                    try inline.tidy_expanded(f)
-        if not self.debug:
-            if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
-                try opt.clean(&self.lowerer.program_unit)
-            else:
-                try opt.optimise(&self.lowerer.program_unit)
-        try note(&at, 7)
+        # the expansions, the optimiser and the tidying rebuild each function's lists: from the
+        # heap, the copies they replace go back to it, where the driver's arena would keep
+        # them all until the build ends
+        with memory.heap:
+            try inline.expand(&self.lowerer.program_unit)
+            try note(&at, 1)
+            try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, none)
+            # small leaf functions measured as optimised, expanded where they are called; the
+            # callers that gained bodies are optimised again and tidied
+            if not self.debug and self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
+                let changed = try inline.expand_small(&self.lowerer.program_unit, optimised_small)
+                defer free(changed)
+                try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed)
+                # every function tidied, not only those this pass changed: the first pass's
+                # expansions leave parameter stores and unreached blocks behind as well
+                for fi in 0..<self.lowerer.program_unit.functions.count:
+                    let f = &self.lowerer.program_unit.functions.items[fi]
+                    if not f.naked and not f.debug and f.instrs.count > 0:
+                        try inline.tidy_expanded(f)
+            if not self.debug:
+                if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
+                    try opt.clean(&self.lowerer.program_unit)
+                else:
+                    try opt.optimise(&self.lowerer.program_unit)
+            try note(&at, 7)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
-        var dw = try dwarf.Emitter.over(self.checker, &self.lowerer.program_unit, t.os, t.arch)
+        # each function's allocation and frame working memory goes back to the heap once
+        # the function is written
         var text = ""
-        if t.arch == targets.Arch.x86_64:
-            var generator = try x86_64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
-            if self.debug or self.lowerer.symbols:
-                generator.dw = &dw
-            generator.level = t.level
-            try generator.generate()
-            text = generator.text()
-        else:
-            var generator = try arm64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
-            # Apple's arm64 has half-precision arithmetic; ARMv8.0-A does not, and SVE
-            # (level 2) implies ARMv8.2-A, which does
-            generator.fp16 = t.os == targets.Os.macos or t.level >= 2
-            if self.debug or self.lowerer.symbols:
-                generator.dw = &dw
-            try generator.generate()
-            text = generator.text()
+        with memory.heap:
+            var dw = try dwarf.Emitter.over(self.checker, &self.lowerer.program_unit, t.os, t.arch)
+            if t.arch == targets.Arch.x86_64:
+                var generator = try x86_64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
+                if self.debug or self.lowerer.symbols:
+                    generator.dw = &dw
+                generator.level = t.level
+                try generator.generate()
+                text = generator.text()
+            else:
+                var generator = try arm64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
+                # Apple's arm64 has half-precision arithmetic; ARMv8.0-A does not, and SVE
+                # (level 2) implies ARMv8.2-A, which does
+                generator.fp16 = t.os == targets.Os.macos or t.level >= 2
+                if self.debug or self.lowerer.symbols:
+                    generator.dw = &dw
+                try generator.generate()
+                text = generator.text()
         try note(&at, 8)
         if self.report:
             try print_report()

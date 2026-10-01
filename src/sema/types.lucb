@@ -199,10 +199,13 @@ pub struct Table:
     ## An open-addressing index from a type's structure to its id + 1 (0 marks an empty
     ## bucket), so `intern` is a lookup rather than a scan over every type so far.
     var index: u32[]
+    ## The allocator the index was made with, which its growth goes on using: the lowerer
+    ## makes types while the heap, not the checker's arena, is the current allocator.
+    var allocator: memory.Allocator
 
     ## An empty table holding only the built-in scalar types.
     pub static func create() -> Table!:
-        var t = Table(types = try list.List[Type].create(256), word = 8, index = try alloc u32[1024])
+        var t = Table(types = try list.List[Type].create(256), word = 8, index = try alloc u32[1024], allocator = memory.allocator)
         zero_index(t.index)
         # id 0 is "no type"; the scalars follow in Kind order
         let seeds: Kind[32] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value, Kind.i8_, Kind.i64_, Kind.u64_, Kind.i32_, Kind.pointer, Kind.f16_]
@@ -299,13 +302,13 @@ pub struct Table:
     ## Twice the buckets, every type re-added.
     mutating func grow_index() -> !:
         let old = self.index
-        self.index = try alloc u32[old.length * 2]
+        self.index = try alloc u32[old.length * 2] in self.allocator
         zero_index(self.index)
         var i: usize = 0
         while i < self.types.count:
             self.index_add(u32(i))
             i += 1
-        free(old)
+        free(old) in self.allocator
 
     func plain(kind: Kind, elem: u32, name: str) -> Type!:
         return Type(kind = kind, elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = name)
