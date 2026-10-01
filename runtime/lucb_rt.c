@@ -123,6 +123,28 @@ lb_str lb_fmtbuf_finish(lb_fmtbuf* b) {
     return s;
 }
 
+void lb_stream_put(lb_fmtbuf* b, const char* s, size_t n, void* stream) {
+    if (b->used > b->cap || n > b->cap - b->used) {
+        lb_stream_flush(b, stream);
+    }
+    if (n >= b->cap) {
+        fwrite(s, 1, n, (FILE*)stream);
+        return;
+    }
+    (void)lb_fmtbuf_put(b, s, n);
+    if (b->used > b->cap / 2) {
+        lb_stream_flush(b, stream);
+    }
+}
+
+void lb_stream_flush(lb_fmtbuf* b, void* stream) {
+    if (b->used > 0) {
+        lb_str text = lb_fmtbuf_finish(b);
+        fwrite(text.data, 1, text.length, (FILE*)stream);
+    }
+    b->used = 0;
+}
+
 lb_span lb_arguments(int argc, char** argv, bool as_text) {
     lb_span args;
     if (!as_text) {

@@ -6394,8 +6394,18 @@ pub struct Emitter:
     ## A formatted string written piece by piece to the C stream `stream`, so no buffer
     ## bounds it: text and `str` fields go as they are, and each other field is displayed
     ## alone into one format buffer of the function, which the pieces share.
+    ## The pieces of `f` written to `stream` through a buffer of their own that goes out
+    ## as it passes half full and at the end (`lb_stream_put`), as a native build streams
+    ## them: a field that prints writes before the line it is part of.
     mutating func stream_formatted(f: ast.Node*, stream: str) -> !:
-        try self.put("({ ")
+        let line = self.tmp()
+        try self.put("({ char ")
+        try self.put_tmp("sb", line)
+        try self.put("[1024]; lb_fmtbuf ")
+        try self.put_tmp("sf", line)
+        try self.put(" = { ")
+        try self.put_tmp("sb", line)
+        try self.put(", 1024, 0 }; ")
         var n: u32 = 0
         var buffered = false
         var part = f.body
@@ -6403,9 +6413,11 @@ pub struct Emitter:
             part = p.next
             if p.kind == ast.Kind.format_text:
                 let text = unescape_braces(check.decode_text(p.text))
-                try self.put("fwrite(")
+                try self.put("lb_stream_put(&")
+                try self.put_tmp("sf", line)
+                try self.put(", ")
                 try self.put_c_string(text)
-                try self.put(", 1, ")
+                try self.put(", ")
                 try self.put_u64((u64)text.length)
                 try self.put(", ")
                 try self.put(stream)
@@ -6434,14 +6446,20 @@ pub struct Emitter:
                 try self.put("; lb_fmtbuf_finish(&")
                 try self.put_tmp("ff", n)
                 try self.put("); })")
-            try self.put("; fwrite(")
+            try self.put("; lb_stream_put(&")
+            try self.put_tmp("sf", line)
+            try self.put(", ")
             try self.put_tmp("ps", k)
-            try self.put(".data, 1, ")
+            try self.put(".data, ")
             try self.put_tmp("ps", k)
             try self.put(".length, ")
             try self.put(stream)
             try self.put("); } ")
-        try self.put("(void)0; })")
+        try self.put("lb_stream_flush(&")
+        try self.put_tmp("sf", line)
+        try self.put(", ")
+        try self.put(stream)
+        try self.put("); (void)0; })")
 
     ## `format(buffer, text)` into the caller's bytes, yielding `str!`.
     mutating func format_call(buf: ast.Node*, msg: ast.Node*) -> !:

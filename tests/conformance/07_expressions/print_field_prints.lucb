@@ -1,0 +1,15 @@
+## `print(f"...")` gathers its line in a buffer that goes out when it is half full and at the
+## line's end (§5.5): a field whose function prints writes its own line first, in every
+## backend alike, and a long line still comes out whole.
+noinline func noisy(n: i64) -> i64:
+    print(f"inner {n}")
+    return n
+
+pub func main(arguments: str[]) -> i32:
+    print(f"outer {noisy(3)} and {noisy(4)} done")
+    var long: u8[700] = ---
+    for i in 0..<700:
+        long[i] = 'a' + (u8)(i % 26)
+    let text = (str)long[0..<700]
+    print(f"{text.length}: {text} end")
+    return 0

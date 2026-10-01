@@ -603,6 +603,12 @@ int lb_fmtbuf_bool(lb_fmtbuf* b, bool v);
 size_t lucb_rt_utf8_encode(uint32_t cp, char out[4]);
 int lb_fmtbuf_char(lb_fmtbuf* b, uint32_t cp);
 lb_str lb_fmtbuf_finish(lb_fmtbuf* b);
+// `print(f"...")` and `trap(f"...")`: the text gathers in `b` and goes out to `stream` when it
+// passes half the buffer, and at its end (`lb_stream_flush`), as std's `core.stream_put`
+// does natively, so a field that prints lands where it does in a native build. `stream` is
+// a `FILE*`.
+void lb_stream_put(lb_fmtbuf* b, const char* s, size_t n, void* stream);
+void lb_stream_flush(lb_fmtbuf* b, void* stream);
 
 int lb_utf8_ok(const char* s, size_t n);
 // The scalar starting at byte `i` of the valid UTF-8 text `s`, and its width in `*width`.
