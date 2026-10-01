@@ -8,8 +8,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+/* the performance counter for the kernel's time; the process's peak working set for its
+   memory, as getrusage's maximum resident set elsewhere */
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <psapi.h>
+#else
 #include <sys/resource.h>
 #include <time.h>
+#endif
 
 static uint64_t random_word(uint64_t *state) {
     *state ^= *state >> 12;
@@ -27,9 +35,34 @@ static uint64_t hash_bytes(const void *data, size_t size) {
 }
 
 static uint64_t now(void) {
+#ifdef _WIN32
+    LARGE_INTEGER count, frequency;
+    if (!QueryPerformanceCounter(&count) || !QueryPerformanceFrequency(&frequency)) abort();
+    /* seconds and the remainder apart, so the product of nanoseconds never overflows */
+    uint64_t ticks = (uint64_t)count.QuadPart, rate = (uint64_t)frequency.QuadPart;
+    return ticks / rate * UINT64_C(1000000000) + ticks % rate * UINT64_C(1000000000) / rate;
+#else
     struct timespec stamp;
     if (clock_gettime(CLOCK_MONOTONIC, &stamp) != 0) abort();
     return (uint64_t)stamp.tv_sec * UINT64_C(1000000000) + (uint64_t)stamp.tv_nsec;
+#endif
+}
+
+/* The most memory the process has held, in bytes. */
+static uint64_t peak_resident(void) {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS counters;
+    if (!K32GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof counters)) abort();
+    return (uint64_t)counters.PeakWorkingSetSize;
+#else
+    struct rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) != 0) abort();
+    uint64_t rss = (uint64_t)usage.ru_maxrss;
+#ifndef __APPLE__
+    rss *= 1024;
+#endif
+    return rss;
+#endif
 }
 
 static uint64_t argument(const char *text) {
@@ -147,12 +180,7 @@ int main(int argc, char **argv) {
         start = now(); matrix_product(a, size, b, size, out, size, width, work); elapsed = now() - start;
         result = hash_bytes(out, size * sizeof *out);
     } else return 2;
-    struct rusage usage;
-    if (getrusage(RUSAGE_SELF, &usage) != 0) abort();
-    uint64_t rss = (uint64_t)usage.ru_maxrss;
-#ifndef __APPLE__
-    rss *= 1024;
-#endif
+    uint64_t rss = peak_resident();
     printf("{\"ns\":%" PRIu64 ",\"checksum\":\"%016" PRIx64 "\",\"rss_bytes\":%" PRIu64 "}\n",
            elapsed, result, rss);
     free(a); free(b); free(out); free(words); free(links); free(order); free(bytes); free(copied);

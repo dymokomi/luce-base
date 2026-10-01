@@ -176,8 +176,10 @@ pub struct Checker:
     ## literal, `if os.arm64:`: what it rules out goes silently, and so does what follows it
     ## when it always leaves, since the program meant it for the other targets (§19.6).
     var folded_quietly: bool = false
-    ## The directory of the entry file; dotted imports resolve beneath it.
-    var root: str
+    ## The directory of the entry file; dotted imports resolve beneath it. A consumer that
+    ## loads several modules from their packages (`describe-closure --modules`) sets it to
+    ## each one's source root before loading it.
+    pub var root: str
     ## Imports on the active load path. Completed modules remain in dependency order;
     ## this separate stack detects cycles before recursive loading repeats a module.
     var loading: list.List[str]

@@ -85,10 +85,14 @@ jobs:
           python tools/fuzz.py --gate
       - name: Differential fuzz, every generator, 15 minutes
         run: python tools/fuzz.py --seed ${{ github.run_number }} --minutes 15 --mutations 200 --programs 30 --trap-programs 20 --packages 6 --mem-programs 12 --atomic-programs 6 --litmus-programs 4 --width-programs 30
+      # the benchmark's driver and runner on Windows: every variant built and checked
+      - name: Native and C kernels agree
+        run: python benchmarks/native_vs_c/run.py --cc gcc --verify-only
       - name: A held output is replaced; parameters stay in registers
         run: |
           python tools/test_windows_publish.py build/luce-base.exe
           python tools/test_windows_parameters.py build/luce-base.exe
+          python tools/test_module_batches.py build/luce-base.exe
       # real programs, checked out with CRLF line endings as Git for Windows does, built
       # for every target
       - name: Compile budget

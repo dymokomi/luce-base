@@ -92,8 +92,20 @@ followed by tagged triples, with every field NUL-terminated:
 its whole closure: `luce-base-closure-v1` and a NUL, then for every module `module`, its
 source path and its `describe` text, each NUL-terminated, the list ended by an empty field,
 and then the closure's `dependencies` report as above. Describing each module and asking
-each for its dependencies would check the same closure once per module; Luce asks this
-once per Base package it imports.
+each for its dependencies would check the same closure once per module.
+
+`luce-base describe-closure --modules NAME FILE SOURCE_ROOT...` does the same for several
+modules at once, each loaded under its canonical name from its package's source root: the
+union of their closures is checked once and described in the same format, and its report
+names every module of the union, these included (they carry their canonical names, so
+none is left out as an entry). Luce describes every Base module a program imports this
+way, in one run.
+
+`luce-base resolve-all FILE SOURCE_ROOT MODULE...` resolves each of a module's imports as
+`resolve` does, in one run: `luce-base-modules-v1` and a NUL, then for each name either
+`module`, the name, its kind (`base`, `luce` or `standard`), canonical name, path and
+source root, or `error`, the name and the message, every field NUL-terminated. Luce
+resolves each of its modules' imports together this way.
 
 Source records exclude the entry and embedded standard modules. Package records
 include the entry. The compiler checks the complete program before writing any

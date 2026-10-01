@@ -17,6 +17,8 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
+WINDOWS = os.name == "nt"
+EXE = ".exe" if WINDOWS else ""
 SOURCE = Path(__file__).resolve().parent
 CASES = {
     "integer_mix": (1, 1000000),
@@ -57,7 +59,7 @@ def measure(binary, kernel, work, size, seed):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base", type=Path, default=ROOT / "build/luce-base")
+    parser.add_argument("--base", type=Path, default=ROOT / "build" / ("luce-base" + EXE))
     parser.add_argument("--cc", default="clang")
     parser.add_argument("--output", type=Path, default=ROOT / "build/native-vs-c")
     parser.add_argument("--samples", type=int, default=9)
@@ -74,7 +76,11 @@ def main():
     architecture = "-march=armv8-a" if arm else "-march=x86-64"
     common = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-ffp-contract=off", architecture]
     variants = [f"base-{level}" for level in range(4)] + ["base-c", "c-O3", "c-scalar"]
-    binaries = {name: out / name for name in variants}
+    binaries = {name: out / (name + EXE) for name in variants}
+    gcc = "gcc" in Path(args.cc).name
+    # loop and straight-line vectorization off: clang's spelling, or gcc's
+    scalar = ["-fno-tree-vectorize", "-fno-tree-slp-vectorize"] if gcc else ["-fno-vectorize", "-fno-slp-vectorize"]
+    libraries = ["-lm", "-pthread"]
     build_commands = []
     source_hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                      for p in sorted(SOURCE.iterdir()) if p.suffix in (".c", ".lucb", ".py")}
@@ -98,7 +104,7 @@ def main():
                        "-o", out / "driver.o"])
             elif header != (out / "kernels.h").read_bytes():
                 raise RuntimeError("optimization changed the exported C interface")
-            build([args.cc, out / "driver.o", library.with_suffix(".a"), "-lm", "-pthread",
+            build([args.cc, out / "driver.o", library.with_suffix(".a"), *libraries,
                    "-o", binaries[f"base-{level}"]])
             build([args.base.resolve(), "build", SOURCE / "kernels.lucb", "--native",
                    "--cpu", cpu, "--opt", level, "--lib", "--emit=asm", "-o", out / f"base-{level}.s"])
@@ -109,14 +115,14 @@ def main():
                "--lib", "-o", library])
         if library.with_suffix(".h").read_bytes() != (out / "kernels.h").read_bytes():
             raise RuntimeError("the C backend's exported C interface differs from the native one")
-        build([args.cc, out / "driver.o", library.with_suffix(".a"), "-lm", "-pthread",
+        build([args.cc, out / "driver.o", library.with_suffix(".a"), *libraries,
                "-o", binaries["base-c"]])
         for name in ("c-O3", "c-scalar"):
             flags = [*common, "-O3"]
             if name == "c-scalar":
-                flags += ["-fno-vectorize", "-fno-slp-vectorize"]
+                flags += scalar
             build([args.cc, *flags, "-I", out, "-c", SOURCE / "kernels.c", "-o", out / f"{name}.o"])
-            build([args.cc, out / "driver.o", out / f"{name}.o", "-lm", "-pthread", "-o", binaries[name]])
+            build([args.cc, out / "driver.o", out / f"{name}.o", *libraries, "-o", binaries[name]])
             build([args.cc, *flags, "-I", out, "-S", SOURCE / "kernels.c", "-o", out / f"{name}.s"])
         manifest = dict(commands=build_commands, source_sha256=source_hashes,
                         compiler_sha256=compiler_hash,
@@ -151,7 +157,7 @@ def main():
         "compiler_sha256": compiler_hash,
         "clang": command([args.cc, "--version"]).strip(),
         "platform": platform.platform(), "machine": platform.machine(),
-        "cpu": optional_command(["sysctl", "-n", "machdep.cpu.brand_string"]),
+        "cpu": optional_command(["sysctl", "-n", "machdep.cpu.brand_string"]) or platform.processor(),
         "memory_bytes": optional_command(["sysctl", "-n", "hw.memsize"]),
         "physical_cores": optional_command(["sysctl", "-n", "hw.physicalcpu"]),
         "logical_cores": os.cpu_count(), "base_cpu": cpu, "c_architecture": architecture,

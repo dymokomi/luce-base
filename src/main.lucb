@@ -46,7 +46,7 @@ import support.version
 import support.host_tools
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base describe-closure FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base describe-closure FILE\n       luce-base describe-closure --modules NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -1079,6 +1079,28 @@ func resolve_module(importer: str, root: str, name: str, base_only: bool, out: i
         let kind = "base" if base else "luce"
         try out.write(f"luce-base-module-v1\0{kind}\0{resolved.name}\0{resolved.path}\0{resolved.root}\0")
 
+## `resolve-all IMPORTER ROOT NAME...`: each import of one module resolved as `resolve` does,
+## in one run: a record for each name, `module`, the name, kind, canonical name, path and
+## root, or `error`, the name and the message, each field ended by NUL. A consumer resolving
+## a module's imports one process at a time paid a process for each (luced-3d: 382).
+func resolve_modules(importer: str, root: str, requested: c.str[], out: io.Writer) -> !:
+    try out.write("luce-base-modules-v1\0")
+    for named in requested:
+        let name = (str)named
+        var arena = Arena(memory.heap)
+        defer arena.destroy()
+        with arena:
+            if check.is_standard_module(name):
+                try out.write(f"module\0{name}\0standard\0{name}\0\0\0")
+                continue
+            let resolved = module_paths.resolve(importer, root, name, false) catch failure:
+                try out.write(f"error\0{name}\0{failure.message}\0")
+                continue
+            let order = try alloc u8[resolved.path.length + 8]
+            let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try format(order, f"{resolved.path}/ORDER"))
+            let kind = "base" if base else "luce"
+            try out.write(f"module\0{name}\0{kind}\0{resolved.name}\0{resolved.path}\0{resolved.root}\0")
+
 ## Report the resolved nonstandard import closure for source packaging. The entry
 ## itself is excluded: the caller already knows its source path and import alias.
 ## Names and paths are NUL-delimited, so whitespace in a parent path is lossless.
@@ -1102,12 +1124,15 @@ func checked_closure(path: c.str) -> check.Checker!:
 
 ## The dependency report of a checked closure: native inputs, then each module but the
 ## entry with its source, the export aliases, and every module's package.
-func write_dependencies(checker: check.Checker*, out: io.Writer) -> !:
+## `entry_last`: the last module is the entry, which the caller names itself and the report
+## leaves out; with several modules loaded by their canonical names, none is left out.
+func write_dependencies(checker: check.Checker*, out: io.Writer, entry_last: bool = true) -> !:
     let inputs = try native_inputs(checker)
     try out.write("luce-base-dependencies-v3\0")
     try inputs.write(out)
+    let reported = checker.modules.count - 1 if entry_last and checker.modules.count > 0 else checker.modules.count
     var index: usize = 0
-    while index + 1 < checker.modules.count:
+    while index < reported:
         let item = checker.modules.get(index)
         if not item.is_prelude:
             try out.write("source\0")
@@ -1140,6 +1165,38 @@ func describe_closure(path: c.str, out: io.Writer) -> !:
             try out.write("\0")
         try out.write("\0")
         try write_dependencies(&checker, out)
+
+## `describe-closure --modules NAME PATH ROOT...`: several modules, each loaded under its
+## canonical name from its package's source root, checked together once, then described as
+## `describe-closure` describes one closure; the dependency report names every module of
+## the union, these among them. A consumer that imports many modules with closures in
+## common (every one of luced-3d's holds luce-prism) checks the shared part once.
+func describe_closures(triples: c.str[], out: io.Writer) -> !:
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var checker = try check.Checker.create(scratch_of())
+        checker.build_target = build_target()
+        try checker.add_prelude()
+        var at: usize = 0
+        while at + 2 < triples.length:
+            let root = (str)triples[at + 2]
+            let room = try alloc u8[root.length + 2]
+            # a root is a directory the module paths below it are joined to
+            checker.root = try format(room, f"{root}/") if root.length > 0 and root.bytes[root.length - 1] != '/' else root
+            if checker.find_module((str)triples[at]) == none:
+                try checker.load_as(triples[at + 1], (str)triples[at])
+            at += 3
+        try checker.check_program()
+        try out.write("luce-base-closure-v1\0")
+        for module in checker.modules.span():
+            if module.is_prelude:
+                continue
+            try out.write(f"module\0{module.canonical}\0")
+            try describe.write(out, &checker, module.tree, module.name)
+            try out.write("\0")
+        try out.write("\0")
+        try write_dependencies(&checker, out, false)
 
 ## Collect the packages actually loaded, including the entry and private imports.
 func native_inputs(checker: check.Checker*) -> native_packages.Inputs!:
@@ -1348,6 +1405,42 @@ func build_options(arguments: c.str[]) -> Options?!:
         options.native = emission_backend == 2
     return options
 
+## The questions Luce asks of Base modules (resolve, describe-closure, native-inputs,
+## dependencies, and their batched forms): the command's exit status, or none when
+## `command` is not one of them or its arguments are not that command's.
+func module_question(command: str, positional: usize, arguments: c.str[], out: io.Writer) -> i32?!:
+    if command == "resolve" and (positional == 5 or (positional == 6 and (str)arguments[5] == "--base")):
+        resolve_module((str)arguments[2], (str)arguments[3], (str)arguments[4], positional == 6, out) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
+    if command == "native-inputs" and positional == 3:
+        native_inputs_file((str)arguments[2], out) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
+    if command == "describe-closure" and positional == 3:
+        describe_closure(arguments[2], out) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
+    if command == "describe-closure" and positional >= 6 and (str)arguments[2] == "--modules" and (positional - 3) % 3 == 0:
+        describe_closures(arguments[3..], out) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
+    if command == "resolve-all" and positional >= 4:
+        resolve_modules((str)arguments[2], (str)arguments[3], arguments[4..], out) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
+    if command == "dependencies" and positional == 3:
+        dependencies_file(arguments[2], out) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
+    return none
+
 ## The `luce-base` command: it dispatches on the first argument (§19.6).
 pub func main(arguments: c.str[]) -> i32!:
     let out = io.stdout()
@@ -1402,26 +1495,8 @@ pub func main(arguments: c.str[]) -> i32!:
             try report_failure(failure.message)
             return 1
         return 1 if warned else 0
-    if command == "resolve" and (positional == 5 or (positional == 6 and (str)arguments[5] == "--base")):
-        resolve_module((str)arguments[2], (str)arguments[3], (str)arguments[4], positional == 6, out) catch failure:
-            try report_failure(failure.message)
-            return 1
-        return 0
-    if command == "native-inputs" and positional == 3:
-        native_inputs_file((str)arguments[2], out) catch failure:
-            try report_failure(failure.message)
-            return 1
-        return 0
-    if command == "describe-closure" and positional == 3:
-        describe_closure(arguments[2], out) catch failure:
-            try report_failure(failure.message)
-            return 1
-        return 0
-    if command == "dependencies" and positional == 3:
-        dependencies_file(arguments[2], out) catch failure:
-            try report_failure(failure.message)
-            return 1
-        return 0
+    if let code = try module_question(command, positional, arguments, out):
+        return code
     if command == "describe" and positional == 4 and (str)arguments[2] == "--standard":
         describe_standard((str)arguments[3], out) catch failure:
             try report_failure(failure.message)

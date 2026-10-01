@@ -21,6 +21,7 @@ import argparse
 import os
 from pathlib import Path
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -113,6 +114,17 @@ def finished(process):
     return True
 
 
+def absolute_program(program):
+    """`program` as an absolute path: a path as given, resolved against this directory, or a
+    bare name as the path finds it (`luce`)."""
+    if os.sep in program or (os.altsep and os.altsep in program) or Path(program).exists():
+        return str(Path(program).resolve())
+    found = shutil.which(program)
+    if not found:
+        sys.exit(f"compile budget: no `{program}` on the path")
+    return str(Path(found).resolve())
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--compiler", default=str(ROOT / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base")))
@@ -121,7 +133,10 @@ def main():
     parser.add_argument("--megabytes", type=float, default=4096.0)
     parser.add_argument("entries", nargs="+")
     args = parser.parse_args()
-    compiler = str(Path(args.compiler).resolve())
+    # absolute, since each build runs in its program's directory (a relative path there
+    # names nothing, and on Windows CreateProcess does not search the caller's)
+    compiler = absolute_program(args.compiler)
+    luce = absolute_program(args.luce)
     host = host_target()
     failures = 0
     print(f"{'program':44} {'target':15} {'seconds':>8} {'peak MB':>8}")
@@ -133,7 +148,7 @@ def main():
             if translated:
                 # the Luce front end's own share, then its Base on every target
                 base = Path(work) / f"{source.stem}-{len(label)}.lucb"
-                status, spent, peak, reason = build([args.luce, "build", str(source), "--emit=base", "-o", str(base)], source.parent, args.seconds, args.megabytes)
+                status, spent, peak, reason = build([luce, "build", str(source), "--emit=base", "-o", str(base)], source.parent, args.seconds, args.megabytes)
                 print(f"{label:44} {'luce':15} {spent:8.1f} {peak:8.0f}" + (f"  FAIL {reason}" if reason else ""), flush=True)
                 if reason:
                     failures += 1
