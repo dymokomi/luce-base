@@ -218,10 +218,14 @@ struct Search:
         let through = ir.temp_ref(origin)
         return (same(definition.a, through) and definition.b.kind == ir.RefKind.constant) or (same(definition.b, through) and definition.a.kind == ir.RefKind.constant)
 
-    ## Whether `index`, some `i * c + k` with `k < c`, is below `length` because `i` is below
-    ## `length // c`: then `index < (length // c) * c <= length` (a loop over the points of
-    ## a flat array of coordinates, `values[at * 3 + 2]` while `at < values.length // 3`).
-    func scaled_below(index: ir.Ref, length: ir.Ref) -> bool:
+    ## Whether `index`, some `i * c + k`, is below `length` (at most it, when not `strict`)
+    ## because `i` is below `x // c` (`x >> s` when `c` is `2^s`), where `x` is `length` or
+    ## `length - d` that cannot wrap: then `i * c <= x - c`, so `index <= length - d - c + k`
+    ## and, with `k <= c`, nothing on the way wraps. A loop over the points of a flat array
+    ## of coordinates (`values[at * 3 + 2]` while `at < values.length // 3`), and over the
+    ## words of a byte span from its second byte (`&data[at * 4 + 1]` while
+    ## `at < (data.length - 1) >> 2`).
+    func scaled_below(index: ir.Ref, length: ir.Ref, strict: bool = true) -> bool:
         if index.kind != ir.RefKind.temp or self.definitions[index.index] == 0:
             return false
         var scaled = index
@@ -233,10 +237,14 @@ struct Search:
         if scaled.kind != ir.RefKind.temp or self.definitions[scaled.index] == 0:
             return false
         let product = self.f.instrs.get(self.definitions[scaled.index] - 1)
-        if (product.op != ir.Op.mul and not (product.op == ir.Op.mulo and product.extra == 0)) or product.cls != ir.Class.l or product.b.kind != ir.RefKind.constant:
+        if product.cls != ir.Class.l or product.b.kind != ir.RefKind.constant:
             return false
-        let factor = bits(product.b, ir.Class.l)
-        if factor == 0 or offset >= factor:
+        var factor: u64 = 0
+        if product.op == ir.Op.mul or (product.op == ir.Op.mulo and product.extra == 0):
+            factor = bits(product.b, ir.Class.l)
+        elif product.op == ir.Op.shl and bits(product.b, ir.Class.l) < 63:
+            factor = (u64)1 << bits(product.b, ir.Class.l)
+        if factor == 0 or factor > 1 << 32 or offset > factor:
             return false
         var at = self.left_heads[self.bucket(product.a)]
         while at != 0:
@@ -245,9 +253,35 @@ struct Search:
             if fact.relation != Relation.less or fact.cls != ir.Class.l or not same(product.a, fact.left) or fact.right.kind != ir.RefKind.temp or self.definitions[fact.right.index] == 0:
                 continue
             let quotient = self.f.instrs.get(self.definitions[fact.right.index] - 1)
-            if quotient.op == ir.Op.udiv and quotient.cls == ir.Class.l and quotient.b.kind == ir.RefKind.constant and bits(quotient.b, ir.Class.l) == factor and self.equal(quotient.a, length, ir.Class.l):
+            if quotient.cls != ir.Class.l or quotient.b.kind != ir.RefKind.constant:
+                continue
+            let divides = quotient.op == ir.Op.udiv and bits(quotient.b, ir.Class.l) == factor
+            let shifts = quotient.op == ir.Op.lshr and bits(quotient.b, ir.Class.l) < 63 and ((u64)1 << bits(quotient.b, ir.Class.l)) == factor
+            if not divides and not shifts:
+                continue
+            let short = self.short_of(quotient.a, length)
+            if short == limit(ir.Class.l):
+                continue
+            # index <= length - short - factor + offset
+            let below = short + factor
+            if (strict and below > offset) or (not strict and below >= offset):
                 return true
         return false
+
+    ## How much `x` is below `length`: 0 when the two are equal, `d` when `x` is
+    ## `length - d` that cannot wrap, and the class's limit when neither is known.
+    func short_of(x: ir.Ref, length: ir.Ref) -> u64:
+        if self.equal(x, length, ir.Class.l):
+            return 0
+        if x.kind != ir.RefKind.temp or self.definitions[x.index] == 0:
+            return limit(ir.Class.l)
+        let difference = self.f.instrs.get(self.definitions[x.index] - 1)
+        if (difference.op != ir.Op.sub and not (difference.op == ir.Op.subo and difference.extra == 0)) or difference.cls != ir.Class.l or difference.b.kind != ir.RefKind.constant:
+            return limit(ir.Class.l)
+        let d = bits(difference.b, ir.Class.l)
+        if d > 1 << 32 or self.lower(difference.a, ir.Class.l) < d or not self.equal(difference.a, length, ir.Class.l):
+            return limit(ir.Class.l)
+        return d
 
     ## Whether `index`, some `x - c` that cannot wrap (`x` is at least `c`), is below
     ## `length` because `x` is, or is below it as a scaled index (`values[at * 3 - 2]`).
@@ -472,13 +506,15 @@ struct Search:
                     self.f.instrs.set(at, instruction)
                     self.changed = true
             elif instruction.op == ir.Op.bounds:
-                if self.at_most(instruction.a, instruction.b, ir.Class.l, true) or self.packed_bound(instruction.a, instruction.b) or self.scaled_below(instruction.a, instruction.b) or self.below_through_difference(instruction.a, instruction.b):
+                # below the bound, or at most it for a one-past-the-end bound (`extra` 1)
+                let strict = instruction.extra == 0
+                if self.at_most(instruction.a, instruction.b, ir.Class.l, strict) or self.packed_bound(instruction.a, instruction.b) or self.scaled_below(instruction.a, instruction.b, strict) or self.below_through_difference(instruction.a, instruction.b):
                     # Keep graph instruction ranges stable until the walk ends.
                     instruction = ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
                     self.f.instrs.set(at, instruction)
                     self.changed = true
                 else:
-                    try self.add(Relation.less, ir.Class.l, instruction.a, instruction.b)
+                    try self.add(Relation.less if strict else Relation.at_most, ir.Class.l, instruction.a, instruction.b)
             elif (instruction.op == ir.Op.addo or instruction.op == ir.Op.subo or instruction.op == ir.Op.mulo) and instruction.extra == 0:
                 let high_a = self.upper(instruction.a, instruction.cls)
                 let high_b = self.upper(instruction.b, instruction.cls)

@@ -86,6 +86,23 @@ func jump_table(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
         try out.put_u64((u64)targets[k])
     try out.put("]")
 
+## A call's callee and its arguments, each with its class.
+func call(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
+    try out.put(" ")
+    try operand(out, x.a)
+    try out.put("(")
+    let info = f.calls.get((usize)x.extra)
+    var k: usize = 0
+    while k < (usize)info.args_count:
+        let a = f.args.get((usize)info.args_start + k)
+        if k > 0:
+            try out.put(", ")
+        try out.put(class_name(a.cls))
+        try out.put(" ")
+        try operand(out, a.value)
+        k += 1
+    try out.put(")")
+
 func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
     if x.op == ir.Op.label:
         try out.put("@L")
@@ -126,20 +143,7 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
             try out.put(" ")
             try out.put_u64((u64)x.extra)
         .call:
-            try out.put(" ")
-            try operand(out, x.a)
-            try out.put("(")
-            let info = f.calls.get((usize)x.extra)
-            var k: usize = 0
-            while k < (usize)info.args_count:
-                let a = f.args.get((usize)info.args_start + k)
-                if k > 0:
-                    try out.put(", ")
-                try out.put(class_name(a.cls))
-                try out.put(" ")
-                try operand(out, a.value)
-                k += 1
-            try out.put(")")
+            try call(out, f, x)
         .blit, .zero, .fill:
             try out.put(" ")
             try operand(out, x.a)
@@ -148,11 +152,13 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
                 try operand(out, x.b)
             try out.put(", ")
             try out.put_u64((u64)x.extra)
-        .addo, .subo, .mulo:
+        .addo, .subo, .mulo, .bounds:
             try out.put(" ")
             try operand(out, x.a)
             try out.put(", ")
             try operand(out, x.b)
+            if x.op == ir.Op.bounds and x.extra == 1:
+                try out.put(", one past")
         .phi:
             var k: u32 = 0
             while k < x.extra2:

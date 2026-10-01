@@ -1398,7 +1398,7 @@ pub struct Generator:
                 let b = try self.source(n.b, ir.Class.l, "x10")
                 try self.line3("cmp ", a, ", ")
                 try self.put(b)
-                try self.line("b.lo 1f")
+                try self.line("b.ls 1f" if n.extra == 1 else "b.lo 1f")
                 try self.trap_text("index out of bounds", n.extra2)
                 try self.put("\n1:")
             .addo, .subo, .mulo:

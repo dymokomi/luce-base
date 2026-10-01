@@ -241,7 +241,8 @@ pub enum Op as u8:
     ret = 103
     ## `trap a` where `a` names the reason text
     trap_ = 104
-    ## `check a < b` else trap "index out of bounds"
+    ## `check a < b` else trap "index out of bounds"; `a <= b` when `extra` is 1, the
+    ## one-past-the-end bound of `&owner[i]` and of a slice's ends, which `b + 1` would wrap
     bounds = 105
     ## `switch a, extra (default), table extra2`: a jump through table `extra2` of the
     ## function's `jump_tables` to the label of entry `a - low`, computed at the class of the

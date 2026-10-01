@@ -1203,7 +1203,7 @@ pub struct Generator:
                 let a = try self.source(n.a, ir.Class.l, "%rax")
                 let b = try self.source(n.b, ir.Class.l, "%rcx")
                 try self.line4("cmpq ", b, ", ", a)
-                try self.line("jb 1f")
+                try self.line("jbe 1f" if n.extra == 1 else "jb 1f")
                 try self.trap_text("index out of bounds", n.extra2)
                 try self.put("\n1:")
             .addo, .subo, .mulo:

@@ -3,7 +3,9 @@
 flat array of coordinates need: `values[at * 3 + 2]` while `at < values.length // 3` is
 below the length (`at * 3 + 2 < (length // 3) * 3 <= length`), and `values[at * 3 - 6]` in
 a loop whose `at` starts at 2 and only steps up by a checked `+ 1` neither wraps nor
-leaves the array. Once no check is left at --opt 2 and 3, a float comparison that decides a
+leaves the array. `&data[at * 4 + 1]` while `at < (data.length - 1) // 4`, the words of a
+byte span from its second byte, is at most the length its one-past-the-end bound allows
+(`at * 4 + 1 <= length - 4`). Once no check is left at --opt 2 and 3, a float comparison that decides a
 branch (math.max's NaN tests) branches on the flags on arm64, with no `cset`, a NaN taking
 the branch `not` gives it; and every build answers alike, NaNs included."""
 from pathlib import Path
@@ -11,7 +13,9 @@ import platform, re, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPILER = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / 'build/luce-base'
-PROGRAM = '''noinline func larger(a: f64, b: f64) -> f64:
+PROGRAM = '''import memory
+
+noinline func larger(a: f64, b: f64) -> f64:
     if a != a:
         return a
     if b != b:
@@ -32,6 +36,15 @@ noinline func normals(values: const f64[]) -> f64:
         let by = values[at * 3 - 5] - values[at * 3 - 2]
         let bz = values[at * 3 - 4] - values[at * 3 - 1]
         total = larger(total * 0.5, ax * by - ay * bx) + (ay * bz - az * by) - (ax * bz - az * bx)
+        at += 1
+    return total
+
+noinline func words(data: const u8[]) -> u64:
+    assert(data.length > 0)
+    var total: u64 = 0
+    var at: usize = 0
+    while at < (data.length - 1) // 4:
+        total +%= (u64)memory.read[u32]((const void*)&data[at * 4 + 1])
         at += 1
     return total
 
@@ -56,7 +69,10 @@ pub func main(arguments: str[]) -> i32:
     for a in [1.0, 2.0, nan, -0.0, 0.0]:
         for b in [1.0, 2.0, nan, -0.0, 0.0]:
             orders = orders *% 31 +% order(a, b)
-    print(f"{normals(values[..<(usize)(299 + arguments.length)])} {normals(values[..<6])} {orders} {larger(nan, 1.0)} {larger(-0.0, 0.0)}")
+    var bytes: u8[103] = ---
+    for i in 0..<103:
+        bytes[i] = (u8)((i * 37) % 251)
+    print(f"{normals(values[..<(usize)(299 + arguments.length)])} {normals(values[..<6])} {orders} {larger(nan, 1.0)} {larger(-0.0, 0.0)} {words(bytes[..<(usize)(102 + arguments.length)])} {words(bytes[..<1])}")
     return 0
 '''
 
@@ -83,6 +99,8 @@ with tempfile.TemporaryDirectory(prefix='index-ranges-') as work:
         body = function_ir(ir_path.read_text(), 'normals')
         if level == '3' and re.search(r'\n\s*bounds ', body):
             sys.exit(f'FAIL: a scaled index below the length is still checked at --opt {level}')
+        if level == '3' and re.search(r'\n\s*bounds ', function_ir(ir_path.read_text(), 'words')):
+            sys.exit(f'FAIL: `&data[at * 4 + 1]` below `(data.length - 1) // 4` is still checked at --opt {level}')
         if level == '3' and re.search(r'=l subo ', body):
             sys.exit(f'FAIL: `at * 3 - 6` with `at` from 2 is still checked for wrapping at --opt {level}')
         if platform.machine() in ('arm64', 'aarch64'):

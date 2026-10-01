@@ -2217,21 +2217,20 @@ pub struct Lowerer:
         let ot = try self.ty(owner)
         let iv = try self.value(i, types.usize_id)
         let index = try self.widen(iv.ref, iv.type_id, types.usize_id)
-        let slack: i64 = 1 if one_past else 0
+        # `index <= length` one past the end, `index < length` otherwise
+        let inclusive: u32 = 1 if one_past else 0
         if self.is_array(ot):
             let base = try self.place(owner)
             let t = self.c.table.get(ot)
-            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length + slack), 0)
+            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length), inclusive)
             try self.mark_position()
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(t.elem)))
             return try self.f.binary(ir.Op.add, ir.Class.l, base, scaled)
         if self.is_span(ot):
             let span = try self.expr(owner)
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, span.ref)
-            var length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
-            if one_past:
-                length = try self.f.binary(ir.Op.add, ir.Class.l, length, ir.const_ref(1))
-            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, length, 0)
+            let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
+            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, length, inclusive)
             try self.mark_position()
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
             return try self.f.binary(ir.Op.add, ir.Class.l, data, scaled)
@@ -2268,10 +2267,10 @@ pub struct Lowerer:
         if let en = e.right:
             let ev = try self.value(en, types.usize_id)
             end = try self.widen(ev.ref, ev.type_id, types.usize_id)
-        let limit = try self.f.binary(ir.Op.add, ir.Class.l, length, ir.const_ref(1))
-        try self.f.emit(ir.Op.bounds, ir.Class.l, 0, start, limit, 0)
+        # both ends at most the length
+        try self.f.emit(ir.Op.bounds, ir.Class.l, 0, start, length, 1)
         try self.mark_position()
-        try self.f.emit(ir.Op.bounds, ir.Class.l, 0, end, limit, 0)
+        try self.f.emit(ir.Op.bounds, ir.Class.l, 0, end, length, 1)
         try self.mark_position()
         # start must not pass end
         let ordered = try self.f.binary(ir.Op.cule, ir.Class.l, start, end)
