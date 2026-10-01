@@ -1,0 +1,41 @@
+## A local whose address a condition chooses (`lp3 = &lv3`, a select once the branch is
+## converted) is still memory when the optimiser runs again over a function whose calls
+## were expanded: taking apart the small aggregates beside it must count the address's
+## use as the select's value when false, or the store through `lq3` is lost (a fuzzing
+## finding, x86-64 and arm64 at --opt 2 and 3).
+struct Q:
+    var a: i64
+    var b: i64
+    var c: i64
+    var tag: u8
+
+var qs: Q[3]
+var a1: i64
+var a2: i64
+var c0: u32
+var m1: u64
+var q0: Q
+var s0: str
+
+func makeq(x: i64) -> Q:
+    return Q(a = x, b = x *% 3, c = x ^ 255, tag = 1 if x > 0 else 0)
+
+func g0(n0: i64, n1: i64, n2: i64) -> i64:
+    return 792
+
+pub func main(arguments: str[]) -> i32:
+    a1 = -11
+    c0 = 41543
+    q0 = makeq(a1)
+    s0 = "abcd"
+    for j in 0..<3:
+        qs[j] = makeq((i64)j -% 1)
+    var lv3: i64 = g0((887 << 4), ((((i64)s0.bytes[(usize)(a1 & 3)]) & 4095) * (-916 & 4095)), ((i64)m1 & 4095))
+    var lp3: i64*? = none
+    if (not ((3771494756 -| (u32)a1) >= c0)):
+        lp3 = &lv3
+    if let lq3 = lp3:
+        *lq3 = *lq3 +% ((i64)s0.length & 255)
+    a2 = lv3 +% a2
+    print(f"{a2}")
+    return 0

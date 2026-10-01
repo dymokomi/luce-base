@@ -29,7 +29,9 @@ else
     case "$(uname -m)" in aarch64|arm64) wasi_arch=arm64;; *) wasi_arch=x86_64;; esac
     curl -fsSL "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-$wasi_arch-linux.tar.gz" | tar -xz -C ..
     mv "../wasi-sdk-25.0-$wasi_arch-linux" ../wasi-sdk
-    curl -fsSL https://wasmtime.dev/install.sh | bash
+    # a pinned release, as wasi-sdk's: the installer otherwise asks GitHub's API for the
+    # latest, and a rate-limited answer reads as version `{`
+    curl -fsSL https://wasmtime.dev/install.sh | bash -s -- --version v49.0.1
     if [ -n "${GITHUB_ENV:-}" ]; then
         echo "WASI_SDK=$(cd ../wasi-sdk && pwd)" >> "$GITHUB_ENV"
         echo "$HOME/.wasmtime/bin" >> "$GITHUB_PATH"

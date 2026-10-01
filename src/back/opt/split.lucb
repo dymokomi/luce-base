@@ -183,18 +183,17 @@ struct Plan:
             else:
                 self.escape(x.a)
                 self.escape(x.b)
-        # a call's arguments, and the slot a call writes an aggregate result into whole,
-        # naming no address; the argument list keeps the entries of calls an expansion
-        # removed, which are not uses any more
+        # every instruction's arguments (a call's, a compare-and-swap's, a select's value
+        # when false, a returned word's), and the slot a call writes an aggregate result
+        # into whole, naming no address; the argument list keeps the entries of calls an
+        # expansion removed, which are not uses any more, so each instruction names its own
         for x in f.instrs.span():
-            if x.op == ir.Op.atomic_cas and x.b.value >= 0 and (usize)x.b.value + 1 < f.args.count:
-                self.escape(f.args.get((usize)x.b.value).value)
-                self.escape(f.args.get((usize)x.b.value + 1).value)
+            let (start, count) = ir.argument_range(f, x)
+            for k in 0..<count:
+                self.escape(f.args.get((usize)(start + k)).value)
             if x.op != ir.Op.call or (usize)x.extra >= f.calls.count:
                 continue
             let call = f.calls.get((usize)x.extra)
-            for k in 0..<(usize)call.args_count:
-                self.escape(f.args.get((usize)call.args_start + k).value)
             if call.has_result and call.result_size > 0 and not call.result_words and (usize)call.result_slot < self.ok.length:
                 self.ok[(usize)call.result_slot] = false
         for phi in f.phi_args.span():
