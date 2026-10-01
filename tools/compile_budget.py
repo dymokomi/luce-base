@@ -37,13 +37,38 @@ def host_target():
     return f"{arch}-{system}"
 
 
-def resident_megabytes(pid):
-    """The process's resident set, in megabytes; 0 once it is gone."""
+def resident_megabytes(process):
+    """The process's resident memory in megabytes: on Windows the peak working set so far
+    (GetProcessMemoryInfo on the process's own handle, which stays valid after it exits);
+    elsewhere its resident set now (`ps`), 0 once it is gone."""
+    if os.name == "nt":
+        return windows_peak_megabytes(process)
     try:
-        out = subprocess.run(["ps", "-o", "rss=", "-p", str(pid)], capture_output=True, text=True, timeout=5).stdout
+        out = subprocess.run(["ps", "-o", "rss=", "-p", str(process.pid)], capture_output=True, text=True, timeout=5).stdout
         return int(out.strip() or 0) / 1024.0
     except (ValueError, subprocess.SubprocessError, OSError):
         return 0.0
+
+
+def windows_peak_megabytes(process):
+    import ctypes
+    from ctypes import wintypes
+
+    class Counters(ctypes.Structure):
+        _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+
+    counters = Counters()
+    counters.cb = ctypes.sizeof(Counters)
+    query = ctypes.WinDLL("kernel32", use_last_error=True).K32GetProcessMemoryInfo
+    query.argtypes = [wintypes.HANDLE, ctypes.POINTER(Counters), wintypes.DWORD]
+    query.restype = wintypes.BOOL
+    if not query(wintypes.HANDLE(int(process._handle)), ctypes.byref(counters), counters.cb):
+        return 0.0
+    return counters.PeakWorkingSetSize / 1048576.0
 
 
 def build(command, cwd, seconds, megabytes):
@@ -52,8 +77,8 @@ def build(command, cwd, seconds, megabytes):
     process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     peak = 0.0
     reason = ""
-    while process.poll() is None:
-        peak = max(peak, resident_megabytes(process.pid))
+    while not finished(process):
+        peak = max(peak, resident_megabytes(process))
         spent = time.time() - started
         if spent > seconds:
             reason = f"past {seconds} s"
@@ -64,11 +89,28 @@ def build(command, cwd, seconds, megabytes):
             process.wait()
             break
         time.sleep(0.2)
+    # the peak of the whole run, a short one's included: the exited process's own count
+    peak = max(peak, getattr(process, "peak_megabytes", 0.0))
+    if os.name == "nt":
+        peak = max(peak, resident_megabytes(process))
     output = process.stdout.read().decode(errors="replace") if process.stdout else ""
     status = process.returncode
     if not reason and status != 0:
         reason = "failed: " + output.strip().splitlines()[-1][:200] if output.strip() else f"exit {status}"
     return status, time.time() - started, peak, reason
+
+
+def finished(process):
+    """Whether `process` has exited; on POSIX it is reaped with `wait4`, whose usage gives
+    its peak resident set (kilobytes on Linux, bytes on macOS) as `peak_megabytes`."""
+    if os.name == "nt":
+        return process.poll() is not None
+    pid, status, usage = os.wait4(process.pid, os.WNOHANG)
+    if pid == 0:
+        return False
+    process.returncode = os.waitstatus_to_exitcode(status)
+    process.peak_megabytes = usage.ru_maxrss / (1048576.0 if sys.platform == "darwin" else 1024.0)
+    return True
 
 
 def main():

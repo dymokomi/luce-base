@@ -208,9 +208,15 @@ pub struct Lexer:
         while i < self.src.bytes.length and self.src.bytes[i] == ' ':
             i += 1
         let column = u32(i - self.line_start)
-        let c = self.src.bytes[i] if i < self.src.bytes.length else 0
+        var c = self.src.bytes[i] if i < self.src.bytes.length else 0
+        if c == '\r' and i + 1 < self.src.bytes.length and self.src.bytes[i + 1] == '\n':
+            # a blank line ending in CRLF is a blank line (§3.1)
+            i += 1
+            c = '\n'
         if c == '\n' or c == 0:
             if c == '\n':
+                # past the blank line's spaces, then its end
+                self.offset = i
                 self.newline_here()
                 return try self.raw_line()
             self.in_raw = false
@@ -585,6 +591,27 @@ test "a comment after an asm suite ends the suite":
     assert(toks[5].kind == token.Kind.raw_line)
     assert(toks[6].kind == token.Kind.dedent)
     assert(toks[7].kind == token.Kind.doc_comment)
+
+test "a blank CRLF line inside or after an asm suite keeps the suite's block":
+    let src = try source.Source.over("test", "func f():\r\n    asm arm64:\r\n        ret\r\n\r\n        nop\r\n    asm x86_64:\r\n        ret\r\n\r\n    # a comment\r\n    g()\r\n".bytes)
+    var lexer = Lexer.over(src)
+    var raw = 0
+    var dedents = 0
+    var g_line: u32 = 0
+    for index in 0..<40:
+        discard(index)
+        let t = try lexer.next()
+        if t.kind == token.Kind.raw_line:
+            raw += 1
+        if t.kind == token.Kind.dedent:
+            dedents += 1
+        if t.kind == token.Kind.name and lexer.text(t) == "g":
+            g_line = t.line
+            break
+    # three raw lines, each suite's dedent and none past the function's body, `g` on line 10
+    assert(raw == 3)
+    assert(dedents == 2)
+    assert(g_line == 10)
 
 test "CRLF asm lines exclude the physical line ending":
     let src = try source.Source.over("test", "asm x86_64:\r\n    cpuid\r\nx\r\n".bytes)

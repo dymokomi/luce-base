@@ -37,6 +37,7 @@ jobs:
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
+            git
       - name: Bootstrap and verify native self-hosting
         run: python tools/build_windows.py
       - name: Read seed pin
@@ -52,11 +53,17 @@ jobs:
           cmake -S build/seed -B build/seed/build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build/seed/build-windows -j 4
           python tools/build_windows.py --seed build/seed/build-windows/lucb.exe
+      # every module's tests through both backends, as test.sh runs them on Unix
       - name: Compiler unit tests
         run: |
-          ./build/luce-base.exe test src/main.lucb
-          ./build/luce-base.exe test src/support/arena.lucb
-          ./build/luce-base.exe test src/support/arena.lucb --backend=c
+          set -eo pipefail
+          for f in $(find src -type f -name '*.lucb' ! -path 'src/std/*' | LC_ALL=C sort) tests/programs/*/*.lucb; do
+            if grep -q '^test "' "$f"; then
+              echo "== test $f"
+              ./build/luce-base.exe test "$f" --backend=c | tail -1
+              ./build/luce-base.exe test "$f" --native | tail -1
+            fi
+          done
       - name: Test runner process ownership
         run: |
           python tools/test_validation_process.py
@@ -78,6 +85,18 @@ jobs:
           python tools/fuzz.py --gate
       - name: Differential fuzz, every generator, 15 minutes
         run: python tools/fuzz.py --seed ${{ github.run_number }} --minutes 15 --mutations 200 --programs 30 --trap-programs 20 --packages 6 --mem-programs 12 --atomic-programs 6 --litmus-programs 4 --width-programs 30
+      - name: A held output is replaced; parameters stay in registers
+        run: |
+          python tools/test_windows_publish.py build/luce-base.exe
+          python tools/test_windows_parameters.py build/luce-base.exe
+      # real programs, checked out with CRLF line endings as Git for Windows does, built
+      # for every target
+      - name: Compile budget
+        run: |
+          for repo in luce-js luce-regex luce-compress luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-browser-engine; do
+            git -c core.autocrlf=true clone -q --depth 1 "https://github.com/dymokomi/$repo" "../$repo"
+          done
+          python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/luce_browser_engine/web/module.lucb
       - name: Retain diagnostics
         if: always()
         uses: actions/upload-artifact@v7

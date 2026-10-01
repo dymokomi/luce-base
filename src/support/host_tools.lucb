@@ -15,6 +15,7 @@ import paths
 import platform
 import process
 import strings
+import thread
 
 ## A temporary directory a host tool runs in, removed when closed.
 pub struct Workspace:
@@ -30,10 +31,22 @@ pub struct Workspace:
     pub func path() -> str:
         return self.directory
 
-    ## Move a produced file out of the workspace to `destination`.
+    ## Move a produced file out of the workspace to `destination`. On Windows a file that
+    ## was just written or run is often held open for a moment by another process (a virus
+    ## scan, the indexer, the previous program still closing), and replacing it fails until
+    ## that handle closes: the move is tried again every 25 ms for two and a half seconds
+    ## before its failure stands.
     pub func publish(source: str, destination: str) -> !:
         let target = try strings.copy(destination)
-        try files.rename((c.str)source, (c.str)target, true)
+        var tries = 0
+        while true:
+            files.rename((c.str)source, (c.str)target, true) catch failure:
+                if platform.windows and tries < 100:
+                    tries += 1
+                    thread.sleep(25)
+                    continue
+                error(failure.code, failure.message)
+            return
 
     ## Remove the workspace and everything in it.
     pub func close() -> !:
