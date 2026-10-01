@@ -103415,35 +103415,35 @@ static __attribute__((unused)) lb_r_unit lb_17back_native_frame_Frame_promote(lb
                                     lb_pos = "src/main.lucb:379:5";
                                     (*({ lb_span _lb_ix21425 = lb_kind; &((uint8_t*)_lb_ix21425.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_va), 32, 0, 64, 0, 1))), (uint64_t)(1ULL), 64))), _lb_ix21425.length)]; })) = 3ULL;
                                 }
-                                lb_pos = "src/main.lucb:380:9";
-                                uint32_t lb_vb __attribute__((unused)) = ((lb_n.op == ((uint8_t)162u)) ? lb_17back_native_frame_Frame_7slot_of(self, lb_n.b) : 0ULL);
                                 lb_pos = "src/main.lucb:381:5";
+                                uint32_t lb_vb __attribute__((unused)) = (((lb_n.op == ((uint8_t)162u)) || (lb_n.op == ((uint8_t)163u))) ? lb_17back_native_frame_Frame_7slot_of(self, lb_n.b) : 0ULL);
+                                lb_pos = "src/main.lucb:382:1";
                                 if (!!((!(lb_vb == 0ULL)))) 
                                 {
-                                    lb_pos = "src/main.lucb:382:1";
+                                    lb_pos = "src/main.lucb:383:1";
                                     (*({ lb_span _lb_ix21426 = lb_kind; &((uint8_t*)_lb_ix21426.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_vb), 32, 0, 64, 0, 1))), (uint64_t)(1ULL), 64))), _lb_ix21426.length)]; })) = 3ULL;
                                 }
                             }
-                            lb_pos = "src/main.lucb:383:1";
+                            lb_pos = "src/main.lucb:384:5";
                             lb_t_0T2_u32_u32 _lb_tu21427 __attribute__((unused)) = lb_10back_ir_ir_14argument_range(lb_f, lb_n);
                             uint32_t lb_args_start __attribute__((unused)) = _lb_tu21427.a0;
                             uint32_t lb_args_count __attribute__((unused)) = _lb_tu21427.a1;
-                            lb_pos = "src/main.lucb:384:5";
-                            uint32_t lb_a __attribute__((unused)) = 0ULL;
                             lb_pos = "src/main.lucb:385:1";
+                            uint32_t lb_a __attribute__((unused)) = 0ULL;
+                            lb_pos = "src/main.lucb:386:1";
                             for (;;) {
-                                lb_pos = "src/main.lucb:385:1";
+                                lb_pos = "src/main.lucb:386:1";
                                 if (!((((uint32_t)(lb_a)) < ((uint32_t)(lb_args_count))))) break;
                                 {
-                                    lb_pos = "src/main.lucb:386:1";
-                                    uint32_t lb_v __attribute__((unused)) = lb_17back_native_frame_Frame_7slot_of(self, lb_12support_list_List_0g1_10back_ir_ir_Arg_get(&((lb_f)->args), ((size_t)lb_conv_u((uint64_t)(((uint32_t)(lb_add_u((uint64_t)(lb_args_start), (uint64_t)(lb_a), 32)))), 32, 0, 64, 0, 1))).value);
                                     lb_pos = "src/main.lucb:387:1";
+                                    uint32_t lb_v __attribute__((unused)) = lb_17back_native_frame_Frame_7slot_of(self, lb_12support_list_List_0g1_10back_ir_ir_Arg_get(&((lb_f)->args), ((size_t)lb_conv_u((uint64_t)(((uint32_t)(lb_add_u((uint64_t)(lb_args_start), (uint64_t)(lb_a), 32)))), 32, 0, 64, 0, 1))).value);
+                                    lb_pos = "src/main.lucb:388:1";
                                     if (!!((!(lb_v == 0ULL)))) 
                                     {
-                                        lb_pos = "src/main.lucb:388:1";
+                                        lb_pos = "src/main.lucb:389:1";
                                         (*({ lb_span _lb_ix21429 = lb_kind; &((uint8_t*)_lb_ix21429.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_v), 32, 0, 64, 0, 1))), (uint64_t)(1ULL), 64))), _lb_ix21429.length)]; })) = 3ULL;
                                     }
-                                    lb_pos = "src/main.lucb:389:1";
+                                    lb_pos = "src/main.lucb:390:1";
                                     { uint32_t* lb__cell21430 = &(lb_a);
                                     (*(lb__cell21430)) = (uint32_t)(lb_add_u((uint64_t)((*(lb__cell21430))), (uint64_t)(1ULL), 32)); }
                                 }
@@ -103451,124 +103451,124 @@ static __attribute__((unused)) lb_r_unit lb_17back_native_frame_Frame_promote(lb
                         }
                         else 
                         {
-                            lb_pos = "src/main.lucb:391:1";
-                            uint32_t lb_va __attribute__((unused)) = lb_17back_native_frame_Frame_7slot_of(self, lb_n.a);
                             lb_pos = "src/main.lucb:392:1";
+                            uint32_t lb_va __attribute__((unused)) = lb_17back_native_frame_Frame_7slot_of(self, lb_n.a);
+                            lb_pos = "src/main.lucb:393:1";
                             if (!!((!(lb_va == 0ULL)))) 
                             {
-                                lb_pos = "src/main.lucb:393:1";
+                                lb_pos = "src/main.lucb:394:1";
                                 (*({ lb_span _lb_ix21431 = lb_kind; &((uint8_t*)_lb_ix21431.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_va), 32, 0, 64, 0, 1))), (uint64_t)(1ULL), 64))), _lb_ix21431.length)]; })) = 3ULL;
                             }
-                            lb_pos = "src/main.lucb:394:1";
-                            uint32_t lb_vb __attribute__((unused)) = lb_17back_native_frame_Frame_7slot_of(self, lb_n.b);
                             lb_pos = "src/main.lucb:395:1";
+                            uint32_t lb_vb __attribute__((unused)) = lb_17back_native_frame_Frame_7slot_of(self, lb_n.b);
+                            lb_pos = "src/main.lucb:396:1";
                             if (!!((!(lb_vb == 0ULL)))) 
                             {
-                                lb_pos = "src/main.lucb:396:1";
+                                lb_pos = "src/main.lucb:397:1";
                                 (*({ lb_span _lb_ix21432 = lb_kind; &((uint8_t*)_lb_ix21432.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_vb), 32, 0, 64, 0, 1))), (uint64_t)(1ULL), 64))), _lb_ix21432.length)]; })) = 3ULL;
                             }
                         }
                     }
                 }
             }
-            lb_pos = "src/main.lucb:397:1";
+            lb_pos = "src/main.lucb:398:1";
             { size_t* lb__cell21433 = &(lb_ix);
             (*(lb__cell21433)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell21433))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/main.lucb:399:1";
-    uint8_t lb_int_code __attribute__((unused)) = 1ULL;
     lb_pos = "src/main.lucb:400:1";
-    uint8_t lb_float_code __attribute__((unused)) = (uint8_t)(lb_add_u((uint64_t)(self->registers.ints), (uint64_t)(1ULL), 8));
+    uint8_t lb_int_code __attribute__((unused)) = 1ULL;
     lb_pos = "src/main.lucb:401:1";
+    uint8_t lb_float_code __attribute__((unused)) = (uint8_t)(lb_add_u((uint64_t)(self->registers.ints), (uint64_t)(1ULL), 8));
+    lb_pos = "src/main.lucb:402:1";
     for (;;) {
-        lb_pos = "src/main.lucb:401:1";
+        lb_pos = "src/main.lucb:402:1";
         if (!(true)) break;
         {
-            lb_pos = "src/main.lucb:402:1";
-            size_t lb_best __attribute__((unused)) = lb_ns;
             lb_pos = "src/main.lucb:403:1";
-            uint32_t lb_best_uses __attribute__((unused)) = 0ULL;
+            size_t lb_best __attribute__((unused)) = lb_ns;
             lb_pos = "src/main.lucb:404:1";
-            lb_i = 0ULL;
+            uint32_t lb_best_uses __attribute__((unused)) = 0ULL;
             lb_pos = "src/main.lucb:405:1";
+            lb_i = 0ULL;
+            lb_pos = "src/main.lucb:406:1";
             for (;;) {
-                lb_pos = "src/main.lucb:405:1";
+                lb_pos = "src/main.lucb:406:1";
                 if (!((((size_t)(lb_i)) < ((size_t)(lb_ns))))) break;
                 {
-                    lb_pos = "src/main.lucb:406:1";
+                    lb_pos = "src/main.lucb:407:1";
                     if (!!((((({ uint8_t _lb_sq21436 __attribute__((unused)) = lb_12support_list_List_0g1_u8_get(&(self->slot_regs), lb_i); uint8_t _lb_sq21437 __attribute__((unused)) = 0ULL; (_lb_sq21436 == _lb_sq21437); }) && ((((*({ lb_span _lb_ix21438 = lb_kind; &((uint8_t*)_lb_ix21438.data)[lb_at((uint64_t)(lb_i), _lb_ix21438.length)]; })) == 1ULL) || ((*({ lb_span _lb_ix21439 = lb_kind; &((uint8_t*)_lb_ix21439.data)[lb_at((uint64_t)(lb_i), _lb_ix21439.length)]; })) == 2ULL)))) && (((uint32_t)((*({ lb_span _lb_ix21440 = lb_uses; &((uint32_t*)_lb_ix21440.data)[lb_at((uint64_t)(lb_i), _lb_ix21440.length)]; })))) >= ((uint32_t)(2ULL)))) && (((uint32_t)((*({ lb_span _lb_ix21441 = lb_uses; &((uint32_t*)_lb_ix21441.data)[lb_at((uint64_t)(lb_i), _lb_ix21441.length)]; })))) > ((uint32_t)(lb_best_uses)))))) 
                     {
-                        lb_pos = "src/main.lucb:407:1";
-                        lb_best = lb_i;
                         lb_pos = "src/main.lucb:408:1";
+                        lb_best = lb_i;
+                        lb_pos = "src/main.lucb:409:1";
                         lb_best_uses = (*({ lb_span _lb_ix21442 = lb_uses; &((uint32_t*)_lb_ix21442.data)[lb_at((uint64_t)(lb_i), _lb_ix21442.length)]; }));
                     }
-                    lb_pos = "src/main.lucb:409:1";
+                    lb_pos = "src/main.lucb:410:1";
                     { size_t* lb__cell21443 = &(lb_i);
                     (*(lb__cell21443)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell21443))), (uint64_t)(1ULL), 64)); }
                 }
             }
-            lb_pos = "src/main.lucb:410:1";
+            lb_pos = "src/main.lucb:411:1";
             if (!!((lb_best == lb_ns))) 
             {
-                lb_pos = "src/main.lucb:411:1";
+                lb_pos = "src/main.lucb:412:1";
                 goto _lb_brk21434;
             }
-            lb_pos = "src/main.lucb:412:1";
+            lb_pos = "src/main.lucb:413:1";
             for (;;) {
-                lb_pos = "src/main.lucb:412:1";
+                lb_pos = "src/main.lucb:413:1";
                 if (!(((((uint8_t)(lb_int_code)) <= ((uint8_t)(lb_ints))) && lb_17back_native_frame_Frame_11is_reserved(self, lb_int_code)))) break;
                 {
-                    lb_pos = "src/main.lucb:413:1";
+                    lb_pos = "src/main.lucb:414:1";
                     { uint8_t* lb__cell21445 = &(lb_int_code);
                     (*(lb__cell21445)) = (uint8_t)(lb_add_u((uint64_t)((*(lb__cell21445))), (uint64_t)(1ULL), 8)); }
                 }
             }
-            lb_pos = "src/main.lucb:414:1";
+            lb_pos = "src/main.lucb:415:1";
             for (;;) {
-                lb_pos = "src/main.lucb:414:1";
+                lb_pos = "src/main.lucb:415:1";
                 if (!(((((uint8_t)(lb_float_code)) <= ((uint8_t)((uint8_t)(lb_add_u((uint64_t)(self->registers.ints), (uint64_t)(lb_floats), 8))))) && lb_17back_native_frame_Frame_11is_reserved(self, lb_float_code)))) break;
                 {
-                    lb_pos = "src/main.lucb:415:1";
+                    lb_pos = "src/main.lucb:416:1";
                     { uint8_t* lb__cell21447 = &(lb_float_code);
                     (*(lb__cell21447)) = (uint8_t)(lb_add_u((uint64_t)((*(lb__cell21447))), (uint64_t)(1ULL), 8)); }
                 }
             }
-            lb_pos = "src/main.lucb:416:1";
+            lb_pos = "src/main.lucb:417:5";
             if (!!(((*({ lb_span _lb_ix21448 = lb_kind; &((uint8_t*)_lb_ix21448.data)[lb_at((uint64_t)(lb_best), _lb_ix21448.length)]; })) == 1ULL))) 
             {
-                lb_pos = "src/main.lucb:417:5";
+                lb_pos = "src/main.lucb:418:1";
                 if (!!((((uint8_t)(lb_int_code)) > ((uint8_t)(lb_ints))))) 
                 {
-                    lb_pos = "src/main.lucb:418:1";
-                    (*({ lb_span _lb_ix21449 = lb_kind; &((uint8_t*)_lb_ix21449.data)[lb_at((uint64_t)(lb_best), _lb_ix21449.length)]; })) = 3ULL;
                     lb_pos = "src/main.lucb:419:1";
+                    (*({ lb_span _lb_ix21449 = lb_kind; &((uint8_t*)_lb_ix21449.data)[lb_at((uint64_t)(lb_best), _lb_ix21449.length)]; })) = 3ULL;
+                    lb_pos = "src/main.lucb:420:1";
                     continue;
                 }
-                lb_pos = "src/main.lucb:420:1";
-                (void)(lb_12support_list_List_0g1_u8_set(&(self->slot_regs), lb_best, lb_int_code));
                 lb_pos = "src/main.lucb:421:1";
-                self->used_mask = ((uint64_t)(self->used_mask | ((uint64_t)(lb_shl_u((uint64_t)(((uint64_t)lb_conv_s((int64_t)(1LL), 64, 1, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(((uint8_t)(lb_sub_u((uint64_t)(lb_int_code), (uint64_t)(1ULL), 8)))), 8, 0, 64, 0, 1))), 64)))));
+                (void)(lb_12support_list_List_0g1_u8_set(&(self->slot_regs), lb_best, lb_int_code));
                 lb_pos = "src/main.lucb:422:5";
+                self->used_mask = ((uint64_t)(self->used_mask | ((uint64_t)(lb_shl_u((uint64_t)(((uint64_t)lb_conv_s((int64_t)(1LL), 64, 1, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(((uint8_t)(lb_sub_u((uint64_t)(lb_int_code), (uint64_t)(1ULL), 8)))), 8, 0, 64, 0, 1))), 64)))));
+                lb_pos = "src/main.lucb:423:1";
                 { uint8_t* lb__cell21450 = &(lb_int_code);
                 (*(lb__cell21450)) = (uint8_t)(lb_add_u((uint64_t)((*(lb__cell21450))), (uint64_t)(1ULL), 8)); }
             }
             else 
             {
-                lb_pos = "src/main.lucb:424:1";
+                lb_pos = "src/main.lucb:425:5";
                 if (!!((((uint8_t)(lb_float_code)) > ((uint8_t)((uint8_t)(lb_add_u((uint64_t)(self->registers.ints), (uint64_t)(lb_floats), 8))))))) 
                 {
-                    lb_pos = "src/main.lucb:425:5";
-                    (*({ lb_span _lb_ix21451 = lb_kind; &((uint8_t*)_lb_ix21451.data)[lb_at((uint64_t)(lb_best), _lb_ix21451.length)]; })) = 3ULL;
                     lb_pos = "src/main.lucb:426:9";
+                    (*({ lb_span _lb_ix21451 = lb_kind; &((uint8_t*)_lb_ix21451.data)[lb_at((uint64_t)(lb_best), _lb_ix21451.length)]; })) = 3ULL;
+                    lb_pos = "src/main.lucb:427:5";
                     continue;
                 }
-                lb_pos = "src/main.lucb:427:5";
-                (void)(lb_12support_list_List_0g1_u8_set(&(self->slot_regs), lb_best, lb_float_code));
                 lb_pos = "src/main.lucb:428:1";
-                self->used_mask = ((uint64_t)(self->used_mask | ((uint64_t)(lb_shl_u((uint64_t)(((uint64_t)lb_conv_s((int64_t)(1LL), 64, 1, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(((uint8_t)(lb_sub_u((uint64_t)(lb_float_code), (uint64_t)(1ULL), 8)))), 8, 0, 64, 0, 1))), 64)))));
+                (void)(lb_12support_list_List_0g1_u8_set(&(self->slot_regs), lb_best, lb_float_code));
                 lb_pos = "src/main.lucb:429:1";
+                self->used_mask = ((uint64_t)(self->used_mask | ((uint64_t)(lb_shl_u((uint64_t)(((uint64_t)lb_conv_s((int64_t)(1LL), 64, 1, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(((uint8_t)(lb_sub_u((uint64_t)(lb_float_code), (uint64_t)(1ULL), 8)))), 8, 0, 64, 0, 1))), 64)))));
+                lb_pos = "src/main.lucb:430:1";
                 { uint8_t* lb__cell21452 = &(lb_float_code);
                 (*(lb__cell21452)) = (uint8_t)(lb_add_u((uint64_t)((*(lb__cell21452))), (uint64_t)(1ULL), 8)); }
             }
@@ -103587,135 +103587,135 @@ static __attribute__((unused)) lb_r_unit lb_17back_native_frame_Frame_promote(lb
 }
 static __attribute__((unused)) uint8_t lb_17back_native_frame_budget(uint32_t lb_need, uint8_t lb_pool, uint8_t lb_keep) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/back/native/frame.lucb:510:5";
-    uint32_t lb_kept __attribute__((unused)) = ((((uint32_t)(lb_need)) < ((uint32_t)(((uint32_t)lb_conv_u((uint64_t)(lb_keep), 8, 0, 32, 0, 1))))) ? lb_need : ((uint32_t)lb_conv_u((uint64_t)(lb_keep), 8, 0, 32, 0, 1)));
     lb_pos = "src/back/native/frame.lucb:511:5";
+    uint32_t lb_kept __attribute__((unused)) = ((((uint32_t)(lb_need)) < ((uint32_t)(((uint32_t)lb_conv_u((uint64_t)(lb_keep), 8, 0, 32, 0, 1))))) ? lb_need : ((uint32_t)lb_conv_u((uint64_t)(lb_keep), 8, 0, 32, 0, 1)));
+    lb_pos = "src/back/native/frame.lucb:512:5";
     uint8_t _lb_ret21455 = ((uint8_t)lb_conv_u((uint64_t)(((uint32_t)(lb_sub_u((uint64_t)(((uint32_t)lb_conv_u((uint64_t)(lb_pool), 8, 0, 32, 0, 1))), (uint64_t)(lb_kept), 32)))), 32, 0, 8, 0, 1));
     return _lb_ret21455;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) lb_r_unit lb_17back_native_frame_Frame_allocate(lb_17back_native_frame_Frame* self, struct lb_10back_ir_ir_Function* lb_f, struct lb_20back_native_regalloc_Lives* lb_lives) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/main.lucb:453:5";
-    self->temp_regs.count = 0ULL;
     lb_pos = "src/main.lucb:454:5";
-    self->temp_saved.count = 0ULL;
+    self->temp_regs.count = 0ULL;
     lb_pos = "src/main.lucb:455:5";
-    self->crossings.count = 0ULL;
+    self->temp_saved.count = 0ULL;
     lb_pos = "src/main.lucb:456:9";
-    self->temp_ends.count = 0ULL;
+    self->crossings.count = 0ULL;
     lb_pos = "src/main.lucb:457:5";
-    size_t lb_n __attribute__((unused)) = (lb_f)->temps.count;
+    self->temp_ends.count = 0ULL;
     lb_pos = "src/main.lucb:458:5";
-    size_t lb_i __attribute__((unused)) = 0ULL;
+    size_t lb_n __attribute__((unused)) = (lb_f)->temps.count;
     lb_pos = "src/main.lucb:459:5";
+    size_t lb_i __attribute__((unused)) = 0ULL;
+    lb_pos = "src/main.lucb:460:5";
     for (;;) {
-        lb_pos = "src/main.lucb:459:5";
+        lb_pos = "src/main.lucb:460:5";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_n))))) break;
         {
-            lb_pos = "src/main.lucb:460:5";
+            lb_pos = "src/main.lucb:461:5";
             (void)((({ lb_r_unit _lb_r21457 = lb_12support_list_List_0g1_u8_push(&(self->temp_regs), 0ULL); if (_lb_r21457.failed) {
                 return ((lb_r_unit){ .error = _lb_r21457.error, .failed = true });
             } (void)0; })));
-            lb_pos = "src/main.lucb:461:5";
+            lb_pos = "src/main.lucb:462:5";
             (void)((({ lb_r_unit _lb_r21458 = lb_12support_list_List_0g1_u32_push(&(self->temp_ends), lb_20back_native_regalloc_Lives_8life_end(lb_lives, ((uint32_t)lb_conv_u((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_i), (uint64_t)(1ULL), 64))), 64, 0, 32, 0, 0)))); if (_lb_r21458.failed) {
                 return ((lb_r_unit){ .error = _lb_r21458.error, .failed = true });
             } (void)0; })));
-            lb_pos = "src/main.lucb:462:5";
+            lb_pos = "src/main.lucb:463:5";
             { size_t* lb__cell21459 = &(lb_i);
             (*(lb__cell21459)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell21459))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/main.lucb:463:5";
-    uint64_t lb_taken __attribute__((unused)) = self->reserved;
     lb_pos = "src/main.lucb:464:5";
-    size_t lb_ps __attribute__((unused)) = 0ULL;
+    uint64_t lb_taken __attribute__((unused)) = self->reserved;
     lb_pos = "src/main.lucb:465:1";
+    size_t lb_ps __attribute__((unused)) = 0ULL;
+    lb_pos = "src/main.lucb:466:1";
     for (;;) {
-        lb_pos = "src/main.lucb:465:1";
+        lb_pos = "src/main.lucb:466:1";
         if (!((((size_t)(lb_ps)) < ((size_t)(self->slot_regs.count))))) break;
         {
-            lb_pos = "src/main.lucb:466:1";
-            uint8_t lb_code __attribute__((unused)) = lb_12support_list_List_0g1_u8_get(&(self->slot_regs), lb_ps);
             lb_pos = "src/main.lucb:467:5";
+            uint8_t lb_code __attribute__((unused)) = lb_12support_list_List_0g1_u8_get(&(self->slot_regs), lb_ps);
+            lb_pos = "src/main.lucb:468:1";
             if (!!((!(lb_code == 0ULL)))) 
             {
-                lb_pos = "src/main.lucb:468:1";
+                lb_pos = "src/main.lucb:469:1";
                 lb_taken = ((uint64_t)(lb_taken | ((uint64_t)(lb_shl_u((uint64_t)(((uint64_t)lb_conv_s((int64_t)(1LL), 64, 1, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(((uint8_t)(lb_sub_u((uint64_t)(lb_code), (uint64_t)(1ULL), 8)))), 8, 0, 64, 0, 1))), 64)))));
             }
-            lb_pos = "src/main.lucb:469:1";
+            lb_pos = "src/main.lucb:470:5";
             { size_t* lb__cell21461 = &(lb_ps);
             (*(lb__cell21461)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell21461))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/main.lucb:470:5";
-    self->used_mask = lb_taken;
     lb_pos = "src/main.lucb:471:5";
+    self->used_mask = lb_taken;
+    lb_pos = "src/main.lucb:472:1";
     if (!!((lb_n == 0ULL))) 
     {
-        lb_pos = "src/main.lucb:472:1";
+        lb_pos = "src/main.lucb:473:1";
         return ((lb_r_unit){ .failed = false });
     }
-    lb_pos = "src/main.lucb:473:1";
+    lb_pos = "src/main.lucb:474:1";
     lb_span lb_codes __attribute__((unused)) = (({ lb_r_u8_0s _lb_r21462 = ({ lb_iface _lb_a21463 = lb_memory_allocator; size_t _lb_n21463 = (size_t)(lb_n); lb_r_u8_0s _lb_r21463; if (_lb_n21463 > UINT64_C(4611686018427387904)) { _lb_r21463 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes21463 = sizeof(uint8_t) * _lb_n21463; lb_o_u8_0s _lb_ao21463 = lb_alloc_call(_lb_a21463, _lb_bytes21463, _Alignof(uint8_t)); if (_lb_bytes21463 != 0 && !_lb_ao21463.present) { _lb_r21463 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r21463.value.data = _lb_ao21463.value.data; _lb_r21463.value.length = _lb_n21463; _lb_r21463.failed = false; } } _lb_r21463; }); if (_lb_r21462.failed) {
         return ((lb_r_unit){ .error = _lb_r21462.error, .failed = true });
     } _lb_r21462.value; }));
-    lb_pos = "src/main.lucb:474:1";
     lb_pos = "src/main.lucb:475:5";
+    lb_pos = "src/main.lucb:476:5";
     uint64_t lb_used __attribute__((unused)) = (({ lb_r_u64 _lb_r21464 = ({ struct lb_10back_ir_ir_Function* _lb_sq21465 __attribute__((unused)) = lb_f; lb_20back_native_regalloc_Pools _lb_sq21466 __attribute__((unused)) = lb_17back_native_frame_Registers_pools(&(self->registers)); uint64_t _lb_sq21467 __attribute__((unused)) = lb_taken; lb_span _lb_sq21468 __attribute__((unused)) = lb_codes; lb_20back_native_regalloc_Lives_allocate(lb_lives, _lb_sq21465, _lb_sq21466, _lb_sq21467, _lb_sq21468); }); if (_lb_r21464.failed) {
         {
-            lb_pos = "src/main.lucb:474:1";
+            lb_pos = "src/main.lucb:475:5";
             { lb_span _lb_s21469 = lb_codes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21469.data), lb_mul_u(_lb_s21469.length, sizeof(uint8_t), 64) }); }
         }
         return ((lb_r_unit){ .error = _lb_r21464.error, .failed = true });
     } _lb_r21464.value; }));
-    lb_pos = "src/main.lucb:476:5";
-    lb_i = 0ULL;
     lb_pos = "src/main.lucb:477:5";
+    lb_i = 0ULL;
+    lb_pos = "src/main.lucb:478:9";
     for (;;) {
-        lb_pos = "src/main.lucb:477:5";
+        lb_pos = "src/main.lucb:478:9";
         if (!((((size_t)(lb_i)) < ((size_t)(lb_n))))) break;
         {
-            lb_pos = "src/main.lucb:479:5";
-            (void)(({ size_t _lb_sq21471 __attribute__((unused)) = lb_i; uint8_t _lb_sq21472 __attribute__((unused)) = (({ uint32_t _lb_sq21473 __attribute__((unused)) = lb_17back_native_frame_Frame_13promoted_slot(self, ((uint32_t)lb_conv_u((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_i), (uint64_t)(1ULL), 64))), 64, 0, 32, 0, 0))); uint32_t _lb_sq21474 __attribute__((unused)) = 0ULL; (_lb_sq21473 == _lb_sq21474); }) ? (*({ lb_span _lb_ix21475 = lb_codes; &((uint8_t*)_lb_ix21475.data)[lb_at((uint64_t)(lb_i), _lb_ix21475.length)]; })) : 0ULL); lb_12support_list_List_0g1_u8_set(&(self->temp_regs), _lb_sq21471, _lb_sq21472); }));
             lb_pos = "src/main.lucb:480:9";
+            (void)(({ size_t _lb_sq21471 __attribute__((unused)) = lb_i; uint8_t _lb_sq21472 __attribute__((unused)) = (({ uint32_t _lb_sq21473 __attribute__((unused)) = lb_17back_native_frame_Frame_13promoted_slot(self, ((uint32_t)lb_conv_u((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_i), (uint64_t)(1ULL), 64))), 64, 0, 32, 0, 0))); uint32_t _lb_sq21474 __attribute__((unused)) = 0ULL; (_lb_sq21473 == _lb_sq21474); }) ? (*({ lb_span _lb_ix21475 = lb_codes; &((uint8_t*)_lb_ix21475.data)[lb_at((uint64_t)(lb_i), _lb_ix21475.length)]; })) : 0ULL); lb_12support_list_List_0g1_u8_set(&(self->temp_regs), _lb_sq21471, _lb_sq21472); }));
+            lb_pos = "src/main.lucb:481:5";
             (void)((({ lb_r_unit _lb_r21476 = lb_12support_list_List_0g1_bool_push(&(self->temp_saved), ((*({ lb_span _lb_ix21477 = (lb_lives)->saved; &((bool*)_lb_ix21477.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_i), (uint64_t)(1ULL), 64))), _lb_ix21477.length)]; })) && ({ uint8_t _lb_sq21478 __attribute__((unused)) = lb_12support_list_List_0g1_u8_get(&(self->temp_regs), lb_i); uint8_t _lb_sq21479 __attribute__((unused)) = 0ULL; (!(_lb_sq21478 == _lb_sq21479)); }))); if (_lb_r21476.failed) {
                 {
-                    lb_pos = "src/main.lucb:474:1";
+                    lb_pos = "src/main.lucb:475:5";
                     { lb_span _lb_s21480 = lb_codes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21480.data), lb_mul_u(_lb_s21480.length, sizeof(uint8_t), 64) }); }
                 }
                 return ((lb_r_unit){ .error = _lb_r21476.error, .failed = true });
             } (void)0; })));
-            lb_pos = "src/main.lucb:481:5";
+            lb_pos = "src/main.lucb:482:1";
             { size_t* lb__cell21481 = &(lb_i);
             (*(lb__cell21481)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell21481))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/main.lucb:482:1";
+    lb_pos = "src/main.lucb:483:1";
     self->used_mask = ((uint64_t)(self->used_mask | lb_used));
-    lb_pos = "src/main.lucb:485:1";
+    lb_pos = "src/main.lucb:486:1";
     lb_12support_list_List_0g1_u32 lb_saved __attribute__((unused)) = (({ lb_r_12support_list_List_0g1_u32 _lb_r21482 = lb_12support_list_List_0g1_u32_create(8ULL); if (_lb_r21482.failed) {
         {
-            lb_pos = "src/main.lucb:474:1";
+            lb_pos = "src/main.lucb:475:5";
             { lb_span _lb_s21483 = lb_codes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21483.data), lb_mul_u(_lb_s21483.length, sizeof(uint8_t), 64) }); }
         }
         return ((lb_r_unit){ .error = _lb_r21482.error, .failed = true });
     } _lb_r21482.value; }));
-    lb_pos = "src/main.lucb:486:1";
     lb_pos = "src/main.lucb:487:1";
+    lb_pos = "src/main.lucb:488:1";
     for (size_t lb_t __attribute__((unused)) = (size_t)(1ULL); lb_t < (size_t)((size_t)(lb_add_u((uint64_t)(lb_n), (uint64_t)(1ULL), 64))); lb_t++) {
         {
-            lb_pos = "src/main.lucb:488:1";
+            lb_pos = "src/main.lucb:489:5";
             if (!!(lb_12support_list_List_0g1_bool_get(&(self->temp_saved), (size_t)(lb_sub_u((uint64_t)(lb_t), (uint64_t)(1ULL), 64))))) 
             {
-                lb_pos = "src/main.lucb:489:5";
+                lb_pos = "src/main.lucb:490:5";
                 (void)((({ lb_r_unit _lb_r21486 = lb_12support_list_List_0g1_u32_push(&(lb_saved), ((uint32_t)lb_conv_u((uint64_t)(lb_t), 64, 0, 32, 0, 0))); if (_lb_r21486.failed) {
                     {
-                        lb_pos = "src/main.lucb:486:1";
+                        lb_pos = "src/main.lucb:487:1";
                         (void)(lb_12support_list_List_0g1_u32_destroy(&(lb_saved)));
                     }
                     {
-                        lb_pos = "src/main.lucb:474:1";
+                        lb_pos = "src/main.lucb:475:5";
                         { lb_span _lb_s21487 = lb_codes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21487.data), lb_mul_u(_lb_s21487.length, sizeof(uint8_t), 64) }); }
                     }
                     return ((lb_r_unit){ .error = _lb_r21486.error, .failed = true });
@@ -103723,45 +103723,45 @@ static __attribute__((unused)) lb_r_unit lb_17back_native_frame_Frame_allocate(l
             }
         }
     }
-    lb_pos = "src/main.lucb:490:5";
+    lb_pos = "src/main.lucb:491:5";
     if (!!((lb_saved.count == 0ULL))) 
     {
-        lb_pos = "src/main.lucb:491:5";
+        lb_pos = "src/main.lucb:492:5";
         {
-            lb_pos = "src/main.lucb:486:1";
+            lb_pos = "src/main.lucb:487:1";
             (void)(lb_12support_list_List_0g1_u32_destroy(&(lb_saved)));
         }
         {
-            lb_pos = "src/main.lucb:474:1";
+            lb_pos = "src/main.lucb:475:5";
             { lb_span _lb_s21488 = lb_codes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21488.data), lb_mul_u(_lb_s21488.length, sizeof(uint8_t), 64) }); }
         }
         return ((lb_r_unit){ .failed = false });
     }
-    lb_pos = "src/main.lucb:492:5";
+    lb_pos = "src/main.lucb:493:5";
     for (size_t lb_at_ __attribute__((unused)) = (size_t)(0ULL); lb_at_ < (size_t)((lb_f)->instrs.count); lb_at_++) {
         {
-            lb_pos = "src/main.lucb:493:5";
+            lb_pos = "src/main.lucb:494:5";
             if (!!((!lb_20back_native_regalloc_10is_barrier(lb_12support_list_List_0g1_10back_ir_ir_Instr_get(&((lb_f)->instrs), lb_at_))))) 
             {
-                lb_pos = "src/main.lucb:494:5";
+                lb_pos = "src/main.lucb:495:5";
                 continue;
             }
-            lb_pos = "src/main.lucb:495:5";
+            lb_pos = "src/main.lucb:496:5";
             lb_span _lb_seq21492 = lb_12support_list_List_0g1_u32_span(&(lb_saved));
             for (size_t _lb_i21492 = 0; _lb_i21492 < _lb_seq21492.length; _lb_i21492++) {
                 uint32_t lb_t __attribute__((unused)) = ((uint32_t*)_lb_seq21492.data)[_lb_i21492];
                 {
-                    lb_pos = "src/main.lucb:496:5";
+                    lb_pos = "src/main.lucb:497:5";
                     if (!!(({ uint32_t _lb_sq21493 __attribute__((unused)) = lb_t; uint32_t _lb_sq21494 __attribute__((unused)) = ((uint32_t)lb_conv_u((uint64_t)((size_t)(lb_mul_u((uint64_t)(2ULL), (uint64_t)(lb_at_), 64))), 64, 0, 32, 0, 0)); lb_20back_native_regalloc_Lives_13covers_across(lb_lives, _lb_sq21493, _lb_sq21494); }))) 
                     {
-                        lb_pos = "src/main.lucb:497:5";
+                        lb_pos = "src/main.lucb:498:5";
                         (void)((({ lb_r_unit _lb_r21495 = lb_12support_list_List_0g1_17back_native_frame_Crossing_push(&(self->crossings), ({ uint32_t _lb_sq21496 __attribute__((unused)) = ((uint32_t)lb_conv_u((uint64_t)(lb_at_), 64, 0, 32, 0, 0)); uint32_t _lb_sq21497 __attribute__((unused)) = lb_t; ((lb_17back_native_frame_Crossing){.at = _lb_sq21496, .temp = _lb_sq21497}); })); if (_lb_r21495.failed) {
                             {
-                                lb_pos = "src/main.lucb:486:1";
+                                lb_pos = "src/main.lucb:487:1";
                                 (void)(lb_12support_list_List_0g1_u32_destroy(&(lb_saved)));
                             }
                             {
-                                lb_pos = "src/main.lucb:474:1";
+                                lb_pos = "src/main.lucb:475:5";
                                 { lb_span _lb_s21498 = lb_codes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21498.data), lb_mul_u(_lb_s21498.length, sizeof(uint8_t), 64) }); }
                             }
                             return ((lb_r_unit){ .error = _lb_r21495.error, .failed = true });
@@ -103772,11 +103772,11 @@ static __attribute__((unused)) lb_r_unit lb_17back_native_frame_Frame_allocate(l
         }
     }
     {
-        lb_pos = "src/main.lucb:486:1";
+        lb_pos = "src/main.lucb:487:1";
         (void)(lb_12support_list_List_0g1_u32_destroy(&(lb_saved)));
     }
     {
-        lb_pos = "src/main.lucb:474:1";
+        lb_pos = "src/main.lucb:475:5";
         { lb_span _lb_s21499 = lb_codes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21499.data), lb_mul_u(_lb_s21499.length, sizeof(uint8_t), 64) }); }
     }
     return ((lb_r_unit){ .failed = false });
@@ -103793,24 +103793,24 @@ static __attribute__((unused)) void lb_21back_native_selection_9note_slot(lb_spa
 }
 static __attribute__((unused)) void lb_17back_native_frame_9mark_home(lb_10back_ir_ir_Ref lb_value, lb_span lb_slots, lb_span lb_temps) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/back/native/frame.lucb:504:5";
+    lb_pos = "src/back/native/frame.lucb:505:5";
     if (!!((lb_value.kind == ((uint8_t)1u)))) 
     {
-        lb_pos = "src/back/native/frame.lucb:505:9";
+        lb_pos = "src/back/native/frame.lucb:506:9";
         (*({ lb_span _lb_ix21502 = lb_temps; &((bool*)_lb_ix21502.data)[lb_at((uint64_t)(lb_value.index), _lb_ix21502.length)]; })) = true;
     }
     else {
-        lb_pos = "src/back/native/frame.lucb:506:5";
+        lb_pos = "src/back/native/frame.lucb:507:5";
         if (!!((lb_value.kind == ((uint8_t)3u)))) 
         {
-            lb_pos = "src/back/native/frame.lucb:507:9";
+            lb_pos = "src/back/native/frame.lucb:508:9";
             (*({ lb_span _lb_ix21503 = lb_slots; &((bool*)_lb_ix21503.data)[lb_at((uint64_t)(lb_value.index), _lb_ix21503.length)]; })) = true;
         }
     }
 }
 static __attribute__((unused)) uint64_t lb_17back_native_frame_8round_up(uint64_t lb_value, uint64_t lb_align) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/back/native/frame.lucb:531:5";
+    lb_pos = "src/back/native/frame.lucb:532:5";
     uint64_t _lb_ret21504 = (uint64_t)(lb_mul_u((uint64_t)((uint64_t)(lb_div_u((uint64_t)(((uint64_t)(lb_sub_u((uint64_t)((uint64_t)(lb_add_u((uint64_t)(lb_value), (uint64_t)(lb_align), 64))), (uint64_t)(1ULL), 64)))), (uint64_t)(lb_align), 64))), (uint64_t)(lb_align), 64));
     return _lb_ret21504;
     lb_trap("unreachable");
@@ -112069,7 +112069,7 @@ static __attribute__((unused)) lb_str lb_17back_native_arm64_13load_mnemonic(uin
 }
 static __attribute__((unused)) uint32_t lb_17back_native_frame_12access_width(uint8_t lb_op) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/back/native/frame.lucb:524:5";
+    lb_pos = "src/back/native/frame.lucb:525:5";
     uint8_t _lb_m23161 __attribute__((unused)) = lb_op;
     switch ((int64_t)(_lb_m23161)) {
         case 40LL:
@@ -112077,7 +112077,7 @@ static __attribute__((unused)) uint32_t lb_17back_native_frame_12access_width(ui
         case 50LL:
         {
             {
-                lb_pos = "src/back/native/frame.lucb:525:9";
+                lb_pos = "src/back/native/frame.lucb:526:9";
                 uint32_t _lb_ret23162 = 1ULL;
                 return _lb_ret23162;
             }
@@ -112090,7 +112090,7 @@ static __attribute__((unused)) uint32_t lb_17back_native_frame_12access_width(ui
         case 56LL:
         {
             {
-                lb_pos = "src/back/native/frame.lucb:526:9";
+                lb_pos = "src/back/native/frame.lucb:527:9";
                 uint32_t _lb_ret23163 = 2ULL;
                 return _lb_ret23163;
             }
@@ -112103,7 +112103,7 @@ static __attribute__((unused)) uint32_t lb_17back_native_frame_12access_width(ui
         case 54LL:
         {
             {
-                lb_pos = "src/back/native/frame.lucb:527:9";
+                lb_pos = "src/back/native/frame.lucb:528:9";
                 uint32_t _lb_ret23164 = 4ULL;
                 return _lb_ret23164;
             }
@@ -112112,7 +112112,7 @@ static __attribute__((unused)) uint32_t lb_17back_native_frame_12access_width(ui
         default:
         {
             {
-                lb_pos = "src/back/native/frame.lucb:528:9";
+                lb_pos = "src/back/native/frame.lucb:529:9";
                 uint32_t _lb_ret23165 = 8ULL;
                 return _lb_ret23165;
             }
@@ -140035,54 +140035,54 @@ static __attribute__((unused)) lb_r_19back_native_sharing_Span_0s lb_19back_nati
 }
 static __attribute__((unused)) bool lb_17back_native_frame_7is_load(uint8_t lb_op) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/back/native/frame.lucb:514:5";
+    lb_pos = "src/back/native/frame.lucb:515:5";
     bool _lb_ret29654 = ((((uint8_t)(((uint8_t)(lb_op)))) >= ((uint8_t)(((uint8_t)(((uint8_t)40u)))))) && (((uint8_t)(((uint8_t)(lb_op)))) <= ((uint8_t)(((uint8_t)(((uint8_t)49u)))))));
     return _lb_ret29654;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) void lb_17back_native_frame_Frame_11note_access(const lb_17back_native_frame_Frame* self, struct lb_10back_ir_ir_Function* lb_f, uint32_t lb_k, uint32_t lb_width, bool lb_float, lb_span lb_kind, lb_span lb_uses) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/main.lucb:434:5";
+    lb_pos = "src/main.lucb:435:5";
     if (!!((lb_k == 0ULL))) 
     {
-        lb_pos = "src/main.lucb:435:5";
+        lb_pos = "src/main.lucb:436:5";
         return;
     }
-    lb_pos = "src/main.lucb:436:5";
-    size_t lb_i __attribute__((unused)) = (size_t)(lb_sub_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_k), 32, 0, 64, 0, 1))), (uint64_t)(1ULL), 64));
     lb_pos = "src/main.lucb:437:5";
+    size_t lb_i __attribute__((unused)) = (size_t)(lb_sub_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_k), 32, 0, 64, 0, 1))), (uint64_t)(1ULL), 64));
+    lb_pos = "src/main.lucb:438:1";
     if (!!(((*({ lb_span _lb_ix29655 = lb_kind; &((uint8_t*)_lb_ix29655.data)[lb_at((uint64_t)(lb_i), _lb_ix29655.length)]; })) == 3ULL))) 
     {
-        lb_pos = "src/main.lucb:438:1";
+        lb_pos = "src/main.lucb:439:1";
         return;
     }
-    lb_pos = "src/main.lucb:439:1";
+    lb_pos = "src/main.lucb:440:5";
     if (!!(({ uint32_t _lb_sq29656 __attribute__((unused)) = lb_12support_list_List_0g1_10back_ir_ir_Slot_get(&((lb_f)->slots), lb_i).size; uint32_t _lb_sq29657 __attribute__((unused)) = lb_width; (!(_lb_sq29656 == _lb_sq29657)); }))) 
     {
-        lb_pos = "src/main.lucb:440:5";
-        (*({ lb_span _lb_ix29658 = lb_kind; &((uint8_t*)_lb_ix29658.data)[lb_at((uint64_t)(lb_i), _lb_ix29658.length)]; })) = 3ULL;
         lb_pos = "src/main.lucb:441:9";
+        (*({ lb_span _lb_ix29658 = lb_kind; &((uint8_t*)_lb_ix29658.data)[lb_at((uint64_t)(lb_i), _lb_ix29658.length)]; })) = 3ULL;
+        lb_pos = "src/main.lucb:442:5";
         return;
     }
-    lb_pos = "src/main.lucb:442:5";
-    uint8_t lb_want __attribute__((unused)) = (lb_float ? 2ULL : 1ULL);
     lb_pos = "src/main.lucb:443:9";
+    uint8_t lb_want __attribute__((unused)) = (lb_float ? 2ULL : 1ULL);
+    lb_pos = "src/main.lucb:444:9";
     if (!!(((*({ lb_span _lb_ix29659 = lb_kind; &((uint8_t*)_lb_ix29659.data)[lb_at((uint64_t)(lb_i), _lb_ix29659.length)]; })) == 0ULL))) 
     {
-        lb_pos = "src/main.lucb:444:9";
+        lb_pos = "src/main.lucb:445:9";
         (*({ lb_span _lb_ix29660 = lb_kind; &((uint8_t*)_lb_ix29660.data)[lb_at((uint64_t)(lb_i), _lb_ix29660.length)]; })) = lb_want;
     }
     else {
-        lb_pos = "src/main.lucb:445:9";
+        lb_pos = "src/main.lucb:446:5";
         if (!!((!((*({ lb_span _lb_ix29661 = lb_kind; &((uint8_t*)_lb_ix29661.data)[lb_at((uint64_t)(lb_i), _lb_ix29661.length)]; })) == lb_want)))) 
         {
-            lb_pos = "src/main.lucb:446:5";
-            (*({ lb_span _lb_ix29662 = lb_kind; &((uint8_t*)_lb_ix29662.data)[lb_at((uint64_t)(lb_i), _lb_ix29662.length)]; })) = 3ULL;
             lb_pos = "src/main.lucb:447:5";
+            (*({ lb_span _lb_ix29662 = lb_kind; &((uint8_t*)_lb_ix29662.data)[lb_at((uint64_t)(lb_i), _lb_ix29662.length)]; })) = 3ULL;
+            lb_pos = "src/main.lucb:448:9";
             return;
         }
     }
-    lb_pos = "src/main.lucb:448:9";
+    lb_pos = "src/main.lucb:449:5";
     { uint32_t* lb__cell29663 = &((*({ lb_span _lb_ix29664 = lb_uses; &((uint32_t*)_lb_ix29664.data)[lb_at((uint64_t)(lb_i), _lb_ix29664.length)]; })));
     (*(lb__cell29663)) = (uint32_t)(lb_add_u((uint64_t)((*(lb__cell29663))), (uint64_t)(1ULL), 32)); }
 }
@@ -140109,14 +140109,14 @@ static __attribute__((unused)) uint32_t lb_17back_native_frame_Frame_7slot_of(co
 }
 static __attribute__((unused)) bool lb_17back_native_frame_15is_float_access(uint8_t lb_op) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/back/native/frame.lucb:520:5";
+    lb_pos = "src/back/native/frame.lucb:521:5";
     bool _lb_ret29668 = ((((((lb_op == ((uint8_t)47u)) || (lb_op == ((uint8_t)48u))) || (lb_op == ((uint8_t)49u))) || (lb_op == ((uint8_t)54u))) || (lb_op == ((uint8_t)55u))) || (lb_op == ((uint8_t)56u)));
     return _lb_ret29668;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) bool lb_17back_native_frame_8is_store(uint8_t lb_op) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/back/native/frame.lucb:517:5";
+    lb_pos = "src/back/native/frame.lucb:518:5";
     bool _lb_ret29669 = ((((uint8_t)(((uint8_t)(lb_op)))) >= ((uint8_t)(((uint8_t)(((uint8_t)50u)))))) && (((uint8_t)(((uint8_t)(lb_op)))) <= ((uint8_t)(((uint8_t)(((uint8_t)56u)))))));
     return _lb_ret29669;
     lb_trap("unreachable");

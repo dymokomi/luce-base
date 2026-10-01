@@ -1,0 +1,23 @@
+## A local whose address one branch takes (`p = &max_len` under a condition, as luce-js's
+## ArrayBuffer.transfer does) lives in memory: when the branch becomes a choice of value, the
+## chosen address still names the local, which holds what was stored in it.
+noinline func flagged(n: u64) -> bool:
+    return n % 2 == 0
+
+noinline func read(p: u64*?) -> u64:
+    if let m = p:
+        return *m
+    return 99
+
+noinline func pick(n: u64) -> u64:
+    var max_len: u64 = 0
+    var p: u64*? = none
+    if n > 3:
+        max_len = n * 10
+        if flagged(n):
+            p = &max_len
+    return read(p)
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{pick(2)} {pick(4)} {pick(5)} {pick(8)}")
+    return 0

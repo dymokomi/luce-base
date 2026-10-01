@@ -458,8 +458,19 @@ class Gen:
             elif k == 16:
                 n = self.loops
                 self.loops += 1
-                lines.append(f"{pad}var ptr{n}: i64* = &table[{r.randrange(8)}]")
-                lines.append(r.choice([f"{pad}*ptr{n} = {self.expr(2)}", f"{pad}*ptr{n} += {self.expr(1)} & 255", f"{pad}a0 = *ptr{n} +% a0", f"{pad}*ptr{n} = *ptr{n} *% 3"]))
+                if r.random() < 0.5:
+                    lines.append(f"{pad}var ptr{n}: i64* = &table[{r.randrange(8)}]")
+                    lines.append(r.choice([f"{pad}*ptr{n} = {self.expr(2)}", f"{pad}*ptr{n} += {self.expr(1)} & 255", f"{pad}a0 = *ptr{n} +% a0", f"{pad}*ptr{n} = *ptr{n} *% 3"]))
+                else:
+                    # a local's address taken under a condition, which if-conversion turns
+                    # into a choice of value: the local still lives in memory
+                    lines.append(f"{pad}var lv{n}: i64 = {self.expr(2)}")
+                    lines.append(f"{pad}var lp{n}: i64*? = none")
+                    lines.append(f"{pad}if {self.cond(2)}:")
+                    lines.append(f"{pad}    lp{n} = &lv{n}")
+                    lines.append(f"{pad}if let lq{n} = lp{n}:")
+                    lines.append(f"{pad}    *lq{n} = *lq{n} +% ({self.expr(1)} & 255)")
+                    lines.append(f"{pad}a{r.randrange(3)} = lv{n} +% a{r.randrange(3)}")
             elif k == 17:
                 word = r.choice(['"abcd"', '"wxyz"', '"hello world"', '"0123456789"'])
                 lines.append(r.choice([f"{pad}s0 = {word}", f"{pad}a2 = (i64)s0.bytes[{r.randrange(0, 2)}..<{r.randrange(2, 5)}].length +% a2", f"{pad}a0 = (i64)s0.bytes[(usize)(a1 & 3)] +% (i64)s0.length"]))

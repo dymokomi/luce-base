@@ -377,7 +377,8 @@ pub struct Frame:
                     let va = self.slot_of(n.a)
                     if va != 0:
                         kind[(usize)va - 1] = 3
-                    let vb = self.slot_of(n.b) if n.op == ir.Op.fma else 0
+                    # an fma's second factor, a select's value when true
+                    let vb = self.slot_of(n.b) if n.op == ir.Op.fma or n.op == ir.Op.select else 0
                     if vb != 0:
                         kind[(usize)vb - 1] = 3
                 let (args_start, args_count) = ir.argument_range(f, n)
