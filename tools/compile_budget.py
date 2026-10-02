@@ -136,7 +136,8 @@ def main():
     # absolute, since each build runs in its program's directory (a relative path there
     # names nothing, and on Windows CreateProcess does not search the caller's)
     compiler = absolute_program(args.compiler)
-    luce = absolute_program(args.luce)
+    # the Luce compiler only when an entry is Luce: Base entries need none on the path
+    luce = absolute_program(args.luce) if any(entry.endswith(".luc") for entry in args.entries) else None
     host = host_target()
     failures = 0
     print(f"{'program':44} {'target':15} {'seconds':>8} {'peak MB':>8}")
