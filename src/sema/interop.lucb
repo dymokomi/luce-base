@@ -56,9 +56,9 @@ pub func owned(checker: check.Checker*, id: u32) -> Declaration?!:
     if native.kind != types.Kind.struct_ or native.args.length != 0:
         return none
     let type_decl = native.decl else return none
-    for module in checker.modules.span():
-        if check.find_decl(module.tree, type_decl.text) != type_decl:
-            continue
+    let owner = try checker.owner_of(type_decl) else return none
+    let module = checker.modules.get(owner)
+    if check.find_decl(module.tree, type_decl.text) == type_decl:
         var found: Declaration? = none
         var cursor = module.tree.body
         while let declaration = cursor:

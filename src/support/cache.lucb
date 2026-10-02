@@ -83,13 +83,26 @@ func try_copy(text: str) -> str?:
     memory.copy(room, text.bytes, text.length)
     return (str)room
 
-## FNV-1a over `bytes` from `h`, then the length, so two inputs never run together.
+## `bytes` mixed into `h` eight at a time (a multiply and a shift per word, since a build
+## hashes every source it reads), then the length, so two inputs never run together.
 func mix(h: u64, bytes: const u8[]) -> u64:
     var r = h
-    for b in bytes:
-        r = (r ^ (u64)b) *% 1099511628211
-    r = (r ^ (u64)bytes.length) *% 1099511628211
-    return r
+    var i: usize = 0
+    while i + 8 <= bytes.length:
+        r = step(r, memory.read[u64](&bytes[i]))
+        i += 8
+    var tail: u64 = 0
+    var shift: u64 = 0
+    while i < bytes.length:
+        tail = tail | ((u64)bytes[i] << shift)
+        shift += 8
+        i += 1
+    r = step(r, tail)
+    return step(r, (u64)bytes.length)
+
+func step(h: u64, word: u64) -> u64:
+    let r = (h ^ word) *% 11400714819323198485
+    return r ^ (r >> 29)
 
 ## Start a build's digest afresh.
 pub func begin():

@@ -228,6 +228,15 @@ func has_bom(data: const u8[]) -> bool:
 func refuse_controls(path: str, data: const u8[]) -> !:
     var i: usize = 0
     while i < data.length:
+        # eight bytes at a time while they hold no NUL and nothing past ASCII, as most do
+        while i + 8 <= data.length:
+            let word = memory.read[u64](&data[i])
+            let zero = (word -% 0x0101010101010101) & ~word & 0x8080808080808080
+            if ((word & 0x8080808080808080) | zero) != 0:
+                break
+            i += 8
+        if i >= data.length:
+            break
         let b = data[i]
         if b == 0:
             error(bad_encoding, try located(path, data, i, "NUL byte in source"))
@@ -263,6 +272,10 @@ func located(path: str, data: const u8[], offset: usize, what: str) -> str!:
 func first_invalid(data: const u8[]) -> usize:
     var i: usize = 0
     while i < data.length:
+        while i + 8 <= data.length and (memory.read[u64](&data[i]) & 0x8080808080808080) == 0:
+            i += 8
+        if i >= data.length:
+            break
         let b = data[i]
         var need: usize = 0
         if b < 0x80:

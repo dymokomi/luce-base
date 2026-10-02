@@ -1,0 +1,87 @@
+#==============================================================================================
+#
+#   decl_owners - Which module declares each top-level declaration
+#
+#   DESCRIPTION:
+#       An open-addressed table from a declaration's node address to the index of the
+#       module whose body holds it. A module description names the module of every foreign
+#       type it mentions, and asked by walking every module's declarations it was most of
+#       `describe-closure`'s time on a large program (luced-3d's: 450 modules).
+#
+#==============================================================================================
+
+import front.ast
+import memory
+
+## Each indexed declaration's module.
+pub struct DeclOwners:
+    ## Slot keys, a declaration's address; 0 marks a free slot.
+    var keys: usize[]
+    var modules: u32[]
+    ## Slots with a key.
+    var used: usize
+    ## How many of the program's modules are indexed: modules only ever join the end.
+    pub var indexed: usize
+    ## The allocator the slots were made with, which their growth goes on using.
+    var allocator: memory.Allocator
+
+    ## An empty table.
+    pub static func create() -> DeclOwners!:
+        let keys = try alloc usize[256]
+        let modules = try alloc u32[256]
+        for i in 0..<keys.length:
+            keys[i] = 0
+        return DeclOwners(keys = keys, modules = modules, used = 0, indexed = 0, allocator = memory.allocator)
+
+    ## The module index of `decl`, when it is indexed.
+    pub func find(decl: ast.Node*) -> usize?:
+        let key = (usize)decl
+        let mask = self.keys.length - 1
+        var slot = spread(key) & mask
+        while self.keys[slot] != 0:
+            if self.keys[slot] == key:
+                return (usize)self.modules[slot]
+            slot = (slot + 1) & mask
+        return none
+
+    ## Index every top-level declaration of module `module`'s `tree`.
+    pub mutating func add_module(tree: ast.Node*, module: usize) -> !:
+        var cursor = tree.body
+        while let d = cursor:
+            try self.add(d, module)
+            cursor = d.next
+        self.indexed = module + 1
+
+    mutating func add(decl: ast.Node*, module: usize) -> !:
+        if (self.used + 1) * 2 > self.keys.length:
+            try self.grow()
+        self.place((usize)decl, u32(module))
+        self.used += 1
+
+    mutating func place(key: usize, module: u32):
+        let mask = self.keys.length - 1
+        var slot = spread(key) & mask
+        while self.keys[slot] != 0:
+            slot = (slot + 1) & mask
+        self.keys[slot] = key
+        self.modules[slot] = module
+
+    mutating func grow() -> !:
+        let old_keys = self.keys
+        let old_modules = self.modules
+        let keys = try alloc usize[old_keys.length * 2] in self.allocator
+        let modules = try alloc u32[old_keys.length * 2] in self.allocator
+        for i in 0..<keys.length:
+            keys[i] = 0
+        self.keys = keys
+        self.modules = modules
+        for i in 0..<old_keys.length:
+            if old_keys[i] != 0:
+                self.place(old_keys[i], old_modules[i])
+        free(old_keys) in self.allocator
+        free(old_modules) in self.allocator
+
+## A node address's slot: nodes sit at least eight bytes apart, so the low bits say little.
+func spread(key: usize) -> usize:
+    let h = ((u64)key >> 3) *% 11400714819323198485
+    return (usize)(h ^ (h >> 32))

@@ -891,6 +891,15 @@ pub func utf8_ok(text: const u8*?, count: usize) -> bool:
     let s = text else return count == 0
     var i: usize = 0
     while i < count:
+        # eight ASCII bytes at a time: source text is mostly ASCII
+        while i + 8 <= count:
+            var word: u64 = 0
+            discard(memcpy(&word, &s[i], 8))
+            if (word & 0x8080808080808080) != 0:
+                break
+            i += 8
+        if i >= count:
+            break
         let byte = s[i]
         var w: usize = 1
         var cp: u32 = 0

@@ -60,7 +60,7 @@ struct DescriptionWriter:
             i += 1
         for id in self.foreign_types.span():
             let t = self.checker.table.get(id)
-            let module = self.foreign_module(id) else continue
+            let module = try self.foreign_module(id) else continue
             let decl = t.decl else continue
             var kind = "opaque"
             if decl.has(ast.flag_pub):
@@ -291,22 +291,15 @@ struct DescriptionWriter:
                     try self.mark(interface_type.type_id)
             cursor = interface_type.next
 
-    func foreign_module(id: u32) -> usize?:
+    func foreign_module(id: u32) -> usize?!:
         let decl = self.checker.table.get(id).decl else return none
-        var i: usize = 0
-        while i < self.checker.modules.count:
-            let module = self.checker.modules.get(i)
-            if module.tree != self.tree:
-                var cursor = module.tree.body
-                while let d = cursor:
-                    if d == decl:
-                        return i
-                    cursor = d.next
-            i += 1
-        return none
+        let module = try self.checker.owner_of(decl) else return none
+        if self.checker.modules.get(module).tree == self.tree:
+            return none
+        return module
 
     mutating func mark(id: u32) -> !:
-        if let module = self.foreign_module(id):
+        if let module = try self.foreign_module(id):
             self.used[module] = true
             var found = false
             for known in self.foreign_types.span():
@@ -362,7 +355,7 @@ struct DescriptionWriter:
                     try self.out.write("]")
                     return
         let t = self.checker.table.get(id)
-        if let module = self.foreign_module(id):
+        if let module = try self.foreign_module(id):
             if t.args.length == 0:
                 try self.out.write(f"__base_{module}.{t.name}")
                 return

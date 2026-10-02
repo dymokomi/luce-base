@@ -164,7 +164,39 @@ func mapping(entries: list.List[Mapping]*, name: str, value: str) -> !:
             error(invalid, "a package module setting is declared twice")
     try entries.push(Mapping(name, value))
 
+## The manifests read so far and their packages, in the heap: a program's imports ask for the
+## same few manifests again and again, and a compiled workspace's manifest names every module
+## (luced-3d's has 451 module packages, and each read checked them against each other).
+var read_paths: str[]
+var read_packages: Package[]
+var read_count: usize = 0
+
+## The package of the manifest at `path`, read once a run; the caller only reads it.
 func read_package(path: str) -> Package!:
+    for index in 0..<read_count:
+        if read_paths[index] == path:
+            return read_packages[index]
+    with memory.heap:
+        # in the heap, since the kept package outlives whatever arena asked for it
+        let package = try parse_package(path)
+        if read_count == read_paths.length:
+            let size: usize = 8 if read_count == 0 else read_count * 2
+            let paths_room = try alloc str[size]
+            let packages_room = try alloc Package[size]
+            for k in 0..<read_count:
+                paths_room[k] = read_paths[k]
+                packages_room[k] = read_packages[k]
+            if read_count > 0:
+                free(read_paths)
+                free(read_packages)
+            read_paths = paths_room
+            read_packages = packages_room
+        read_paths[read_count] = try strings.copy(path)
+        read_packages[read_count] = package
+        read_count += 1
+        return package
+
+func parse_package(path: str) -> Package!:
     let root = try canonical(paths.directory(path))
     let contents = (str)try files.read((c.str)try strings.copy(path))
     var package = Package(name = "", root = root, source = "src",

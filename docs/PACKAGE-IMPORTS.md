@@ -127,8 +127,9 @@ The generated manifest has one merged native section. Explicit `--emit=base`
 keeps those absolute references; native sources are external inputs, so moving
 that diagnostic package does not make it independent of the original native files.
 
-`luce-base native-inputs FILE` reports only the containing manifest’s native
-records using the same current dependency format. It accepts Base or Luce source
+`luce-base native-inputs FILE...` reports only the containing manifests’ native
+records using the same current dependency format, each record once, in the order
+the files and their declarations give. It accepts Base or Luce source
 paths; Base owns manifest parsing and Luce delegates that policy to it. There is
 no copied raw-TOML adapter or separate Luce limitation on source/search inputs.
 
