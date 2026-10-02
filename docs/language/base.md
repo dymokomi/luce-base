@@ -236,7 +236,7 @@ text"""
 - A byte literal `b"..."` is a view of static data, of type `const u8[]`, with `\xNN` escapes and ASCII text; it is not NUL-terminated. Where a byte array `u8[N]` is expected it is that array, as the array literal of its bytes, and N must be its length: `let magic: u8[4] = b"\x89PNG"`.
 - Triple-quoted strings drop a newline that directly follows the opening delimiter, strip indentation by the closing delimiter's column, and normalise CRLF to `\n` before escapes are decoded.
 - Escapes in text are `\\`, `\"`, `\'`, `\n`, `\r`, `\t`, `\0`, and `\u{HEX}` with one to six hex digits. There is no `\x` in text; it exists in byte literals.
-- A formatted string is not a value. It is consumed by `print`, by a `Writer`, by `format`, or by a parameter of type `fmt` (§5.5). `{{` and `}}` are literal braces. Each field is `{expression}`, evaluated once, left to right; there is no format specification inside the braces, and radix and padding are one-word functions applied in the field, `{hex(value)}`.
+- A formatted string is not a value. It is consumed by `print`, by a `Writer`, by `format`, or by a parameter of type `fmt` (§5.5). `{{` and `}}` are literal braces. Each field is `{expression}`, evaluated once, left to right, and is code rather than text: a string inside it is written with plain quotes, `f"{name if name != "" else "none"}"`, and a backslash there is an error; there is no format specification inside the braces, and radix and padding are one-word functions applied in the field, `{hex(value)}`.
 
 **Why.** The one extra byte per literal means a literal can be passed to any C function that takes a `char*` without a copy, and most of them do.
 
@@ -1322,6 +1322,7 @@ atomic.fence(.release)
 - Plain reads and `=` are sequentially consistent loads and stores.
 - `+=`, `-=`, `|=`, `&=`, `^=` on an `@T` are the sequentially consistent read-modify-write instructions, and they wrap as C11's do. Checked arithmetic does not apply to atomics: the `@` on the type is the marker that the instruction is what is wanted.
 - The methods, each returning the previous value: `add(v, order)`, `sub(v, order)`, `set(mask, order)` (or), `clear(mask, order)` (and-not), `flip(mask, order)` (xor), `max(v, order)`, `min(v, order)`, `swap(v, order)`; and `load(order)`, `store(v, order)`. `cas(expected, desired, success, failure, weak = false) -> (bool, T)` answers whether it exchanged and the value observed; `failure` may not be `release` or `acq_rel` and may not be stronger than `success`; with `weak = true` it may fail spuriously. `wait(expected)` blocks while the value equals `expected`; `wake(count)` wakes up to `count` waiters, `wake(0)` all. The `Ordering` cases are `relaxed`, `acquire`, `release`, `acq_rel`, `seq_cst`, and an omitted `order` is `seq_cst`. `atomic.fence(order)` is a standalone fence, and `atomic.fence(.signal)` is a compiler-only barrier for signal handlers.
+- `@` covers the whole type after it, suffixes included: `@Node*?` is an atomic nullable pointer and `@u64*` an atomic pointer. A pointer to an atomic is written with parentheses, `(@u64)*`, as `&counter` of a `@u64` is typed; a diagnostic spells it so.
 - Every `@T` is lock-free by construction; the double-width form of §5.9 exists only where the target has the instruction.
 - Semantics are the C11 memory model.
 

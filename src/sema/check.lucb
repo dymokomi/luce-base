@@ -150,6 +150,10 @@ pub struct Checker:
     var fallible: bool
     ## An expression marker or handler permits checked propagation in its operand.
     var expression_effect: bool = false
+    ## The operand an `x else y` is checking: its own failure is the `else`'s to handle, so a
+    ## surrounding `try` or `catch` does not propagate it (a call inside it still is;
+    ## `else_handles`).
+    var else_operand: ast.Node*? = none
     var effect_count: u64 = 0
     var self_type: u32
     var self_mutable: bool
@@ -2399,7 +2403,7 @@ pub struct Checker:
         e.type_id = id
         # The formatter handles its synthetic Display call itself; user operands
         # inside that call still use the surrounding expression's effect context.
-        if self.expression_effect and self.table.kind(id) == types.Kind.fallible and not e.has(ast.flag_format_sink):
+        if self.expression_effect and self.table.kind(id) == types.Kind.fallible and not e.has(ast.flag_format_sink) and not self.else_handles(e, id):
             let inner = try ast.Node.make(e.kind, e.text, e.start, e.line)
             *inner = *e
             inner.next = none
@@ -3645,15 +3649,27 @@ pub struct Checker:
             j += 1
         return (str)out[..<prefix.length + k]
 
+    ## Whether `e`, of type `id`, is the operand of an `x else y` that handles its failure
+    ## itself: a fallible `T!` whose payload is no optional. A `T?!` under a `try` keeps the
+    ## `try` for its failure and the `else` for its absence.
+    func else_handles(e: ast.Node*, id: u32) -> bool:
+        return self.else_operand == e and self.table.kind(self.table.get(id).elem) != types.Kind.optional
+
     ## `x else y`: the payload of an optional or fallible `x`, or `y` (§11.1).
     mutating func else_type(e: ast.Node*, hint: u32) -> u32!:
         let l = e.left else return try self.fail(e, "missing operand")
         let r = e.right else return try self.fail(e, "`else` needs an alternative")
-        var lt = self.plain_read(try self.check_expr(l, try self.table.optional(hint) if hint != types.none_id else types.none_id))
+        let saved_operand = self.else_operand
+        self.else_operand = l
+        let checked = self.check_expr(l, try self.table.optional(hint) if hint != types.none_id else types.none_id) catch failure:
+            self.else_operand = saved_operand
+            error(failure.code, failure.message)
+        self.else_operand = saved_operand
+        var lt = self.plain_read(checked)
         let t = self.table.get(lt)
-        # An optional's absence, or a fallible result's failure, takes the alternative. A
-        # fallible operand under a surrounding handler has already been propagated to its
-        # payload above, so the operand reaching here is fallible only when `else` handles it.
+        # An optional's absence, or a fallible result's failure, takes the alternative: the
+        # operand's own failure is this `else`'s even under a surrounding `try` (`try f(g()
+        # else 0)`), while a fallible call inside the operand is still the `try`'s.
         if t.kind != types.Kind.optional and t.kind != types.Kind.fallible:
             return try self.fail(l, "`else` needs an optional or a fallible result")
         if t.kind == types.Kind.fallible and self.is_local_value(l):
@@ -6876,6 +6892,13 @@ test "generics infer from arguments and substitute results":
 test "a generic optional parameter learns its argument from a plain value":
     try expect_ok("struct Node:\n    var value: i64\nfunc first_or_zero[T](node: T*?) -> i64:\n    if node == none:\n        return 0\n    return 1\nfunc f() -> i64:\n    var n = Node(value = 1)\n    let p: Node* = &n\n    return first_or_zero(p) + first_or_zero[Node](none)\n")
     try expect_ok("func or_default[T](value: T?, fallback: T) -> T:\n    return value else fallback\nfunc f() -> i64:\n    let x: i64 = 3\n    return or_default(x, 4)\n")
+
+test "an else handles its operand's failure under a surrounding try":
+    try expect_ok("func g() -> i32!:\n    return 1\nfunc f(x: i32) -> i32!:\n    return x\nfunc with_try() -> i32!:\n    return try f(g() else trap(\"x\"))\nfunc inner() -> i32!:\n    return try f(f(g()) else 0)\nfunc maybe() -> i32?!:\n    return 2\nfunc both() -> i32!:\n    return try maybe() else 0\n")
+
+test "a pointer to an atomic is spelled with parentheses, apart from an atomic pointer":
+    try expect_error("var flag: @u64\nfunc read(p: @u64*) -> u64:\n    return 0\nfunc f() -> u64:\n    return read(&flag)\n", "expected `@u64*`, got `(@u64)*`")
+    try expect_ok("var flag: @u64\nfunc read(p: (@u64)*) -> u64:\n    return p.load(.acquire)\nfunc f() -> u64:\n    return read(&flag)\n")
 
 test "a generic struct instantiates and its methods substitute":
     try expect_ok("struct Box[T]:\n    var item: T\n    func get() -> T:\n        return self.item\nfunc f() -> i64:\n    let b = Box[i64](item = 3)\n    return b.get()\n")
