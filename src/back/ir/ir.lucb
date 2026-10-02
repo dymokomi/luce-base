@@ -810,7 +810,7 @@ pub struct Unit:
         return Unit(functions = try list.List[Function].create(64), files = try list.List[str].create(8), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
-                    init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "", text_slots = try alloc u32[0])
+                    init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "")
 
     ## The index of a source file in `files`, adding it when new; 1-based.
     pub mutating func file_index(path: str) -> u32!:
@@ -876,7 +876,9 @@ pub struct Unit:
             var slots = try alloc u32[size]
             for k in 0..<size:
                 slots[k] = 0
-            free(self.text_slots)
+            # the empty table is no allocation; a grown one came from the heap here
+            if self.text_slots.length > 0:
+                free(self.text_slots)
             self.text_slots = slots
         for index in 0..<self.texts.count:
             self.place_text(index)
