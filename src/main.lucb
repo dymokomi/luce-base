@@ -644,8 +644,10 @@ func splittable() -> bool:
     return native_backend and not debug_backend and not symbols_backend and (t.os == targets.Os.macos or t.os == targets.Os.linux)
 
 ## Assemble the one file at `asm_path` into `object_path`.
-func assemble_one(dir: str, asm_path: str, object_path: str) -> !:
-    var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
+func assemble_one(dir: str) -> !:
+    # named relative to the workspace, which the assembler runs in: an ELF object records
+    # the name of the file it was assembled from, and the workspace's changes every build
+    var as_args: c.str[3] = ["-o", "gen.o", "gen.s"]
     let (as_status, as_out, as_err) = try host_tools.run("as", as_args, dir)
     discard(as_out.length)
     if as_status != 0:
@@ -667,21 +669,12 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
             try pieces.assemble(dir, text, split_starts, split_tags, split_ending, object_path, t.os == targets.Os.macos, t.arch_name())
         else:
             try files.write((c.str)asm_path, text.bytes)
-            try assemble_one(dir, asm_path, object_path)
+            try assemble_one(dir)
         cache.keep(key, "-n.o", object_path)
     else:
         let text = try translate(checker, entry, mode)
         try files.write((c.str)asm_path, text.bytes)
-        var as_args: c.str[3] = ---
-        as_args[0] = "-o"
-        as_args[1] = (c.str)object_path
-        as_args[2] = (c.str)asm_path
-        let assembled = try host_tools.run("as", as_args, dir)
-        let (as_status, as_out, as_err) = assembled
-        discard(as_out.length)
-        if as_status != 0:
-            try io.stderr().write(as_err)
-            error(build_failed, "the assembler rejected the generated code")
+        try assemble_one(dir)
         cache.keep(key, "-n.o", object_path)
     let t = build_target()
     if t.linker == targets.Linker.c_driver:

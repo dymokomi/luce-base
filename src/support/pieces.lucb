@@ -79,11 +79,16 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
                 job.pending[k] = false
                 reused += 1
                 continue
-            var source_room = try alloc u8[dir.length + 32]
-            job.sources[k] = try format(source_room, f"{dir}/gen.{k}.s")
-            var object_room = try alloc u8[dir.length + 32]
-            job.objects[k] = try format(object_room, f"{dir}/gen.{k}.o")
-            try write_piece(job.sources[k], prelude, middle, ends)
+            # a piece is named by its key, as the cache names it, and relative to the
+            # workspace the assembler runs in: an ELF object records the file it was
+            # assembled from, and `ld` the name of each object it joins, so the program is
+            # the same whichever pieces were assembled and which came from the cache
+            var source_room = try alloc u8[keys[k].length + 8]
+            job.sources[k] = try format(source_room, f"{keys[k]}.s")
+            var object_room = try alloc u8[dir.length + keys[k].length + 8]
+            job.objects[k] = try format(object_room, f"{dir}/{keys[k]}-p.o")
+            var written_room = try alloc u8[dir.length + keys[k].length + 8]
+            try write_piece(try format(written_room, f"{dir}/{keys[k]}.s"), prelude, middle, ends)
         try parallel.each(made + 1, assemble_task, (void*)&job)
         try parallel.check(job.failures)
         for k in 0..<made + 1:
