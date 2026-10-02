@@ -56,7 +56,9 @@ struct DescriptionWriter:
             if self.used[i]:
                 let module = self.checker.modules.get(i)
                 let kind = "standard" if module.is_prelude else "import"
-                try self.out.write(f"{kind} {module.name} as __base_{i}\n")
+                try self.out.write(f"{kind} {module.name} as ")
+                try self.alias(i)
+                try self.out.write("\n")
             i += 1
         for id in self.foreign_types.span():
             let t = self.checker.table.get(id)
@@ -74,7 +76,9 @@ struct DescriptionWriter:
                     kind = "enum"
                 elif t.kind == types.Kind.interface_:
                     kind = "interface"
-            try self.out.write(f"foreign __base_{module}.{t.name} {kind}\n")
+            try self.out.write("foreign ")
+            try self.alias(module)
+            try self.out.write(f".{t.name} {kind}\n")
         cursor = self.tree.body
         while let d = cursor:
             if d.has(ast.flag_pub):
@@ -298,6 +302,20 @@ struct DescriptionWriter:
             return none
         return module
 
+    ## The name a description gives module `index` it names a type of: `__base_` and the
+    ## module's name, each dot two underscores (`support.list` is `__base_support__list`), so
+    ## a module reads the same in any closure, whatever order its modules were loaded in.
+    mutating func alias(index: usize) -> !:
+        try self.out.write("__base_")
+        let name = self.checker.modules.get(index).name
+        var start: usize = 0
+        for i in 0..<name.length:
+            if name.bytes[i] == '.':
+                try self.out.write((str)name.bytes[start..<i])
+                try self.out.write("__")
+                start = i + 1
+        try self.out.write((str)name.bytes[start..])
+
     mutating func mark(id: u32) -> !:
         if let module = try self.foreign_module(id):
             self.used[module] = true
@@ -357,7 +375,8 @@ struct DescriptionWriter:
         let t = self.checker.table.get(id)
         if let module = try self.foreign_module(id):
             if t.args.length == 0:
-                try self.out.write(f"__base_{module}.{t.name}")
+                try self.alias(module)
+                try self.out.write(f".{t.name}")
                 return
         match t.kind:
             .pointer, .span:

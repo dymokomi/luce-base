@@ -17,25 +17,26 @@
 
 import back.ir.ir
 import support.buffer
+import support.hashed
 
 ## A tag for each function, by its symbol.
 pub func function_tags(program: ir.Unit*) -> u64[]!:
     let count = program.functions.count
     var tags = try alloc u64[count]
-    var used = try TagSet.create(count)
-    defer used.release()
+    var used = try hashed.Table[u64].create(count)
+    defer used.destroy()
     for i in 0..<count:
-        tags[i] = try used.claim(program.functions.items[i].name)
+        tags[i] = try claim(&used, program.functions.items[i].name)
     return tags
 
 ## A tag for each text literal, by its bytes; the unit's texts are distinct.
 pub func text_tags(program: ir.Unit*) -> u64[]!:
     let count = program.texts.count
     var tags = try alloc u64[count]
-    var used = try TagSet.create(count)
-    defer used.release()
+    var used = try hashed.Table[u64].create(count)
+    defer used.destroy()
     for i in 0..<count:
-        tags[i] = try used.claim(program.texts.get(i).bytes)
+        tags[i] = try claim(&used, program.texts.get(i).bytes)
     return tags
 
 ## `tag` as twelve hex digits.
@@ -48,41 +49,15 @@ pub func put_tag(out: buffer.Buffer*, tag: u64) -> !:
 
 # mark: Unique tags ===========================================================================
 
-## The tags given so far, in an open-addressed table; 0 is never a tag.
-struct TagSet:
-    var slots: u64[]
-
-    static func create(count: usize) -> TagSet!:
-        var size: usize = 16
-        while size < count * 2 + 2:
-            size *= 2
-        var set = TagSet(slots = try alloc u64[size])
-        for i in 0..<size:
-            set.slots[i] = 0
-        return set
-
-    mutating func release():
-        free(self.slots)
-
-    ## The tag of `name`: its hash's low 48 bits, or the next hash's while that is taken.
-    mutating func claim(name: str) -> u64!:
-        var h = name_hash(14695981039346656037, name)
-        while true:
-            let tag = h & 0xFFFFFFFFFFFF
-            if tag != 0 and self.add(tag):
-                return tag
-            h = name_hash(h, name)
-
-    ## Add `tag`; false when it is there already.
-    mutating func add(tag: u64) -> bool:
-        let mask = self.slots.length - 1
-        var slot = (usize)((tag *% 11400714819323198485) >> 20) & mask
-        while self.slots[slot] != 0:
-            if self.slots[slot] == tag:
-                return false
-            slot = (slot + 1) & mask
-        self.slots[slot] = tag
-        return true
+## The tag of `name` among those `used` gives: its hash's low 48 bits, or the next hash's
+## while that one is taken.
+func claim(used: hashed.Table[u64]*, name: str) -> u64!:
+    var h = name_hash(14695981039346656037, name)
+    while true:
+        let tag = h & 0xFFFFFFFFFFFF
+        if tag != 0 and try used.add(tag, 0):
+            return tag
+        h = name_hash(h, name)
 
 ## FNV-1a of `name` from `h`, then a final mix, so the low bits depend on every byte.
 func name_hash(h: u64, name: str) -> u64:
@@ -93,14 +68,14 @@ func name_hash(h: u64, name: str) -> u64:
     return r ^ (r >> 33)
 
 test "tags are twelve hex digits, distinct, and the same for the same names":
-    var used = try TagSet.create(4)
-    defer used.release()
-    let a = try used.claim("lb_main")
-    let b = try used.claim("lb_main")
+    var used = try hashed.Table[u64].create(4)
+    defer used.destroy()
+    let a = try claim(&used, "lb_main")
+    let b = try claim(&used, "lb_main")
     assert(a != b)
-    var again = try TagSet.create(4)
-    defer again.release()
-    assert((try again.claim("lb_main")) == a)
+    var again = try hashed.Table[u64].create(4)
+    defer again.destroy()
+    assert((try claim(&again, "lb_main")) == a)
     var out = try buffer.Buffer.create(16)
     try put_tag(&out, 0xabc)
     assert(out.view() == "000000000abc")

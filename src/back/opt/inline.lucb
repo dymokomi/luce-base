@@ -27,7 +27,7 @@
 
 import memory
 import support.list
-import support.name_table
+import support.hashed
 import back.ir.ir
 
 ## The most instructions, labels aside, a function may have to be expanded at every call,
@@ -130,14 +130,14 @@ func drop_unused_standard(program: ir.Unit*) -> !:
     defer free(retained_tables)
     clear_flags(retained_tables)
     # each reference finds its global and its table by name, not by a walk over all of them
-    var globals_by_name = try name_table.NameTable.create(program.globals.count)
+    var globals_by_name = try hashed.Table[str].create(program.globals.count)
     defer globals_by_name.destroy()
     for gi in 0..<program.globals.count:
-        try globals_by_name.add(program.globals.get(gi).name, gi)
-    var tables_by_name = try name_table.NameTable.create(program.tables.count)
+        discard(try globals_by_name.add(program.globals.get(gi).name, gi))
+    var tables_by_name = try hashed.Table[str].create(program.tables.count)
     defer tables_by_name.destroy()
     for ti in 0..<program.tables.count:
-        try tables_by_name.add(program.tables.get(ti).name, ti)
+        discard(try tables_by_name.add(program.tables.get(ti).name, ti))
     for table in program.tables.span():
         if named_in_asm(&texts, table.name):
             retain_table(program, &tables_by_name, &index, retained, retained_tables, ir.global_ref(table.name))
@@ -295,10 +295,10 @@ func drop_unused_storage(program: ir.Unit*, assembly: list.List[str]*) -> !:
     for i in 0..<program.globals.count:
         let global = program.globals.get(i)
         retained[i] = not global.standard or global.exported or global.used or global.weak or global.section.length > 0 or named_in_asm(assembly, global.name)
-    var by_name = try name_table.NameTable.create(program.globals.count)
+    var by_name = try hashed.Table[str].create(program.globals.count)
     defer by_name.destroy()
     for i in 0..<program.globals.count:
-        try by_name.add(program.globals.get(i).name, i)
+        discard(try by_name.add(program.globals.get(i).name, i))
     for function in program.functions.span():
         for instruction in function.instrs.span():
             retain_storage(&by_name, retained, instruction.a)
@@ -312,7 +312,7 @@ func drop_unused_storage(program: ir.Unit*, assembly: list.List[str]*) -> !:
     program.globals.destroy()
     program.globals = kept
 
-func retain_storage(by_name: name_table.NameTable*, retained: bool[], reference: ir.Ref):
+func retain_storage(by_name: hashed.Table[str]*, retained: bool[], reference: ir.Ref):
     if reference.kind != ir.RefKind.global:
         return
     if let i = by_name.find(reference.name):
@@ -344,7 +344,7 @@ test "standard storage follows retained code without changing user linkage":
 
 ## A witness table is live when reachable code or assembly takes its address.
 ## Treating every table as a root would pull unused platform modules into every binary.
-func retain_table(program: ir.Unit*, by_name: name_table.NameTable*, index: Index*, retained: bool[], tables: bool[], reference: ir.Ref):
+func retain_table(program: ir.Unit*, by_name: hashed.Table[str]*, index: Index*, retained: bool[], tables: bool[], reference: ir.Ref):
     if reference.kind != ir.RefKind.global and reference.kind != ir.RefKind.function:
         return
     let ti = by_name.find(reference.name) else return
@@ -1031,47 +1031,21 @@ func load_op(cls: ir.Class) -> ir.Op:
 
 # mark: Finding functions by name ==============================================================
 
-## The program's functions by symbol, in an open-addressing table of index + 1 (0 is empty).
+## The program's functions by symbol.
 struct Index:
-    var buckets: u32[]
-    var program: ir.Unit*
+    var names: hashed.Table[str]
 
     static func over(program: ir.Unit*) -> Index!:
-        var room: usize = 64
-        while room < program.functions.count * 2:
-            room *= 2
-        var index = Index(buckets = try alloc u32[room], program = program)
-        var i: usize = 0
-        while i < room:
-            index.buckets[i] = 0
-            i += 1
-        i = 0
-        while i < program.functions.count:
-            var at = (usize)hash_text(program.functions.items[i].name) & (room - 1)
-            while index.buckets[at] != 0:
-                at = (at + 1) & (room - 1)
-            index.buckets[at] = u32(i) + 1
-            i += 1
+        var index = Index(names = try hashed.Table[str].create(program.functions.count))
+        for i in 0..<program.functions.count:
+            discard(try index.names.add(program.functions.items[i].name, i))
         return index
 
     func find(name: str) -> usize?:
-        let mask = self.buckets.length - 1
-        var at = (usize)hash_text(name) & mask
-        while self.buckets[at] != 0:
-            let i = (usize)self.buckets[at] - 1
-            if self.program.functions.items[i].name == name:
-                return i
-            at = (at + 1) & mask
-        return none
+        return self.names.find(name)
 
-    func release():
-        free(self.buckets)
-
-func hash_text(text: str) -> u64:
-    var h: u64 = 0xcbf29ce484222325
-    for byte in text.bytes:
-        h = (h ^ (u64)byte) *% 0x100000001b3
-    return h
+    mutating func release():
+        self.names.destroy()
 
 # mark: After the second pass =================================================================
 

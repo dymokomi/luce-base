@@ -18,6 +18,7 @@
 #==============================================================================================
 
 import memory
+import support.hashed
 import support.list
 
 # mark: Classes and references =================================================================
@@ -789,9 +790,8 @@ pub struct Unit:
     pub var globals: list.List[Global]
     ## The program's text literals.
     pub var texts: list.List[Text]
-    ## An open-addressing index over `texts` by their bytes: each slot holds 1 + a text's
-    ## index, 0 when free; empty until the texts outgrow a short search.
-    var text_slots: u32[]
+    ## Where each text of `texts` is, by its bytes.
+    var text_index: hashed.Table[str]
     ## The witness tables.
     pub var tables: list.List[WitnessTable]
     ## Module-level `asm` blocks for this target, verbatim (§8.9).
@@ -818,7 +818,7 @@ pub struct Unit:
         return Unit(functions = try list.List[Function].create(64), files = try list.List[str].create(8), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
-                    init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "")
+                    init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "", text_index = try hashed.Table[str].create(64))
 
     ## The index of a source file in `files`, adding it when new; 1-based.
     pub mutating func file_index(path: str) -> u32!:
@@ -846,21 +846,8 @@ pub struct Unit:
     ## The index of text literal `bytes` when the unit has it. It reads and never adds, so
     ## the generators' threads may ask it at once (`back.parallel`).
     pub func find_text(bytes: str) -> u32?:
-        if self.text_slots.length == 0:
-            var i: usize = 0
-            while i < self.texts.count:
-                if self.texts.get(i).bytes == bytes:
-                    return u32(i)
-                i += 1
-            return none
-        let mask = self.text_slots.length - 1
-        var slot = text_hash(bytes) & mask
-        while self.text_slots[slot] != 0:
-            let index = (usize)self.text_slots[slot] - 1
-            if self.texts.get(index).bytes == bytes:
-                return u32(index)
-            slot = (slot + 1) & mask
-        return none
+        let index = self.text_index.find(bytes) else return none
+        return u32(index)
 
     ## The index of text literal `bytes`, adding it when new.
     pub mutating func text(bytes: str) -> u32!:
@@ -868,43 +855,15 @@ pub struct Unit:
             return found
         try self.texts.push(Text(bytes = bytes))
         let index = self.texts.count - 1
-        if self.text_slots.length > 0 and (self.texts.count + 1) * 2 <= self.text_slots.length:
-            self.place_text(index)
-        elif self.texts.count >= 32:
-            try self.index_texts()
+        discard(try self.text_index.add(bytes, index))
         return u32(index)
 
-    ## Index every text again, in a table at least twice their number; after `texts` is
-    ## replaced (`inline` drops the unread ones), and as it grows.
+    ## Index every text again, after `texts` is replaced (`inline` drops the unread ones).
     pub mutating func index_texts() -> !:
-        var size: usize = 64
-        while size < self.texts.count * 2 + 2:
-            size *= 2
-        with memory.heap:
-            var slots = try alloc u32[size]
-            for k in 0..<size:
-                slots[k] = 0
-            # the empty table is no allocation; a grown one came from the heap here
-            if self.text_slots.length > 0:
-                free(self.text_slots)
-            self.text_slots = slots
+        self.text_index.destroy()
+        self.text_index = try hashed.Table[str].create(self.texts.count)
         for index in 0..<self.texts.count:
-            self.place_text(index)
-
-    ## Put text `index` in the first free slot of its probe sequence.
-    mutating func place_text(index: usize):
-        let mask = self.text_slots.length - 1
-        var slot = text_hash(self.texts.get(index).bytes) & mask
-        while self.text_slots[slot] != 0:
-            slot = (slot + 1) & mask
-        self.text_slots[slot] = u32(index + 1)
-
-## FNV-1a of `bytes`, for the texts' index.
-func text_hash(bytes: str) -> usize:
-    var h: u64 = 14695981039346656037
-    for b in bytes.bytes:
-        h = (h ^ (u64)b) *% 1099511628211
-    return (usize)h
+            discard(try self.text_index.add(self.texts.get(index).bytes, index))
 
 ## A text a generator needed was not among the unit's texts when its function was generated.
 pub let missing_text: ErrorCode = ErrorCode.package(44)

@@ -14,6 +14,7 @@ import files
 import memory
 import paths
 import strings
+import support.hashed
 import support.list
 import support.manifest
 # mark: Resolutions and packages ==============================================================
@@ -58,76 +59,30 @@ pub func canonical(path: str) -> str!:
     remember(path, resolved)
     return resolved
 
-## The paths resolved so far and their answers, an open-addressing table in the heap: a
-## slot holds 1 + the entry's index, 0 when free.
-var resolved_paths: str[]
-var resolved_answers: str[]
-var resolved_count: usize = 0
-var resolved_slots: u32[]
+## The paths resolved so far, each with the index of its answer in `resolved_answers`,
+## in the heap; made at the first path.
+var resolved_paths: hashed.Table[str]? = none
+var resolved_answers: list.List[str]? = none
 
 func resolved_before(path: str) -> str?:
-    if resolved_slots.length == 0:
-        return none
-    let mask = resolved_slots.length - 1
-    var slot = path_hash(path) & mask
-    while resolved_slots[slot] != 0:
-        let index = (usize)resolved_slots[slot] - 1
-        if resolved_paths[index] == path:
-            return resolved_answers[index]
-        slot = (slot + 1) & mask
-    return none
+    let table = resolved_paths else return none
+    let answers = resolved_answers else return none
+    let index = table.find(path) else return none
+    return answers.get(index)
 
-## Keep `answer` for `path`; a table that cannot grow keeps nothing, which costs time only.
+## Keep `answer` for `path`; a memo that cannot grow keeps nothing, which costs time only.
 func remember(path: str, answer: str):
     with memory.heap:
-        if (resolved_count + 1) * 2 > resolved_slots.length:
-            let size: usize = 256 if resolved_slots.length == 0 else resolved_slots.length * 2
-            let slots = alloc u32[size] catch:
-                return
-            let paths_room = alloc str[size] catch:
-                free(slots)
-                return
-            let answers_room = alloc str[size] catch:
-                free(slots)
-                free(paths_room)
-                return
-            for k in 0..<size:
-                slots[k] = 0
-            for k in 0..<resolved_count:
-                paths_room[k] = resolved_paths[k]
-                answers_room[k] = resolved_answers[k]
-            if resolved_slots.length > 0:
-                free(resolved_slots)
-                free(resolved_paths)
-                free(resolved_answers)
-            resolved_slots = slots
-            resolved_paths = paths_room
-            resolved_answers = answers_room
-            for k in 0..<resolved_count:
-                place(k)
-        let owned_path = strings.copy(path) catch:
-            return
-        let owned_answer = strings.copy(answer) catch:
-            strings.release(owned_path)
-            return
-        resolved_paths[resolved_count] = owned_path
-        resolved_answers[resolved_count] = owned_answer
-        place(resolved_count)
-        resolved_count += 1
+        keep(path, answer) catch ignored:
+            discard(ignored)
 
-func place(index: usize):
-    let mask = resolved_slots.length - 1
-    var slot = path_hash(resolved_paths[index]) & mask
-    while resolved_slots[slot] != 0:
-        slot = (slot + 1) & mask
-    resolved_slots[slot] = u32(index + 1)
-
-## FNV-1a of `path`.
-func path_hash(path: str) -> usize:
-    var h: u64 = 14695981039346656037
-    for b in path.bytes:
-        h = (h ^ (u64)b) *% 1099511628211
-    return (usize)h
+func keep(path: str, answer: str) -> !:
+    var table = resolved_paths else try hashed.Table[str].create(256)
+    var answers = resolved_answers else try list.List[str].create(256)
+    try answers.push(try strings.copy(answer))
+    discard(try table.add(try strings.copy(path), answers.count - 1))
+    resolved_paths = table
+    resolved_answers = answers
 
 func present(path: str) -> bool!:
     return files.exists((c.str)try strings.copy(path))
