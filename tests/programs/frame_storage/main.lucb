@@ -1,0 +1,42 @@
+## Frame storage (§12.7): `memory.frame` sized per call, in a loop, through a deep recursion,
+## and past its most (a trap).
+import memory
+
+func squares_total(n: usize) -> u64:
+    let squares = memory.frame[u64](n, 32)
+    for i in 0..<n:
+        squares[i] = (u64)i * (u64)i
+    var sum: u64 = 0
+    for v in squares:
+        sum += v
+    return sum
+
+## Each level keeps its own storage while the levels below run.
+func deep(n: u32) -> u64:
+    if n == 0:
+        return 0
+    let mine = memory.frame[u8]((usize)(n % 40) + 1, 64)
+    mine[0] = (u8)n
+    let below = deep(n - 1)
+    return below + (u64)mine[0] + squares_total((usize)(n % 20))
+
+## Several calls in one loop each take storage of their own.
+func distinct(rounds: usize) -> bool:
+    var previous: u8* = ---
+    for k in 0..<rounds:
+        let block = memory.frame[u8](16, 16)
+        block[0] = (u8)k
+        if k > 0 and (usize)&block[0] == (usize)previous:
+            return false
+        previous = &block[0]
+    return true
+
+pub func main(args: str[]) -> i32:
+    if args.length > 1:
+        let too_many = memory.frame[u32](args.length + 8, 8)
+        return (i32)too_many.length
+    var total: u64 = 0
+    for k in 0..<100:
+        total += squares_total(10)
+    print(f"{total} {deep(2000)} {distinct(8)}")
+    return 0

@@ -312,6 +312,11 @@ pub enum Op as u8:
     ## levels of `level_bytes` each (0: none), and the stack pointer is below them, so the
     ## calls made meanwhile leave them be; a statement's format buffers live in its levels.
     reserve = 107
+    ## `dst = alloca a`: the stack pointer moves down by `a` bytes, a multiple of sixteen and
+    ## at most 4096, the new bottom is touched, and `dst` is its address: storage in the
+    ## function's frame until it returns (`memory.frame`, §12.7). The bytes the function's
+    ## calls pass on the stack go below it.
+    alloca = 108
     ## The frame pointer of the running function, for the debugger.
     frame = 200
     ## Inline assembly operands: `set_reg a -> named register b` before an `asm` block,
@@ -593,6 +598,9 @@ pub struct Function:
     pub var labels: u32
     ## The most levels the dynamic area below the frame holds (`Op.reserve`).
     pub var dynamic_levels: u32 = 0
+    ## Whether the function takes storage from its frame as it runs (`Op.alloca`): its stack
+    ## pointer then moves by amounts only known at run time.
+    pub var allocates_frame: bool = false
     ## Whether the function returns a value.
     pub var has_result: bool
     ## The result's register class.

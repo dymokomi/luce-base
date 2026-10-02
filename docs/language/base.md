@@ -512,7 +512,7 @@ p.field = value
 
 `&x` yields the address of an lvalue. The pointer's qualifier comes from the nearest root of the path: a `var` binding or a dereference of a `T*` yields `T*`; a `let` binding, a dereference of a `const T*`, or a read-only span yields `const T*`. So `&task.link` is `Link*` when `task` is a `let` holding a `Task*`, because the path is rooted at the pointee, not the binding. Stores follow the pointee: `*p = v` requires `T*`; `p.field = v` requires `T*` and a `var` field.
 
-The address of a local, and a span or `str` of a local array, may be passed down but not up. The compiler rejects four uses of such a pointer or view: returning it; passing it as the message to `error(...)`; storing it in a global; and storing it through a pointer parameter or into a struct that is returned. The check follows `let` aliases within one function and stops at calls; a value read through a pointer or a view is not the pointer, so `let row = &rows[n]` taints `row` and not `row.next`, and a global of an imported module is a global. It catches the common mistakes and promises nothing about the rest, which remain the programmer's responsibility, as in C.
+The address of a local, a span or `str` of a local array, and a span `memory.frame` yields (§12.7) may be passed down but not up. The compiler rejects four uses of such a pointer or view: returning it; passing it as the message to `error(...)`; storing it in a global; and storing it through a pointer parameter or into a struct that is returned. The check follows `let` aliases within one function and stops at calls; a value read through a pointer or a view is not the pointer, so `let row = &rows[n]` taints `row` and not `row.next`, and a global of an imported module is a global. It catches the common mistakes and promises nothing about the rest, which remain the programmer's responsibility, as in C.
 
 **Why.** C has `&x` and no way to say whether the result may be written through. Deriving the qualifier from the path gives the same information with no annotation, and it is the same rule Luce already uses to decide whether a field path may be assigned.
 
@@ -1117,7 +1117,7 @@ Out of memory is a recoverable `memory.exhausted` error from `new` and `alloc` (
 
 ### 12.1 Allocation is written, never hidden
 
-Only two operations allocate: `new` and `alloc`. No other operation, expression, or built-in type allocates. There are no built-in collections; a list, map, or string builder is a library type that allocates with `new` like any other code. The compiler never inserts an allocation.
+Only two operations allocate from an allocator: `new` and `alloc`; and one call takes storage from the running function's own frame, `memory.frame` (§12.7). No other operation, expression, or built-in type allocates. There are no built-in collections; a list, map, or string builder is a library type that allocates with `new` like any other code. The compiler never inserts an allocation.
 
 ### 12.2 `new`, `alloc`, and `free`
 
@@ -1184,9 +1184,29 @@ These two lists are exhaustive for the language. A library may add checks; nothi
 
 **Defined and checked in every build:** integer overflow in `+`, `-`, `*`, `//`, `%` (trap); shift by the operand width or more (trap); division by zero and `minimum_signed // -1` (trap); indexing and slicing of arrays, spans, and `str` (trap); unwrapping every optional (trap through `else trap`, or a compile error without it); dereference of a bare pointer (cannot be null by type, with the one boundary check of §17.1); reading an uninitialised local (compile error, except after `---`); non-exhaustive `match` (compile error); converting an integer to an integer-backed enum with `T(n)` (trap); checked conversions `T(x)` (trap); float-to-integer casts (saturate); reads and writes through `volatile` (never elided or merged); every atomic operation; aliasing of compatible objects (no type-based aliasing rule, except where `noalias` is written); signed right shift (arithmetic); `<<` past the width (discards).
 
-**Undefined, exactly as in C, and the programmer's responsibility:** use after free and double free; freeing storage with an allocator other than the one that provided it; dereferencing a dangling pointer, including one the escape rule of §6.6 could not see; pointer arithmetic that leaves the object, including `p[i]` out of range; misaligned access after a `(T*)` cast; reading storage declared with `---`, or obtained from `alloc`, before writing it; reading a union member with an invariant after another member was written; modifying a `let` or `const` object through a cast; `(str)bytes` on bytes that are not UTF-8; a `noalias` parameter that aliases; a data race on memory that is not `@T`; a `longjmp` through a Base frame; an `asm` block that violates its declared operands or options; a C callee that retains a lent pointer past the call; a C caller that violates a contract stated in an `extern` declaration.
+**Undefined, exactly as in C, and the programmer's responsibility:** use after free and double free; freeing storage with an allocator other than the one that provided it; dereferencing a dangling pointer, including one the escape rule of §6.6 could not see; pointer arithmetic that leaves the object, including `p[i]` out of range; misaligned access after a `(T*)` cast; reading storage declared with `---`, or obtained from `alloc` or `memory.frame`, before writing it; reading a union member with an invariant after another member was written; modifying a `let` or `const` object through a cast; `(str)bytes` on bytes that are not UTF-8; a `noalias` parameter that aliases; a data race on memory that is not `@T`; a `longjmp` through a Base frame; an `asm` block that violates its declared operands or options; a C callee that retains a lent pointer past the call; a C caller that violates a contract stated in an `extern` declaration.
 
 **Why two lists.** Two exhaustive lists can be checked against the C standard's own catalogue of undefined behaviour, and every future rule has to add itself to one of them.
+
+### 12.7 Storage in the frame: `memory.frame`
+
+```luce
+import memory
+
+func sum_of_squares(values: const f64[]) -> f64:
+    # up to 64 elements, sized to the call: no allocator, freed when the function returns
+    let squares = memory.frame[f64](values.length, 64)
+    for i in 0..<values.length:
+        squares[i] = values[i] * values[i]
+    ...
+```
+
+- `memory.frame[T](count, most)` yields `count` uninitialised elements of `T` as a `T[]` in the frame of the function that calls it, as C's `alloca` does: the storage lasts until that function returns, and nothing frees it. `count` is a `usize` expression; `most` is a constant expression, the most elements the call may take, and `most * sizeof(T)` is at most 4096 bytes. A `count` above `most` traps.
+- The span is the address of a local (§6.6): it may be passed down and not returned or stored beyond the call.
+- Each call takes more of the frame, even in a loop; the stack pointer moves down by the bytes taken, rounded to sixteen, and the new bottom is touched, so the guard page that catches stack exhaustion (§11.5) is never stepped over.
+- A function that calls `memory.frame` is never expanded into its callers, so the storage belongs to the frame the source names. Reading an element before writing it is undefined (§12.6), as for `alloc`.
+
+**Why bounded.** A frame whose size depends on the input is what an interpreter, a recursive parser, or a small temporary needs: the fixed array it would otherwise declare reserves the most for every call, and a recursion pays it at every level. Bounding each call by a constant keeps a frame's growth visible in the source, lets the backend touch each new page in order, and keeps the reason C's unbounded `alloca` and VLAs were left out (§20): a size the program never stated cannot overrun the stack unseen.
 
 ## 13. Generics
 
@@ -1409,7 +1429,7 @@ The language depends on these modules by name. Their full surfaces are in the li
 
 | Module | What the language relies on |
 | --- | --- |
-| `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `read`, `write`, `copy`, `move`, `set`, `grow` |
+| `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `read`, `write`, `copy`, `move`, `set`, `grow`, `frame` (§12.7) |
 | `io` | `stdout()` and `stderr()` as `Writer`s; `path.user()`, `path.home()`, `path.temp()`, `path.config()` for the process's directories |
 | `os` | the target as constants: `arm64`, `x86_64`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`; `cpus()`, `page_size()`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
 | `thread` | `spawn`, `Handle`, `current`, `pause`, `yield`, `sleep` |
@@ -1774,7 +1794,7 @@ Absent from Base, each with the reason it is not a loss:
 - **Braces, semicolons, `&&`, `||`, `!`, `++`, `--`, the comma operator, statement expressions, `do while`, `switch` fallthrough.** One parser, one formatter, one spelling per idea.
 - **`goto`.** Reserved (§8.6).
 - **`setjmp`/`longjmp`.** ISO C, but incompatible with `defer`, `errdefer`, and initialisation analysis. A `longjmp` through a Base frame is undefined. A library that reports errors through it (libpng, libjpeg, the Lua C API) is bound through a `shims.c` function that contains the `setjmp` and returns a status.
-- **Computed goto, VLAs, `alloca`, `register`, `long double`, `_Complex`.** GNU extensions, not representable by the backends, or not portable.
+- **Computed goto, VLAs, unbounded `alloca`, `register`, `long double`, `_Complex`.** GNU extensions, not representable by the backends, or not portable. Frame storage of a size the program bounds is `memory.frame` (§12.7).
 - **Variadic function definitions, bit-field widths in Base structs, designated array initialisers, a storable result type.** Deferred until enough exported and C-layout code exists to test the rules against; a storable result is an enum with two cases today.
 - **Classes, reference counting, closures, built-in collections, owned strings, workers.** The runtime. Use full Luce.
 

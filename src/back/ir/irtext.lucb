@@ -295,6 +295,7 @@ func op_name(op: ir.Op) -> str:
         .call: return "call"
         .word: return "word"
         .reserve: return "reserve"
+        .alloca: return "alloca"
         .label: return "label"
         .jmp: return "jmp"
         .jnz: return "jnz"

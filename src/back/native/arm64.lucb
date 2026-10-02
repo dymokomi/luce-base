@@ -91,6 +91,10 @@ pub struct Generator:
     ## How far sp is below the fixed frame for the dynamic area's levels reserved at the
     ## instruction being emitted (`levels`); frame operands relative to sp add it back.
     var dynamic_shift: u64 = 0
+    ## In a function taking frame storage (`ir.Op.alloca`) once its prologue has run: the
+    ## fixed frame is reached through x28, which holds sp's place at the frame's bottom,
+    ## since sp moves by amounts only known at run time.
+    var frame_base: bool = false
     ## By label, the loops' heads of the function being emitted (`selection.loop_heads`).
     var loop_heads: bool[]
     ## By label, 1 + the index of the comparison a jump to that loop's head makes itself
@@ -205,13 +209,19 @@ pub struct Generator:
     func frame_fits(offset: u64, width: u64) -> bool:
         if offset > self.fr.size:
             return false
-        let n = self.fr.size - offset + self.sp_shift + self.dynamic_shift
+        let n = self.fr.size - offset + self.frame_bias()
         return n % width == 0 and n // width <= 4095
 
     mutating func frame_operand(offset: u64) -> !:
-        try self.put("[sp, #")
-        try self.put_u64(self.fr.size - offset + self.sp_shift + self.dynamic_shift)
+        try self.put("[x28, #" if self.frame_base else "[sp, #")
+        try self.put_u64(self.fr.size - offset + self.frame_bias())
         try self.put("]")
+
+    ## How far below the frame's bottom sp is: none through x28 (`frame_base`).
+    func frame_bias() -> u64:
+        if self.frame_base:
+            return 0
+        return self.sp_shift + self.dynamic_shift
 
     ## `reg` stored to or loaded from the frame home `offset`: through sp when the offset
     ## reaches, else through an address in x16.
@@ -748,6 +758,9 @@ pub struct Generator:
             try self.frame_address("x16", self.fr.indirect_home)
             try self.line("str x8, [x16]")
         try self.save_callee_saved()
+        if self.f.allocates_frame:
+            try self.line("mov x28, sp")
+            self.frame_base = true
 
     mutating func function(index: usize) -> !:
         self.index = index
@@ -759,7 +772,12 @@ pub struct Generator:
             try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
         self.fr.reserved = 0
+        self.frame_base = false
         self.reserve_asm_registers()
+        if self.f.allocates_frame:
+            # x28 keeps the frame's bottom (`frame_base`), saved and restored as any
+            # callee-saved register the function uses
+            self.fr.reserve(10)
         try selection.canonical_labels(self.f)
         try self.fr.plan(self.f)
         self.crossing = 0
@@ -1321,6 +1339,15 @@ pub struct Generator:
                     try self.put(", [")
                     try self.put(address)
                     try self.put("]")
+            .alloca:
+                # frame storage (`memory.frame`): sp down by a multiple of sixteen, at most
+                # 4096, and the new bottom touched, so no guard page is stepped over
+                let bytes = try self.source(n.a, ir.Class.l, "x16")
+                try self.line3("sub sp, sp, ", bytes, "")
+                try self.line("str xzr, [sp]")
+                let d = self.target(n.dst, ir.Class.l, "x9")
+                try self.line3("mov ", d, ", sp")
+                try self.finish(n.dst, ir.Class.l, d)
             .frame:
                 let d = self.target(n.dst, ir.Class.l, "x9")
                 try self.line("mov ")
@@ -2670,7 +2697,12 @@ pub struct Generator:
                     try self.symbol("memcpy")
                     try self.frame_address("x16", self.fr.indirect_home)
                     try self.line("ldr x0, [x16]")
+        if self.f.allocates_frame:
+            # the frame storage goes: sp back at the frame's bottom, where the saves are
+            try self.line("mov sp, x28")
+            self.frame_base = false
         try self.restore_callee_saved()
+        self.frame_base = self.f.allocates_frame
         if self.dw != none:
             try self.line(".cfi_remember_state")
         try self.line("mov sp, x29")

@@ -4560,6 +4560,10 @@ pub struct Emitter:
 
     mutating func call(e: ast.Node*) -> !:
         let callee = e.left else return
+        if let d = e.resolved:
+            if self.c.is_memory_frame(d):
+                try self.frame_storage(e)
+                return
         # core functions
         if callee.kind == ast.Kind.name and callee.resolved == none and check.scalar_id(callee.text) == types.none_id:
             try self.intrinsic(e, callee.text)
@@ -5455,6 +5459,34 @@ pub struct Emitter:
         try self.put("; })")
 
     # -- core functions -------------------------------------------------------------------
+
+    ## `memory.frame[T](count, most)` (§12.7): `count` elements from `alloca` in the frame of
+    ## the function the call is in, after a trap when `count` is past `most`.
+    mutating func frame_storage(e: ast.Node*) -> !:
+        let result = try self.ty(e)
+        let first = e.body else return
+        let second = first.next else return
+        let count = first.left else return
+        let most_node = second.left else return
+        let most = self.c.constant_u64(most_node) else return
+        let n = self.tmp()
+        try self.put("({ size_t ")
+        try self.put_tmp("fn", n)
+        try self.put(" = (size_t)(")
+        try self.value(count, types.usize_id)
+        try self.put("); if (")
+        try self.put_tmp("fn", n)
+        try self.put(" > ")
+        try self.put_u64(most)
+        try self.put("u) lb_trap(\"memory.frame count is past its most\"); (")
+        try self.put_type(result)
+        try self.put("){ __builtin_alloca(")
+        try self.put_tmp("fn", n)
+        try self.put(" * sizeof(")
+        try self.put_type(self.elem(result))
+        try self.put(")), ")
+        try self.put_tmp("fn", n)
+        try self.put(" }; })")
 
     mutating func intrinsic(e: ast.Node*, name: str) -> !:
         let first = e.body

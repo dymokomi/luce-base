@@ -391,6 +391,12 @@ pub func write[T](address: void*, value: T):
     var copy_of = value
     discard(memcpy(address, &copy_of, sizeof(T)))
 
+## `count` uninitialised elements of `T` in the frame of the function that calls this, at
+## most `most` (a constant; `most * sizeof(T)` at most 4096 bytes), freed when that function
+## returns (§12.7). The compiler takes the storage at the call, so this body never runs.
+pub func frame[T](count: usize, most: usize) -> T[]:
+    trap("memory.frame is answered where it is called")
+
 ## `block` with `size` bytes: in place when the current allocator can, else a
 ## new block with the old bytes copied and the old block released.
 pub func grow(block: u8[], size: usize) -> u8[]!:

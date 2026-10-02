@@ -171,6 +171,9 @@ pub struct Lowerer:
     var pool_fb: u32[16]
     var pool_count: usize = 0
     var pool_used: usize = 0
+    ## Whether this function's format buffers may live in the dynamic area (`memory.frame`
+    ## and those levels do not mix).
+    var pooling: bool = true
     ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
     pub var diagnostic: bool
     ## The target of the build (§19.5): which `asm` arms are taken and how a library
@@ -956,6 +959,11 @@ pub struct Lowerer:
         self.f = try ir.Function.create(name)
         self.pool_count = 0
         self.pool_used = 0
+        # a function taking frame storage keeps its format buffers in its fixed frame: the
+        # dynamic area's levels are set from the frame and would cut the storage short
+        self.pooling = true
+        if let decl = d:
+            self.pooling = not self.calls_frame(decl.body)
         # the program's own functions are described and hooked; the standard modules are not
         self.f.debug = false
         self.f.symbols = false
@@ -4021,6 +4029,9 @@ pub struct Lowerer:
 
     mutating func call(e: ast.Node*) -> LowerValue!:
         let callee = e.left else return try self.fail(e, "no callee")
+        if let d = e.resolved:
+            if self.c.is_memory_frame(d):
+                return try self.frame_storage(e)
         if callee.kind == ast.Kind.name and callee.resolved == none and check.scalar_id(callee.text) == types.none_id:
             return try self.intrinsic(e, callee.text)
         if callee.has(ast.flag_type_ref):
@@ -4853,6 +4864,48 @@ pub struct Lowerer:
         try self.f.place_label(done)
         return LowerValue(ref = a, type_id = result, in_memory = true)
 
+    ## Whether the tree at `n` calls `memory.frame` (§12.7).
+    func calls_frame(n: ast.Node*?) -> bool:
+        var cursor = n
+        while let x = cursor:
+            if x.kind == ast.Kind.call:
+                if let d = x.resolved:
+                    if self.c.is_memory_frame(d):
+                        return true
+            if self.calls_frame(x.left) or self.calls_frame(x.right) or self.calls_frame(x.body) or self.calls_frame(x.ty):
+                return true
+            cursor = x.next
+        return false
+
+    ## `memory.frame[T](count, most)` (§12.7): `count` elements taken from the frame, after a
+    ## trap when `count` is past `most`; the span is the bytes' address and `count`.
+    mutating func frame_storage(e: ast.Node*) -> LowerValue!:
+        let result = try self.ty(e)
+        let first = e.body else return try self.fail(e, "no count")
+        let second = first.next else return try self.fail(e, "no most")
+        let count_node = first.left else return try self.fail(e, "no count")
+        let most_node = second.left else return try self.fail(e, "no most")
+        let most = self.c.constant_u64(most_node) else return try self.fail(e, "`memory.frame`'s most is a constant")
+        let cv = try self.value(count_node, types.usize_id)
+        let over = try self.f.binary(ir.Op.cugt, ir.Class.l, cv.ref, ir.const_ref((i64)most))
+        let past = self.f.label()
+        let within = self.f.label()
+        try self.f.branch(over, past, within)
+        try self.f.place_label(past)
+        try self.trap_with("memory.frame count is past its most")
+        try self.f.place_label(within)
+        # the bytes, to sixteen; count is at most `most`, so this cannot overflow
+        let bytes = try self.f.binary(ir.Op.mul, ir.Class.l, cv.ref, ir.const_ref((i64)self.size(self.elem(result))))
+        let rounded = try self.f.binary(ir.Op.and_, ir.Class.l, try self.f.binary(ir.Op.add, ir.Class.l, bytes, ir.const_ref(15)), ir.const_ref(-16))
+        let t = try self.temp(ir.Class.l)
+        try self.f.emit(ir.Op.alloca, ir.Class.l, t.index, rounded, ir.none_ref(), 0)
+        self.f.allocates_frame = true
+        let slot = try self.new_slot(result)
+        let a = try self.slot_address(slot)
+        try self.f.store(ir.Op.storel, t, a)
+        try self.f.store(ir.Op.storel, cv.ref, try self.offset_address(a, 8))
+        return LowerValue(ref = a, type_id = result, in_memory = true)
+
     # mark: Text ===============================================================================
 
     ## A fresh `lb_fmtbuf` over `capacity` stack bytes: its address and the bytes'. A pooled
@@ -4862,7 +4915,10 @@ pub struct Lowerer:
     mutating func fresh_format_buffer(capacity: u32) -> (ir.Ref, ir.Ref)!:
         var chars: u32 = 0
         var fb: u32 = 0
-        if capacity == 1024 and self.pool_used < self.pool_count:
+        if not self.pooling:
+            chars = try self.f.slot(capacity, 8)
+            fb = try self.f.slot(24, 8)
+        elif capacity == 1024 and self.pool_used < self.pool_count:
             chars = self.pool_chars[self.pool_used]
             fb = self.pool_fb[self.pool_used]
             self.pool_used += 1

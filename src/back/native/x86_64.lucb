@@ -1232,6 +1232,16 @@ pub struct Generator:
                         else:
                             try self.line3(store_mnemonic(n.op), v, ", ")
                         try self.put_place(place)
+            .alloca:
+                # frame storage (`memory.frame`): rsp down by a multiple of sixteen, at most
+                # 4096, and the new bottom touched, so no guard page is stepped over; the
+                # fixed frame stays reached through rbp, and every epilogue resets rsp from it
+                let bytes = try self.source(n.a, ir.Class.l, "%rax")
+                try self.line3("subq ", bytes, ", %rsp")
+                try self.line("movq $0, (%rsp)")
+                let d = self.target(n.dst, ir.Class.l, "%rax")
+                try self.line3("movq %rsp, ", d, "")
+                try self.finish(n.dst, ir.Class.l, d)
             .frame:
                 let d = self.target(n.dst, ir.Class.l, "%rax")
                 if self.convention.windows:

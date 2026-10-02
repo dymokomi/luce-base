@@ -119,6 +119,8 @@ An allocation the diagnostic profile recorded (§19.4): the block, its size, and
 
 - `func write[T](address: void*, value: T)` — Write `value` to `address`, which may be unaligned.
 
+- `func frame[T](count: usize, most: usize) -> T[]` — `count` uninitialised elements of `T` in the frame of the function that calls this, at most `most` (a constant; `most * sizeof(T)` at most 4096 bytes), freed when that function returns (§12.7). The compiler takes the storage at the call, so this body never runs.
+
 - `func grow(block: u8[], size: usize) -> u8[]!` — `block` with `size` bytes: in place when the current allocator can, else a new block with the old bytes copied and the old block released.
 
 ## `os`

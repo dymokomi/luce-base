@@ -16,8 +16,8 @@
 #       every call up to `forced` instructions, a guard against a runaway body only. A
 #       function called from one place only is expanded there whatever its size up to
 #       `once`, and a function expanded at every call, which nothing else names, is dropped
-#       from the program. Not expanded: a variadic or naked function, one carrying inline
-#       assembly, atomics, or the debugger's hooks, a function calling itself, and one
+#       from the program. Not expanded: a variadic or naked function, one taking frame
+#       storage (`memory.frame`), one carrying inline assembly, atomics, or the debugger's hooks, a function calling itself, and one
 #       whose slots take more than `large_frame` bytes unless it is declared `inline`. The
 #       lowerer's discipline that a temporary is used in the block that assigned it is not
 #       kept across an expansion, which the register allocator does not need: it scans live
@@ -502,7 +502,9 @@ func try_size(census: Census*, program: ir.Unit*, gi: usize) -> usize?:
 ## in a trap (an `else trap`, a failed check's message and call) is out of line and runs
 ## at most once, so it costs the budget nothing, nor does what follows it unlabelled.
 func body_size(g: ir.Function*) -> usize?:
-    if g.variadic or g.naked or g.noinline or g.debug or g.instrs.count == 0:
+    # frame storage (`memory.frame`) belongs to the frame the source names: in a caller's
+    # loop an expansion would take it again at every turn
+    if g.variadic or g.naked or g.noinline or g.debug or g.allocates_frame or g.instrs.count == 0:
         return none
     if not g.always_inline and frame_bytes(g) > large_frame:
         return none

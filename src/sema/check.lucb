@@ -4374,7 +4374,34 @@ pub struct Checker:
             if d.kind != ast.Kind.func_ and d.kind != ast.Kind.extern_func:
                 decl = none
         e.resolved = decl
-        return try self.check_call(e, ct, decl, e.ty if e.ty != none else callee.ty, owner, owner_args, hint)
+        let answered = try self.check_call(e, ct, decl, e.ty if e.ty != none else callee.ty, owner, owner_args, hint)
+        if let d = decl:
+            if self.is_memory_frame(d):
+                try self.frame_call(e, answered)
+        return answered
+
+    ## Whether `d` is the standard `memory.frame` (§12.7), whose storage the call itself takes.
+    pub func is_memory_frame(d: ast.Node*) -> bool:
+        if d.text != "frame" or d.kind != ast.Kind.func_:
+            return false
+        let index = self.find_module("memory") else return false
+        let module = self.modules.get(index)
+        return module.is_prelude and find_decl(module.tree, "frame") == d
+
+    ## The rules of a `memory.frame` call beyond its signature: `most` is a constant, the
+    ## bytes it allows at most 4096, and the span is a local's address (§6.6).
+    mutating func frame_call(e: ast.Node*, span: u32) -> !:
+        let first = e.body else return
+        let second = first.next else return
+        let most_node = second.left else return
+        let constant = self.constant_u64(most_node)
+        if constant == none:
+            discard(try self.fail(most_node, "`memory.frame`'s most is a constant (§12.7)"))
+        let most = constant else return
+        let bytes = most *? self.table.size_of(self.table.get(span).elem) else 4097
+        if bytes > 4096:
+            discard(try self.fail(most_node, "`memory.frame` may take at most 4096 bytes (§12.7)"))
+        self.mark_local(e)
 
     ## The operations of an `@T` (§15.1): read-modify-write methods returning the
     ## previous value, `load`, `store`, `cas`, `wait`, and `wake`. An omitted
