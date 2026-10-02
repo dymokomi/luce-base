@@ -348,87 +348,101 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
         try search.place()
     return changed
 
-## A load of `width` bytes at `address`, of class `cls`, in block `b` before instruction
-## `at` (or at the block's end when `at` is the end): the value there, or none.
-func find_value(s: Search*, address: Alias, width: i64, op: ir.Op, cls: ir.Class, b: u32, at: u32) -> ir.Ref?!:
+## A load of `width` bytes at `start_address`, of class `cls`, in block `start_block`
+## before instruction `start_at` (or at the block's end when that is the end): the value
+## there, or none.
+func find_value(s: Search*, start_address: Alias, width: i64, op: ir.Op, cls: ir.Class, start_block: u32, start_at: u32) -> ir.Ref?!:
+    # a block with one predecessor, and a copy read back to its source, carry the search
+    # on in this loop rather than in a call each: chains of them are long
+    var address = start_address
+    var b = start_block
+    var at = start_at
+    outer: while true:
+        let block = s.g.blocks.get((usize)b)
+        var i = at
+        while i > block.start:
+            i -= 1
+            if s.budget == 0:
+                return none
+            s.budget -= 1
+            let x = s.f.instrs.get((usize)i)
+            if x.op == ir.Op.phi:
+                continue
+            # the address's own base is defined here: nothing before it holds the value
+            if x.dst != 0 and address.kind == Kind.unknown and address.base == x.dst:
+                return none
+            if x.op == ir.Op.call:
+                # a call writes any memory whose address escaped, and its own result's slot
+                if s.aliases.escaped(address):
+                    return none
+                let info = s.f.calls.get((usize)x.extra)
+                if info.has_result and info.result_size > 0 and not info.result_words and s.aliases.relation(address, width, ir.slot_ref(info.result_slot), (i64)info.result_size) != no_alias:
+                    return none
+                continue
+            if is_store(x.op):
+                let rel = s.aliases.relation(address, width, x.b, store_width(x.op))
+                if rel == must_alias:
+                    if store_width(x.op) == width and load_takes(op, cls, store_class(x.op)) and s.aliases.at(x.b, 0).offset == address.offset:
+                        return x.a
+                    return none
+                if rel == may_alias:
+                    return none
+                continue
+            if is_load(x.op):
+                let rel = s.aliases.relation(address, width, x.a, load_width(x.op))
+                if rel == must_alias and load_width(x.op) == width and x.op == op and x.cls == cls and s.aliases.at(x.a, 0).offset == address.offset:
+                    return ir.temp_ref(x.dst)
+                continue
+            if x.op == ir.Op.blit:
+                # a copy of the bytes: read them where they came from, when they are all there
+                let rel_to = s.aliases.relation(address, width, x.a, (i64)x.extra)
+                if rel_to == no_alias:
+                    continue
+                let target = s.aliases.at(x.a, 0)
+                if rel_to == must_alias and address.offset >= target.offset and address.offset + width <= target.offset +% (i64)x.extra:
+                    address = s.aliases.at(x.b, address.offset - target.offset)
+                    at = i
+                    continue outer
+                return none
+            if x.op == ir.Op.zero:
+                let rel = s.aliases.relation(address, width, x.a, (i64)x.extra)
+                if rel == no_alias:
+                    continue
+                let target = s.aliases.at(x.a, 0)
+                if rel == must_alias and address.offset >= target.offset and address.offset + width <= target.offset +% (i64)x.extra:
+                    return ir.const_ref(0)
+                return none
+            if x.op == ir.Op.fill:
+                if s.aliases.relation(address, width, x.a, (i64)x.extra) != no_alias:
+                    return none
+                continue
+            if x.op == ir.Op.storev:
+                if s.aliases.relation(address, width, x.b, (i64)ir.vector_bytes(x.extra)) != no_alias:
+                    return none
+                continue
+            if (u8)x.op >= (u8)ir.Op.atomic_load and (u8)x.op <= (u8)ir.Op.fence:
+                return none
+            if x.op == ir.Op.asm_ or x.op == ir.Op.set_reg or x.op == ir.Op.get_reg:
+                return none
+        # the block's head: a join already made for this location, or the predecessors
+        var j: usize = 0
+        while j < s.joins.count:
+            let join = s.joins.get(j)
+            if join.block == b and join.width == width and join.cls == cls and same_alias(join.address, address):
+                return ir.temp_ref(join.temp)
+            j += 1
+        if block.preds.count == 0:
+            return none
+        if block.preds.count == 1:
+            b = block.preds.get(0)
+            at = s.g.blocks.get((usize)b).end
+            continue
+        return try join_value(s, address, width, op, cls, b)
+
+## The value at `address` where block `b`'s several predecessors meet: a phi of the value
+## each one holds, or none when one of them holds none.
+func join_value(s: Search*, address: Alias, width: i64, op: ir.Op, cls: ir.Class, b: u32) -> ir.Ref?!:
     let block = s.g.blocks.get((usize)b)
-    var i = at
-    while i > block.start:
-        i -= 1
-        if s.budget == 0:
-            return none
-        s.budget -= 1
-        let x = s.f.instrs.get((usize)i)
-        if x.op == ir.Op.phi:
-            continue
-        # the address's own base is defined here: nothing before it holds the value
-        if x.dst != 0 and address.kind == Kind.unknown and address.base == x.dst:
-            return none
-        if x.op == ir.Op.call:
-            # a call writes any memory whose address escaped, and its own result's slot
-            if s.aliases.escaped(address):
-                return none
-            let info = s.f.calls.get((usize)x.extra)
-            if info.has_result and info.result_size > 0 and not info.result_words and s.aliases.relation(address, width, ir.slot_ref(info.result_slot), (i64)info.result_size) != no_alias:
-                return none
-            continue
-        if is_store(x.op):
-            let rel = s.aliases.relation(address, width, x.b, store_width(x.op))
-            if rel == must_alias:
-                if store_width(x.op) == width and load_takes(op, cls, store_class(x.op)) and s.aliases.at(x.b, 0).offset == address.offset:
-                    return x.a
-                return none
-            if rel == may_alias:
-                return none
-            continue
-        if is_load(x.op):
-            let rel = s.aliases.relation(address, width, x.a, load_width(x.op))
-            if rel == must_alias and load_width(x.op) == width and x.op == op and x.cls == cls and s.aliases.at(x.a, 0).offset == address.offset:
-                return ir.temp_ref(x.dst)
-            continue
-        if x.op == ir.Op.blit:
-            # a copy of the bytes: read them where they came from, when they are all there
-            let rel_to = s.aliases.relation(address, width, x.a, (i64)x.extra)
-            if rel_to == no_alias:
-                continue
-            let target = s.aliases.at(x.a, 0)
-            if rel_to == must_alias and address.offset >= target.offset and address.offset + width <= target.offset +% (i64)x.extra:
-                let moved = s.aliases.at(x.b, address.offset - target.offset)
-                return try find_value(s, moved, width, op, cls, b, i)
-            return none
-        if x.op == ir.Op.zero:
-            let rel = s.aliases.relation(address, width, x.a, (i64)x.extra)
-            if rel == no_alias:
-                continue
-            let target = s.aliases.at(x.a, 0)
-            if rel == must_alias and address.offset >= target.offset and address.offset + width <= target.offset +% (i64)x.extra:
-                return ir.const_ref(0)
-            return none
-        if x.op == ir.Op.fill:
-            if s.aliases.relation(address, width, x.a, (i64)x.extra) != no_alias:
-                return none
-            continue
-        if x.op == ir.Op.storev:
-            if s.aliases.relation(address, width, x.b, (i64)ir.vector_bytes(x.extra)) != no_alias:
-                return none
-            continue
-        if (u8)x.op >= (u8)ir.Op.atomic_load and (u8)x.op <= (u8)ir.Op.fence:
-            return none
-        if x.op == ir.Op.asm_ or x.op == ir.Op.set_reg or x.op == ir.Op.get_reg:
-            return none
-    # the block's head: a join already made for this location, or the predecessors
-    var j: usize = 0
-    while j < s.joins.count:
-        let join = s.joins.get(j)
-        if join.block == b and join.width == width and join.cls == cls and same_alias(join.address, address):
-            return ir.temp_ref(join.temp)
-        j += 1
-    if block.preds.count == 0:
-        return none
-    if block.preds.count == 1:
-        let pred = block.preds.get(0)
-        return try find_value(s, address, width, op, cls, pred, s.g.blocks.get((usize)pred).end)
-    # several: a phi, one value per predecessor
     let temp = try s.f.temp(cls)
     let start = u32(s.join_args.count)
     var q: usize = 0

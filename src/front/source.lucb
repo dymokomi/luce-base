@@ -173,13 +173,17 @@ pub struct Source:
     ## above it names, or the file's own `path:line:column`.
     pub func mapped(line: u32, column: u32) -> (str, u32, u32):
         if let all = self.directives:
-            var found: Directive? = none
-            var i: usize = 0
-            while i < self.directive_count:
-                if all[i].base_line <= line:
-                    found = all[i]
-                i += 1
-            if let d = found:
+            # the directives stand in line order: the last at or above `line`, by halves
+            var low: usize = 0
+            var high = self.directive_count
+            while low < high:
+                let middle = (low + high) // 2
+                if all[middle].base_line <= line:
+                    low = middle + 1
+                else:
+                    high = middle
+            if low > 0:
+                let d = all[low - 1]
                 if d.file.length > 0:
                     return (d.file, d.line, d.column)
         return self.fragment_of(line, column)

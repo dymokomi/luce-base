@@ -122,6 +122,11 @@ pub struct Lowerer:
     ## without the debugger's hooks (`Function.symbols`).
     pub var symbols: bool
     var current_fn: ast.Node*?
+    ## The source `set_position` found for `position_fn` while `src_file` was
+    ## `position_file`: every statement of a function asks again.
+    var position_fn: ast.Node*? = none
+    var position_file: str = ""
+    var position_source: sources.Source? = none
     var fn_decl: ast.Node*?
     var fn_args: u32[]
     var owner_decl: ast.Node*?
@@ -519,7 +524,11 @@ pub struct Lowerer:
         self.at_line = n.line
         self.at_column = 1
         if let f = self.current_fn:
-            if let s = self.source_unit_of(f):
+            if self.position_fn != f or self.position_file != self.src_file:
+                self.position_fn = f
+                self.position_file = self.src_file
+                self.position_source = self.source_unit_of(f)
+            if let s = self.position_source:
                 let (file, line, column) = s.mapped(n.line, s.statement_column(n.line))
                 self.at_file = file
                 self.at_line = line

@@ -27,6 +27,7 @@
 
 import memory
 import support.list
+import support.name_table
 import back.ir.ir
 
 ## The most instructions, labels aside, a function may have to be expanded at every call,
@@ -128,9 +129,18 @@ func drop_unused_standard(program: ir.Unit*) -> !:
     let retained_tables = try alloc bool[program.tables.count + 1]
     defer free(retained_tables)
     clear_flags(retained_tables)
+    # each reference finds its global and its table by name, not by a walk over all of them
+    var globals_by_name = try name_table.NameTable.create(program.globals.count)
+    defer globals_by_name.destroy()
+    for gi in 0..<program.globals.count:
+        try globals_by_name.add(program.globals.get(gi).name, gi)
+    var tables_by_name = try name_table.NameTable.create(program.tables.count)
+    defer tables_by_name.destroy()
+    for ti in 0..<program.tables.count:
+        try tables_by_name.add(program.tables.get(ti).name, ti)
     for table in program.tables.span():
         if named_in_asm(&texts, table.name):
-            retain_table(program, &index, retained, retained_tables, ir.global_ref(table.name))
+            retain_table(program, &tables_by_name, &index, retained, retained_tables, ir.global_ref(table.name))
     let visited = try alloc bool[count + 1]
     defer free(visited)
     clear_flags(visited)
@@ -146,14 +156,14 @@ func drop_unused_standard(program: ir.Unit*) -> !:
                 for instruction in f.instrs.span():
                     note_reached(&index, retained, initialisers, instruction.a)
                     note_reached(&index, retained, initialisers, instruction.b)
-                    retain_table(program, &index, retained, retained_tables, instruction.a)
-                    retain_table(program, &index, retained, retained_tables, instruction.b)
-                    retain_storage(program, retained_globals, instruction.a)
-                    retain_storage(program, retained_globals, instruction.b)
+                    retain_table(program, &tables_by_name, &index, retained, retained_tables, instruction.a)
+                    retain_table(program, &tables_by_name, &index, retained, retained_tables, instruction.b)
+                    retain_storage(&globals_by_name, retained_globals, instruction.a)
+                    retain_storage(&globals_by_name, retained_globals, instruction.b)
                 for argument in f.args.span():
                     note_reached(&index, retained, initialisers, argument.value)
-                    retain_table(program, &index, retained, retained_tables, argument.value)
-                    retain_storage(program, retained_globals, argument.value)
+                    retain_table(program, &tables_by_name, &index, retained, retained_tables, argument.value)
+                    retain_storage(&globals_by_name, retained_globals, argument.value)
             i += 1
         for gi in 0..<program.globals.count:
             let global = program.globals.get(gi)
@@ -171,13 +181,19 @@ func drop_unused_standard(program: ir.Unit*) -> !:
             table.entries.destroy()
     program.tables.destroy()
     program.tables = kept_tables
+    try keep_retained(program, &index, retained)
+    try drop_unused_storage(program, &texts)
+    try drop_unused_texts(program)
+
+## Keep the functions `retained` marks, in order, and release the rest.
+func keep_retained(program: ir.Unit*, index: Index*, retained: bool[]) -> !:
+    let count = program.functions.count
     var kept = try list.List[ir.Function].create(count)
-    i = 0
-    while i < count:
+    for i in 0..<count:
         var f = program.functions.get(i)
         if retained[i]:
             if f.name == "lb_init_globals" or f.name == "lb_init_thread_locals":
-                drop_dead_initialiser_calls(&f, &index, retained)
+                drop_dead_initialiser_calls(&f, index, retained)
             try kept.push(f)
         else:
             f.points.destroy()
@@ -192,11 +208,8 @@ func drop_unused_standard(program: ir.Unit*) -> !:
             f.phi_args.destroy()
             f.jump_tables.destroy()
             f.jump_labels.destroy()
-        i += 1
     program.functions.destroy()
     program.functions = kept
-    try drop_unused_storage(program, &texts)
-    try drop_unused_texts(program)
 
 ## The calls of `lb_init_globals` and `lb_init_thread_locals` to initialisers the pruner
 ## dropped go with them.
@@ -282,12 +295,16 @@ func drop_unused_storage(program: ir.Unit*, assembly: list.List[str]*) -> !:
     for i in 0..<program.globals.count:
         let global = program.globals.get(i)
         retained[i] = not global.standard or global.exported or global.used or global.weak or global.section.length > 0 or named_in_asm(assembly, global.name)
+    var by_name = try name_table.NameTable.create(program.globals.count)
+    defer by_name.destroy()
+    for i in 0..<program.globals.count:
+        try by_name.add(program.globals.get(i).name, i)
     for function in program.functions.span():
         for instruction in function.instrs.span():
-            retain_storage(program, retained, instruction.a)
-            retain_storage(program, retained, instruction.b)
+            retain_storage(&by_name, retained, instruction.a)
+            retain_storage(&by_name, retained, instruction.b)
         for argument in function.args.span():
-            retain_storage(program, retained, argument.value)
+            retain_storage(&by_name, retained, argument.value)
     var kept = try list.List[ir.Global].create(program.globals.count)
     for i in 0..<program.globals.count:
         if retained[i]:
@@ -295,13 +312,11 @@ func drop_unused_storage(program: ir.Unit*, assembly: list.List[str]*) -> !:
     program.globals.destroy()
     program.globals = kept
 
-func retain_storage(program: ir.Unit*, retained: bool[], reference: ir.Ref):
+func retain_storage(by_name: name_table.NameTable*, retained: bool[], reference: ir.Ref):
     if reference.kind != ir.RefKind.global:
         return
-    for i in 0..<program.globals.count:
-        if program.globals.get(i).name == reference.name:
-            retained[i] = true
-            return
+    if let i = by_name.find(reference.name):
+        retained[i] = true
 
 test "standard storage follows retained code without changing user linkage":
     var backing: u8[131072]
@@ -329,16 +344,16 @@ test "standard storage follows retained code without changing user linkage":
 
 ## A witness table is live when reachable code or assembly takes its address.
 ## Treating every table as a root would pull unused platform modules into every binary.
-func retain_table(program: ir.Unit*, index: Index*, retained: bool[], tables: bool[], reference: ir.Ref):
+func retain_table(program: ir.Unit*, by_name: name_table.NameTable*, index: Index*, retained: bool[], tables: bool[], reference: ir.Ref):
     if reference.kind != ir.RefKind.global and reference.kind != ir.RefKind.function:
         return
-    for ti in 0..<program.tables.count:
-        var table = program.tables.get(ti)
-        if not tables[ti] and table.name == reference.name:
-            tables[ti] = true
-            for name in table.entries.span():
-                if let position = index.find(name):
-                    retained[position] = true
+    let ti = by_name.find(reference.name) else return
+    if tables[ti]:
+        return
+    tables[ti] = true
+    for name in program.tables.get(ti).entries.span():
+        if let position = index.find(name):
+            retained[position] = true
 
 ## The functions in an order that puts every callee before its callers, cycles apart: a
 ## depth-first walk of the call graph from each function, finishing a function after the
