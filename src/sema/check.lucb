@@ -1969,6 +1969,11 @@ pub struct Checker:
                     try self.infer(p.args[i], a.args[i], decl, out)
                     i += 1
                 return
+        if p.kind == types.Kind.optional and arg != types.none_id:
+            # a value converts to its optional implicitly (`Node*` to `Node*?`), so `T?`
+            # learns T from the value as from the optional
+            try self.infer(p.elem, arg, decl, out)
+            return
         if p.kind == types.Kind.span and a.kind == types.Kind.array:
             try self.infer(p.elem, a.elem, decl, out)
         if p.kind == types.Kind.interface_ and a.kind == types.Kind.pointer:
@@ -6867,6 +6872,10 @@ test "cas orderings: no release on failure, and failure no stronger than success
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")
+
+test "a generic optional parameter learns its argument from a plain value":
+    try expect_ok("struct Node:\n    var value: i64\nfunc first_or_zero[T](node: T*?) -> i64:\n    if node == none:\n        return 0\n    return 1\nfunc f() -> i64:\n    var n = Node(value = 1)\n    let p: Node* = &n\n    return first_or_zero(p) + first_or_zero[Node](none)\n")
+    try expect_ok("func or_default[T](value: T?, fallback: T) -> T:\n    return value else fallback\nfunc f() -> i64:\n    let x: i64 = 3\n    return or_default(x, 4)\n")
 
 test "a generic struct instantiates and its methods substitute":
     try expect_ok("struct Box[T]:\n    var item: T\n    func get() -> T:\n        return self.item\nfunc f() -> i64:\n    let b = Box[i64](item = 3)\n    return b.get()\n")
