@@ -937,7 +937,9 @@ def width_program(rng):
     return "\n".join(lines) + "\n"
 
 
-trap_position = re.compile(rb"trap: [^ ]+:(\d+:\d+): (.*)")
+# the path may hold spaces (a Windows home such as C:/Users/Dennis Sedov): it runs to
+# the first `.lucb:line:col:`
+trap_position = re.compile(rb"trap: .+?\.lucb:(\d+:\d+): (.*)")
 
 
 def trap_outcome(status, so, se):
