@@ -26,7 +26,9 @@ import back.native.levels
 import back.native.selection
 import back.ir.ir
 import back.target as build_target
+import back.parallel
 import memory
+import support.arena as arenas
 import support.buffer
 import support.list
 ## The x86-64 generator could not emit the program.
@@ -68,6 +70,16 @@ pub struct Generator:
     var fr: frame.Frame
     ## `--debug`: the frame descriptors, gathered while each function's frame is known.
     var descriptors: buffer.Buffer
+    ## For an assembly the driver splits into pieces it assembles in parallel (ELF): the
+    ## labels functions share (text literals, the sign masks, the half routines) are hidden
+    ## global symbols, not labels local to one file, so every piece can name them.
+    pub var split: bool = false
+    ## Where each function's text begins in the output, and after them, where the rest
+    ## (module asm, literals, tables, globals) begins: `functions.count + 1` offsets.
+    pub var starts: usize[]
+    ## Where the format's closing directives begin; every piece of a split assembly ends
+    ## with them.
+    pub var ending: usize = 0
 
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
@@ -132,8 +144,61 @@ pub struct Generator:
         try self.out.put_u64((u64)n)
 
     mutating func text_label(n: u32) -> !:
-        try self.out.put(".Ltext_")
+        try self.out.put(self.shared(".Ltext_"))
         try self.out.put_u64((u64)n)
+
+    ## A label functions share, as this assembly spells it: local to the file (`.Lname`), or
+    ## with `split` the hidden symbol `lb_name` every piece can name.
+    func shared(label: str) -> str:
+        if not self.split:
+            return label
+        if label == ".Ltext_":
+            return "lb_text_"
+        if label == ".Lvsign32":
+            return "lb_vsign32"
+        if label == ".Lvsign64":
+            return "lb_vsign64"
+        if label == ".Llb_half_to_single":
+            return "lb_half_to_single"
+        if label == ".Llb_single_to_half":
+            return "lb_single_to_half"
+        return label
+
+    ## Every function's text, each generated on whichever thread takes it by a generator of
+    ## its own, in an arena of its own, and written here in order. A function's text depends
+    ## on that function alone (its labels carry its index), so it is the text one function
+    ## after another would give.
+    mutating func functions_in_parallel() -> !:
+        let n = self.program_unit.functions.count
+        with memory.heap:
+            var job = Generating(model = &self, texts = try alloc str[n], halves = try alloc bool[n], failures = try parallel.failures(n))
+            defer free(job.texts)
+            defer free(job.halves)
+            defer free(job.failures)
+            for k in 0..<n:
+                job.texts[k] = ""
+                job.halves[k] = false
+            defer:
+                for k in 0..<n:
+                    if job.texts[k].length > 0:
+                        free(job.texts[k].bytes)
+            try parallel.each(n, generate_task, (void*)&job)
+            try parallel.check(job.failures)
+            for k in 0..<n:
+                self.starts[k] = self.out.used
+                try self.put(job.texts[k])
+                if job.halves[k]:
+                    self.half_routines = true
+
+    ## A generator for one function like `model`: the same target and settings, its own
+    ## frame and output, from the current allocator.
+    static func like(model: Generator*) -> Generator!:
+        var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, convention = model.convention, unwinding = model.unwinding, level = model.level, out = try buffer.Buffer.create(16384), program_unit = model.program_unit, f = model.f, index = 0,
+                             at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
+                             fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(256))
+        made.dw = none
+        made.split = model.split
+        return made
 
     ## The assembly emitted so far.
     pub func text() -> str:
@@ -1357,7 +1422,7 @@ pub struct Generator:
             try self.line("movzwl %ax, %eax")
         else:
             self.half_routines = true
-            try self.line("call .Llb_single_to_half")
+            try self.line2("call ", self.shared(".Llb_single_to_half"))
         try self.line3("movd %eax, ", reg, "")
 
     ## The half in the low sixteen bits of `reg` widened to a single, in place.
@@ -1367,7 +1432,7 @@ pub struct Generator:
             return
         self.half_routines = true
         try self.line3("movd ", reg, ", %eax")
-        try self.line("call .Llb_half_to_single")
+        try self.line2("call ", self.shared(".Llb_half_to_single"))
         try self.line3("movd %eax, ", reg, "")
 
     mutating func negate(n: ir.Instr) -> !:
@@ -1759,7 +1824,7 @@ pub struct Generator:
             .vneg:
                 # the sign bit of every lane flipped
                 try self.vector_source(n.a, "%xmm8", bytes)
-                try self.line3("xorps ", ".Lvsign64(%rip)" if bits == 64 else ".Lvsign32(%rip)", ", %xmm8")
+                try self.line4("xorps ", self.shared(".Lvsign64" if bits == 64 else ".Lvsign32"), "(%rip)", ", %xmm8")
                 try self.vector_result(n.dst, "%xmm8", bytes)
             .vnot:
                 try self.vector_source(n.a, "%xmm8", bytes)
@@ -1832,7 +1897,7 @@ pub struct Generator:
             try self.line("je 1f")
         else:
             # unsigned: an add overflowed where r < a, a subtract where a < b
-            try self.line("movdqa .Lvsign32(%rip), %xmm11")
+            try self.line3("movdqa ", self.shared(".Lvsign32"), "(%rip), %xmm11")
             try self.line("pxor %xmm11, %xmm8")
             if add:
                 try self.line("pxor %xmm10, %xmm11")
@@ -2719,10 +2784,17 @@ pub struct Generator:
         if let dw = self.dw:
             try dw.begin(&self.out)
         try self.put("    .text\n")
+        self.starts = try alloc usize[self.program_unit.functions.count + 1]
         var i: usize = 0
-        while i < self.program_unit.functions.count:
-            try self.function(i)
-            i += 1
+        if self.dw == none:
+            try self.functions_in_parallel()
+        else:
+            # the DWARF emitter gathers every function's lines and frames in order
+            while i < self.program_unit.functions.count:
+                self.starts[i] = self.out.used
+                try self.function(i)
+                i += 1
+        self.starts[self.program_unit.functions.count] = self.out.used
         # module-level asm blocks, verbatim, in the text section (§8.9)
         i = 0
         while i < self.program_unit.module_asm.count:
@@ -2732,9 +2804,16 @@ pub struct Generator:
         try self.object_format.initializer(&self.out, self.program_unit.init_function)
         # text literals, after the sign masks vector negation and unsigned lane checks read
         try self.put(self.object_format.read_only())
-        try self.put("\n    .p2align 4\n.Lvsign32:\n    .long 2147483648, 2147483648, 2147483648, 2147483648\n.Lvsign64:\n    .quad -9223372036854775808, -9223372036854775808\n")
+        try self.put("\n    .p2align 4\n")
+        try self.shared_label(".Lvsign32")
+        try self.put("    .long 2147483648, 2147483648, 2147483648, 2147483648\n")
+        try self.shared_label(".Lvsign64")
+        try self.put("    .quad -9223372036854775808, -9223372036854775808\n")
         i = 0
         while i < self.program_unit.texts.count:
+            if self.split:
+                var room: u8[40]
+                try self.object_format.hidden_global(&self.out, try format(room, f"lb_text_{i}"))
             try self.text_label(u32(i))
             try self.put(":\n    .asciz ")
             try self.c_string(self.program_unit.texts.get(i).bytes)
@@ -2766,10 +2845,39 @@ pub struct Generator:
             try self.put(self.descriptors.view())
         try self.object_format.globals(&self.out, self.program_unit)
         if self.half_routines:
-            try self.put(half_routines_text)
+            if self.split:
+                # the same routines under the names every piece of the assembly calls
+                try self.object_format.hidden_global(&self.out, "lb_half_to_single")
+                try self.object_format.hidden_global(&self.out, "lb_single_to_half")
+                try self.put_renamed(half_routines_text, ".Llb_", "lb_")
+            else:
+                try self.put(half_routines_text)
+        self.ending = self.out.used
         try self.object_format.finish(&self.out)
         if let dw = self.dw:
             try dw.finish(&self.out)
+
+    ## `label:` for a label functions share, declared hidden first when it is a symbol.
+    mutating func shared_label(label: str) -> !:
+        let name = self.shared(label)
+        if self.split:
+            try self.object_format.hidden_global(&self.out, name)
+        try self.put(name)
+        try self.put(":\n")
+
+    ## `text` with every `old` written as `replacement`.
+    mutating func put_renamed(text: str, old: str, replacement: str) -> !:
+        var at: usize = 0
+        var start: usize = 0
+        while at + old.length <= text.length:
+            if (str)text.bytes[at..<at + old.length] == old:
+                try self.put((str)text.bytes[start..<at])
+                try self.put(replacement)
+                at += old.length
+                start = at
+            else:
+                at += 1
+        try self.put((str)text.bytes[start..])
 
     mutating func c_string(text: str) -> !:
         try self.put("\"")
@@ -3207,3 +3315,36 @@ func argument_index(name: str) -> i32:
             return k
         k += 1
     return -1
+
+# mark: Generating in parallel ================================================================
+
+## What the threads generating a program's functions share: the generator they copy, each
+## function's text or failure, and whether it called the half routines.
+struct Generating:
+    var model: Generator*
+    var texts: str[]
+    var halves: bool[]
+    var failures: parallel.Failure[]
+
+## Generate function `index` of the job `context` points at into a heap copy of its text.
+func generate_task(context: void*?, index: usize):
+    let job = (Generating*)(context else return)
+    var scratch = arenas.Arena(memory.heap, 1048576)
+    defer scratch.destroy()
+    generate_one(job, index, &scratch) catch failure:
+        job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+
+func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
+    var generated: str = ""
+    var halves = false
+    with scratch:
+        var g = try Generator.like(job.model)
+        try g.function(index)
+        halves = g.half_routines
+        let made = g.out.view()
+        with memory.heap:
+            var kept = try alloc u8[made.length]
+            memory.copy(kept, made.bytes, made.length)
+            generated = (str)kept
+    job.texts[index] = generated
+    job.halves[index] = halves

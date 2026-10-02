@@ -44,6 +44,7 @@ import support.literals
 import support.runtime
 import support.version
 import support.host_tools
+import support.pieces
 
 func usage(out: io.Writer) -> !:
     try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base describe-closure FILE\n       luce-base describe-closure --modules NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
@@ -307,18 +308,27 @@ func checked(path: c.str) -> check.Checker!:
     return checker
 
 ## The checked program through the backend the command chose.
-func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
+func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool = false) -> str!:
     if native_backend:
         var native = try backend.NativeBackend.over(checker, entry, debug_backend and not symbols_backend, diagnostic_profile, symbols_backend)
         native.dump_ir = dump_ir
         native.opt_level = opt_level
         native.opt_count = opt_count
         native.report = opt_report
+        native.split = split
         let target: backend.Backend = &native
-        return try target.compile(mode)
+        let text = try target.compile(mode)
+        split_starts = native.starts
+        split_ending = native.ending
+        return text
     var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile)
     let target: backend.Backend = &host_c
     return try target.compile(mode)
+
+## After a native translation: where each function's text began, then the rest, and where
+## the closing directives began (`support.pieces`).
+var split_starts: usize[]
+var split_ending: usize = 0
 
 ## Native assembly by default; generated C only when explicitly requested.
 var native_backend: bool
@@ -621,6 +631,22 @@ func finish_debug(exe: str) -> !:
     try run_tool("objcopy", attach, "could not attach the ELF debug file")
 
 ## `as` over the assembly, then the target's linker (§19.5): Apple's `ld` against the
+## Whether this build's assembly may be split into pieces: native code for macOS or Linux
+## without debug information (whose DWARF lines run through the whole text), and not
+## Windows, whose weak declarations each piece would repeat.
+func splittable() -> bool:
+    let t = build_target()
+    return native_backend and not debug_backend and not symbols_backend and (t.os == targets.Os.macos or t.os == targets.Os.linux)
+
+## Assemble the one file at `asm_path` into `object_path`.
+func assemble_one(dir: str, asm_path: str, object_path: str) -> !:
+    var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
+    let (as_status, as_out, as_err) = try host_tools.run("as", as_args, dir)
+    discard(as_out.length)
+    if as_status != 0:
+        try io.stderr().write(as_err)
+        error(build_failed, "the assembler rejected the generated code")
+
 ## system library found through `xcrun`, or the C driver, which knows where the C library,
 ## its start files, and the dynamic loader are.
 func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str, exe: str) -> !:
@@ -628,6 +654,16 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
     let object_path = try format(name_bytes[512..<1024], f"{dir}/gen.o")
     if let cached = try cache.find(key, "-n.o"):
         try files.write((c.str)object_path, try files.read((c.str)cached))
+    elif splittable():
+        # a large program's assembly in pieces, assembled in parallel and joined
+        let text = try translate(checker, entry, mode, true)
+        let t = build_target()
+        if split_starts[split_starts.length - 1] - split_starts[0] >= 4194304:
+            try pieces.assemble(dir, text, split_starts, split_ending, object_path, t.os == targets.Os.macos, t.arch_name())
+        else:
+            try files.write((c.str)asm_path, text.bytes)
+            try assemble_one(dir, asm_path, object_path)
+        cache.keep(key, "-n.o", object_path)
     else:
         let text = try translate(checker, entry, mode)
         try files.write((c.str)asm_path, text.bytes)

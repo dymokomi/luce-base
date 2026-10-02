@@ -25,19 +25,22 @@ import back.ir.ir
 pub func clean(program: ir.Unit*) -> !:
     var i: usize = 0
     while i < program.functions.count:
-        let f = &program.functions.items[i]
+        try clean_function(&program.functions.items[i])
         i += 1
-        if f.naked:
-            continue
-        discard(try failure_flags(f))
-        discard(powers_of_two(f))
-        discard(negations(f))
-        discard(try low_bits(f))
-        discard(fold(f))
-        # a chain of values the rewrites left unread goes one link per sweep
-        var swept = try sweep(f)
-        while swept:
-            swept = try sweep(f)
+
+## `clean` for one function: it reads and writes `f` alone.
+pub func clean_function(f: ir.Function*) -> !:
+    if f.naked:
+        return
+    discard(try failure_flags(f))
+    discard(powers_of_two(f))
+    discard(negations(f))
+    discard(try low_bits(f))
+    discard(fold(f))
+    # a chain of values the rewrites left unread goes one link per sweep
+    var swept = try sweep(f)
+    while swept:
+        swept = try sweep(f)
 
 ## A call's failure flag comes back 0 or 1 (`ir.Op.word` with `extra2` 1): the zero-extension
 ## the flag's byte takes on its way through the result's slot is the flag itself. Whether
@@ -212,7 +215,8 @@ pub func optimise(program: ir.Unit*) -> !:
         try function(&program.functions.items[i])
         i += 1
 
-func function(f: ir.Function*) -> !:
+## `optimise` for one function: it reads and writes `f` alone.
+pub func function(f: ir.Function*) -> !:
     if f.naked:
         return
     var round: u32 = 0

@@ -1,0 +1,115 @@
+#==============================================================================================
+#
+#   parallel - One task per index, on every processor
+#
+#   DESCRIPTION:
+#       The backend's per-function stages (the optimiser's passes, the generator's text)
+#       touch only their own function, so the indices of a program's functions are handed
+#       to a thread for each processor, each taking the next index there is until none are
+#       left. A task never fails across threads: it keeps its own error for its index, and
+#       the caller reports the first index's, so a build fails the same way however its
+#       tasks were scheduled. `LUCE_BASE_JOBS` sets the thread count; 1 runs every task on
+#       the calling thread, in order.
+#
+#==============================================================================================
+
+import memory
+import os
+import platform
+import thread
+
+extern func sysconf(name: i32) -> i64
+extern func GetActiveProcessorCount(group: u16) -> u32
+
+## Whether every task runs on the calling thread, in order, whatever `workers()` says:
+## `--opt-report` times each stage on one thread.
+pub var serial: bool = false
+
+## The threads the backend uses: `LUCE_BASE_JOBS` when it names a positive number, else
+## the processors available to the process.
+pub func workers() -> u32:
+    if serial:
+        return 1
+    if let text = os.env("LUCE_BASE_JOBS"):
+        var n: u32 = 0
+        for byte in text.bytes:
+            if byte < '0' or byte > '9':
+                return processors()
+            n = n *% 10 +% (u32)(byte - '0')
+        if n > 0:
+            return n
+    return processors()
+
+## The processors available to the process, at least one. Asked of the system here, not of
+## `os`, since the compiler's own sources stay within what the seed's library has.
+func processors() -> u32:
+    if platform.windows:
+        let count = GetActiveProcessorCount(65535)
+        return count if count > 0 else 1
+    # _SC_NPROCESSORS_ONLN
+    let n = sysconf(58 if platform.macos else 84)
+    return (u32)n if n > 0 else 1
+
+## A run of `body` over `0..<count`, shared by the threads that take its indices.
+struct Run:
+    var body: func(void*?, usize) -> unit
+    var context: void*?
+    var count: usize
+    var next: @usize
+
+## Take indices from `run` until none are left.
+func work(argument: void*?):
+    let run = (Run*)(argument else return)
+    while true:
+        let index = run.next.add(1, .relaxed)
+        if index >= run.count:
+            return
+        run.body(run.context, index)
+
+## Call `body(context, i)` for every `i` in `0..<count`, on `workers()` threads at most,
+## and return when every call has. The calls must not depend on one another's order. With
+## one worker, or a count too small to share, they run here in order.
+pub func each(count: usize, body: func(void*?, usize) -> unit, context: void*?) -> !:
+    let wanted = (usize)workers()
+    let threads = wanted if wanted < count else count
+    if threads <= 1:
+        for index in 0..<count:
+            body(context, index)
+        return
+    var run = Run(body = body, context = context, count = count, next = 0)
+    with memory.heap:
+        var handles = try alloc thread.Handle[threads - 1]
+        defer free(handles)
+        var started: usize = 0
+        defer:
+            for k in 0..<started:
+                handles[k].join() catch ignored:
+                    discard(ignored)
+        while started < threads - 1:
+            # a thread that cannot start leaves its share to the others
+            handles[started] = thread.spawn(work, (void*)&run) catch:
+                break
+            started += 1
+        work((void*)&run)
+
+## A task's failure, kept for its index, so the caller can report the first index's.
+pub struct Failure:
+    ## Whether the task failed; the rest is its error when it did.
+    pub var failed: bool
+    ## The error's code.
+    pub var code: ErrorCode
+    ## The error's message.
+    pub var message: str
+
+## `count` failures, none failed yet, from the current allocator.
+pub func failures(count: usize) -> Failure[]!:
+    var made = try alloc Failure[count]
+    for index in 0..<count:
+        made[index].failed = false
+    return made
+
+## The first failure of `kept`, if a task failed, as the caller's error.
+pub func check(kept: const Failure[]) -> !:
+    for failure in kept:
+        if failure.failed:
+            error(failure.code, failure.message)

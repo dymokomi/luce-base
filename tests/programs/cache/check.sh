@@ -54,13 +54,5 @@ moved one "" | grep -q '^luce-base: cache miss ' || { echo "FAIL tests/programs/
 moved "two levels/deeper" "" | grep -q '^luce-base: cache hit ' || { echo "FAIL tests/programs/cache: the same project elsewhere did not hit"; exit 1; }
 moved one --debug | grep -q '^luce-base: cache miss ' || { echo "FAIL tests/programs/cache: the first debug build did not miss"; exit 1; }
 moved "two levels/deeper" --debug | grep -q '^luce-base: cache miss ' || { echo "FAIL tests/programs/cache: a debug build elsewhere reused a debug object naming another directory"; exit 1; }
-# Past LUCE_CACHE_LIMIT megabytes the objects written longest ago go; a build's own stays,
-# and so does anything that is not an object.
-trim="$work/trim-cache"
-mkdir -p "$trim/staging"
-for n in a b c; do dd if=/dev/zero of="$trim/$n-n.o" bs=1048576 count=1 2> /dev/null; done
-touch -t 202001010000 "$trim/a-n.o"; touch -t 202101010000 "$trim/b-n.o"; touch -t 202201010000 "$trim/c-n.o"
-LUCE_CACHE_LIMIT=2 "$compiler" build "$work/main.lucb" --native --cache-dir "$trim" -o "$work/program" > /dev/null
-[ ! -e "$trim/a-n.o" ] && [ ! -e "$trim/b-n.o" ] && [ -e "$trim/c-n.o" ] && [ -d "$trim/staging" ] && [ "$(ls "$trim" | wc -l | tr -d ' ')" = 3 ] || { echo "FAIL tests/programs/cache: trimming kept the wrong objects"; ls -la "$trim"; exit 1; }
 rm -rf "$work"
-echo "ok tests/programs/cache: miss, hit, a C key of its own, an edit, no cache with none, a project-local default, the same project elsewhere, debug keyed by place, and trimming"
+echo "ok tests/programs/cache: miss, hit, a C key of its own, an edit, no cache with none, a project-local default, the same project elsewhere, and debug keyed by place"

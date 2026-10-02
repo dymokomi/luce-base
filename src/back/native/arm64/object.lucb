@@ -131,6 +131,18 @@ pub struct Format:
     pub func text_section(out: buffer.Buffer*) -> !:
         try out.put("    .section __TEXT,__text,regular,pure_instructions\n" if self.apple else "    .text\n")
 
+    ## `name` a global the linker keeps to the image: `.private_extern` on Mach-O, `.hidden`
+    ## on ELF. Pieces of one program's assembly name it; nothing outside the image can.
+    pub func hidden_global(out: buffer.Buffer*, name: str) -> !:
+        if self.apple:
+            try out.put("    .private_extern ")
+        else:
+            try out.put("    .globl ")
+            try out.put(name)
+            try out.put("\n    .hidden ")
+        try out.put(name)
+        try out.put("\n")
+
     ## Back to the text section after a function placed in a named one.
     pub func leave_section(out: buffer.Buffer*, function: ir.Function*) -> !:
         if function.section.length > 0:

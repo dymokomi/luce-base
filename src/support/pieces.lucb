@@ -1,0 +1,133 @@
+#==============================================================================================
+#
+#   pieces - One program's assembly assembled in pieces, in parallel, then joined
+#
+#   DESCRIPTION:
+#       The system assembler reads one file on one thread: luced-3d's 70 MB of assembly
+#       took it ten seconds. Generated with `split`, the assembly names the labels functions
+#       share as hidden symbols, and it records where each function begins. So it is cut
+#       at function boundaries into pieces of about the same size, a number that depends
+#       on the text alone, each with the text's opening and closing directives, plus one
+#       piece for the rest (literals, tables, globals). The pieces are assembled on
+#       separate threads and joined with `ld -r` into the one object the build links
+#       and caches.
+#
+#==============================================================================================
+
+import back.parallel
+import c
+import files
+import io
+import memory
+import support.host_tools
+
+## A piece to aim for: big enough that starting the assembler is little of its time,
+## small enough that a large program keeps every processor busy.
+let piece_bytes: usize = 2097152
+## At most this many pieces, however large the program.
+let most_pieces: usize = 64
+
+## Assemble `text` (generated with `split`; `starts` and `ending` from its generator) into
+## the object at `object`, in `dir`. `macho` joins with Apple's `ld -r` for `arch`.
+pub func assemble(dir: str, text: str, starts: const usize[], ending: usize, object: str, macho: bool, arch: str) -> !:
+    let functions = starts.length - 1
+    let first = starts[0]
+    let rest = starts[functions]
+    let body = rest - first
+    var count = (body + piece_bytes - 1) // piece_bytes
+    if count > most_pieces:
+        count = most_pieces
+    if count < 1:
+        count = 1
+    let prelude = (str)text.bytes[..<first]
+    let closing = (str)text.bytes[ending..]
+    with memory.heap:
+        # piece k holds functions [cuts[k], cuts[k + 1]); the last piece is the rest
+        var cuts = try alloc usize[count + 1]
+        defer free(cuts)
+        cuts[0] = 0
+        var made: usize = 1
+        let share = body // count + 1
+        var since = first
+        for index in 0..<functions:
+            if made < count and starts[index] - since >= share:
+                cuts[made] = index
+                made += 1
+                since = starts[index]
+        cuts[made] = functions
+        var job = Assembling(dir = dir, sources = try alloc str[made + 1], objects = try alloc str[made + 1], failures = try parallel.failures(made + 1))
+        defer free(job.sources)
+        defer free(job.objects)
+        defer free(job.failures)
+        for k in 0..<made + 1:
+            var source_room = try alloc u8[dir.length + 32]
+            job.sources[k] = try format(source_room, f"{dir}/gen.{k}.s")
+            var object_room = try alloc u8[dir.length + 32]
+            job.objects[k] = try format(object_room, f"{dir}/gen.{k}.o")
+            if k < made:
+                let from_byte = starts[cuts[k]]
+                let to_byte = starts[cuts[k + 1]] if cuts[k + 1] < functions else rest
+                try write_piece(job.sources[k], prelude, (str)text.bytes[from_byte..<to_byte], closing)
+            else:
+                try write_piece(job.sources[k], prelude, (str)text.bytes[rest..], "")
+        try parallel.each(made + 1, assemble_task, (void*)&job)
+        try parallel.check(job.failures)
+        try join(dir, job.objects, object, macho, arch)
+
+## `prelude`, `middle` and `closing` as one file at `path`.
+func write_piece(path: str, prelude: str, middle: str, closing: str) -> !:
+    with memory.heap:
+        var whole = try alloc u8[prelude.length + middle.length + closing.length]
+        defer free(whole)
+        memory.copy(whole, prelude.bytes, prelude.length)
+        memory.copy(whole[prelude.length..], middle.bytes, middle.length)
+        memory.copy(whole[prelude.length + middle.length..], closing.bytes, closing.length)
+        try files.write((c.str)path, whole)
+
+## What the threads assembling the pieces share.
+struct Assembling:
+    var dir: str
+    var sources: str[]
+    var objects: str[]
+    var failures: parallel.Failure[]
+
+func assemble_task(context: void*?, index: usize):
+    let job = (Assembling*)(context else return)
+    with memory.heap:
+        assemble_piece(job, index) catch failure:
+            job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+
+func assemble_piece(job: Assembling*, index: usize) -> !:
+    var arguments: c.str[3] = ["-o", (c.str)job.objects[index], (c.str)job.sources[index]]
+    let (status, out, err) = try host_tools.run("as", arguments, job.dir)
+    discard(out.length)
+    if status != 0:
+        try io.stderr().write(err)
+        error(rejected, "the assembler rejected the generated code")
+
+## The assembler rejected a piece, or the pieces could not be joined.
+pub let rejected: ErrorCode = ErrorCode.package(43)
+
+## Join `objects` into the relocatable object `object` with `ld -r`.
+func join(dir: str, objects: const str[], object: str, macho: bool, arch: str) -> !:
+    with memory.heap:
+        var arguments = try alloc c.str[objects.length + 5]
+        defer free(arguments)
+        var n: usize = 0
+        arguments[n] = "-r"
+        n += 1
+        if macho:
+            arguments[n] = "-arch"
+            arguments[n + 1] = (c.str)arch
+            n += 2
+        arguments[n] = "-o"
+        arguments[n + 1] = (c.str)object
+        n += 2
+        for piece in objects:
+            arguments[n] = (c.str)piece
+            n += 1
+        let (status, out, err) = try host_tools.run("ld", arguments[..<n], dir)
+        discard(out.length)
+        if status != 0:
+            try io.stderr().write(err)
+            error(rejected, "the linker could not join the assembled pieces")

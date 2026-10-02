@@ -40,6 +40,15 @@ pub struct Format:
         try out.put("\n")
         try self.linkage(out, name, weak, used)
 
+    ## `name` a global the linker keeps to the image (ELF `.hidden`): pieces of one program's
+    ## assembly name it; nothing outside the image can.
+    pub func hidden_global(out: buffer.Buffer*, name: str) -> !:
+        try out.put("    .globl ")
+        try out.put(name)
+        try out.put("\n    .hidden ")
+        try out.put(name)
+        try out.put("\n")
+
     ## The extra `.weak` a non-Windows target needs after `.globl`; `used` has no directive.
     pub func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
         if weak and self.os != build_target.Os.windows:

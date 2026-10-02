@@ -27,7 +27,9 @@ import back.native.levels
 import back.native.selection
 import back.ir.ir
 import back.target as build_target
+import back.parallel
 import memory
+import support.arena as arenas
 import support.buffer
 import support.list
 ## The arm64 generator could not emit the program.
@@ -64,6 +66,15 @@ pub struct Generator:
     var text_count: usize
     ## `--debug`: the frame descriptors, gathered while each function's frame is known.
     var descriptors: buffer.Buffer
+    ## For an assembly the driver splits into pieces it assembles in parallel: text literals
+    ## are hidden global symbols, not labels local to one file, so every piece can name them.
+    pub var split: bool = false
+    ## Where each function's text begins in the output, and after them, where the rest
+    ## (module asm, literals, tables, globals) begins: `functions.count + 1` offsets.
+    pub var starts: usize[]
+    ## Where the format's closing directives begin; every piece of a split assembly ends
+    ## with them.
+    pub var ending: usize = 0
     ## By temporary, in the function being emitted: a `w` value whose register's upper half
     ## is zero (`selection.zero_extended`), which an `extuw` in the same register leaves be.
     var zero_upper: bool[]
@@ -117,13 +128,21 @@ pub struct Generator:
         try self.out.put_u64((u64)n)
 
     mutating func text_label(n: u32) -> !:
-        try self.out.put(self.object_format.text_label)
+        try self.out.put(self.texts_prefix())
         try self.out.put_u64((u64)n)
 
     ## The text literal's label as text, for an address the format spells.
     func text_label_name(n: u32) -> str!:
-        let room = try alloc u8[self.object_format.text_label.length + 24]
-        return try format(room, f"{self.object_format.text_label}{n}")
+        let prefix = self.texts_prefix()
+        let room = try alloc u8[prefix.length + 24]
+        return try format(room, f"{prefix}{n}")
+
+    ## What begins a text literal's name: the format's local label, or with `split` a
+    ## symbol of the program's own (`lb_text_`) every piece of the assembly can name.
+    func texts_prefix() -> str:
+        if self.split:
+            return "_lb_text_" if self.object_format.apple else "lb_text_"
+        return self.object_format.text_label
 
     ## The assembly emitted so far.
     pub func text() -> str:
@@ -2682,10 +2701,17 @@ pub struct Generator:
         if let dw = self.dw:
             try dw.begin(&self.out)
         try self.object_format.text_section(&self.out)
+        self.starts = try alloc usize[self.program_unit.functions.count + 1]
         var i: usize = 0
-        while i < self.program_unit.functions.count:
-            try self.function(i)
-            i += 1
+        if self.dw == none:
+            try self.functions_in_parallel()
+        else:
+            # the DWARF emitter gathers every function's lines and frames in order
+            while i < self.program_unit.functions.count:
+                self.starts[i] = self.out.used
+                try self.function(i)
+                i += 1
+        self.starts[self.program_unit.functions.count] = self.out.used
         # module-level asm blocks, verbatim, in the text section (§8.9)
         i = 0
         while i < self.program_unit.module_asm.count:
@@ -2697,6 +2723,8 @@ pub struct Generator:
         try self.object_format.read_only(&self.out)
         i = 0
         while i < self.program_unit.texts.count:
+            if self.split:
+                try self.object_format.hidden_global(&self.out, try self.text_label_name(u32(i)))
             try self.text_label(u32(i))
             try self.put(":\n    .asciz ")
             try self.c_string(self.program_unit.texts.get(i).bytes)
@@ -2729,7 +2757,39 @@ pub struct Generator:
         try self.put("\n")
         if let dw = self.dw:
             try dw.finish(&self.out)
+        self.ending = self.out.used
         try self.object_format.finish(&self.out)
+
+    ## Every function's text, each generated on whichever thread takes it by a generator of
+    ## its own, in an arena of its own, and written here in order. A function's text depends
+    ## on that function alone (its labels carry its index), so it is the text one function
+    ## after another would give.
+    mutating func functions_in_parallel() -> !:
+        let n = self.program_unit.functions.count
+        with memory.heap:
+            var job = Generating(model = &self, texts = try alloc str[n], failures = try parallel.failures(n))
+            defer free(job.texts)
+            defer free(job.failures)
+            for k in 0..<n:
+                job.texts[k] = ""
+            defer:
+                for k in 0..<n:
+                    if job.texts[k].length > 0:
+                        free(job.texts[k].bytes)
+            try parallel.each(n, generate_task, (void*)&job)
+            try parallel.check(job.failures)
+            for k in 0..<n:
+                self.starts[k] = self.out.used
+                try self.put(job.texts[k])
+
+    ## A generator for one function like `model`: the same target and settings, its own
+    ## frame and output, from the current allocator.
+    static func like(model: Generator*) -> Generator!:
+        var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, fp16 = model.fp16, out = try buffer.Buffer.create(16384), program_unit = model.program_unit, f = model.f, index = 0,
+                             fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(256))
+        made.dw = none
+        made.split = model.split
+        return made
 
     mutating func c_string(text: str) -> !:
         try self.put("\"")
@@ -3112,3 +3172,32 @@ func offset_reaches(offset: i64, width: u32) -> bool:
 let w_arguments: str[8] = ["w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"]
 let s_arguments: str[8] = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
 let d_arguments: str[8] = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"]
+
+# mark: Generating in parallel ================================================================
+
+## What the threads generating a program's functions share: the generator they copy, and
+## each function's text or failure.
+struct Generating:
+    var model: Generator*
+    var texts: str[]
+    var failures: parallel.Failure[]
+
+## Generate function `index` of the job `context` points at into a heap copy of its text.
+func generate_task(context: void*?, index: usize):
+    let job = (Generating*)(context else return)
+    var scratch = arenas.Arena(memory.heap, 1048576)
+    defer scratch.destroy()
+    generate_one(job, index, &scratch) catch failure:
+        job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+
+func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
+    var generated: str = ""
+    with scratch:
+        var g = try Generator.like(job.model)
+        try g.function(index)
+        let made = g.out.view()
+        with memory.heap:
+            var kept = try alloc u8[made.length]
+            memory.copy(kept, made.bytes, made.length)
+            generated = (str)kept
+    job.texts[index] = generated

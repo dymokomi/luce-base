@@ -34,6 +34,7 @@ import back.target as targets
 import back.native.x86_64
 import back.c.emit
 import back.opt.inline
+import back.parallel
 import back.ir.ir
 import back.ir.irtext
 import back.ir.lower
@@ -83,6 +84,13 @@ pub struct NativeBackend: Backend:
     pub var report: bool
     ## The target of the build (§19.5): arm64-macos and x86_64-linux have generators.
     var target: targets.Target
+    ## Whether the driver will assemble the text in pieces (`support.pieces`): the
+    ## generator then names the labels functions share as hidden symbols.
+    pub var split: bool = false
+    ## After `compile`: where each function's text begins, then where the rest begins.
+    pub var starts: usize[]
+    ## After `compile`: where the format's closing directives begin.
+    pub var ending: usize = 0
 
     ## A native backend that lowers `entry` to IR and generates the target's assembly.
     pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false) -> NativeBackend!:
@@ -99,6 +107,8 @@ pub struct NativeBackend: Backend:
             error(unsupported_target, "the native backend emits arm64-macos, arm64-linux, x86_64-linux and x86_64-windows; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
         self.lowerer.target = t
+        timing = self.report
+        parallel.serial = self.report
         var at = ticks()
         # the IR's lists grow by copying: from the heap their old storage goes back to it,
         # where the driver's arena would keep every outgrown copy until the build ends
@@ -120,15 +130,12 @@ pub struct NativeBackend: Backend:
                 try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed)
                 # every function tidied, not only those this pass changed: the first pass's
                 # expansions leave parameter stores and unreached blocks behind as well
-                for fi in 0..<self.lowerer.program_unit.functions.count:
-                    let f = &self.lowerer.program_unit.functions.items[fi]
-                    if not f.naked and not f.debug and f.instrs.count > 0:
-                        try inline.tidy_expanded(f)
+                try each_function(&self.lowerer.program_unit, tidy_task)
             if not self.debug:
                 if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
-                    try opt.clean(&self.lowerer.program_unit)
+                    try each_function(&self.lowerer.program_unit, clean_task)
                 else:
-                    try opt.optimise(&self.lowerer.program_unit)
+                    try each_function(&self.lowerer.program_unit, sweep_task)
             try note(&at, 7)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
@@ -142,8 +149,11 @@ pub struct NativeBackend: Backend:
                 if self.debug or self.lowerer.symbols:
                     generator.dw = &dw
                 generator.level = t.level
+                generator.split = self.split
                 try generator.generate()
                 text = generator.text()
+                self.starts = generator.starts
+                self.ending = generator.ending
             else:
                 var generator = try arm64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
                 # Apple's arm64 has half-precision arithmetic; ARMv8.0-A does not, and SVE
@@ -151,8 +161,11 @@ pub struct NativeBackend: Backend:
                 generator.fp16 = t.os == targets.Os.macos or t.level >= 2
                 if self.debug or self.lowerer.symbols:
                     generator.dw = &dw
+                generator.split = self.split
                 try generator.generate()
                 text = generator.text()
+                self.starts = generator.starts
+                self.ending = generator.ending
         try note(&at, 8)
         if self.report:
             try print_report()
@@ -163,13 +176,18 @@ pub struct NativeBackend: Backend:
 ## Processor time per stage, in the C library's clock ticks (a millionth of a second):
 ## lower, inline, promote, ssa, gvn, load, dessa, the sweep, generate.
 var stage_ticks: u64[9] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+## Whether this build keeps stage times (`--opt-report`).
+var timing: bool = false
 let stage_names: str[9] = ["lower", "inline", "promote", "ssa", "gvn", "load", "dessa", "opt", "generate"]
 extern func c_clock as "clock"() -> c.long
 
 func ticks() -> u64:
     return (u64)(i64)c_clock()
 
+## Stage times, kept only for `--opt-report`, which runs every stage on one thread.
 func note(at: u64*, stage: usize) -> !:
+    if not timing:
+        return
     let now = ticks()
     stage_ticks[stage] += now -% *at
     *at = now
@@ -190,75 +208,127 @@ func print_report() -> !:
 ## luce-js optimise to 25 to 30.
 let optimised_small: usize = 48
 
-## Optimise every function of `program`, or only those `only` marks.
+## Optimise every function of `program` (the first `count`), or only those `only` marks,
+## each on whichever thread takes it (back.parallel): a function's passes read and write
+## that function alone. A failure is reported for the first function that failed.
 func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?) -> !:
-    var i: usize = 0
-    while i < program.functions.count and i < (usize)count:
-        let f = &program.functions.items[i]
-        i += 1
-        if let marked = only:
-            if i - 1 >= marked.length or not marked[i - 1]:
-                continue
-        if f.naked or f.debug or f.instrs.count == 0 or level == 0:
-            continue
-        # the passes' working memory is the heap's, returned as each pass finishes; the
-        # driver's arena would keep every function's scratch until the build ends
-        with memory.heap:
-            var at = ticks()
-            var g = try cfg.Graph.over(f)
-            if try ssa.promote(f):
-                g.release()
-                g = try cfg.Graph.over(f)
-            # small aggregates whose address stays in the frame, taken apart into their
-            # fields once promote has made the addresses an expansion passed through its
-            # parameters' slots plain temporaries; promote then keeps each field in one
-            if level >= 2 and try split.run(f):
-                discard(try ssa.promote(f))
-                g.release()
-                g = try cfg.Graph.over(f)
-            try note(&at, 2)
-            var g2 = try ssa.construct(f, &g)
+    let n = program.functions.count if program.functions.count < (usize)count else (usize)count
+    with memory.heap:
+        var job = Optimising(program = program, level = level, only = only, failures = try parallel.failures(n))
+        defer free(job.failures)
+        try parallel.each(n, optimise_task, (void*)&job)
+        try parallel.check(job.failures)
+
+## Run `task` over every function of `program` on whichever thread takes it; the first
+## function's failure, if any failed, is the call's.
+func each_function(program: ir.Unit*, task: func(ir.Function*) -> unit!) -> !:
+    let n = program.functions.count
+    with memory.heap:
+        var job = PerFunction(program = program, task = task, failures = try parallel.failures(n))
+        defer free(job.failures)
+        try parallel.each(n, per_function_task, (void*)&job)
+        try parallel.check(job.failures)
+
+## What the threads running one task over a program's functions share.
+struct PerFunction:
+    var program: ir.Unit*
+    var task: func(ir.Function*) -> unit!
+    var failures: parallel.Failure[]
+
+func per_function_task(context: void*?, index: usize):
+    let job = (PerFunction*)(context else return)
+    with memory.heap:
+        job.task(&job.program.functions.items[index]) catch failure:
+            job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+
+## After the second inlining pass: every function tidied, not only those it changed.
+func tidy_task(f: ir.Function*) -> !:
+    if not f.naked and not f.debug and f.instrs.count > 0:
+        try inline.tidy_expanded(f)
+
+func clean_task(f: ir.Function*) -> !:
+    try opt.clean_function(f)
+
+func sweep_task(f: ir.Function*) -> !:
+    try opt.function(f)
+
+## What the threads optimising a program share: the program, the level, which functions,
+## and each function's failure, if it had one.
+struct Optimising:
+    var program: ir.Unit*
+    var level: u32
+    var only: bool[]?
+    var failures: parallel.Failure[]
+
+## Optimise function `index` of the job `context` points at.
+func optimise_task(context: void*?, index: usize):
+    let job = (Optimising*)(context else return)
+    if let marked = job.only:
+        if index >= marked.length or not marked[index]:
+            return
+    optimise_function(&job.program.functions.items[index], job.level) catch failure:
+        job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+
+## The optimiser's passes over `f` at `level`.
+func optimise_function(f: ir.Function*, level: u32) -> !:
+    if f.naked or f.debug or f.instrs.count == 0 or level == 0:
+        return
+    with memory.heap:
+        var at = ticks()
+        var g = try cfg.Graph.over(f)
+        if try ssa.promote(f):
             g.release()
-            try note(&at, 3)
-            if level < 2:
-                try dessa.run(f, &g2)
-                g2.release()
-                try note(&at, 6)
-                continue
-            var g3 = try gvn.run(f, &g2)
+            g = try cfg.Graph.over(f)
+        # small aggregates whose address stays in the frame, taken apart into their
+        # fields once promote has made the addresses an expansion passed through its
+        # parameters' slots plain temporaries; promote then keeps each field in one
+        if level >= 2 and try split.run(f):
+            discard(try ssa.promote(f))
+            g.release()
+            g = try cfg.Graph.over(f)
+        try note(&at, 2)
+        var g2 = try ssa.construct(f, &g)
+        g.release()
+        try note(&at, 3)
+        if level < 2:
+            try dessa.run(f, &g2)
             g2.release()
-            try note(&at, 4)
-            if level >= 3 and try load.run(f, &g3):
-                # loads became copies, and phis joined some blocks: number again
-                g3.release()
-                g3 = try cfg.Graph.over(f)
-                try note(&at, 5)
-                var g4 = try gvn.run(f, &g3)
-                g3.release()
-                g3 = g4
-                try note(&at, 4)
-            try note(&at, 5)
-            if level >= 3 and try loops.simplify_phis(f, &g3):
-                var simplified = try gvn.run(f, &g3)
-                g3.release()
-                g3 = simplified
-            if try ranges.run(f, &g3):
-                g3.release()
-                g3 = try cfg.Graph.over(f)
-                var simplified = try gvn.run(f, &g3)
-                g3.release()
-                g3 = simplified
-            # branches that only choose a value become selects
-            if try ifconvert.run(f):
-                g3.release()
-                g3 = try cfg.Graph.over(f)
-            # neighbouring elements' accesses add constants to one address
-            discard(try addresses.run(f))
-            if level >= 3:
-                g3.release()
-                try loops.run(f)
-                try vectorize.run(f)
-                g3 = try cfg.Graph.over(f)
-            try dessa.run(f, &g3)
-            g3.release()
             try note(&at, 6)
+            return
+        var g3 = try gvn.run(f, &g2)
+        g2.release()
+        try note(&at, 4)
+        if level >= 3 and try load.run(f, &g3):
+            # loads became copies, and phis joined some blocks: number again
+            g3.release()
+            g3 = try cfg.Graph.over(f)
+            try note(&at, 5)
+            var g4 = try gvn.run(f, &g3)
+            g3.release()
+            g3 = g4
+            try note(&at, 4)
+        try note(&at, 5)
+        if level >= 3 and try loops.simplify_phis(f, &g3):
+            var simplified = try gvn.run(f, &g3)
+            g3.release()
+            g3 = simplified
+        if try ranges.run(f, &g3):
+            g3.release()
+            g3 = try cfg.Graph.over(f)
+            var simplified = try gvn.run(f, &g3)
+            g3.release()
+            g3 = simplified
+        # branches that only choose a value become selects
+        if try ifconvert.run(f):
+            g3.release()
+            g3 = try cfg.Graph.over(f)
+        # neighbouring elements' accesses add constants to one address
+        discard(try addresses.run(f))
+        if level >= 3:
+            g3.release()
+            try loops.run(f)
+            try vectorize.run(f)
+            g3 = try cfg.Graph.over(f)
+        try dessa.run(f, &g3)
+        g3.release()
+        try note(&at, 6)
