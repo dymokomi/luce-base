@@ -20,6 +20,8 @@ import memory
 import os
 import paths
 
+# mark: The cache's settings ==================================================================
+
 ## The build cache could not be read or written.
 pub let failed: ErrorCode = ErrorCode.package(42)
 
@@ -31,15 +33,55 @@ pub var default_root: str = ""
 ## `--cache-report`: say on standard error whether the object came from the cache.
 pub var report: bool = false
 
-var digest: u64 = 1469598103934665603
-var inputs: u64 = 0
 var compiler_hash: u64 = 0
 
-## Note a source the build read, in the order it was read: its path and its bytes.
+# mark: The key ===============================================================================
+
+## The sources noted so far, in the order read: the path each was read by and the hash of
+## its bytes. Kept until the key is asked, since the project root that names them is known
+## only once the manifest has been read. Grown by doubling, in the heap.
+var noted_paths: str[]
+var noted_bytes: u64[]
+var noted_count: usize = 0
+
+## Note a source the build read, in the order it was read: its path and its bytes. A note
+## that cannot be kept (no memory) leaves the build uncached rather than failing it.
 pub func note_input(path: str, bytes: const u8[]):
-    digest = mix(digest, path.bytes)
-    digest = mix(digest, bytes)
-    inputs += 1
+    with memory.heap:
+        if noted_count == noted_paths.length:
+            let size = 64 if noted_paths.length == 0 else noted_paths.length * 2
+            let paths_room = alloc str[size] catch:
+                lost = true
+                return
+            let bytes_room = alloc u64[size] catch:
+                free(paths_room)
+                lost = true
+                return
+            for i in 0..<noted_count:
+                paths_room[i] = noted_paths[i]
+                bytes_room[i] = noted_bytes[i]
+            if noted_paths.length > 0:
+                free(noted_paths)
+                free(noted_bytes)
+            noted_paths = paths_room
+            noted_bytes = bytes_room
+        let copied = try_copy(path)
+        if copied == none:
+            lost = true
+            return
+        let owned = copied else return
+        noted_paths[noted_count] = owned
+        noted_bytes[noted_count] = mix(1469598103934665603, bytes)
+        noted_count += 1
+
+## Whether a note was lost, so the inputs are not all known and there is no key.
+var lost: bool = false
+
+func try_copy(text: str) -> str?:
+    let room = alloc u8[text.length] catch:
+        return none
+    memory.copy(room, text.bytes, text.length)
+    return (str)room
 
 ## FNV-1a over `bytes` from `h`, then the length, so two inputs never run together.
 func mix(h: u64, bytes: const u8[]) -> u64:
@@ -51,15 +93,29 @@ func mix(h: u64, bytes: const u8[]) -> u64:
 
 ## Start a build's digest afresh.
 pub func begin():
-    digest = 1469598103934665603
-    inputs = 0
+    noted_count = 0
+    lost = false
 
 ## The key of a build: the inputs noted so far, `settings` (the target, backend and flags
 ## as text), and the compiler's own bytes, as sixteen hex digits.
-pub func key(settings: str) -> str!:
-    var h = mix(digest, settings.bytes)
+##
+## A source under the project root is named relative to it, as the object names it in its
+## trap positions, so the same project built from another directory (luce builds each
+## program in a new workspace) has the same key. When `located` (a debug build, which
+## records the root as its compilation directory, or any C object), the root itself is part
+## of the key too.
+pub func key(settings: str, located: bool = true) -> str!:
+    var h: u64 = 1469598103934665603
+    var count: u64 = 0
+    for i in 0..<noted_count:
+        h = mix(h, relative(noted_paths[i]).bytes)
+        h = (h ^ noted_bytes[i]) *% 1099511628211
+        count += 1
+    if located:
+        h = mix(h, default_root.bytes)
+    h = mix(h, settings.bytes)
     h = (h ^ (try compiler())) *% 1099511628211
-    h = (h ^ inputs) *% 1099511628211
+    h = (h ^ count) *% 1099511628211
     let room = try alloc u8[16]
     let digits = "0123456789abcdef"
     var i: usize = 0
@@ -67,6 +123,13 @@ pub func key(settings: str) -> str!:
         room[i] = digits.bytes[(usize)((h >> (60 - 4 * i)) & 15)]
         i += 1
     return (str)room[..<16]
+
+## `path` without the project root in front of it, when it is under the root.
+func relative(path: str) -> str:
+    let root = default_root
+    if root.length > 0 and path.length > root.length and (str)path.bytes[..<root.length] == root:
+        return (str)path.bytes[root.length..]
+    return path
 
 ## The hash of the running compiler's file, read once: a different compiler is a
 ## different build.
@@ -77,6 +140,8 @@ func compiler() -> u64!:
     let bytes = try files.read((c.str)exe)
     compiler_hash = mix(14695981039346656037, bytes)
     return compiler_hash
+
+# mark: Objects in the cache ==================================================================
 
 ## The cache directory, created when missing; none when the cache is off or nowhere.
 pub func directory() -> str?!:
@@ -107,6 +172,8 @@ func ensure(path: c.str) -> !:
 
 ## The cached object for the key `entry` and `suffix` (`-n.o` native, `-c.o` C), when it is there.
 pub func find(entry: str, suffix: str) -> str?!:
+    if lost:
+        return none
     let dir = try directory() else return none
     let room = try alloc u8[dir.length + entry.length + suffix.length + 2]
     let path = try format(room, f"{dir}/{entry}{suffix}")
@@ -125,6 +192,8 @@ pub func keep(entry: str, suffix: str, object: str):
         discard(ignored)
 
 func keep_object(entry: str, suffix: str, object: str) -> !:
+    if lost:
+        return
     let dir = try directory() else return
     let final_room = try alloc u8[dir.length + entry.length + suffix.length + 2]
     let final = try format(final_room, f"{dir}/{entry}{suffix}")
@@ -136,3 +205,66 @@ func keep_object(entry: str, suffix: str, object: str) -> !:
     let temp = try format(temp_room, f"{staging}/object")
     try files.write((c.str)temp, try files.read((c.str)object))
     try files.rename((c.str)temp, (c.str)final, true)
+    trim(dir) catch ignored:
+        discard(ignored)
+
+# mark: Trimming ==============================================================================
+
+## The most the cache may hold, in bytes: `LUCE_CACHE_LIMIT` megabytes, else 4096.
+func limit() -> i64:
+    if let text = os.env("LUCE_CACHE_LIMIT"):
+        var megabytes: i64 = 0
+        for byte in text.bytes:
+            if byte < '0' or byte > '9':
+                return 4096 * 1048576
+            megabytes = megabytes *% 10 +% (i64)(byte - '0')
+        return megabytes *% 1048576
+    return 4096 * 1048576
+
+## Keep the cache within `limit()`: past it, remove the objects written longest ago
+## until it fits again. Only objects (`-n.o`, `-c.o`) count; a staging directory of a
+## build still writing is left alone.
+func trim(dir: str) -> !:
+    with memory.heap:
+        let names = try files.list((c.str)dir)
+        defer files.release_list(names)
+        var paths_room = try alloc str[names.length]
+        defer free(paths_room)
+        var sizes = try alloc i64[names.length]
+        defer free(sizes)
+        var times = try alloc i64[names.length]
+        defer free(times)
+        var count: usize = 0
+        var total: i64 = 0
+        for name in names:
+            if not (ends_with(name, "-n.o") or ends_with(name, "-c.o")):
+                continue
+            let room = try alloc u8[dir.length + name.length + 2]
+            let path = try format(room, f"{dir}/{name}")
+            let info = files.metadata((c.str)path) catch:
+                free(room)
+                continue
+            paths_room[count] = path
+            sizes[count] = info.size
+            times[count] = info.modified.seconds
+            total += info.size
+            count += 1
+        defer:
+            for i in 0..<count:
+                free(paths_room[i].bytes)
+        let most = limit()
+        while total > most:
+            # the oldest object left
+            var oldest: usize = count
+            for i in 0..<count:
+                if sizes[i] >= 0 and (oldest == count or times[i] < times[oldest]):
+                    oldest = i
+            if oldest == count:
+                return
+            files.remove_file((c.str)paths_room[oldest]) catch:
+                discard(0)
+            total -= sizes[oldest]
+            sizes[oldest] = -1
+
+func ends_with(text: str, suffix: str) -> bool:
+    return text.length >= suffix.length and (str)text.bytes[text.length - suffix.length..] == suffix

@@ -273,7 +273,9 @@ func build_key(mode: u32, release: bool) -> str!:
         if let extra = os.env("LUCE_CFLAGS"):
             try settings.put(" ")
             try settings.put(extra)
-    return try cache.key(settings.view())
+    # a debug or symbol build records the project root, and a C object is built by path:
+    # those keep the root in their key; a plain native object names sources relative to it
+    return try cache.key(settings.view(), debug_backend or symbols_backend or not native_backend)
 
 ## `--lib`: the program as a library with no entry, and the header of its exports (§17.6).
 func generate_library(path: c.str) -> (str, str)!:
