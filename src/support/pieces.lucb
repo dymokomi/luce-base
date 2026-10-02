@@ -5,12 +5,13 @@
 #   DESCRIPTION:
 #       The system assembler reads one file on one thread: luced-3d's 70 MB of assembly
 #       took it ten seconds. Generated with `split`, the assembly names the labels functions
-#       share as hidden symbols, and it records where each function begins. So it is cut
-#       at function boundaries into pieces of about the same size, a number that depends
-#       on the text alone, each with the text's opening and closing directives, plus one
-#       piece for the rest (literals, tables, globals). The pieces are assembled on
-#       separate threads and joined with `ld -r` into the one object the build links
-#       and caches.
+#       share as hidden symbols, names labels by what they label (`stable_names`), and
+#       records where each function begins. So it is cut at function boundaries the
+#       functions themselves choose, each piece with the text's opening and closing
+#       directives, plus one piece for the rest (literals, tables, globals). A piece whose
+#       text an earlier build assembled takes its object from the build cache; the others
+#       are assembled on separate threads. All are joined with `ld -r` into the one object
+#       the build links and caches, the same whichever pieces were reused.
 #
 #==============================================================================================
 
@@ -19,59 +20,77 @@ import c
 import files
 import io
 import memory
+import support.cache
 import support.host_tools
+import support.list
 
-## A piece to aim for: big enough that starting the assembler is little of its time,
-## small enough that a large program keeps every processor busy.
-let piece_bytes: usize = 2097152
-## At most this many pieces, however large the program.
-let most_pieces: usize = 64
+# mark: Cutting and assembling ==============================================================
 
-## Assemble `text` (generated with `split`; `starts` and `ending` from its generator) into
-## the object at `object`, in `dir`. `macho` joins with Apple's `ld -r` for `arch`.
-pub func assemble(dir: str, text: str, starts: const usize[], ending: usize, object: str, macho: bool, arch: str) -> !:
+## Where pieces are cut. Past `least_bytes` of functions, a function whose tag
+## (`stable_names`) is a multiple of `cut_every` starts the next piece, and one starts at
+## least every `most_bytes`. A cut depends on the functions around it, not on its place
+## in the program, so an edit moves the cuts near it only, and the other pieces keep
+## their text, and their objects in the cache.
+let least_bytes: usize = 524288
+let cut_every: u64 = 256
+let most_bytes: usize = 4194304
+
+## Assemble `text` (generated with `split`; `starts`, `tags` and `ending` from its
+## generator) into the object at `object`, in `dir`. `macho` joins with Apple's `ld -r`
+## for `arch`. A piece whose text is in the build cache (`support.cache`) reuses its
+## object; the others are assembled in parallel and kept there.
+pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[], ending: usize, object: str, macho: bool, arch: str) -> !:
     let functions = starts.length - 1
-    let first = starts[0]
     let rest = starts[functions]
-    let body = rest - first
-    var count = (body + piece_bytes - 1) // piece_bytes
-    if count > most_pieces:
-        count = most_pieces
-    if count < 1:
-        count = 1
-    let prelude = (str)text.bytes[..<first]
+    let prelude = (str)text.bytes[..<starts[0]]
     let closing = (str)text.bytes[ending..]
     with memory.heap:
         # piece k holds functions [cuts[k], cuts[k + 1]); the last piece is the rest
-        var cuts = try alloc usize[count + 1]
-        defer free(cuts)
-        cuts[0] = 0
-        var made: usize = 1
-        let share = body // count + 1
-        var since = first
-        for index in 0..<functions:
-            if made < count and starts[index] - since >= share:
-                cuts[made] = index
-                made += 1
+        var cuts = try list.List[usize].create(64)
+        defer cuts.destroy()
+        try cuts.push(0)
+        var since = starts[0]
+        for index in 1..<functions:
+            let size = starts[index] - since
+            if (size >= least_bytes and tags[index] % cut_every == 0) or size >= most_bytes:
+                try cuts.push(index)
                 since = starts[index]
-        cuts[made] = functions
-        var job = Assembling(dir = dir, sources = try alloc str[made + 1], objects = try alloc str[made + 1], failures = try parallel.failures(made + 1))
+        try cuts.push(functions)
+        let made = cuts.count - 1
+        var job = Assembling(dir = dir, sources = try alloc str[made + 1], objects = try alloc str[made + 1], pending = try alloc bool[made + 1], failures = try parallel.failures(made + 1))
         defer free(job.sources)
         defer free(job.objects)
+        defer free(job.pending)
         defer free(job.failures)
+        let keys = try alloc str[made + 1]
+        defer free(keys)
+        var reused: usize = 0
         for k in 0..<made + 1:
+            var middle = (str)text.bytes[rest..]
+            var ends = ""
+            if k < made:
+                let to_byte = starts[cuts.get(k + 1)] if cuts.get(k + 1) < functions else rest
+                middle = (str)text.bytes[starts[cuts.get(k)]..<to_byte]
+                ends = closing
+            keys[k] = try cache.piece_key(prelude, middle, ends, arch)
+            job.pending[k] = true
+            if let kept = try cache.find(keys[k], "-p.o", true):
+                job.objects[k] = kept
+                job.pending[k] = false
+                reused += 1
+                continue
             var source_room = try alloc u8[dir.length + 32]
             job.sources[k] = try format(source_room, f"{dir}/gen.{k}.s")
             var object_room = try alloc u8[dir.length + 32]
             job.objects[k] = try format(object_room, f"{dir}/gen.{k}.o")
-            if k < made:
-                let from_byte = starts[cuts[k]]
-                let to_byte = starts[cuts[k + 1]] if cuts[k + 1] < functions else rest
-                try write_piece(job.sources[k], prelude, (str)text.bytes[from_byte..<to_byte], closing)
-            else:
-                try write_piece(job.sources[k], prelude, (str)text.bytes[rest..], "")
+            try write_piece(job.sources[k], prelude, middle, ends)
         try parallel.each(made + 1, assemble_task, (void*)&job)
         try parallel.check(job.failures)
+        for k in 0..<made + 1:
+            if job.pending[k]:
+                cache.keep(keys[k], "-p.o", job.objects[k])
+        if cache.report:
+            try io.stderr().write(f"luce-base: {reused} of {made + 1} pieces from the cache\n")
         try join(dir, job.objects, object, macho, arch)
 
 ## `prelude`, `middle` and `closing` as one file at `path`.
@@ -84,11 +103,15 @@ func write_piece(path: str, prelude: str, middle: str, closing: str) -> !:
         memory.copy(whole[prelude.length + middle.length..], closing.bytes, closing.length)
         try files.write((c.str)path, whole)
 
+# mark: The assembler threads ===============================================================
+
 ## What the threads assembling the pieces share.
 struct Assembling:
     var dir: str
     var sources: str[]
     var objects: str[]
+    ## Whether piece k is to be assembled, not taken from the cache.
+    var pending: bool[]
     var failures: parallel.Failure[]
 
 func assemble_task(context: void*?, index: usize):
@@ -98,6 +121,8 @@ func assemble_task(context: void*?, index: usize):
             job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
 
 func assemble_piece(job: Assembling*, index: usize) -> !:
+    if not job.pending[index]:
+        return
     var arguments: c.str[3] = ["-o", (c.str)job.objects[index], (c.str)job.sources[index]]
     let (status, out, err) = try host_tools.run("as", arguments, job.dir)
     discard(out.length)

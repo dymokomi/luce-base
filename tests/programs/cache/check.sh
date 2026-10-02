@@ -52,7 +52,15 @@ moved() {
 }
 moved one "" | grep -q '^luce-base: cache miss ' || { echo "FAIL tests/programs/cache: the first moved build did not miss"; exit 1; }
 moved "two levels/deeper" "" | grep -q '^luce-base: cache hit ' || { echo "FAIL tests/programs/cache: the same project elsewhere did not hit"; exit 1; }
+# by an absolute path, from elsewhere, the object names the sources relative to the project
+# all the same: the key is the same, and the kept object is what a fresh build would make
+"$compiler" build "$PWD/$work/moved/one/main.lucb" --native --cache-dir "$work/moved-cache" --cache-report -o "$work/moved/one/program" 2> "$work/moved/one/report"
+grep -q '^luce-base: cache hit ' "$work/moved/one/report" || { echo "FAIL tests/programs/cache: an absolute entry did not reuse the object"; exit 1; }
 moved one --debug | grep -q '^luce-base: cache miss ' || { echo "FAIL tests/programs/cache: the first debug build did not miss"; exit 1; }
 moved "two levels/deeper" --debug | grep -q '^luce-base: cache miss ' || { echo "FAIL tests/programs/cache: a debug build elsewhere reused a debug object naming another directory"; exit 1; }
+# a debug build names its sources as they were read: by an absolute path, not the relative
+# build's object
+"$compiler" build "$PWD/$work/moved/one/main.lucb" --native --debug --cache-dir "$work/moved-cache" --cache-report -o "$work/moved/one/program" 2> "$work/moved/one/report"
+grep -q '^luce-base: cache miss ' "$work/moved/one/report" || { echo "FAIL tests/programs/cache: a debug build by an absolute path reused the relative build's object"; exit 1; }
 rm -rf "$work"
-echo "ok tests/programs/cache: miss, hit, a C key of its own, an edit, no cache with none, a project-local default, the same project elsewhere, and debug keyed by place"
+echo "ok tests/programs/cache: miss, hit, a C key of its own, an edit, no cache with none, a project-local default, the same project elsewhere, an absolute entry the same, and debug keyed by place and by the paths it names"

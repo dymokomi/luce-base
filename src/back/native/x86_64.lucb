@@ -24,6 +24,7 @@ import back.native.regalloc
 import back.native.incoming
 import back.native.levels
 import back.native.selection
+import back.native.stable_names
 import back.ir.ir
 import back.target as build_target
 import back.parallel
@@ -80,6 +81,10 @@ pub struct Generator:
     ## Where the format's closing directives begin; every piece of a split assembly ends
     ## with them.
     pub var ending: usize = 0
+    ## With `split`: each function's tag and each text literal's (`stable_names`), which
+    ## name their labels in place of their indexes.
+    pub var function_tags: u64[]
+    var text_tags: u64[]
 
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
@@ -132,20 +137,30 @@ pub struct Generator:
     ## `.L<function>_<label>`: local to the object, as the assembler treats `.L` names.
     mutating func label_name(n: u32) -> !:
         try self.out.put(".L")
-        try self.out.put_u64((u64)self.index)
+        try self.function_label()
         try self.out.put("_")
         try self.out.put_u64((u64)n)
 
     ## The label of jump table `n` of the function.
     mutating func table_name(n: u32) -> !:
         try self.out.put(".L")
-        try self.out.put_u64((u64)self.index)
+        try self.function_label()
         try self.out.put("_jt")
         try self.out.put_u64((u64)n)
 
+    ## What names the function's own labels: its index, or with `split` its tag.
+    mutating func function_label() -> !:
+        if self.split:
+            try stable_names.put_tag(&self.out, self.function_tags[self.index])
+        else:
+            try self.out.put_u64((u64)self.index)
+
     mutating func text_label(n: u32) -> !:
         try self.out.put(self.shared(".Ltext_"))
-        try self.out.put_u64((u64)n)
+        if self.split:
+            try stable_names.put_tag(&self.out, self.text_tags[(usize)n])
+        else:
+            try self.out.put_u64((u64)n)
 
     ## A label functions share, as this assembly spells it: local to the file (`.Lname`), or
     ## with `split` the hidden symbol `lb_name` every piece can name.
@@ -198,6 +213,8 @@ pub struct Generator:
                              fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(256))
         made.dw = none
         made.split = model.split
+        made.function_tags = model.function_tags
+        made.text_tags = model.text_tags
         return made
 
     ## The assembly emitted so far.
@@ -2791,6 +2808,9 @@ pub struct Generator:
         # generated: the functions only read the texts, whichever thread generates them
         for reason in trap_reasons:
             discard(try self.program_unit.text(reason))
+        if self.split:
+            self.function_tags = try stable_names.function_tags(self.program_unit)
+            self.text_tags = try stable_names.text_tags(self.program_unit)
         var i: usize = 0
         if self.dw == none:
             try self.functions_in_parallel()
@@ -2818,8 +2838,10 @@ pub struct Generator:
         i = 0
         while i < self.program_unit.texts.count:
             if self.split:
-                var room: u8[40]
-                try self.object_format.hidden_global(&self.out, try format(room, f"lb_text_{i}"))
+                var name = try buffer.Buffer.create(32)
+                try name.put("lb_text_")
+                try stable_names.put_tag(&name, self.text_tags[i])
+                try self.object_format.hidden_global(&self.out, name.view())
             try self.text_label(u32(i))
             try self.put(":\n    .asciz ")
             try self.c_string(self.program_unit.texts.get(i).bytes)

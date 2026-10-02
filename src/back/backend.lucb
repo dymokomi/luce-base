@@ -89,14 +89,19 @@ pub struct NativeBackend: Backend:
     pub var split: bool = false
     ## After `compile`: where each function's text begins, then where the rest begins.
     pub var starts: usize[]
+    ## After `compile` with `split`: each function's tag (`stable_names`), which places the
+    ## cuts between pieces.
+    pub var tags: u64[]
     ## After `compile`: where the format's closing directives begin.
     pub var ending: usize = 0
 
     ## A native backend that lowers `entry` to IR and generates the target's assembly.
-    pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false) -> NativeBackend!:
+    ## Positions name a source under `position_root` relative to it (`lower.Lowerer`).
+    pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false, position_root: str = "") -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
         lowerer.symbols = symbols
+        lowerer.position_root = position_root
         return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
 
     ## Lower, optimise, and generate the target's assembly, or the IR text with `dump_ir`.
@@ -154,6 +159,7 @@ pub struct NativeBackend: Backend:
                 text = generator.text()
                 self.starts = generator.starts
                 self.ending = generator.ending
+                self.tags = generator.function_tags
             else:
                 var generator = try arm64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
                 # Apple's arm64 has half-precision arithmetic; ARMv8.0-A does not, and SVE
@@ -166,6 +172,7 @@ pub struct NativeBackend: Backend:
                 text = generator.text()
                 self.starts = generator.starts
                 self.ending = generator.ending
+                self.tags = generator.function_tags
         try note(&at, 8)
         if self.report:
             try print_report()

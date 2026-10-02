@@ -127,6 +127,9 @@ pub struct Lowerer:
     var position_fn: ast.Node*? = none
     var position_file: str = ""
     var position_source: sources.Source? = none
+    ## The project root, with its trailing slash, that positions name a source relative to,
+    ## as the build cache's key does; empty to name sources as they were read.
+    pub var position_root: str = ""
     var fn_decl: ast.Node*?
     var fn_args: u32[]
     var owner_decl: ast.Node*?
@@ -530,7 +533,8 @@ pub struct Lowerer:
                 self.position_source = self.source_unit_of(f)
             if let s = self.position_source:
                 let (file, line, column) = s.mapped(n.line, s.statement_column(n.line))
-                self.at_file = file
+                # a directive's file is the source's own text, named as it says
+                self.at_file = file if s.directed(n.line) else self.under_root(file)
                 self.at_line = line
                 self.at_column = column
 
@@ -541,6 +545,13 @@ pub struct Lowerer:
             self.f.at_file = self.program_unit.file_index(self.at_file) catch failure:
                 discard(failure)
                 recover 0
+
+    ## `path` relative to `position_root` when under it.
+    func under_root(path: str) -> str:
+        let root = self.position_root
+        if root.length > 0 and path.length > root.length and (str)path.bytes[..<root.length] == root:
+            return (str)path.bytes[root.length..]
+        return path
 
     mutating func position_ref() -> ir.Ref!:
         if self.at_text == 0:

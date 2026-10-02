@@ -37,7 +37,7 @@ var compiler_hash: u64 = 0
 
 # mark: The key ===============================================================================
 
-## The sources noted so far, in the order read: the path each was read by and the hash of
+## The sources noted so far, in the order read: the path each is named by and the hash of
 ## its bytes. Kept until the key is asked, since the project root that names them is known
 ## only once the manifest has been read. Grown by doubling, in the heap.
 var noted_paths: str[]
@@ -49,30 +49,46 @@ var noted_count: usize = 0
 pub func note_input(path: str, bytes: const u8[]):
     with memory.heap:
         if noted_count == noted_paths.length:
-            let size = 64 if noted_paths.length == 0 else noted_paths.length * 2
-            let paths_room = alloc str[size] catch:
-                lost = true
+            grow_notes()
+            if lost:
                 return
-            let bytes_room = alloc u64[size] catch:
-                free(paths_room)
-                lost = true
-                return
-            for i in 0..<noted_count:
-                paths_room[i] = noted_paths[i]
-                bytes_room[i] = noted_bytes[i]
-            if noted_paths.length > 0:
-                free(noted_paths)
-                free(noted_bytes)
-            noted_paths = paths_room
-            noted_bytes = bytes_room
         let copied = try_copy(path)
         if copied == none:
             lost = true
             return
-        let owned = copied else return
-        noted_paths[noted_count] = owned
+        noted_paths[noted_count] = copied else return
         noted_bytes[noted_count] = mix(1469598103934665603, bytes)
         noted_count += 1
+
+## A noted source the object shows by another name: a standard module's `std/...`, a
+## dependency's `<package>/...` (`Source.rebase`). The key names it so too.
+pub func rename_input(path: str, shown_as: str):
+    with memory.heap:
+        for i in 0..<noted_count:
+            if noted_paths[i] == path:
+                let copied = try_copy(shown_as)
+                if copied == none:
+                    lost = true
+                    return
+                noted_paths[i] = copied else return
+
+func grow_notes():
+    let size = 64 if noted_paths.length == 0 else noted_paths.length * 2
+    let paths_room = alloc str[size] catch:
+        lost = true
+        return
+    let bytes_room = alloc u64[size] catch:
+        free(paths_room)
+        lost = true
+        return
+    for i in 0..<noted_count:
+        paths_room[i] = noted_paths[i]
+        bytes_room[i] = noted_bytes[i]
+    if noted_paths.length > 0:
+        free(noted_paths)
+        free(noted_bytes)
+    noted_paths = paths_room
+    noted_bytes = bytes_room
 
 ## Whether a note was lost, so the inputs are not all known and there is no key.
 var lost: bool = false
@@ -112,16 +128,17 @@ pub func begin():
 ## The key of a build: the inputs noted so far, `settings` (the target, backend and flags
 ## as text), and the compiler's own bytes, as sixteen hex digits.
 ##
-## A source under the project root is named relative to it, as the object names it in its
-## trap positions, so the same project built from another directory (luce builds each
-## program in a new workspace) has the same key. When `located` (a debug build, which
-## records the root as its compilation directory, or any C object), the root itself is part
-## of the key too.
+## A source is named as the object names it in its trap positions: relative to the project
+## root when under it, so the same project built from another directory (luce builds each
+## program in a new workspace) has the same key; a standard module as `std/...` and a
+## dependency's as `<package>/...` (`rename_input`). When `located` (a debug build, which
+## records the root as its compilation directory, or any C object), the object names the
+## program's sources as they were read, and so does the key, with the root itself.
 pub func key(settings: str, located: bool = true) -> str!:
     var h: u64 = 1469598103934665603
     var count: u64 = 0
     for i in 0..<noted_count:
-        h = mix(h, relative(noted_paths[i]).bytes)
+        h = mix(h, (noted_paths[i] if located else relative(noted_paths[i])).bytes)
         h = (h ^ noted_bytes[i]) *% 1099511628211
         count += 1
     if located:
@@ -129,6 +146,10 @@ pub func key(settings: str, located: bool = true) -> str!:
     h = mix(h, settings.bytes)
     h = (h ^ (try compiler())) *% 1099511628211
     h = (h ^ count) *% 1099511628211
+    return try digits_of(h)
+
+## `h` as sixteen hex digits.
+func digits_of(h: u64) -> str!:
     let room = try alloc u8[16]
     let digits = "0123456789abcdef"
     var i: usize = 0
@@ -137,8 +158,9 @@ pub func key(settings: str, located: bool = true) -> str!:
         i += 1
     return (str)room[..<16]
 
-## `path` without the project root in front of it, when it is under the root.
-func relative(path: str) -> str:
+## `path` without the project root in front of it, when it is under the root: how the key,
+## and an object not `located`, name a source.
+pub func relative(path: str) -> str:
     let root = default_root
     if root.length > 0 and path.length > root.length and (str)path.bytes[..<root.length] == root:
         return (str)path.bytes[root.length..]
@@ -183,20 +205,30 @@ func ensure(path: c.str) -> !:
             return
         error(failure.code, failure.message)
 
-## The cached object for the key `entry` and `suffix` (`-n.o` native, `-c.o` C), when it is there.
-pub func find(entry: str, suffix: str) -> str?!:
+## The cached object for the key `entry` and `suffix` (`-n.o` native, `-c.o` C, `-p.o` a
+## piece of a split assembly), when it is there; `quiet` leaves it out of the report.
+pub func find(entry: str, suffix: str, quiet: bool = false) -> str?!:
     if lost:
         return none
     let dir = try directory() else return none
     let room = try alloc u8[dir.length + entry.length + suffix.length + 2]
     let path = try format(room, f"{dir}/{entry}{suffix}")
     if not files.exists((c.str)path):
-        if report:
+        if report and not quiet:
             try io.stderr().write(f"luce-base: cache miss {entry}{suffix}\n")
         return none
-    if report:
+    if report and not quiet:
         try io.stderr().write(f"luce-base: cache hit {entry}{suffix}\n")
     return path
+
+## The key of a piece of a split assembly (`support.pieces`): its text, which is all the
+## assembler reads, and the architecture it assembles for.
+pub func piece_key(prelude: str, middle: str, closing: str, arch: str) -> str!:
+    var h = mix(1469598103934665603, prelude.bytes)
+    h = mix(h, middle.bytes)
+    h = mix(h, closing.bytes)
+    h = mix(h, arch.bytes)
+    return try digits_of(h)
 
 ## Keep `object` under the key `entry` and `suffix`: written beside its place, then renamed, so a
 ## reader never sees a partial file. A cache that cannot be written is no cache.

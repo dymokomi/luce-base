@@ -112,14 +112,19 @@ pub struct Source:
         return (self.path, line, column)
 
     ## Spell this source's path, and its fragments', under `replacement` instead of the
-    ## directory `prefix`: a standard module's positions name `std/core.lucb`, the same on
-    ## every machine, not the directory the library was read from (§11.5).
+    ## directory `prefix` (relative to it when `replacement` is empty): a standard module's
+    ## positions name `std/core.lucb`, the same on every machine, not the directory the
+    ## library was read from (§11.5). The build cache's key names them so too.
     pub mutating func rebase(prefix: str, replacement: str) -> !:
-        self.path = try rebased(self.path, prefix, replacement)
+        let path = try rebased(self.path, prefix, replacement)
+        cache.rename_input(self.path, path)
+        self.path = path
         if let paths = self.segment_paths:
             var k: usize = 0
             while k < self.segment_count:
-                paths[k] = try rebased(paths[k], prefix, replacement)
+                let fragment = try rebased(paths[k], prefix, replacement)
+                cache.rename_input(paths[k], fragment)
+                paths[k] = fragment
                 k += 1
 
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
@@ -172,21 +177,32 @@ pub struct Source:
     ## What a line of this file was compiled from (§3.3): the position the last directive
     ## above it names, or the file's own `path:line:column`.
     pub func mapped(line: u32, column: u32) -> (str, u32, u32):
-        if let all = self.directives:
-            # the directives stand in line order: the last at or above `line`, by halves
-            var low: usize = 0
-            var high = self.directive_count
-            while low < high:
-                let middle = (low + high) // 2
-                if all[middle].base_line <= line:
-                    low = middle + 1
-                else:
-                    high = middle
-            if low > 0:
-                let d = all[low - 1]
-                if d.file.length > 0:
-                    return (d.file, d.line, d.column)
+        if let d = self.directive_for(line):
+            return (d.file, d.line, d.column)
         return self.fragment_of(line, column)
+
+    ## Whether a directive names where `line` was compiled from (`mapped`).
+    pub func directed(line: u32) -> bool:
+        return self.directive_for(line) != none
+
+    ## The directive above `line` that names a file, if the last one does.
+    func directive_for(line: u32) -> Directive?:
+        let all = self.directives else return none
+        # the directives stand in line order: the last at or above `line`, by halves
+        var low: usize = 0
+        var high = self.directive_count
+        while low < high:
+            let middle = (low + high) // 2
+            if all[middle].base_line <= line:
+                low = middle + 1
+            else:
+                high = middle
+        if low == 0:
+            return none
+        let d = all[low - 1]
+        if d.file.length == 0:
+            return none
+        return d
 
     ## One-based line and column of a byte offset, counting columns in bytes.
     pub func position(offset: usize) -> (u32, u32):
@@ -458,5 +474,7 @@ func rebased(path: str, prefix: str, replacement: str) -> str!:
     if path.length <= prefix.length or (str)path.bytes[..<prefix.length] != prefix or path.bytes[prefix.length] != '/':
         return path
     let rest = (str)path.bytes[prefix.length + 1..]
+    if replacement.length == 0:
+        return rest
     let room = try alloc u8[replacement.length + rest.length + 1]
     return try format(room, f"{replacement}/{rest}")

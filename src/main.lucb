@@ -310,7 +310,10 @@ func checked(path: c.str) -> check.Checker!:
 ## The checked program through the backend the command chose.
 func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool = false) -> str!:
     if native_backend:
-        var native = try backend.NativeBackend.over(checker, entry, debug_backend and not symbols_backend, diagnostic_profile, symbols_backend)
+        # positions name a source relative to the project root, as the cache key does,
+        # except in a debug or symbol build, which names (and keys) sources as they were read
+        let position_root = "" if debug_backend or symbols_backend else cache.default_root
+        var native = try backend.NativeBackend.over(checker, entry, debug_backend and not symbols_backend, diagnostic_profile, symbols_backend, position_root)
         native.dump_ir = dump_ir
         native.opt_level = opt_level
         native.opt_count = opt_count
@@ -320,6 +323,7 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
         let text = try target.compile(mode)
         split_starts = native.starts
         split_ending = native.ending
+        split_tags = native.tags
         return text
     var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile)
     let target: backend.Backend = &host_c
@@ -329,6 +333,7 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
 ## the closing directives began (`support.pieces`).
 var split_starts: usize[]
 var split_ending: usize = 0
+var split_tags: u64[]
 
 ## Native assembly by default; generated C only when explicitly requested.
 var native_backend: bool
@@ -659,7 +664,7 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
         let text = try translate(checker, entry, mode, true)
         let t = build_target()
         if split_starts[split_starts.length - 1] - split_starts[0] >= 4194304:
-            try pieces.assemble(dir, text, split_starts, split_ending, object_path, t.os == targets.Os.macos, t.arch_name())
+            try pieces.assemble(dir, text, split_starts, split_tags, split_ending, object_path, t.os == targets.Os.macos, t.arch_name())
         else:
             try files.write((c.str)asm_path, text.bytes)
             try assemble_one(dir, asm_path, object_path)

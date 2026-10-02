@@ -901,6 +901,10 @@ pub struct Checker:
                 let (package, root) = found
                 if package == owner:
                     try shown.rebase(root, owner)
+                else:
+                    # a compiled workspace (luce's) holds every package's modules under one
+                    # manifest, each package in its own directory: they name `<that>/...`
+                    try shown.rebase(root, "")
         try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner))
         # Every imported module is library code, kept only where the program reaches it;
         # the entry file alone is the program and keeps all it declares.
