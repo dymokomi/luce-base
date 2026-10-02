@@ -60,6 +60,10 @@ pub struct Generator:
     ## By label, 1 + the index of the comparison a jump to that loop's head makes itself
     ## (`selection.rotations`); 0 for every other label.
     var head_tests: u32[]
+    ## Windows: the nonvolatile registers beyond the allocator's (`windows_nonvolatile`, one
+    ## bit each) the function's save area holds, and those its text named.
+    var windows_plan: u16 = 0
+    var windows_used: u16 = 0
     ## Below x86-64-v3 there is no F16C: halves convert through the unit's own routines,
     ## emitted once at its end when a function needed them.
     var half_routines: bool
@@ -440,12 +444,16 @@ pub struct Generator:
         return self.fr.slot_home(s)
 
     ## The scratch register of class `cls` numbered `n` (0, 1, 2): rax, rcx, rdx for the
-    ## integers, xmm8, xmm9, xmm10 for the floats; r10 and r11 hold addresses.
+    ## integers, xmm8, xmm9, xmm10 for the floats; r10 and r11 hold addresses. On Windows,
+    ## where xmm6–xmm15 are nonvolatile and a function using one saves it, the first two
+    ## float scratch registers are the volatile xmm4 and xmm5, which carry no argument there.
     func reg(cls: ir.Class, n: u32) -> str:
         if cls == ir.Class.w:
             return "%eax" if n == 0 else ("%ecx" if n == 1 else "%edx")
         if cls == ir.Class.l:
             return "%rax" if n == 0 else ("%rcx" if n == 1 else "%rdx")
+        if self.convention.windows and n < 2:
+            return "%xmm4" if n == 0 else "%xmm5"
         return "%xmm8" if n == 0 else ("%xmm9" if n == 1 else "%xmm10")
 
     ## The register holding `r` as class `cls` when `r` is a temporary living in one and the
@@ -566,9 +574,11 @@ pub struct Generator:
     ## time through an SSE register, then 8, 4, 2, 1. Unaligned access is fine on this target.
     mutating func inline_copy(origin: str, to: str, size: u64) -> !:
         var done: u64 = 0
+        # through xmm4 on Windows, where xmm8 is nonvolatile (`reg`)
+        let windows = self.convention.windows
         while size - done >= 16:
-            try self.based_move("movups ", done, origin, ", %xmm8")
-            try self.based_move("movups %xmm8, ", done, to, "")
+            try self.based_move("movups ", done, origin, ", %xmm4" if windows else ", %xmm8")
+            try self.based_move("movups %xmm4, " if windows else "movups %xmm8, ", done, to, "")
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
         let loads: str[4] = ["movq ", "movl ", "movzwl ", "movzbl "]
@@ -585,10 +595,11 @@ pub struct Generator:
     ## Zero `size` bytes at (`to`) the same way.
     mutating func inline_zero(to: str, size: u64) -> !:
         var done: u64 = 0
+        let windows = self.convention.windows
         if size >= 16:
-            try self.line("pxor %xmm8, %xmm8")
+            try self.line("pxor %xmm4, %xmm4" if windows else "pxor %xmm8, %xmm8")
         while size - done >= 16:
-            try self.based_move("movups %xmm8, ", done, to, "")
+            try self.based_move("movups %xmm4, " if windows else "movups %xmm8, ", done, to, "")
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
         let stores: str[4] = ["movq $0, ", "movl $0, ", "movw $0, ", "movb $0, "]
@@ -681,18 +692,35 @@ pub struct Generator:
         if let dw = self.dw:
             try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
+        let start = self.out.used
+        try self.function_text(index, none)
+        # Windows: the save area holds just the nonvolatile registers the text names; when
+        # the allocator's prediction of them missed, the function is laid out again with
+        # those (its registers do not depend on the area, so the second text names the same)
+        if self.convention.windows and not self.f.naked and self.dw == none and self.windows_used != self.windows_plan:
+            self.out.used = start
+            try self.function_text(index, self.windows_used)
+            if self.windows_used != self.windows_plan:
+                error(failed, "the Windows nonvolatile registers a function names changed when it was laid out again")
+
+    ## Function `index`'s text; on Windows with its save area holding `plan`, or the
+    ## registers the allocator gave it (a debug build's, all of them) when none.
+    mutating func function_text(index: usize, plan: u16?) -> !:
         # Windows keeps the argument-register codes 6–9 out of the pools (rsi and rdi are
         # nonvolatile there, and its arguments are staged through the shadow area)
         self.fr.reserved = 480 if self.convention.windows else 0
         self.reserve_asm_registers()
         try selection.canonical_labels(self.f)
         try self.fr.plan(self.f)
+        self.windows_plan = 0
+        if self.convention.windows:
+            self.windows_plan = plan else (4095 if self.dw != none else self.allocated_saves())
         self.crossing = 0
         var entry = try selection.entry_loads(self.f)
         defer free(entry)
         let straight = try self.straight_params(entry)
         defer free(straight)
-        try self.fr.layout(self.f, 176 if self.convention.windows else 0, self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private), straight)
+        try self.fr.layout(self.f, save_area(self.windows_plan), self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private), straight)
         let text_start = self.out.used
         try self.object_format.function_start(&self.out, self.f)
         if self.f.naked:
@@ -2186,15 +2214,27 @@ pub struct Generator:
 
     # mark: Calls ==============================================================================
 
+    ## The save area's prediction: the xmm12–xmm15 the allocator handed out (codes 10–13),
+    ## nonvolatile on Windows; the text may name more (`settle_windows_saves`).
+    func allocated_saves() -> u16:
+        var plan: u16 = 0
+        for code in self.fr.temp_regs.span():
+            if code >= 10 and code <= 13:
+                plan = plan | (u16)(1 << (code - 2))
+        for code in self.fr.slot_regs.span():
+            if code >= 10 and code <= 13:
+                plan = plan | (u16)(1 << (code - 2))
+        return plan
+
     ## Windows' nonvolatile registers beyond the allocator's (rdi, rsi and xmm6-xmm15, which
     ## shared instruction sequences use), saved or restored where `marker` left a line, and
-    ## only those `used` marks (`settle_windows_saves`).
+    ## only those `used` marks, each in its place in the save area (`windows_plan`).
     mutating func windows_saved(restore: bool, used: const bool[]) -> !:
         for i in 0..<12:
             if not used[i]:
                 continue
             let cls = ir.Class.l if i < 2 else ir.Class.v
-            let offset = (i + 1) * 8 if i < 2 else (i - 1) * 16 + 16
+            let offset = save_offset(self.windows_plan, i)
             if restore:
                 try self.frame_load(windows_nonvolatile[i], cls, (u64)offset)
             else:
@@ -2223,6 +2263,13 @@ pub struct Generator:
                 for i in 0..<12:
                     used[i] = used[i] or names_register(line, (usize)i)
             at = end + 1
+        self.windows_used = 0
+        for i in 0..<12:
+            if used[i]:
+                self.windows_used = self.windows_used | (u16)(1 << i)
+        if (self.windows_used & ~self.windows_plan) != 0:
+            # the area has no place for one of them: the function is laid out again
+            return
         self.out.used = start
         at = 0
         while at < length:
@@ -2937,6 +2984,30 @@ let windows_arguments: str[4] = ["%rcx", "%rdx", "%r8", "%r9"]
 let windows_nonvolatile: str[12] = ["%rdi", "%rsi", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
 let windows_save_marker: str = "# lb: windows saves"
 let windows_restore_marker: str = "# lb: windows restores"
+
+## The bytes of a save area holding the registers `plan` marks: rdi and rsi first, eight
+## bytes each, then the xmm registers, sixteen each.
+func save_area(plan: u16) -> u64:
+    let ints = (u64)(plan & 1) + (u64)((plan >> 1) & 1)
+    var floats: u64 = 0
+    for i in 2..<12:
+        floats += (u64)((plan >> (u16)i) & 1)
+    return round_up16(ints * 8) + floats * 16
+
+## Where, below the frame's top, register `i` of `plan` is saved.
+func save_offset(plan: u16, i: i64) -> u64:
+    var before: u64 = 0
+    if i < 2:
+        if i == 1:
+            before = (u64)(plan & 1)
+        return (before + 1) * 8
+    for k in 2..<i:
+        before += (u64)((plan >> (u16)k) & 1)
+    let ints = (u64)(plan & 1) + (u64)((plan >> 1) & 1)
+    return round_up16(ints * 8) + (before + 1) * 16
+
+func round_up16(n: u64) -> u64:
+    return (n + 15) & ~(u64)15
 
 ## Whether an assembly line names Windows nonvolatile register `i`, in any width.
 func names_register(line: str, i: usize) -> bool:
