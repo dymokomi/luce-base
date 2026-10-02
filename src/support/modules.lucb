@@ -44,10 +44,90 @@ struct Package:
 
 ## Paths and manifest text live in the compiler's arena. Canonical file paths
 ## identify one module even if more than one public export names it.
+##
+## Each path is resolved once a run: on macOS, `realpath` lists every directory on the way to
+## learn each name's true case, and a program's imports ask about the same paths again and
+## again (luced-3d's took 1.4 s of directory listings). A copy of the kept answer is the
+## caller's, as `files.canonical`'s own is.
 pub func canonical(path: str) -> str!:
+    if let kept = resolved_before(path):
+        return try strings.copy(kept)
     let terminated = try strings.copy(path)
     defer strings.release(terminated)
-    return try files.canonical((c.str)terminated)
+    let resolved = try files.canonical((c.str)terminated)
+    remember(path, resolved)
+    return resolved
+
+## The paths resolved so far and their answers, an open-addressing table in the heap: a
+## slot holds 1 + the entry's index, 0 when free.
+var resolved_paths: str[]
+var resolved_answers: str[]
+var resolved_count: usize = 0
+var resolved_slots: u32[]
+
+func resolved_before(path: str) -> str?:
+    if resolved_slots.length == 0:
+        return none
+    let mask = resolved_slots.length - 1
+    var slot = path_hash(path) & mask
+    while resolved_slots[slot] != 0:
+        let index = (usize)resolved_slots[slot] - 1
+        if resolved_paths[index] == path:
+            return resolved_answers[index]
+        slot = (slot + 1) & mask
+    return none
+
+## Keep `answer` for `path`; a table that cannot grow keeps nothing, which costs time only.
+func remember(path: str, answer: str):
+    with memory.heap:
+        if (resolved_count + 1) * 2 > resolved_slots.length:
+            let size: usize = 256 if resolved_slots.length == 0 else resolved_slots.length * 2
+            let slots = alloc u32[size] catch:
+                return
+            let paths_room = alloc str[size] catch:
+                free(slots)
+                return
+            let answers_room = alloc str[size] catch:
+                free(slots)
+                free(paths_room)
+                return
+            for k in 0..<size:
+                slots[k] = 0
+            for k in 0..<resolved_count:
+                paths_room[k] = resolved_paths[k]
+                answers_room[k] = resolved_answers[k]
+            if resolved_slots.length > 0:
+                free(resolved_slots)
+                free(resolved_paths)
+                free(resolved_answers)
+            resolved_slots = slots
+            resolved_paths = paths_room
+            resolved_answers = answers_room
+            for k in 0..<resolved_count:
+                place(k)
+        let owned_path = strings.copy(path) catch:
+            return
+        let owned_answer = strings.copy(answer) catch:
+            strings.release(owned_path)
+            return
+        resolved_paths[resolved_count] = owned_path
+        resolved_answers[resolved_count] = owned_answer
+        place(resolved_count)
+        resolved_count += 1
+
+func place(index: usize):
+    let mask = resolved_slots.length - 1
+    var slot = path_hash(resolved_paths[index]) & mask
+    while resolved_slots[slot] != 0:
+        slot = (slot + 1) & mask
+    resolved_slots[slot] = u32(index + 1)
+
+## FNV-1a of `path`.
+func path_hash(path: str) -> usize:
+    var h: u64 = 14695981039346656037
+    for b in path.bytes:
+        h = (h ^ (u64)b) *% 1099511628211
+    return (usize)h
 
 func present(path: str) -> bool!:
     return files.exists((c.str)try strings.copy(path))

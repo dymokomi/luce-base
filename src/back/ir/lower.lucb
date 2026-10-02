@@ -23,6 +23,7 @@ import back.names
 import back.target as targets
 import front.ast
 import front.source as sources
+import memory
 import sema.check
 import sema.types
 import support.buffer
@@ -109,6 +110,10 @@ pub struct Lowerer:
     var modules: list.List[NodeRef]
     var entry: ast.Node*
     var funcs: list.List[LowerInstance]
+    ## An open-addressing index over `funcs` by declaration, owner and type arguments: a
+    ## slot holds 1 + the instance's index, 0 when free. A program asks for an instance at
+    ## every call; a search through all of them made lowering grow with their square.
+    var func_slots: u32[]
     var tests: list.List[NodeRef]
     var vtables: list.List[LowerWitness]
     ## `--debug`: describe every frame and call the `debug` module at every statement.
@@ -170,7 +175,7 @@ pub struct Lowerer:
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, target = targets.Target.host(),
                        modules = try list.List[NodeRef].create(16), entry = entry,
-                       funcs = try list.List[LowerInstance].create(64), tests = try list.List[NodeRef].create(32),
+                       funcs = try list.List[LowerInstance].create(64), func_slots = try instance_slots(256), tests = try list.List[NodeRef].create(32),
                        vtables = try list.List[LowerWitness].create(16), current_fn = none, fn_decl = none,
                        fn_args = try types.no_args(), owner_decl = none, owner_args = try types.no_args(),
                        locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
@@ -595,17 +600,39 @@ pub struct Lowerer:
 
     ## Register a function instance; returns its index.
     mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
-        var i: usize = 0
-        while i < self.funcs.count:
-            # through a pointer: the scan must not copy a record per step
+        let mask = self.func_slots.length - 1
+        var slot = instance_hash(f, args, owner, owner_args) & mask
+        while self.func_slots[slot] != 0:
+            let i = (usize)self.func_slots[slot] - 1
+            # through a pointer: the comparison must not copy a record
             let r = &self.funcs.items[i]
             if r.decl == f and lower_same_args(r.args, args) and r.owner == owner and lower_same_args(r.owner_args, owner_args):
                 return i
-            i += 1
+            slot = (slot + 1) & mask
         if check.nesting_of_all(&self.c.table, args) > check.max_nesting or check.nesting_of_all(&self.c.table, owner_args) > check.max_nesting:
             return try self.fail(f, "an infinite chain of instantiations")
         try self.funcs.push(LowerInstance(decl = f, args = args, owner = owner, owner_args = owner_args, done = false))
-        return self.funcs.count - 1
+        let index = self.funcs.count - 1
+        if (self.funcs.count + 1) * 2 > self.func_slots.length:
+            # grown: every instance placed again in a table twice the size
+            let grown = try instance_slots(self.func_slots.length * 2)
+            with memory.heap:
+                free(self.func_slots)
+            self.func_slots = grown
+            for k in 0..<self.funcs.count:
+                self.place_instance(k)
+        else:
+            self.place_instance(index)
+        return index
+
+    ## Put instance `index` in the first free slot of its probe sequence.
+    mutating func place_instance(index: usize):
+        let r = &self.funcs.items[index]
+        let mask = self.func_slots.length - 1
+        var slot = instance_hash(r.decl, r.args, r.owner, r.owner_args) & mask
+        while self.func_slots[slot] != 0:
+            slot = (slot + 1) & mask
+        self.func_slots[slot] = u32(index + 1)
 
     mutating func note_vtable(record: u32, iface: u32) -> !:
         var i: usize = 0
@@ -5682,6 +5709,30 @@ func lower_unescape_braces(text: str) -> str:
             i += 1
         i += 1
     return (str)out[..<n]
+
+## `size` free slots for the instances' index, from the heap, where a grown table's old
+## slots go back (`add_func`).
+func instance_slots(size: usize) -> u32[]!:
+    with memory.heap:
+        var slots = try alloc u32[size]
+        for k in 0..<size:
+            slots[k] = 0
+        return slots
+
+## FNV-1a over an instance's declaration, owner and type arguments.
+func instance_hash(f: ast.Node*, args: const u32[], owner: ast.Node*?, owner_args: const u32[]) -> usize:
+    var h: u64 = 14695981039346656037
+    h = (h ^ (u64)(usize)f) *% 1099511628211
+    var owner_bits: u64 = 0
+    if let o = owner:
+        owner_bits = (u64)(usize)o
+    h = (h ^ owner_bits) *% 1099511628211
+    for a in args:
+        h = (h ^ (u64)a) *% 1099511628211
+    h = (h ^ 0xff) *% 1099511628211
+    for a in owner_args:
+        h = (h ^ (u64)a) *% 1099511628211
+    return (usize)h
 
 func lower_same_args(a: const u32[], b: const u32[]) -> bool:
     if a.length != b.length:

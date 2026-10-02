@@ -2009,7 +2009,9 @@ pub struct Generator:
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
     ## position plus one, which the reporter names first (§11.5).
     mutating func trap_text(reason: str, at: u32) -> !:
-        let index = try self.program_unit.text(reason)
+        # the reasons were added before the functions were generated (`trap_reasons`), so
+        # the threads generating them only read the unit's texts
+        let index = self.program_unit.find_text(reason) else error(ir.missing_text, "a trap's reason is not among the unit's texts")
         if at > 0:
             try self.address_operand("x0", ir.text_ref(at - 1))
             try self.address_operand("x1", ir.text_ref(index))
@@ -2702,6 +2704,10 @@ pub struct Generator:
             try dw.begin(&self.out)
         try self.object_format.text_section(&self.out)
         self.starts = try alloc usize[self.program_unit.functions.count + 1]
+        # the reasons generated checks trap with, in the unit's texts before any function is
+        # generated: the functions only read the texts, whichever thread generates them
+        for reason in trap_reasons:
+            discard(try self.program_unit.text(reason))
         var i: usize = 0
         if self.dw == none:
             try self.functions_in_parallel()
@@ -3201,3 +3207,7 @@ func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
             memory.copy(kept, made.bytes, made.length)
             generated = (str)kept
     job.texts[index] = generated
+
+## The reasons a generated check traps with, added to the unit's texts before its functions
+## are generated (`generate`).
+let trap_reasons: str[2] = ["index out of bounds", "integer overflow"]

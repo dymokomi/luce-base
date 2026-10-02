@@ -256,6 +256,7 @@ func drop_unused_texts(program: ir.Unit*) -> !:
             function.args.items[k].value = renumber_text(function.args.items[k].value, renumbered)
     program.texts.destroy()
     program.texts = kept
+    try program.index_texts()
 
 ## A `bounds` or checked operation names its statement's position text in `extra2`
 ## (index + 1) for the trap it may raise; 0 names none.
