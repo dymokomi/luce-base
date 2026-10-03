@@ -1,0 +1,21 @@
+## §3.4: the standalone `_` is the wildcard; it binds nothing, so loops and patterns may
+## nest it as deep as they like, and it collides with nothing.
+enum Shape:
+    square(side: i64)
+    pair(left: i64, right: i64)
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    var count: i32 = 0
+    for _ in 0..<3:
+        for _ in 0..<4:
+            count += 1
+    var sides: i64 = 0
+    for shape in [Shape.square(2), Shape.pair(3, 5)]:
+        match shape:
+            .square(_): sides += 4
+            .pair(_, right):
+                for _ in 0..<2:
+                    sides += right
+    print(f"{count} {sides}")
+    return 0

@@ -356,6 +356,10 @@ pub struct Checker:
     ## parameter may not reuse the name of another local, a parameter, an import, or a
     ## declaration of the module, and nothing may reuse a core name.
     mutating func bind(at: ast.Node*, name: str, type_id: u32, decl: ast.Node*?, mutable: bool) -> !:
+        # `_` is the wildcard (§3.4): it binds nothing, so it is never read and never
+        # collides, however many loops or patterns nest it
+        if name == "_":
+            return
         if token.is_core_name(name) and not self.in_prelude():
             discard(try self.fail(at, "this name belongs to the language"))
         if let existing = self.lookup(name):
@@ -2790,6 +2794,8 @@ pub struct Checker:
     ## An unresolved name; inside a lambda, a local of the enclosing function is the usual
     ## cause, and a lambda captures nothing (§9.6).
     func unknown_name(e: ast.Node*) -> u32!:
+        if e.text == "_":
+            return try self.fail(e, "`_` is the wildcard; it binds nothing to read (§3.4)")
         if self.lambda_floor > 0:
             var i = self.lambda_floor
             while i > 0:
