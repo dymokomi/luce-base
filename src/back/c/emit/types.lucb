@@ -1,0 +1,398 @@
+#==============================================================================================
+#
+#   emit/types - Types and names
+#
+#   DESCRIPTION:
+#       C spellings of checked types, and the mangled names of records, functions, and
+#       instances, registering each instance the body turns out to need (§13).
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Types ==============================================================================
+
+    ## A type of the body being emitted, with the instance's arguments substituted.
+    mutating func map(id: u32) -> u32!:
+        var t = id
+        if let o = self.owner_decl:
+            if self.owner_args.length > 0:
+                t = try self.c.substitute(t, o, self.owner_args)
+        if let f = self.fn_decl:
+            if self.fn_args.length > 0:
+                t = try self.c.substitute(t, f, self.fn_args)
+        return t
+
+    ## The mapped type of an expression node.
+    mutating func ty(e: ast.Node*) -> u32!:
+        return try self.map(e.type_id)
+
+    func kind(id: u32) -> types.Kind:
+        return self.c.table.kind(id)
+
+    func elem(id: u32) -> u32:
+        return self.c.table.get(id).elem
+
+    func is_int(id: u32) -> bool:
+        return self.c.table.is_integer(id)
+
+    func is_signed(id: u32) -> bool:
+        return self.c.table.is_signed(id)
+
+    func is_vector(id: u32) -> bool:
+        return self.c.table.is_vector(id)
+
+    func is_float(id: u32) -> bool:
+        return self.c.table.is_float(id)
+
+    func is_ptr(id: u32) -> bool:
+        return self.kind(id) == types.Kind.pointer
+
+    func is_span(id: u32) -> bool:
+        return self.kind(id) == types.Kind.span
+
+    func is_array(id: u32) -> bool:
+        return self.kind(id) == types.Kind.array
+
+    func is_opt(id: u32) -> bool:
+        return self.kind(id) == types.Kind.optional
+
+    func is_fail(id: u32) -> bool:
+        return self.kind(id) == types.Kind.fallible
+
+    func is_tuple(id: u32) -> bool:
+        return self.kind(id) == types.Kind.tuple
+
+    func is_func(id: u32) -> bool:
+        return self.kind(id) == types.Kind.func_
+
+    func is_iface(id: u32) -> bool:
+        return self.kind(id) == types.Kind.interface_
+
+    func is_atomic(id: u32) -> bool:
+        return self.kind(id) == types.Kind.atomic
+
+    ## A pointer-shaped value needs qualifiers after its own star. Opaque handles
+    ## and C strings are emitted as raw pointers even though their Base kinds differ.
+    func has_pointer_spelling(id: u32) -> bool:
+        return self.is_ptr(id) or self.is_nullable_ptr(id) or id == types.cstr_id or self.kind(id) == types.Kind.func_ or self.c.table.is_opaque_handle(id)
+
+    ## `T*` to a span's elements: `const T*` for a `const T[]`, and `T* const*` when the
+    ## elements are pointers themselves, since C puts the qualifier after their star (§5.3).
+    mutating func put_element_pointer(span: u32) -> !:
+        let elem = self.elem(span)
+        let constant = self.c.table.get(span).is_const
+        let pointer_elements = self.has_pointer_spelling(elem)
+        if constant and not pointer_elements:
+            try self.put("const ")
+        try self.put_type(elem)
+        if constant and pointer_elements:
+            try self.put(" const")
+        try self.put("*")
+
+    func is_nullable_ptr(id: u32) -> bool:
+        return self.c.table.is_nullable_pointer(id)
+
+    ## `Writer?`: the `lb_iface` itself, none when its `data` is null (§14.3).
+    func is_nullable_view(id: u32) -> bool:
+        return self.c.table.is_nullable_view(id)
+
+    ## A tagged optional carries a `present` flag beside its value.
+    func is_tagged_opt(id: u32) -> bool:
+        return self.is_opt(id) and not self.c.table.is_nullable_pointer(id) and not self.c.table.is_nullable_view(id)
+
+    func is_int_enum(id: u32) -> bool:
+        if self.kind(id) != types.Kind.enum_:
+            return false
+        let d = self.c.table.get(id).decl else return false
+        return d.ty != none
+
+    func is_record(id: u32) -> bool:
+        let k = self.kind(id)
+        return k == types.Kind.struct_ or k == types.Kind.union_ or (k == types.Kind.enum_ and not self.is_int_enum(id))
+
+    ## The integer type behind an integer-backed enum.
+    func enum_backing(id: u32) -> u32:
+        let d = self.c.table.get(id).decl else return types.i32_id
+        let backing = d.ty else return types.i32_id
+        return backing.type_id
+
+    func bits(id: u32) -> u32:
+        if self.is_int_enum(id):
+            return self.c.table.bits(self.enum_backing(id))
+        return self.c.table.bits(id)
+
+    ## Signedness for the checked arithmetic helpers.
+    func signed_of(id: u32) -> bool:
+        if self.is_int_enum(id):
+            return self.is_signed(self.enum_backing(id))
+        return self.is_signed(id)
+
+    func decl_of(id: u32) -> ast.Node*?:
+        return self.c.table.get(id).decl
+
+    # -- spelling -------------------------------------------------------------------------
+
+    ## The C type of `id`, which must be concrete.
+    mutating func put_type(id: u32) -> !:
+        if types.is_distinct_c(id):
+            return try self.put(c_spelling(id))
+        let t = self.c.table.get(id)
+        match t.kind:
+            .unit_:
+                try self.put("lb_unit")
+            .never_, .void_:
+                try self.put("void")
+            .bool_:
+                try self.put("bool")
+            .i8_:
+                try self.put("int8_t")
+            .i16_:
+                try self.put("int16_t")
+            .i32_:
+                try self.put("int32_t")
+            .i64_:
+                try self.put("int64_t")
+            .isize_:
+                try self.put("intptr_t")
+            .u8_:
+                try self.put("uint8_t")
+            .u16_:
+                try self.put("uint16_t")
+            .u32_:
+                try self.put("uint32_t")
+            .u64_:
+                try self.put("uint64_t")
+            .usize_:
+                try self.put("size_t")
+            .f16_:
+                try self.put("_Float16")
+            .f32_:
+                try self.put("float")
+            .f64_:
+                try self.put("double")
+            .char_:
+                try self.put("uint32_t")
+            .str_, .fmt_:
+                try self.put("lb_str")
+            .cstr_:
+                try self.put("char*")
+            .error_code:
+                try self.put("uint32_t")
+            .error_value:
+                try self.put("lb_error")
+            .untyped_int:
+                try self.put("int64_t")
+            .untyped_float:
+                try self.put("double")
+            .atomic:
+                try self.put("_Atomic(")
+                try self.put_type(t.elem)
+                try self.put(")")
+            .pointer:
+                if t.elem == types.void_id:
+                    try self.put("const void*" if t.is_const else "void*")
+                    return
+                # a qualifier on a pointee that is itself a pointer follows that pointer's
+                # star, as C writes `T* const*` for `const (T*)*` (§5.3)
+                let inner_is_pointer = self.has_pointer_spelling(t.elem)
+                if not inner_is_pointer:
+                    if t.is_const:
+                        try self.put("const ")
+                    if t.is_volatile:
+                        try self.put("volatile ")
+                if self.is_record(t.elem):
+                    let declaration = self.decl_of(t.elem) else error(backend, "a record has no declaration")
+                    # Extern types spell their scalar representation, with no C record tag.
+                    if declaration.kind != ast.Kind.extern_type:
+                        try self.put("union " if self.kind(t.elem) == types.Kind.union_ else "struct ")
+                try self.put_type(t.elem)
+                if inner_is_pointer:
+                    if t.is_const:
+                        try self.put(" const")
+                    if t.is_volatile:
+                        try self.put(" volatile")
+                try self.put("*")
+            .span:
+                try self.put("lb_cspan" if t.is_const else "lb_span")
+            .array, .tuple, .func_:
+                try self.note(id)
+                try self.put_mangled_name(id)
+            .optional:
+                if self.c.table.has_null_niche(t.elem):
+                    try self.put_type(t.elem)
+                else:
+                    try self.note(id)
+                    try self.put_mangled_name(id)
+            .fallible:
+                if t.elem == types.unit_id or t.elem == types.never_id:
+                    try self.put("lb_r_unit")
+                else:
+                    try self.note(id)
+                    try self.put_mangled_name(id)
+            .interface_:
+                try self.put("lb_iface")
+            .struct_, .union_, .enum_:
+                if self.is_int_enum(id):
+                    try self.put_type(self.enum_backing(id))
+                    return
+                try self.note(id)
+                try self.put_record_name(id)
+            .param:
+                error(backend, "a generic parameter reached the backend")
+            _:
+                try self.put("void")
+
+    ## The module a top-level declaration belongs to, by name.
+    func module_name(d: ast.Node*) -> str:
+        return names.module_of(d)
+
+    ## The C name of a record type: an extern's own, otherwise what `names` says.
+    mutating func put_record_name(id: u32) -> !:
+        let t = self.c.table.get(id)
+        let d = t.decl else return try self.put("void")
+        if d.kind == ast.Kind.extern_type:
+            # an opaque handle is pointer-shaped (§17.1); an integer-shaped one names its integer
+            if let shape = d.ty:
+                try self.put_type(try self.map(shape.type_id))
+            else:
+                try self.put("void*")
+            return
+        if d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union:
+            try self.put(d.text)
+            return
+        try self.put("lb_")
+        try names.mangled(self.sink(), &self.c.table, id)
+
+    ## The typedef name of an array, tuple, function, optional, or result type.
+    mutating func put_mangled_name(id: u32) -> !:
+        let k = self.kind(id)
+        if k == types.Kind.array:
+            try self.put("lb_a_")
+        elif k == types.Kind.tuple:
+            try self.put("lb_t_")
+        elif k == types.Kind.func_:
+            try self.put("lb_fn_")
+        elif k == types.Kind.optional:
+            try self.put("lb_o_")
+        elif k == types.Kind.fallible:
+            try self.put("lb_r_")
+        try self.put_mangled(self.elem(id) if k == types.Kind.optional or k == types.Kind.fallible else id)
+
+    ## A spelling of a type made of identifier characters only, unique per type.
+    mutating func put_mangled(id: u32) -> !:
+        try names.mangled(self.sink(), &self.c.table, id)
+
+    ## Remember that `id` needs a typedef, and register record instances.
+    mutating func note(id: u32) -> !:
+        if contains_id(self.needed.span(), id):
+            return
+        try self.needed.push(id)
+        let t = self.c.table.get(id)
+        if (t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_ or t.kind == types.Kind.union_) and t.args.length > 0:
+            let d = t.decl else return
+            try self.add_record(d, t.args)
+
+    ## Register a generic record instance and the instances of its methods.
+    mutating func add_record(d: ast.Node*, args: u32[]) -> !:
+        var i: usize = 0
+        while i < self.records.count:
+            let r = self.records.get(i)
+            if r.decl == d and same_args(r.args, args):
+                return
+            i += 1
+        if check.nesting_of_all(&self.c.table, args) > check.max_nesting:
+            error(backend, "an infinite chain of instantiations")
+        try self.records.push(Instance(decl = d, args = args, owner = none, owner_args = try types.no_args(), done = false))
+        var member = d.body
+        while let m = member:
+            if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
+                try self.add_func(m, try types.no_args(), d, args)
+            member = m.next
+
+    ## Register a function instance; returns its index.
+    mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
+        var i: usize = 0
+        while i < self.funcs.count:
+            # through a pointer: the scan must not copy a record per step
+            let r = &self.funcs.items[i]
+            if r.decl == f and same_args(r.args, args) and r.owner == owner and same_args(r.owner_args, owner_args):
+                return i
+            i += 1
+        if check.nesting_of_all(&self.c.table, args) > check.max_nesting or check.nesting_of_all(&self.c.table, owner_args) > check.max_nesting:
+            error(backend, "an infinite chain of instantiations")
+        try self.funcs.push(Instance(decl = f, args = args, owner = owner, owner_args = owner_args, done = false))
+        return self.funcs.count - 1
+
+    # mark: Names ==============================================================================
+
+    ## `lb_name`, with a trailing underscore when the name is one the runtime uses.
+    mutating func put_ident(name: str) -> !:
+        try self.put("lb_")
+        try self.put(name)
+        if names.is_runtime_name(name):
+            try self.put("_")
+
+    ## The C name of a function or method instance: an extern's binding, else what `names` says.
+    mutating func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
+        if f.kind == ast.Kind.extern_func:
+            try self.put_extern_callee(f)
+            return
+        try names.function_name(self.sink(), &self.c.table, f, args, owner, owner_args, self.entry)
+
+    ## `lb_module_name` for a top-level `let` or `var`, noted as storage the program uses.
+    mutating func put_global_name(d: ast.Node*) -> !:
+        if not self.uses_storage(d):
+            try self.referenced_storage.push(d)
+        try names.global_name(self.sink(), d)
+
+    func uses_storage(declaration: ast.Node*) -> bool:
+        for referenced in self.referenced_storage.span():
+            if referenced == declaration:
+                return true
+        return false
+
+    ## The C name of the function the emission context is inside.
+    mutating func put_current_name() -> !:
+        let f = self.current_fn else return try self.put("lb_unknown")
+        if f.kind == ast.Kind.test_:
+            try self.put("lb_test_")
+            let index = try self.test_index(f)
+            try self.put_u64((u64)index)
+            return
+        try self.put_func_name(f, self.fn_args, self.owner_decl, self.owner_args)
+
+    mutating func test_index(t: ast.Node*) -> usize!:
+        var i: usize = 0
+        while i < self.tests.count:
+            if self.tests.get(i) == t:
+                return i
+            i += 1
+        try self.tests.push(t)
+        return self.tests.count - 1
+
+    ## The C result type of a function declaration (or test) in the current context.
+    mutating func put_result_type(f: ast.Node*) -> !:
+        if f.kind == ast.Kind.test_:
+            try self.put("lb_r_unit")
+            return
+        let ft = self.c.table.get(try self.map(f.type_id))
+        if f.has(ast.flag_fallible):
+            try self.put_type(ft.elem)
+            return
+        if ft.elem == types.unit_id or ft.elem == types.never_id:
+            try self.put("void")
+            return
+        try self.put_type(ft.elem)
+
+    ## The unwrapped result type of the current function.
+    mutating func result_payload() -> u32!:
+        let f = self.current_fn else return types.unit_id
+        if f.kind == ast.Kind.test_:
+            return types.unit_id
+        let ft = self.c.table.get(try self.map(f.type_id))
+        if f.has(ast.flag_fallible):
+            return self.elem(ft.elem)
+        return ft.elem
+
+    func fn_fallible() -> bool:
+        let f = self.current_fn else return false
+        return f.kind == ast.Kind.test_ or f.has(ast.flag_fallible)

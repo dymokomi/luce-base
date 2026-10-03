@@ -1,0 +1,243 @@
+#==============================================================================================
+#
+#   emit/conversions - Conversions
+#
+#   DESCRIPTION:
+#       Checked and wrapping conversions between scalars, enums, and text (§7.5).
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Conversions ========================================================================
+
+    ## `(T)x` (C cast, `checked` false) and `T(x)` (checked, `checked` true).
+    mutating func conversion(src: ast.Node*, dest: u32, checked: bool) -> !:
+        let st = try self.ty(src)
+        let s = self.c.table.get(st)
+        if self.folding and (self.is_int(dest) or self.is_float(dest)) and (self.is_int(st) or self.is_float(st) or st == types.untyped_int_id or st == types.untyped_float_id):
+            # a constant expression: C's cast
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")(")
+            try self.expr(src)
+            try self.put("))")
+            return
+        if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
+            try self.str_conversion(src, checked)
+            return
+        if dest == types.cstr_id and st == types.str_id:
+            # `(c.str)text`: C's text ends at a NUL, so the byte after the view must be one (§5.2)
+            try self.put("lb_cstr_of(")
+            try self.expr(src)
+            try self.put(")")
+            return
+        if st == types.cstr_id and dest == types.str_id:
+            try self.str_conversion(src, checked)
+            return
+        if self.is_int_enum(dest):
+            if checked:
+                try self.enum_check(dest, src)
+                return
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")(")
+            try self.expr(src)
+            try self.put("))")
+            return
+        if self.is_int_enum(st) and self.is_int(dest):
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")(")
+            try self.expr(src)
+            try self.put("))")
+            return
+        let mode = "0" if checked else "1"
+        if self.is_float(st) and self.is_int(dest):
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")")
+            try self.put("lb_f_to_s((double)(" if self.is_signed(dest) else "lb_f_to_u((double)(")
+            try self.expr(src)
+            try self.put("), ")
+            try self.put_u64((u64)self.bits(dest))
+            try self.put(", ")
+            try self.put(mode)
+            try self.put("))")
+            return
+        if (self.is_int(st) or st == types.untyped_int_id) and self.is_float(dest):
+            let signed = st == types.untyped_int_id or self.is_signed(st)
+            if dest != types.f64_id:
+                try self.put("(")
+                try self.put_type(dest)
+                try self.put(")")
+            try self.put("lb_to_f(")
+            try self.put("(int64_t)(" if signed else "(uint64_t)(")
+            try self.expr(src)
+            try self.put("), ")
+            try self.put("1" if signed else "0")
+            try self.put(")")
+            return
+        if (self.is_float(st) or st == types.untyped_float_id) and self.is_float(dest):
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")(")
+            try self.expr(src)
+            try self.put("))")
+            return
+        let s_word = self.is_int(st) or st == types.char_id or st == types.bool_id or st == types.untyped_int_id
+        let d_word = self.is_int(dest) or dest == types.char_id
+        if s_word and dest == types.bool_id:
+            try self.put("((")
+            try self.expr(src)
+            try self.put(") != 0)")
+            return
+        # a bool is 0 or 1, which every integer holds: a plain cast, which also keeps a
+        # constant such as `(i32)platform.macos` a compile-time constant for a global
+        if st == types.bool_id and d_word:
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")(")
+            try self.expr(src)
+            try self.put("))")
+            return
+        if s_word and d_word:
+            let fb = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else self.bits(st))
+            let tb = 32 if dest == types.char_id else self.bits(dest)
+            let fs = st != types.char_id and st != types.bool_id and (st == types.untyped_int_id or self.is_signed(st))
+            let ts = dest != types.char_id and self.is_signed(dest)
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")")
+            if dest == types.char_id:
+                try self.put("lb_to_char(")
+            try self.put("lb_conv_s(" if fs else "lb_conv_u(")
+            try self.put("(int64_t)(" if fs else "(uint64_t)(")
+            try self.expr(src)
+            try self.put("), ")
+            try self.put_u64((u64)fb)
+            try self.put(", ")
+            try self.put("1" if fs else "0")
+            try self.put(", ")
+            try self.put_u64((u64)tb)
+            try self.put(", ")
+            try self.put("1" if ts else "0")
+            try self.put(", ")
+            try self.put(mode)
+            if dest == types.char_id:
+                try self.put("), ")
+                try self.put(mode)
+            try self.put("))")
+            return
+        # pointers, spans, and everything else C converts by itself
+        try self.put("((")
+        try self.put_type(dest)
+        try self.put(")(")
+        try self.expr(src)
+        try self.put("))")
+
+    ## `Kind(n)`: trap unless `n` is a declared case.
+    mutating func enum_check(dest: u32, src: ast.Node*) -> !:
+        let d = self.decl_of(dest) else return try self.expr(src)
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(dest)
+        try self.put(" ")
+        try self.put_tmp("ev", n)
+        try self.put(" = (")
+        try self.put_type(dest)
+        try self.put(")(")
+        try self.expr(src)
+        try self.put("); if (!(")
+        # both sides at the representation's width, so `-1` in an `i8` enum is the byte 0xFF
+        let mask = width_mask(self.bits(dest))
+        var first = true
+        var cursor = d.body
+        while let node = cursor:
+            if node.kind == ast.Kind.enum_case:
+                if not first:
+                    try self.put(" || ")
+                first = false
+                try self.put("((uint64_t)")
+                try self.put_tmp("ev", n)
+                try self.put(" & ")
+                try self.put_u64(mask)
+                try self.put("ull) == ")
+                try self.put_u64(types.case_value(d, node) & mask)
+                try self.put("ull")
+            cursor = node.next
+        if first:
+            try self.put("0")
+        try self.put(")) lb_trap(\"invalid enum value\"); ")
+        try self.put_tmp("ev", n)
+        try self.put("; })")
+
+    ## `(str)bytes` and `str(bytes)`: a view, checked for UTF-8 when `checked`.
+    mutating func str_conversion(src: ast.Node*, checked: bool) -> !:
+        let st = try self.ty(src)
+        let n = self.tmp()
+        try self.put("({ ")
+        if st == types.cstr_id:
+            try self.put("const char* ")
+            try self.put_tmp("sb", n)
+            try self.put(" = ")
+            try self.expr(src)
+            try self.put("; size_t ")
+            try self.put_tmp("sl", n)
+            try self.put(" = ")
+            try self.put_tmp("sb", n)
+            try self.put(" == NULL ? 0 : strlen(")
+            try self.put_tmp("sb", n)
+            try self.put("); ")
+        elif self.is_array(st):
+            try self.put("const char* ")
+            try self.put_tmp("sb", n)
+            try self.put(" = (const char*)")
+            try self.array_data(src)
+            try self.put("; size_t ")
+            try self.put_tmp("sl", n)
+            try self.put(" = ")
+            try self.put_u64(self.c.table.get(st).length)
+            try self.put("ULL; ")
+        else:
+            try self.put("lb_span ")
+            try self.put_tmp("sc", n)
+            try self.put(" = ")
+            try self.expr(src)
+            try self.put("; const char* ")
+            try self.put_tmp("sb", n)
+            try self.put(" = (const char*)")
+            try self.put_tmp("sc", n)
+            try self.put(".data; size_t ")
+            try self.put_tmp("sl", n)
+            try self.put(" = ")
+            try self.put_tmp("sc", n)
+            try self.put(".length; ")
+        if not checked:
+            try self.put("(lb_str){ ")
+            try self.put_tmp("sb", n)
+            try self.put(", ")
+            try self.put_tmp("sl", n)
+            try self.put(" }; })")
+            return
+        let res = try self.c.table.fallible(types.str_id)
+        try self.note(res)
+        try self.put("lb_r_str ")
+        try self.put_tmp("sr", n)
+        try self.put("; if (!lb_utf8_ok(")
+        try self.put_tmp("sb", n)
+        try self.put(", ")
+        try self.put_tmp("sl", n)
+        try self.put(")) { ")
+        try self.put_tmp("sr", n)
+        try self.put(".failed = true; ")
+        try self.put_tmp("sr", n)
+        try self.put(".error = (lb_error){ .code = LB_INVALID_UTF8, .message = (lb_str){\"invalid_utf8\", 12} }; } else { ")
+        try self.put_tmp("sr", n)
+        try self.put(".failed = false; ")
+        try self.put_tmp("sr", n)
+        try self.put(".value = (lb_str){ ")
+        try self.put_tmp("sb", n)
+        try self.put(", ")
+        try self.put_tmp("sl", n)
+        try self.put(" }; } ")
+        try self.put_tmp("sr", n)
+        try self.put("; })")

@@ -1,0 +1,664 @@
+#==============================================================================================
+#
+#   emit/expressions - Expressions
+#
+#   DESCRIPTION:
+#       `value`, the one place a conversion the checker allowed is written, and the
+#       expressions with no family of their own: literals, names, and places.
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Expressions ========================================================================
+
+    ## Write `e` as a value of type `want`, converting where the checker allowed
+    ## it: a pointer to an interface view, an array to a span, a value into its
+    ## optional, text into a byte span, a function into its fallible shape.
+    mutating func value(e: ast.Node*, want: u32) -> !:
+        if let held = self.chain_left:
+            if held == e:
+                # the left of a chain link: already computed into the chain's temporary
+                self.chain_left = none
+                try self.put_tmp("ch", self.chain_temp)
+                return
+        let have = try self.ty(e)
+        if want == types.unit_id:
+            # A unit-producing call returns C void; unit stored or passed as a
+            # value uses zero-sized data after evaluating the call's effects.
+            try self.put("((void)(")
+            try self.expr(e)
+            try self.put("), (lb_unit){})")
+            return
+        if have == types.never_id and want != types.none_id and want != types.unit_id and want != types.never_id and want != types.error_id:
+            # a `never` where a value is wanted: the C needs an expression of that type after
+            # the call that does not return (§5.1)
+            try self.put("({ ")
+            try self.expr(e)
+            try self.put("; (")
+            try self.put_type(want)
+            try self.put(")")
+            try self.zero_value(want)
+            try self.put("; })")
+            return
+        if want == types.none_id or have == want or have == types.never_id or have == types.error_id:
+            try self.expr(e)
+            return
+        let w = self.c.table.get(want)
+        let h = self.c.table.get(have)
+        # `none`
+        if e.kind == ast.Kind.literal and e.text == "none":
+            try self.none_of(want)
+            return
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.pointer:
+            try self.iface_view(e, h.elem, want)
+            return
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.interface_:
+            try self.expr(e)
+            return
+        if w.kind == types.Kind.optional:
+            if h.kind == types.Kind.optional:
+                try self.expr(e)
+                return
+            if self.c.table.has_null_niche(w.elem):
+                # `T*`, `c.str`, or a function into its nullable form: the same word (§5.3),
+                # the payload converted as the niche type asks (`"text"` into `c.str?`)
+                try self.value(e, w.elem)
+                return
+            try self.put("((")
+            try self.put_type(want)
+            try self.put("){ .value = ")
+            try self.value(e, w.elem)
+            try self.put(", .present = true })")
+            return
+        if w.kind == types.Kind.span:
+            if h.kind == types.Kind.array:
+                try self.put("((")
+                try self.put_type(want)
+                # Both span kinds store void*. The checker has already enforced
+                # Base constness; explicitly erase the array pointer's C qualifier.
+                try self.put("){(void*)(")
+                try self.array_data(e)
+                try self.put("), ")
+                try self.put_u64(h.length)
+                try self.put("ULL})")
+                return
+            if have == types.str_id or have == types.fmt_id:
+                try self.text_as_bytes(e)
+                return
+            try self.expr(e)
+            return
+        if (want == types.cstr_id or (self.kind(want) == types.Kind.optional and self.c.table.get(want).elem == types.cstr_id)) and have == types.str_id:
+            if e.kind == ast.Kind.literal:
+                try self.put_c_string(check.decode_text(e.text))
+                return
+            try self.put("((char*)")
+            try self.expr(e)
+            try self.put(".data)")
+            return
+        if want == types.fmt_id and have == types.str_id:
+            try self.expr(e)
+            return
+        if w.kind == types.Kind.atomic:
+            try self.value(e, w.elem)
+            return
+        if h.kind == types.Kind.atomic:
+            try self.put("atomic_load(&(")
+            try self.expr(e)
+            try self.put("))")
+            return
+        if self.is_int(want) and (self.is_int(have) or have == types.untyped_int_id):
+            try self.put("(")
+            try self.put_type(want)
+            try self.put(")(")
+            try self.expr(e)
+            try self.put(")")
+            return
+        if self.is_float(want) and (have == types.untyped_int_id or have == types.untyped_float_id or self.is_float(have)):
+            try self.put("(")
+            try self.put_type(want)
+            try self.put(")(")
+            try self.expr(e)
+            try self.put(")")
+            return
+        try self.expr(e)
+
+    ## The absent value of an optional type.
+    mutating func none_of(t: u32) -> !:
+        if self.is_atomic(t):
+            try self.none_of(self.elem(t))  # `@Node*?` holds the pointer's `none`
+            return
+        if self.is_nullable_ptr(t) or self.is_ptr(t) or self.is_func(t):
+            try self.put("((void*)0)")
+            return
+        if self.is_nullable_view(t):
+            try self.put("((lb_iface){ ((void*)0), ((void*)0) })")
+            return
+        if self.is_opt(t):
+            try self.put("((")
+            try self.put_type(t)
+            try self.put("){ .present = false })")
+            return
+        try self.put("{}")
+
+    ## Under the diagnostic profile, `lb_memory_9note_site(block, size, function, line)` after an
+    ## allocation succeeded (§19.4); `size_tmp` names the temporary holding the byte count.
+    mutating func note_allocation(n: u32, size_tmp: str) -> !:
+        if not self.diagnostic:
+            return
+        try self.put("if (")
+        try self.put_tmp("ao", n)
+        try self.put(".present) lb_memory_9note_site(")
+        try self.put_tmp("ao", n)
+        try self.put(".value.data, ")
+        try self.put_tmp(size_tmp, n)
+        try self.put(", (lb_str){ __func__, sizeof(__func__) - 1 }, ")
+        try self.put_u64((u64)self.site_line)
+        try self.put("); ")
+
+    ## `((lb_iface){ &(FormatSink){ &buffer }, &table })`: the sink over the buffer being built.
+    mutating func format_sink_view() -> !:
+        let sink_type = self.c.standard_type("io", "FormatSink")
+        let writer = self.c.standard_type("io", "Writer")
+        try self.note(sink_type)
+        try self.put("((lb_iface){ (void*)&(")
+        try self.put_record_name(sink_type)
+        # the runtime's `lb_fmtbuf` and core's `FormatBuffer` are one layout, data, capacity, used
+        try self.put("){ (")
+        try self.put_record_name(self.c.standard_type("core", "FormatBuffer"))
+        try self.put("*)&")
+        try self.put_tmp(self.sink_prefix, self.sink_index)
+        try self.put(" }, &lb_vt_")
+        try self.put_mangled(sink_type)
+        try self.put("_Writer })")
+        try self.note_vtable(sink_type, writer)
+
+    ## `((lb_iface){ pointer, &vtable })` for a struct pointer used as a view.
+    mutating func iface_view(e: ast.Node*, target: u32, iface: u32) -> !:
+        let d = self.decl_of(target) else return try self.expr(e)
+        let i = self.decl_of(iface) else return try self.expr(e)
+        try self.put("((lb_iface){ (void*)(")
+        try self.expr(e)
+        try self.put("), &lb_vt_")
+        try self.put_mangled(target)
+        try self.put("_")
+        try self.put(i.text)
+        try self.put(" })")
+        try self.note_vtable(target, iface)
+        discard(d)
+
+    ## The data pointer of an array-typed expression.
+    mutating func array_data(e: ast.Node*) -> !:
+        if e.kind == ast.Kind.name or e.kind == ast.Kind.member or e.kind == ast.Kind.index or e.kind == ast.Kind.self_:
+            try self.place(e)
+            try self.put(".d")
+            return
+        let n = self.tmp()
+        if self.target == to_scratch:
+            # in a function: the array is the function's, so the span outlives the expression
+            try self.arrays.push(Hoisted(type_id = try self.ty(e), n = n))
+            try self.put("(")
+            try self.put_tmp("ad", n)
+            try self.put(" = ")
+            try self.expr(e)
+            try self.put(", ")
+            try self.put_tmp("ad", n)
+            try self.put(".d)")
+            return
+        try self.put("({ ")
+        try self.put_type(try self.ty(e))
+        try self.put(" ")
+        try self.put_tmp("ad", n)
+        try self.put(" = ")
+        try self.expr(e)
+        try self.put("; ")
+        try self.put_tmp("ad", n)
+        try self.put(".d; })")
+
+    ## `str` or `fmt` as `lb_cspan`.
+    mutating func text_as_bytes(e: ast.Node*) -> !:
+        let n = self.tmp()
+        try self.put("({ lb_str ")
+        try self.put_tmp("tb", n)
+        try self.put(" = ")
+        try self.expr(e)
+        try self.put("; (lb_cspan){ (void*)(")
+        try self.put_tmp("tb", n)
+        try self.put(".data), ")
+        try self.put_tmp("tb", n)
+        try self.put(".length }; })")
+
+    ## An expression by its own type.
+    mutating func expr(e: ast.Node*) -> !:
+        if let id = self.sequenced_id(e):
+            try self.put_tmp("sq", id)
+            return
+        match e.kind:
+            .literal:
+                try self.literal(e)
+            .name:
+                try self.name(e)
+            .self_:
+                try self.put("(*self)")
+            .unit_:
+                try self.put("((lb_unit){})")
+            .group:
+                let inner = e.left else return
+                try self.put("(")
+                try self.expr(inner)
+                try self.put(")")
+            .unary:
+                try self.unary(e)
+            .propagate:
+                try self.try_expr(e)
+            .binary:
+                try self.binary(e)
+            .conditional:
+                let cond = e.ty else return
+                let l = e.left else return
+                let r = e.right else return
+                let t = try self.ty(e)
+                try self.put("(")
+                try self.value(cond, types.bool_id)
+                try self.put(" ? ")
+                try self.value(l, t)
+                try self.put(" : ")
+                try self.value(r, t)
+                try self.put(")")
+            .call:
+                try self.call(e)
+            .member:
+                try self.member(e)
+            .index:
+                try self.index(e)
+            .slice:
+                try self.slice(e)
+            .tuple:
+                let t = try self.ty(e)
+                let tt = self.c.table.get(t)
+                try self.put("((")
+                try self.put_type(t)
+                try self.put("){")
+                var i: usize = 0
+                var cursor = e.body
+                while let m = cursor:
+                    if i > 0:
+                        try self.put(", ")
+                    try self.value(m, tt.args[i] if i < tt.args.length else types.none_id)
+                    i += 1
+                    cursor = m.next
+                try self.put("})")
+            .array_lit:
+                let t = try self.ty(e)
+                try self.put("((")
+                try self.put_type(t)
+                try self.put("){{")
+                var first = true
+                var cursor = e.body
+                while let m = cursor:
+                    if not first:
+                        try self.put(", ")
+                    first = false
+                    try self.value(m, self.elem(t))
+                    cursor = m.next
+                try self.put("}})")
+            .lambda:
+                let d = e.resolved else return
+                try self.func_value(e, d)
+            .else_:
+                try self.else_expr(e)
+            .catch_:
+                try self.catch_expr(e)
+            .cast:
+                let inner = e.left else return
+                try self.conversion(inner, try self.ty(e), false)
+            .case_value:
+                try self.enum_value(e)
+            .formatted:
+                try self.formatted_value(e)
+            .new_:
+                try self.new_expr(e)
+            .alloc_:
+                try self.alloc_expr(e)
+            .span_make:
+                let first = e.body else return
+                let p = first.left else return
+                let second = first.next else return
+                let count = second.left else return
+                try self.put("((lb_span){(void*)(")
+                try self.expr(p)
+                try self.put("), (size_t)(")
+                try self.expr(count)
+                try self.put(")})")
+            .match_expr:
+                try self.match_expr(e)
+            .return_:
+                # `else return x`: leaves the function from inside an expression
+                try self.return_in_expr(e)
+            .break_:
+                let target = self.loop_scope(e.text)
+                try self.unwind_from(target + 1, false)
+                if e.text.length == 0:
+                    try self.break_to(target)
+                else:
+                    try self.put("goto lb_brk_")
+                    try self.put(e.text)
+            .continue_:
+                let target = self.loop_scope(e.text)
+                try self.unwind_from(target + 1, false)
+                if e.text.length == 0:
+                    try self.put("continue")
+                else:
+                    try self.put("goto lb_cont_")
+                    try self.put(e.text)
+            _:
+                return error(backend, "the C backend has no form for this expression")
+
+    ## A `return` inside an expression, written as statements in a brace block.
+    mutating func return_in_expr(e: ast.Node*) -> !:
+        try self.put("{")
+        self.indent += 1
+        try self.return_stmt(e)
+        self.indent -= 1
+        try self.line("}")
+
+    # -- literals and names ---------------------------------------------------------------
+
+    ## The C constant whose value is the float `t` with these bits (§7.5): a hexadecimal
+    ## literal for a finite value, exact by construction, `__builtin_inf` for an infinity,
+    ## and `__builtin_nan` or `__builtin_nans` with the payload otherwise. Every spelling is
+    ## a constant expression under both GCC and clang, so a global may be initialised with it.
+    mutating func float_constant(t: u32, bits: u64) -> !:
+        let exp_bits: u32 = 11 if t == types.f64_id else 8 if t == types.f32_id else 5
+        let mant_bits: u32 = 52 if t == types.f64_id else 23 if t == types.f32_id else 10
+        let width = 1 + exp_bits + mant_bits
+        let masked = bits if width == 64 else bits & (((u64)1 << width) - 1)
+        let negative = (masked >> (width - 1)) & 1 == 1
+        let exponent = (masked >> mant_bits) & (((u64)1 << exp_bits) - 1)
+        let mantissa = masked & (((u64)1 << mant_bits) - 1)
+        let bias = (i64)((u64)1 << (exp_bits - 1)) - 1
+        let digits = (mant_bits + 3) // 4
+        let type_name: str = "double" if t == types.f64_id else "float" if t == types.f32_id else "_Float16"
+        if exponent == ((u64)1 << exp_bits) - 1:
+            try self.put("((")
+            try self.put(type_name)
+            try self.put(")(")
+            if negative:
+                try self.put("-")
+            if mantissa == 0:
+                try self.put("__builtin_inf()))")
+                return
+            # the top mantissa bit is the quiet bit; the rest is the payload, given in the
+            # width of `float` or `double` so the conversion to a half keeps it
+            let quiet = (mantissa >> (mant_bits - 1)) & 1 == 1
+            let payload = mantissa & (((u64)1 << (mant_bits - 1)) - 1)
+            try self.put("__builtin_nan" if quiet else "__builtin_nans")
+            if t != types.f64_id:
+                try self.put("f")
+            try self.put("(\"0x")
+            try self.hex_digits(payload << 13 if t == types.f16_id else payload, 16)
+            try self.put("\")))")
+            return
+        try self.put("(")
+        if negative:
+            try self.put("-")
+        try self.put("0x")
+        if exponent == 0 and mantissa == 0:
+            try self.put("0p0")
+        else:
+            let shift = digits * 4 - mant_bits
+            try self.put("0." if exponent == 0 else "1.")
+            try self.hex_digits(mantissa << shift, digits)
+            try self.put("p")
+            try self.put_i64(1 - bias if exponent == 0 else (i64)exponent - bias)
+        if t == types.f32_id:
+            try self.put("f")
+        elif t == types.f16_id:
+            try self.put("f16")
+        try self.put(")")
+
+    ## The low `digits` × 4 bits of `value` as hexadecimal digits, most significant first.
+    mutating func hex_digits(value: u64, digits: u32) -> !:
+        let table = "0123456789abcdef"
+        var k = digits
+        while k > 0:
+            k -= 1
+            try self.put_byte(table.bytes[(value >> (k * 4)) & 15])
+
+    mutating func literal(e: ast.Node*) -> !:
+        let t = try self.ty(e)
+        if e.text == "true" or e.text == "false":
+            try self.put(e.text)
+            return
+        if e.text == "none":
+            try self.none_of(t)
+            return
+        let b = e.text.bytes
+        if b[0] == '\'':
+            try self.put_u64((u64)check.decode_char(e.text))
+            try self.put("u")
+            return
+        if b[0] == '"' or b[0] == 'r':
+            let text = check.decode_text(e.text)
+            if t == types.cstr_id or (self.kind(t) == types.Kind.optional and self.c.table.get(t).elem == types.cstr_id):
+                try self.put_c_string(text)
+                return
+            try self.put_str_literal(text)
+            return
+        if b[0] == 'b':
+            let bytes = check.decode_text(e.text)
+            try self.put("((lb_cspan){(void*)")
+            try self.put_c_string(bytes)
+            try self.put(", ")
+            try self.put_u64((u64)bytes.length)
+            try self.put("})")
+            return
+        if check.is_float_text(e.text):
+            # the bits the literal rounds to (§4.3), spelled as C's exact hexadecimal float,
+            # so the C compiler neither rounds again nor refuses a small value
+            let width: u32 = 16 if t == types.f16_id else 32 if t == types.f32_id else 64
+            let bits = decimal.bits(literals.literal_body(e.text), width) else 0
+            try self.put_hex_float(bits, width)
+            return
+        let value = try literals.decode_integer(e.text)
+        if self.is_int(t) and not self.is_signed(t) or t == types.error_code_id:
+            try self.put_u64(value)
+            try self.put("ULL")
+            return
+        if value == 9223372036854775808:
+            try self.put("(int64_t)(1ULL << 63)")
+            return
+        try self.put_u64(value)
+        try self.put("LL")
+
+    mutating func name(e: ast.Node*) -> !:
+        if e.has(ast.flag_format_sink):
+            try self.format_sink_view()
+            return
+        if let d = e.resolved:
+            if d.kind == ast.Kind.enum_case:
+                try self.enum_value(e)
+                return
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
+                try self.func_value(e, d)
+                return
+            if d.kind == ast.Kind.constant and self.folding and not ast.is_linked(d):
+                # C reads no global in an initialiser, so a constant's value stands in for its name
+                if let init = d.left:
+                    try self.constant_in_place(init, d.type_id)
+                    return
+            if d.kind == ast.Kind.extern_var or d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                try self.put_global_name(d)
+                return
+        try self.put_ident(e.text)
+
+    ## A constant's initialiser in place of its name in a static initialiser: a scalar in
+    ## parentheses, since it may be an operand; an aggregate as its brace list, which C
+    ## takes only bare.
+    mutating func constant_in_place(init: ast.Node*, t: u32) -> !:
+        let scalar = self.is_int(t) or self.is_float(t) or self.is_ptr(t) or t == types.bool_id or t == types.char_id or t == types.cstr_id
+        if scalar:
+            try self.put("(")
+        try self.value(init, t)
+        if scalar:
+            try self.put(")")
+
+    ## A function used as a value: its instance's C name.
+    mutating func func_value(e: ast.Node*, d: ast.Node*) -> !:
+        if d.kind == ast.Kind.extern_func:
+            try self.put_extern_callee(d)
+            return
+        var args = try types.no_args()
+        if let t = e.ty:
+            args = try self.type_args(t)
+        if check.generic_params_of(d) != none or args.length > 0:
+            discard(try self.add_func(d, args, none, try types.no_args()))
+        else:
+            discard(try self.add_func(d, args, none, try types.no_args()))
+        try self.put_func_name(d, args, none, try types.no_args())
+
+    ## The concrete type arguments recorded on a call or name.
+    mutating func type_args(holder: ast.Node*) -> u32[]!:
+        let n = ast.count(holder.body)
+        if n == 0:
+            return try types.no_args()
+        var args = try alloc u32[n]
+        var i: usize = 0
+        var cursor = holder.body
+        while let a = cursor:
+            args[i] = try self.map(a.type_id)
+            i += 1
+            cursor = a.next
+        return args
+
+    ## An enum case value: the integer, or the tagged record with its payload.
+    mutating func enum_value(e: ast.Node*) -> !:
+        let resolved = e.resolved else return try self.put("0")
+        let t = try self.ty(e)
+        let d = self.decl_of(t) else return try self.put("0")
+        if self.is_int_enum(t):
+            try self.put("((")
+            try self.put_type(t)
+            try self.put(")")
+            try self.put_u64(types.case_value(d, resolved))
+            try self.put("u)")
+            return
+        try self.put("((")
+        try self.put_type(t)
+        try self.put("){ .tag = ")
+        try self.put_u64((u64)case_tag(d, resolved))
+        if e.body != none and resolved.body != none:
+            try self.put(", .u.")
+            try self.put(try self.field(resolved.text))
+            try self.put(" = {")
+            var param = resolved.body
+            var arg = e.body
+            var first = true
+            while let p = param:
+                let a = arg else break
+                let v = a.left else break
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.put(".")
+                try self.put(try self.field(p.text))
+                try self.put(" = ")
+                try self.value(v, try self.map(p.type_id))
+                param = p.next
+                arg = a.next
+            try self.put("}")
+        try self.put(" })")
+
+    # -- places ---------------------------------------------------------------------------
+
+    ## An assignable location.
+    mutating func place(e: ast.Node*) -> !:
+        match e.kind:
+            .self_:
+                try self.put("(*self)")
+            .group:
+                let inner = e.left else return
+                try self.place(inner)
+            .unary:
+                let inner = e.left else return
+                try self.put("(*(")
+                try self.expr(inner)
+                try self.put("))")
+            .member:
+                try self.member(e)
+            .index:
+                try self.index(e)
+            _:
+                try self.expr(e)
+
+    ## `&e`: the address of a place, or of a temporary for a value.
+    mutating func address(e: ast.Node*) -> !:
+        if e.kind == ast.Kind.self_:
+            try self.put("self")
+            return
+        if e.kind == ast.Kind.group:
+            let inner = e.left else return
+            try self.address(inner)
+            return
+        if e.kind == ast.Kind.index:
+            try self.put("&(")
+            try self.index_at(e, true)
+            try self.put(")")
+            return
+        if e.kind == ast.Kind.name or (e.kind == ast.Kind.member and self.is_place(e)):
+            if let d = self.named_global(e):
+                # the global itself, never its value: a file-scope initialiser folds a
+                # constant's name into its value, which has no address (§6.4)
+                try self.put("&")
+                try self.put_global_name(d)
+                return
+            try self.put("&(")
+            try self.place(e)
+            try self.put(")")
+            return
+        if e.kind == ast.Kind.unary and e.text == "*":
+            let inner = e.left else return
+            try self.expr(inner)
+            return
+        let n = self.tmp()
+        if self.target == to_scratch:
+            try self.arrays.push(Hoisted(type_id = try self.ty(e), n = n))
+            try self.put("(")
+            try self.put_tmp("ad", n)
+            try self.put(" = ")
+            try self.expr(e)
+            try self.put(", &")
+            try self.put_tmp("ad", n)
+            try self.put(")")
+            return
+        try self.put("({ ")
+        try self.put_type(try self.ty(e))
+        try self.put(" ")
+        try self.put_tmp("ad", n)
+        try self.put(" = ")
+        try self.expr(e)
+        try self.put("; &")
+        try self.put_tmp("ad", n)
+        try self.put("; })")
+
+    ## Whether `e` denotes storage C can take the address of: a name, `self`, a member of a
+    ## place or through a pointer, an element, or a dereference.
+    func is_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name, .self_, .index: return true
+            .group:
+                let inner = e.left else return false
+                return self.is_place(inner)
+            .unary: return e.text == "*"
+            .member:
+                let owner = e.left else return false
+                return self.is_ptr(owner.type_id) or self.kind(owner.type_id) == types.Kind.module or self.is_place(owner)
+            _: return false
+
+    ## The global, constant, or extern variable `e` names, unqualified or through its module.
+    func named_global(e: ast.Node*) -> ast.Node*?:
+        let d = e.resolved else return none
+        if not (d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var):
+            return none
+        if e.kind == ast.Kind.name:
+            return d
+        let owner = e.left else return none
+        return d if self.kind(owner.type_id) == types.Kind.module else none

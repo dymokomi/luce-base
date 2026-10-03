@@ -1,0 +1,246 @@
+#==============================================================================================
+#
+#   emit/helpers - Helpers
+#
+#   DESCRIPTION:
+#       Functions of the tree and of types that need no emitter.
+#
+#==============================================================================================
+# mark: Helpers ================================================================================
+
+## `[name] ` before a constraint: the named operand form of GNU extended asm.
+func put_asm_label(out: buffer.Buffer*, label: str) -> !:
+    if label.length == 0:
+        return
+    try out.put("[")
+    try out.put(label)
+    try out.put("] ")
+
+## Whether an extern declares `out` parameters (§17.1).
+func has_out_params(d: ast.Node*) -> bool:
+    var cursor = d.right
+    while let p = cursor:
+        if p.has(ast.flag_out):
+            return true
+        cursor = p.next
+    return false
+
+## The result an extern declared, apart from its `out` values: the result type node's type.
+func declared_result(d: ast.Node*) -> u32:
+    let r = d.ty else return types.unit_id
+    return r.type_id
+
+## The receiver of a `value.display(__sink)` call, the value being formatted.
+func sink_receiver(v: ast.Node*) -> ast.Node*?:
+    if v.kind != ast.Kind.call:
+        return none
+    let callee = v.left else return none
+    if callee.kind != ast.Kind.member:
+        return none
+    return callee.left
+
+## The C spelling of one of the `c` module's distinct types (base.md §5.2).
+func c_spelling(id: u32) -> str:
+    if id == types.c_char_id: return "char"
+    if id == types.c_long_id: return "long"
+    if id == types.c_ulong_id: return "unsigned long"
+    if id == types.c_wchar_id: return "wchar_t"
+    return "va_list"
+
+## Whether any arm of a `match` carries a guard.
+func has_guard(m: ast.Node*) -> bool:
+    var arm = m.body
+    while let a = arm:
+        if a.right != none:
+            return true
+        arm = a.next
+    return false
+
+## The C operator behind a checked helper, for a constant expression.
+func plain_operator(helper: str) -> str:
+    if helper == "add" or helper == "addw" or helper == "adds":
+        return "+"
+    if helper == "sub" or helper == "subw" or helper == "subs":
+        return "-"
+    if helper == "mul" or helper == "mulw" or helper == "muls":
+        return "*"
+    if helper == "div":
+        return "/"
+    if helper == "mod":
+        return "%"
+    if helper == "shl":
+        return "<<"
+    return ">>"
+
+## The path of the module `tree` came from, for `luce.file` (§6.4); a name when unknown.
+func source_path(checker: check.Checker*, tree: ast.Node*) -> str:
+    var i: usize = 0
+    while i < checker.modules.count:
+        let module = checker.modules.get(i)
+        if module.tree == tree:
+            return module.src.path
+        i += 1
+    return tree.text
+
+## A temporary that is not a vector: `lane` names it whole.
+let no_lane: u64 = 0xFFFFFFFFFFFFFFFF
+
+## Whether two expressions are the same plain name bound to the same declaration.
+func same_binding(a: ast.Node*, b: ast.Node*) -> bool:
+    if a.kind != ast.Kind.name or b.kind != ast.Kind.name or a.text != b.text:
+        return false
+    if let da = a.resolved:
+        if let db = b.resolved:
+            return da == db
+        return false
+    return b.resolved == none
+
+## Links from which a left-leaning chain is emitted as a sequence rather than nested.
+let chain_limit: usize = 16
+
+## The runtime helper behind an arithmetic operator.
+func helper_name(op: str) -> str:
+    if op == "+":
+        return "add"
+    if op == "-":
+        return "sub"
+    if op == "*":
+        return "mul"
+    if op == "//":
+        return "div"
+    if op == "%":
+        return "mod"
+    if op == "+%":
+        return "addw"
+    if op == "-%":
+        return "subw"
+    if op == "*%":
+        return "mulw"
+    if op == "+|":
+        return "adds"
+    if op == "-|":
+        return "subs"
+    if op == "*|":
+        return "muls"
+    if op == "<<":
+        return "shl"
+    if op == ">>":
+        return "shr"
+    return "add"
+
+## `error(...)` as an expression statement or a return.
+func is_error_call(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.call:
+        return false
+    let callee = e.left else return false
+    return callee.kind == ast.Kind.name and callee.text == "error" and callee.resolved == none
+
+func is_trap_call(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.call:
+        return false
+    let callee = e.left else return false
+    return callee.kind == ast.Kind.name and callee.text == "trap" and callee.resolved == none
+
+## A value that never arrives: `never`, or `try` on a `never!` call.
+func never_valued(e: ast.Node*) -> bool:
+    if e.type_id == types.never_id:
+        return true
+    if e.kind == ast.Kind.unary and e.text == "try":
+        let inner = e.left else return false
+        return inner.type_id != 0 and false
+    return false
+
+## The ones of an integer width, `0xFF` for eight bits.
+func width_mask(bits: u32) -> u64:
+    return 0xFFFFFFFFFFFFFFFF if bits >= 64 else (u64(1) << (u64)bits) - 1
+
+## The tag of a payload enum case: its position among the cases.
+func case_tag(d: ast.Node*, target: ast.Node*) -> u32:
+    var i: u32 = 0
+    var cursor = d.body
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
+            if node == target:
+                return i
+            i += 1
+        cursor = node.next
+    return 0
+
+## The receiver of `items.indexed()`, when `e` is that call of the method the compiler
+## supplies: a `for` over it walks `items` by index (§8.3).
+func indexed_receiver(e: ast.Node*) -> ast.Node*?:
+    if e.kind != ast.Kind.call:
+        return none
+    let callee = e.left else return none
+    if callee.kind != ast.Kind.member or callee.text != "indexed" or callee.resolved != none:
+        return none
+    return callee.left
+
+## A float literal without its digit separators.
+## `{{` and `}}` in a formatted piece are one brace each.
+func unescape_braces(text: str) -> str:
+    let b = text.bytes
+    var any = false
+    var i: usize = 0
+    while i + 1 < b.length:
+        if (b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}'):
+            any = true
+        i += 1
+    if not any:
+        return text
+    let out = alloc u8[b.length] catch failure:
+        trap("out of memory")
+    var n: usize = 0
+    i = 0
+    while i < b.length:
+        out[n] = b[i]
+        n += 1
+        if i + 1 < b.length and ((b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}')):
+            i += 1
+        i += 1
+    return (str)out[..<n]
+
+## Functions of stdio.h, stdlib.h, and string.h, which the generated C includes.
+func contains_id(ids: const u32[], id: u32) -> bool:
+    for x in ids:
+        if x == id:
+            return true
+    return false
+
+func same_args(a: const u32[], b: const u32[]) -> bool:
+    if a.length != b.length:
+        return false
+    var i: usize = 0
+    while i < a.length:
+        if a[i] != b[i]:
+            return false
+        i += 1
+    return true
+
+## Whether an `in` or `inout` operand of the asm block `s` names the register `place`.
+func asm_block_reads(s: ast.Node*, place: str) -> bool:
+    var operand = s.right
+    while let o = operand:
+        if o.text == "in" or o.text == "inout":
+            if let p = o.body:
+                let b = p.text.bytes
+                if b.length >= 2 and b[0] == '"' and (str)b[1..<b.length - 1] == place:
+                    return true
+        operand = o.next
+    return false
+
+## Whether an extern is bound to a C symbol under another name (`as "sym"`).
+func renamed(d: ast.Node*) -> bool:
+    return names.c_symbol(d) != d.text
+
+## C's keywords and the names its headers reserve, which a Base field may carry.
+func is_c_keyword(name: str) -> bool:
+    let words: str[44] = ["auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else",
+                          "enum", "extern", "float", "for", "goto", "if", "inline", "int", "long", "register",
+                          "restrict", "return", "short", "signed", "sizeof", "static", "struct", "switch", "typedef",
+                          "union", "unsigned", "void", "volatile", "while", "bool", "true", "false", "errno", "stdin",
+                          "stdout", "stderr", "NULL", "alignof", "offsetof"]
+    for w in words:
+        if w == name:
+            return true
+    return false

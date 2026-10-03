@@ -60,7 +60,7 @@ runs it for longer. Every finding becomes a test.
     graphics modules through their proving programs); every runtime
     layout and mode named once and shared by the C emitter and the lowerer (error
     layout, allocator vtable, `lb_fmtbuf`, memory orders, program modes) and the Win32,
-    AppKit, Metal, and GDI numbers named in the adapters; `back/c/emit.lucb`,
+    AppKit, Metal, and GDI numbers named in the adapters; `back/c/emit/`,
     `sema/check.lucb`, `back/ir/lower.lucb`, and the native generators split along the
     seams the audit names, with the tree helpers and type layout written once; the
     header box and `# mark:` sections in every file and `##` on every public

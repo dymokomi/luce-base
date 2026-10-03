@@ -1,0 +1,553 @@
+#==============================================================================================
+#
+#   emit/program - Program
+#
+#   DESCRIPTION:
+#       The whole translation unit: the instance worklist, the sections in their order, and
+#       the entry point or test runner.
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Program ============================================================================
+
+    ## Emit the whole program: every non-generic function of every program module,
+    ## then the instances they needed, then the header those bodies need.
+    ## `mode` is 0 for a program, 1 for the test runner, 2 for an `answer()` program.
+    pub mutating func program(mode: u32) -> !:
+        # every module, the standard ones included: their bodies are Base too
+        var i: usize = 0
+        while i < self.c.modules.count:
+            try self.modules.push(self.c.modules.get(i).tree)
+            i += 1
+        # Initializers run independently of function reachability. Plain standard
+        # storage is declared after the emitted bodies establish its references.
+        var deferred_storage = try list.List[NodeRef].create(32)
+        self.target = to_globals
+        i = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                    if self.defer_storage(d):
+                        try deferred_storage.push(d)
+                    else:
+                        try self.global(d)
+                elif d.kind == ast.Kind.asm_ and d.text == "arm64":
+                    try self.module_asm(d)
+                cursor = d.next
+            i += 1
+        self.target = to_body
+        i = 0
+        while i < self.modules.count:
+            # Standard functions are discovered by calls and interface conversions.
+            # Runtime glue also refers to these four modules by their C names.
+            let module_info = self.c.modules.get(i)
+            let runtime_root = module_info.name == "core" or module_info.name == "memory" or module_info.name == "io" or module_info.name == "testing"
+            let eager = not check.is_library_module(module_info.name) or runtime_root
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none):
+                    discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
+                elif eager and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
+                    var member = d.body
+                    while let m = member:
+                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
+                            discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
+                        member = m.next
+                    # every implemented interface needs its table, except a generic one,
+                    # `Iterator[T]`, which `for` consumes statically and nothing views
+                    var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
+                    while let l = listed:
+                        if let iface = self.decl_of(l.type_id):
+                            if check.generic_params_of(iface) == none:
+                                try self.note_vtable(d.type_id, l.type_id)
+                        listed = l.next
+                elif d.kind == ast.Kind.test_ and mode == 1 and self.modules.get(i) == self.entry:
+                    # the tests of the file under test, never an import's (§16.5)
+                    discard(try self.test_index(d))
+                cursor = d.next
+            i += 1
+        # bodies, until the worklist is drained: a body may need new instances
+        var next: usize = 0
+        var tests_done: usize = 0
+        while next < self.funcs.count or tests_done < self.tests.count:
+            while next < self.funcs.count:
+                var inst = self.funcs.get(next)
+                if not inst.done:
+                    inst.done = true
+                    self.funcs.set(next, inst)
+                    if not ast.is_linked(inst.decl):
+                        try self.function(inst)
+                next += 1
+            while tests_done < self.tests.count and next >= self.funcs.count:
+                try self.test_body(self.tests.get(tests_done))
+                tests_done += 1
+        self.target = to_globals
+        var initialized_storage = self.globals
+        self.globals = try buffer.Buffer.create(4096)
+        for declaration in deferred_storage.span():
+            var spelling = try buffer.Buffer.create(128)
+            defer spelling.destroy()
+            try spelling.put("lb_")
+            try names.put_piece(&spelling, self.module_name(declaration))
+            try spelling.put("_")
+            try names.put_piece(&spelling, declaration.text)
+            let symbol = spelling.view()
+            # Assembly may name storage directly; conservative text matching also
+            # preserves symbols named by handwritten runtime glue.
+            if self.uses_storage(declaration) or strings.contains(self.body.view(), symbol) or strings.contains(initialized_storage.view(), symbol):
+                try self.global(declaration)
+        # Initializers may take these objects' addresses, so declarations precede
+        # them even though reachability was discovered after their emission.
+        try self.globals.put(initialized_storage.view())
+        initialized_storage.destroy()
+        deferred_storage.destroy()
+        # the prototypes first, so the types they spell are noted before the typedefs
+        self.target = to_protos
+        try self.prototypes()
+        try self.global_declarations()
+        # the header: prologue, types, prototypes, globals, tables
+        self.target = to_out
+        try self.prologue()
+        try self.forward_declarations()
+        try self.type_definitions()
+        try self.out.put(self.protos.view())
+        try self.line("")
+        try self.out.put(self.globals.view())
+        try self.tables()
+        try self.line("")
+        try self.out.put_bytes(self.body.bytes())
+        try self.line("")
+        try self.runtime_globals_initialiser()
+        if mode == 1:
+            try self.test_runner()
+        elif mode == 2:
+            try self.answer_shim()
+        elif mode == 3:
+            try self.library_init()
+        else:
+            let main_fn = check.find_decl(self.entry, "main") else return
+            try self.main_shim(main_fn)
+
+    ## A library starts its runtime when it is loaded, since no `main` of its own will.
+    mutating func library_init() -> !:
+        try self.line("__attribute__((constructor)) static void lb_library_init(void) {")
+        try self.startup_lines()
+        try self.line("}")
+
+    mutating func prologue() -> !:
+        try self.put("/* generated by luce-base */\n")
+        try self.put("#include \"lucb_rt.h\"\n")
+        try self.put("#include <stdarg.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdatomic.h>\n")
+        try self.put("typedef struct {} lb_unit;\n")
+
+    ## Prototypes of every function instance and extern, and the interface tables' types.
+    ## `lb_x` declared before any global is defined: a table's initialiser takes the
+    ## address of the class description written after it, and the description the table's
+    ## (luce-browser-foundation's streams). A standard constant is `static` as its
+    ## definition is, a thread-local `_Thread_local`; a global with attributes is left to its
+    ## definition, which must not disagree with a declaration.
+    mutating func global_declarations() -> !:
+        for d in self.defined_globals.span():
+            try self.line("")
+            if d.kind == ast.Kind.constant and check.is_library_module(names.module_of(d)):
+                try self.put("static __attribute__((unused)) ")
+            else:
+                try self.put("extern ")
+            if d.has(ast.flag_thread_local):
+                try self.put("_Thread_local ")
+            try self.put_type(d.type_id)
+            try self.put(" ")
+            try self.put_global_name(d)
+            try self.put(";")
+
+    mutating func prototypes() -> !:
+        var i: usize = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if d.kind == ast.Kind.extern_func:
+                    try self.extern_prototype(d)
+                elif d.kind == ast.Kind.extern_var and self.uses_storage(d):
+                    try self.line("extern ")
+                    try self.put_type(d.type_id)
+                    try self.put(" ")
+                    try self.put(d.text)
+                    try self.put(";")
+                elif d.kind == ast.Kind.interface_ and check.generic_params_of(d) == none:
+                    # a generic interface, `Iterator[T]`, is consumed statically by `for` and
+                    # never viewed, so it has no table of its own
+                    try self.interface_typedef(d)
+                    if d.text == "Allocator" and d.has(ast.flag_builtin):
+                        try self.allocator_glue()
+                cursor = d.next
+            i += 1
+        i = 0
+        while i < self.funcs.count:
+            let inst = self.funcs.get(i)
+            # Spelling a prototype's types can register a generic type's methods after every
+            # body is written (`interop.Outcome[gpu.Rect]`'s): nothing calls those, and a
+            # `static` prototype with no definition is an error under GCC's -Werror.
+            if not inst.done:
+                i += 1
+                continue
+            self.fn_decl = inst.decl
+            self.fn_args = inst.args
+            self.owner_decl = inst.owner
+            self.owner_args = inst.owner_args
+            try self.signature(inst.decl, false)
+            i += 1
+        self.fn_decl = none
+        self.fn_args = try types.no_args()
+        self.owner_decl = none
+        self.owner_args = try types.no_args()
+        i = 0
+        while i < self.tests.count:
+            try self.line("lb_r_unit lb_test_")
+            try self.put_u64((u64)i)
+            try self.put("(void);")
+            i += 1
+
+    ## An `extern func` is declared under its own C name and bound to the symbol by an asm
+    ## label, so a binding of `fputc` never clashes with the prototype `<stdio.h>` carries.
+    ## An `extern func` bound to a C symbol under another name (`as "sym"`, §17.1): one
+    ## symbol may be declared under several names with different types (`objc_msgSend`).
+    ## GCC keeps each typed declaration apart, so it gets them as written. Clang keeps one
+    ## declaration per symbol and calls the others through it, so for clang the symbol is
+    ## declared `void NAME(void)` and every call casts it to the function's own type, as
+    ## the Objective-C runtime's own header has it. `lb_c_NAME` is the callee either way.
+    ## WebAssembly checks every call's signature, so a call through a cast would trap: on
+    ## wasm32 clang gets the typed declarations too.
+    mutating func extern_prototype(d: ast.Node*) -> !:
+        if renamed(d):
+            try self.line("#if defined(__clang__) && !defined(__wasm__)")
+            try self.line("extern void ")
+            try self.put_extern_name(d)
+            try self.put("(void) LB_SYMBOL(")
+            try self.put_c_string(names.c_symbol(d))
+            try self.put(");")
+            try self.line("#define lb_c_")
+            try self.put_extern_piece(d)
+            try self.put(" ((")
+            try self.put_extern_result(d)
+            try self.put(" (*)(")
+            try self.put_extern_parameters(d)
+            try self.put("))")
+            try self.put_extern_name(d)
+            try self.put(")")
+            try self.line("#else")
+            try self.typed_extern_prototype(d)
+            try self.line("#define lb_c_")
+            try self.put_extern_piece(d)
+            try self.put(" ")
+            try self.put_extern_name(d)
+            try self.line("#endif")
+            return
+        try self.typed_extern_prototype(d)
+
+    mutating func typed_extern_prototype(d: ast.Node*) -> !:
+        try self.line("extern ")
+        try self.put_extern_result(d)
+        try self.put(" ")
+        try self.put_extern_name(d)
+        try self.put("(")
+        try self.put_extern_parameters(d)
+        try self.put(") LB_SYMBOL(")
+        try self.put_c_string(names.c_symbol(d))
+        try self.put(");")
+        # the C library's memory routines are the compiler's builtins, under whatever name
+        # the binding gives them: clang and GCC expand a copy of a known size into a load
+        # and a store (`memory.read[u32]`) only through the builtin, not through an asm
+        # label; a call keeps the builtin's own conversions, and taking the address still
+        # names the extern
+        let symbol = names.c_symbol(d)
+        let ft = self.c.table.get(d.type_id)
+        if (symbol == "memcpy" or symbol == "memmove" or symbol == "memset" or symbol == "memcmp") and ft.args.length == 3 and not ft.variadic and not has_out_params(d):
+            try self.line("#define ")
+            try self.put_extern_name(d)
+            try self.put("(...) __builtin_")
+            try self.put(symbol)
+            try self.put("(__VA_ARGS__)")
+
+    ## The C name an extern is called or taken by: the `lb_c_` macro when the symbol is
+    ## declared under another name.
+    mutating func put_extern_callee(d: ast.Node*) -> !:
+        if not renamed(d):
+            try self.put_extern_name(d)
+            return
+        try self.put("lb_c_")
+        try self.put_extern_piece(d)
+
+    mutating func put_extern_piece(d: ast.Node*) -> !:
+        try names.put_piece(self.sink(), names.module_of(d))
+        try self.put("_")
+        try names.put_piece(self.sink(), d.text)
+
+    mutating func put_extern_result(d: ast.Node*) -> !:
+        let ft = self.c.table.get(d.type_id)
+        let result = declared_result(d) if has_out_params(d) else ft.elem
+        if result == types.unit_id:
+            try self.put("void")
+        else:
+            try self.put_type(result)
+
+    mutating func put_extern_parameters(d: ast.Node*) -> !:
+        let ft = self.c.table.get(d.type_id)
+        var first = true
+        if has_out_params(d):
+            # the declared parameters in C's order, an `out` one as a pointer
+            var param = d.right
+            while let p = param:
+                if not p.has(ast.flag_variadic):
+                    if not first:
+                        try self.put(", ")
+                    first = false
+                    try self.put_type(p.type_id)
+                    if p.has(ast.flag_out):
+                        try self.put("*")
+                param = p.next
+        var i: usize = 0
+        while i < ft.args.length and not has_out_params(d):
+            if not first:
+                try self.put(", ")
+            first = false
+            try self.put_type(ft.args[i])
+            i += 1
+        if ft.variadic:
+            if not first:
+                try self.put(", ")
+            try self.put("...")
+            first = false
+        if first:
+            try self.put("void")
+
+    ## `lb_x_module_symbol`: the C name an `extern func` is declared and called under. The
+    ## module is part of it, since two modules may bind one symbol with different shapes.
+    mutating func put_extern_name(d: ast.Node*) -> !:
+        try self.put("lb_x_")
+        try names.put_piece(self.sink(), names.module_of(d))
+        try self.put("_")
+        try names.put_piece(self.sink(), d.text)
+
+    ## Keep user linkage and initialized/attributed storage. These runtime modules
+    ## also have names referenced directly by the C prologue and entry shims.
+    func defer_storage(d: ast.Node*) -> bool:
+        let module = self.module_name(d)
+        let runtime = module == "core" or module == "memory" or module == "io" or module == "testing"
+        return check.is_library_module(module) and not runtime and d.left == none and d.attrs == none
+
+    ## A top-level `let` or `var` as a C global.
+    mutating func global(d: ast.Node*) -> !:
+        if not ast.is_linked(d) and d.attrs == none:
+            try self.defined_globals.push(d)
+        try self.line("")
+        if ast.is_linked(d):
+            try self.put("extern ")
+        elif d.kind == ast.Kind.constant and check.is_library_module(names.module_of(d)):
+            # a standard constant belongs to this unit; internal linkage lets the host
+            # compiler drop one nothing reads
+            try self.put("static __attribute__((unused)) ")
+        try self.attribute_prefix(d, false)
+        if d.has(ast.flag_thread_local):
+            try self.put("_Thread_local ")
+        let t = d.type_id
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_global_name(d)
+        if d.has(ast.flag_uninit) or ast.is_linked(d):
+            try self.put(";")
+            return
+        try self.put(" = ")
+        if let init = d.left:
+            if not self.c.static_value(init):
+                # a C initialiser cannot run code: the storage starts zero and the program's
+                # start gives it its value (`runtime_globals_initialiser`)
+                try self.zero_value(t)
+                try self.put(";")
+                try self.runtime_globals.push(d)
+                return
+            self.folding = true
+            if not (try self.folded_constant(init, t)):
+                try self.value(init, t)
+            self.folding = false
+        else:
+            try self.zero_value(t)
+        try self.put(";")
+
+    ## `lb_init_runtime_globals`: every top-level `let` whose value runs code, given it in
+    ## module order before `main` runs.
+    mutating func runtime_globals_initialiser() -> !:
+        try self.line("static void lb_init_runtime_globals(void) {")
+        for d in self.runtime_globals.span():
+            let init = d.left else continue
+            try self.line("    ")
+            try self.put_global_name(d)
+            try self.put(" = ")
+            try self.value(init, d.type_id)
+            try self.put(";")
+        try self.line("}")
+
+    ## A global's initialiser that names another constant, `os.macos = platform.macos` or
+    ## `6 if platform.macos else 1`, written as the value it denotes, since C wants a
+    ## file-scope initialiser to be a literal. Says whether it wrote one.
+    mutating func folded_constant(init: ast.Node*, t: u32) -> bool!:
+        if self.is_int(t) and init.kind != ast.Kind.literal:
+            # arithmetic on constants the checker folds exactly, `~0u64 ^ 255`, as its value
+            let bits = self.c.table.size_of(t) * 8
+            if let v = self.c.exact_integer(init, bits, self.is_signed(t)):
+                try self.put("((")
+                try self.put_type(t)
+                try self.put(")")
+                if self.is_signed(t) and v == -9223372036854775807 - 1:
+                    # C has no literal for the least `i64`
+                    try self.put("(-9223372036854775807LL - 1))")
+                elif self.is_signed(t):
+                    try self.put_i64(v)
+                    try self.put("LL)")
+                else:
+                    try self.put_u64((u64)v & (18446744073709551615 if bits >= 64 else ((u64)1 << bits) - 1))
+                    try self.put("ULL)")
+                return true
+        if init.kind != ast.Kind.name and init.kind != ast.Kind.member and init.kind != ast.Kind.conditional:
+            return false
+        if t == types.bool_id:
+            let v = self.c.constant_bool(init) else return false
+            try self.put("true" if v else "false")
+            return true
+        # an integer or a text only through a literal: the evaluator is not sign-exact
+        let leaf = self.c.constant_leaf(init) else return false
+        let b = leaf.text.bytes
+        if self.is_int(t):
+            if b.length == 0 or b[0] < '0' or b[0] > '9':
+                return false
+            let v = try literals.decode_integer(leaf.text)
+            try self.put("((")
+            try self.put_type(t)
+            try self.put(")")
+            try self.put_u64(v)
+            try self.put("ULL)")
+            return true
+        if t == types.str_id:
+            if b.length == 0 or b[0] != '"':
+                return false
+            try self.put_str_literal(check.decode_text(leaf.text))
+            return true
+        return false
+
+    ## Every witness table the program needs.
+    mutating func tables() -> !:
+        var i: usize = 0
+        while i < self.vtables.count:
+            try self.vtable(self.vtables.get(i))
+            i += 1
+
+    mutating func test_body(t: ast.Node*) -> !:
+        let saved_fn = self.current_fn
+        self.current_fn = t
+        self.fn_decl = none
+        self.fn_args = try types.no_args()
+        self.owner_decl = none
+        self.owner_args = try types.no_args()
+        # the body into the scratch first, as a function's, so its format buffers and the
+        # arrays it takes the address of are declared at its top
+        self.target = to_scratch
+        self.scratch.clear()
+        self.formats.count = 0
+        self.arrays.count = 0
+        self.indent += 1
+        try self.push_scope(false, "")
+        if let body = t.body:
+            var cursor = body.body
+            while let s = cursor:
+                try self.stmt(s)
+                cursor = s.next
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        try self.line("return ((lb_r_unit){ .failed = false });")
+        self.indent -= 1
+        try self.line("}")
+        self.target = to_body
+        try self.signature(t, true)
+        try self.scratch_declarations()
+        try self.body.put(self.scratch.view())
+        self.current_fn = saved_fn
+
+    ## `main` for a program with `main(arguments)`: the C strings become `str` or `c.str` items.
+    mutating func main_shim(f: ast.Node*) -> !:
+        let ft = self.c.table.get(f.type_id)
+        var cstr_args = false
+        if ft.args.length > 0:
+            cstr_args = self.elem(ft.args[0]) == types.cstr_id
+        try self.line("int main(int argc, char** argv) {")
+        try self.line("    lb_core_13process_start();")
+        try self.startup_lines()
+        if cstr_args:
+            try self.line("    lb_span args = lb_core_13raw_arguments(argc, argv);")
+        else:
+            try self.line("    lb_span args = lb_core_arguments(argc, argv);")
+        # `main()` may also take no arguments at all
+        let call = "lb_main(args)" if ft.args.length > 0 else "lb_main()"
+        if ft.args.length == 0:
+            try self.line("    (void)args;")
+        if f.has(ast.flag_fallible):
+            try self.line("    lb_r_i32 r = ")
+            try self.put(call)
+            try self.put(";")
+            try self.line("    if (r.failed) { fprintf(stderr, \"error %d: %.*s\\n\", r.error.code, (int)r.error.message.length, r.error.message.data); }")
+            try self.line("    int result = r.failed ? 1 : (int)r.value;")
+        else:
+            try self.line("    int result = (int)")
+            try self.put(call)
+            try self.put(";")
+        if not cstr_args:
+            try self.line("    free(args.data);")
+        try self.line("    return result;")
+        try self.line("}")
+
+    ## `lb_answer` for the seed's `answer()` convention, then `start.c` calls it; a
+    ## plain `answer` already carries that name.
+    mutating func answer_shim() -> !:
+        let f = check.find_decl(self.entry, "answer") else return
+        if not f.has(ast.flag_fallible):
+            return
+        try self.line("int64_t lb_answer(void) {")
+        try self.line("    lb_r_i64 r = lb_answer_impl();")
+        try self.line("    if (r.failed) { fprintf(stderr, \"error %d: %.*s\\n\", r.error.code, (int)r.error.message.length, r.error.message.data); exit(1); }")
+        try self.line("    return r.value;")
+        try self.line("}")
+
+    ## A `main` that runs every test in order and reports.
+    ## The runtime's start, with the diagnostic profile's flag set first when asked (§19.4).
+    mutating func startup_lines() -> !:
+        if self.diagnostic:
+            try self.line("    lb_memory_diagnostic = true;")
+        try self.line("    lb_memory_startup();")
+        try self.line("    lb_init_runtime_globals();")
+
+    mutating func test_runner() -> !:
+        try self.line("int main(void) {")
+        try self.line("    lb_core_13process_start();")
+        try self.startup_lines()
+        try self.line("    int failed = 0;")
+        var i: usize = 0
+        while i < self.tests.count:
+            let t = self.tests.get(i)
+            try self.line("    { lb_testing_begin(")
+            try self.put_u64((u64)i)
+            try self.put("); lb_r_unit r = lb_test_")
+            try self.put_u64((u64)i)
+            try self.put("(); lb_testing_end(); if (r.failed) { failed++; fprintf(stdout, \"FAIL  %s\\n      error: %.*s\\n\", ")
+            try self.put_c_string(check.decode_text(t.text))
+            try self.put(", (int)r.error.message.length, r.error.message.data); } else { fprintf(stdout, \"ok    %s\\n\", ")
+            try self.put_c_string(check.decode_text(t.text))
+            try self.put("); } }")
+            i += 1
+        try self.line("    fprintf(stdout, \"%d passed\\n\", ")
+        try self.put_u64((u64)self.tests.count)
+        try self.put(" - failed);")
+        try self.line("    return failed == 0 ? 0 : 1;")
+        try self.line("}")
+
+    ## The generated C, once `program` has run.
+    pub func text() -> str:
+        return self.out.view()

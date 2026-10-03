@@ -1,0 +1,636 @@
+#==============================================================================================
+#
+#   emit/definitions - Definitions and functions
+#
+#   DESCRIPTION:
+#       Typedefs, records, globals, and witness tables as the worklist reaches them, and
+#       each function's prototype, frame, and body.
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Definitions ========================================================================
+
+    ## Write a typedef for `id` after everything it holds by value.
+    mutating func define_type(id: u32) -> !:
+        if contains_id(self.defined.span(), id):
+            return
+        let t = self.c.table.get(id)
+        match t.kind:
+            .pointer, .span, .atomic:
+                # only the pointee's name is needed; records are forward-declared
+                if not self.is_record(t.elem) or self.is_int_enum(t.elem):
+                    try self.define_type(t.elem)
+                try self.defined.push(id)
+            .array:
+                try self.define_type(t.elem)
+                try self.defined.push(id)
+                try self.line("typedef struct ")
+                try self.put_mangled_name(id)
+                try self.put(" { ")
+                try self.put_type(t.elem)
+                try self.put(" d[")
+                try self.put_u64(t.length)
+                try self.put("]; } ")
+                try self.put_mangled_name(id)
+                try self.put(";")
+            .optional:
+                try self.define_type(t.elem)
+                try self.defined.push(id)
+                if self.c.table.has_null_niche(t.elem):
+                    return
+                try self.line("LB_OPT(")
+                try self.put_type(t.elem)
+                try self.put(", ")
+                try self.put_mangled_name(id)
+                try self.put(");")
+            .fallible:
+                try self.define_type(t.elem)
+                try self.defined.push(id)
+                if t.elem == types.unit_id or t.elem == types.never_id:
+                    return
+                try self.line("LB_RES(")
+                try self.put_type(t.elem)
+                try self.put(", ")
+                try self.put_mangled_name(id)
+                try self.put(");")
+            .tuple:
+                var i: usize = 0
+                while i < t.args.length:
+                    try self.define_type(t.args[i])
+                    i += 1
+                try self.defined.push(id)
+                try self.line("typedef struct ")
+                try self.put_mangled_name(id)
+                try self.put(" {")
+                i = 0
+                while i < t.args.length:
+                    try self.put(" ")
+                    try self.put_type(t.args[i])
+                    try self.put(" a")
+                    try self.put_u64((u64)i)
+                    try self.put(";")
+                    i += 1
+                try self.put(" } ")
+                try self.put_mangled_name(id)
+                try self.put(";")
+            .func_:
+                var i: usize = 0
+                while i < t.args.length:
+                    try self.define_type(t.args[i])
+                    i += 1
+                try self.define_type(t.elem)
+                try self.defined.push(id)
+                try self.line("typedef ")
+                if t.elem == types.unit_id or t.elem == types.never_id:
+                    try self.put("void")
+                else:
+                    try self.put_type(t.elem)
+                try self.put(" (*")
+                try self.put_mangled_name(id)
+                try self.put(")(")
+                if t.args.length == 0:
+                    try self.put("void")
+                i = 0
+                while i < t.args.length:
+                    if i > 0:
+                        try self.put(", ")
+                    try self.put_type(t.args[i])
+                    i += 1
+                try self.put(");")
+            .struct_, .union_, .enum_:
+                try self.defined.push(id)
+                if self.is_int_enum(id):
+                    return
+                let d = t.decl else return
+                if t.args.length > 0:
+                    try self.define_record(d, t.args, id)
+                else:
+                    try self.define_decl(d)
+            _:
+                try self.defined.push(id)
+
+    ## A non-generic record, once, after its by-value members.
+    mutating func define_decl(d: ast.Node*) -> !:
+        var i: usize = 0
+        while i < self.decls_done.count:
+            if self.decls_done.get(i) == d:
+                return
+            i += 1
+        try self.decls_done.push(d)
+        if check.generic_params_of(d) != none:
+            return
+        if d.kind == ast.Kind.enum_ and d.ty != none:
+            return
+        try self.define_record(d, try types.no_args(), d.type_id)
+
+    ## Write the C definition of a record declaration with `args` substituted.
+    mutating func define_record(d: ast.Node*, args: u32[], id: u32) -> !:
+        let saved_owner = self.owner_decl
+        let saved_args = self.owner_args
+        self.owner_decl = d
+        self.owner_args = args
+        # members held by value come first
+        var member = d.body
+        while let m = member:
+            if m.kind == ast.Kind.field:
+                try self.define_type(try self.map(m.type_id))
+            elif m.kind == ast.Kind.enum_case:
+                var p = m.body
+                while let q = p:
+                    try self.define_type(try self.map(q.type_id))
+                    p = q.next
+            member = m.next
+        if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.extern_struct:
+            try self.line("typedef struct")
+            if d.has(ast.flag_packed):
+                try self.put(" __attribute__((packed))")
+            if let layout = d.right:
+                if layout.kind == ast.Kind.literal:
+                    try self.put(" __attribute__((aligned(")
+                    try self.put(layout.text)
+                    try self.put(")))")
+            try self.put(" ")
+            try self.put_record_name(id)
+            try self.put(" {")
+            self.indent += 1
+            var any = false
+            member = d.body
+            while let m = member:
+                if m.kind == ast.Kind.field:
+                    any = true
+                    try self.line("")
+                    try self.put_type(try self.map(m.type_id))
+                    try self.put(" ")
+                    try self.put(try self.field(m.text))
+                    if let al = m.right:
+                        if al.kind == ast.Kind.literal:
+                            try self.put(" __attribute__((aligned(")
+                            try self.put(al.text)
+                            try self.put(")))")
+                    try self.put(";")
+                member = m.next
+            if not any:
+                try self.line("int unused;")
+            self.indent -= 1
+            try self.line("} ")
+            try self.put_record_name(id)
+            try self.put(";")
+        elif d.kind == ast.Kind.union_ or d.kind == ast.Kind.extern_union:
+            try self.line("typedef union ")
+            try self.put_record_name(id)
+            try self.put(" {")
+            self.indent += 1
+            var any = false
+            member = d.body
+            while let m = member:
+                if m.kind == ast.Kind.field:
+                    any = true
+                    try self.line("")
+                    try self.put_type(try self.map(m.type_id))
+                    try self.put(" ")
+                    try self.put(try self.field(m.text))
+                    try self.put(";")
+                member = m.next
+            if not any:
+                try self.line("int unused;")
+            self.indent -= 1
+            try self.line("} ")
+            try self.put_record_name(id)
+            try self.put(";")
+        elif d.kind == ast.Kind.enum_:
+            try self.line("typedef struct ")
+            try self.put_record_name(id)
+            try self.put(" {")
+            self.indent += 1
+            try self.line("int32_t tag;")
+            var any_payload = false
+            member = d.body
+            while let m = member:
+                if m.kind == ast.Kind.enum_case and m.body != none:
+                    any_payload = true
+                member = m.next
+            if any_payload:
+                try self.line("union {")
+                self.indent += 1
+                member = d.body
+                while let m = member:
+                    if m.kind == ast.Kind.enum_case and m.body != none:
+                        try self.line("struct {")
+                        self.indent += 1
+                        var p = m.body
+                        while let q = p:
+                            try self.line("")
+                            try self.put_type(try self.map(q.type_id))
+                            try self.put(" ")
+                            try self.put(try self.field(q.text))
+                            try self.put(";")
+                            p = q.next
+                        self.indent -= 1
+                        try self.line("} ")
+                        try self.put(try self.field(m.text))
+                        try self.put(";")
+                    member = m.next
+                self.indent -= 1
+                try self.line("} u;")
+            self.indent -= 1
+            try self.line("} ")
+            try self.put_record_name(id)
+            try self.put(";")
+        self.owner_decl = saved_owner
+        self.owner_args = saved_args
+
+    ## `typedef struct X X;` for every record the program defines.
+    mutating func forward_declarations() -> !:
+        var i: usize = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if check.generic_params_of(d) == none:
+                    if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.extern_struct:
+                        try self.forward_one(d, d.type_id, "struct")
+                    elif d.kind == ast.Kind.union_ or d.kind == ast.Kind.extern_union:
+                        try self.forward_one(d, d.type_id, "union")
+                    elif d.kind == ast.Kind.enum_ and d.ty == none:
+                        try self.forward_one(d, d.type_id, "struct")
+                cursor = d.next
+            i += 1
+        i = 0
+        while i < self.records.count:
+            let r = self.records.get(i)
+            let id = try self.c.table.nominal(self.c.table.kind(r.decl.type_id), r.decl, r.args)
+            if r.decl.kind == ast.Kind.enum_ and r.decl.ty != none:
+                i += 1
+                continue
+            try self.forward_one(r.decl, id, "union" if r.decl.kind == ast.Kind.union_ else "struct")
+            i += 1
+
+    mutating func forward_one(d: ast.Node*, id: u32, tag: str) -> !:
+        if d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union:
+            return
+        try self.line("typedef ")
+        try self.put(tag)
+        try self.put(" ")
+        try self.put_record_name(id)
+        try self.put(" ")
+        try self.put_record_name(id)
+        try self.put(";")
+
+    ## Every typedef the bodies needed, in dependency order.
+    mutating func type_definitions() -> !:
+        try self.line("LB_RES(size_t, lb_r_usize);")
+        let usize_res = try self.c.table.fallible(types.usize_id)
+        try self.defined.push(usize_res)
+        var i: usize = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.union_ or d.kind == ast.Kind.extern_union or d.kind == ast.Kind.enum_:
+                    if check.generic_params_of(d) == none:
+                        try self.define_type(d.type_id)
+                cursor = d.next
+            i += 1
+        # `needed` grows while records define their members; loop until it is drained
+        var n: usize = 0
+        while n < self.needed.count:
+            try self.define_type(self.needed.get(n))
+            n += 1
+
+    # mark: Functions ==========================================================================
+
+    ## The signature of a function or method instance; `define` opens the body.
+    ## The attributes of §9.8 as one `__attribute__` prefix. `inline` is advice this backend
+    ## leaves to the C compiler; a section name is passed as spelled, except that a Mach-O
+    ## target places a name without a comma in `__DATA` or `__TEXT` (§9.8).
+    mutating func attribute_prefix(d: ast.Node*, is_func: bool) -> !:
+        var first = true
+        var cursor = d.attrs
+        while let a = cursor:
+            let word = a.text
+            let skip = word == "inline" or word == "linked" or (not is_func and (word == "noinline" or word == "cold" or word == "naked"))
+            if not skip:
+                try self.put("__attribute__((" if first else ", ")
+                first = false
+                if word == "section":
+                    try self.put("section(\"")
+                    if let name = a.left:
+                        try self.put(targets.section_name(check.decode_text(name.text), is_func, self.c.build_target.os))
+                    try self.put("\")")
+                else:
+                    try self.put(word)
+            cursor = a.next
+        if not first:
+            try self.put(")) ")
+
+    mutating func signature(f: ast.Node*, define: bool) -> !:
+        try self.line("")
+        if f.kind == ast.Kind.test_:
+            try self.put("lb_r_unit lb_test_")
+            let index = try self.test_index(f)
+            try self.put_u64((u64)index)
+            try self.put("(void)")
+        else:
+            # Standard functions belong to this artifact, unless explicitly exported
+            # or given linkage attributes. Internal linkage lets the host compiler
+            # omit unused platform code (for example AppKit in a console program).
+            if check.is_library_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
+                try self.put("static __attribute__((unused)) ")
+            try self.attribute_prefix(f, true)
+            try self.put_result_type(f)
+            try self.put(" ")
+            try self.put_func_name(f, self.fn_args, self.owner_decl, self.owner_args)
+            try self.put("(")
+            var first = true
+            if let o = self.owner_decl:
+                if not f.has(ast.flag_static):
+                    let oid = try self.map(o.type_id)
+                    if f.has(ast.flag_mutating) or f.text == "init":
+                        try self.put_type(oid)
+                    else:
+                        try self.put("const ")
+                        try self.put_type(oid)
+                    try self.put("* self")
+                    first = false
+            var cursor = f.right
+            while let p = cursor:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.put_type(try self.map(p.type_id))
+                try self.put(" ")
+                try self.put_ident(p.text)
+                cursor = p.next
+            if first:
+                try self.put("void")
+            try self.put(")")
+        if not define:
+            try self.put(";")
+            return
+        try self.put(" {")
+
+    ## The locals a body written into the scratch asked for, declared at its top: the format
+    ## buffers of its formatted texts, and the arrays whose addresses it took.
+    mutating func scratch_declarations() -> !:
+        self.indent += 1
+        var k: usize = 0
+        while k < self.formats.count:
+            try self.line("char ")
+            try self.put_tmp("fb", self.formats.get(k))
+            try self.put("[1024]; lb_fmtbuf ")
+            try self.put_tmp("ff", self.formats.get(k))
+            try self.put(";")
+            k += 1
+        k = 0
+        while k < self.arrays.count:
+            let h = self.arrays.get(k)
+            try self.line("")
+            try self.put_type(h.type_id)
+            try self.put(" ")
+            try self.put_tmp("ad", h.n)
+            try self.put(";")
+            k += 1
+        self.indent -= 1
+
+    ## Emit one function instance into the body buffer.
+    mutating func function(inst: Instance) -> !:
+        let f = inst.decl
+        let saved_fn = self.current_fn
+        let saved_decl = self.fn_decl
+        let saved_args = self.fn_args
+        let saved_owner = self.owner_decl
+        let saved_owner_args = self.owner_args
+        self.current_fn = f
+        self.fn_decl = f
+        self.fn_args = inst.args
+        self.owner_decl = inst.owner
+        self.owner_args = inst.owner_args
+        # the body first, into the scratch, so its format buffers can be declared at its top
+        self.target = to_scratch
+        self.scratch.clear()
+        self.formats.count = 0
+        self.arrays.count = 0
+        self.indent += 1
+        # the result type must exist as a typedef
+        if f.kind != ast.Kind.test_:
+            let ft = self.c.table.get(try self.map(f.type_id))
+            if f.has(ast.flag_fallible):
+                try self.note_if_typedef(ft.elem)
+            else:
+                try self.note_if_typedef(ft.elem)
+        let base = self.scopes.count
+        try self.push_scope(false, "")
+        let naked = ast.has_attribute(f, "naked")
+        if f.has(ast.flag_export) and not naked:
+            try self.check_foreign_parameters(f)
+        if naked:
+            try self.naked_body(f)
+        elif let body = f.body:
+            # the statement position a trap names is the caller's again once this returns
+            try self.line("const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;")
+            var cursor = body.body
+            while let s = cursor:
+                try self.stmt(s)
+                cursor = s.next
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        if naked:
+            discard(0)
+        elif self.fn_fallible() and (try self.result_payload()) == types.unit_id:
+            try self.line("return ((lb_r_unit){ .failed = false });")
+        elif (try self.result_payload()) != types.unit_id and (try self.result_payload()) != types.never_id:
+            try self.line("lb_trap(\"unreachable\");")
+        elif (try self.result_payload()) == types.never_id:
+            try self.line("lb_trap(\"unreachable\");")
+        self.indent -= 1
+        try self.line("}")
+        self.target = to_body
+        try self.signature(f, true)
+        try self.scratch_declarations()
+        try self.body.put(self.scratch.view())
+        if names.export_wrapped(&self.c.table, f):
+            try self.export_wrapper(f)
+        discard(base)
+        self.current_fn = saved_fn
+        self.fn_decl = saved_decl
+        self.fn_args = saved_args
+        self.owner_decl = saved_owner
+        self.owner_args = saved_owner_args
+
+    ## The C face of an export whose signature C cannot take as it is (§17.6): a span
+    ## parameter arrives as a pointer and a length, `(NULL, n)` being the empty span, and a
+    ## fallible result becomes an `int` status, 0 or the error's code, with the value
+    ## written through a final out-pointer. The wrapper calls the function by its internal
+    ## name.
+    mutating func export_wrapper(f: ast.Node*) -> !:
+        let ft = self.c.table.get(try self.map(f.type_id))
+        let fallible = f.has(ast.flag_fallible)
+        let payload = self.elem(ft.elem) if fallible else ft.elem
+        let none_args = try types.no_args()
+        try self.line("")
+        if fallible:
+            try self.put("int")
+        else:
+            try self.put_result_type(f)
+        try self.put(" ")
+        try self.put(names.export_prefix)
+        if let o = self.owner_decl:
+            try self.put(o.text)
+            try self.put("_")
+        try self.put(f.text)
+        try self.put("(")
+        var first = true
+        if let o = self.owner_decl:
+            if not f.has(ast.flag_static):
+                let oid = try self.map(o.type_id)
+                if not (f.has(ast.flag_mutating) or f.text == "init"):
+                    try self.put("const ")
+                try self.put_type(oid)
+                try self.put("* self")
+                first = false
+        var cursor = f.right
+        while let p = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            let pt = try self.map(p.type_id)
+            if self.is_span(pt):
+                try self.put_element_pointer(pt)
+                try self.put(" ")
+                try self.put_ident(p.text)
+                try self.put(", size_t ")
+                try self.put_ident(p.text)
+                try self.put("_len")
+            else:
+                try self.put_type(pt)
+                try self.put(" ")
+                try self.put_ident(p.text)
+            cursor = p.next
+        if fallible and payload != types.unit_id:
+            if not first:
+                try self.put(", ")
+            first = false
+            try self.put_type(payload)
+            try self.put("* lb_out")
+        if first:
+            try self.put("void")
+        try self.put(") {")
+        self.indent += 1
+        try self.line("")
+        if fallible:
+            try self.put_type(ft.elem)
+            try self.put(" lb_r = ")
+        elif payload != types.unit_id and payload != types.never_id:
+            try self.put("return ")
+        try self.put_func_name(f, none_args, self.owner_decl, none_args)
+        try self.put("(")
+        first = true
+        if let o = self.owner_decl:
+            if not f.has(ast.flag_static):
+                try self.put("self")
+                first = false
+        cursor = f.right
+        while let p = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            let pt = try self.map(p.type_id)
+            if self.is_span(pt):
+                try self.put("(")
+                try self.put_type(pt)
+                try self.put("){ ")
+                try self.put_ident(p.text)
+                try self.put(" != NULL ? (void*)")
+                try self.put_ident(p.text)
+                try self.put(" : (void*)8, ")
+                try self.put_ident(p.text)
+                try self.put(" != NULL ? ")
+                try self.put_ident(p.text)
+                try self.put("_len : 0 }")
+            else:
+                try self.put_ident(p.text)
+            cursor = p.next
+        try self.put(");")
+        if fallible:
+            try self.line("if (lb_r.failed) return lb_r.error.code;")
+            if payload != types.unit_id:
+                try self.line("*lb_out = lb_r.value;")
+            try self.line("return 0;")
+        self.indent -= 1
+        try self.line("}")
+
+    ## Composite types spelled only inside bodies still need their typedefs.
+    mutating func note_if_typedef(id: u32) -> !:
+        let k = self.kind(id)
+        if k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.func_ or k == types.Kind.optional or k == types.Kind.fallible or k == types.Kind.struct_ or k == types.Kind.enum_ or k == types.Kind.union_:
+            try self.note(id)
+
+    # -- scopes and cleanup ---------------------------------------------------------------
+
+    mutating func push_scope(loop: bool, label: str) -> !:
+        let exit = self.tmp() if loop else 0
+        try self.scopes.push(Scope(defer_base = self.defers.count, loop = loop, label = label, restore_alloc = false, alloc_save = 0, exit = exit))
+
+    ## The label after a loop that its unlabelled `break`s jump to, when one did.
+    mutating func loop_exit(sc: Scope) -> !:
+        if sc.exit_used:
+            try self.line("")
+            try self.put_tmp("brk", sc.exit)
+            try self.put(": __attribute__((unused));")
+
+    ## `goto` the exit of the loop at `target`, marking the label as needed.
+    mutating func break_to(target: usize) -> !:
+        var sc = self.scopes.get(target)
+        sc.exit_used = true
+        self.scopes.set(target, sc)
+        try self.put("goto ")
+        try self.put_tmp("brk", sc.exit)
+
+    mutating func pop_scope():
+        let sc = self.scopes.get(self.scopes.count - 1)
+        self.defers.count = sc.defer_base
+        self.scopes.count -= 1
+
+    ## Run the deferred calls of scope `index` (last registered first) and
+    ## restore its allocator; `failing` includes the `errdefer` calls.
+    mutating func unwind(index: usize, failing: bool) -> !:
+        let sc = self.scopes.get(index)
+        let end = self.defers.count if index + 1 >= self.scopes.count else self.scopes.get(index + 1).defer_base
+        var i = end
+        while i > sc.defer_base:
+            i -= 1
+            let d = self.defers.get(i)
+            if d.kind == ast.Kind.errdefer_ and not failing:
+                continue
+            # the deferred block, written out on this exit: it reads its names as they are now
+            let deferred = d.body else continue
+            try self.block(deferred)
+        if sc.restore_alloc:
+            try self.line("lb_memory_allocator = ")
+            try self.put_tmp("as", sc.alloc_save)
+            try self.put(";")
+
+    ## Unwind every scope from the innermost down to `from`, for an exit.
+    mutating func unwind_from(start: usize, failing: bool) -> !:
+        var i = self.scopes.count
+        while i > start:
+            i -= 1
+            try self.unwind(i, failing)
+
+    func any_cleanup() -> bool:
+        if self.defers.count > 0:
+            return true
+        var i: usize = 0
+        while i < self.scopes.count:
+            if self.scopes.get(i).restore_alloc:
+                return true
+            i += 1
+        return false
+
+    ## The innermost loop scope, or the one with `label`.
+    func loop_scope(label: str) -> usize:
+        var i = self.scopes.count
+        while i > 0:
+            i -= 1
+            let sc = self.scopes.get(i)
+            if sc.loop and (label.length == 0 or sc.label == label):
+                return i
+        return 0

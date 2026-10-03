@@ -1,0 +1,1053 @@
+#==============================================================================================
+#
+#   emit/calls - Calls
+#
+#   DESCRIPTION:
+#       Calls to functions, methods, function values, and interfaces, with their arguments
+#       evaluated in the order §7.1 fixes.
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Calls ==============================================================================
+
+    mutating func call(e: ast.Node*) -> !:
+        let callee = e.left else return
+        if let d = e.resolved:
+            if self.c.is_memory_frame(d):
+                try self.frame_storage(e)
+                return
+        # core functions
+        if callee.kind == ast.Kind.name and callee.resolved == none and check.scalar_id(callee.text) == types.none_id:
+            try self.intrinsic(e, callee.text)
+            return
+        # `T(x)` conversions and constructions
+        if callee.has(ast.flag_type_ref):
+            try self.construct_or_convert(e, callee)
+            return
+        if callee.kind == ast.Kind.member:
+            try self.member_call(e, callee)
+            return
+        if let d = e.resolved:
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
+                try self.direct_call(e, d, none, try types.no_args())
+                return
+        try self.value_call(e, callee)
+
+    ## `f(args)` where `f` is a function value: a local, a field, or a module's global.
+    mutating func value_call(e: ast.Node*, callee: ast.Node*) -> !:
+        let ordered = try self.receiver_first(callee, try self.ty(callee), e.body, false)
+        let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
+        try self.put("(")
+        if ordered != 0:
+            try self.put_tmp("rv", ordered)
+        else:
+            try self.expr(callee)
+        try self.put(")(")
+        try self.arguments(e.body, try self.ty(callee), none, try types.no_args())
+        try self.put(")")
+        try self.end_sequence(hoisted)
+        try self.receiver_done(ordered)
+
+    ## Base evaluates arguments left to right (§7.1); C promises no order. When a call has
+    ## more than one argument and any of them may have an effect, every given argument is
+    ## computed into a temporary first, in order, inside a statement expression the call
+    ## then closes (`end_sequence`), and the call reads the temporaries. Answers how many
+    ## were hoisted, 0 when the call is emitted as it is.
+    mutating func begin_sequence(args: ast.Node*?, fn: u32, decl: ast.Node*?) -> usize!:
+        var given: usize = 0
+        var effects = false
+        var cursor = args
+        while let a = cursor:
+            given += 1
+            if let v = a.left:
+                if may_have_effect(v):
+                    effects = true
+            cursor = a.next
+        if given < 2 or not effects:
+            return 0
+        let f = self.c.table.get(fn)
+        var hoisted: usize = 0
+        try self.put("({ ")
+        if let d = decl:
+            # named arguments are matched to parameters by the declaration, as `arguments` does
+            var position: usize = 0
+            cursor = args
+            while let a = cursor:
+                let v = a.left else return hoisted
+                var pi: usize = 0
+                var found: usize = 0
+                var param = d.right
+                var matched = false
+                if a.text.length > 0:
+                    while let p = param:
+                        if p.text == a.text:
+                            found = pi
+                            matched = true
+                        pi += 1
+                        param = p.next
+                else:
+                    found = position
+                    position += 1
+                    matched = found < f.args.length
+                let want = f.args[found] if matched and found < f.args.length else types.none_id
+                if want != types.none_id and (matched or not f.variadic):
+                    hoisted += try self.hoist(v, want)
+                cursor = a.next
+        else:
+            var i: usize = 0
+            cursor = args
+            while let a = cursor:
+                let v = a.left else return hoisted
+                if i < f.args.length:
+                    hoisted += try self.hoist(v, f.args[i])
+                i += 1
+                cursor = a.next
+        return hoisted
+
+    ## §7.1: the receiver, or the function value, is evaluated before the arguments. C
+    ## promises no order between them, so when both may have an effect the receiver goes
+    ## into a temporary first (its pointer, or the address of its place); answers the
+    ## temporary's number, 0 when the receiver is read where it stands.
+    mutating func receiver_first(target: ast.Node*, t: u32, args: ast.Node*?, as_address: bool) -> u32!:
+        if not may_have_effect(target) or not arguments_have_effect(args):
+            return 0
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("rv", n)
+        try self.put(" = ")
+        if as_address:
+            try self.address(target)
+        else:
+            try self.expr(target)
+        try self.put("; ")
+        return n
+
+    mutating func receiver_done(n: u32) -> !:
+        if n != 0:
+            try self.put("; })")
+
+    ## `T _lb_sqN = value;` for one argument, remembered for `argument_value`.
+    mutating func hoist(v: ast.Node*, want: u32) -> usize!:
+        let n = self.tmp()
+        try self.put_type(want)
+        try self.put(" ")
+        try self.put_tmp("sq", n)
+        try self.put(" __attribute__((unused)) = ")
+        try self.argument_value(v, want)
+        try self.put("; ")
+        try self.sequenced.push(Sequenced(node = v, id = n))
+        return 1
+
+    mutating func end_sequence(hoisted: usize) -> !:
+        if hoisted == 0:
+            return
+        try self.put("; })")
+        self.sequenced.count -= hoisted
+
+    ## The temporary an argument was computed into, when it was.
+    func sequenced_id(v: ast.Node*) -> u32?:
+        var i = self.sequenced.count
+        while i > 0:
+            i -= 1
+            let s = self.sequenced.get(i)
+            if s.node == v:
+                return s.id
+        return none
+
+    ## The arguments of a call, each converted to its parameter type.
+    mutating func arguments(args: ast.Node*?, fn: u32, decl: ast.Node*?, decl_args: u32[]) -> !:
+        let f = self.c.table.get(fn)
+        var i: usize = 0
+        var cursor = args
+        var first = true
+        # named arguments are matched to parameters by the declaration
+        if let d = decl:
+            var pi: usize = 0
+            var param = d.right
+            while let p = param:
+                if not first:
+                    try self.put(", ")
+                first = false
+                var given: ast.Node*? = none
+                var position: usize = 0
+                var a = args
+                while let arg = a:
+                    if arg.text.length > 0:
+                        if arg.text == p.text:
+                            given = arg
+                    else:
+                        if position == pi:
+                            given = arg
+                        position += 1
+                    a = arg.next
+                let want = f.args[pi] if pi < f.args.length else types.none_id
+                if let g = given:
+                    let v = g.left else return
+                    try self.argument_value(v, want)
+                elif let default = p.left:
+                    try self.value(default, want)
+                else:
+                    try self.put("0")
+                pi += 1
+                param = p.next
+            if f.variadic:
+                # extra arguments after the declared ones
+                var position: usize = 0
+                var a = args
+                while let arg = a:
+                    if arg.text.length == 0:
+                        if position >= pi:
+                            try self.put(", ")
+                            let v = arg.left else return
+                            try self.variadic_value(v)
+                        position += 1
+                    a = arg.next
+            discard(decl_args)
+            return
+        while let a = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            let v = a.left else return
+            try self.argument_value(v, f.args[i] if i < f.args.length else types.none_id)
+            i += 1
+            cursor = a.next
+
+    ## An argument: its parameter's type, with text passed as bytes where wanted.
+    mutating func argument_value(v: ast.Node*, want: u32) -> !:
+        if let id = self.sequenced_id(v):
+            try self.put_tmp("sq", id)
+            return
+        let have = try self.ty(v)
+        if want != types.none_id and self.is_span(want) and self.elem(want) == types.u8_id and (have == types.str_id or have == types.fmt_id):
+            if v.kind == ast.Kind.formatted:
+                try self.formatted_bytes(v)
+            else:
+                try self.text_as_bytes(v)
+            return
+        if want == types.cstr_id and have == types.str_id:
+            try self.value(v, want)
+            return
+        try self.value(v, want)
+
+    ## A variadic C argument: text becomes a C string, integers promote as C does.
+    mutating func variadic_value(v: ast.Node*) -> !:
+        let have = try self.ty(v)
+        if have == types.str_id and v.kind == ast.Kind.literal:
+            try self.put_c_string(check.decode_text(v.text))
+            return
+        if have == types.str_id:
+            try self.put("(")
+            try self.expr(v)
+            try self.put(".data)")
+            return
+        try self.expr(v)
+
+    ## A call of a known function or method instance.
+    mutating func direct_call(e: ast.Node*, d: ast.Node*, owner: ast.Node*?, owner_args: u32[]) -> !:
+        var args = try types.no_args()
+        if let t = e.ty:
+            args = try self.type_args(t)
+        var fn = try self.map(d.type_id)
+        if let o = owner:
+            fn = try self.c.substitute(fn, o, owner_args)
+        if args.length > 0:
+            fn = try self.c.substitute(fn, d, args)
+        if d.kind == ast.Kind.func_:
+            discard(try self.add_func(d, args, owner, owner_args))
+        if d.kind == ast.Kind.extern_func and has_out_params(d):
+            try self.extern_out_call(e, d, fn)
+            return
+        # a bare pointer, handle, or `c.str` from C must not be null: the one boundary check (§17.1)
+        let rt = self.c.table.get(fn).elem
+        let checked = d.kind == ast.Kind.extern_func and (self.is_ptr(rt) or rt == types.cstr_id or self.c.table.is_opaque_handle(rt))
+        let hoisted = try self.begin_sequence(e.body, fn, d)
+        if checked:
+            try self.put("({ ")
+            try self.put_type(rt)
+            try self.put(" _lb_fr = ")
+        try self.put_func_name(d, args, owner, owner_args)
+        try self.put("(")
+        try self.arguments(e.body, fn, d, args)
+        try self.put(")")
+        if checked:
+            try self.put("; if (!_lb_fr) lb_trap(\"null_foreign\"); _lb_fr; })")
+        try self.end_sequence(hoisted)
+
+    ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
+    ## traps `null_foreign`: the one boundary check, in this direction (§17.1).
+    mutating func check_foreign_parameters(f: ast.Node*) -> !:
+        var cursor = f.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            if self.is_ptr(pt) or pt == types.cstr_id or self.c.table.is_opaque_handle(pt):
+                try self.line("if (!")
+                try self.put_ident(p.text)
+                try self.put(") lb_trap(\"null_foreign\");")
+            cursor = p.next
+
+    ## `({ int32_t o0; double r = frexp(x, &o0); (tuple){ r, o0 }; })`: an extern's `out`
+    ## parameters are locals passed by address and answered after the declared result (§17.1).
+    mutating func extern_out_call(e: ast.Node*, d: ast.Node*, fn: u32) -> !:
+        let n = self.tmp()
+        let declared = declared_result(d)
+        try self.put("({ ")
+        var outs: u32 = 0
+        var param = d.right
+        while let p = param:
+            if p.has(ast.flag_out):
+                try self.put_type(p.type_id)
+                try self.put(" ")
+                try self.put_out_local(n, outs)
+                try self.put("; ")
+                outs += 1
+            param = p.next
+        if declared != types.unit_id:
+            try self.put_type(declared)
+            try self.put(" ")
+            try self.put_tmp("or", n)
+            try self.put(" = ")
+        try self.put_extern_callee(d)
+        try self.put("(")
+        try self.arguments_with_outs(e.body, fn, d, n)
+        try self.put("); ")
+        let answered = self.c.table.get(fn).elem
+        if self.kind(answered) == types.Kind.tuple:
+            try self.put("((")
+            try self.put_type(answered)
+            try self.put("){ ")
+            var first = true
+            if declared != types.unit_id:
+                try self.put_tmp("or", n)
+                first = false
+            var k: u32 = 0
+            while k < outs:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.put_out_local(n, k)
+                k += 1
+            try self.put(" }); })")
+        elif declared != types.unit_id:
+            try self.put_tmp("or", n)
+            try self.put("; })")
+        else:
+            try self.put_out_local(n, 0)
+            try self.put("; })")
+
+    ## `_lb_oN_k`: the local an `out` parameter is written through.
+    mutating func put_out_local(n: u32, k: u32) -> !:
+        try self.put_tmp("o", n)
+        try self.put("_")
+        try self.put_u64((u64)k)
+
+    ## The arguments of an extern call whose `out` parameters take the address of a local.
+    mutating func arguments_with_outs(args: ast.Node*?, fn: u32, d: ast.Node*, n: u32) -> !:
+        let f = self.c.table.get(fn)
+        var first = true
+        var pi: usize = 0
+        var outs: u32 = 0
+        var cursor = args
+        var param = d.right
+        while let p = param:
+            if not first:
+                try self.put(", ")
+            first = false
+            if p.has(ast.flag_out):
+                try self.put("&")
+                try self.put_out_local(n, outs)
+                outs += 1
+            else:
+                let a = cursor else return error(backend, "an extern call is short of arguments")
+                let v = a.left else return
+                try self.argument_value(v, f.args[pi] if pi < f.args.length else types.none_id)
+                pi += 1
+                cursor = a.next
+            param = p.next
+
+    ## `x.method(args)`, `Type.static(args)`, `module.func(args)`, and the builtin
+    ## methods of the standard records.
+    mutating func member_call(e: ast.Node*, callee: ast.Node*) -> !:
+        let receiver = callee.left else return
+        let rt_raw = try self.ty(receiver)
+        # module functions and constructions
+        if self.kind(rt_raw) == types.Kind.module:
+            let m = self.decl_of(rt_raw) else return
+            if let d = e.resolved:
+                if d.has(ast.flag_builtin) and (m.text == "atomic" or m.text == "c"):
+                    try self.std_call(e, m.text, callee.text, d)
+                    return
+                try self.direct_call(e, d, none, try types.no_args())
+                return
+            # `module.value(args)`: a global of function type the module declares or
+            # re-exports, called through its value
+            try self.value_call(e, callee)
+            return
+        # a static method or a payload case through the type
+        if receiver.has(ast.flag_type_ref):
+            if let resolved = callee.resolved:
+                if resolved.kind == ast.Kind.enum_case:
+                    try self.enum_value(e)
+                    return
+            if let d = callee.resolved:
+                let t = self.c.table.get(rt_raw)
+                try self.direct_call(e, d, t.decl, t.args)
+                return
+            if rt_raw == types.error_code_id:
+                let first = e.body else return
+                let v = first.left else return
+                try self.put("((uint32_t)(")
+                try self.expr(v)
+                try self.put("))")
+                return
+            if self.is_float(rt_raw) and callee.text == "bits":
+                # constant bits are spelled as a float constant, so `f64.bits(...)` can
+                # initialise a global (§6.4) under GCC, which has no bit cast in C; other bits
+                # are copied at the float's width
+                let first = e.body else return
+                let v = first.left else return
+                if let bits = self.c.constant_u64(v):
+                    try self.float_constant(rt_raw, bits)
+                    return
+                try self.put("({ ")
+                try self.put_type(self.c.bits_type(rt_raw))
+                try self.put(" _lb_b = (")
+                try self.put_type(self.c.bits_type(rt_raw))
+                try self.put(")(")
+                try self.expr(v)
+                try self.put("); ")
+                try self.put_type(rt_raw)
+                try self.put(" _lb_f; __builtin_memcpy(&_lb_f, &_lb_b, sizeof _lb_f); _lb_f; })")
+                return
+            try self.put("0")
+            return
+        let rt = self.elem(rt_raw) if self.is_ptr(rt_raw) else rt_raw
+        # atomics
+        if self.is_atomic(rt):
+            try self.atomic_call(e, callee, receiver, rt, self.is_ptr(rt_raw))
+            return
+        # builtin members of spans and floats
+        if callee.has(ast.flag_static) and callee.resolved == none:
+            try self.builtin_method(e, callee, receiver, rt)
+            return
+        let method = callee.resolved else return try self.put("0")
+        if method.kind == ast.Kind.field:
+            # `holder.callback(args)`: a field of function type, called through its value
+            try self.value_call(e, callee)
+            return
+        # interface views dispatch through the table; `view.method()` on a `Writer*`
+        # auto-dereferences (§7.3), so the fat pointer is copied out of the pointee first
+        if self.is_iface(rt):
+            let n = self.tmp()
+            let fn = try self.map(method.type_id)
+            let i = self.decl_of(rt) else return
+            try self.put("({ lb_iface ")
+            try self.put_tmp("if", n)
+            try self.put(" = ")
+            if self.is_ptr(rt_raw):
+                try self.put("(*(")
+                try self.expr(receiver)
+                try self.put("))")
+            else:
+                try self.expr(receiver)
+            try self.put("; ")
+            let hoisted = try self.begin_sequence(e.body, fn, method)
+            try self.put("((lb_vt_")
+            try self.put(i.text)
+            try self.put("*)")
+            try self.put_tmp("if", n)
+            try self.put(".vtable)->")
+            try self.put(method.text)
+            try self.put("(")
+            try self.put_tmp("if", n)
+            try self.put(".data")
+            if e.body != none:
+                try self.put(", ")
+                try self.arguments(e.body, fn, method, try types.no_args())
+            try self.put(")")
+            try self.end_sequence(hoisted)
+            try self.put("; })")
+            return
+        # a method on a generic parameter's constraint resolves to the concrete type's method
+        let t = self.c.table.get(rt)
+        if t.decl == none and method.text == "compare":
+            # `T: Comparable` at a number, `char`, or `str`: the builtin ordering (§14.4)
+            try self.builtin_method(e, callee, receiver, rt)
+            return
+        var owner = t.decl
+        var owner_args = t.args
+        var impl = method
+        if let od = owner:
+            if let found = check.find_member(od, method.text, ast.Kind.func_):
+                impl = found
+        var fn = try self.map(impl.type_id)
+        if let o = owner:
+            fn = try self.c.substitute(fn, o, owner_args)
+        var args = try types.no_args()
+        if let ta = e.ty:
+            args = try self.type_args(ta)
+        if args.length > 0:
+            fn = try self.c.substitute(fn, impl, args)
+        discard(try self.add_func(impl, args, owner, owner_args))
+        # a value receiver, `Flags.a.name()` or a call's result, is held in a temporary
+        let by_value = not impl.has(ast.flag_static) and not self.is_ptr(rt_raw) and not self.c.is_place(receiver)
+        if by_value:
+            try self.put("({ ")
+            try self.put_type(rt)
+            try self.put(" _lb_rc = ")
+            try self.value(receiver, rt)
+            try self.put("; ")
+        # the receiver before the arguments (§7.1): a pointer or a place with an effect of
+        # its own is computed first, into a temporary, when an argument has one too
+        var ordered: u32 = 0
+        if not impl.has(ast.flag_static) and not by_value:
+            # a place's address is typed as the method's `self`: a pointer to const unless the
+            # method mutates, since the place may be reached through a `const T*`
+            let reads_only = not (impl.has(ast.flag_mutating) or impl.text == "init")
+            let receiver_type = rt_raw if self.is_ptr(rt_raw) else try self.c.table.pointer(rt, reads_only, false)
+            ordered = try self.receiver_first(receiver, receiver_type, e.body, not self.is_ptr(rt_raw))
+        let hoisted = try self.begin_sequence(e.body, fn, impl)
+        try self.put_func_name(impl, args, owner, owner_args)
+        try self.put("(")
+        if not impl.has(ast.flag_static):
+            if ordered != 0:
+                try self.put_tmp("rv", ordered)
+            elif self.is_ptr(rt_raw):
+                try self.expr(receiver)
+            elif by_value:
+                try self.put("&_lb_rc")
+            else:
+                try self.address(receiver)
+            if e.body != none or impl.right != none:
+                try self.put(", ")
+        try self.arguments(e.body, fn, impl, args)
+        try self.put(")")
+        try self.end_sequence(hoisted)
+        try self.receiver_done(ordered)
+        if by_value:
+            try self.put("; })")
+
+    ## A method named without a call: a function value of the instance.
+    mutating func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> !:
+        let ot = try self.ty(owner)
+        if self.kind(ot) == types.Kind.module or d.kind == ast.Kind.extern_func:
+            try self.func_value(e, d)
+            return
+        let t = self.c.table.get(self.elem(ot) if self.is_ptr(ot) else ot)
+        discard(try self.add_func(d, try types.no_args(), t.decl, t.args))
+        try self.put_func_name(d, try types.no_args(), t.decl, t.args)
+
+    ## `first()` and `last()` on spans; `bits()` on floats.
+    ## `a.compare(b)` on a number, `char`, or `str`: negative, zero, or positive (§14.4).
+    mutating func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+        let first = e.body else return
+        let other = first.left else return
+        if rt == types.str_id:
+            try self.put("((int64_t)lb_str_compare(")
+            try self.receiver_value(receiver, rt)
+            try self.put(", ")
+            try self.value(other, rt)
+            try self.put("))")
+            return
+        try self.put("({ ")
+        try self.put_type(rt)
+        try self.put(" _lb_ca = ")
+        try self.receiver_value(receiver, rt)
+        try self.put("; ")
+        try self.put_type(rt)
+        try self.put(" _lb_cb = ")
+        try self.value(other, rt)
+        try self.put("; (_lb_ca < _lb_cb) ? (int64_t)-1 : ((_lb_ca > _lb_cb) ? (int64_t)1 : (int64_t)0); })")
+
+    ## The raw lines of an `asm` block as C string text; extended asm doubles `%`.
+    mutating func asm_lines(lines: ast.Node*?, extended: bool) -> !:
+        var cursor = lines
+        while let l = cursor:
+            var in_name = false
+            for b in l.text.bytes:
+                if b == '{' and extended:
+                    # `{name}` is the named operand `%[name]`
+                    try self.put("%[")
+                    in_name = true
+                elif b == '}' and in_name:
+                    try self.put("]")
+                    in_name = false
+                elif b == '%' and extended:
+                    try self.put("%%")
+                elif b == '"':
+                    try self.put("\\\"")
+                elif b == '\\':
+                    try self.put("\\\\")
+                elif b == '\n':
+                    try self.put("\\n")
+                else:
+                    try self.put_byte(b)
+            try self.put("\\n")
+            cursor = l.next
+
+    ## A module-level `asm arm64:` block (§8.9): the lines verbatim at file scope.
+    mutating func module_asm(d: ast.Node*) -> !:
+        try self.line("#if defined(__aarch64__)")
+        try self.line("__asm__(\"")
+        try self.asm_lines(d.body, false)
+        try self.put("\");")
+        try self.line("#endif")
+
+    ## A `naked func` body: its asm blocks and nothing else, since C admits no other
+    ## statement in a naked function (§9.8).
+    mutating func naked_body(f: ast.Node*) -> !:
+        let body = f.body else return
+        var cursor = body.body
+        while let s = cursor:
+            if s.kind == ast.Kind.asm_ and s.text == "arm64":
+                try self.line("__asm__ volatile(\"")
+                try self.asm_lines(s.body, false)
+                try self.put("\");")
+            cursor = s.next
+
+    ## The receiver of a method the compiler supplies, as a value of type `rt`: a pointer
+    ## receiver (`key.bits()` with `key: const f32*`) is read through.
+    mutating func receiver_value(receiver: ast.Node*, rt: u32) -> !:
+        let have = try self.ty(receiver)
+        if self.is_ptr(have) and not self.is_ptr(rt):
+            try self.put("(*(")
+            try self.expr(receiver)
+            try self.put("))")
+            return
+        try self.value(receiver, rt)
+
+    ## `a.mul_add(b, c)` (§7.2): the C library's `fma`, rounded once, on a scalar or on each
+    ## lane of a vector.
+    mutating func mul_add(e: ast.Node*, receiver: ast.Node*, rt: u32, n: u32) -> !:
+        let first = e.body else return
+        let second = first.next else return
+        let b = first.left else return
+        let c = second.left else return
+        let is_vector = self.is_array(rt)
+        let et = self.elem(rt) if is_vector else rt
+        let function = "__builtin_fmaf(" if et == types.f32_id else "__builtin_fma("
+        if not is_vector:
+            try self.put(function)
+            try self.receiver_value(receiver, rt)
+            try self.put(", ")
+            try self.value(b, rt)
+            try self.put(", ")
+            try self.value(c, rt)
+            try self.put(")")
+            return
+        let operands: str[3] = ["ma", "mb", "mc"]
+        try self.put("({ ")
+        for k in 0..<3:
+            try self.put_type(rt)
+            try self.put(" ")
+            try self.put_tmp(operands[k], n)
+            try self.put(" = ")
+            if k == 0:
+                try self.receiver_value(receiver, rt)
+            else:
+                try self.value(b if k == 1 else c, rt)
+            try self.put("; ")
+        try self.put_type(rt)
+        try self.put(" ")
+        try self.put_tmp("mr", n)
+        try self.put("; for (size_t _i = 0; _i < ")
+        try self.put_u64(self.c.table.get(rt).length)
+        try self.put("; _i++) ")
+        try self.put_tmp("mr", n)
+        try self.put(".d[_i] = ")
+        try self.put(function)
+        for k in 0..<3:
+            try self.put_tmp(operands[k], n)
+            try self.put(".d[_i]" if k == 2 else ".d[_i], ")
+        try self.put("); ")
+        try self.put_tmp("mr", n)
+        try self.put("; })")
+
+    mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+        if callee.text == "compare":
+            try self.compare_call(e, receiver, rt)
+            return
+        if callee.text == "sum" or callee.text == "min" or callee.text == "max":
+            try self.vector_fold(e, callee, receiver, rt)
+            return
+        let n = self.tmp()
+        if callee.text == "mul_add":
+            try self.mul_add(e, receiver, rt, n)
+            return
+        if callee.text == "bits":
+            try self.put("({ ")
+            try self.put_type(rt)
+            try self.put(" ")
+            try self.put_tmp("fv", n)
+            try self.put(" = ")
+            try self.receiver_value(receiver, rt)
+            try self.put("; ")
+            try self.put_type(self.c.bits_type(rt))
+            try self.put(" ")
+            try self.put_tmp("fb", n)
+            try self.put("; memcpy(&")
+            try self.put_tmp("fb", n)
+            try self.put(", &")
+            try self.put_tmp("fv", n)
+            try self.put(", sizeof(")
+            try self.put_tmp("fb", n)
+            try self.put(")); ")
+            try self.put_tmp("fb", n)
+            try self.put("; })")
+            return
+        let result = try self.ty(e)
+        # `first` and `last` are the span's (§5.4): an array receiver is read as the span it
+        # converts to; `indexed` is a `for` of its own (`for_stmt`)
+        let st = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
+        try self.put("({ ")
+        try self.put_type(st)
+        try self.put(" ")
+        try self.put_tmp("sq", n)
+        try self.put(" = ")
+        try self.value(receiver, st)
+        try self.put("; ")
+        let et = self.elem(rt)
+        # first / last
+        try self.put_type(result)
+        try self.put(" ")
+        try self.put_tmp("fo", n)
+        try self.put("; if (")
+        try self.put_tmp("sq", n)
+        try self.put(".length == 0) { ")
+        try self.put_tmp("fo", n)
+        try self.put(" = ")
+        try self.none_of(result)
+        try self.put("; } else { ")
+        if self.is_tagged_opt(result):
+            try self.put_tmp("fo", n)
+            try self.put(".present = true; ")
+            try self.put_tmp("fo", n)
+            try self.put(".value = ")
+        else:
+            try self.put_tmp("fo", n)
+            try self.put(" = ")
+        try self.put("((")
+        try self.put_type(et)
+        try self.put("*)")
+        try self.put_tmp("sq", n)
+        try self.put(".data)[")
+        if callee.text == "last":
+            try self.put_tmp("sq", n)
+            try self.put(".length - 1")
+        else:
+            try self.put("0")
+        try self.put("]; } ")
+        try self.put_tmp("fo", n)
+        try self.put("; })")
+
+    # -- constructions and conversions ----------------------------------------------------
+
+    ## `Name(...)`: a struct value, an `init` call, or a checked scalar conversion.
+    mutating func construct_or_convert(e: ast.Node*, callee: ast.Node*) -> !:
+        let target = try self.ty(e)
+        if self.is_vector(target):
+            try self.splat(e, target)
+            return
+        let payload = self.elem(target) if self.is_fail(target) else target
+        if let init = e.resolved:
+            if init.kind == ast.Kind.func_ and init.text == "init":
+                try self.init_call(e, init, payload)
+                return
+        if self.kind(payload) == types.Kind.struct_:
+            try self.constructor(e, payload)
+            return
+        if target == types.str_id or (self.is_fail(target) and payload == types.str_id):
+            let first = e.body else return
+            let v = first.left else return
+            try self.str_conversion(v, self.is_fail(target))
+            return
+        let first = e.body else return
+        let v = first.left else return
+        try self.conversion(v, target, true)
+        discard(callee)
+
+    ## `(lb_Name){ .field = value, ... }` with defaults for what was omitted.
+    mutating func constructor(e: ast.Node*, id: u32) -> !:
+        let d = self.decl_of(id) else return try self.put("{}")
+        let t = self.c.table.get(id)
+        var effects = arguments_have_effect(e.body)
+        var member = d.body
+        while let f = member:
+            if f.kind == ast.Kind.field:
+                if let default = f.left:
+                    effects = effects or may_have_effect(default)
+            member = f.next
+        # Global initializers have already been checked as constants; calls such
+        # as `sizeof` must remain valid C constant expressions at file scope.
+        effects = effects and self.current_fn != none
+        var hoisted: usize = 0
+        if effects:
+            try self.put("({ ")
+            var argument = e.body
+            while let given = argument:
+                let field = given.resolved else return
+                let expression = given.left else return
+                let want = try self.map(try self.c.substitute(field.type_id, d, t.args))
+                hoisted += try self.hoist(expression, want)
+                argument = given.next
+            member = d.body
+            while let field = member:
+                var supplied = false
+                argument = e.body
+                while let given = argument:
+                    if given.resolved == field:
+                        supplied = true
+                    argument = given.next
+                if field.kind == ast.Kind.field and not supplied:
+                    if let default = field.left:
+                        let want = try self.map(try self.c.substitute(field.type_id, d, t.args))
+                        hoisted += try self.hoist(default, want)
+                member = field.next
+        # a static initialiser takes braces alone: a compound literal is not a constant
+        # expression to every C compiler
+        if self.folding:
+            try self.put("{")
+        else:
+            try self.put("((")
+            try self.put_type(id)
+            try self.put("){")
+        var first = true
+        var position: usize = 0
+        var field = d.body
+        while let f = field:
+            if f.kind != ast.Kind.field:
+                field = f.next
+                continue
+            var given: ast.Node*? = none
+            var pos: usize = 0
+            var a = e.body
+            while let arg = a:
+                if arg.text.length > 0:
+                    if arg.text == f.text:
+                        given = arg
+                else:
+                    if pos == position:
+                        given = arg
+                    pos += 1
+                a = arg.next
+            let want = try self.c.substitute(f.type_id, d, t.args)
+            if let g = given:
+                let v = g.left else return
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.put(".")
+                try self.put(try self.field(f.text))
+                try self.put(" = ")
+                try self.argument_value(v, try self.map(want))
+            elif let default = f.left:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.put(".")
+                try self.put(try self.field(f.text))
+                try self.put(" = ")
+                try self.argument_value(default, try self.map(want))
+            position += 1
+            field = f.next
+        try self.put("}" if self.folding else "})")
+        try self.end_sequence(hoisted)
+
+    ## A struct with its own `init`: zero the value, run `init`, yield the value or its failure.
+    mutating func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> !:
+        let t = self.c.table.get(id)
+        let n = self.tmp()
+        var fn = try self.map(init.type_id)
+        if let o = t.decl:
+            fn = try self.c.substitute(fn, o, t.args)
+        discard(try self.add_func(init, try types.no_args(), t.decl, t.args))
+        try self.put("({ ")
+        try self.put_type(id)
+        try self.put(" ")
+        try self.put_tmp("iv", n)
+        # Empty braces zero every field, including an initial zero-sized unit.
+        try self.put(" = {}; ")
+        if init.has(ast.flag_fallible):
+            try self.put("lb_r_unit ")
+            try self.put_tmp("ir", n)
+            try self.put(" = ")
+        let hoisted = try self.begin_sequence(e.body, fn, init)
+        try self.put_func_name(init, try types.no_args(), t.decl, t.args)
+        try self.put("(&")
+        try self.put_tmp("iv", n)
+        if init.right != none:
+            try self.put(", ")
+            try self.arguments(e.body, fn, init, try types.no_args())
+        try self.put(")")
+        try self.end_sequence(hoisted)
+        try self.put("; ")
+        if init.has(ast.flag_fallible):
+            let res = try self.c.table.fallible(id)
+            try self.note(res)
+            try self.put_type(res)
+            try self.put(" ")
+            try self.put_tmp("io", n)
+            try self.put("; if (")
+            try self.put_tmp("ir", n)
+            try self.put(".failed) { ")
+            try self.put_tmp("io", n)
+            try self.put(".failed = true; ")
+            try self.put_tmp("io", n)
+            try self.put(".error = ")
+            try self.put_tmp("ir", n)
+            try self.put(".error; } else { ")
+            try self.put_tmp("io", n)
+            try self.put(".failed = false; ")
+            try self.put_tmp("io", n)
+            try self.put(".value = ")
+            try self.put_tmp("iv", n)
+            try self.put("; } ")
+            try self.put_tmp("io", n)
+            try self.put("; })")
+            return
+        try self.put_tmp("iv", n)
+        try self.put("; })")
+
+    # -- core functions -------------------------------------------------------------------
+
+    ## `memory.frame[T](count, most)` (§12.7): `count` elements from `alloca` in the frame of
+    ## the function the call is in, after a trap when `count` is past `most`.
+    mutating func frame_storage(e: ast.Node*) -> !:
+        let result = try self.ty(e)
+        let first = e.body else return
+        let second = first.next else return
+        let count = first.left else return
+        let most_node = second.left else return
+        let most = self.c.constant_u64(most_node) else return
+        let n = self.tmp()
+        try self.put("({ size_t ")
+        try self.put_tmp("fn", n)
+        try self.put(" = (size_t)(")
+        try self.value(count, types.usize_id)
+        try self.put("); if (")
+        try self.put_tmp("fn", n)
+        try self.put(" > ")
+        try self.put_u64(most)
+        try self.put("u) lb_trap(\"memory.frame count is past its most\"); (")
+        try self.put_type(result)
+        try self.put("){ __builtin_alloca(")
+        try self.put_tmp("fn", n)
+        try self.put(" * sizeof(")
+        try self.put_type(self.elem(result))
+        try self.put(")), ")
+        try self.put_tmp("fn", n)
+        try self.put(" }; })")
+
+    mutating func intrinsic(e: ast.Node*, name: str) -> !:
+        let first = e.body
+        var arg: ast.Node*? = none
+        var second: ast.Node*? = none
+        if let f = first:
+            arg = f.left
+            if let s = f.next:
+                second = s.left
+        if name == "print":
+            let v = arg else return
+            if v.kind == ast.Kind.formatted:
+                try self.put("(")
+                try self.stream_formatted(v, "stdout")
+                try self.put(", fputc('\\n', stdout))")
+                return
+            try self.put("lb_print_str(")
+            try self.expr(v)
+            try self.put(")")
+            return
+        if name == "format":
+            let buf = arg else return
+            let msg = second else return
+            try self.format_call(buf, msg)
+            return
+        if name == "assert":
+            let cond = arg else return
+            try self.put("((void)((")
+            try self.value(cond, types.bool_id)
+            if let msg = second:
+                try self.put(") ? 0 : (lb_trap_detail(")
+                try self.put_assert_text(e)
+                try self.put(", ")
+                try self.expr(msg)
+            else:
+                try self.put(") ? 0 : (lb_trap(")
+                try self.put_assert_text(e)
+            try self.put("), 0)))")
+            return
+        if name == "trap":
+            if let msg = arg:
+                if msg.kind == ast.Kind.formatted:
+                    try self.put("(lb_trap_begin(), ")
+                    try self.stream_formatted(msg, "stderr")
+                    try self.put(", lb_trap_end())")
+                    return
+                try self.put("lb_trap_text(")
+                try self.expr(msg)
+                try self.put(")")
+            else:
+                try self.put("lb_trap(\"trap\")")
+            return
+        if name == "error":
+            # as an expression (in `else error(...)`): the function leaves
+            try self.put("{")
+            self.indent += 1
+            try self.error_return(e)
+            self.indent -= 1
+            try self.line("}")
+            return
+        if name == "discard":
+            let v = arg else return
+            try self.put("((void)(")
+            try self.expr(v)
+            try self.put("))")
+            return
+        if name == "hash":
+            let v = arg else return
+            try self.hash_of(try self.ty(v), v)
+            return
+        if name == "hex" or name == "bin":
+            let v = arg else return
+            try self.put("lb_show_hex(" if name == "hex" else "lb_show_bin(")
+            try self.put("(uint64_t)(")
+            try self.expr(v)
+            try self.put("))")
+            return
+        if name == "pad":
+            let v = arg else return
+            let w = second else return
+            let n = self.tmp()
+            try self.put("({ char ")
+            try self.put_tmp("pbuf", n)
+            try self.put("[256]; lb_fmtbuf ")
+            try self.put_tmp("pb", n)
+            try self.put(" = { ")
+            try self.put_tmp("pbuf", n)
+            try self.put(", 256, 0 }; (void)")
+            try self.display(n, "pb", v)
+            try self.put("; lb_show_pad(lb_fmtbuf_finish(&")
+            try self.put_tmp("pb", n)
+            try self.put("), (size_t)(")
+            try self.value(w, types.usize_id)
+            try self.put(")); })")
+            return
+        if name == "sizeof" or name == "alignof":
+            let v = arg else return
+            let t = try self.map(v.type_id)
+            try self.put("((size_t)sizeof(" if name == "sizeof" else "((size_t)_Alignof(")
+            try self.put_type(t)
+            try self.put("))")
+            return
+        if name == "offsetof":
+            let tv = arg else return
+            let fv = second else return
+            try self.put("((size_t)offsetof(")
+            try self.put_type(try self.map(tv.type_id))
+            try self.put(", ")
+            try self.put(try self.field(fv.text))
+            try self.put("))")
+            return
+        try self.put("0")

@@ -1,0 +1,283 @@
+#==============================================================================================
+#
+#   emit/access - Members, indexes, and slices
+#
+#   DESCRIPTION:
+#       Field and module members, `luce.location`, and bounds-checked indexing and slicing.
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Members, indexes, and slices =======================================================
+
+    mutating func member(e: ast.Node*) -> !:
+        let owner = e.left else return
+        if let d = e.resolved:
+            if d.kind == ast.Kind.enum_case:
+                try self.enum_value(e)
+                return
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
+                try self.method_value(e, owner, d)
+                return
+            if d.kind == ast.Kind.constant and self.folding and not ast.is_linked(d):
+                # `other.flag` in a file-scope initialiser: the constant's value stands in for
+                # its name, as it does unqualified (§6.4)
+                if let init = d.left:
+                    try self.constant_in_place(init, d.type_id)
+                    return
+            if d.kind == ast.Kind.constant or d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var:
+                try self.put_global_name(d)
+                return
+        let ot = try self.ty(owner)
+        if self.kind(ot) == types.Kind.module:
+            try self.module_member(e, ot)
+            return
+        let raw = self.elem(ot) if self.is_ptr(ot) else ot
+        let through_ptr = self.is_ptr(ot)
+        if e.text == "length" and (raw == types.str_id or self.is_span(raw)):
+            try self.put("(")
+            try self.expr(owner)
+            try self.put("->length)" if through_ptr else ".length)")
+            return
+        if e.text == "length" and self.is_array(raw):
+            try self.put_u64(self.c.table.get(raw).length)
+            try self.put("ULL")
+            return
+        if e.text == "data" and (raw == types.str_id or self.is_span(raw)):
+            try self.put("((")
+            try self.put_type(try self.ty(e))
+            try self.put(")(")
+            try self.expr(owner)
+            try self.put("->data))" if through_ptr else ".data))")
+            return
+        if e.text == "bytes" and raw == types.str_id:
+            try self.put("((lb_cspan){(void*)(")
+            try self.expr(owner)
+            try self.put("->data), " if through_ptr else ".data), ")
+            try self.expr(owner)
+            try self.put("->length})" if through_ptr else ".length})")
+            return
+        if raw == types.error_value_id:
+            try self.put("(")
+            try self.expr(owner)
+            try self.put("->" if through_ptr else ".")
+            try self.put(try self.field(e.text))
+            try self.put(")")
+            return
+        if self.is_tuple(raw):
+            try self.put("(")
+            try self.expr(owner)
+            try self.put("->a" if through_ptr else ".a")
+            try self.put(try self.field(e.text))
+            try self.put(")")
+            return
+        if owner.kind == ast.Kind.self_:
+            try self.put("self->")
+            try self.put(try self.field(e.text))
+            return
+        if through_ptr:
+            try self.put("(")
+            try self.expr(owner)
+            try self.put(")->")
+            try self.put(try self.field(e.text))
+            return
+        try self.expr(owner)
+        try self.put(".")
+        try self.put(try self.field(e.text))
+
+    ## `luce.file`, `luce.line`, `luce.function`, `luce.location`, and a module's constants.
+    mutating func module_member(e: ast.Node*, module_type: u32) -> !:
+        let m = self.decl_of(module_type) else return try self.put("0")
+        if m.text == "luce":
+            if e.text == "location":
+                try self.location_value(e)
+            elif e.text == "file":
+                try self.put_str_literal(self.source_of_current())
+            elif e.text == "line":
+                try self.put_u64((u64)e.line)
+                try self.put("u")
+            else:
+                try self.function_name_literal()
+            return
+        try self.put_ident(e.text)
+
+    mutating func location_value(e: ast.Node*) -> !:
+        try self.put("((lb_io_Location){ .file = ")
+        try self.put_str_literal(self.source_of_current())
+        try self.put(", .line = ")
+        try self.put_u64((u64)e.line)
+        try self.put("u, .function = ")
+        try self.function_name_literal()
+        try self.put(" })")
+
+    ## The path of the file the current function came from; the entry's when unknown.
+    func source_of_current() -> str:
+        let f = self.current_fn else return self.src_file
+        let m = f.resolved else return self.src_file
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if module.tree == m:
+                return module.src.path
+            i += 1
+        return self.src_file
+
+    mutating func function_name_literal() -> !:
+        let f = self.current_fn else return try self.put_str_literal("")
+        try self.put_str_literal(f.text)
+
+    mutating func index(e: ast.Node*) -> !:
+        try self.index_at(e, false)
+
+    ## `owner[i]`; under `&` the index may equal the length, C's one past the end (§7.7).
+    mutating func index_at(e: ast.Node*, one_past: bool) -> !:
+        let owner = e.left else return
+        let i = e.body else return
+        let ot = try self.ty(owner)
+        let slack: u64 = 1 if one_past else 0
+        if self.is_array(ot):
+            let length = self.c.table.get(ot).length
+            if i.kind == ast.Kind.literal and i.text.bytes[0] != '\'' and (try literals.decode_integer(i.text)) < length + slack:
+                # a literal in range needs no check, and stays a constant expression (§6.4)
+                try self.put("((")
+                try self.expr(owner)
+                try self.put(").d[")
+                try self.put_u64(try literals.decode_integer(i.text))
+                try self.put("])")
+                return
+            try self.put("((")
+            try self.expr(owner)
+            try self.put(").d[lb_at((uint64_t)(")
+            try self.expr(i)
+            try self.put("), ")
+            try self.put_u64(length + slack)
+            try self.put("ULL)])")
+            return
+        if self.is_span(ot):
+            # the span is read once: its data for the element and its length for the check,
+            # so a call that produces it runs once (§7.1)
+            let n = self.tmp()
+            try self.put("(*({ ")
+            try self.put_type(ot)
+            try self.put(" ")
+            try self.put_tmp("ix", n)
+            try self.put(" = ")
+            try self.expr(owner)
+            try self.put("; &((")
+            try self.put_type(self.elem(ot))
+            try self.put("*)")
+            try self.put_tmp("ix", n)
+            try self.put(".data)[lb_at((uint64_t)(")
+            try self.expr(i)
+            try self.put("), ")
+            try self.put_tmp("ix", n)
+            try self.put(".length + 1ULL)]; }))" if one_past else ".length)]; }))")
+            return
+        if self.is_ptr(ot):
+            # element-scaled by the pointee, an array included (§7.7)
+            try self.put("((")
+            try self.expr(owner)
+            try self.put(")[")
+            try self.expr(i)
+            try self.put("])")
+            return
+        try self.put("0")
+
+    mutating func slice(e: ast.Node*) -> !:
+        let owner = e.left else return
+        let ot = try self.ty(owner)
+        let n = self.tmp()
+        let result = try self.ty(e)
+        try self.put("({ ")
+        if self.is_array(ot):
+            # read through `const`, since the array may sit behind a `const` pointer; the
+            # span's data pointer casts it away below, as the checker allowed
+            try self.put("const ")
+            try self.put_type(ot)
+            try self.put("* ")
+            try self.put_tmp("sp", n)
+            try self.put(" = ")
+            if self.is_place(owner):
+                try self.put("&(")
+                try self.place(owner)
+                try self.put(")")
+            else:
+                # an array a call returned, say: sliced from a temporary that lives as long
+                # as the function's own locals, as the native backend's does
+                try self.address(owner)
+            try self.put("; size_t ")
+            try self.put_tmp("sn", n)
+            try self.put(" = ")
+            try self.put_u64(self.c.table.get(ot).length)
+            try self.put("ULL; ")
+            try self.put_type(self.elem(ot))
+            try self.put("* ")
+            try self.put_tmp("sd", n)
+            try self.put(" = (")
+            try self.put_type(self.elem(ot))
+            try self.put("*)(")
+            try self.put_tmp("sp", n)
+            try self.put("->d); ")
+        else:
+            try self.put("lb_span ")
+            try self.put_tmp("sv", n)
+            try self.put(" = ")
+            try self.expr(owner)
+            try self.put("; size_t ")
+            try self.put_tmp("sn", n)
+            try self.put(" = ")
+            try self.put_tmp("sv", n)
+            try self.put(".length; ")
+            try self.put_type(self.elem(ot))
+            try self.put("* ")
+            try self.put_tmp("sd", n)
+            try self.put(" = (")
+            try self.put_type(self.elem(ot))
+            try self.put("*)")
+            try self.put_tmp("sv", n)
+            try self.put(".data; ")
+        try self.put("size_t ")
+        try self.put_tmp("ss", n)
+        try self.put(" = ")
+        if let start = e.body:
+            try self.put("(size_t)(")
+            try self.value(start, types.usize_id)
+            try self.put(")")
+        else:
+            try self.put("0")
+        try self.put("; size_t ")
+        try self.put_tmp("se", n)
+        try self.put(" = ")
+        if let end = e.right:
+            try self.put("(size_t)(")
+            try self.value(end, types.usize_id)
+            try self.put(")")
+        else:
+            try self.put_tmp("sn", n)
+        try self.put("; lb_check_index(")
+        try self.put_tmp("ss", n)
+        try self.put(", ")
+        try self.put_tmp("sn", n)
+        try self.put(" + 1); lb_check_index(")
+        try self.put_tmp("se", n)
+        try self.put(", ")
+        try self.put_tmp("sn", n)
+        try self.put(" + 1); if (")
+        try self.put_tmp("ss", n)
+        try self.put(" > ")
+        try self.put_tmp("se", n)
+        try self.put(") lb_trap(\"index out of bounds\"); (")
+        # the address as an integer: a zero span (its data null) sliced from 0 stays null
+        # with no arithmetic on a null pointer, which C leaves undefined (UBSan's
+        # "applying zero offset to null pointer"); clang compiles it to the same add
+        try self.put_type(result)
+        try self.put("){ (void*)((uintptr_t)")
+        try self.put_tmp("sd", n)
+        try self.put(" + ")
+        try self.put_tmp("ss", n)
+        try self.put(" * sizeof(*")
+        try self.put_tmp("sd", n)
+        try self.put(")), ")
+        try self.put_tmp("se", n)
+        try self.put(" - ")
+        try self.put_tmp("ss", n)
+        try self.put(" }; })")

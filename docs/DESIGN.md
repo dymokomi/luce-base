@@ -54,7 +54,7 @@ subdirectory keeps a generated module of its own beside it.
 | `support.cache` | the build cache (§19.7): every source read is noted, the key hashes them (named relative to the project root, unless the build records its directory) with the target, flags and the compiler's bytes, and an object is kept and found under it |
 | `sema.check` | names, types, and effects; writes `type_id` and `resolved` onto the tree |
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
-| `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |
+| `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract; a directory of fragments, one per concern (types, statements, operators, calls, …) |
 | `back.ir.ir` | the intermediate form: functions of blocks of typed instructions |
 | `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit` |
 | `back.native.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |

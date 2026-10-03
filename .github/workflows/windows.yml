@@ -57,8 +57,8 @@ jobs:
       - name: Compiler unit tests
         run: |
           set -eo pipefail
-          for f in $(find src -type f -name '*.lucb' ! -path 'src/std/*' | LC_ALL=C sort) tests/programs/*/*.lucb; do
-            if grep -q '^test "' "$f"; then
+          for f in $(./tools/compiler_modules.sh) tests/programs/*/*.lucb; do
+            if grep -rq '^test "' "$f"; then
               echo "== test $f"
               ./build/luce-base.exe test "$f" --backend=c | tail -1
               ./build/luce-base.exe test "$f" --native | tail -1

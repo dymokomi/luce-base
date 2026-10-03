@@ -1,0 +1,530 @@
+#==============================================================================================
+#
+#   emit/standard - Standard modules and memory
+#
+#   DESCRIPTION:
+#       Standard module calls mapped onto the runtime (§16.6), and allocation, `free`, and
+#       the `memory` module (§12).
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Standard modules ===================================================================
+
+    ## The standard calls no Base body can express: `atomic.fence` and the C streams.
+    mutating func std_call(e: ast.Node*, module: str, name: str, d: ast.Node*) -> !:
+        if module == "atomic" and name == "fence":
+            let first = e.body else return try self.put("((void)0)")
+            let order = first.left else return try self.put("((void)0)")
+            if order.text == "signal":
+                try self.put("({ __asm__ volatile(\"\" ::: \"memory\"); (void)0; })")
+                return
+            try self.put("(atomic_thread_fence(")
+            try self.memory_order(order)
+            try self.put("))")
+            return
+        if module == "c" and (name == "stdin" or name == "stdout" or name == "stderr"):
+            try self.put("((void*)")
+            try self.put(name)
+            try self.put(")")
+            return
+        try self.direct_call(e, d, none, try types.no_args())
+
+    mutating func receiver_address(receiver: ast.Node*, through_ptr: bool) -> !:
+        if through_ptr:
+            try self.expr(receiver)
+        else:
+            try self.address(receiver)
+
+    ## `atomic.Ordering` case to a C memory order.
+    mutating func memory_order(e: ast.Node*) -> !:
+        var name = e.text
+        if e.kind == ast.Kind.member:
+            name = e.text
+        if name == "relaxed":
+            try self.put("memory_order_relaxed")
+        elif name == "acquire":
+            try self.put("memory_order_acquire")
+        elif name == "release":
+            try self.put("memory_order_release")
+        elif name == "acq_rel":
+            try self.put("memory_order_acq_rel")
+        else:
+            try self.put("memory_order_seq_cst")
+
+    ## The operations of `@T` (§15.1).
+    mutating func atomic_call(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, through_ptr: bool) -> !:
+        let name = callee.text
+        let et = self.elem(rt)
+        var args: MaybeNode[5]
+        var count: usize = 0
+        var cursor = e.body
+        while let a = cursor:
+            if count < 5:
+                args[count] = a.left
+            count += 1
+            cursor = a.next
+        let n = self.tmp()
+        if name == "load":
+            try self.put("((")
+            try self.put_type(et)
+            try self.put(")atomic_load_explicit(")
+            try self.receiver_address(receiver, through_ptr)
+            try self.put(", ")
+            if let o = args[0]:
+                try self.memory_order(o)
+            else:
+                try self.put("memory_order_seq_cst")
+            try self.put("))")
+            return
+        if name == "store":
+            let v = args[0] else return
+            try self.put("(atomic_store_explicit(")
+            try self.receiver_address(receiver, through_ptr)
+            try self.put(", (")
+            try self.put_type(et)
+            try self.put(")(")
+            try self.value(v, et)
+            try self.put("), ")
+            if let o = args[1]:
+                try self.memory_order(o)
+            else:
+                try self.put("memory_order_seq_cst")
+            try self.put("), (void)0)")
+            return
+        if name == "wait":
+            let v = args[0] else return
+            try self.put("({ while (atomic_load_explicit(")
+            try self.receiver_address(receiver, through_ptr)
+            try self.put(", memory_order_seq_cst) == (")
+            try self.put_type(et)
+            try self.put(")(")
+            try self.value(v, et)
+            try self.put(")) { lb_pause(); } (void)0; })")
+            return
+        if name == "wake":
+            let v = args[0] else return
+            try self.put("((void)(")
+            try self.expr(v)
+            try self.put("))")
+            return
+        if name == "cas":
+            let expected = args[0] else return
+            let desired = args[1] else return
+            let result = try self.ty(e)
+            try self.put("({ ")
+            try self.put_type(et)
+            try self.put(" ")
+            try self.put_tmp("ce", n)
+            try self.put(" = (")
+            try self.put_type(et)
+            try self.put(")(")
+            try self.value(expected, et)
+            try self.put("); bool ")
+            try self.put_tmp("co", n)
+            try self.put("; if (")
+            if let weak_flag = args[4]:
+                try self.value(weak_flag, types.bool_id)
+            else:
+                try self.put("0")
+            try self.put(") { ")
+            try self.put_tmp("co", n)
+            try self.put(" = atomic_compare_exchange_weak_explicit(")
+            try self.receiver_address(receiver, through_ptr)
+            try self.put(", &")
+            try self.put_tmp("ce", n)
+            try self.put(", (")
+            try self.put_type(et)
+            try self.put(")(")
+            try self.value(desired, et)
+            try self.put("), ")
+            if let o = args[2]:
+                try self.memory_order(o)
+            else:
+                try self.put("memory_order_seq_cst")
+            try self.put(", ")
+            if let o = args[3]:
+                try self.memory_order(o)
+            else:
+                try self.put("memory_order_seq_cst")
+            try self.put("); } else { ")
+            try self.put_tmp("co", n)
+            try self.put(" = atomic_compare_exchange_strong_explicit(")
+            try self.receiver_address(receiver, through_ptr)
+            try self.put(", &")
+            try self.put_tmp("ce", n)
+            try self.put(", (")
+            try self.put_type(et)
+            try self.put(")(")
+            try self.value(desired, et)
+            try self.put("), ")
+            if let o = args[2]:
+                try self.memory_order(o)
+            else:
+                try self.put("memory_order_seq_cst")
+            try self.put(", ")
+            if let o = args[3]:
+                try self.memory_order(o)
+            else:
+                try self.put("memory_order_seq_cst")
+            try self.put("); } (")
+            try self.put_type(result)
+            try self.put("){ ")
+            try self.put_tmp("co", n)
+            try self.put(", ")
+            try self.put_tmp("ce", n)
+            try self.put(" }; })")
+            return
+        let v = args[0] else return
+        if name == "max" or name == "min":
+            try self.put("({ ")
+            try self.put_type(et)
+            try self.put(" ")
+            try self.put_tmp("mo", n)
+            try self.put(" = atomic_load_explicit(")
+            try self.receiver_address(receiver, through_ptr)
+            try self.put(", memory_order_seq_cst); ")
+            try self.put_type(et)
+            try self.put(" ")
+            try self.put_tmp("mn", n)
+            try self.put(" = (")
+            try self.put_type(et)
+            try self.put(")(")
+            try self.value(v, et)
+            try self.put("); for (;;) { ")
+            try self.put_type(et)
+            try self.put(" _w = (")
+            try self.put_tmp("mo", n)
+            try self.put(" >= " if name == "max" else " <= ")
+            try self.put_tmp("mn", n)
+            try self.put(") ? ")
+            try self.put_tmp("mo", n)
+            try self.put(" : ")
+            try self.put_tmp("mn", n)
+            try self.put("; if (atomic_compare_exchange_weak_explicit(")
+            try self.receiver_address(receiver, through_ptr)
+            try self.put(", &")
+            try self.put_tmp("mo", n)
+            try self.put(", _w, memory_order_seq_cst, memory_order_seq_cst)) break; } ")
+            try self.put_tmp("mo", n)
+            try self.put("; })")
+            return
+        try self.put("((")
+        try self.put_type(et)
+        try self.put(")")
+        if name == "sub":
+            try self.put("atomic_fetch_sub_explicit(")
+        elif name == "set":
+            try self.put("atomic_fetch_or_explicit(")
+        elif name == "clear":
+            try self.put("atomic_fetch_and_explicit(")
+        elif name == "flip":
+            try self.put("atomic_fetch_xor_explicit(")
+        elif name == "swap":
+            try self.put("atomic_exchange_explicit(")
+        else:
+            try self.put("atomic_fetch_add_explicit(")
+        try self.receiver_address(receiver, through_ptr)
+        try self.put(", (")
+        try self.put_type(et)
+        try self.put(")(")
+        if name == "clear":
+            try self.put("~(")
+            try self.value(v, et)
+            try self.put(")")
+        else:
+            try self.value(v, et)
+        try self.put("), ")
+        if let o = args[1]:
+            try self.memory_order(o)
+        else:
+            try self.put("memory_order_seq_cst")
+        try self.put("))")
+
+    # mark: Memory =============================================================================
+
+    ## The allocator view for `in x` and `with x`, or the current allocator.
+    mutating func allocator_of(e: ast.Node*?) -> !:
+        let a = e else return try self.put("lb_memory_allocator")
+        try self.allocator_view(a)
+
+    mutating func allocator_view(e: ast.Node*) -> !:
+        let t = try self.ty(e)
+        if self.is_iface(t):
+            try self.expr(e)
+            return
+        let target = self.elem(t) if self.is_ptr(t) else t
+        if self.is_ptr(t):
+            try self.iface_view(e, target, try self.allocator_iface())
+            return
+        # a `var` record: take its address
+        let i = self.decl_of(try self.allocator_iface()) else return try self.expr(e)
+        try self.put("((lb_iface){ (void*)(&(")
+        try self.place(e)
+        try self.put(")), &lb_vt_")
+        try self.put_mangled(target)
+        try self.put("_")
+        try self.put(i.text)
+        try self.put(" })")
+        try self.note_vtable(target, try self.allocator_iface())
+
+    ## The `Allocator` interface type from the prelude.
+    mutating func allocator_iface() -> u32!:
+        let mi = self.c.find_module("memory") else return types.none_id
+        let m = self.c.modules.get(mi).tree
+        let d = check.find_decl(m, "Allocator") else return types.none_id
+        return d.type_id
+
+    ## The failing result for exhaustion.
+    mutating func exhausted(result: u32) -> !:
+        try self.put("((")
+        try self.put_type(result)
+        try self.put("){ .error = { .code = ")
+        try self.put_u64(check.exhausted_code())
+        try self.put(", .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true })")
+
+    mutating func new_expr(e: ast.Node*) -> !:
+        self.site_line = e.line
+        let t = e.ty else return
+        let result = try self.ty(e)
+        let payload = self.elem(result)
+        try self.note(result)
+        let n = self.tmp()
+        try self.put("({ lb_iface ")
+        try self.put_tmp("a", n)
+        try self.put(" = ")
+        try self.allocator_of(e.right)
+        try self.put("; ")
+        if self.is_span(payload):
+            let count = t.right else return
+            try self.counted_allocation(n, payload, count, result, true)
+            return
+        let et = self.elem(payload)
+        try self.put_block_type()
+        try self.put(" ")
+        try self.put_tmp("ao", n)
+        try self.put(" = lb_alloc_call(")
+        try self.put_tmp("a", n)
+        try self.put(", sizeof(")
+        try self.put_type(et)
+        try self.put("), _Alignof(")
+        try self.put_type(et)
+        try self.put(")); ")
+        try self.put_type(result)
+        try self.put(" ")
+        try self.put_tmp("r", n)
+        try self.put("; if (!")
+        try self.put_tmp("ao", n)
+        try self.put(".present) { ")
+        try self.put_tmp("r", n)
+        try self.put(" = ")
+        try self.exhausted(result)
+        try self.put("; } else { ")
+        try self.put_type(et)
+        try self.put("* ")
+        try self.put_tmp("p", n)
+        try self.put(" = (")
+        try self.put_type(et)
+        try self.put("*)")
+        try self.put_tmp("ao", n)
+        try self.put(".value.data; ")
+        var failed_init = false
+        if let init = e.initializer():
+            let native_type = self.c.table.get(et)
+            var fn = try self.map(init.type_id)
+            if let declaration = native_type.decl:
+                fn = try self.c.substitute(fn, declaration, native_type.args)
+            discard(try self.add_func(init, try types.no_args(), native_type.decl, native_type.args))
+            try self.put("memset(")
+            try self.put_tmp("p", n)
+            try self.put(", 0, sizeof(")
+            try self.put_type(et)
+            try self.put(")); ")
+            failed_init = init.has(ast.flag_fallible)
+            if failed_init:
+                try self.put("lb_r_unit ")
+                try self.put_tmp("init", n)
+                try self.put(" = ")
+            let hoisted = try self.begin_sequence(e.body, fn, init)
+            try self.put_func_name(init, try types.no_args(), native_type.decl, native_type.args)
+            try self.put("(")
+            try self.put_tmp("p", n)
+            if init.right != none:
+                try self.put(", ")
+                try self.arguments(e.body, fn, init, try types.no_args())
+            try self.put(")")
+            try self.end_sequence(hoisted)
+            try self.put("; ")
+            if failed_init:
+                try self.put("if (")
+                try self.put_tmp("init", n)
+                try self.put(".failed) { ")
+                try self.put_tmp("r", n)
+                try self.put(".failed = true; ")
+                try self.put_tmp("r", n)
+                try self.put(".error = ")
+                try self.put_tmp("init", n)
+                try self.put(".error; lb_release_call(")
+                try self.put_tmp("a", n)
+                try self.put(", ")
+                try self.put_tmp("ao", n)
+                try self.put(".value); } else { ")
+        elif let body = e.body:
+            try self.put("*")
+            try self.put_tmp("p", n)
+            try self.put(" = ")
+            if body.kind == ast.Kind.case_value:
+                try self.enum_value(body)
+            else:
+                try self.constructor(e, et)
+            try self.put("; ")
+        elif e.text == "()":
+            try self.put("*")
+            try self.put_tmp("p", n)
+            try self.put(" = ")
+            try self.constructor(e, et)
+            try self.put("; ")
+        else:
+            try self.put("memset(")
+            try self.put_tmp("p", n)
+            try self.put(", 0, sizeof(")
+            try self.put_type(et)
+            try self.put(")); ")
+        try self.put_tmp("r", n)
+        try self.put(".value = ")
+        try self.put_tmp("p", n)
+        try self.put("; ")
+        try self.put_tmp("r", n)
+        try self.put(".failed = false; ")
+        if failed_init:
+            try self.put("} ")
+        try self.put("} ")
+        try self.put_tmp("r", n)
+        try self.put("; })")
+
+    ## `count` elements of a span payload, zeroed when `zero`; closes the statement expression.
+    mutating func counted_allocation(n: u32, payload: u32, count: ast.Node*, result: u32, zero: bool) -> !:
+        let et = self.elem(payload)
+        try self.put("size_t ")
+        try self.put_tmp("n", n)
+        try self.put(" = (size_t)(")
+        try self.value(count, types.usize_id)
+        try self.put("); ")
+        try self.put_type(result)
+        try self.put(" ")
+        try self.put_tmp("r", n)
+        try self.put("; if (")
+        try self.put_tmp("n", n)
+        try self.put(" > UINT64_C(")
+        let stride = self.c.table.size_of(et)
+        try self.put_u64(18446744073709551615 if stride == 0 else 4611686018427387904 // stride)
+        try self.put(")")
+        try self.put(") { ")
+        try self.put_tmp("r", n)
+        try self.put(" = ")
+        try self.exhausted(result)
+        try self.put("; } else { size_t ")
+        try self.put_tmp("bytes", n)
+        try self.put(" = sizeof(")
+        try self.put_type(et)
+        try self.put(") * ")
+        try self.put_tmp("n", n)
+        try self.put("; ")
+        try self.put_block_type()
+        try self.put(" ")
+        try self.put_tmp("ao", n)
+        try self.put(" = lb_alloc_call(")
+        try self.put_tmp("a", n)
+        try self.put(", ")
+        try self.put_tmp("bytes", n)
+        try self.put(", _Alignof(")
+        try self.put_type(et)
+        try self.put(")); if (")
+        try self.put_tmp("bytes", n)
+        try self.put(" != 0 && !")
+        try self.put_tmp("ao", n)
+        try self.put(".present) { ")
+        try self.put_tmp("r", n)
+        try self.put(" = ")
+        try self.exhausted(result)
+        try self.put("; } else { ")
+        if zero:
+            try self.put("if (")
+            try self.put_tmp("ao", n)
+            try self.put(".value.data != NULL) memset(")
+            try self.put_tmp("ao", n)
+            try self.put(".value.data, 0, ")
+            try self.put_tmp("bytes", n)
+            try self.put("); ")
+        try self.note_allocation(n, "bytes")
+        try self.put_tmp("r", n)
+        try self.put(".value.data = ")
+        try self.put_tmp("ao", n)
+        try self.put(".value.data; ")
+        try self.put_tmp("r", n)
+        try self.put(".value.length = ")
+        try self.put_tmp("n", n)
+        try self.put("; ")
+        try self.put_tmp("r", n)
+        try self.put(".failed = false; } } ")
+        try self.put_tmp("r", n)
+        try self.put("; })")
+
+    mutating func alloc_expr(e: ast.Node*) -> !:
+        self.site_line = e.line
+        let result = try self.ty(e)
+        let payload = self.elem(result)
+        try self.note(result)
+        let n = self.tmp()
+        try self.put("({ lb_iface ")
+        try self.put_tmp("a", n)
+        try self.put(" = ")
+        try self.allocator_of(e.right)
+        try self.put("; ")
+        if let t = e.ty:
+            let count = t.right else return
+            try self.counted_allocation(n, payload, count, result, false)
+            return
+        let first = e.body else return
+        let size = first.left else return
+        let second = first.next else return
+        let align = second.left else return
+        try self.put("size_t ")
+        try self.put_tmp("sz", n)
+        try self.put(" = (size_t)(")
+        try self.value(size, types.usize_id)
+        try self.put("); size_t ")
+        try self.put_tmp("al", n)
+        try self.put(" = (size_t)(")
+        try self.value(align, types.usize_id)
+        try self.put("); ")
+        try self.put_block_type()
+        try self.put(" ")
+        try self.put_tmp("ao", n)
+        try self.put(" = lb_alloc_call(")
+        try self.put_tmp("a", n)
+        try self.put(", ")
+        try self.put_tmp("sz", n)
+        try self.put(", ")
+        try self.put_tmp("al", n)
+        try self.put("); ")
+        try self.note_allocation(n, "sz")
+        try self.put_type(result)
+        try self.put(" ")
+        try self.put_tmp("r", n)
+        try self.put("; if (")
+        try self.put_tmp("sz", n)
+        try self.put(" != 0 && !")
+        try self.put_tmp("ao", n)
+        try self.put(".present) { ")
+        try self.put_tmp("r", n)
+        try self.put(" = ")
+        try self.exhausted(result)
+        try self.put("; } else { ")
+        try self.put_tmp("r", n)
+        try self.put(".value = ")
+        try self.put_tmp("ao", n)
+        try self.put(".value; ")
+        try self.put_tmp("r", n)
+        try self.put(".failed = false; } ")
+        try self.put_tmp("r", n)
+        try self.put("; })")

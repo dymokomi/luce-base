@@ -43,12 +43,17 @@ python3 tools/shape.py --check
 # the standard library under src/std is checked as the prelude, not as modules of its own
 # Source paths in this repository contain no whitespace. Discover recursively so
 # reorganizing compiler modules cannot silently remove them from the gate.
+# Each file lexes and parses on its own; a module, a file or a fragment directory (§16.1),
+# is what checks and runs its tests (tools/compiler_modules.sh).
 compiler_sources=$(find src -type f -name '*.lucb' ! -path 'src/std/*' | LC_ALL=C sort)
+compiler_modules=$(./tools/compiler_modules.sh)
 for f in tests/samples/*.lucb $compiler_sources tests/programs/*/*.lucb; do
-    case "$f" in src/std/*) continue;; esac
     echo "== $f"
     ./build/luce-base lex "$f" > /dev/null
     ./build/luce-base parse "$f" > /dev/null
+done
+for f in tests/samples/*.lucb $compiler_modules tests/programs/*/*.lucb; do
+    echo "== check $f"
     ./build/luce-base check "$f"
 done
 # every source of the compiler and the standard library is in the canonical layout (§19.6):
@@ -66,9 +71,8 @@ for f in tests/samples/*.expect; do
 done
 rm -f build/sample build/sample.out
 # every module's tests run through both backends: the two executions must agree
-for f in $compiler_sources tests/programs/*/*.lucb; do
-    case "$f" in src/std/*) continue;; esac
-    if grep -q '^test "' "$f"; then
+for f in $compiler_modules tests/programs/*/*.lucb; do
+    if grep -rq '^test "' "$f"; then
         echo "== test $f"
         out=$(./build/luce-base test "$f" --backend=c) || { printf '%s\n' "$out"; exit 1; }
         echo "$out" | tail -1

@@ -1,0 +1,512 @@
+#==============================================================================================
+#
+#   emit/branching - Failure and matching
+#
+#   DESCRIPTION:
+#       `try`, `else`, and `catch` over fallible and optional values (§11), and `match` as a
+#       statement and as an expression.
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Failure and matching ===============================================================
+
+    ## `try x`: the value, or the caller's failure returned with cleanup run.
+    mutating func try_expr(e: ast.Node*) -> !:
+        let inner = e.left else return
+        let ft = try self.ty(inner)
+        let payload = self.elem(ft)
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(ft)
+        try self.put(" ")
+        try self.put_tmp("r", n)
+        try self.put(" = ")
+        try self.expr(inner)
+        try self.put("; if (")
+        try self.put_tmp("r", n)
+        try self.put(".failed) {")
+        self.indent += 1
+        if self.failure_target != 0:
+            try self.line("")
+            try self.put_tmp("fe", self.failure_target)
+            try self.put(" = ")
+            try self.put_tmp("r", n)
+            try self.put(".error;")
+            try self.unwind_from(self.failure_scope, true)
+            try self.line("goto ")
+            try self.put_tmp("fh", self.failure_target)
+            try self.put(";")
+        else:
+            try self.unwind_from(0, true)
+            try self.line("return ")
+            if self.fn_fallible():
+                try self.put("((")
+                try self.put_result_type(self.current_fn else return)
+                try self.put("){ .error = ")
+                try self.put_tmp("r", n)
+                try self.put(".error, .failed = true })")
+            else:
+                try self.put_tmp("r", n)
+            try self.put(";")
+        self.indent -= 1
+        try self.line("} ")
+        if payload == types.unit_id or payload == types.never_id:
+            try self.put("(void)0; })")
+        else:
+            try self.put_tmp("r", n)
+            try self.put(".value; })")
+
+    ## `x else y`: the payload of an optional or fallible, or the alternative.
+    mutating func else_expr(e: ast.Node*) -> !:
+        let l = e.left else return
+        let r = e.right else return
+        let lt = try self.ty(l)
+        let payload = self.elem(lt)
+        let n = self.tmp()
+        let leaves = r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_ or is_error_call(r) or is_trap_call(r) or r.type_id == types.never_id
+        try self.put("({ ")
+        try self.put_type(lt)
+        try self.put(" ")
+        try self.put_tmp("o", n)
+        try self.put(" = ")
+        try self.expr(l)
+        try self.put("; ")
+        var present_test = "present"
+        if self.is_fail(lt):
+            try self.put("if (")
+            try self.put_tmp("o", n)
+            try self.put(".failed) ")
+        elif self.is_tagged_opt(lt):
+            try self.put("if (!")
+            try self.put_tmp("o", n)
+            try self.put(".present) ")
+        elif self.is_nullable_view(lt):
+            try self.put("if (")
+            try self.put_tmp("o", n)
+            try self.put(".data == ((void*)0)) ")
+        else:
+            try self.put("if (")
+            try self.put_tmp("o", n)
+            try self.put(" == ((void*)0)) ")
+        if leaves:
+            try self.put("{")
+            self.indent += 1
+            if is_error_call(r):
+                try self.error_return(r)
+            elif r.kind == ast.Kind.return_:
+                try self.return_stmt(r)
+            elif r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_:
+                try self.jump(r)
+            else:
+                try self.line("(void)(")
+                try self.expr(r)
+                try self.put(");")
+            self.indent -= 1
+            try self.line("} ")
+        else:
+            try self.put("{ ")
+            if payload != types.unit_id:
+                try self.put_tmp("o", n)
+                if self.is_fail(lt):
+                    try self.put(".value = ")
+                elif self.is_tagged_opt(lt):
+                    try self.put(".value = ")
+                else:
+                    try self.put(" = ")
+                try self.value(r, payload)
+                try self.put("; ")
+            else:
+                try self.put("(void)(")
+                try self.expr(r)
+                try self.put("); ")
+            try self.put("} ")
+        if payload == types.unit_id or payload == types.never_id:
+            try self.put("(void)0; })")
+        else:
+            try self.put_tmp("o", n)
+            if self.is_fail(lt) or self.is_tagged_opt(lt):
+                try self.put(".value; })")
+            else:
+                try self.put("; })")
+        discard(present_test)
+
+    ## `x catch name:` with its handler as statements.
+    mutating func catch_expr(e: ast.Node*) -> !:
+        let l = e.left else return
+        let body = e.body else return
+        let result = try self.ty(e)
+        let has_value = result != types.unit_id and result != types.never_id
+        let n = self.tmp()
+        let saved_target = self.failure_target
+        let saved_failure_scope = self.failure_scope
+        let saved_var = self.catch_var
+        let saved_done = self.catch_done
+        let saved_scope = self.catch_scope
+        let saved_payload = self.catch_payload
+        let saved_in = self.in_catch
+        try self.put("({ lb_error ")
+        try self.put_tmp("fe", n)
+        try self.put(" __attribute__((unused)); ")
+        try self.put_type(result if has_value else types.i32_id)
+        try self.put(" ")
+        try self.put_tmp("v", n)
+        try self.put(" __attribute__((unused)) = ")
+        try self.zero_value(result if has_value else types.i32_id)
+        try self.put("; ")
+        if has_value:
+            try self.put_tmp("v", n)
+            try self.put(" = ")
+        self.failure_target = n
+        self.failure_scope = self.scopes.count
+        if has_value:
+            try self.value(l, result)
+        else:
+            try self.put("(void)(")
+            try self.expr(l)
+            try self.put(")")
+        self.failure_target = saved_target
+        self.failure_scope = saved_failure_scope
+        try self.put("; goto ")
+        try self.put_tmp("cd", n)
+        try self.put("; ")
+        try self.put_tmp("fh", n)
+        try self.put(": { ")
+        self.indent += 1
+        if e.text.length > 0:
+            try self.line("lb_error ")
+            try self.put_ident(e.text)
+            try self.put(" __attribute__((unused)) = ")
+            try self.put_tmp("fe", n)
+            try self.put(";")
+        self.catch_var = n
+        self.catch_done = n
+        self.catch_scope = self.scopes.count
+        self.catch_payload = result
+        self.in_catch = true
+        try self.block(body)
+        self.catch_var = saved_var
+        self.catch_done = saved_done
+        self.catch_scope = saved_scope
+        self.catch_payload = saved_payload
+        self.in_catch = saved_in
+        self.indent -= 1
+        try self.line("} ")
+        try self.put_tmp("cd", n)
+        try self.put(": __attribute__((unused)); ")
+        if has_value:
+            try self.put_tmp("v", n)
+            try self.put("; })")
+        else:
+            try self.put("(void)0; })")
+
+    # -- match ----------------------------------------------------------------------------
+
+    ## `match` as a statement (`dest` 0) or filling the expression temporary `dest`.
+    mutating func match_stmt(m: ast.Node*, dest: u32) -> !:
+        let scrutinee = m.left else return
+        let st = try self.ty(scrutinee)
+        let n = self.tmp()
+        try self.line("")
+        try self.put_type(st)
+        try self.put(" ")
+        try self.put_tmp("m", n)
+        # `match true:` with guarded `_` arms never reads its subject; C must not object
+        try self.put(" __attribute__((unused)) = ")
+        try self.value(scrutinee, st)
+        try self.put(";")
+        # a guarded arm may repeat a value or a `_`, which C's `switch` cannot: those go to the chain
+        if (self.is_int(st) or self.is_int_enum(st) or st == types.bool_id or st == types.char_id) and not has_guard(m):
+            try self.line("switch ((int64_t)(")
+            try self.put_tmp("m", n)
+            try self.put(")) {")
+            self.indent += 1
+            var arm = m.body
+            while let a = arm:
+                var pattern = a.left
+                while let p = pattern:
+                    if p.has(ast.flag_wildcard):
+                        try self.line("default:")
+                    elif let v = p.left:
+                        if let resolved = v.resolved:
+                            if resolved.kind == ast.Kind.enum_case:
+                                let d = self.decl_of(st) else return
+                                # The switch is on int64_t: a case is its signed value, and
+                                # INT64_MIN has no literal of its own in C.
+                                let signed = (i64)types.case_value(d, resolved)
+                                try self.line("case ")
+                                if signed == -9223372036854775807 - 1:
+                                    try self.put("(-9223372036854775807LL - 1)")
+                                else:
+                                    try self.put_i64(signed)
+                                    try self.put("LL")
+                                try self.put(":")
+                                pattern = p.next
+                                continue
+                        if let hi = p.right:
+                            try self.line("case ")
+                            try self.value(v, st)
+                            try self.put(" ... ")
+                            if p.text == "..<":
+                                try self.put("(")
+                                try self.value(hi, st)
+                                try self.put(" - 1)")
+                            else:
+                                try self.value(hi, st)
+                            try self.put(":")
+                        else:
+                            try self.line("case ")
+                            try self.value(v, st)
+                            try self.put(":")
+                    pattern = p.next
+                try self.arm_body(a, dest, n, true)
+                arm = a.next
+            self.indent -= 1
+            try self.line("}")
+            return
+        # a guarded arm may repeat a case, which C's `switch` cannot: those go to the chain
+        if self.kind(st) == types.Kind.enum_ and not has_guard(m):
+            let d = self.decl_of(st) else return
+            try self.line("switch ((int)(")
+            try self.put_tmp("m", n)
+            try self.put(".tag)) {")
+            self.indent += 1
+            var arm = m.body
+            while let a = arm:
+                var pattern = a.left
+                var payload_pattern: ast.Node*? = none
+                while let p = pattern:
+                    if p.has(ast.flag_wildcard):
+                        try self.line("default:")
+                    elif let v = p.left:
+                        if let resolved = v.resolved:
+                            try self.line("case ")
+                            try self.put_u64((u64)case_tag(d, resolved))
+                            try self.put(":")
+                            if v.body != none:
+                                payload_pattern = p
+                    pattern = p.next
+                try self.line("{")
+                self.indent += 1
+                if let p = payload_pattern:
+                    if let v = p.left:
+                        if let resolved = v.resolved:
+                            var name = v.body
+                            var param = resolved.body
+                            while let nm = name:
+                                let q = param else break
+                                if nm.text != "_":
+                                    try self.line("")
+                                    try self.put_type(try self.map(nm.type_id))
+                                    try self.put(" ")
+                                    try self.put_ident(nm.text)
+                                    try self.put(" __attribute__((unused)) = ")
+                                    try self.put_tmp("m", n)
+                                    try self.put(".u.")
+                                    try self.put(try self.field(resolved.text))
+                                    try self.put(".")
+                                    try self.put(try self.field(q.text))
+                                    try self.put(";")
+                                name = nm.next
+                                param = q.next
+                try self.arm_body(a, dest, n, false)
+                if a.right == none:
+                    try self.line("break;")
+                self.indent -= 1
+                try self.line("}")
+                arm = a.next
+            self.indent -= 1
+            try self.line("}")
+            return
+        # text, pointers, and everything else: a chain of tests
+        var first = true
+        var arm = m.body
+        while let a = arm:
+            try self.line("")
+            if not first:
+                try self.put("else ")
+            first = false
+            try self.put("if (")
+            var any = false
+            var pattern = a.left
+            while let p = pattern:
+                if any:
+                    try self.put(" || ")
+                any = true
+                if p.has(ast.flag_wildcard):
+                    try self.put("1")
+                elif let v = p.left:
+                    # `!!` keeps clang from seeing an `==` in doubled parentheses
+                    try self.put("(!!(")
+                    if v.kind == ast.Kind.case_value and v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st) or self.is_nullable_view(st)):
+                        # `.some` and `.none` test the optional's presence (§8.4)
+                        if v.text == "none":
+                            try self.put("!")
+                        try self.put_tmp("m", n)
+                        if self.is_tagged_opt(st):
+                            try self.put(".present")
+                        elif self.is_nullable_view(st):
+                            try self.put(".data")
+                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_ and self.is_int_enum(st):
+                        # an integer-backed enum is its representation: compare the value
+                        let d = self.decl_of(st) else return
+                        let resolved = v.resolved else return
+                        try self.put_tmp("m", n)
+                        try self.put(" == (")
+                        try self.put_type(st)
+                        try self.put(")")
+                        try self.put_u64(types.case_value(d, resolved))
+                        try self.put("ull")
+                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_:
+                        let d = self.decl_of(st) else return
+                        let resolved = v.resolved else return
+                        try self.put_tmp("m", n)
+                        try self.put(".tag == ")
+                        try self.put_u64((u64)case_tag(d, resolved))
+                    elif st == types.str_id:
+                        let k = self.tmp()
+                        try self.put("({ lb_str ")
+                        try self.put_tmp("sb", k)
+                        try self.put(" = ")
+                        try self.value(v, st)
+                        try self.put("; ")
+                        try self.put_tmp("m", n)
+                        try self.put(".length == ")
+                        try self.put_tmp("sb", k)
+                        try self.put(".length && (")
+                        try self.put_tmp("m", n)
+                        try self.put(".length == 0 || memcmp(")
+                        try self.put_tmp("m", n)
+                        try self.put(".data, ")
+                        try self.put_tmp("sb", k)
+                        try self.put(".data, ")
+                        try self.put_tmp("m", n)
+                        try self.put(".length) == 0); })")
+                    elif let hi = p.right:
+                        # `lo..<hi` and `lo..=hi` in the chain: both bounds (§8.4)
+                        try self.put_tmp("m", n)
+                        try self.put(" >= ")
+                        try self.value(v, st)
+                        try self.put(" && ")
+                        try self.put_tmp("m", n)
+                        try self.put(" < " if p.text == "..<" else " <= ")
+                        try self.value(hi, st)
+                    else:
+                        try self.put_tmp("m", n)
+                        try self.put(" == ")
+                        try self.value(v, st)
+                    try self.put("))")
+                pattern = p.next
+            if not any:
+                try self.put("0")
+            if let guard = a.right:
+                # a failed guard falls to the next arm: the guard joins the test, with the
+                # arm's names bound for it
+                try self.put(" && ({ ")
+                try self.bind_arm_names(a, st, n)
+                try self.put(" !!(")
+                try self.value(guard, types.bool_id)
+                try self.put("); })")
+            try self.put(") {")
+            self.indent += 1
+            try self.bind_arm_names(a, st, n)
+            try self.arm_body(a, dest, n, false)
+            self.indent -= 1
+            try self.line("}")
+            arm = a.next
+
+    ## The names an arm's first pattern binds, in the chain form: `.some(name)` over an
+    ## optional takes the value; `.case(names)` over an enum takes the payload's fields.
+    mutating func bind_arm_names(a: ast.Node*, st: u32, n: u32) -> !:
+        let p = a.left else return
+        let v = p.left else return
+        if v.kind != ast.Kind.case_value:
+            return
+        if v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st) or self.is_nullable_view(st)):
+            if v.text != "some":
+                return
+            let nm = v.body else return
+            if nm.text == "_":
+                return
+            try self.line("")
+            try self.put_type(self.elem(st))
+            try self.put(" ")
+            try self.put_ident(nm.text)
+            try self.put(" __attribute__((unused)) = ")
+            try self.put_tmp("m", n)
+            if self.is_tagged_opt(st):
+                try self.put(".value")
+            try self.put(";")
+            return
+        let resolved = v.resolved else return
+        var name = v.body
+        var param = resolved.body
+        while let nm = name:
+            let q = param else break
+            if nm.text != "_":
+                try self.line("")
+                try self.put_type(try self.map(nm.type_id))
+                try self.put(" ")
+                try self.put_ident(nm.text)
+                try self.put(" __attribute__((unused)) = ")
+                try self.put_tmp("m", n)
+                try self.put(".u.")
+                try self.put(try self.field(resolved.text))
+                try self.put(".")
+                try self.put(try self.field(q.text))
+                try self.put(";")
+            name = nm.next
+            param = q.next
+
+    ## The body of one arm, with its guard; `in_switch` adds the `break`.
+    mutating func arm_body(a: ast.Node*, dest: u32, n: u32, in_switch: bool) -> !:
+        if in_switch:
+            try self.line("{")
+            self.indent += 1
+        # in the chain form the guard is part of the arm's test already
+        if in_switch:
+            if let guard = a.right:
+                try self.line("if (!!(")
+                try self.value(guard, types.bool_id)
+                try self.put(")) {")
+                self.indent += 1
+        if dest != 0:
+            let body = a.body else return
+            try self.line("")
+            try self.put_tmp("mr", dest)
+            try self.put(" = ")
+            try self.value(body, self.match_result)
+            try self.put(";")
+        elif let body = a.body:
+            try self.block(body)
+        if a.right != none and in_switch:
+            try self.line("break;")
+            self.indent -= 1
+            try self.line("}")
+        elif in_switch:
+            try self.line("break;")
+        if in_switch:
+            self.indent -= 1
+            try self.line("}")
+        discard(n)
+
+    mutating func match_expr(m: ast.Node*) -> !:
+        let t = try self.ty(m)
+        let n = self.tmp()
+        let saved = self.match_result
+        self.match_result = t
+        try self.put("({")
+        self.indent += 1
+        try self.line("")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("mr", n)
+        try self.put(" = ")
+        try self.zero_value(t)
+        try self.put(";")
+        try self.match_stmt(m, n)
+        try self.line("")
+        try self.put_tmp("mr", n)
+        try self.put(";")
+        self.indent -= 1
+        try self.line("})")
+        self.match_result = saved

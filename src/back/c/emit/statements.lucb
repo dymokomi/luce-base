@@ -1,0 +1,895 @@
+#==============================================================================================
+#
+#   emit/statements - Statements
+#
+#   DESCRIPTION:
+#       Blocks, bindings, assignments, loops, `defer`, and the other statements, each
+#       streamed into the body buffer.
+#
+#==============================================================================================
+extend Emitter:
+    # mark: Statements =========================================================================
+
+    mutating func block(b: ast.Node*) -> !:
+        try self.line("{")
+        self.indent += 1
+        try self.push_scope(false, "")
+        var cursor = b.body
+        while let s = cursor:
+            try self.stmt(s)
+            cursor = s.next
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        self.indent -= 1
+        try self.line("}")
+
+    mutating func stmt(s: ast.Node*) -> !:
+        if s.kind != ast.Kind.block:
+            try self.put_position(s)
+        match s.kind:
+            .block:
+                try self.block(s)
+            .let_, .var_:
+                try self.binding(s)
+            .assign:
+                try self.assign(s)
+            .if_:
+                try self.if_stmt(s)
+            .while_:
+                try self.while_stmt(s)
+            .for_:
+                try self.for_stmt(s)
+            .match_:
+                try self.match_stmt(s, 0)
+            .return_:
+                try self.return_stmt(s)
+            .break_, .continue_:
+                try self.jump(s)
+            .defer_, .errdefer_:
+                try self.defers.push(s)
+            .recover_:
+                try self.recover_stmt(s)
+            .free_:
+                try self.free_stmt(s)
+            .with_:
+                try self.with_stmt(s)
+            .expr_stmt:
+                let e = s.left else return
+                if is_error_call(e):
+                    try self.error_return(e)
+                else:
+                    try self.line("(void)(")
+                    try self.expr(e)
+                    try self.put(");")
+            .asm_:
+                try self.asm_stmt(s)
+            _:
+                # the checker admits no other statement; a new kind must be written here first
+                return error(backend, "the C backend has no form for this statement")
+
+    ## `let`/`var`, with a name or a tuple of names.
+    mutating func binding(s: ast.Node*) -> !:
+        if s.body != none:
+            let init = s.left else return
+            let tt = try self.ty(init)
+            let n = self.tmp()
+            try self.line("")
+            try self.put_type(tt)
+            try self.put(" ")
+            try self.put_tmp("tu", n)
+            try self.put(" __attribute__((unused)) = ")  # `let (_, _) = pair()` names nothing
+            try self.value(init, tt)
+            try self.put(";")
+            var i: u64 = 0
+            var cursor = s.body
+            while let name = cursor:
+                if name.text != "_":
+                    try self.line("")
+                    try self.put_type(try self.map(name.type_id))
+                    try self.put(" ")
+                    try self.put_ident(name.text)
+                    try self.put(" __attribute__((unused)) = ")
+                    try self.put_tmp("tu", n)
+                    try self.put(".a")
+                    try self.put_u64(i)
+                    try self.put(";")
+                i += 1
+                cursor = name.next
+            return
+        let t = try self.map(s.type_id)
+        try self.line("")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_ident(s.text)
+        try self.put(" __attribute__((unused))")
+        if s.has(ast.flag_uninit):
+            try self.put(";")
+            if self.diagnostic:
+                # the diagnostic profile fills `---` storage with a pattern (§19.4)
+                try self.put(" memset(&")
+                try self.put_ident(s.text)
+                try self.put(", 0xAA, sizeof(")
+                try self.put_ident(s.text)
+                try self.put("));")
+            return
+        try self.put(" = ")
+        if let init = s.left:
+            try self.value(init, t)
+        else:
+            try self.zero_value(t)
+        try self.put(";")
+
+    ## The zero value of a type as a C initialiser.
+    mutating func zero_value(t: u32) -> !:
+        let k = self.kind(t)
+        if t == types.bool_id:
+            try self.put("false")
+        elif self.is_int(t) or self.is_float(t) or t == types.char_id or self.is_int_enum(t) or t == types.error_code_id:
+            try self.put("0")
+        elif k == types.Kind.pointer or k == types.Kind.func_ or t == types.cstr_id:
+            try self.put("((void*)0)")
+        elif self.is_nullable_ptr(t):
+            try self.put("((void*)0)")
+        elif k == types.Kind.atomic:
+            try self.zero_value(self.elem(t))
+        else:
+            try self.put("{}")
+
+    mutating func assign(s: ast.Node*) -> !:
+        let place = s.left else return
+        let value = s.right else return
+        # `memory.allocator = x` sets the current allocator
+        if place.kind == ast.Kind.member and place.text == "allocator":
+            if let owner = place.left:
+                if self.kind(owner.type_id) == types.Kind.module:
+                    try self.line("lb_memory_allocator = ")
+                    try self.allocator_view(value)
+                    try self.put(";")
+                    return
+        let pt = try self.ty(place)
+        if s.text == "=":
+            try self.line("")
+            if same_binding(place, value):
+                # `x = x` is a legal statement Base gives no meaning beyond a read and a write
+                # of `x`; C's compiler refuses the self-assignment, so it goes through a
+                # temporary, which keeps the read and the write of a volatile place
+                let n = self.tmp()
+                try self.put("{ ")
+                try self.put_type(pt)
+                try self.put(" ")
+                try self.put_tmp("as", n)
+                try self.put(" = ")
+                try self.value(value, pt)
+                try self.put("; ")
+                try self.place(place)
+                try self.put(" = ")
+                try self.put_tmp("as", n)
+                try self.put("; }")
+                return
+            try self.place(place)
+            try self.put(" = ")
+            try self.value(value, pt)
+            try self.put(";")
+            return
+        let op = (str)s.text.bytes[..<s.text.length - 1]
+        if self.is_atomic(pt):
+            try self.line("")
+            try self.place(place)
+            try self.put(" ")
+            try self.put(op)
+            try self.put("= ")
+            try self.value(value, self.elem(pt))
+            try self.put(";")
+            return
+        # a compound assignment evaluates its place once (§6.5): the place's address is
+        # taken into a temporary and the operation reads and writes through it
+        let cell = try self.place_cell(place, pt)
+        if op == "&" or op == "|" or op == "^":
+            try self.line("")
+            try self.expr(cell)
+            try self.put(" = ")
+            try self.expr(cell)
+            try self.put(" ")
+            try self.put(op)
+            try self.put(" (")
+            try self.value(value, pt)
+            try self.put("); }")
+            return
+        # `p += n`: C's own pointer arithmetic scales by the pointee, as `p + n` does (§7.7)
+        if self.kind(pt) == types.Kind.pointer and (op == "+" or op == "-"):
+            try self.line("")
+            try self.expr(cell)
+            try self.put(" ")
+            try self.put(op)
+            try self.put("= (")
+            try self.value(value, try self.ty(value))
+            try self.put("); }")
+            return
+        if self.is_float(pt) and (op == "+" or op == "-" or op == "*" or op == "/"):
+            try self.line("")
+            try self.expr(cell)
+            try self.put(" ")
+            try self.put(op)
+            try self.put("= ")
+            try self.value(value, pt)
+            try self.put("; }")
+            return
+        try self.line("")
+        try self.expr(cell)
+        try self.put(" = ")
+        try self.checked_op(helper_name(op), pt, cell, value)
+        try self.put("; }")
+
+    ## Opens a block holding a pointer to `place`, and answers the dereference that stands
+    ## for the place from then on; the caller closes the block.
+    mutating func place_cell(place: ast.Node*, pt: u32) -> ast.Node*!:
+        let n = self.tmp()
+        var name_bytes = try alloc u8[24]
+        let name = try format(name_bytes, f"_cell{n}")
+        let cell = try ast.Node.make(ast.Kind.name, name, place.start, place.line)
+        cell.type_id = try self.c.table.pointer(pt, false, false)
+        let deref = try ast.Node.make(ast.Kind.unary, "*", place.start, place.line)
+        deref.left = cell
+        deref.type_id = pt
+        try self.line("{ ")
+        try self.put_type(pt)
+        try self.put("* ")
+        try self.put_ident(name)
+        try self.put(" = &(")
+        try self.place(place)
+        try self.put(");")
+        return deref
+
+    ## `lb_add_s(a, b, bits)` cast back to the type; `a` and `b` are expressions.
+    mutating func checked_op(helper: str, t: u32, l: ast.Node*, r: ast.Node*) -> !:
+        if self.folding:
+            # a constant expression: C's operator, which the checker has already bounded
+            try self.put("((")
+            try self.put_type(t)
+            try self.put(")(")
+            try self.value(l, t)
+            try self.put(" ")
+            try self.put(plain_operator(helper))
+            try self.put(" ")
+            try self.value(r, t)
+            try self.put("))")
+            return
+        try self.put("(")
+        try self.put_type(t)
+        try self.put(")(lb_")
+        try self.put(helper)
+        try self.put("_s(" if self.signed_of(t) else "_u(")
+        try self.word(t, l)
+        try self.put(", ")
+        try self.word(t, r)
+        try self.put(", ")
+        try self.put_u64((u64)self.bits(t))
+        try self.put("))")
+
+    ## An operand widened to the helper's 64-bit word.
+    mutating func word(t: u32, e: ast.Node*) -> !:
+        try self.put("(int64_t)(" if self.signed_of(t) else "(uint64_t)(")
+        try self.value(e, t)
+        try self.put(")")
+
+    # -- branches and loops ---------------------------------------------------------------
+
+    ## The `let name = optional` of an `if let` or `while let`: declares the
+    ## temporary and returns after the condition text has been written.
+    mutating func if_let_head(s: ast.Node*, n: u32) -> !:
+        let binding = s.left else return
+        let init = binding.left else return
+        let ot = try self.ty(init)
+        try self.line("")
+        try self.put_type(ot)
+        try self.put(" ")
+        try self.put_tmp("o", n)
+        try self.put(" = ")
+        try self.value(init, ot)
+        try self.put(";")
+
+    mutating func if_let_bind(s: ast.Node*, n: u32) -> !:
+        let binding = s.left else return
+        let init = binding.left else return
+        let ot = try self.ty(init)
+        try self.line("")
+        try self.put_type(self.elem(ot))
+        try self.put(" ")
+        try self.put_ident(binding.text)
+        try self.put(" __attribute__((unused)) = ")
+        try self.put_tmp("o", n)
+        if self.is_tagged_opt(ot):
+            try self.put(".value")
+        try self.put(";")
+
+    mutating func if_let_test(s: ast.Node*, n: u32) -> !:
+        let binding = s.left else return
+        let init = binding.left else return
+        let ot = try self.ty(init)
+        if self.is_tagged_opt(ot):
+            try self.put_tmp("o", n)
+            try self.put(".present")
+        elif self.is_nullable_view(ot):
+            try self.put_tmp("o", n)
+            try self.put(".data != ((void*)0)")
+        else:
+            try self.put_tmp("o", n)
+            try self.put(" != ((void*)0)")
+
+    mutating func if_stmt(s: ast.Node*) -> !:
+        if s.has(ast.flag_if_let):
+            let n = self.tmp()
+            try self.if_let_head(s, n)
+            try self.line("if (")
+            try self.if_let_test(s, n)
+            try self.put(") {")
+            self.indent += 1
+            try self.if_let_bind(s, n)
+            if let body = s.body:
+                try self.block(body)
+            self.indent -= 1
+            try self.line("}")
+        else:
+            let cond = s.left else return
+            try self.line("if (!!(")
+            try self.value(cond, types.bool_id)
+            try self.put(")) ")
+            if let body = s.body:
+                try self.block(body)
+        let rest = s.right else return
+        try self.line("else ")
+        if rest.kind == ast.Kind.if_:
+            # its own block: the `elif` names its position for a trap in its condition, and
+            # an `elif let` declares a temporary
+            try self.put("{")
+            self.indent += 1
+            try self.put_position(rest)
+            try self.if_stmt(rest)
+            self.indent -= 1
+            try self.line("}")
+        else:
+            try self.block(rest)
+
+    mutating func while_stmt(s: ast.Node*) -> !:
+        try self.push_scope(true, s.text)
+        if s.has(ast.flag_if_let):
+            let n = self.tmp()
+            try self.line("while (1) {")
+            self.indent += 1
+            try self.put_position(s)
+            try self.if_let_head(s, n)
+            try self.line("if (!(")
+            try self.if_let_test(s, n)
+            try self.put(")) break;")
+            try self.if_let_bind(s, n)
+        else:
+            # the condition is tested inside the loop, after the position a trap in it names
+            let cond = s.left else return
+            try self.line("for (;;) {")
+            self.indent += 1
+            try self.put_position(s)
+            try self.line("if (!(")
+            try self.value(cond, types.bool_id)
+            try self.put(")) break;")
+        if let body = s.body:
+            try self.block(body)
+        if s.text.length > 0:
+            try self.line("lb_cont_")
+            try self.put(s.text)
+            try self.put(": __attribute__((unused));")
+        self.indent -= 1
+        try self.line("}")
+        try self.unwind(self.scopes.count - 1, false)
+        let finished = self.scopes.get(self.scopes.count - 1)
+        self.pop_scope()
+        try self.loop_exit(finished)
+        if s.text.length > 0:
+            try self.line("lb_brk_")
+            try self.put(s.text)
+            try self.put(": __attribute__((unused));")
+
+    mutating func for_stmt(s: ast.Node*) -> !:
+        let binding = s.left else return
+        let seq = s.right else return
+        try self.push_scope(true, s.text)
+        if seq.kind == ast.Kind.binary and (seq.text == "..<" or seq.text == "..="):
+            let lo = seq.left else return
+            let hi = seq.right else return
+            let t = try self.map(binding.type_id)
+            let closed = seq.text == "..="
+            let done = self.tmp()
+            if closed:
+                # the last value is visited before the increment, so `..=T.max` cannot wrap
+                try self.line("int ")
+                try self.put_tmp("done", done)
+                try self.put(" = 0;")
+            try self.line("for (")
+            try self.put_type(t)
+            try self.put(" ")
+            try self.put_ident(binding.text)
+            try self.put(" __attribute__((unused)) = (")
+            try self.put_type(t)
+            try self.put(")(")
+            try self.value(lo, t)
+            try self.put("); ")
+            if closed:
+                try self.put("!")
+                try self.put_tmp("done", done)
+                try self.put(" && ")
+            try self.put_ident(binding.text)
+            try self.put(" <= (" if closed else " < (")
+            try self.put_type(t)
+            try self.put(")(")
+            try self.value(hi, t)
+            try self.put("); ")
+            if closed:
+                try self.put_tmp("done", done)
+                try self.put(" = (")
+                try self.put_ident(binding.text)
+                try self.put(" == (")
+                try self.put_type(t)
+                try self.put(")(")
+                try self.value(hi, t)
+                try self.put(")), ")
+                try self.put_ident(binding.text)
+                try self.put(" += !")
+                try self.put_tmp("done", done)
+                try self.put(") {")
+            else:
+                try self.put_ident(binding.text)
+                try self.put("++) {")
+        else:
+            # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
+            let indexed = indexed_receiver(seq)
+            var it = try self.ty(seq)
+            var sequence = seq
+            if let receiver = indexed:
+                let rt = try self.ty(receiver)
+                it = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
+                sequence = receiver
+            let n = self.tmp()
+            try self.line("")
+            try self.put_type(it)
+            # `for e in &items` over an array modifies the array itself, not a copy
+            self.seq_in_place = self.is_array(it) and s.has(ast.flag_by_pointer) and self.c.is_place(seq)
+            if self.seq_in_place:
+                try self.put("* ")
+                try self.put_tmp("seq", n)
+                try self.put(" = &(")
+                try self.expr(seq)
+                try self.put(");")
+            else:
+                try self.put(" ")
+                try self.put_tmp("seq", n)
+                try self.put(" = ")
+                try self.value(sequence, it)
+                try self.put(";")
+            # `for character in text` walks the scalars of valid UTF-8 (§5.5): the index
+            # advances by each scalar's width
+            try self.line("for (size_t ")
+            try self.put_tmp("i", n)
+            try self.put(" = 0")
+            if it == types.str_id:
+                try self.put(", ")
+                try self.put_tmp("w", n)
+                try self.put(" = 0")
+            try self.put("; ")
+            try self.put_tmp("i", n)
+            try self.put(" < ")
+            if self.is_array(it):
+                try self.put_u64(self.c.table.get(it).length)
+            else:
+                try self.put_tmp("seq", n)
+                try self.put(".length")
+            try self.put("; ")
+            try self.put_tmp("i", n)
+            if it == types.str_id:
+                try self.put(" += ")
+                try self.put_tmp("w", n)
+                try self.put(") {")
+            else:
+                try self.put("++) {")
+            self.indent += 1
+            # the element, by value or by pointer, or the tuple members
+            if binding.body != none and indexed != none:
+                # `(index, element)`
+                let index_name = binding.body else return
+                if index_name.text != "_":
+                    try self.line("size_t ")
+                    try self.put_ident(index_name.text)
+                    try self.put(" __attribute__((unused)) = ")
+                    try self.put_tmp("i", n)
+                    try self.put(";")
+                if let element_name = index_name.next:
+                    if element_name.text != "_":
+                        try self.line("")
+                        try self.put_type(try self.map(element_name.type_id))
+                        try self.put(" ")
+                        try self.put_ident(element_name.text)
+                        try self.put(" __attribute__((unused)) = ")
+                        try self.element_of(it, n)
+                        try self.put(";")
+            elif binding.body != none:
+                let et = try self.map(binding.type_id) if binding.type_id != 0 else self.elem(it)
+                var i: u64 = 0
+                var cursor = binding.body
+                while let name = cursor:
+                    if name.text != "_":
+                        try self.line("")
+                        try self.put_type(try self.map(name.type_id))
+                        try self.put(" ")
+                        try self.put_ident(name.text)
+                        try self.put(" __attribute__((unused)) = ")
+                        try self.element_of(it, n)
+                        try self.put(".a")
+                        try self.put_u64(i)
+                        try self.put(";")
+                    i += 1
+                    cursor = name.next
+                discard(et)
+            else:
+                try self.line("")
+                try self.put_type(try self.map(binding.type_id))
+                try self.put(" ")
+                try self.put_ident(binding.text)
+                try self.put(" __attribute__((unused)) = ")
+                if s.has(ast.flag_by_pointer):
+                    try self.put("&(")
+                    try self.element_of(it, n)
+                    try self.put(")")
+                else:
+                    try self.element_of(it, n)
+                try self.put(";")
+            self.indent -= 1
+            self.seq_in_place = false
+        self.indent += 1
+        if let body = s.body:
+            try self.block(body)
+        if s.text.length > 0:
+            try self.line("lb_cont_")
+            try self.put(s.text)
+            try self.put(": __attribute__((unused));")
+        self.indent -= 1
+        try self.line("}")
+        try self.unwind(self.scopes.count - 1, false)
+        let finished = self.scopes.get(self.scopes.count - 1)
+        self.pop_scope()
+        try self.loop_exit(finished)
+        if s.text.length > 0:
+            try self.line("lb_brk_")
+            try self.put(s.text)
+            try self.put(": __attribute__((unused));")
+
+    ## Element `i` of the sequence temporary `n`: an array, a span, or text.
+    mutating func element_of(it: u32, n: u32) -> !:
+        if self.is_array(it):
+            try self.put_tmp("seq", n)
+            try self.put("->d[" if self.seq_in_place else ".d[")
+            try self.put_tmp("i", n)
+            try self.put("]")
+        elif it == types.str_id:
+            try self.put("lb_utf8_scalar(")
+            try self.put_tmp("seq", n)
+            try self.put(".data, ")
+            try self.put_tmp("seq", n)
+            try self.put(".length, ")
+            try self.put_tmp("i", n)
+            try self.put(", &")
+            try self.put_tmp("w", n)
+            try self.put(")")
+        else:
+            try self.put("((")
+            try self.put_element_pointer(it)
+            try self.put(")")
+            try self.put_tmp("seq", n)
+            try self.put(".data)[")
+            try self.put_tmp("i", n)
+            try self.put("]")
+
+    mutating func jump(s: ast.Node*) -> !:
+        let target = self.loop_scope(s.text)
+        try self.unwind_from(target + 1, false)
+        if s.text.length == 0 and s.kind == ast.Kind.break_:
+            try self.line("")
+            try self.break_to(target)
+            try self.put(";")
+            return
+        if s.text.length == 0:
+            try self.line("continue;")
+            return
+        try self.line("goto ")
+        try self.put("lb_brk_" if s.kind == ast.Kind.break_ else "lb_cont_")
+        try self.put(s.text)
+        try self.put(";")
+
+    # -- returns, recovery, cleanup -------------------------------------------------------
+
+    ## `return` with the deferred calls of every scope run first.
+    mutating func return_stmt(s: ast.Node*) -> !:
+        if let v = s.left:
+            if is_trap_call(v):
+                try self.line("")
+                try self.expr(v)
+                try self.put(";")
+                return
+            if is_error_call(v):
+                try self.error_return(v)
+                return
+            if never_valued(v):
+                try self.line("(void)(")
+                try self.expr(v)
+                try self.put("); __builtin_unreachable();")
+                return
+            let want = try self.result_payload()
+            if want == types.unit_id or want == types.never_id:
+                try self.line("(void)(")
+                try self.expr(v)
+                try self.put(");")
+                try self.unwind_from(0, false)
+                try self.line("return ((lb_r_unit){ .failed = false });" if self.fn_fallible() else "return;")
+                return
+            let n = self.tmp()
+            try self.line("")
+            try self.put_type(want)
+            try self.put(" ")
+            try self.put_tmp("ret", n)
+            try self.put(" = ")
+            try self.value(v, want)
+            try self.put(";")
+            try self.unwind_from(0, false)
+            try self.line("return ")
+            if self.fn_fallible():
+                try self.put("((")
+                try self.put_result_type(self.current_fn else return)
+                try self.put("){ .value = ")
+                try self.put_tmp("ret", n)
+                try self.put(", .failed = false })")
+            else:
+                try self.put_tmp("ret", n)
+            try self.put(";")
+            return
+        try self.unwind_from(0, false)
+        try self.line("return ((lb_r_unit){ .failed = false });" if self.fn_fallible() else "return;")
+
+    ## `error(code, message)` as a statement: the failing result leaves the function.
+    mutating func error_return(e: ast.Node*) -> !:
+        let n = self.tmp()
+        try self.line("")
+        if self.failure_target != 0:
+            let first = e.body else return
+            let code = first.left else return
+            let second = first.next else return
+            let message = second.left else return
+            try self.put("lb_error ")
+            try self.put_tmp("err", n)
+            try self.put(" = { .code = (int32_t)(")
+            try self.value(code, types.error_code_id)
+            try self.put("), .message = ")
+            try self.value(message, types.str_id)
+            try self.put(" };")
+            try self.line("")
+            try self.put_tmp("fe", self.failure_target)
+            try self.put(" = ")
+            try self.put_tmp("err", n)
+            try self.put(";")
+            try self.unwind_from(self.failure_scope, true)
+            try self.line("goto ")
+            try self.put_tmp("fh", self.failure_target)
+            try self.put(";")
+        else:
+            try self.put_result_type(self.current_fn else return)
+            try self.put(" ")
+            try self.put_tmp("err", n)
+            try self.put(" = ")
+            try self.error_value(e)
+            try self.put(";")
+            try self.unwind_from(0, true)
+            try self.line("return ")
+            try self.put_tmp("err", n)
+            try self.put(";")
+
+    ## The failing result value of the current function for `error(code, message)`.
+    mutating func error_value(e: ast.Node*) -> !:
+        let first = e.body else return
+        let code = first.left else return
+        let second = first.next else return
+        let message = second.left else return
+        try self.put("((")
+        try self.put_result_type(self.current_fn else return)
+        try self.put("){ .error = { .code = (int32_t)(")
+        try self.value(code, types.error_code_id)
+        try self.put("), .message = ")
+        try self.value(message, types.str_id)
+        try self.put(" }, .failed = true })")
+
+    mutating func recover_stmt(s: ast.Node*) -> !:
+        let v = s.left else return
+        let vt = try self.ty(v)
+        if self.catch_var != 0:
+            if vt == types.unit_id or vt == types.never_id or self.catch_result() == types.unit_id:
+                try self.line("(void)(")
+                try self.expr(v)
+                try self.put(");")
+            else:
+                try self.line("")
+                try self.put_tmp("v", self.catch_var)
+                try self.put(" = ")
+                try self.value(v, self.catch_result())
+                try self.put(";")
+            try self.unwind_from(self.catch_scope, false)
+            try self.line("goto ")
+            try self.put_tmp("cd", self.catch_done)
+            try self.put(";")
+            return
+        try self.line("/* recover outside a handler */")
+
+    mutating func catch_result() -> u32:
+        return self.catch_payload
+
+    mutating func free_stmt(s: ast.Node*) -> !:
+        let v = s.left else return
+        let t = try self.ty(v)
+        if self.is_ptr(t):
+            try self.line("lb_release_call(")
+            try self.allocator_of(s.right)
+            try self.put(", (lb_span){ (void*)(")
+            try self.expr(v)
+            try self.put("), sizeof(")
+            try self.put_type(self.elem(t))
+            try self.put(") });")
+            return
+        if self.is_span(t):
+            let n = self.tmp()
+            try self.line("{ lb_span ")
+            try self.put_tmp("s", n)
+            try self.put(" = ")
+            try self.expr(v)
+            try self.put("; lb_release_call(")
+            try self.allocator_of(s.right)
+            try self.put(", (lb_span){ (void*)(")
+            try self.put_tmp("s", n)
+            try self.put(".data), lb_mul_u(")
+            try self.put_tmp("s", n)
+            try self.put(".length, sizeof(")
+            try self.put_type(self.elem(t))
+            try self.put("), 64) }); }")
+            return
+        try self.line("(void)(")
+        try self.expr(v)
+        try self.put(");")
+
+    mutating func with_stmt(s: ast.Node*) -> !:
+        let a = s.left else return
+        let n = self.tmp()
+        try self.line("{")
+        self.indent += 1
+        try self.line("lb_iface ")
+        try self.put_tmp("as", n)
+        try self.put(" = lb_memory_allocator;")
+        try self.line("lb_memory_allocator = ")
+        try self.allocator_view(a)
+        try self.put(";")
+        try self.push_scope(false, "")
+        var sc = self.scopes.get(self.scopes.count - 1)
+        sc.restore_alloc = true
+        sc.alloc_save = n
+        self.scopes.set(self.scopes.count - 1, sc)
+        if let body = s.body:
+            try self.block(body)
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        self.indent -= 1
+        try self.line("}")
+
+    ## Inline assembly (§8.9): `in`/`out`/`inout` operands in named registers.
+    mutating func asm_stmt(s: ast.Node*) -> !:
+        if s.text == "arm64":
+            try self.line("#if defined(__aarch64__)")
+        elif s.text == "x86_64":
+            try self.line("#if defined(__x86_64__)")
+        else:
+            try self.line("#if 0")
+        try self.line("{")
+        self.indent += 1
+        var outs = try buffer.Buffer.create(64)
+        var ins = try buffer.Buffer.create(64)
+        var clobbers = try buffer.Buffer.create(64)
+        var stores = try buffer.Buffer.create(64)
+        try clobbers.put("\"memory\"")
+        var operand = s.right
+        while let o = operand:
+            if o.text == "options":
+                operand = o.next
+                continue
+            var place = ""
+            if let p = o.body:
+                let b = p.text.bytes
+                if b.length >= 2 and b[0] == '"':
+                    place = (str)b[1..<b.length - 1]
+            let is_out = o.text == "out" or o.text == "inout"
+            let is_in = o.text == "in" or o.text == "inout"
+            let v = o.left else return
+            let discarded = is_out and v.kind == ast.Kind.name and v.text == "_"
+            # a discarded output is a clobber, unless the block also reads that register: C
+            # refuses a clobber of an input's register, so it is then a dummy output operand
+            if discarded and not (place.length > 0 and asm_block_reads(s, place)):
+                if place.length > 0:
+                    try clobbers.put(", \"")
+                    try clobbers.put(place)
+                    try clobbers.put("\"")
+                operand = o.next
+                continue
+            let n = self.tmp()
+            var vt = try self.ty(v)
+            if vt == types.unit_id or vt == types.void_id or discarded:
+                vt = types.u64_id
+            try self.line("")
+            if place.length > 0 and place != "reg":
+                try self.put("register ")
+            try self.put_type(vt)
+            try self.put(" ")
+            try self.put_tmp("as", n)
+            if place.length > 0 and place != "reg":
+                try self.put(" asm(\"")
+                try self.put(place)
+                try self.put("\")")
+            if discarded:
+                try self.put(" __attribute__((unused))")
+            if is_in:
+                try self.put(" = ")
+                try self.value(v, vt)
+            try self.put(";")
+            # a `reg` operand whose expression is a name is a named operand, `[name]`, which the
+            # text reaches as `{name}` (§8.9)
+            var label = ""
+            if (place == "reg" or place.length == 0) and v.kind == ast.Kind.name:
+                label = v.text
+            if is_out:
+                if outs.used > 0:
+                    try outs.put(", ")
+                try put_asm_label(&outs, label)
+                try outs.put("\"+r\"(" if is_in else "\"=r\"(")
+                try outs.put("_lb_as")
+                try outs.put_u64((u64)n)
+                try outs.put(")")
+                try stores.put_u64((u64)n)
+                try stores.put(" ")
+            elif is_in:
+                if ins.used > 0:
+                    try ins.put(", ")
+                try put_asm_label(&ins, label)
+                try ins.put("\"r\"(_lb_as")
+                try ins.put_u64((u64)n)
+                try ins.put(")")
+            operand = o.next
+        try self.line("asm volatile(\"")
+        try self.asm_lines(s.body, true)
+        try self.put("\" : ")
+        try self.put(outs.view())
+        try self.put(" : ")
+        try self.put(ins.view())
+        try self.put(" : ")
+        try self.put(clobbers.view())
+        try self.put(");")
+        # write the outputs back to their places
+        operand = s.right
+        var stored = stores.view().bytes
+        var pos: usize = 0
+        while let o = operand:
+            let is_out = o.text == "out" or o.text == "inout"
+            if o.text != "options" and is_out:
+                let v = o.left else return
+                if not (v.kind == ast.Kind.name and v.text == "_"):
+                    var digits: usize = pos
+                    while digits < stored.length and stored[digits] != ' ':
+                        digits += 1
+                    try self.line("")
+                    try self.place(v)
+                    try self.put(" = _lb_as")
+                    try self.put((str)stored[pos..<digits])
+                    try self.put(";")
+                    pos = digits + 1
+            operand = o.next
+        self.indent -= 1
+        try self.line("}")
+        try self.line("#endif")

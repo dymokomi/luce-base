@@ -1,0 +1,387 @@
+#==============================================================================================
+#
+#   emit - The C backend
+#
+#   DESCRIPTION:
+#       Turns a checked program into one C translation unit over the runtime in `runtime`
+#       (base.md §19). Every function body is streamed into a buffer as it is walked; the
+#       typedefs, prototypes, globals, and witness tables it turned out to need are written
+#       afterwards, ahead of the bodies, so nothing is ever generated twice.
+#
+#       Generic code is monomorphised here (§13): a call to a generic function or a use of a
+#       generic type registers an instance, and instances are emitted from a worklist until
+#       none are left, each with its arguments substituted into every type the body names.
+#       The standard modules keep no bodies; their declarations are mapped onto the runtime
+#       (§16.6), the same contract the seed's backend used, so one runtime serves both.
+#
+#       Values change representation only where the checker allowed a conversion: a pointer
+#       becomes an interface view, an array a span, a value its optional, text a byte span.
+#       `value` writes an expression as the type its context wants, and every site that
+#       may convert goes through it.
+#
+#       This fragment holds the `Emitter` with its fields and output primitives; each
+#       concern's methods are in a fragment of their own under `extend Emitter:`, in the
+#       order `ORDER` lists them (§16.1).
+#
+#==============================================================================================
+from back.effects import may_have_effect, arguments_have_effect
+import back.declarations as declarations
+import back.names
+import strings
+import back.target as targets
+import front.ast
+import front.source as sources
+import sema.check
+import sema.types
+import support.buffer
+import support.decimal
+import support.list
+import support.literals
+## The C backend could not represent something the checker accepted.
+pub let backend: ErrorCode = ErrorCode.package(12)
+
+## A tree node held in a list, and one that may be absent.
+type NodeRef = ast.Node*
+type MaybeNode = ast.Node*?
+
+# mark: Instances and scopes ===================================================================
+
+## One monomorphised function or record: a declaration with concrete type arguments.
+struct Instance:
+    var decl: ast.Node*
+    var args: u32[]
+    ## For a method of a generic record: the record and its arguments.
+    var owner: ast.Node*?
+    var owner_args: u32[]
+    var done: bool
+
+## A witness table the program needs: one record viewed as one interface.
+struct Witness:
+    var record: u32
+    var iface: u32
+
+## One lexical scope while emitting a body: the deferred calls registered in it,
+## whether it is a loop (and its label), and whether it restored an allocator.
+struct Scope:
+    var defer_base: usize
+    var loop: bool
+    var label: str
+    var restore_alloc: bool
+    var alloc_save: u32
+    ## A loop's own exit label, `lb_brk_N`, which an unlabelled `break` jumps to: C's
+    ## `break` inside a `switch`, which a `match` may be, would leave the switch alone.
+    var exit: u32 = 0
+    var exit_used: bool = false
+
+## The buffer `put` writes to.
+let to_out: u8 = 0
+let to_body: u8 = 1
+let to_globals: u8 = 2
+let to_protos: u8 = 3
+## A function's body, written first, so that what the body needs declared at its top (the
+## format buffers) is known before the function is written into `body`.
+let to_scratch: u8 = 4
+
+# mark: The emitter ============================================================================
+
+## An array temporary declared at the function's top (see `arrays`).
+struct Hoisted:
+    var type_id: u32
+    var n: u32
+
+## An argument computed into the temporary `_lb_sq<id>` before its call (§7.1).
+struct Sequenced:
+    var node: ast.Node*
+    var id: u32
+
+## The C backend: it walks the checked tree and writes C for the host compiler.
+pub struct Emitter:
+    var c: check.Checker*
+    var out: buffer.Buffer
+    var body: buffer.Buffer
+    var globals: buffer.Buffer
+    var protos: buffer.Buffer
+    var target: u8
+    var indent: u32
+    var counter: u32
+    ## Program modules in dependency order; the prelude is never emitted.
+    var modules: list.List[NodeRef]
+    ## Storage referenced by emitted bodies or global initializers.
+    var referenced_storage: list.List[NodeRef]
+    var entry: ast.Node*
+    var funcs: list.List[Instance]
+    var records: list.List[Instance]
+    ## Type ids whose typedef is needed, and those already written.
+    var needed: list.List[u32]
+    var defined: list.List[u32]
+    var decls_done: list.List[NodeRef]
+    var tests: list.List[NodeRef]
+    var vtables: list.List[Witness]
+    ## Top-level `let`s whose value runs code (a construction through `init`): zero storage,
+    ## set by `lb_init_runtime_globals` when the program starts, as the native backend sets
+    ## them in `lb_init_globals`.
+    var runtime_globals: list.List[NodeRef]
+    ## Every global written, declared ahead of all of them (`global_declarations`), so an
+    ## initialiser may take the address of one defined after it.
+    var defined_globals: list.List[NodeRef]
+    ## Emission context: the function, its instance arguments, its owner's.
+    var current_fn: ast.Node*?
+    var fn_decl: ast.Node*?
+    var fn_args: u32[]
+    var owner_decl: ast.Node*?
+    var owner_args: u32[]
+    var scopes: list.List[Scope]
+    var defers: list.List[NodeRef]
+    var catch_var: u32
+    var catch_done: u32
+    var catch_scope: usize
+    ## A handler target is active only while its left expression is evaluated.
+    var failure_target: u32 = 0
+    var failure_scope: usize = 0
+    var catch_payload: u32
+    var match_result: u32
+    var in_catch: bool
+    var src_file: str
+    var wrote_writer: bool
+    ## The format buffer temporary a `Display` field writes into, while emitting its call.
+    var sink_prefix: str
+    var sink_index: u32
+    ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
+    pub var diagnostic: bool
+    ## Inside a top-level initialiser (§6.4): arithmetic and casts are C's own constant
+    ## operators, since the helpers that trap are not constant expressions to C.
+    var folding: bool
+    ## The loop being emitted walks an array in place: its sequence temporary is a pointer.
+    var seq_in_place: bool
+    ## The line of the allocation being emitted, for the diagnostic profile's record.
+    var site_line: u32
+    ## The arguments of the calls being emitted that were computed into temporaries first
+    ## (§7.1), innermost call last; `argument_value` reads the temporary for such a node.
+    var sequenced: list.List[Sequenced]
+    ## The left operand of the chain link being emitted, when a long left-leaning chain is
+    ## emitted as a sequence (`chain`): its value is already in the temporary `chain_temp`.
+    var chain_left: ast.Node*?
+    var chain_temp: u32
+    ## The function being written, before its declarations are known (`to_scratch`).
+    var scratch: buffer.Buffer
+    ## The format buffers the function's body used, by number: each is declared at the top
+    ## of the function, so a formatted text's bytes live as long as the function does, not
+    ## as long as the expression that made them.
+    var formats: list.List[u32]
+    ## The array temporaries the function's body took a span or an address of, by type and
+    ## number: each is declared at the top of the function for the same reason, so the
+    ## span outlives the expression that made the array (§5.4, §7.6).
+    var arrays: list.List[Hoisted]
+
+    ## An emitter that writes C for `entry`, checked by `checker`.
+    pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
+        return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
+                       scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
+                       globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
+                       modules = try list.List[NodeRef].create(16), referenced_storage = try list.List[NodeRef].create(8), entry = entry,
+                       funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
+                       needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
+                       decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
+                       vtables = try list.List[Witness].create(16), runtime_globals = try list.List[NodeRef].create(8),
+                       defined_globals = try list.List[NodeRef].create(64),
+                       current_fn = none, fn_decl = none, fn_args = try types.no_args(), owner_decl = none,
+                       owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
+                       defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
+                       catch_scope = 0, catch_payload = 0, match_result = 0, in_catch = false, src_file = source_path(checker, entry), wrote_writer = false,
+                       sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0, folding = false, seq_in_place = false)
+
+    # -- output ---------------------------------------------------------------------------
+
+    mutating func put(text: str) -> !:
+        if self.target == to_scratch:
+            try self.scratch.put(text)
+        elif self.target == to_body:
+            try self.body.put(text)
+        elif self.target == to_out:
+            try self.out.put(text)
+        elif self.target == to_protos:
+            try self.protos.put(text)
+        else:
+            try self.globals.put(text)
+
+    ## The buffer `put` writes to now, for the names `names` spells straight into it.
+    mutating func sink() -> buffer.Buffer*:
+        if self.target == to_scratch:
+            return &self.scratch
+        if self.target == to_body:
+            return &self.body
+        if self.target == to_out:
+            return &self.out
+        if self.target == to_protos:
+            return &self.protos
+        return &self.globals
+
+    ## `assert failed: condition` (§11.6) as adjacent C string literals, which C joins, so
+    ## the condition's source may be any length; the position is the trap's (§11.5).
+    mutating func put_assert_text(e: ast.Node*) -> !:
+        try self.put("\"assert failed: \" ")
+        try self.put_c_string(e.text)
+
+    ## The source a declaration came from, when the checker has it.
+    func source_unit_of(decl: ast.Node*) -> sources.Source?:
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if let m = decl.resolved:
+                if module.tree == m:
+                    return module.src
+            elif module.src.path == self.src_file:
+                return module.src
+            i += 1
+        return none
+
+    ## `lb_pos = "file:line:column";` before a statement: what a trap in it names (§11.5),
+    ## through the source's position directives (§3.3).
+    mutating func put_position(n: ast.Node*) -> !:
+        var file = self.src_file
+        var line = n.line
+        var column: u32 = 1
+        if let f = self.current_fn:
+            if let s = self.source_unit_of(f):
+                let (mf, ml, mc) = s.mapped(n.line, s.statement_column(n.line))
+                file = mf
+                line = ml
+                column = mc
+        try self.line("lb_pos = ")
+        let room = try alloc u8[file.length + 24]
+        try self.put_c_string(try format(room, f"{file}:{line}:{column}"))
+        try self.put(";")
+
+    ## A float's bits as a hexadecimal float literal, `0x1.8p+1f`: exact in C, whatever the
+    ## value, a subnormal included; `f` and `f16` name the narrower widths.
+    mutating func put_hex_float(bits: u64, width: u32) -> !:
+        let exponent_bits: u64 = 11 if width == 64 else 8 if width == 32 else 5
+        let fraction_bits: u64 = 52 if width == 64 else 23 if width == 32 else 10
+        # the fraction padded to whole hex digits: 13, 6, or 3 of them
+        let digits: u64 = (fraction_bits + 3) // 4
+        let padding = digits * 4 - fraction_bits
+        let one: u64 = 1
+        let exponent = (bits >> fraction_bits) & ((one << exponent_bits) - 1)
+        let fraction = (bits & ((one << fraction_bits) - 1)) << padding
+        let bias = (one << (exponent_bits - 1)) - 1
+        if exponent == 0 and fraction == 0:
+            try self.put("0x0p+0")
+        else:
+            try self.put("0x0." if exponent == 0 else "0x1.")
+            var i = digits
+            while i > 0:
+                i -= 1
+                let nibble = (fraction >> (i * 4)) & 15
+                try self.put_byte((u8)(48 + nibble) if nibble < 10 else (u8)(87 + nibble))
+            try self.put("p")
+            let power: i64 = 1 - (i64)bias if exponent == 0 else (i64)exponent - (i64)bias
+            if power >= 0:
+                try self.put("+")
+            try self.put_i64(power)
+        if width == 32:
+            try self.put("f")
+        elif width == 16:
+            try self.put("f16")
+
+    mutating func put_digits(text: str) -> !:
+        let b = text.bytes
+        var start: usize = 0
+        var i: usize = 0
+        while i < b.length:
+            if b[i] == '_':
+                try self.put((str)b[start..<i])
+                start = i + 1
+            i += 1
+        try self.put((str)b[start..])
+
+    mutating func put_u64(value: u64) -> !:
+        if self.target == to_scratch:
+            try self.scratch.put_u64(value)
+        elif self.target == to_body:
+            try self.body.put_u64(value)
+        elif self.target == to_out:
+            try self.out.put_u64(value)
+        elif self.target == to_protos:
+            try self.protos.put_u64(value)
+        else:
+            try self.globals.put_u64(value)
+
+    mutating func put_i64(value: i64) -> !:
+        if self.target == to_scratch:
+            try self.scratch.put_i64(value)
+        elif self.target == to_body:
+            try self.body.put_i64(value)
+        elif self.target == to_out:
+            try self.out.put_i64(value)
+        elif self.target == to_protos:
+            try self.protos.put_i64(value)
+        else:
+            try self.globals.put_i64(value)
+
+    mutating func put_byte(byte: u8) -> !:
+        if self.target == to_scratch:
+            try self.scratch.put_byte(byte)
+        elif self.target == to_body:
+            try self.body.put_byte(byte)
+        elif self.target == to_out:
+            try self.out.put_byte(byte)
+        elif self.target == to_protos:
+            try self.protos.put_byte(byte)
+        else:
+            try self.globals.put_byte(byte)
+
+    mutating func pad_to_column() -> !:
+        var i: u32 = 0
+        while i < self.indent:
+            try self.put("    ")
+            i += 1
+
+    ## Start a new line at the current indentation and write `text`.
+    mutating func line(text: str) -> !:
+        try self.put("\n")
+        try self.pad_to_column()
+        try self.put(text)
+
+    ## A fresh number for a temporary.
+    mutating func tmp() -> u32:
+        self.counter += 1
+        return self.counter
+
+    ## `_lb_<prefix><n>`.
+    mutating func put_tmp(prefix: str, n: u32) -> !:
+        try self.put("_lb_")
+        try self.put(prefix)
+        try self.put_u64((u64)n)
+
+    ## A C string literal for `text`: a `?` is escaped so `??)` is never a trigraph.
+    mutating func put_c_string(text: str) -> !:
+        try self.put_byte('"')
+        for b in text.bytes:
+            if b == '\\' or b == '"' or b == '?':
+                try self.put_byte('\\')
+                try self.put_byte(b)
+            elif b == '\n':
+                try self.put("\\n")
+            elif b == '\t':
+                try self.put("\\t")
+            elif b == '\r':
+                try self.put("\\r")
+            elif b == 0:
+                try self.put("\\000")
+            elif b < 32 or b >= 127:
+                try self.put("\\")
+                try self.put_byte('0' + (b >> 6))
+                try self.put_byte('0' + ((b >> 3) & 7))
+                try self.put_byte('0' + (b & 7))
+            else:
+                try self.put_byte(b)
+        try self.put_byte('"')
+
+    ## `((lb_str){"...", n})`; in a static initialiser the braces alone, since a compound
+    ## literal is not a constant expression to every C compiler.
+    mutating func put_str_literal(text: str) -> !:
+        try self.put("{" if self.folding else "((lb_str){")
+        try self.put_c_string(text)
+        try self.put(", ")
+        try self.put_u64((u64)text.length)
+        try self.put("}" if self.folding else "})")
