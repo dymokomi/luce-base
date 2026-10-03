@@ -1,0 +1,410 @@
+#==============================================================================================
+#
+#   check/modules - Modules
+#
+#   DESCRIPTION:
+#       Loading modules and their imports, and the names each module declares.
+#
+#==============================================================================================
+extend Checker:
+    # mark: Modules ============================================================================
+
+    ## Parse `src` and add it as module `name`.
+    pub mutating func add_module(name: str, src: source.Source, is_prelude: bool) -> !:
+        var p = try parser.Parser.over(src, self.scratch)
+        p.allow_core_names = is_prelude
+        let tree = try p.parse_module()
+        try p.merge_extensions(tree)
+        tree.text = name
+        if is_prelude:
+            var cursor = tree.body
+            while let d = cursor:
+                d.flags |= ast.flag_builtin
+                var member = d.body
+                while let m = member:
+                    m.flags |= ast.flag_builtin
+                    member = m.next
+                cursor = d.next
+        try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = is_prelude))
+
+    ## Parse and add every standard module from its source (§16.6), where `standard`
+    ## finds it. The target is settled by now: its word sizes the pointer-shaped types (§19.5).
+    pub mutating func add_prelude() -> !:
+        try self.add_prelude_from(try standard.directory())
+
+    ## Parse and add every standard module from its source under `directory`, in the order
+    ## `directory/ORDER` lists, a module being `name.lucb` or the fragments of `name/`.
+    pub mutating func add_prelude_from(directory: str) -> !:
+        self.table.word = (u64)self.build_target.pointer_bits // 8
+        self.table.configure_c(self.build_target.os == targets.Os.windows, self.build_target.os == targets.Os.windows or self.build_target.arch == targets.Arch.wasm32, self.build_target.arch == targets.Arch.arm64 and self.build_target.os == targets.Os.linux)
+        var order_bytes = try alloc u8[directory.length + 8]
+        let order = try files.read((c.str)try format(order_bytes, f"{directory}/ORDER"))
+        var start: usize = 0
+        var i: usize = 0
+        while i <= order.length:
+            let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
+            if blank and i > start:
+                let name = (str)order[start..<i]
+                if name == "platform":
+                    let buffer = try alloc u8[1024]
+                    let text = try self.build_target.module_text(buffer)
+                    try self.add_module(name, try source.Source.over(name, text.bytes), true)
+                else:
+                    var path_bytes = try alloc u8[directory.length + name.length + 8]
+                    var path = try format(path_bytes, f"{directory}/{name}.lucb")
+                    if not file_exists((c.str)path):
+                        path = try format(path_bytes, f"{directory}/{name}")
+                    var src = try self.load_source((c.str)path)
+                    try src.rebase(directory, "std")
+                    try self.add_module(name, src, true)
+            if blank:
+                start = i + 1
+            i += 1
+
+    ## Load `path` and, first, every module it imports from the same directory.
+    pub mutating func load(path: c.str) -> !:
+        self.root = manifest.directory_of((str)path)
+        try self.load_as(path, try module_paths.name_of((str)path))
+
+    ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
+    pub mutating func load_as(path: c.str, name: str) -> !:
+        for i in 0..<self.loading.count:
+            if self.loading.get(i) == name:
+                let half = self.scratch.length // 2
+                let message = try format(self.scratch[..<half], f"module import cycle involving {name}")
+                error(unknown_name, message)
+        try self.loading.push(name)
+        defer self.finish_load()
+        let text = (str)path
+        let src = self.load_source(path) catch failure:
+            let half = self.scratch.length // 2
+            # a located message (`path:line:column: ...`) stands as it is, copied into the
+            # scratch that outlives the build's arena; only a file that cannot be opened is
+            # reported by its name alone
+            if failure.code == source.bad_encoding:
+                let located = try format(self.scratch[..<half], f"{failure.message}")
+                error(unknown_name, located)
+            let message = try format(self.scratch[..<half], f"cannot read {text}: {failure.message}")
+            error(unknown_name, message)
+        let canonical = try module_paths.canonical(text)
+        for loaded in self.modules.span():
+            if not loaded.is_prelude and loaded.canonical == canonical:
+                try self.module_alias(name, loaded.name)
+                return
+        var p = try parser.Parser.over(src, self.scratch)
+        let tree = try p.parse_module()
+        try p.merge_extensions(tree)
+        if is_standard_module(name):
+            let half = self.scratch.length // 2
+            let message = try format(self.scratch[..<half], f"{text}:1:1: a module cannot take a standard module's name")
+            error(unknown_name, message)
+        if not is_identifier(module_name_of(text)):
+            let half = self.scratch.length // 2
+            let message = try format(self.scratch[..<half], f"{text}:1:1: a module's file name is an identifier (§16.1)")
+            error(unknown_name, message)
+        if self.find_module(name) != none:
+            error(unknown_name, "different source files use the same canonical module name")
+        var cursor = tree.body
+        while let d = cursor:
+            if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
+                if not is_standard_module(d.text):
+                    let exported = try module_paths.package_import(text, d.text)
+                    let saved_root = self.root
+                    var sibling: str
+                    var canonical_name = d.text
+                    if let public_module = exported:
+                        sibling = public_module.path
+                        canonical_name = public_module.name
+                        try self.module_alias(d.text, canonical_name)
+                        self.root = public_module.root
+                        if self.root.length > 0 and self.root.bytes[self.root.length - 1] != '/':
+                            let room = try alloc u8[self.root.length + 2]
+                            self.root = try format(room, f"{self.root}/")
+                    else:
+                        sibling = try self.resolve_import(d.text, manifest.directory_of(text))
+                    # a module that cannot be read is reported at the import that named it;
+                    # a message that already names a place stands as it is
+                    self.load_as((c.str)sibling, canonical_name) catch failure:
+                        if failure.code == unknown_name and not names_a_place(failure.message):
+                            # the message sits in the scratch's lower half; the located one
+                            # goes to the upper half
+                            let half = self.scratch.length // 2
+                            let (file, line, column) = src.located(d.start)
+                            let located = try format(self.scratch[half..], f"{file}:{line}:{column}: {failure.message}")
+                            error(unknown_name, located)
+                        error(failure.code, failure.message)
+                    if exported != none:
+                        self.root = saved_root
+            cursor = d.next
+        tree.text = name
+        let owner = try module_paths.package_of(text, name, self.package_name)
+        # a dependency's positions name `<package>/<path in it>`, the same on every machine,
+        # as a standard module's name `std/...`; its file stays `canonical`
+        var shown = src
+        if owner.length > 0 and owner != self.package_name:
+            if let found = try module_paths.owner_root(text):
+                let (package, root) = found
+                if package == owner:
+                    try shown.rebase(root, owner)
+                else:
+                    # a compiled workspace (luce's) holds every package's modules under one
+                    # manifest, each package in its own directory: they name `<that>/...`
+                    try shown.rebase(root, "")
+        try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner))
+        # Every imported module is library code, kept only where the program reaches it;
+        # the entry file alone is the program and keeps all it declares.
+        if self.loading.count > 1:
+            try note_library_module(name)
+
+    ## Leave the active import path on success and on every loading error.
+    mutating func finish_load():
+        self.loading.count -= 1
+
+    ## `import front.lexer` is `front/lexer.lucb` beside the importing file, else under the
+    ## root. The root starts as the entry file's directory; when a module under a
+    ## subdirectory is the entry (its tests, say), the first import that is missing there
+    ## moves the root up until it resolves.
+    mutating func resolve_import(text: str, here: str) -> str!:
+        if here != self.root:
+            var beside_buffer = try alloc u8[here.length + text.length + 6]
+            let beside = try format(beside_buffer, f"{here}{text}.lucb")
+            for i in here.length..<beside.length:
+                if beside.bytes[i] == '.' and i + 5 < beside.length:
+                    beside_buffer[i] = '/'
+            if file_exists((c.str)beside):
+                return beside
+        var dir = self.root
+        while true:
+            var buffer = try alloc u8[dir.length + text.length + 6]
+            let candidate = try format(buffer, f"{dir}{text}.lucb")
+            for i in dir.length..<candidate.length:
+                if candidate.bytes[i] == '.' and i + 5 < candidate.length:
+                    buffer[i] = '/'
+            if file_exists((c.str)candidate):
+                self.root = dir
+                return candidate
+            # a directory whose `ORDER` lists the module's fragments stands for the file; its
+            # path gets a terminated buffer of its own, since the candidate's runs on
+            let stem = (str)candidate.bytes[..<candidate.length - 5]
+            var directory_buffer = try alloc u8[stem.length + 1]
+            let directory = try format(directory_buffer, f"{stem}")
+            var order_buffer = try alloc u8[directory.length + 8]
+            if file_exists((c.str)try format(order_buffer, f"{directory}/ORDER")):
+                self.root = dir
+                return directory
+            if dir.length == 0:
+                # nowhere left to look: the file's own name goes into the diagnostic
+                self.root = dir
+                return candidate
+            dir = manifest.parent_of(dir)
+
+    ## The source at `path`: one file, or the fragments its `ORDER` lists when `path` is a
+    ## directory, assembled in order as one module whose positions name the fragment files.
+    func load_source(path: c.str) -> source.Source!:
+        let text = (str)path
+        var order_bytes = try alloc u8[text.length + 8]
+        let order = files.read((c.str)try format(order_bytes, f"{text}/ORDER")) catch:
+            return try source.Source.load(path)
+        cache.note_input(text, order)
+        var names = try list.List[str].create(8)
+        var texts = try list.List[u8[]].create(8)
+        var start: usize = 0
+        var i: usize = 0
+        while i <= order.length:
+            let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
+            if blank and i > start:
+                let part = (str)order[start..<i]
+                var fragment_bytes = try alloc u8[text.length + part.length + 2]
+                let fragment = try format(fragment_bytes, f"{text}/{part}")
+                try names.push(fragment)
+                let bytes = try files.read((c.str)fragment)
+                cache.note_input(fragment, bytes)
+                try texts.push(bytes)
+            if blank:
+                start = i + 1
+            i += 1
+        if names.count == 0:
+            error(unknown_name, "an `ORDER` names at least one fragment")
+        return try source.Source.assembled(text, names.span(), texts.span())
+
+    ## Whether `m` is the standard `c` module, whose types the checker supplies (§5.2).
+    func is_c_module(m: ast.Node*) -> bool:
+        let index = self.find_module("c") else return false
+        return self.modules.get(index).tree == m
+
+    mutating func module_alias(name: str, target: str) -> !:
+        if name == target:
+            return
+        for alias in self.module_aliases.span():
+            if alias.name == name:
+                if alias.target != target:
+                    error(unknown_name, "package exports disagree on the identity of a module")
+                return
+        try self.module_aliases.push(ModuleAlias(name, target))
+
+    ## The index of the module named `name` (following aliases), or `none`.
+    pub func find_module(name: str) -> usize?:
+        var canonical = name
+        for alias in self.module_aliases.span():
+            if alias.name == name:
+                canonical = alias.target
+        var i: usize = 0
+        while i < self.modules.count:
+            if self.modules.get(i).name == canonical:
+                return i
+            i += 1
+        return none
+
+    ## The index of the module whose body declares `decl` at its top level, or `none`.
+    ## Modules join the end of `modules` and are indexed as they are first asked about, so
+    ## this is for a checked program, whose module bodies no longer change.
+    pub mutating func owner_of(decl: ast.Node*) -> usize?!:
+        while self.owners_indexed < self.modules.count:
+            let index = self.owners_indexed
+            var cursor = self.modules.get(index).tree.body
+            while let d = cursor:
+                discard(try self.owners.add((usize)d, index))
+                cursor = d.next
+            self.owners_indexed += 1
+        return self.owners.find((usize)decl)
+
+    ## Check every module in order: the prelude, then each program module.
+    pub mutating func check_program() -> !:
+        var i: usize = 0
+        while i < self.modules.count:
+            self.current = i
+            try self.check_module(i)
+            i += 1
+
+    mutating func check_module(index: usize) -> !:
+        let m = self.modules.get(index)
+        let tree = m.tree
+        self.push_scope()
+        self.module_depth = self.depth
+        try self.bind_standard()
+        try self.bind_imports(tree)
+        try self.collect(tree)
+        try self.resolve_signatures(tree)
+        var decl = tree.body
+        while let d = decl:
+            if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.enum_:
+                try self.check_containment(d)
+            if d.kind == ast.Kind.extern_type and d.right != none:
+                try self.check_handle(d)
+            decl = d.next
+        if index + 1 == self.modules.count:
+            try self.check_entry(tree)
+        # a declaration that fails is reported and the next is checked (§19.6): the scopes it
+        # opened close and the function state resets first; the module's failures are one error
+        let depth = self.depth
+        let bindings = self.scope.count
+        var cursor = tree.body
+        while let d = cursor:
+            self.check_declaration(d) catch failure:
+                try self.keep_error(failure.message)
+                while self.depth > depth:
+                    self.pop_scope()
+                self.truncate_scope(bindings)
+                self.current_func = none
+                self.fallible = false
+                self.in_init = false
+                self.in_catch = false
+                self.in_defer = false
+                self.loop_depth = 0
+                self.label_count = 0
+                self.checking_template = false
+                self.at_top_level = false
+                # the expression state a failure left mid-expression: a `try` it was under
+                # would make every later `f() else x` read as handled
+                self.expression_effect = false
+                self.calling = false
+                self.catch_result = types.none_id
+                self.indexed_iterable = none
+                self.folded_quietly = false
+            cursor = d.next
+        if self.errors.count > 0:
+            error(type_error, try self.all_errors())
+        var r = self.reporter()
+        try prune.prune_unused_functions(tree, &r, m.is_prelude)
+        try prune.prune_unused_imports(tree, &r)
+        self.pop_scope()
+
+    ## A `naked func` owns its frame: the body is asm blocks and nothing else (§9.8), and the
+    ## blocks are what returns, so the every-path rule does not apply.
+    mutating func check_naked_body(body: ast.Node*) -> !:
+        var cursor = body.body
+        if cursor == none:
+            discard(try self.fail(body, "a naked function's body is one asm block per architecture"))
+        while let s = cursor:
+            if s.kind != ast.Kind.asm_:
+                discard(try self.fail(s, "a naked function's body is asm blocks only"))
+            cursor = s.next
+
+    ## `main` takes `str[]` or `c.str[]` and returns `i32` or `i32!` (§9.7).
+    mutating func check_entry(tree: ast.Node*) -> !:
+        let d = find_decl(tree, "main") else return
+        if d.kind != ast.Kind.func_:
+            return
+        let ft = self.table.get(d.type_id)
+        var result = ft.elem
+        if self.table.kind(result) == types.Kind.fallible:
+            result = self.table.get(result).elem
+        var good = ft.args.length == 1 and result == types.i32_id
+        if good:
+            let p = self.table.get(ft.args[0])
+            good = p.kind == types.Kind.span and (p.elem == types.str_id or p.elem == types.cstr_id)
+        if not good:
+            discard(try self.fail(d, "`main` takes `str[]` or `c.str[]` and returns `i32` or `i32!`"))
+
+    ## Nothing is visible without an import (§16.3): a standard module is `import io`,
+    ## one of its declarations `from io import Writer`, in the prelude as anywhere else.
+    mutating func bind_standard() -> !:
+        return
+
+    mutating func bind_module(tree: ast.Node*, alias: str, at: ast.Node*) -> !:
+        if self.lookup(alias) != none:
+            return
+        if tree.type_id == types.none_id:
+            tree.type_id = try self.table.nominal(types.Kind.module, tree, try types.no_args())
+        try self.bind(at, alias, tree.type_id, tree, false)
+        self.set_origin(at)
+
+    mutating func bind_imports(tree: ast.Node*) -> !:
+        var cursor = tree.body
+        while let d = cursor:
+            if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
+                var earlier = tree.body
+                while let e = earlier:
+                    if e == d:
+                        break
+                    if e.kind == d.kind and e.text == d.text:
+                        if d.kind == ast.Kind.import_:
+                            return try self.fail_at(d, "this module is already imported (§16.3)", e, "the earlier import")
+                        if let again = repeated_name(e.body, d.body):
+                            return try self.fail_at(again, "this name is already imported (§16.3)", e, "the earlier import")
+                    earlier = e.next
+            if d.kind == ast.Kind.import_:
+                let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
+                let other = self.modules.get(index).tree
+                var alias = last_component(d.text)
+                if let a = d.left:
+                    alias = a.text
+                d.resolved = other
+                try self.bind_module(other, alias, d)
+            elif d.kind == ast.Kind.from_import:
+                let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
+                let other = self.modules.get(index).tree
+                d.resolved = other
+                # `from io import Writer` brings `Writer` alone; `io` itself needs `import io`
+                var names = d.body
+                while let n = names:
+                    var text: u8[256]
+                    let member = find_decl(other, n.text) else return try self.fail(n, try format(text, f"`{d.text}` has no public `{n.text}`"))
+                    if not member.has(ast.flag_pub):
+                        var said1: u8[256]
+                        discard(try self.fail(n, said(said1, f"`{n.text}` is not public in `{d.text}`")))
+                    n.resolved = member
+                    try self.bind(n, n.text, member.type_id, member, member.kind == ast.Kind.global or member.kind == ast.Kind.extern_var)
+                    self.set_origin(d)
+                    names = n.next
+            cursor = d.next

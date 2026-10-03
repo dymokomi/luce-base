@@ -6,7 +6,7 @@
 #       Functions of the tree and of types that need no emitter.
 #
 #==============================================================================================
-# mark: Helpers ================================================================================
+# mark: Helpers ===============================================================================
 
 ## `[name] ` before a constraint: the named operand form of GNU extended asm.
 func put_asm_label(out: buffer.Buffer*, label: str) -> !:

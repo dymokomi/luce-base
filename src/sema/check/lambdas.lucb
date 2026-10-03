@@ -1,0 +1,175 @@
+#==============================================================================================
+#
+#   check/lambdas - Lambdas
+#
+#   DESCRIPTION:
+#       Lambdas hoisted to functions of their own, and functions wrapped to fail (§9.6).
+#
+#==============================================================================================
+extend Checker:
+    # mark: Lambdas ============================================================================
+
+    mutating func lambda_type(e: ast.Node*, hint: u32) -> u32!:
+        # a lambda where `(func(i64) -> i64)?` is expected takes the function's shape (§9.6)
+        var target = hint
+        if self.table.kind(hint) == types.Kind.optional and self.table.kind(self.table.get(hint).elem) == types.Kind.func_:
+            target = self.table.get(hint).elem
+        let h = self.table.get(target)
+        let n = ast.count(e.right)
+        var params = try types.no_args()
+        if n > 0:
+            params = try alloc u32[n]
+        let saved_floor = self.lambda_floor
+        let saved_self = self.self_type
+        self.lambda_floor = self.scope.count
+        self.self_type = types.none_id
+        self.push_scope()
+        var i: usize = 0
+        var cursor = e.right
+        while let p = cursor:
+            var pt = types.none_id
+            if let t = p.ty:
+                pt = try self.resolve_type(t)
+            elif h.kind == types.Kind.func_ and i < h.args.length:
+                pt = h.args[i]
+            else:
+                return try self.fail(p, "this parameter needs a type")
+            p.type_id = pt
+            params[i] = pt
+            try self.bind(p, p.text, pt, p, false)
+            i += 1
+            cursor = p.next
+        let body = e.body else return try self.fail(e, "a lambda needs a body")
+        var want = types.none_id
+        if h.kind == types.Kind.func_:
+            want = h.elem
+        let saved_result = self.result_type
+        let saved_fallible = self.fallible
+        self.result_type = want
+        let saved_effect = self.expression_effect
+        let saved_count = self.effect_count
+        # a lambda's body is a function of its own, even written in a deferred block
+        let saved_defer = self.in_defer
+        self.in_defer = false
+        self.expression_effect = false
+        self.fallible = self.table.kind(want) == types.Kind.fallible
+        let bt = try self.check_expr(body, want)
+        self.in_defer = saved_defer
+        var result = self.concrete(bt)
+        if want == types.none_id:
+            result = try self.settle(body, bt)
+        else:
+            result = try self.coerce(body, bt, want)
+            result = want
+        self.result_type = saved_result
+        self.fallible = saved_fallible
+        self.pop_scope()
+        self.expression_effect = saved_effect
+        self.effect_count = saved_count
+        self.lambda_floor = saved_floor
+        self.self_type = saved_self
+        let fn_type = try self.table.function(params, result, false)
+        e.resolved = try self.hoist_lambda(e, body, fn_type)
+        return fn_type
+
+    ## A lambda is a hidden module function (§9.6): its parameters, a body of one `return`,
+    ## and no captures. The backends emit it as any other function of the module.
+    mutating func hoist_lambda(e: ast.Node*, body: ast.Node*, fn_type: u32) -> ast.Node*!:
+        let fn = try ast.Node.make(ast.Kind.func_, try self.lambda_name(), e.start, e.line)
+        fn.flags |= ast.flag_lambda | ast.flag_referenced
+        fn.right = e.right
+        fn.type_id = fn_type
+        let ret = try ast.Node.make(ast.Kind.return_, "", body.start, body.line)
+        ret.left = body
+        ret.type_id = types.never_id
+        let block = try ast.Node.make(ast.Kind.block, "", body.start, body.line)
+        block.body = ret
+        fn.body = block
+        self.hoist(fn)
+        return fn
+
+    ## A synthesised function joins the module's declarations, after the last one.
+    mutating func hoist(fn: ast.Node*):
+        let tree = self.modules.get(self.current).tree
+        var cursor = tree.body
+        var last: ast.Node*? = none
+        while let d = cursor:
+            last = d
+            cursor = d.next
+        if let l = last:
+            l.next = fn
+        else:
+            tree.body = fn
+
+    ## A named function where a fallible function type is wanted (§9.4): the name comes to
+    ## mean a hoisted function of the wanted type that calls the named one and answers its
+    ## result as success. Only a declaration can be wrapped this way; a function value
+    ## held in a variable has no name to wrap.
+    mutating func wrap_as_fallible(e: ast.Node*, want: u32) -> !:
+        let f = e.resolved else return try self.fail(e, "only a named function converts to a fallible function type")
+        if f.kind != ast.Kind.func_ and f.kind != ast.Kind.extern_func:
+            return try self.fail(e, "only a named function converts to a fallible function type")
+        let fn = try ast.Node.make(ast.Kind.func_, try self.hidden_name("__thunk"), e.start, e.line)
+        fn.flags |= ast.flag_lambda | ast.flag_referenced | ast.flag_fallible
+        fn.type_id = want
+        var params: ast.Node*? = none
+        var params_tail: ast.Node*? = none
+        var args: ast.Node*? = none
+        var args_tail: ast.Node*? = none
+        var cursor = f.right
+        while let p = cursor:
+            let np = try ast.Node.make(ast.Kind.param, p.text, e.start, e.line)
+            np.type_id = p.type_id
+            np.ty = p.ty
+            ast.append(&params, &params_tail, np)
+            let use = try ast.Node.make(ast.Kind.name, p.text, e.start, e.line)
+            use.type_id = p.type_id
+            use.resolved = np
+            let a = try ast.Node.make(ast.Kind.argument, "", e.start, e.line)
+            a.left = use
+            a.type_id = p.type_id
+            ast.append(&args, &args_tail, a)
+            cursor = p.next
+        fn.right = params
+        let callee = try ast.Node.make(ast.Kind.name, f.text, e.start, e.line)
+        callee.type_id = f.type_id
+        callee.resolved = f
+        let call = try ast.Node.make(ast.Kind.call, "", e.start, e.line)
+        call.left = callee
+        call.body = args
+        call.resolved = f
+        call.type_id = self.table.get(f.type_id).elem
+        let ret = try ast.Node.make(ast.Kind.return_, "", e.start, e.line)
+        ret.left = call
+        ret.type_id = types.never_id
+        let block = try ast.Node.make(ast.Kind.block, "", e.start, e.line)
+        block.body = ret
+        fn.body = block
+        self.hoist(fn)
+        e.resolved = fn
+        e.text = fn.text
+        e.type_id = want
+
+    ## `__lambda1`, `__lambda2`, ...: names no source can spell.
+    mutating func lambda_name() -> str!:
+        return try self.hidden_name("__lambda")
+
+    ## `prefix` followed by a fresh number: a name no source can spell.
+    mutating func hidden_name(prefix: str) -> str!:
+        self.lambda_count += 1
+        var digits: u8[12]
+        var n = self.lambda_count
+        var k: usize = 0
+        while true:
+            digits[k] = (u8)48 + (u8)(n % 10)
+            k += 1
+            n = n // 10
+            if n == 0:
+                break
+        var out = try alloc u8[prefix.length + k]
+        memory.copy(out, prefix.bytes, prefix.length)
+        var j: usize = 0
+        while j < k:
+            out[prefix.length + j] = digits[k - 1 - j]
+            j += 1
+        return (str)out[..<prefix.length + k]

@@ -1,0 +1,466 @@
+#==============================================================================================
+#
+#   check/members - Members, indexes, and slices
+#
+#   DESCRIPTION:
+#       Fields, methods, module members, and bounds-checked indexing and slicing.
+#
+#==============================================================================================
+extend Checker:
+    # mark: Members ============================================================================
+
+    ## `x.name`: a field, method, case, static member, module member, or a
+    ## builtin member of a span, `str`, or `Error`.
+    mutating func member_type(e: ast.Node*) -> u32!:
+        let owner = e.left else return try self.fail(e, "missing operand")
+        let name = e.text
+        let as_callee = self.calling
+        self.calling = false
+        # `luce.location` and its pieces are compile-time facts, not members
+        if owner.kind == ast.Kind.name and owner.text == "luce":
+            if let b = self.lookup("luce"):
+                self.note_origin(b)
+                owner.type_id = b.type_id
+                owner.resolved = b.decl
+                if name == "location":
+                    return try self.location_type()
+                if name == "file" or name == "function":
+                    return types.str_id
+                if name == "line":
+                    return types.u32_id
+        let raw = try self.check_expr(owner, types.none_id)
+        if owner.has(ast.flag_type_ref):
+            return try self.static_member(e, owner, raw)
+        let ot = self.table.get(raw)
+        if ot.kind == types.Kind.tuple and name.length > 0 and name.bytes[0] >= '0' and name.bytes[0] <= '9':
+            # `pair.0`: a member by position (§5.3)
+            let index = literals.decode_integer(name) catch failure:
+                return try self.fail(e, "a tuple member is `.0`, `.1`, ...")
+            if index >= (u64)ot.args.length:
+                return try self.fail(e, "no such tuple member")
+            return ot.args[(usize)index]
+        if ot.kind == types.Kind.module:
+            let m = ot.decl else return try self.fail(e, "no module")
+            if self.is_c_module(m) and c_type_id(name) != types.none_id:
+                e.flags |= ast.flag_type_ref
+                return c_type_id(name)
+            var text: u8[256]
+            let d = find_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
+            var said9: u8[256]
+            if not d.has(ast.flag_pub):
+                return try self.fail(e, said(said9, f"`{name}` is not public in `{m.text}`"))
+            e.resolved = d
+            if d.kind == ast.Kind.constant and d.type_id == types.none_id:
+                let saved = self.current
+                try self.check_constant_in(m, d)
+                self.current = saved
+            if let f = self.function_alias(d):
+                e.resolved = f
+            if is_type_decl(d) or d.kind == ast.Kind.type_alias:
+                e.flags |= ast.flag_type_ref
+                if d.kind == ast.Kind.type_alias and d.type_id == types.none_id:
+                    let target = d.ty else return try self.fail(e, "an alias needs a type")
+                    d.type_id = try self.resolve_type(target)
+                if let t = e.ty:
+                    let named = try ast.Node.make(ast.Kind.type_, name, e.start, e.line)
+                    named.body = t.body
+                    named.resolved = d
+                    return try self.instantiate_node(named, d)
+            return d.type_id
+        let id = self.deref(raw)
+        let t = self.table.get(id)
+        if t.kind == types.Kind.span or t.kind == types.Kind.array:
+            if name == "length":
+                return types.usize_id
+            if name == "data":
+                if t.kind == types.Kind.array:
+                    # an array is a value; the address of its elements is `&a[0]`, or the
+                    # span it converts to (§5.4)
+                    return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
+                return try self.table.pointer(t.elem, t.is_const, false)
+            if t.kind == types.Kind.array and self.table.is_vector(id) and (name == "sum" or name == "min" or name == "max"):
+                return try self.builtin_method(e, id, name)
+            if t.kind == types.Kind.array and self.table.is_vector(id) and name == "mul_add" and (t.elem == types.f32_id or t.elem == types.f64_id):
+                return try self.builtin_method(e, id, name)
+            if name == "indexed" and not self.is_indexed_iterable(e):
+                return try self.fail(e, "`indexed()` is iterated by `for`: `for (i, x) in items.indexed()` (§8.3)")
+            if name == "first" or name == "last" or name == "indexed":
+                let span = id if t.kind == types.Kind.span else try self.table.span(t.elem, false)
+                return try self.builtin_method(e, span, name)
+            if t.kind == types.Kind.array:
+                return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
+            return try self.fail(e, "spans have `length`, `data`, `first()`, `last()`, and `indexed()`")
+        if id == types.str_id:
+            if name == "length":
+                return types.usize_id
+            if name == "bytes":
+                return try self.table.span(types.u8_id, true)
+            if name == "compare":
+                return try self.builtin_method(e, types.str_id, name)
+            return try self.fail(e, "`str` has `length`, `bytes`, and `compare`")
+        if id == types.error_value_id:
+            if name == "code":
+                return types.error_code_id
+            if name == "message":
+                return types.str_id
+            return try self.fail(e, "an `Error` has `code` and `message`")
+        if self.table.is_float(id) and name == "bits":
+            return try self.builtin_method(e, id, name)
+        if (id == types.f32_id or id == types.f64_id) and name == "mul_add":
+            return try self.builtin_method(e, id, name)
+        if t.kind == types.Kind.struct_ or t.kind == types.Kind.union_ or t.kind == types.Kind.enum_:
+            let d = t.decl else return try self.fail(e, "no declaration")
+            if let f = find_member(d, name, ast.Kind.field):
+                e.resolved = f
+                if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
+                    var said10: u8[256]
+                    return try self.fail(e, said(said10, f"field `{name}` is not public"))
+                if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
+                    self.mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
+                return try self.substitute(f.type_id, d, t.args)
+            if let m = find_member(d, name, ast.Kind.func_):
+                if m.has(ast.flag_static):
+                    return try self.fail(e, "a static method is called through the type")
+                if not as_callee:
+                    # `value.member` without `()` is always a field (§9.5)
+                    return try self.fail(e, "a method is called; write `name()`")
+                e.resolved = m
+                var said11: u8[256]
+                if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
+                    return try self.fail(e, said(said11, f"method `{name}` is not public"))
+                return try self.substitute(m.type_id, d, t.args)
+            if t.kind == types.Kind.enum_ and find_member(d, name, ast.Kind.enum_case) != none:
+                return try self.fail(e, "a case is named through the type, `Kind.case`")
+            var said12: u8[256]
+            return try self.fail(e, try self.with_type("`", id, said(said12, f"` has no member `{name}`")))
+        if t.kind == types.Kind.interface_:
+            let d = t.decl else return try self.fail(e, "no declaration")
+            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "the interface has no such method")
+            e.resolved = m
+            return try self.substitute(m.type_id, d, t.args)
+        if name == "compare" and (self.table.is_numeric(id) or id == types.char_id or id == types.str_id):
+            return try self.builtin_method(e, id, name)
+        if t.kind == types.Kind.param:
+            let g = self.generic_param_node(id) else return try self.fail(e, "no such member")
+            var bound = g.body
+            while let constraint = bound:
+                let ct = self.table.get(constraint.type_id)
+                if let cd = ct.decl:
+                    if let m = find_member(cd, name, ast.Kind.func_):
+                        e.resolved = m
+                        let fn = try self.substitute(m.type_id, cd, ct.args)
+                        if is_derived_bound(cd):
+                            # `compare(other: void*)` in the prelude is `compare(other: T)` here
+                            return try self.with_self_arguments(fn, id)
+                        return fn
+                bound = constraint.next
+            return try self.fail(e, "no constraint of this parameter has that method")
+        if t.kind == types.Kind.pointer and t.elem == types.void_id:
+            return try self.fail(e, "`void*` has no members")
+        var said13: u8[256]
+        return try self.fail(e, try self.with_type("a `", id, said(said13, f"` has no members, so no `{name}`")))
+
+    func all_params(ids: u32[]) -> bool:
+        for id in ids:
+            if self.table.kind(id) != types.Kind.param:
+                return false
+        return ids.length > 0
+
+    ## The instance of generic `d` whose parameters the construction's values imply.
+    mutating func infer_construction(e: ast.Node*, d: ast.Node*, generic_count: usize) -> u32!:
+        var inferred = try alloc u32[generic_count]
+        var j: usize = 0
+        while j < generic_count:
+            inferred[j] = types.none_id
+            j += 1
+        var cursor = e.body
+        var positional = d.body
+        while let a = cursor:
+            let v = a.left else return try self.fail(a, "empty argument")
+            var field: ast.Node*? = none
+            if a.text.length > 0:
+                field = find_member(d, a.text, ast.Kind.field)
+            else:
+                while let p = positional:
+                    if p.kind == ast.Kind.field:
+                        break
+                    positional = p.next
+                field = positional
+                if let p = positional:
+                    positional = p.next
+            var said14: u8[256]
+            let f = field else return try self.fail(a, said(said14, f"no field `{a.text}`"))
+            var got = try self.check_expr(v, types.none_id if self.mentions_param(f.type_id) else f.type_id)
+            got = self.concrete(got) if got != types.none_id else got
+            try self.infer(f.type_id, got, d, inferred)
+            cursor = a.next
+        j = 0
+        while j < generic_count:
+            if inferred[j] == types.none_id:
+                return try self.fail(e, "a type argument could not be inferred; write `Name[T](...)`")
+            j += 1
+        let holder = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+        var tail: ast.Node*? = none
+        j = 0
+        while j < generic_count:
+            let node = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+            node.type_id = inferred[j]
+            ast.append(&holder.body, &tail, node)
+            j += 1
+        e.ty = holder
+        return try self.table.nominal(self.table.kind(d.type_id), d, inferred)
+
+    ## A function type with every `void*` parameter replaced by `self_id`.
+    mutating func with_self_arguments(fn: u32, self_id: u32) -> u32!:
+        let f = self.table.get(fn)
+        var params = try alloc u32[f.args.length if f.args.length > 0 else 1]
+        var i: usize = 0
+        while i < f.args.length:
+            let a = self.table.get(f.args[i])
+            params[i] = self_id if a.kind == types.Kind.pointer and a.elem == types.void_id else f.args[i]
+            i += 1
+        return try self.table.function(params[..<f.args.length], f.elem, false)
+
+    ## `ErrorCode.package(n)` becomes the literal `(identity << 16) | n` (§11.3): the identity is
+    ## sixteen bits of the package's name, `luce` for the standard modules, so that no two
+    ## packages share a code and the backends see a plain constant.
+    mutating func fold_package_code(e: ast.Node*) -> !:
+        let argument = e.body else return try self.fail(e, "`ErrorCode.package` takes a code")
+        let v = argument.left else return try self.fail(e, "`ErrorCode.package` takes a code")
+        if v.kind != ast.Kind.literal:
+            return try self.fail(v, "`ErrorCode.package` takes an integer literal")
+        let code = literals.decode_integer(v.text) catch failure:
+            return try self.fail(v, "integer literal does not fit")
+        if code > 65535:
+            return try self.fail(v, "an error code is at most 65535; the package's identity takes the high half")
+        let declared = self.modules.get(self.current).package_name
+        let name = "luce" if self.in_prelude() else (declared if declared.length > 0 else self.package_name)
+        let full = ((u64)package_identity(name) << 16) | code
+        for known in self.package_codes.span():
+            if known == full:
+                return try self.fail(v, "two constants of one package share this error code (§11.3)")
+        try self.package_codes.push(full)
+        var digits = try alloc u8[24]
+        v.text = try format(digits, f"{full}")
+
+    ## The unsigned integer as wide as the float `id`: the type its `bits` are (§7.5).
+    pub func bits_type(id: u32) -> u32:
+        let width = self.table.bits(id)
+        return types.u16_id if width == 16 else (types.u32_id if width == 32 else types.u64_id)
+
+    ## The function type of a method taken through its type: `self` is its first parameter,
+    ## `const Self*` unless the method is `mutating` (§9.5).
+    mutating func method_as_function(ft: u32, owner: u32, writes: bool) -> u32!:
+        let f = self.table.get(ft)
+        var params = try alloc u32[f.args.length + 1]
+        params[0] = try self.table.pointer(owner, not writes, false)
+        var i: usize = 0
+        while i < f.args.length:
+            params[i + 1] = f.args[i]
+            i += 1
+        return try self.table.function(params, f.elem, f.variadic)
+
+    ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`.
+    mutating func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
+        let name = e.text
+        let t = self.table.get(id)
+        if id == types.error_code_id and name == "package":
+            if not self.at_top_level:
+                return try self.fail(e, "`ErrorCode.package` only initialises a top-level constant")
+            e.flags |= ast.flag_static
+            return try self.table.function(try one_arg(types.u32_id), types.error_code_id, false)
+        if self.table.is_float(id) and name == "bits":
+            let bits = self.bits_type(id)
+            e.flags |= ast.flag_static
+            return try self.table.function(try one_arg(bits), id, false)
+        if t.kind == types.Kind.enum_:
+            let d = t.decl else return try self.fail(e, "no declaration")
+            if let case_decl = find_member(d, name, ast.Kind.enum_case):
+                e.resolved = case_decl
+                if case_decl.body != none:
+                    # a payload case is a constructor
+                    e.flags |= ast.flag_static
+                    return try self.case_constructor(case_decl, d, t.args)
+                return id
+        if t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_ or t.kind == types.Kind.union_:
+            let d = t.decl else return try self.fail(e, "no declaration")
+            var said15: u8[256]
+            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, said(said15, f"`{d.text}` has no static member `{name}`"))
+            var said16: u8[256]
+            if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
+                return try self.fail(e, said(said16, f"method `{name}` is not public"))
+            e.resolved = m
+            e.flags |= ast.flag_static
+            let ft = try self.substitute(m.type_id, d, t.args)
+            if not m.has(ast.flag_static):
+                # `Point.distance` through its type is a function taking the receiver first (§5.6)
+                return try self.method_as_function(ft, id, m.has(ast.flag_mutating))
+            return ft
+        var said21: u8[256]
+        return try self.fail(e, try self.with_type("`", id, said(said21, f"` has no member `{name}`")))
+
+    ## The function type that builds a payload case.
+    mutating func case_constructor(case_node: ast.Node*, d: ast.Node*, args: u32[]) -> u32!:
+        let n = ast.count(case_node.body)
+        var params = try types.no_args()
+        if n > 0:
+            params = try alloc u32[n]
+        var i: usize = 0
+        var cursor = case_node.body
+        while let p = cursor:
+            params[i] = try self.substitute(p.type_id, d, args)
+            i += 1
+            cursor = p.next
+        let result = d.type_id if args.length == 0 else try self.table.nominal(types.Kind.enum_, d, args)
+        return try self.table.function(params, result, false)
+
+    ## Function types for the builtin methods of spans and floats.
+    mutating func builtin_method(e: ast.Node*, id: u32, name: str) -> u32!:
+        let t = self.table.get(id)
+        e.flags |= ast.flag_static
+        if name == "sum" or name == "min" or name == "max":
+            # a vector folds to one lane (§5.12)
+            return try self.table.function(try types.no_args(), t.elem, false)
+        if name == "first" or name == "last":
+            return try self.table.function(try types.no_args(), try self.table.optional(t.elem), false)
+        if name == "indexed":
+            var pair = try alloc u32[2]
+            pair[0] = types.usize_id
+            pair[1] = t.elem
+            let tuple = try self.table.tuple(pair)
+            return try self.table.function(try types.no_args(), try self.table.span(tuple, true), false)
+        if name == "bits":
+            let bits = self.bits_type(id)
+            return try self.table.function(try types.no_args(), bits, false)
+        if name == "compare":
+            # numbers, `char`, and `str` order themselves (§14.4)
+            var one = try alloc u32[1]
+            one[0] = id
+            return try self.table.function(one, types.i64_id, false)
+        if name == "mul_add":
+            # `a.mul_add(b, c)`: `a * b + c` rounded once, a scalar's or each lane's (§7.2)
+            var two = try alloc u32[2]
+            two[0] = id
+            two[1] = id
+            return try self.table.function(two, id, false)
+        return try self.fail(e, "no such builtin member")
+
+    mutating func location_type() -> u32!:
+        let ii = self.find_module("io") else return try self.fail_now("the `io` module is missing")
+        let io_tree = self.modules.get(ii).tree
+        let d = find_decl(io_tree, "Location") else return try self.fail_now("`io.Location` is missing")
+        return d.type_id
+
+    func fail_now(what: str) -> never!:
+        error(unsupported, what)
+
+    ## Whether `d` was declared in the module being checked.
+    func same_module(d: ast.Node*) -> bool:
+        let m = self.modules.get(self.current)
+        var cursor = m.tree.body
+        while let x = cursor:
+            if x == d:
+                return true
+            cursor = x.next
+        return false
+
+    ## Whether the body being checked belongs to `d`.
+    func inside(d: ast.Node*) -> bool:
+        let own = self.self_decl() else return false
+        return own == d
+
+    mutating func check_constant_in(m: ast.Node*, d: ast.Node*) -> !:
+        var i: usize = 0
+        while i < self.modules.count:
+            if self.modules.get(i).tree == m:
+                let saved = self.current
+                self.current = i
+                # the other module's names are not in scope; a constant initialiser
+                # may only use literals and names from its own module, so check it there
+                self.push_scope()
+                try self.bind_standard()
+                try self.bind_imports(m)
+                try self.collect(m)
+                try self.check_constant(d)
+                self.pop_scope()
+                self.current = saved
+                return
+            i += 1
+
+    mutating func instantiate_node(named: ast.Node*, d: ast.Node*) -> u32!:
+        let n = ast.count(named.body)
+        if ast.count(generic_params_of(d)) != n:
+            return try self.fail(named, "wrong number of type arguments")
+        var args = try alloc u32[n]
+        var i: usize = 0
+        var cursor = named.body
+        while let a = cursor:
+            args[i] = try self.resolve_type(a)
+            i += 1
+            cursor = a.next
+        try self.check_constraints(d, args, named)
+        return try self.table.nominal(self.table.kind(d.type_id), d, args)
+
+    mutating func index_type(e: ast.Node*) -> u32!:
+        let owner = e.left else return try self.fail(e, "missing operand")
+        let index = e.body else return try self.fail(e, "missing index")
+        let raw = try self.check_expr(owner, types.none_id)
+        let ot = self.deref(raw)
+        var t = self.table.get(ot)
+        let through = self.table.get(raw)
+        if through.kind == types.Kind.pointer and through.elem != types.void_id and self.table.kind(through.elem) != types.Kind.span:
+            # `p[i]` on a pointer: element-scaled by the pointee and unchecked, an array
+            # pointee included, so `rows[n][i]` reads row `n` (§7.7)
+            t = through
+        elif t.kind != types.Kind.span and t.kind != types.Kind.array:
+            let pointee = self.table.get(raw)
+            if pointee.kind == types.Kind.pointer and pointee.elem != types.void_id:
+                t = pointee
+            elif ot == types.str_id:
+                return try self.fail(e, "`str` is not indexed; slice `.bytes` or iterate")
+            else:
+                return try self.fail(e, "indexing needs a span, an array, or a pointer")
+        # a pointer's index is signed, `sp[-1]` the element before; a span's or array's is not (§7.7)
+        let offset_type = types.isize_id if t.kind == types.Kind.pointer else types.usize_id
+        var it = try self.check_expr(index, offset_type)
+        if it == types.char_id and index.kind == ast.Kind.literal and index.text.bytes[0] == '\'' and literals.decode_char(index.text) < 128:
+            index.type_id = types.usize_id  # `table['P']`: an ASCII literal in an integer context (§4.4)
+            it = types.usize_id
+        if not (it == types.untyped_int_id or self.table.is_integer(it)):
+            return try self.fail(index, "an index is an integer")
+        discard(try self.coerce(index, it, offset_type if it == types.untyped_int_id else it))
+        # the element is a copy: a `str` read from a local table views its own text, not
+        # the frame; only `&a[i]` and a slice view the array (§6.6)
+        return t.elem
+
+    mutating func slice_type(e: ast.Node*) -> u32!:
+        let owner = e.left else return try self.fail(e, "missing operand")
+        let ot = self.deref(try self.check_expr(owner, types.none_id))
+        let t = self.table.get(ot)
+        if let start = e.body:
+            let st = try self.check_expr(start, types.usize_id)
+            if not (st == types.untyped_int_id or self.table.is_integer(st)):
+                return try self.fail(start, "a slice bound is an integer")
+            discard(try self.coerce(start, st, types.usize_id if st == types.untyped_int_id else st))
+        if let end = e.right:
+            let et = try self.check_expr(end, types.usize_id)
+            if not (et == types.untyped_int_id or self.table.is_integer(et)):
+                return try self.fail(end, "a slice bound is an integer")
+            discard(try self.coerce(end, et, types.usize_id if et == types.untyped_int_id else et))
+        # a span or str of a local array names the frame; a slice of a tainted view stays tainted
+        if self.is_local_value(owner) or (t.kind == types.Kind.array and self.place_is_local(owner)):
+            self.mark_local(e)
+        if t.kind == types.Kind.span:
+            return ot
+        if t.kind == types.Kind.array:
+            return try self.table.span(t.elem, not self.is_mutable_place(owner))
+        if ot == types.str_id:
+            return try self.fail(e, "slice `text.bytes`, not the text")
+        return try self.fail(e, "slicing needs a span or an array")
+
+    ## A pointer's pointee for member access and indexing; anything else unchanged.
+    func deref(id: u32) -> u32:
+        let t = self.table.get(id)
+        if t.kind == types.Kind.pointer and t.elem != types.void_id:
+            return t.elem
+        return id

@@ -1,0 +1,427 @@
+#==============================================================================================
+#
+#   check/types - Types and substitution
+#
+#   DESCRIPTION:
+#       Written types resolved to the table's ids, and a generic's arguments
+#       substituted into them (§13).
+#
+#==============================================================================================
+extend Checker:
+    # mark: Types ==============================================================================
+
+    ## Resolve a written type (§5, §21) to its id, recording it on the node.
+    pub mutating func resolve_type(t: ast.Node*) -> u32!:
+        # a type node resolved once keeps its type; the checker re-reads calls it rewrites
+        if t.type_id != types.none_id and t.kind == ast.Kind.type_:
+            return t.type_id
+        var id = types.none_id
+        if t.has(ast.flag_func_type):
+            let n = ast.count(t.body)
+            var params = try types.no_args()
+            if n > 0:
+                params = try alloc u32[n]
+            var i: usize = 0
+            var cursor = t.body
+            while let p = cursor:
+                params[i] = try self.resolve_type(p)
+                i += 1
+                cursor = p.next
+            let result = t.left else return try self.fail(t, "a function type needs a result")
+            id = try self.table.function(params, try self.resolve_type(result), false)
+        elif t.has(ast.flag_void):
+            id = types.void_id
+        elif t.has(ast.flag_tuple_type):
+            let n = ast.count(t.body)
+            var members = try alloc u32[n]
+            var i: usize = 0
+            var cursor = t.body
+            while let m = cursor:
+                members[i] = try self.resolve_type(m)
+                i += 1
+                cursor = m.next
+            id = try self.table.tuple(members)
+        elif t.has(ast.flag_star):
+            let inner = t.left else return try self.fail(t, "a pointer needs a pointee")
+            let elem = try self.resolve_type(inner)
+            # a qualifier binds to the innermost type (§5.3): `const f32[4]*` is a pointer to
+            # a read-only array, its `const` on the element beneath the array suffixes
+            var qualified = inner
+            while qualified.has(ast.flag_array):
+                qualified = qualified.left else break
+            id = try self.table.pointer(elem, qualified.has(ast.flag_const), qualified.has(ast.flag_volatile))
+        elif t.has(ast.flag_span):
+            let inner = t.left else return try self.fail(t, "a span needs an element type")
+            let elem = try self.resolve_type(inner)
+            id = try self.table.span(elem, inner.has(ast.flag_const))
+        elif t.has(ast.flag_array):
+            let inner = t.left else return try self.fail(t, "an array needs an element type")
+            let count = t.right else return try self.fail(t, "an array needs a length")
+            let elem = try self.resolve_type(inner)
+            let length = try self.constant_length(count)
+            if length == 0:
+                return try self.fail(count, "an array length is positive; C has no zero-length arrays (§5.4)")
+            id = try self.table.array(elem, length)
+        elif t.has(ast.flag_optional):
+            let inner = t.left else return try self.fail(t, "an optional needs a payload")
+            id = try self.table.optional(try self.resolve_type(inner))
+        elif t.has(ast.flag_fallible):
+            let inner = t.left else return try self.fail(t, "a result needs a payload")
+            id = try self.table.fallible(try self.resolve_type(inner))
+        elif t.text == "(":
+            let inner = t.left else return try self.fail(t, "empty parentheses")
+            id = try self.resolve_type(inner)
+        else:
+            id = try self.resolve_named(t)
+        if t.has(ast.flag_atomic):
+            if not self.atomic_allowed(id):
+                return try self.fail(t, "`@T` needs an integer, `bool`, or a pointer of at most pointer width, or a struct of two words (§5.9)")
+            id = try self.table.atomic(id)
+        t.type_id = id
+        return id
+
+    ## What `@T` may hold (§5.9): an integer, `bool`, a pointer or nullable pointer, all of at
+    ## most pointer width; or a struct of two pointer-width words for the double-width cas.
+    func atomic_allowed(id: u32) -> bool:
+        let k = self.table.kind(id)
+        if self.table.is_integer(id) or id == types.bool_id or k == types.Kind.pointer:
+            return self.table.size_of(id) <= 8
+        if k == types.Kind.optional:
+            return self.table.is_nullable_pointer(id)  # one word; a view's optional is two
+        if k == types.Kind.struct_:
+            return self.table.size_of(id) == 16 and self.table.align_of(id) == 8
+        return false
+
+    ## A named type: a scalar, a declaration in scope, `module.Type`, or an
+    ## instance `Name[args]` of a generic declaration.
+    mutating func resolve_named(t: ast.Node*) -> u32!:
+        if let arr = try self.array_reading(t):
+            return try self.resolve_type(arr)
+        let scalar = scalar_id(t.text)
+        if scalar != types.none_id:
+            if t.body != none:
+                return try self.fail(t, "a scalar takes no type arguments")
+            return scalar
+        var decl: ast.Node*? = none
+        if let b = self.lookup(t.text):
+            self.note_origin(b)
+            var said2: u8[256]
+            let d = b.decl else return try self.fail(t, said(said2, f"`{t.text}` is not a type"))
+            decl = d
+        else:
+            let dot = strings.find(t.text, ".") else t.text.length
+            if dot >= t.text.length:
+                return try self.unknown_type(t)
+            let head = (str)t.text.bytes[..<dot]
+            let rest = (str)t.text.bytes[dot + 1..]
+            let mb = self.lookup(head) else return try self.unknown_type(t)
+            self.note_origin(mb)
+            let module = mb.decl else return try self.unknown_type(t)
+            if module.kind != ast.Kind.module:
+                return try self.fail(t, "that is not a module")
+            if self.is_c_module(module) and c_type_id(rest) != types.none_id:
+                return c_type_id(rest)
+            var said3: u8[256]
+            let d = find_decl(module, rest) else return try self.fail(t, said(said3, f"`{module.text}` has no type `{rest}`"))
+            if not d.has(ast.flag_pub):
+                var said4: u8[256]
+                return try self.fail(t, said(said4, f"`{rest}` is not public in `{module.text}`"))
+            decl = d
+        var said5: u8[256]
+        let d = decl else return try self.fail(t, said(said5, f"`{t.text}` is not a type"))
+        t.resolved = d
+        if d.kind == ast.Kind.type_alias:
+            if d.type_id == types.none_id:
+                let target = d.ty else return try self.fail(t, "an alias needs a type")
+                # `type Loop = Loop*`: an alias reached again while its own type is being
+                # resolved names itself, which no type is
+                for busy in self.resolving.span():
+                    if busy == (usize)d:
+                        return try self.fail(t, "this alias is recursive")
+                try self.resolving.push((usize)d)
+                d.type_id = try self.resolve_type(target)
+                self.resolving.count -= 1
+            return d.type_id
+        if d.kind == ast.Kind.generic_param:
+            return d.type_id
+        var said6: u8[256]
+        if not is_type_decl(d):
+            return try self.fail(t, said(said6, f"`{t.text}` is not a type"))
+        let arity = ast.count(generic_params_of(d))
+        if t.body != none:
+            let n = ast.count(t.body)
+            if arity != n:
+                return try self.fail(t, "wrong number of type arguments")
+            var args = try alloc u32[n]
+            var i: usize = 0
+            var cursor = t.body
+            while let a = cursor:
+                args[i] = try self.resolve_type(a)
+                i += 1
+                cursor = a.next
+            return try self.table.nominal(self.table.kind(d.type_id), d, args)
+        if arity > 0:
+            # inside its own declaration the generic type stands for itself
+            if self.self_decl() != d:
+                return try self.fail(t, "this type needs type arguments")
+        return d.type_id
+
+    ## The declaration a bare or `module.`-qualified name refers to when it is a value rather
+    ## than a type: a constant, a global, or a local.
+    mutating func bracket_value_decl(text: str) -> ast.Node*?:
+        let dot = strings.find(text, ".") else text.length
+        var decl: ast.Node*? = none
+        if dot >= text.length:
+            let b = self.lookup(text) else return none
+            decl = b.decl
+        else:
+            let mb = self.lookup((str)text.bytes[..<dot]) else return none
+            let m = mb.decl else return none
+            if m.kind != ast.Kind.module:
+                return none
+            decl = find_decl(m, (str)text.bytes[dot + 1..])
+        let d = decl else return none
+        if d.kind == ast.Kind.constant or d.kind == ast.Kind.global or d.kind == ast.Kind.let_ or d.kind == ast.Kind.var_ or d.kind == ast.Kind.param:
+            return d
+        return none
+
+    ## The expression a bracketed name spells: `NAME` or `module.NAME`.
+    func bracket_name_expr(arg: ast.Node*) -> ast.Node*!:
+        let dot = strings.find(arg.text, ".") else arg.text.length
+        if dot >= arg.text.length:
+            return try ast.Node.make(ast.Kind.name, arg.text, arg.start, arg.line)
+        let m = try ast.Node.make(ast.Kind.member, (str)arg.text.bytes[dot + 1..], arg.start, arg.line)
+        m.left = try ast.Node.make(ast.Kind.name, (str)arg.text.bytes[..<dot], arg.start, arg.line)
+        return m
+
+    ## `T[NAME]` where NAME is a value, not a type: the parser read a type argument, the
+    ## program means an array of NAME elements (§5.4). That array type, or none.
+    mutating func array_reading(t: ast.Node*) -> ast.Node*?!:
+        let arg = t.body else return none
+        if arg.next != none or arg.kind != ast.Kind.type_ or arg.flags != 0 or arg.left != none or arg.body != none or arg.text.length == 0:
+            return none
+        if self.bracket_value_decl(arg.text) == none:
+            return none
+        let base = try ast.Node.make(ast.Kind.type_, t.text, t.start, t.line)
+        let arr = try ast.Node.make(ast.Kind.type_, "[", t.start, t.line)
+        arr.flags |= ast.flag_array
+        arr.left = base
+        arr.right = try self.bracket_name_expr(arg)
+        return arr
+
+    ## `table[NAME].f` read as a generic instance of a value: an index (§7.6). Rewrites `e`
+    ## in place and says whether it did.
+    mutating func index_reading(e: ast.Node*) -> bool!:
+        let holder = e.ty else return false
+        let arg = holder.body else return false
+        if arg.next != none or arg.kind != ast.Kind.type_ or arg.flags != 0 or arg.left != none or arg.body != none:
+            return false
+        if self.bracket_value_decl(e.text) == none or self.bracket_value_decl(arg.text) == none:
+            return false
+        let owner = try ast.Node.make(ast.Kind.name, e.text, e.start, e.line)
+        e.kind = ast.Kind.index
+        e.text = ""
+        e.ty = none
+        e.left = owner
+        e.body = try self.bracket_name_expr(arg)
+        return true
+
+    ## The type declaration whose members are being checked, if any.
+    func self_decl() -> ast.Node*?:
+        if self.self_type == types.none_id:
+            return none
+        return self.table.get(self.self_type).decl
+
+    ## An array length: a literal, a constant name, `sizeof`, or arithmetic on those.
+    mutating func constant_length(e: ast.Node*) -> u64!:
+        if e.kind == ast.Kind.literal:
+            let value = literals.decode_integer(e.text) catch failure:
+                return try self.fail(e, "integer literal does not fit")
+            return value
+        if e.kind == ast.Kind.group:
+            let inner = e.left else return 0
+            return try self.constant_length(inner)
+        if e.kind == ast.Kind.name or e.kind == ast.Kind.member:
+            let d = try self.constant_decl(e) else return try self.fail(e, "an array length must be a constant")
+            let v = d.left else return try self.fail(e, "an array length must be a constant")
+            return try self.constant_length(v)
+        if e.kind == ast.Kind.binary:
+            let l = e.left else return 0
+            let r = e.right else return 0
+            let a = try self.constant_length(l)
+            let b = try self.constant_length(r)
+            let v = length_arith(e.text, a, b) else return try self.fail(e, "an array length is a constant that neither overflows nor divides by zero")
+            return v
+        if e.kind == ast.Kind.call:
+            let callee = e.left else return 0
+            if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof"):
+                let arg = e.body else return try self.fail(e, "sizeof needs an argument")
+                let inner = arg.left else return 0
+                let id = try self.type_of_argument(inner)
+                return self.table.size_of(id) if callee.text == "sizeof" else self.table.align_of(id)
+        return try self.fail(e, "an array length must be a constant")
+
+    ## The constant a name or `module.name` denotes, or none.
+    mutating func constant_decl(e: ast.Node*) -> ast.Node*?!:
+        if e.kind == ast.Kind.name:
+            # a name inside another module's initialiser was resolved when that module was checked
+            if let d = e.resolved:
+                return d if d.kind == ast.Kind.constant else none
+            let b = self.lookup(e.text) else return none
+            let d = b.decl else return none
+            return d if d.kind == ast.Kind.constant else none
+        if e.kind == ast.Kind.member:
+            let owner = e.left else return none
+            if owner.kind != ast.Kind.name:
+                return none
+            let b = self.lookup(owner.text) else return none
+            self.note_origin(b)
+            let m = b.decl else return none
+            if m.kind != ast.Kind.module:
+                return none
+            let d = find_decl(m, e.text) else return none
+            return d if d.kind == ast.Kind.constant else none
+        return none
+
+    ## The type an argument of `sizeof`/`alignof` names, or the type of the expression.
+    mutating func type_of_argument(e: ast.Node*) -> u32!:
+        if e.kind == ast.Kind.type_:
+            e.type_id = try self.resolve_type(e)
+            e.flags |= ast.flag_type_ref
+            return e.type_id
+        if e.kind == ast.Kind.name:
+            let scalar = scalar_id(e.text)
+            if scalar != types.none_id:
+                # a scalar type name is a type reference; the backends read `type_id` and the flag
+                e.type_id = scalar
+                e.flags |= ast.flag_type_ref
+                return scalar
+            if let b = self.lookup(e.text):
+                self.note_origin(b)
+                if let d = b.decl:
+                    if is_type_decl(d) or d.kind == ast.Kind.type_alias or d.kind == ast.Kind.generic_param:
+                        if d.kind == ast.Kind.type_alias and d.type_id == types.none_id:
+                            let target = d.ty else return 0
+                            d.type_id = try self.resolve_type(target)
+                        e.type_id = d.type_id
+                        e.flags |= ast.flag_type_ref
+                        return d.type_id
+        let id = try self.check_expr(e, types.none_id)
+        if e.has(ast.flag_type_ref):
+            return e.type_id
+        if id == types.untyped_int_id:
+            return types.i64_id
+        if id == types.untyped_float_id:
+            return types.f64_id
+        return id
+
+    # mark: Substitution =======================================================================
+
+    ## Replace the generic parameters of `decl` inside `id` with `args`.
+    pub mutating func substitute(id: u32, decl: ast.Node*, args: u32[]) -> u32!:
+        if args.length == 0:
+            return id
+        let t = self.table.get(id)
+        match t.kind:
+            .param:
+                var i: usize = 0
+                var cursor = generic_params_of(decl)
+                while let g = cursor:
+                    if g.type_id == id and i < args.length:
+                        return args[i]
+                    i += 1
+                    cursor = g.next
+                return id
+            .pointer:
+                return try self.table.pointer(try self.substitute(t.elem, decl, args), t.is_const, t.is_volatile)
+            .span:
+                return try self.table.span(try self.substitute(t.elem, decl, args), t.is_const)
+            .array:
+                return try self.table.array(try self.substitute(t.elem, decl, args), t.length)
+            .optional:
+                return try self.table.optional(try self.substitute(t.elem, decl, args))
+            .fallible:
+                return try self.table.fallible(try self.substitute(t.elem, decl, args))
+            .atomic:
+                return try self.table.atomic(try self.substitute(t.elem, decl, args))
+            .tuple:
+                var members = try alloc u32[t.args.length]
+                var i: usize = 0
+                while i < t.args.length:
+                    members[i] = try self.substitute(t.args[i], decl, args)
+                    i += 1
+                return try self.table.tuple(members)
+            .func_:
+                var params = try types.no_args()
+                if t.args.length > 0:
+                    params = try alloc u32[t.args.length]
+                var i: usize = 0
+                while i < t.args.length:
+                    params[i] = try self.substitute(t.args[i], decl, args)
+                    i += 1
+                return try self.table.function(params, try self.substitute(t.elem, decl, args), t.variadic)
+            .struct_, .enum_, .union_, .interface_:
+                let d = t.decl else return id
+                if t.args.length == 0:
+                    # the template's own name inside its declaration: instantiate it
+                    if d == decl and ast.count(generic_params_of(d)) == args.length:
+                        return try self.table.nominal(t.kind, d, args)
+                    return id
+                var inner = try alloc u32[t.args.length]
+                var i: usize = 0
+                while i < t.args.length:
+                    inner[i] = try self.substitute(t.args[i], decl, args)
+                    i += 1
+                return try self.table.nominal(t.kind, d, inner)
+            _:
+                return id
+
+    ## Learn the generic arguments of `decl` by matching a parameter type against
+    ## an argument type; `out` holds one slot per generic parameter.
+    mutating func infer(param: u32, arg: u32, decl: ast.Node*, out: u32[]) -> !:
+        let p = self.table.get(param)
+        let a = self.table.get(arg)
+        if p.kind == types.Kind.param:
+            var i: usize = 0
+            var cursor = generic_params_of(decl)
+            while let g = cursor:
+                if g.type_id == param and i < out.length and out[i] == types.none_id:
+                    out[i] = self.concrete(arg)
+                i += 1
+                cursor = g.next
+            return
+        if p.kind == a.kind:
+            if p.kind == types.Kind.pointer or p.kind == types.Kind.span or p.kind == types.Kind.array or p.kind == types.Kind.optional or p.kind == types.Kind.fallible or p.kind == types.Kind.atomic:
+                try self.infer(p.elem, a.elem, decl, out)
+                return
+            if p.kind == types.Kind.tuple or p.kind == types.Kind.func_:
+                var i: usize = 0
+                while i < p.args.length and i < a.args.length:
+                    try self.infer(p.args[i], a.args[i], decl, out)
+                    i += 1
+                if p.kind == types.Kind.func_:
+                    try self.infer(p.elem, a.elem, decl, out)
+                return
+            if p.decl == a.decl and p.args.length == a.args.length:
+                var i: usize = 0
+                while i < p.args.length:
+                    try self.infer(p.args[i], a.args[i], decl, out)
+                    i += 1
+                return
+        if p.kind == types.Kind.optional and arg != types.none_id:
+            # a value converts to its optional implicitly (`Node*` to `Node*?`), so `T?`
+            # learns T from the value as from the optional
+            try self.infer(p.elem, arg, decl, out)
+            return
+        if p.kind == types.Kind.span and a.kind == types.Kind.array:
+            try self.infer(p.elem, a.elem, decl, out)
+        if p.kind == types.Kind.interface_ and a.kind == types.Kind.pointer:
+            try self.infer(param, a.elem, decl, out)
+
+    ## An untyped literal type made concrete for inference and bindings.
+    func concrete(id: u32) -> u32:
+        if id == types.untyped_int_id:
+            return types.i64_id
+        if id == types.untyped_float_id:
+            return types.f64_id
+        return id

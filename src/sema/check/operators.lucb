@@ -1,0 +1,312 @@
+#==============================================================================================
+#
+#   check/operators - Operators
+#
+#   DESCRIPTION:
+#       Unary and binary operators, vector lanes, and the types that compare (§7.2).
+#
+#==============================================================================================
+extend Checker:
+    # mark: Operators ==========================================================================
+
+    mutating func unary_type(e: ast.Node*, hint: u32) -> u32!:
+        let inner = e.left else return try self.fail(e, "missing operand")
+        if e.text == "try":
+            if self.in_defer and not self.fallible and not self.expression_effect:
+                return try self.fail(e, "a failure cannot escape a deferred block; handle it with `catch` (§8.8)")
+            if not self.fallible and not self.expression_effect:
+                return try self.fail(e, "`try` is only valid in a fallible function")
+            let saved = self.expression_effect
+            let before = self.effect_count
+            self.expression_effect = true
+            let it = try self.check_expr(inner, hint)
+            self.expression_effect = saved
+            if self.effect_count == before:
+                return try self.fail(e, "`try` needs a fallible expression")
+            if self.is_local_value(inner):
+                self.mark_local(e)  # the value still views the local it came from (§6.6)
+            e.kind = ast.Kind.group
+            e.text = ""
+            return it
+        if e.text == "not":
+            discard(try self.expect(inner, types.bool_id))
+            return types.bool_id
+        if e.text == "&":
+            let it = try self.check_expr(inner, types.none_id)
+            if it == types.untyped_int_id or it == types.untyped_float_id or it == types.none_id:
+                return try self.fail(e, "cannot take the address of a literal")
+            if inner.has(ast.flag_type_ref):
+                return try self.fail(e, "cannot take the address of a type")
+            if not self.is_place(inner):
+                return try self.fail(e, "cannot take the address of a temporary; bind it first")
+            if self.is_packed_field(inner):
+                return try self.fail(e, "a packed field's address is not taken unless its alignment is one (§5.11)")
+            if self.place_is_local(inner):
+                self.mark_local(e)
+            return try self.table.pointer(it, self.address_is_const(inner), false)
+        if e.text == "*":
+            let it = try self.check_expr(inner, types.none_id)
+            let t = self.table.get(it)
+            if t.kind != types.Kind.pointer:
+                return try self.fail(e, "`*` needs a pointer")
+            if t.elem == types.void_id:
+                return try self.fail(e, "cannot dereference `void*`")
+            return t.elem
+        if e.text == "-" and inner.kind == ast.Kind.literal and self.table.is_integer(hint) and not self.table.is_signed(hint):
+            return try self.fail(e, "a negative literal does not fit an unsigned type")
+        let it = try self.check_expr(inner, hint)
+        if self.table.is_vector(it):
+            # every lane, under the scalar rule (§5.12)
+            let lane = self.table.get(it).elem
+            if e.text == "-" and not self.table.is_signed(lane) and not self.table.is_float(lane):
+                return try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`")
+            if (e.text == "-%" or e.text == "~") and not self.table.is_integer(lane):
+                return try self.fail(e, "wrapping negation and `~` need integer lanes (§5.12)")
+            if e.text == "-" or e.text == "-%" or e.text == "~":
+                return it
+            return try self.fail(e, "unknown operator")
+        if e.text == "-" and self.table.is_integer(it) and not self.table.is_signed(it):
+            return try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`")
+        if e.text == "-" or e.text == "+":
+            if it == types.untyped_int_id or it == types.untyped_float_id or self.table.is_numeric(it):
+                return it
+            return try self.fail(e, "arithmetic needs a number")
+        if e.text == "-%":
+            if it == types.untyped_int_id or self.table.is_integer(it):
+                return it
+            return try self.fail(e, "wrapping negation needs an integer")
+        if e.text == "~":
+            if it == types.untyped_int_id or self.table.is_integer(it) or self.is_backed_enum(it):
+                return it
+            return try self.fail(e, "`~` needs an integer")
+        return try self.fail(e, "unknown operator")
+
+    mutating func binary_type(e: ast.Node*, hint: u32) -> u32!:
+        let l = e.left else return try self.fail(e, "missing operand")
+        let r = e.right else return try self.fail(e, "missing operand")
+        let op = e.text
+        if op == "and" or op == "or":
+            discard(try self.expect(l, types.bool_id))
+            discard(try self.expect(r, types.bool_id))
+            return types.bool_id
+        if op == "..<" or op == "..=":
+            let lt = try self.check_expr(l, hint)
+            let rt = try self.check_expr(r, hint if hint != types.none_id else lt)
+            let joined = try self.unify(l, lt, r, rt)
+            var t = self.concrete(joined)
+            if joined == types.untyped_int_id and hint != types.none_id and self.table.is_integer(hint):
+                t = hint
+            if not self.table.is_integer(t):
+                return try self.fail(e, "a range needs integer bounds")
+            discard(try self.coerce(l, lt, t))
+            discard(try self.coerce(r, rt, t))
+            return try self.table.span(t, true)
+        if op == "<<" or op == ">>":
+            let lt = try self.check_expr(l, hint)
+            let rt = try self.check_expr(r, types.none_id)
+            if self.table.is_vector(lt):
+                # every lane by one count (§5.12)
+                let lane = self.table.get(lt).elem
+                if not self.table.is_integer(lane):
+                    return try self.fail(e, "a vector shift needs integer lanes (§5.12)")
+                if not (rt == types.untyped_int_id or self.table.is_integer(rt)):
+                    return try self.fail(e, "a shift count is an integer")
+                discard(try self.coerce(r, rt, lane if rt == types.untyped_int_id else rt))
+                return lt
+            if not (lt == types.untyped_int_id or self.table.is_integer(lt)):
+                return try self.fail(e, "a shift needs an integer")
+            if not (rt == types.untyped_int_id or self.table.is_integer(rt)):
+                return try self.fail(e, "a shift count is an integer")
+            if rt != types.untyped_int_id:
+                discard(try self.coerce(r, rt, rt))
+            return lt
+        # `let fits: u8? = 1 +? 2` adds bytes: the optional's element is the operands' context
+        var context = hint if is_arithmetic(op) else types.none_id
+        if (op == "+?" or op == "-?" or op == "*?") and self.table.kind(hint) == types.Kind.optional:
+            context = self.table.get(hint).elem
+        # a plain read of an `@T` operand is a load: the operator sees the `T` (§15.1), except
+        # that checked arithmetic never applies to an atomic: a checked update is a `cas` loop
+        let raw_lt = try self.check_expr(l, context)
+        if self.table.kind(raw_lt) == types.Kind.atomic and (op == "+?" or op == "-?" or op == "*?"):
+            return try self.fail(e, "checked arithmetic does not apply to an atomic; write a `cas` loop (§15.1)")
+        let lt = self.plain_read(raw_lt)
+        if (op == "+" or op == "-") and self.table.kind(lt) == types.Kind.pointer:
+            # `p + n`, `p - n`, and `p - q` (§6.5): element-scaled, unchecked
+            let rt = try self.check_expr(r, types.usize_id)
+            if op == "-" and self.table.kind(rt) == types.Kind.pointer:
+                if self.table.get(lt).elem != self.table.get(rt).elem:
+                    return try self.fail(e, "pointer difference needs one pointee type")
+                return types.isize_id
+            if rt == types.untyped_int_id:
+                discard(try self.coerce(r, rt, types.usize_id))
+                return lt
+            if rt != types.usize_id and rt != types.isize_id and not self.table.widens(rt, types.usize_id) and not self.table.widens(rt, types.isize_id):
+                return try self.fail(e, "a pointer offset is `usize` or `isize`")
+            return lt
+        var rhint = lt
+        if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
+            rhint = context
+        let rt = self.plain_read(try self.check_expr(r, rhint))
+        if (self.table.is_vector(lt) or self.table.is_vector(rt)) and not is_comparison(op):
+            return try self.vector_binary_type(e, l, lt, r, rt)
+        var t = try self.unify(l, lt, r, rt)
+        # two untyped literals under a typed context compute in that type: `3 -| 7` as `u8`
+        if is_arithmetic(op) and t == types.untyped_int_id and self.table.is_integer(context):
+            discard(try self.coerce(l, lt, context))
+            discard(try self.coerce(r, rt, context))
+            t = context
+        elif is_arithmetic(op) and t == types.untyped_float_id and self.table.is_float(context):
+            discard(try self.coerce(l, lt, context))
+            discard(try self.coerce(r, rt, context))
+            t = context
+        if op == "==" or op == "!=":
+            # `x == none` asks whether an optional holds a value, whatever the payload (§11.1)
+            if (is_none_literal(l) or is_none_literal(r)) and self.table.kind(t) == types.Kind.optional:
+                return types.bool_id
+            if not self.comparable(t):
+                return try self.fail(e, "these values have no equality")
+            return types.bool_id
+        if op == "<" or op == "<=" or op == ">" or op == ">=":
+            if self.table.kind(t) == types.Kind.pointer:
+                return types.bool_id  # the total order of addresses (§5.3)
+            if not (t == types.untyped_int_id or t == types.untyped_float_id or self.table.is_numeric(t) or t == types.char_id or t == types.str_id or self.table.kind(t) == types.Kind.param):
+                return try self.fail(e, "ordering needs numbers or text")
+            return types.bool_id
+        if op == "&" or op == "|" or op == "^":
+            if t == types.untyped_int_id or self.table.is_integer(t) or t == types.bool_id or self.is_backed_enum(t):
+                return t
+            return try self.fail(e, "bit operators need integers")
+        if op == "/":
+            if t == types.untyped_float_id or self.table.is_float(t):
+                return t
+            if t == types.untyped_int_id or self.table.is_integer(t):
+                return try self.fail(e, "integer division is `//`")
+            return try self.fail(e, "arithmetic needs numbers")
+        if op == "//" or op == "%":
+            if t == types.untyped_int_id or self.table.is_integer(t):
+                return t
+            return try self.fail(e, "`//` and `%` need integers")
+        if op == "+" or op == "-" or op == "*":
+            if t == types.untyped_int_id or t == types.untyped_float_id or self.table.is_numeric(t):
+                return t
+            return try self.fail(e, "arithmetic needs numbers")
+        if op == "+%" or op == "-%" or op == "*%" or op == "+|" or op == "-|" or op == "*|":
+            if t == types.untyped_int_id or self.table.is_integer(t):
+                return t
+            return try self.fail(e, "wrapping and saturating arithmetic need integers")
+        if op == "+?" or op == "-?" or op == "*?":
+            if t == types.untyped_int_id or self.table.is_integer(t):
+                var base = self.concrete(t)
+                if t == types.untyped_int_id and self.table.is_integer(context):
+                    base = context
+                    discard(try self.coerce(l, lt, base))
+                    discard(try self.coerce(r, rt, base))
+                return try self.table.optional(base)
+            return try self.fail(e, "checked arithmetic needs integers")
+        return try self.fail(e, "unknown operator")
+
+    ## Lane-wise arithmetic (§5.12): two vectors of one type, or a vector and a scalar of its
+    ## element type, under the operators of §7.2 and §7.3 that keep the type. Comparisons
+    ## were answered before this: `==` compares the arrays, and `<` is refused.
+    mutating func vector_binary_type(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32!:
+        let op = e.text
+        let vt = lt if self.table.is_vector(lt) else rt
+        let et = self.table.get(vt).elem
+        let l_ok = try self.vector_operand(l, lt, vt)
+        let r_ok = try self.vector_operand(r, rt, vt)
+        if not l_ok or not r_ok:
+            return try self.fail(e, "vector arithmetic takes two vectors of one type, or a vector and a scalar of its element type (§5.12)")
+        if op == "/":
+            if not self.table.is_float(et):
+                return try self.fail(e, "`/` needs float lanes; integer division is not defined on vectors (§5.12)")
+            return vt
+        if op == "+" or op == "-" or op == "*":
+            return vt
+        if op == "+%" or op == "-%" or op == "*%" or op == "+|" or op == "-|" or op == "*|" or op == "&" or op == "|" or op == "^":
+            if not self.table.is_integer(et):
+                return try self.fail(e, "wrapping, saturating, and bit operators need integer lanes (§5.12)")
+            return vt
+        return try self.fail(e, "this operator is not defined on vectors (§5.12)")
+
+    ## An operand of vector arithmetic: the vector itself, or a scalar of its element type,
+    ## which an untyped literal becomes.
+    mutating func vector_operand(side: ast.Node*, st: u32, vt: u32) -> bool!:
+        let et = self.table.get(vt).elem
+        if st == vt:
+            return true
+        if self.table.kind(st) == types.Kind.array:
+            return false
+        if (st == types.untyped_int_id and self.table.is_integer(et)) or (st == types.untyped_float_id and self.table.is_float(et)):
+            discard(try self.coerce(side, st, et))
+            return true
+        return st == et
+
+    ## `T[N](x)`: the vector whose every lane is `x` (§5.12); the callee is read as the type.
+    mutating func splat_type(e: ast.Node*, callee: ast.Node*, base: ast.Node*) -> u32!:
+        let length = callee.body else return try self.fail(callee, "missing index")
+        let elem_node = try ast.Node.make(ast.Kind.type_, base.text, base.start, base.line)
+        let array_node = try ast.Node.make(ast.Kind.type_, "[", callee.start, callee.line)
+        array_node.flags |= ast.flag_array
+        array_node.left = elem_node
+        array_node.right = length
+        let vt = try self.resolve_type(array_node)
+        if not self.table.is_vector(vt):
+            return try self.fail(e, "`T[N](x)` makes a vector, and this array is not one (§5.12)")
+        callee.flags |= ast.flag_type_ref
+        callee.type_id = vt
+        let arg = try self.single_argument(e)
+        let et = self.table.get(vt).elem
+        let got = try self.check_expr(arg, et)
+        discard(try self.coerce(arg, got, et))
+        e.resolved = none
+        return vt
+
+    ## The type of `memory.Allocator`, the interface every allocator implements (§12.4), or
+    ## `none_id` before the standard modules are loaded.
+    pub func allocator_type() -> u32:
+        let mi = self.find_module("memory") else return types.none_id
+        let d = find_decl(self.modules.get(mi).tree, "Allocator") else return types.none_id
+        return d.type_id
+
+    ## Whether `id` is an integer-backed enum (a value type), not a payload enum.
+    pub func is_backed_enum(id: u32) -> bool:
+        let t = self.table.get(id)
+        if t.kind != types.Kind.enum_:
+            return false
+        let d = t.decl else return false
+        return d.ty != none
+
+    ## Types with `==` (§7.4).
+    ## `==` exists where every component supports it; unions and views never do (§7.4).
+    func comparable(id: u32) -> bool:
+        let t = self.table.get(id)
+        if id == types.untyped_int_id or id == types.untyped_float_id or id == types.none_id:
+            return true
+        match t.kind:
+            .union_, .interface_, .func_, .span, .module, .fmt_, .error_value:
+                return false
+            .array, .optional, .atomic:
+                return self.comparable(t.elem)
+            .tuple:
+                for a in t.args:
+                    if not self.comparable(a):
+                        return false
+                return true
+            .param:
+                return self.has_written_constraint(id, self.standard_type("luce", "Equatable"))
+            .struct_, .enum_:
+                let d = t.decl else return true
+                var cursor = d.body
+                while let m = cursor:
+                    if m.kind == ast.Kind.field and not self.comparable(m.type_id):
+                        return false
+                    if m.kind == ast.Kind.enum_case:
+                        var payload = m.body
+                        while let p = payload:
+                            if not self.comparable(p.type_id):
+                                return false
+                            payload = p.next
+                    cursor = m.next
+                return true
+            _:
+                return true

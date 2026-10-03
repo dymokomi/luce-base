@@ -1,0 +1,308 @@
+#==============================================================================================
+#
+#   check/bodies - Bodies
+#
+#   DESCRIPTION:
+#       Function and test bodies, in the order a module's declarations need them.
+#
+#==============================================================================================
+extend Checker:
+    # mark: Bodies =============================================================================
+
+    ## Check the body of a top-level declaration.
+    mutating func check_declaration(d: ast.Node*) -> !:
+        match d.kind:
+            .func_:
+                if not d.has(ast.flag_lambda):
+                    try self.check_function(d, none)
+            .constant:
+                if d.type_id == types.none_id or d.ty != none:
+                    d.type_id = types.none_id
+                    try self.check_constant(d)
+            .global:
+                if ast.is_linked(d):
+                    if d.left != none or d.has(ast.flag_uninit):
+                        discard(try self.fail(d, "a `linked` global has no initialiser; the library defines it (§9.8)"))
+                elif let init = d.left:
+                    let saved = self.at_top_level
+                    self.at_top_level = true
+                    discard(try self.expect(init, d.type_id))
+                    self.at_top_level = saved
+                    if not self.is_constant(init):
+                        discard(try self.fail(init, "a global's initialiser is a constant expression (§6.3)"))
+                    elif not self.static_value(init):
+                        discard(try self.fail(init, "a global's initialiser is a constant expression that runs nothing, and this one runs a type's `init` or a field default that calls (§6.3); make the global optional and set it where it is first needed"))
+                elif not d.has(ast.flag_uninit) and not self.table.zeroable(d.type_id) and not self.modules.get(self.current).is_prelude:
+                    # the startup shim initialises the prelude's own globals (§12.3)
+                    if self.has_own_init(d.type_id):
+                        discard(try self.fail(d, "this global's type has an `init`, which a global cannot run (§6.3); make the global optional and set it where it is first needed"))
+                    else:
+                        discard(try self.fail(d, "this global's type has no zero value; give it an initialiser (§6.3)"))
+            .struct_, .union_, .enum_:
+                try self.check_type_body(d)
+            .interface_:
+                discard(0)
+            .extern_var, .extern_type, .extern_struct, .extern_union:
+                try self.check_foreign_declaration(d)
+            .test_:
+                try self.check_test(d)
+            .assert_:
+                let first = d.body else return try self.fail(d, "`assert` needs a condition")
+                let cv = first.left else return try self.fail(d, "empty argument")
+                discard(try self.expect(cv, types.bool_id))
+                if not self.is_constant(cv):
+                    discard(try self.fail(cv, "a module-level `assert` needs a constant condition (§6.4)"))
+                elif let holds = self.constant_bool(cv):
+                    if not holds:
+                        var text: u8[256]
+                        var clipped: u8[64]
+                        var reason: str = ""
+                        if let second = first.next:
+                            if let mv = second.left:
+                                if mv.kind == ast.Kind.literal and mv.text.length >= 2:
+                                    reason = (str)mv.text.bytes[1..<mv.text.length - 1]
+                        discard(try self.fail(cv, try format(text, f"a module-level `assert` failed: {try clip(clipped, reason)}")))
+            .extern_func, .type_alias, .import_, .from_import, .asm_:
+                discard(0)
+            _:
+                discard(try self.fail(d, "unsupported declaration"))
+
+    ## A function or method body, with its parameters and result in place.
+    mutating func check_function(f: ast.Node*, owner: ast.Node*?) -> !:
+        if f.has(ast.flag_mutating) and f.has(ast.flag_static):
+            discard(try self.fail(f, "a static method has no receiver to mutate"))
+        if ast.is_linked(f):
+            let owner_generic = generic_params_of(owner else f) != none
+            if generic_params_of(f) != none or owner_generic or ast.has_attribute(f, "inline"):
+                discard(try self.fail(f, "a generic or `inline` function is compiled where it is used; it cannot be `linked` (§9.8)"))
+        if owner == none and (f.has(ast.flag_static) or f.has(ast.flag_mutating)):
+            discard(try self.fail(f, "`static` and `mutating` mark methods; a top-level function has no owner (§9.5)"))
+        self.push_scope()
+        try self.bind_generics(f)
+        let saved_template = self.checking_template
+        if ast.count(generic_params_of(f)) > 0:
+            self.checking_template = true
+        let saved_func = self.current_func
+        let saved_result = self.result_type
+        let saved_fallible = self.fallible
+        let saved_self = self.self_type
+        let saved_self_mutable = self.self_mutable
+        let saved_in_init = self.in_init
+        let saved_loop = self.loop_depth
+        let saved_labels = self.label_count
+        self.current_func = f
+        self.loop_depth = 0
+        self.label_count = 0
+        let ft = self.table.get(f.type_id)
+        self.fallible = f.has(ast.flag_fallible)
+        self.result_type = self.table.get(ft.elem).elem if self.fallible else ft.elem
+        if self.result_type == types.fmt_id:
+            discard(try self.fail(f, "a function does not return `fmt`; it is a parameter type only (§9.1)"))
+        if let o = owner:
+            if f.has(ast.flag_static):
+                self.self_type = types.none_id
+            else:
+                self.self_type = o.type_id
+                self.self_mutable = f.has(ast.flag_mutating) or f.text == "init"
+                self.in_init = f.text == "init"
+                if f.has(ast.flag_mutating) and f.has(ast.flag_static):
+                    discard(try self.fail(f, "a static method has no receiver to mutate"))
+        else:
+            self.self_type = types.none_id
+        var cursor = f.right
+        while let p = cursor:
+            if p.text == "self":
+                discard(try self.fail(p, "`self` is implicit and cannot be a parameter"))
+            if let default = p.left:
+                let saved_top = self.at_top_level
+                self.at_top_level = true
+                discard(try self.expect(default, p.type_id))
+                self.at_top_level = saved_top
+                if not self.is_constant(default):
+                    discard(try self.fail(default, "a default argument is a constant expression (§9.1)"))
+            try self.bind(p, p.text, p.type_id, p, p.has(ast.flag_out))
+            cursor = p.next
+        if let body = f.body:
+            try self.check_block(body)
+            if let o = owner:
+                if f.text == "init" and o.kind == ast.Kind.struct_:
+                    if self.result_type != types.unit_id:
+                        discard(try self.fail(f, "`init` returns `unit` or `!` (§10.1)"))
+                    if let found = init_rules.verify(f, o):
+                        discard(try self.fail(found.at, found.what))
+            if ast.has_attribute(f, "naked"):
+                try self.check_naked_body(body)
+            elif self.result_type != types.unit_id and self.result_type != types.never_id and not prune.always_leaves(body):
+                discard(try self.fail(f, "this function may reach its end without returning"))
+        self.current_func = saved_func
+        self.result_type = saved_result
+        self.fallible = saved_fallible
+        self.self_type = saved_self
+        self.self_mutable = saved_self_mutable
+        self.in_init = saved_in_init
+        self.label_count = saved_labels
+        self.loop_depth = saved_loop
+        self.checking_template = saved_template
+        self.pop_scope()
+
+    ## A struct, union, or enum body: field defaults, case values, conformance, methods.
+    mutating func check_type_body(d: ast.Node*) -> !:
+        if d.kind == ast.Kind.struct_ and not has_field(d):
+            discard(try self.fail(d, "a struct has at least one field, as in C (§10.1)"))
+        if d.kind == ast.Kind.union_ and not has_field(d):
+            discard(try self.fail(d, "a union has at least one member (§10.4)"))
+        self.push_scope()
+        try self.bind_generics(d)
+        let saved_template = self.checking_template
+        if ast.count(generic_params_of(d)) > 0:
+            self.checking_template = true
+        let saved_self = self.self_type
+        self.self_type = d.type_id
+        # which cases repeat an earlier case's value, found once for the whole enum
+        let repeated = try types.repeated_cases(d) if d.kind == ast.Kind.enum_ else try alloc bool[0]
+        defer free(repeated)
+        var case_at: usize = 0
+        var cursor = d.body
+        while let m = cursor:
+            match m.kind:
+                .field:
+                    if let default = m.left:
+                        let saved_top = self.at_top_level
+                        self.at_top_level = true
+                        discard(try self.expect(default, m.type_id))
+                        self.at_top_level = saved_top
+                    if let layout = m.right:
+                        discard(try self.expect(layout, types.usize_id))
+                .enum_case:
+                    if let value = m.left:
+                        let backing = d.ty else return try self.fail(m, "a case value needs `enum Name as T`")
+                        discard(try self.expect(value, backing.type_id))
+                        if not self.is_constant(value):
+                            discard(try self.fail(value, "a case value is a constant"))
+                        if repeated[case_at]:
+                            discard(try self.fail(m, "two cases share one value"))
+                    elif d.ty != none:
+                        discard(try self.fail(m, "an integer-backed enum gives every case its value (§10.3)"))
+                    case_at += 1
+                .func_:
+                    try self.check_function(m, d)
+                _:
+                    discard(0)
+            cursor = m.next
+        try self.check_conformance(d)
+        self.self_type = saved_self
+        self.checking_template = saved_template
+        self.pop_scope()
+
+    ## Every requirement of each implemented interface is supplied (§14.1).
+    mutating func check_conformance(d: ast.Node*) -> !:
+        var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
+        while let l = listed:
+            let it = self.table.get(l.type_id)
+            let iface = it.decl else return try self.fail(l, "no interface")
+            if iface.has(ast.flag_builtin) and (iface.text == "Equatable" or iface.text == "Hashable"):
+                return try self.fail(l, "this protocol is derived from the fields; it is not implemented by hand (§14.4)")
+            var req = iface.body
+            while let r = req:
+                let m = find_member(d, r.text, ast.Kind.func_) else return try self.fail(l, "a required method is missing")
+                if m.has(ast.flag_static):
+                    return try self.fail(m, "a static method does not satisfy an interface requirement (§14.1)")
+                var want = try self.substitute(r.type_id, iface, it.args)
+                if is_derived_bound(iface):
+                    # `compare(other: void*)` in the prelude is `compare(other: Self)` here
+                    want = try self.with_self_arguments(want, d.type_id)
+                if not self.signature_matches(m.type_id, want):
+                    return try self.fail(m, "this method does not match the interface's signature")
+                if r.has(ast.flag_mutating) != m.has(ast.flag_mutating):
+                    return try self.fail(m, "the interface declares this method mutating" if r.has(ast.flag_mutating) else "the interface declares this method non-mutating")
+                if r.has(ast.flag_fallible) and not m.has(ast.flag_fallible):
+                    try self.witness_thunk(d, m, r, want)
+                req = r.next
+            listed = l.next
+
+    ## A hidden fallible method `__wit_name` that calls the non-fallible implementation `m`
+    ## and answers its result as the requirement's `T!`: what the witness table points at, so
+    ## a call through a view has the ABI the requirement declares (§14.1, §14.3).
+    mutating func witness_thunk(d: ast.Node*, m: ast.Node*, r: ast.Node*, want: u32) -> !:
+        var name_bytes = try alloc u8[r.text.length + 8]
+        let fn = try ast.Node.make(ast.Kind.func_, try format(name_bytes, f"__wit_{r.text}"), m.start, m.line)
+        fn.flags |= ast.flag_lambda | ast.flag_referenced | ast.flag_fallible | (m.flags & ast.flag_mutating) | ast.flag_pub
+        fn.type_id = want
+        var params: ast.Node*? = none
+        var params_tail: ast.Node*? = none
+        var args: ast.Node*? = none
+        var args_tail: ast.Node*? = none
+        var cursor = m.right
+        while let p = cursor:
+            let np = try ast.Node.make(ast.Kind.param, p.text, m.start, m.line)
+            np.type_id = p.type_id
+            np.ty = p.ty
+            ast.append(&params, &params_tail, np)
+            let use = try ast.Node.make(ast.Kind.name, p.text, m.start, m.line)
+            use.type_id = p.type_id
+            use.resolved = np
+            let a = try ast.Node.make(ast.Kind.argument, "", m.start, m.line)
+            a.left = use
+            a.type_id = p.type_id
+            ast.append(&args, &args_tail, a)
+            cursor = p.next
+        fn.right = params
+        let receiver = try ast.Node.make(ast.Kind.self_, "self", m.start, m.line)
+        receiver.type_id = d.type_id
+        let callee = try ast.Node.make(ast.Kind.member, m.text, m.start, m.line)
+        callee.left = receiver
+        callee.type_id = m.type_id
+        callee.resolved = m
+        let call = try ast.Node.make(ast.Kind.call, "", m.start, m.line)
+        call.left = callee
+        call.body = args
+        call.resolved = m
+        let result = self.table.get(m.type_id).elem
+        call.type_id = result
+        let block = try ast.Node.make(ast.Kind.block, "", m.start, m.line)
+        if result == types.unit_id:
+            let stmt = try ast.Node.make(ast.Kind.expr_stmt, "", m.start, m.line)
+            stmt.left = call
+            block.body = stmt
+        else:
+            let ret = try ast.Node.make(ast.Kind.return_, "", m.start, m.line)
+            ret.left = call
+            ret.type_id = types.never_id
+            block.body = ret
+        fn.body = block
+        var tail: ast.Node*? = none
+        var last = d.body
+        while let n = last:
+            tail = n
+            last = n.next
+        ast.append(&d.body, &tail, fn)
+
+    ## Parameters equal; the implementation may be non-fallible where the requirement is fallible.
+    func signature_matches(have: u32, want: u32) -> bool:
+        if have == want:
+            return true
+        let h = self.table.get(have)
+        let w = self.table.get(want)
+        if h.args.length != w.args.length:
+            return false
+        var i: usize = 0
+        while i < h.args.length:
+            if h.args[i] != w.args[i]:
+                return false
+            i += 1
+        let wr = self.table.get(w.elem)
+        return wr.kind == types.Kind.fallible and wr.elem == h.elem
+
+    ## A test is a fallible body with no parameters (§16.5).
+    mutating func check_test(d: ast.Node*) -> !:
+        let saved_result = self.result_type
+        let saved_fallible = self.fallible
+        let saved_func = self.current_func
+        self.result_type = types.unit_id
+        self.fallible = true
+        self.current_func = d
+        let body = d.body else return try self.fail(d, "a test needs a body")
+        try self.check_block(body)
+        self.result_type = saved_result
+        self.fallible = saved_fallible
+        self.current_func = saved_func

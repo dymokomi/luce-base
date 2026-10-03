@@ -45,7 +45,7 @@ pub let backend: ErrorCode = ErrorCode.package(12)
 type NodeRef = ast.Node*
 type MaybeNode = ast.Node*?
 
-# mark: Instances and scopes ===================================================================
+# mark: Instances and scopes ==================================================================
 
 ## One monomorphised function or record: a declaration with concrete type arguments.
 struct Instance:
@@ -83,7 +83,7 @@ let to_protos: u8 = 3
 ## format buffers) is known before the function is written into `body`.
 let to_scratch: u8 = 4
 
-# mark: The emitter ============================================================================
+# mark: The emitter ===========================================================================
 
 ## An array temporary declared at the function's top (see `arrays`).
 struct Hoisted:

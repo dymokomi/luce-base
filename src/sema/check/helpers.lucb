@@ -1,0 +1,617 @@
+#==============================================================================================
+#
+#   check/helpers - Helpers
+#
+#   DESCRIPTION:
+#       Functions of the tree and of names that need no checker.
+#
+#==============================================================================================
+# mark: Tree helpers ==========================================================================
+
+## The top-level declaration named `name` in a module tree.
+pub func find_decl(tree: ast.Node*, name: str) -> ast.Node*?:
+    var cursor = tree.body
+    while let d = cursor:
+        if d.text == name and d.kind != ast.Kind.import_ and d.kind != ast.Kind.from_import and d.kind != ast.Kind.test_:
+            return d
+        cursor = d.next
+    return none
+
+## The member of `owner` named `name` with the given kind.
+pub func find_member(owner: ast.Node*, name: str, kind: ast.Kind) -> ast.Node*?:
+    var cursor = owner.body
+    while let m = cursor:
+        if m.kind == kind and m.text == name:
+            return m
+        cursor = m.next
+    return none
+
+## The generic parameter list of a declaration, or none.
+## `a op b` for an array length: none when the result overflows `u64`, divides by zero,
+## or the operator is not one of `+ - * // %`.
+func length_arith(op: str, a: u64, b: u64) -> u64?:
+    if op == "+":
+        return (a + b) if a +% b >= a else none
+    if op == "-":
+        return (a - b) if a >= b else none
+    if op == "*":
+        return (a * b) if b == 0 or (a *% b) // b == a else none
+    if op == "//":
+        return (a // b) if b != 0 else none
+    if op == "%":
+        return (a % b) if b != 0 else none
+    return none
+
+## The first field, case, or method of `d` whose name an earlier member already took.
+func duplicate_member(d: ast.Node*) -> ast.Node*?:
+    var cursor = d.body
+    while let m = cursor:
+        if is_named_member(m):
+            var earlier = d.body
+            while let e = earlier:
+                if e == m:
+                    break
+                if is_named_member(e) and e.text == m.text:
+                    return m
+                earlier = e.next
+        cursor = m.next
+    return none
+
+func is_named_member(m: ast.Node*) -> bool:
+    return m.kind == ast.Kind.field or m.kind == ast.Kind.enum_case or m.kind == ast.Kind.func_
+
+## Whether a file exists at `path`.
+func file_exists(path: c.str) -> bool:
+    return files.exists(path)
+
+## The first name in `later` that `earlier` already lists, if any.
+func repeated_name(earlier: ast.Node*?, later: ast.Node*?) -> ast.Node*?:
+    var cursor = later
+    while let item = cursor:
+        var known = earlier
+        while let k = known:
+            if k.text == item.text:
+                return item
+            known = k.next
+        cursor = item.next
+    return none
+
+## The generic-parameter list of declaration `d`, or `none`.
+pub func generic_params_of(d: ast.Node*) -> ast.Node*?:
+    let l = d.left else return none
+    if l.kind != ast.Kind.generic_param:
+        return none
+    return l.body
+
+## `Equatable`, `Hashable`, and `Comparable` are satisfied by structure, never declared.
+func is_derived_bound(d: ast.Node*?) -> bool:
+    let decl = d else return false
+    if decl.kind != ast.Kind.interface_ or not decl.has(ast.flag_builtin):
+        return false
+    return decl.text == "Equatable" or decl.text == "Hashable" or decl.text == "Comparable"
+
+func is_type_decl(d: ast.Node*) -> bool:
+    return d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.interface_ or d.kind == ast.Kind.extern_type or d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union
+
+## Was field `f` of `d` given among `args`, by name or by position?
+func argument_names(args: ast.Node*?, f: ast.Node*, d: ast.Node*) -> bool:
+    var cursor = args
+    while let a = cursor:
+        if a.resolved == f:
+            return true
+        cursor = a.next
+    return false
+
+## User text for a diagnostic: itself when short, otherwise its first bytes and a trailing
+## `...`, written into `buffer`. A message that echoes unbounded input (an assembly operand,
+## an `assert` reason) clips it, or a long enough spelling overflows the formatting buffer
+## and the failure is then reported with no position (§19.6).
+func clip(buffer: u8[], text: str) -> str!:
+    if text.length <= 64:
+        return text
+    return try format(buffer, f"{(str)text.bytes[..<60]}...")
+
+## Whether asm block `s` has a `reg` operand whose expression is the name `name`.
+pub func asm_names_operand(s: ast.Node*, name: str) -> bool:
+    var operand = s.right
+    while let o = operand:
+        if asm_operand_place(o) == "reg":
+            if let v = o.left:
+                if v.kind == ast.Kind.name and v.text == name:
+                    return true
+        operand = o.next
+    return false
+
+## The register an asm operand names, `x0`, or `reg` for one the compiler chooses.
+pub func asm_operand_place(o: ast.Node*) -> str:
+    let p = o.body else return ""
+    return literals.decode_text(p.text)
+
+## The integer an `enum Name as T` is backed by; `i32` when the enum names none.
+pub func enum_backing(table: types.Table*, id: u32) -> u32:
+    let d = table.get(id).decl else return types.i32_id
+    let backing = d.ty else return types.i32_id
+    return backing.type_id
+
+## The identity of a package's error codes (§11.3): sixteen bits of its name, the same
+## computation in every compiler of the language.
+pub func package_identity(name: str) -> u32:
+    var h: u32 = 2166136261
+    for byte in name.bytes:
+        h = (h ^ (u32)byte) *% 16777619
+    return (h ^ (h >> 16)) & 65535
+
+## How deeply generic instances nest in `id`: `Pair[Pair[i64, i64], i64]` is two. A chain of
+## instantiations whose arguments nest past `max_nesting` never ends (§13.1).
+pub let max_nesting: u32 = 16
+
+## The depth of nested nominal types within `id`, for the recursion limit.
+pub func nesting(table: types.Table*, id: u32) -> u32:
+    let t = table.get(id)
+    match t.kind:
+        .struct_, .enum_, .union_:
+            var deepest: u32 = 0
+            for a in t.args:
+                let n = nesting(table, a)
+                if n > deepest:
+                    deepest = n
+            return deepest + 1 if t.args.length > 0 else 0
+        .pointer, .span, .array, .optional, .fallible, .atomic:
+            return nesting(table, t.elem)
+        .tuple, .func_:
+            var deepest: u32 = 0
+            for a in t.args:
+                let n = nesting(table, a)
+                if n > deepest:
+                    deepest = n
+            return deepest
+        _:
+            return 0
+
+## The greatest `nesting` across `args`.
+pub func nesting_of_all(table: types.Table*, args: u32[]) -> u32:
+    var deepest: u32 = 0
+    for a in args:
+        let n = nesting(table, a)
+        if n > deepest:
+            deepest = n
+    return deepest
+
+## The code of `memory.exhausted` (§11.7) as the backends raise it: the prelude's constant,
+## under the standard modules' identity `luce`, so a program's comparison holds.
+pub func exhausted_code() -> u64:
+    return ((u64)package_identity("luce") << 16) | 1
+
+## Whether a callee's receiver is the `ErrorCode` type itself.
+func is_error_code_type(receiver: ast.Node*?) -> bool:
+    let r = receiver else return false
+    return r.has(ast.flag_type_ref) and r.type_id == types.error_code_id
+
+## Whether a message begins with `path:line:column: `, as a located diagnostic does.
+func names_a_place(message: str) -> bool:
+    let b = message.bytes
+    var colons: usize = 0
+    var i: usize = 0
+    while i < b.length and colons < 3:
+        if b[i] == ':':
+            colons += 1
+            if colons == 3:
+                return i + 1 < b.length and b[i + 1] == ' '
+        elif colons > 0 and (b[i] < '0' or b[i] > '9'):
+            return false
+        i += 1
+    return false
+
+## The position of parameter `name` among the ones a caller supplies: an extern's `out`
+## parameter takes no argument (§17.1), so it has no position.
+func param_index(d: ast.Node*, name: str) -> usize?:
+    var i: usize = 0
+    var cursor = d.right
+    while let p = cursor:
+        if not p.has(ast.flag_out):
+            if p.text == name:
+                return i
+            i += 1
+        cursor = p.next
+    return none
+
+## Whether an argument list names `name`, `name = value`.
+func named_in(args: ast.Node*?, name: str) -> bool:
+    var cursor = args
+    while let a = cursor:
+        if a.text == name:
+            return true
+        cursor = a.next
+    return false
+
+## The parameter at `index` among the ones a caller supplies.
+func param_at(d: ast.Node*, index: usize) -> ast.Node*?:
+    var i: usize = 0
+    var cursor = d.right
+    while let p = cursor:
+        if not p.has(ast.flag_out):
+            if i == index:
+                return p
+            i += 1
+        cursor = p.next
+    return none
+
+## Does a block end in a way that never reaches its own end?
+# mark: Name helpers ==========================================================================
+
+## The id of a scalar or core type name, or `none_id`.
+## The `c` module's types (base.md §5.2): the fixed-width ones are Base types by another
+## name; `char`, `long`, `ulong`, `wchar`, and `va_list` are distinct; `str` is C text.
+pub func c_type_id(name: str) -> u32:
+    if name == "int": return types.i32_id
+    if name == "uint": return types.u32_id
+    if name == "short": return types.i16_id
+    if name == "ushort": return types.u16_id
+    if name == "schar": return types.i8_id
+    if name == "uchar": return types.u8_id
+    if name == "longlong": return types.i64_id
+    if name == "ulonglong": return types.u64_id
+    if name == "float": return types.f32_id
+    if name == "double": return types.f64_id
+    if name == "bool": return types.bool_id
+    if name == "size" or name == "uintptr": return types.usize_id
+    if name == "ssize" or name == "ptrdiff" or name == "intptr": return types.isize_id
+    if name == "char": return types.c_char_id
+    if name == "long": return types.c_long_id
+    if name == "ulong": return types.c_ulong_id
+    if name == "wchar": return types.c_wchar_id
+    if name == "va_list": return types.c_va_list_id
+    if name == "str": return types.cstr_id
+    return types.none_id
+
+## The type id of a scalar spelled `name`, or `none_id`.
+pub func scalar_id(name: str) -> u32:
+    if name == "i8":
+        return types.i8_id
+    if name == "i16":
+        return types.i16_id
+    if name == "i32":
+        return types.i32_id
+    if name == "i64":
+        return types.i64_id
+    if name == "isize":
+        return types.isize_id
+    if name == "u8":
+        return types.u8_id
+    if name == "u16":
+        return types.u16_id
+    if name == "u32":
+        return types.u32_id
+    if name == "u64":
+        return types.u64_id
+    if name == "usize":
+        return types.usize_id
+    if name == "f16":
+        return types.f16_id
+    if name == "f32":
+        return types.f32_id
+    if name == "f64":
+        return types.f64_id
+    if name == "bool":
+        return types.bool_id
+    if name == "char":
+        return types.char_id
+    if name == "str":
+        return types.str_id
+    if name == "fmt":
+        return types.fmt_id
+    if name == "unit":
+        return types.unit_id
+    if name == "never":
+        return types.never_id
+    if name == "void":
+        return types.void_id
+    if name == "ErrorCode":
+        return types.error_code_id
+    if name == "Error":
+        return types.error_value_id
+    return types.none_id
+
+## The core functions (§3.5) and modules that no declaration may shadow.
+func is_intrinsic(name: str) -> bool:
+    let names: str[13] = ["assert", "discard", "error", "trap", "hash", "print", "format", "sizeof", "alignof", "offsetof", "hex", "bin", "pad"]
+    for n in names:
+        if n == name:
+            return true
+    return false
+
+## Whether `name` is a standard-library module.
+pub func is_standard_module(name: str) -> bool:
+    return standard.is_module(name)
+
+## The modules the entry file imports, directly or not, by name, as they load. Names
+## are the modules' own and live for the whole compilation.
+var library_modules: str[1024]
+var library_module_count: usize = 0
+
+## A test build (§16.5) takes the file under test as library code too: its tests are the
+## program, and what they do not reach is not compiled, as for any import.
+pub func test_as_library(entry_name: str) -> !:
+    try note_library_module(entry_name)
+
+func note_library_module(name: str) -> !:
+    for known in library_modules[..<library_module_count]:
+        if known == name:
+            return
+    if library_module_count >= library_modules.length:
+        error(unsupported, "a program imports more than 1024 modules")
+    library_modules[library_module_count] = name
+    library_module_count += 1
+
+## Whether `name` is library code: a standard module or any module the entry file
+## imports. The backends keep a library's functions and storage only where
+## the program reaches them, so importing a package costs nothing it does not use and
+## an unused platform binding pulls in no native library.
+pub func is_library_module(name: str) -> bool:
+    if standard.is_module(name):
+        return true
+    for known in library_modules[..<library_module_count]:
+        if same_module(known, name):
+            return true
+    return false
+
+## Whether two module names agree, a dotted path matching its symbol form:
+## `luce_std.files` is `luce_std_files` once lowered.
+func same_module(a: str, b: str) -> bool:
+    if a.length != b.length:
+        return false
+    var i: usize = 0
+    while i < a.length:
+        let x = a.bytes[i]
+        let y = b.bytes[i]
+        if x != y and not ((x == '.' and y == '_') or (x == '_' and y == '.')):
+            return false
+        i += 1
+    return true
+
+func is_comparison(op: str) -> bool:
+    return op == "==" or op == "!=" or op == "<" or op == "<=" or op == ">" or op == ">="
+
+## The ten element types a vector may have (§5.12), by name: `T[N](x)` with one of them is
+## the broadcast form, not a call through an indexed value.
+func is_lane_type_name(text: str) -> bool:
+    return text == "i8" or text == "i16" or text == "i32" or text == "i64" or text == "u8" or text == "u16" or text == "u32" or text == "u64" or text == "f32" or text == "f64"
+
+func is_arithmetic(op: str) -> bool:
+    return op == "+" or op == "-" or op == "*" or op == "/" or op == "//" or op == "%" or op == "+%" or op == "-%" or op == "*%" or op == "+|" or op == "-|" or op == "*|" or op == "+?" or op == "-?" or op == "*?" or op == "&" or op == "|" or op == "^"
+
+## What the arms of a `match` cover: `_`, an optional's two cases, `true` and `false`, an
+## enum's cases as bits by declaration order, and the literals seen, for duplicates.
+struct Coverage:
+    var wildcard: bool
+    var some: bool
+    var none_: bool
+    var truth: bool
+    var falsity: bool
+    var cases: u64
+
+## Whether the literal pattern `p` of arm `a` repeats a literal pattern of an earlier arm
+## of `m`, or of the same arm.
+func literal_repeats(m: ast.Node*, a: ast.Node*, p: ast.Node*) -> bool:
+    let v = p.left else return false
+    if v.kind != ast.Kind.literal or p.right != none or v.text == "true" or v.text == "false":
+        return false
+    var arm = m.body
+    while let earlier = arm:
+        var pattern = earlier.left
+        while let q = pattern:
+            if q == p:
+                return false
+            if q.right == none:
+                if let w = q.left:
+                    if w.kind == ast.Kind.literal and w.text == v.text:
+                        return true
+            pattern = q.next
+        arm = earlier.next
+    return false
+
+## The position of a case among its enum's cases, in declaration order.
+func case_index(d: ast.Node*, case_decl: ast.Node*) -> usize:
+    var index: usize = 0
+    var cursor = d.body
+    while let m = cursor:
+        if m == case_decl:
+            return index
+        if m.kind == ast.Kind.enum_case:
+            index += 1
+        cursor = m.next
+    return index
+
+func case_count(d: ast.Node*) -> usize:
+    var count: usize = 0
+    var cursor = d.body
+    while let m = cursor:
+        if m.kind == ast.Kind.enum_case:
+            count += 1
+        cursor = m.next
+    return count
+
+## `luce.line`, `luce.file`, or `luce.function`: a fact of the use site (§6.4).
+func is_luce_fact(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.member:
+        return false
+    let owner = e.left else return false
+    return owner.kind == ast.Kind.name and owner.text == "luce" and (e.text == "line" or e.text == "file" or e.text == "function" or e.text == "location")
+
+## `-1`: unary minus on an integer literal.
+func is_negative_literal(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.unary or e.text != "-":
+        return false
+    let inner = e.left else return false
+    return inner.kind == ast.Kind.literal and not literals.is_float_literal(inner.text) and inner.text.bytes[0] >= '0' and inner.text.bytes[0] <= '9'
+
+## Whether a type declaration holds a field (§10.1).
+## The wrapping integer result of a constant binary operator, or `none` for an operator this
+## evaluator does not fold or a division by zero.
+func fold_binary(op: str, a: u64, b: u64) -> u64?:
+    if op == "+" or op == "+%":
+        return a +% b
+    if op == "-" or op == "-%":
+        return a -% b
+    if op == "*" or op == "*%":
+        return a *% b
+    if op == "//":
+        return (a // b) if b != 0 else none
+    if op == "%":
+        return (a % b) if b != 0 else none
+    if op == "<<":
+        return (a << b) if b < 64 else 0
+    if op == ">>":
+        return (a >> b) if b < 64 else 0
+    if op == "&":
+        return a & b
+    if op == "|":
+        return a | b
+    if op == "^":
+        return a ^ b
+    return none
+
+func compare_constants(op: str, a: u64, b: u64, signed: bool) -> bool?:
+    if op == "==":
+        return a == b
+    if op == "!=":
+        return a != b
+    let sa = (i64)a
+    let sb = (i64)b
+    if op == "<":
+        return (sa < sb) if signed else (a < b)
+    if op == "<=":
+        return (sa <= sb) if signed else (a <= b)
+    if op == ">":
+        return (sa > sb) if signed else (a > b)
+    if op == ">=":
+        return (sa >= sb) if signed else (a >= b)
+    return none
+
+## The method a witness table points at for requirement `name` of `d`: the hidden fallible
+## thunk when the implementation is not fallible, else the implementation itself.
+pub func witness_member(d: ast.Node*, name: str) -> ast.Node*?:
+    var cursor = d.body
+    while let m = cursor:
+        if m.kind == ast.Kind.func_ and m.has(ast.flag_lambda) and m.text.length == name.length + 6 and ends_with_name(m.text, name):
+            return m
+        cursor = m.next
+    return find_member(d, name, ast.Kind.func_)
+
+func ends_with_name(text: str, name: str) -> bool:
+    let t = text.bytes
+    let n = name.bytes
+    if t.length < n.length + 6:
+        return false
+    if (str)t[..<6] != "__wit_":
+        return false
+    return (str)t[6..] == name
+
+## The `index`th argument's value of call `e`.
+func argument_at(e: ast.Node*, index: usize) -> ast.Node*?:
+    var i: usize = 0
+    var cursor = e.body
+    while let a = cursor:
+        if i == index:
+            return a.left
+        i += 1
+        cursor = a.next
+    return none
+
+## How strong a written `Ordering` case is: relaxed, then acquire and release, then
+## acq_rel, then seq_cst; a non-literal ordering ranks as the weakest.
+func ordering_rank(e: ast.Node*) -> u32:
+    if e.kind != ast.Kind.case_value:
+        return 0
+    if e.text == "seq_cst":
+        return 3
+    if e.text == "acq_rel":
+        return 2
+    if e.text == "acquire" or e.text == "release":
+        return 1
+    return 0
+
+## A call, alone or under `try`, `catch`, or parentheses (§7.9).
+func is_call_statement(e: ast.Node*) -> bool:
+    match e.kind:
+        .call:
+            return true
+        .group, .catch_, .else_, .propagate:
+            let inner = e.left else return false
+            return is_call_statement(inner)
+        .unary:
+            let inner = e.left else return false
+            return e.text == "try" and is_call_statement(inner)
+        _:
+            return false
+
+func is_none_literal(e: ast.Node*) -> bool:
+    return e.kind == ast.Kind.literal and e.text == "none"
+
+## Whether a handler's every path ends in `recover`, `return`, `error`, `trap`, `break`, or
+## `continue` (§11.4).
+func handler_leaves(block: ast.Node*) -> bool:
+    var cursor = block.body
+    while let s = cursor:
+        if handler_statement_leaves(s):
+            return true
+        cursor = s.next
+    return false
+
+func handler_statement_leaves(s: ast.Node*) -> bool:
+    match s.kind:
+        .recover_, .break_, .continue_:
+            return true
+        .if_:
+            let then = s.body else return false
+            let rest = s.right else return false
+            if not handler_leaves(then):
+                return false
+            return handler_statement_leaves(rest) if rest.kind == ast.Kind.if_ else handler_leaves(rest)
+        _:
+            return prune.statement_leaves(s)
+
+func has_field(d: ast.Node*) -> bool:
+    var cursor = d.body
+    while let m = cursor:
+        if m.kind == ast.Kind.field:
+            return true
+        cursor = m.next
+    return false
+
+## `a.b.c` -> `c`.
+func last_component(path: str) -> str:
+    var start: usize = 0
+    var i: usize = 0
+    let b = path.bytes
+    while i < b.length:
+        if b[i] == '.':
+            start = i + 1
+        i += 1
+    return (str)b[start..]
+
+## `dir/name.lucb` -> `name`.
+pub func module_name_of(path: str) -> str:
+    return paths.stem(path)
+
+## A module's name is spelled like any other name: a letter or `_`, then letters, digits,
+## or `_` (§3.1, §16.1).
+pub func is_identifier(name: str) -> bool:
+    let b = name.bytes
+    if b.length == 0:
+        return false
+    var i: usize = 0
+    while i < b.length:
+        let byte = b[i]
+        let letter = (byte >= 'a' and byte <= 'z') or (byte >= 'A' and byte <= 'Z') or byte == '_'
+        let digit = byte >= '0' and byte <= '9'
+        if not letter and not (digit and i > 0):
+            return false
+        i += 1
+    return true
+
+## A list of one type argument, `id`.
+func one_arg(id: u32) -> u32[]!:
+    var one = try alloc u32[1]
+    one[0] = id
+    return one

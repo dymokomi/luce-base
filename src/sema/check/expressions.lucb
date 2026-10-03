@@ -1,0 +1,564 @@
+#==============================================================================================
+#
+#   check/expressions - Expressions
+#
+#   DESCRIPTION:
+#       `check_expr` and the expressions with no family of their own: literals, names,
+#       tuples and arrays, enum cases, and `else` and `catch` (§7, §11).
+#
+#==============================================================================================
+extend Checker:
+    # mark: Expressions ========================================================================
+
+    ## The type of `e`, recorded on the node. `hint` is the type the context wants,
+    ## used by literals, `none`, `.case`, array literals, and lambdas; it is a hint,
+    ## not a requirement, so callers `coerce` afterwards.
+    pub mutating func check_expr(e: ast.Node*, hint: u32) -> u32!:
+        let id = try self.expr_type(e, hint)
+        e.type_id = id
+        # The formatter handles its synthetic Display call itself; user operands
+        # inside that call still use the surrounding expression's effect context.
+        if self.expression_effect and self.table.kind(id) == types.Kind.fallible and not e.has(ast.flag_format_sink) and not self.else_handles(e, id):
+            let inner = try ast.Node.make(e.kind, e.text, e.start, e.line)
+            *inner = *e
+            inner.next = none
+            e.kind = ast.Kind.propagate
+            e.text = "try"
+            e.left = inner
+            e.right = none
+            e.body = none
+            e.ty = none
+            e.resolved = none
+            e.type_id = self.table.get(id).elem
+            self.effect_count += 1
+            return e.type_id
+        return id
+
+    mutating func expr_type(e: ast.Node*, hint: u32) -> u32!:
+        match e.kind:
+            .propagate:
+                self.effect_count += 1
+                return e.type_id
+            .literal:
+                return try self.literal_type(e, hint)
+            .name:
+                return try self.generic_function_value(e, try self.name_type(e), hint)
+            .self_:
+                if self.self_type == types.none_id:
+                    return try self.fail(e, "`self` outside a method")
+                return self.self_type
+            .unit_:
+                return types.unit_id
+            .group:
+                let inner = e.left else return try self.fail(e, "empty group")
+                return try self.check_expr(inner, hint)
+            .unary:
+                return try self.unary_type(e, hint)
+            .binary:
+                return try self.binary_type(e, hint)
+            .conditional:
+                let cond = e.ty else return try self.fail(e, "a conditional needs a condition")
+                discard(try self.expect(cond, types.bool_id))
+                let l = e.left else return try self.fail(e, "a conditional needs a value")
+                let r = e.right else return try self.fail(e, "a conditional needs an alternative")
+                let lt = try self.check_expr(l, hint)
+                let rt = try self.check_expr(r, hint if hint != types.none_id else lt)
+                # a `never` branch takes the other branch's type: its value never exists (§5.1)
+                if lt == types.never_id:
+                    return rt
+                if rt == types.never_id:
+                    return lt
+                # `none if c else 3` is an `i64?` whatever the context asked (§5.8)
+                if lt == types.none_id and rt != types.none_id:
+                    let whole = try self.table.optional(self.concrete(rt))
+                    discard(try self.coerce(l, lt, whole))
+                    discard(try self.coerce(r, rt, whole))
+                    return whole
+                if rt == types.none_id and lt != types.none_id:
+                    let whole = try self.table.optional(self.concrete(lt))
+                    discard(try self.coerce(l, lt, whole))
+                    discard(try self.coerce(r, rt, whole))
+                    return whole
+                return try self.unify(l, lt, r, rt)
+            .call:
+                return try self.call_type(e, hint)
+            .member:
+                return try self.member_type(e)
+            .index:
+                if self.names_instantiation(e):
+                    # `negate[Point]`: a generic function and a type, the instance (§13)
+                    let owner = e.left else return try self.fail(e, "missing operand")
+                    let arg = e.body else return try self.fail(e, "missing index")
+                    let holder = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+                    let named = try ast.Node.make(ast.Kind.type_, arg.text, arg.start, arg.line)
+                    holder.body = named
+                    e.kind = ast.Kind.name
+                    e.text = owner.text
+                    e.ty = holder
+                    e.left = none
+                    e.body = none
+                    return try self.generic_function_value(e, try self.name_type(e), hint)
+                return try self.index_type(e)
+            .slice:
+                return try self.slice_type(e)
+            .tuple:
+                let t = try self.tuple_type(e, hint)
+                self.mark_if_member_local(e)
+                return t
+            .array_lit:
+                let t = try self.array_type(e, hint)
+                self.mark_if_member_local(e)
+                return t
+            .lambda:
+                return try self.lambda_type(e, hint)
+            .else_:
+                return try self.else_type(e, hint)
+            .catch_:
+                return try self.catch_type(e, hint)
+            .cast:
+                return try self.cast_type(e)
+            .case_value:
+                return try self.case_type(e, hint)
+            .formatted:
+                var part = e.body
+                while let p = part:
+                    if p.kind == ast.Kind.format_field:
+                        let v = p.left else return try self.fail(p, "empty field")
+                        let vt = try self.check_expr(v, types.none_id)
+                        discard(try self.settle(v, vt))
+                        if not self.printable(vt):
+                            if self.displays_itself(vt):
+                                try self.display_through_sink(p)
+                            else:
+                                discard(try self.fail(v, "this value cannot be formatted"))
+                    part = p.next
+                return types.fmt_id
+            .new_:
+                return try self.new_type(e)
+            .alloc_:
+                return try self.alloc_type(e)
+            .span_make:
+                let t = e.ty else return try self.fail(e, "a span constructor needs a type")
+                let span = try self.resolve_type(t)
+                let elem = self.table.get(span).elem
+                let pointer = try self.table.pointer(elem, self.table.get(span).is_const, false)
+                var args = e.body
+                let p = args else return try self.fail(e, "a span constructor takes a pointer and a count")
+                let pv = p.left else return try self.fail(e, "empty argument")
+                discard(try self.expect(pv, pointer))
+                let second = p.next else return try self.fail(e, "a span constructor takes a pointer and a count")
+                let cv = second.left else return try self.fail(e, "empty argument")
+                discard(try self.expect(cv, types.usize_id))
+                return span
+            .match_expr:
+                return try self.match_type(e, hint, true)
+            .return_, .break_, .continue_:
+                try self.check_stmt(e)
+                return types.never_id
+            _:
+                return try self.fail(e, "unsupported expression")
+
+    ## A struct that is `Display` (§14.4) shows itself in a formatted string.
+    func displays_itself(id: u32) -> bool:
+        let iface = self.standard_type("luce", "Display")
+        if iface == types.none_id:
+            return false
+        if self.table.kind(id) == types.Kind.param:
+            # a parameter bound by `Display` writes itself through the sink; the instantiation
+            # supplies the how, a struct's own `display` or the compiler's for a scalar
+            return self.has_written_constraint(id, iface)
+        if self.table.kind(id) != types.Kind.struct_:
+            return false
+        return self.conforms(id, iface)
+
+    ## The type of a standard module's declaration, `io.Writer`; `none_id` when absent.
+    pub func standard_type(module: str, name: str) -> u32:
+        let index = self.find_module(module) else return types.none_id
+        let d = find_decl(self.modules.get(index).tree, name) else return types.none_id
+        return d.type_id
+
+    ## A field whose value writes itself becomes the call `value.display(__sink)`, where
+    ## `__sink` stands for the string's own sink (`flag_format_sink`); the backends supply
+    ## that sink where they build the string.
+    mutating func display_through_sink(field: ast.Node*) -> !:
+        let v = field.left else return
+        let sink = try ast.Node.make(ast.Kind.name, "__sink", field.start, field.line)
+        sink.flags |= ast.flag_format_sink
+        let argument = try ast.Node.make(ast.Kind.argument, "", field.start, field.line)
+        argument.left = sink
+        let call = try self.method_call(v, "display", field)
+        call.body = argument
+        call.flags |= ast.flag_format_sink
+        field.left = call
+        field.flags |= ast.flag_format_sink
+        discard(try self.check_expr(call, types.none_id))
+
+    ## Values a formatted string or `print` can show.
+    func printable(id: u32) -> bool:
+        let t = self.table.get(id)
+        if t.kind == types.Kind.atomic:
+            # a plain read of `@T` is a load (§15.1): the value displays as its `T`
+            return self.printable(t.elem)
+        if self.table.is_numeric(id) or id == types.untyped_int_id or id == types.untyped_float_id:
+            return true
+        if id == types.bool_id or id == types.char_id or id == types.str_id or id == types.cstr_id or id == types.fmt_id:
+            return true
+        if t.kind == types.Kind.pointer or t.kind == types.Kind.enum_:
+            return true
+        return false
+
+    mutating func literal_type(e: ast.Node*, hint: u32) -> u32!:
+        let b = e.text.bytes
+        let first = b[0]
+        if e.text == "true" or e.text == "false":
+            return types.bool_id
+        if e.text == "none":
+            if self.table.kind(hint) == types.Kind.optional:
+                return hint
+            return types.none_id
+        if first == '\'':
+            # an ASCII character adapts to a byte (§4.4); any other is a `char`
+            if hint == types.u8_id and literals.decode_char(e.text) < 128:
+                return types.u8_id
+            return types.char_id
+        if first == '"':
+            if hint == types.cstr_id:
+                return types.cstr_id
+            return types.str_id
+        if first == 'r' or first == 'b':
+            if first == 'b':
+                if self.table.kind(hint) == types.Kind.array and self.table.get(hint).elem == types.u8_id:
+                    return try self.bytes_as_array(e, hint)
+                return try self.table.span(types.u8_id, true)
+            return types.str_id
+        let suffix = literals.literal_suffix(e.text)
+        if suffix.length > 0:
+            return try self.suffixed_literal(e, suffix)
+        if literals.is_float_literal(e.text):
+            # finite as an `f64` at least; a narrower context checks again
+            try self.check_float_fits(e, types.f64_id)
+            return types.untyped_float_id
+        # a `u64` at most; the context checks again
+        let value = literals.decode_integer(e.text) catch failure:
+            return try self.fail(e, "integer literal does not fit")
+        discard(value)
+        return types.untyped_int_id
+
+    ## `let magic: u8[4] = b"\x89PNG"`: a byte literal where a byte array is expected is an
+    ## array literal of its bytes, and must have the array's length (§4.4). The node becomes
+    ## that array literal, so every backend builds it as it builds `[0x89, 0x50, ...]`.
+    mutating func bytes_as_array(e: ast.Node*, hint: u32) -> u32!:
+        let length = self.table.get(hint).length
+        let bytes = literals.decode_text(e.text).bytes
+        if (u64)bytes.length != length:
+            var said22: u8[256]
+            return try self.fail(e, try self.with_type(said(said22, f"a byte literal of {bytes.length} bytes cannot initialise `"), hint, "`: the lengths differ"))
+        if bytes.length == 0:
+            return try self.fail(e, "an empty byte literal cannot initialise an array: an array literal needs at least one element (§5.4)")
+        var head: ast.Node*? = none
+        var tail: ast.Node*? = none
+        for byte in bytes:
+            var room = try alloc u8[4]
+            let spelled = try format(room, f"{byte}")
+            let element = try ast.Node.make(ast.Kind.literal, spelled, e.start, e.line)
+            if let last = tail:
+                last.next = element
+            else:
+                head = element
+            tail = element
+        e.kind = ast.Kind.array_lit
+        e.text = ""
+        e.body = head
+        return try self.array_type(e, hint)
+
+    ## `255u8`, `0.5f32`: the suffix names the literal's exact type (§4.2, §4.3), and the
+    ## literal must fit it.
+    mutating func suffixed_literal(e: ast.Node*, suffix: str) -> u32!:
+        let id = scalar_id(suffix)
+        if id == types.none_id or not self.table.is_numeric(id):
+            return try self.fail(e, "a literal suffix names an integer or float type")
+        if self.table.is_float(id) != literals.is_float_literal(e.text):
+            return try self.fail(e, "a float suffix needs a float literal, an integer suffix an integer literal")
+        if self.table.is_integer(id):
+            try self.check_fits(e, id, false)
+        else:
+            try self.check_float_fits(e, id)
+        return id
+
+    ## Whether `name[Name]` names a generic function and a type: an instantiation, not an
+    ## index (the parser reads a single capitalised name as either).
+    func names_instantiation(e: ast.Node*) -> bool:
+        let owner = e.left else return false
+        let arg = e.body else return false
+        if owner.kind != ast.Kind.name or arg.kind != ast.Kind.name:
+            return false
+        let fb = self.lookup(owner.text) else return false
+        let f = fb.decl else return false
+        if f.kind != ast.Kind.func_ or generic_params_of(f) == none:
+            return false
+        let tb = self.lookup(arg.text) else return false
+        let t = tb.decl else return false
+        return is_type_decl(t) or t.kind == ast.Kind.type_alias or t.kind == ast.Kind.generic_param
+
+    ## A name is a local, a declaration, a module, or a type used as a value.
+    ## A generic function named where a function type is expected, `let f: func(i64) -> bool
+    ## = negate` (§13): the instance whose type that is, its arguments inferred from the
+    ## expected type and recorded on the name as a call records its own.
+    mutating func generic_function_value(e: ast.Node*, t: u32, hint: u32) -> u32!:
+        let d = e.resolved else return t
+        if d.kind != ast.Kind.func_:
+            return t
+        let generics = generic_params_of(d) else return t
+        if let written = e.ty:
+            # `negate[i64]`, `pick[i32, u64]`: the instance the written arguments name, for a
+            # function type that does not mention every type parameter too
+            let n = ast.count(generics)
+            if ast.count(written.body) != n:
+                return try self.fail(e, "wrong number of type arguments")
+            var args = try alloc u32[n]
+            var j: usize = 0
+            var cursor = written.body
+            while let a = cursor:
+                args[j] = try self.resolve_type(a)
+                a.type_id = args[j]
+                j += 1
+                cursor = a.next
+            try self.check_constraints(d, args, e)
+            return try self.substitute(d.type_id, d, args)
+        var target = hint
+        if self.table.kind(hint) == types.Kind.optional:
+            target = self.table.get(hint).elem
+        if self.table.kind(target) != types.Kind.func_:
+            return t
+        let n = ast.count(generics)
+        var inferred = try alloc u32[n]
+        for j in 0..<n:
+            inferred[j] = types.none_id
+        try self.infer(d.type_id, target, d, inferred)
+        let holder = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+        var tail: ast.Node*? = none
+        for j in 0..<n:
+            if inferred[j] == types.none_id:
+                return try self.fail(e, "a type argument of this generic function is not in the expected function type")
+            let a = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+            a.type_id = inferred[j]
+            ast.append(&holder.body, &tail, a)
+        try self.check_constraints(d, inferred, e)
+        e.ty = holder
+        return try self.substitute(d.type_id, d, inferred)
+
+    mutating func name_type(e: ast.Node*) -> u32!:
+        if e.has(ast.flag_format_sink):
+            return self.standard_type("io", "Writer")
+        if e.ty != none and try self.index_reading(e):
+            return try self.index_type(e)
+        let scalar = scalar_id(e.text)
+        if scalar != types.none_id:
+            e.flags |= ast.flag_type_ref
+            return scalar
+        let b = self.lookup(e.text) else return try self.unknown_name(e)
+        e.resolved = b.decl
+        self.note_origin(b)
+        self.mark_used(e.text)
+        if let d = b.decl:
+            if d.kind == ast.Kind.func_:
+                d.flags |= ast.flag_referenced
+        if b.from_local:
+            self.mark_local(e)
+        let d = b.decl else return b.type_id
+        match d.kind:
+            .func_, .extern_func:
+                return d.type_id
+            .struct_, .enum_, .union_, .interface_, .extern_type, .extern_struct, .extern_union, .generic_param:
+                e.flags |= ast.flag_type_ref
+                if e.ty != none:
+                    # `Map[str, u32]` before a static member
+                    let t = e.ty else return d.type_id
+                    let named = try ast.Node.make(ast.Kind.type_, e.text, e.start, e.line)
+                    named.body = t.body
+                    return try self.resolve_type(named)
+                return d.type_id
+            .type_alias:
+                e.flags |= ast.flag_type_ref
+                if d.type_id == types.none_id:
+                    let target = d.ty else return try self.fail(e, "an alias needs a type")
+                    d.type_id = try self.resolve_type(target)
+                return d.type_id
+            .module:
+                return b.type_id
+            .constant:
+                if d.type_id == types.none_id:
+                    try self.check_constant(d)
+                if let f = self.function_alias(d):
+                    e.resolved = f
+                return d.type_id
+            _:
+                return b.type_id
+
+    ## An unresolved name; inside a lambda, a local of the enclosing function is the usual
+    ## cause, and a lambda captures nothing (§9.6).
+    func unknown_name(e: ast.Node*) -> u32!:
+        if e.text == "_":
+            return try self.fail(e, "`_` is the wildcard; it binds nothing to read (§3.4)")
+        if self.lambda_floor > 0:
+            var i = self.lambda_floor
+            while i > 0:
+                i -= 1
+                if self.scope.get(i).name == e.text:
+                    return try self.fail(e, "a lambda captures nothing; pass the value as a parameter (§9.6)")
+        var said8: u8[256]
+        return try self.fail(e, said(said8, f"unknown name `{e.text}`"))
+
+    mutating func tuple_type(e: ast.Node*, hint: u32) -> u32!:
+        let n = ast.count(e.body)
+        # `(u32, u32)?` expected: the members take the tuple's types, `(r.index, 0)` a u32 0
+        let h = self.table.get(self.inside_optional(hint))
+        var members = try alloc u32[n]
+        var i: usize = 0
+        var cursor = e.body
+        while let m = cursor:
+            var mh = types.none_id
+            if h.kind == types.Kind.tuple and i < h.args.length:
+                mh = h.args[i]
+            let mt = try self.check_expr(m, mh)
+            members[i] = try self.coerce(m, mt, mh) if mh != types.none_id else try self.settle(m, mt)
+            if members[i] == types.none_id:
+                return try self.fail(m, "`none` needs a type")
+            i += 1
+            cursor = m.next
+        return try self.table.tuple(members)
+
+    mutating func array_type(e: ast.Node*, hint: u32) -> u32!:
+        let n = ast.count(e.body)
+        if n == 0:
+            return try self.fail(e, "an array literal needs at least one element (§5.4)")
+        let h = self.table.get(self.inside_optional(hint))
+        var elem = types.none_id
+        if h.kind == types.Kind.array or h.kind == types.Kind.span:
+            elem = h.elem
+        var cursor = e.body
+        while let m = cursor:
+            let mt = try self.check_expr(m, elem)
+            if elem == types.none_id:
+                elem = try self.settle(m, mt)
+                if elem == types.none_id:
+                    return try self.fail(m, "`none` needs a type")
+            discard(try self.coerce(m, mt, elem))
+            cursor = m.next
+        return try self.table.array(elem, (u64)n)
+
+    ## `(a, b) => body`: parameters come from the written types or the expected function type.
+    ## The type an optional or fallible `hint` holds, or `hint`: what a literal inside it takes
+    ## its members' types from.
+    func inside_optional(hint: u32) -> u32:
+        var at = hint
+        while self.table.kind(at) == types.Kind.optional or self.table.kind(at) == types.Kind.fallible:
+            at = self.table.get(at).elem
+        return at
+
+    ## Whether `e`, of type `id`, is the operand of an `x else y` that handles its failure
+    ## itself: a fallible `T!` whose payload is no optional. A `T?!` under a `try` keeps the
+    ## `try` for its failure and the `else` for its absence.
+    func else_handles(e: ast.Node*, id: u32) -> bool:
+        return self.else_operand == e and self.table.kind(self.table.get(id).elem) != types.Kind.optional
+
+    ## `x else y`: the payload of an optional or fallible `x`, or `y` (§11.1).
+    mutating func else_type(e: ast.Node*, hint: u32) -> u32!:
+        let l = e.left else return try self.fail(e, "missing operand")
+        let r = e.right else return try self.fail(e, "`else` needs an alternative")
+        let saved_operand = self.else_operand
+        self.else_operand = l
+        let checked = self.check_expr(l, try self.table.optional(hint) if hint != types.none_id else types.none_id) catch failure:
+            self.else_operand = saved_operand
+            error(failure.code, failure.message)
+        self.else_operand = saved_operand
+        var lt = self.plain_read(checked)
+        let t = self.table.get(lt)
+        # An optional's absence, or a fallible result's failure, takes the alternative: the
+        # operand's own failure is this `else`'s even under a surrounding `try` (`try f(g()
+        # else 0)`), while a fallible call inside the operand is still the `try`'s.
+        if t.kind != types.Kind.optional and t.kind != types.Kind.fallible:
+            return try self.fail(l, "`else` needs an optional or a fallible result")
+        if t.kind == types.Kind.fallible and self.is_local_value(l):
+            self.mark_local(e)  # the recovered value still views what the operand viewed (§6.6)
+        let payload = t.elem
+        if r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_:
+            try self.check_stmt(r)
+            r.type_id = types.never_id
+            return payload
+        let rt = try self.check_expr(r, payload)
+        discard(try self.coerce(r, rt, payload))
+        return payload
+
+    ## `x catch name:` handles the failure of `x`; the handler recovers or leaves.
+    ## `e catch name: handler`: the handled value's type, or the `T?` expected of it when
+    ## the value is a `T`, so that a handler may `recover none` (§11.4).
+    mutating func catch_type(e: ast.Node*, hint: u32) -> u32!:
+        let l = e.left else return try self.fail(e, "missing operand")
+        let body = e.body else return try self.fail(e, "`catch` needs a handler")
+        let saved_effect = self.expression_effect
+        let before = self.effect_count
+        self.expression_effect = true
+        # a failure in the operand must not leave the state set for the rest of the module
+        let lt = self.check_expr(l, types.none_id) catch failure:
+            self.expression_effect = saved_effect
+            error(failure.code, failure.message)
+        self.expression_effect = saved_effect
+        if self.effect_count == before:
+            return try self.fail(l, "`catch` needs a fallible value")
+        if self.is_local_value(l):
+            self.mark_local(e)  # the handled value still views what it viewed (§6.6)
+        var result = lt
+        if hint != types.none_id and self.table.kind(hint) == types.Kind.optional and self.table.get(hint).elem == lt:
+            result = hint
+        self.push_scope()
+        if e.text.length > 0:
+            try self.bind(e, e.text, types.error_value_id, e, false)
+        let saved_in = self.in_catch
+        let saved_result = self.catch_result
+        self.in_catch = true
+        self.catch_result = result
+        self.check_block(body) catch failure:
+            self.in_catch = saved_in
+            self.catch_result = saved_result
+            self.pop_scope()
+            error(failure.code, failure.message)
+        self.in_catch = saved_in
+        self.catch_result = saved_result
+        self.pop_scope()
+        # a handler for a value recovers one or leaves; one for `unit` may fall through (§11.4)
+        if lt != types.unit_id and not handler_leaves(body):
+            discard(try self.fail(e, "a `catch` handler must `recover` a value or leave with `return`, `error`, `trap`, `break`, or `continue`"))
+        return result
+
+    ## `.case` or `.case(args)` of the enum the context expects.
+    mutating func case_type(e: ast.Node*, hint: u32) -> u32!:
+        let h = self.table.get(hint)
+        var enum_id = hint
+        if h.kind == types.Kind.optional:
+            enum_id = h.elem
+        if self.table.kind(enum_id) != types.Kind.enum_:
+            return try self.fail(e, "`.case` needs an enum type from the context")
+        let d = self.table.get(enum_id).decl else return try self.fail(e, "no enum here")
+        let case_decl = find_member(d, e.text, ast.Kind.enum_case) else return try self.fail(e, "no such case")
+        e.resolved = case_decl
+        if case_decl.body != none or e.body != none:
+            try self.check_payload(e, case_decl, enum_id, d)
+        return enum_id
+
+    ## The arguments of a payload case against its declared parameters.
+    mutating func check_payload(at: ast.Node*, case_decl: ast.Node*, enum_id: u32, d: ast.Node*) -> !:
+        let instance = self.table.get(enum_id)
+        var param = case_decl.body
+        var arg = at.body
+        while let p = param:
+            let a = arg else return try self.fail(at, "this case needs more arguments")
+            let v = a.left else return try self.fail(a, "empty argument")
+            if a.text.length > 0 and a.text != p.text:
+                discard(try self.fail(a, "argument name does not match the case"))
+            let want = try self.substitute(p.type_id, d, instance.args)
+            discard(try self.expect(v, want))
+            param = p.next
+            arg = a.next
+        if arg != none:
+            discard(try self.fail(at, "too many arguments for this case"))

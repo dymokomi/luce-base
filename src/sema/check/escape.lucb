@@ -1,0 +1,191 @@
+#==============================================================================================
+#
+#   check/escape - Places and the escape rule
+#
+#   DESCRIPTION:
+#       Which expressions name storage, and the pointers and views that name a local and
+#       must not leave its function (§6.6).
+#
+#==============================================================================================
+extend Checker:
+    # mark: The escape rule ====================================================================
+
+    ## A tuple or array literal holding a local's address is as local as that address:
+    ## `return (1, &n)` leaves the frame through the tuple (§6.6).
+    mutating func mark_if_member_local(e: ast.Node*):
+        var cursor = e.body
+        while let m = cursor:
+            if self.is_local_value(m):
+                self.mark_local(e)
+                return
+            cursor = m.next
+
+    ## §6.6: whether an expression's value is the address of a local, or aliases one.
+    func is_local_value(e: ast.Node*) -> bool:
+        return e.has(ast.flag_local)
+
+    mutating func mark_local(e: ast.Node*):
+        e.flags |= ast.flag_local
+
+    ## Whether a place (an lvalue) is rooted in the current frame: a local `var`/`let`/param,
+    ## an element or field reached from one, or a dereference of a local pointer.
+    func place_is_local(e: ast.Node*) -> bool:
+        match e.kind:
+            .name:
+                let b = self.lookup(e.text) else return false
+                let d = b.decl else return false
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant:
+                    return false
+                return b.depth > 0
+            .self_:
+                return false
+            .group:
+                let inner = e.left else return false
+                return self.place_is_local(inner)
+            .member:
+                let owner = e.left else return false
+                let ok = self.table.kind(owner.type_id)
+                if ok == types.Kind.module:
+                    return false  # `module.global`
+                if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
+                    return self.is_local_value(owner)  # wherever the pointer or view points
+                return self.place_is_local(owner)
+            .index:
+                let owner = e.left else return false
+                let ok = self.table.kind(owner.type_id)
+                if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
+                    return self.is_local_value(owner)
+                return self.place_is_local(owner) or self.is_local_value(owner)
+            .unary:
+                if e.text == "*":
+                    let inner = e.left else return false
+                    return self.is_local_value(inner)
+                return self.is_local_value(e)
+            _:
+                return self.is_local_value(e)
+
+    ## Whether a store to this place may outlive the function, as §6.6 lists: a global, or a
+    ## place reached through a pointer or view that is a parameter (or `self`). A pointer
+    ## read from anywhere else is not followed, as the check stops at calls.
+    func place_outlives(e: ast.Node*) -> bool:
+        match e.kind:
+            .name:
+                let b = self.lookup(e.text) else return false
+                let d = b.decl else return false
+                return d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or b.depth == 0
+            .self_:
+                return true
+            .group:
+                let inner = e.left else return false
+                return self.place_outlives(inner)
+            .member, .index:
+                let owner = e.left else return false
+                let ok = self.table.kind(owner.type_id)
+                if ok == types.Kind.module:
+                    return true
+                if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
+                    return self.is_parameter(owner)
+                return self.place_outlives(owner)
+            .unary:
+                let inner = e.left else return false
+                return e.text == "*" and self.is_parameter(inner)
+            _:
+                return false
+
+    ## Whether `e` names a parameter of the function being checked, or its receiver.
+    func is_parameter(e: ast.Node*) -> bool:
+        if e.kind == ast.Kind.self_:
+            return true
+        if e.kind == ast.Kind.group:
+            let inner = e.left else return false
+            return self.is_parameter(inner)
+        if e.kind != ast.Kind.name:
+            return false
+        let b = self.lookup(e.text) else return false
+        let d = b.decl else return false
+        return d.kind == ast.Kind.param
+
+    ## Record on a binding that it holds a local address (a `let` alias of §6.6).
+    mutating func set_from_local(name: str, taint: bool):
+        var at = self.names.head(name)
+        while at > 0:
+            var b = self.scope.get((usize)at - 1)
+            if b.depth == self.depth:
+                b.from_local = taint
+                self.scope.set((usize)at - 1, b)
+                return
+            at = b.shadowed
+
+    ## The escape rule (§6.6): a pointer, span, or `str` that names a local must not leave,
+    ## alone or as a component of a tuple, an array, a struct, or an optional.
+    func escapes(id: u32) -> bool:
+        let t = self.table.get(id)
+        match t.kind:
+            .pointer, .span:
+                return true
+            .optional, .array:
+                return self.escapes(t.elem)
+            .tuple:
+                for m in t.args:
+                    if self.escapes(m):
+                        return true
+                return false
+            .struct_:
+                let d = t.decl else return false
+                var cursor = d.body
+                while let f = cursor:
+                    if f.kind == ast.Kind.field and self.escapes(f.type_id):
+                        return true
+                    cursor = f.next
+                return false
+            _:
+                return id == types.str_id
+
+    # mark: Places =============================================================================
+
+    ## May `e` be assigned to, or have a mutating method called on it?
+    func is_mutable_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name:
+                let b = self.lookup(e.text) else return false
+                return b.mutable
+            .self_:
+                return self.self_mutable
+            .group:
+                let inner = e.left else return false
+                return self.is_mutable_place(inner)
+            .member:
+                let owner = e.left else return false
+                if let field = e.resolved:
+                    # `init` gives every field its first value, `let` fields included (§9.4)
+                    if field.kind == ast.Kind.field and field.has(ast.flag_const) and not self.in_init:
+                        return false
+                    if field.kind == ast.Kind.global or field.kind == ast.Kind.extern_var:
+                        return true
+                let ot = self.table.get(owner.type_id)
+                if ot.kind == types.Kind.pointer:
+                    return not ot.is_const
+                if ot.kind == types.Kind.module:
+                    return false
+                return self.is_mutable_place(owner)
+            .index:
+                let owner = e.left else return false
+                let ot = self.table.get(owner.type_id)
+                if ot.kind == types.Kind.span:
+                    return not ot.is_const
+                if ot.kind == types.Kind.pointer:
+                    return not ot.is_const
+                return self.is_mutable_place(owner)
+            .unary:
+                if e.text != "*":
+                    return false
+                let inner = e.left else return false
+                let it = self.table.get(inner.type_id)
+                return it.kind == types.Kind.pointer and not it.is_const
+            _:
+                return false
+
+    ## A `let` local, parameter, or `const` view whose address is taken yields a
+    ## const pointer; a `var` yields a mutable one.
+    func address_is_const(e: ast.Node*) -> bool:
+        return not self.is_mutable_place(e)

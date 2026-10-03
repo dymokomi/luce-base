@@ -1,0 +1,417 @@
+#==============================================================================================
+#
+#   check - Names, types, and effects
+#
+#   DESCRIPTION:
+#       Turns parsed modules into a checked program (base.md §5–§17). Declarations are
+#       collected first so forward references and recursion work, then every signature
+#       and field type is resolved, then every body is checked. What the checker
+#       learns is written onto the tree: `type_id` on every expression, type, and
+#       declaration node; `resolved` on names, members, and calls.
+#
+#       Generic declarations are checked once against their written constraints with
+#       opaque parameter types (§13). A use with concrete arguments substitutes them
+#       into the signature; bodies are not re-checked per instance, which is what
+#       declaration-time checking means. The standard modules come from `prelude`,
+#       parsed and bound before the program's own modules, so `io.stdout()` and
+#       `Writer` resolve like any other declaration.
+#
+#       A failing declaration is reported and the next is checked; the module's failures
+#       are one error, a line each, with a `note:` line where a second site is named.
+#
+#       This fragment holds the `Checker` with its fields, diagnostics, and scopes; each
+#       concern's methods are in a fragment of their own under `extend Checker:`, in the
+#       order `ORDER` lists them (§16.1).
+#
+#==============================================================================================
+
+import paths
+import c
+import platform
+import files
+import back.target as targets
+import front.ast
+import front.parser
+import front.source
+import front.token
+import io
+import memory
+import sema.init_rules
+import support.decimal
+import strings
+import support.literals
+import sema.standard as standard
+import support.cache as cache
+import sema.prune
+import sema.name_index
+import sema.types
+import support.list
+import support.hashed
+import support.manifest
+import support.modules as module_paths
+## Reported when a name does not resolve (§15).
+pub let unknown_name: ErrorCode = ErrorCode.package(9)
+## Reported for a type mismatch or an ill-typed operation.
+pub let type_error: ErrorCode = ErrorCode.package(10)
+## Reported for a construct the target or backend does not support.
+pub let unsupported: ErrorCode = ErrorCode.package(11)
+
+# mark: Bindings and modules ==================================================================
+
+## One name in scope: what it is, what type it has, whether it may change.
+struct Binding:
+    var name: str
+    var type_id: u32
+    var decl: ast.Node*?
+    var mutable: bool
+    var depth: u32
+    ## Set when the binding was initialised from a local address, so a name that reads it
+    ## carries the escape taint of §6.6.
+    var from_local: bool
+    ## The import that made this name visible, so a use of the name marks the import.
+    var origin: ast.Node*?
+    ## Some expression read or assigned the name; a local nothing used is pruned (§19.6).
+    var used: bool
+    ## The binding of the same name this one hides, as its scope index plus one; 0 for none.
+    var shadowed: u32 = 0
+
+## Public package exports resolve to the canonical module which owns the type.
+pub struct ModuleAlias:
+    ## The exported module name.
+    pub let name: str
+    ## The canonical module the name resolves to.
+    pub let target: str
+
+## One module of the program: its tree, its source for positions, and whether
+## the checker supplied it from the prelude.
+pub struct Module:
+    ## The module's name.
+    pub var name: str
+    ## Its parsed syntax tree.
+    pub var tree: ast.Node*
+    ## Its source, for diagnostic positions.
+    pub var src: source.Source
+    ## Whether the checker supplied it from the prelude.
+    pub var is_prelude: bool
+    ## Its canonical name, for package exports.
+    pub var canonical: str = ""
+    ## The package it belongs to.
+    pub var package_name: str = ""
+
+## A `Writer` over a caller's buffer, for spelling types into diagnostics.
+struct SpanWriter: io.Writer:
+    var data: u8[]
+    var used: usize
+
+    ## Copy `bytes` into the buffer up to its capacity; the number written.
+    pub mutating func write(bytes: const u8[]) -> usize!:
+        var i: usize = 0
+        while i < bytes.length and self.used < self.data.length:
+            self.data[self.used] = bytes[i]
+            self.used += 1
+            i += 1
+        return i
+
+## `message` in `buffer`, or as much of it as fits, cut at a character and ending in `...`:
+## a diagnostic quoting a long name or literal still says where it is. `buffer` holds at
+## least the three dots.
+func said(buffer: u8[], message: fmt) -> str:
+    let text = format(buffer, message) catch:
+        # `format` kept the bytes that fit: the last three, from a character's start, go
+        var end = buffer.length - 3
+        while end > 0 and (buffer[end] & 0xC0) == 0x80:
+            end -= 1
+        for k in end..<end + 3:
+            buffer[k] = '.'
+        return (str)buffer[..<end + 3]
+    return text
+
+# mark: The checker ===========================================================================
+pub struct Checker:
+    ## Development debugging retains named locals after reporting unused bindings.
+    pub var debug_locals: bool
+    ## The program's type table.
+    pub var table: types.Table
+    ## Every module of the program.
+    pub var modules: list.List[Module]
+    var scope: list.List[Binding]
+    ## Each name's innermost binding in `scope`, so a lookup walks one name's bindings.
+    var names: name_index.NameIndex
+    var depth: u32
+    ## Diagnostics are formatted into the first half; type spellings into the second.
+    ## The buffer outlives the arena, so the backends format their own reports here too.
+    pub var scratch: u8[]
+    ## The failures of the module being checked, one declaration's each, kept until the
+    ## module's end reports them all (§19.6).
+    pub var errors: list.List[str]
+    ## The target of the build (§19.5): what the `target` module says and what the backends
+    ## emit for.
+    pub var build_target: targets.Target
+    ## The module being checked, as an index into `modules`.
+    var current: usize
+    var current_func: ast.Node*?
+    ## The unwrapped result type of the function being checked, and whether it may fail.
+    var result_type: u32
+    var fallible: bool
+    ## An expression marker or handler permits checked propagation in its operand.
+    var expression_effect: bool = false
+    ## The operand an `x else y` is checking: its own failure is the `else`'s to handle, so a
+    ## surrounding `try` or `catch` does not propagate it (a call inside it still is;
+    ## `else_handles`).
+    var else_operand: ast.Node*? = none
+    var effect_count: u64 = 0
+    var self_type: u32
+    var self_mutable: bool
+    ## Inside `init`, where `let` fields take their first value.
+    var in_init: bool
+    var loop_depth: u32
+    ## The labels of the loops open around the statement being checked (§8.5); deeper
+    ## nesting is refused.
+    var labels: str[16]
+    var label_count: usize
+    var in_catch: bool
+    ## Inside a deferred block (§8.8), which nothing may leave: no `return`, no escaping failure.
+    var in_defer: bool
+    ## The member expression being checked is a call's callee: a method may stand there.
+    var calling: bool
+    var catch_result: u32
+    ## Inside a generic declaration, where parameter types stand for themselves.
+    var checking_template: bool
+    ## Inside a top-level constant initialiser, where `ErrorCode.package` is allowed.
+    var at_top_level: bool
+    ## The `.indexed` member of the `for` iterable being checked: the one place `indexed()`
+    ## may appear, since the loop walks the span by index and no pairs are made (§8.3).
+    var indexed_iterable: ast.Node*? = none
+    ## Whether the `if` or `while` just checked had a constant condition that is not a
+    ## literal, `if os.arm64:`: what it rules out goes silently, and so does what follows it
+    ## when it always leaves, since the program meant it for the other targets (§19.6).
+    var folded_quietly: bool = false
+    ## The directory of the entry file; dotted imports resolve beneath it. A consumer that
+    ## loads several modules from their packages (`describe-closure --modules`) sets it to
+    ## each one's source root before loading it.
+    pub var root: str
+    ## Imports on the active load path. Completed modules remain in dependency order;
+    ## this separate stack detects cycles before recursive loading repeats a module.
+    var loading: list.List[str]
+    ## Package-export aliases from a name to its canonical module.
+    pub var module_aliases: list.List[ModuleAlias]
+    ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
+    pub var package_name: str
+    ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.
+    var package_codes: list.List[u64]
+    ## Every symbol an `export` claimed: no two alike (§17.6).
+    var export_symbols: list.List[str]
+    ## The aliases whose types are being resolved, as node addresses: one met again names
+    ## itself.
+    var resolving: list.List[usize]
+    ## Inside a lambda body, bindings below this index (the enclosing locals) are hidden:
+    ## a lambda captures nothing (§9.6).
+    var lambda_floor: usize
+    ## The depth of the module's own scope: its declarations, imports, and the standard
+    ## names; deeper bindings are a function's locals, which a lambda cannot see.
+    var module_depth: u32 = 1
+    var lambda_count: u32
+    ## The warnings of the whole program, formatted with their positions (§19.6).
+    pub var warnings: list.List[str]
+    ## The module of each top-level declaration, by its address, indexed when first asked
+    ## (`owner_of`); and how many of `modules` are indexed, since modules only join the end.
+    var owners: hashed.Table[usize]
+    var owners_indexed: usize = 0
+
+    ## A fresh checker; `scratch` is a buffer for formatting diagnostics.
+    pub static func create(scratch: u8[]) -> Checker!:
+        return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
+                       scope = try list.List[Binding].create(512), names = try name_index.NameIndex.create(), warnings = try list.List[str].create(16), errors = try list.List[str].create(16), depth = 0, scratch = scratch,
+                       current = 0, current_func = none, result_type = types.unit_id, fallible = false,
+                       self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false, in_defer = false,
+                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", loading = try list.List[str].create(16), module_aliases = try list.List[ModuleAlias].create(8), package_name = "app",
+                       package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32), resolving = try list.List[usize].create(8),
+                       owners = try hashed.Table[usize].create(256), build_target = targets.Target.host())
+
+    # -- diagnostics ----------------------------------------------------------------------
+
+    ## Report `what` at `node` and stop; the message lives in the first half of `scratch`.
+    func fail(node: ast.Node*, what: str) -> never!:
+        let half = self.scratch.length // 2
+        let (name, line, column) = self.located(node)
+        let message = said(self.scratch[..<half], f"{name}:{line}:{column}: {what}")
+        error(type_error, message)
+
+    ## A failure with a second site: `note:` names it on a line of its own (§19.6).
+    func fail_at(node: ast.Node*, what: str, other: ast.Node*, note: str) -> never!:
+        let half = self.scratch.length // 2
+        let (name, line, column) = self.located(node)
+        let (other_name, other_line, other_column) = self.located(other)
+        let message = said(self.scratch[..<half], f"{name}:{line}:{column}: {what}\n  note: {other_name}:{other_line}:{other_column}: {note}")
+        error(type_error, message)
+
+    ## The file, line, and column a node came from, in the module being checked.
+    func located(node: ast.Node*) -> (str, u32, u32):
+        if self.current < self.modules.count:
+            return self.modules.get(self.current).src.located(node.start)
+        return ("?", node.line, 0)
+
+    ## A declaration's failure, copied out of the scratch buffer, for the module's report.
+    mutating func keep_error(message: str) -> !:
+        var kept = try alloc u8[message.length if message.length > 0 else 1]
+        memory.copy(kept, message.bytes, message.length)
+        try self.errors.push((str)kept[..<message.length])
+
+    ## Every kept failure, one per line, as the error the check answers with: joined in the
+    ## scratch buffer, which outlives the arena the failures were kept in; what does not fit
+    ## is counted on a last line.
+    func all_errors() -> str!:
+        var joined = self.scratch
+        var at: usize = 0
+        var shown: usize = 0
+        for e in self.errors.span():
+            let needed = e.length + (1 if at > 0 else 0)
+            if at + needed + 40 > joined.length:
+                break
+            if at > 0:
+                joined[at] = '\n'
+                at += 1
+            memory.copy(joined[at..], e.bytes, e.length)
+            at += e.length
+            shown += 1
+        if shown < self.errors.count:
+            let rest = try format(joined[at..], f"\n  ... and {self.errors.count - shown} more")
+            at += rest.length
+        return (str)joined[..<at]
+
+    ## The spelling of a type, kept in the current allocator.
+    pub func spell(id: u32) -> str!:
+        let text = try self.with_type("", id, "")
+        var out = try alloc u8[text.length if text.length > 0 else 1]
+        memory.copy(out, text.bytes, text.length)
+        return (str)out[..<text.length]
+
+    ## `prefix` + the spelling of a type + `suffix`, in the second half of `scratch`.
+    func with_type(prefix: str, id: u32, suffix: str) -> str!:
+        let half = self.scratch.length // 2
+        var sink = SpanWriter(data = self.scratch[half..], used = 0)
+        discard(try sink.write(prefix.bytes))
+        try self.table.describe(&sink, id)
+        discard(try sink.write(suffix.bytes))
+        return (str)self.scratch[half..<half + sink.used]
+
+    func mismatch(node: ast.Node*, expected: u32, got: u32) -> never!:
+        let half = self.scratch.length // 2
+        var sink = SpanWriter(data = self.scratch[half..], used = 0)
+        discard(try sink.write("expected `".bytes))
+        try self.table.describe(&sink, expected)
+        if got == types.untyped_int_id or got == types.untyped_float_id:
+            discard(try sink.write("`, got an integer literal".bytes if got == types.untyped_int_id else "`, got a float literal".bytes))
+        else:
+            discard(try sink.write("`, got `".bytes))
+            try self.table.describe(&sink, got)
+            discard(try sink.write("`".bytes))
+        return try self.fail(node, (str)self.scratch[half..<half + sink.used])
+
+    # -- scopes ---------------------------------------------------------------------------
+
+    mutating func push_scope():
+        self.depth += 1
+
+    mutating func pop_scope():
+        while self.scope.count > 0 and self.scope.get(self.scope.count - 1).depth == self.depth:
+            mark_if_unused(self.scope.get(self.scope.count - 1))
+            self.drop_binding()
+        self.depth -= 1
+
+    ## Remove the innermost binding; the one it hid is its name's innermost again.
+    mutating func drop_binding():
+        let b = self.scope.get(self.scope.count - 1)
+        self.names.set(b.name, b.shadowed) catch failure:
+            trap("the name index cannot shrink")
+        self.scope.count -= 1
+
+    ## Drop bindings until `count` remain.
+    mutating func truncate_scope(count: usize):
+        while self.scope.count > count:
+            self.drop_binding()
+
+    ## Add a binding, the innermost of its name.
+    mutating func push_binding(b: Binding) -> !:
+        var binding = b
+        binding.shadowed = self.names.head(b.name)
+        try self.scope.push(binding)
+        try self.names.set(b.name, (u32)self.scope.count)
+
+    ## The scope index of the innermost binding of `name` a lookup here may see, plus one;
+    ## 0 when none. Inside a lambda, the enclosing function's locals are out of reach.
+    func visible(name: str) -> u32:
+        var at = self.names.head(name)
+        while at > 0:
+            let b = self.scope.get((usize)at - 1)
+            if (usize)at - 1 < self.lambda_floor and b.depth > self.module_depth:
+                at = b.shadowed
+                continue
+            return at
+        return 0
+
+    func lookup(name: str) -> Binding?:
+        let at = self.visible(name)
+        if at == 0:
+            return none
+        return self.scope.get((usize)at - 1)
+
+    ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local or a
+    ## parameter may not reuse the name of another local, a parameter, an import, or a
+    ## declaration of the module, and nothing may reuse a core name.
+    mutating func bind(at: ast.Node*, name: str, type_id: u32, decl: ast.Node*?, mutable: bool) -> !:
+        # `_` is the wildcard (§3.4): it binds nothing, so it is never read and never
+        # collides, however many loops or patterns nest it
+        if name == "_":
+            return
+        if token.is_core_name(name) and not self.in_prelude():
+            discard(try self.fail(at, "this name belongs to the language"))
+        if let existing = self.lookup(name):
+            if existing.origin != none and existing.depth < 2 and self.depth >= 2:
+                discard(try self.fail(at, "this name is an import; a local may not shadow it"))
+            elif let earlier = existing.decl:
+                var text: u8[256]
+                discard(try self.fail_at(at, try format(text, f"`{name}` is already in scope"), earlier, "the earlier binding"))
+            else:
+                var text: u8[256]
+                discard(try self.fail(at, try format(text, f"`{name}` is already in scope")))
+        try self.push_binding(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false, shadowed = 0))
+
+    ## The innermost binding of `name` was read or assigned (§19.6).
+    mutating func mark_used(name: str):
+        let at = self.names.head(name)
+        if at == 0:
+            return
+        var b = self.scope.get((usize)at - 1)
+        b.used = true
+        self.scope.set((usize)at - 1, b)
+
+    ## The reporter for the module being checked.
+    mutating func reporter() -> prune.Reporter:
+        let m = self.modules.get(self.current)
+        return prune.Reporter(path = m.src.path, src = m.src, warnings = &self.warnings, silent = m.is_prelude, keep_locals = self.debug_locals and not m.is_prelude)
+
+    ## The binding just made came through import `at`.
+    mutating func set_origin(at: ast.Node*):
+        if self.scope.count == 0:
+            return
+        var b = self.scope.get(self.scope.count - 1)
+        b.origin = at
+        self.scope.set(self.scope.count - 1, b)
+
+    ## A name was used: the import it came through is referenced (§16.3).
+    func note_origin(b: Binding):
+        if let o = b.origin:
+            o.flags |= ast.flag_referenced
+
+    ## The standard modules may spell core names (`c.char`, `c.int`).
+    func in_prelude() -> bool:
+        return self.current < self.modules.count and self.modules.get(self.current).is_prelude
+
+    mutating func rebind(name: str, type_id: u32) -> !:
+        let at = self.names.head(name)
+        if at == 0:
+            return
+        var b = self.scope.get((usize)at - 1)
+        b.type_id = type_id
+        self.scope.set((usize)at - 1, b)

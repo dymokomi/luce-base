@@ -1,0 +1,475 @@
+#==============================================================================================
+#
+#   check/constants - Constants
+#
+#   DESCRIPTION:
+#       What a constant or static initialiser may hold, and the constant values the checker
+#       folds: integers, booleans, text, and conditions (§6.2).
+#
+#==============================================================================================
+extend Checker:
+    # mark: Constants ==========================================================================
+
+    ## A constant expression (§6.4): literals; `sizeof`, `alignof`, `offsetof`, and the
+    ## `luce` facts; operators and casts on constants; array, tuple, and struct literals of
+    ## constants; enum cases; the address of a global or a function; top-level `let` names.
+    func is_constant(e: ast.Node*) -> bool:
+        match e.kind:
+            .literal:
+                return true
+            .group:
+                let inner = e.left else return false
+                return self.is_constant(inner)
+            .unary:
+                let inner = e.left else return false
+                if e.text == "&":
+                    return self.global_place(inner)
+                # a lane-wise operator runs (§5.12)
+                return not self.table.is_vector(e.type_id) and self.is_constant(inner)
+            .binary:
+                let l = e.left else return false
+                let r = e.right else return false
+                return not self.table.is_vector(e.type_id) and self.is_constant(l) and self.is_constant(r)
+            .cast:
+                let inner = e.left else return false
+                return self.is_constant(inner)
+            .conditional:
+                let cond = e.ty else return false
+                let l = e.left else return false
+                let r = e.right else return false
+                return self.is_constant(cond) and self.is_constant(l) and self.is_constant(r)
+            .array_lit, .tuple:
+                return self.all_constant(e.body)
+            .case_value:
+                return self.all_constant(e.body)
+            .name:
+                let d = e.resolved else return false
+                return (d.kind == ast.Kind.constant and not ast.is_linked(d)) or d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func or d.kind == ast.Kind.enum_case
+            .member:
+                let owner = e.left else return false
+                if owner.kind == ast.Kind.name and owner.text == "luce":
+                    return true
+                let d = e.resolved else return false
+                return (d.kind == ast.Kind.constant and not ast.is_linked(d)) or d.kind == ast.Kind.enum_case or d.kind == ast.Kind.func_
+            .call:
+                let callee = e.left else return false
+                if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof" or callee.text == "offsetof"):
+                    return true
+                # a struct construction or a payload case from constants; a static function
+                # runs, so its result is not one
+                if let f = callee.resolved:
+                    if f.kind == ast.Kind.func_ or f.kind == ast.Kind.extern_func:
+                        return false
+                if callee.has(ast.flag_type_ref) or callee.has(ast.flag_static):
+                    return self.constant_construction(e)
+                return false
+            _:
+                return false
+
+    ## Whether `e` constructs a value through its type's own `init`.
+    func runs_init(e: ast.Node*) -> bool:
+        if e.kind != ast.Kind.call:
+            return false
+        let own = e.resolved else return false
+        return own.kind == ast.Kind.func_ and own.text == "init"
+
+    ## Whether `id` is a struct with an `init` of its own.
+    func has_own_init(id: u32) -> bool:
+        let t = self.table.get(id)
+        if t.kind != types.Kind.struct_:
+            return false
+        let d = t.decl else return false
+        return find_member(d, "init", ast.Kind.func_) != none
+
+    ## A construction `T(...)` or a payload case is constant when its arguments are. What it
+    ## may run, a type's own `init` or a field default that calls, is allowed where the value
+    ## is made at its use, a default argument or a top-level `let`; a global's storage needs
+    ## a value it can hold from the start (`static_value`).
+    func constant_construction(e: ast.Node*) -> bool:
+        return self.all_constant(e.body)
+
+    ## Whether a constant expression makes its value without running code, as a global's
+    ## storage needs it before anything runs, on every thread for a `local var` (§6.3): no
+    ## construction through a type's own `init`, none leaving out a field default that calls.
+    pub func static_value(e: ast.Node*?) -> bool:
+        let n = e else return true
+        if n.kind == ast.Kind.call:
+            if self.runs_init(n):
+                return false
+            if let callee = n.left:
+                if callee.has(ast.flag_type_ref) and not self.defaults_are_static(n):
+                    return false
+            return self.static_items(n.body)
+        if n.kind == ast.Kind.array_lit or n.kind == ast.Kind.tuple or n.kind == ast.Kind.case_value:
+            return self.static_items(n.body)
+        if n.kind == ast.Kind.name or n.kind == ast.Kind.member:
+            # a top-level `let` whose own value runs code has no value before the program starts
+            if let d = n.resolved:
+                if d.kind == ast.Kind.constant and not ast.is_linked(d) and not self.static_value(d.left):
+                    return false
+            if n.kind == ast.Kind.name:
+                return true
+        if n.kind == ast.Kind.unary and n.text == "&":
+            # an address is known before anything runs, whatever the storage will hold
+            return true
+        return self.static_value(n.left) and self.static_value(n.right) and self.static_value(n.ty)
+
+    ## Every item of a list makes its value without running code (`static_value`).
+    func static_items(items: ast.Node*?) -> bool:
+        var cursor = items
+        while let a = cursor:
+            if not self.static_value(a.left if a.kind == ast.Kind.argument else a):
+                return false
+            cursor = a.next
+        return true
+
+    ## Every field default a construction leaves out is a constant that runs nothing.
+    func defaults_are_static(e: ast.Node*) -> bool:
+        let t = self.table.get(e.type_id)
+        if t.kind != types.Kind.struct_:
+            return true
+        let d = t.decl else return true
+        var positional: usize = 0
+        var cursor = e.body
+        while let a = cursor:
+            if a.text.length == 0:
+                positional += 1
+            cursor = a.next
+        var index: usize = 0
+        var member = d.body
+        while let f = member:
+            if f.kind == ast.Kind.field:
+                if let default = f.left:
+                    if index >= positional and not named_in(e.body, f.text) and not (self.is_constant(default) and self.static_value(default)):
+                        return false
+                index += 1
+            member = f.next
+        return true
+
+    ## Every item of a list is constant; an argument node wraps its expression, an array or
+    ## tuple element is the expression itself.
+    func all_constant(items: ast.Node*?) -> bool:
+        var cursor = items
+        while let a = cursor:
+            if a.kind == ast.Kind.argument:
+                let v = a.left else return false
+                if not self.is_constant(v):
+                    return false
+            elif not self.is_constant(a):
+                return false
+            cursor = a.next
+        return true
+
+    ## A global, or an element or field of one reached by constant steps (§6.4).
+    func global_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name:
+                return self.names_a_global(e)
+            .group:
+                let inner = e.left else return false
+                return self.global_place(inner)
+            .index:
+                let owner = e.left else return false
+                let i = e.body else return false
+                return self.global_place(owner) and self.is_constant(i)
+            .member:
+                let owner = e.left else return false
+                let d = e.resolved else return false
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant:
+                    return true  # `module.global`
+                return d.kind == ast.Kind.field and self.global_place(owner)
+            _:
+                return false
+
+    ## `&global` and a function name are constant addresses (§6.4).
+    func names_a_global(e: ast.Node*) -> bool:
+        if e.kind != ast.Kind.name:
+            return false
+        let d = e.resolved else return false
+        return d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant or d.kind == ast.Kind.func_
+
+    ## Constant integer expression `e` as a value of `bits` bits, sign-extended when
+    ## `signed`: only when it is built from literals, constants, casts, and operators whose
+    ## result bits do not depend on signedness (`+ - * & | ^ << ~`, negation), since
+    ## `constant_u64` computes in `u64`; none otherwise.
+    pub func exact_integer(e: ast.Node*, bits: u64, signed: bool) -> i64?:
+        if not sign_agnostic(e, 0):
+            return none
+        let v = self.constant_u64(e) else return none
+        if bits >= 64:
+            return (i64)v
+        let mask = ((u64)1 << bits) - 1
+        let low = v & mask
+        if signed and (low >> (bits - 1)) != 0:
+            return (i64)(low | ~mask)
+        return (i64)low
+
+    ## The value of a constant integer expression (§6.4), or `none` when it is not one this
+    ## evaluator folds: literals, `sizeof`, `alignof`, constants, the arithmetic, bit, and
+    ## shift operators, and casts.
+    pub func constant_u64(e: ast.Node*) -> u64?:
+        match e.kind:
+            .literal:
+                let v = literals.decode_integer(e.text) catch failure:
+                    return none
+                return v
+            .group:
+                let inner = e.left else return none
+                return self.constant_u64(inner)
+            .cast:
+                # `(u8)-864` is 160, `(i8)200` is -56: the value converted to the cast's type
+                let inner = e.left else return none
+                let v = self.constant_u64(inner) else return none
+                return self.converted_constant(v, e.type_id)
+            .unary:
+                let inner = e.left else return none
+                let v = self.constant_u64(inner) else return none
+                if e.text == "-" or e.text == "-%":
+                    return 0 -% v
+                if e.text == "~":
+                    return ~v
+                if e.text == "+":
+                    return v
+                return none
+            .binary:
+                let l = e.left else return none
+                let r = e.right else return none
+                let a = self.constant_u64(l) else return none
+                let b = self.constant_u64(r) else return none
+                return fold_binary(e.text, a, b)
+            .call:
+                let callee = e.left else return none
+                if callee.kind != ast.Kind.name or callee.resolved != none:
+                    return none
+                let arg = e.resolved else return none
+                # `sizeof(T)` in a generic body is each instance's own, not a constant here
+                if self.mentions_param(arg.type_id):
+                    return none
+                if callee.text == "sizeof":
+                    return self.table.size_of(arg.type_id)
+                if callee.text == "alignof":
+                    return self.table.align_of(arg.type_id)
+                return none
+            .name, .member:
+                # a top-level `let`, this module's or an imported one's: `os.pointer_bits`
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_u64(init)
+            .conditional:
+                # `6 if target.macos else 1`: the arm the constant condition picks
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_u64(l if truth else r)
+            _:
+                return none
+
+    ## A constant converted to an integer or `bool` type (§7.5): truncated to the width, then
+    ## sign-extended when the type is signed, so the sixty-four-bit fold reads it back right.
+    func converted_constant(v: u64, target: u32) -> u64?:
+        if target == types.bool_id:
+            return 1 if v != 0 else 0
+        if not self.table.is_integer(target):
+            return none
+        let bits = self.table.bits(target)
+        if bits >= 64:
+            return v
+        let mask = ((u64)1 << bits) - 1
+        var out = v & mask
+        if self.table.is_signed(target) and (out >> (bits - 1)) != 0:
+            out |= ~mask
+        return out
+
+    ## The truth of a constant condition (§11.6): the literals, top-level `let`s of `bool`
+    ## such as `os.arm64`, `not`, `and`, `or`, and comparisons of constant integers, signed
+    ## when either operand's type is.
+    pub func constant_bool(e: ast.Node*) -> bool?:
+        match e.kind:
+            .literal:
+                if e.text == "true":
+                    return true
+                if e.text == "false":
+                    return false
+                return none
+            .name, .member:
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_bool(init)
+            .conditional:
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_bool(l if truth else r)
+            .group:
+                let inner = e.left else return none
+                return self.constant_bool(inner)
+            .unary:
+                let inner = e.left else return none
+                if e.text != "not":
+                    return none
+                let v = self.constant_bool(inner) else return none
+                return not v
+            .binary:
+                let l = e.left else return none
+                let r = e.right else return none
+                if e.text == "and" or e.text == "or":
+                    let a = self.constant_bool(l) else return none
+                    # A known left operand can skip the right entirely. Never
+                    # fold from the right alone: the left may have side effects.
+                    if (e.text == "and" and not a) or (e.text == "or" and a):
+                        return a
+                    let b = self.constant_bool(r) else return none
+                    return (a and b) if e.text == "and" else (a or b)
+                let a = self.constant_u64(l) else return none
+                let b = self.constant_u64(r) else return none
+                let signed = self.table.is_signed(l.type_id) or self.table.is_signed(r.type_id)
+                return compare_constants(e.text, a, b, signed)
+            _:
+                return none
+
+    ## Whether `e` names storage a method may take the address of: a binding, `self`, an
+    ## element, a dereference, a member of one of those, or a member reached through a
+    ## pointer, `((T*)p).field`. An enum case or a call's result is a value.
+    pub func is_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name, .self_, .index:
+                return true
+            .unary:
+                return e.text == "*"
+            .group:
+                let inner = e.left else return false
+                return self.is_place(inner)
+            .member:
+                if let d = e.resolved:
+                    if d.kind == ast.Kind.enum_case:
+                        return false
+                let owner = e.left else return false
+                return self.is_place(owner) or self.table.kind(owner.type_id) == types.Kind.pointer
+            _:
+                return false
+
+    ## The literal a constant expression stands for: a literal, a name or member of a
+    ## constant whose initialiser stands for one, either behind parentheses or a conditional
+    ## on a constant condition (`6 if os.macos else 1`); none for a computed initialiser,
+    ## whose value the backends read from its global, since this evaluator is not
+    ## sign-exact for arithmetic.
+    pub func constant_leaf(e: ast.Node*) -> ast.Node*?:
+        match e.kind:
+            .literal:
+                return e
+            .group:
+                let inner = e.left else return none
+                return self.constant_leaf(inner)
+            .name, .member:
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_leaf(init)
+            .conditional:
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_leaf(l if truth else r)
+            _:
+                return none
+
+    ## The text a constant `str` expression denotes: a literal, or a top-level `let` of one,
+    ## `os.name`; none for anything else.
+    pub func constant_text(e: ast.Node*) -> str?:
+        match e.kind:
+            .literal:
+                if e.text.bytes[0] != '"':
+                    return none
+                return literals.decode_text(e.text)
+            .group:
+                let inner = e.left else return none
+                return self.constant_text(inner)
+            .name, .member:
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_text(init)
+            .conditional:
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_text(l if truth else r)
+            _:
+                return none
+
+    ## A condition that is a constant but not a literal, `if os.arm64:`, becomes the literal
+    ## it stands for, so the branch it rules out is pruned; the program meant it, so no
+    ## warning follows. Says whether it folded one.
+    mutating func fold_condition(s: ast.Node*) -> bool!:
+        let cond = s.left else return false
+        if cond.kind == ast.Kind.literal:
+            return false
+        let truth = self.constant_bool(cond) else return false
+        let folded = try ast.Node.make(ast.Kind.literal, "true" if truth else "false", cond.start, cond.line)
+        folded.type_id = types.bool_id
+        s.left = folded
+        return true
+
+    ## A top-level constant typed on first use, so order does not matter.
+    mutating func check_constant(d: ast.Node*) -> !:
+        if ast.is_linked(d):
+            # the library defines the value; its type is what the program knows, and the
+            # value, when the interface carries it, is checked but never stored (§9.8)
+            let t = d.ty else return try self.fail(d, "a `linked` constant names its type (§9.8)")
+            d.type_id = try self.resolve_type(t)
+            if let value = d.left:
+                let saved_top = self.at_top_level
+                self.at_top_level = true
+                discard(try self.expect(value, d.type_id))
+                self.at_top_level = saved_top
+            try self.rebind(d.text, d.type_id)
+            return
+        let init = d.left else return try self.fail(d, "a constant needs a value")
+        if d.type_id == types.error_id:
+            discard(try self.fail(d, "this constant depends on itself"))
+        d.type_id = types.error_id
+        let saved_top = self.at_top_level
+        self.at_top_level = true
+        var declared = types.none_id
+        if let t = d.ty:
+            declared = try self.resolve_type(t)
+        let got = try self.expect(init, declared)
+        self.at_top_level = saved_top
+        if not self.is_constant(init):
+            discard(try self.fail(init, "a top-level `let` needs a constant expression (§6.4)"))
+        d.type_id = declared if declared != types.none_id else try self.settle(init, got)
+        if d.type_id == types.none_id:
+            discard(try self.fail(d, "`none` needs a type"))
+        try self.rebind(d.text, d.type_id)
+
+    ## The function a checked top-level `let` names, `pub let add = lib.add` or `let add = sum`:
+    ## the function under another name (§9.4), so a use of the constant resolves to the
+    ## function and a call through it takes the function's defaults and named arguments. None
+    ## for any other constant, and for one whose declared type differs from the function's.
+    pub func function_alias(d: ast.Node*) -> ast.Node*?:
+        if d.kind != ast.Kind.constant or ast.is_linked(d):
+            return none
+        let init = d.left else return none
+        let target = init.resolved else return none
+        if target.kind != ast.Kind.func_ and target.kind != ast.Kind.extern_func:
+            return none
+        if generic_params_of(target) != none or d.type_id != target.type_id:
+            return none
+        if init.kind == ast.Kind.name:
+            return target
+        # `module.name`: a free function; a type's static method needs its type to call it
+        if init.kind == ast.Kind.member:
+            let owner = init.left else return none
+            if self.table.kind(owner.type_id) == types.Kind.module:
+                return target
+        return none
