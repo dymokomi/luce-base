@@ -121,7 +121,7 @@ jobs:
       - name: Fetch the packages the budget builds
         working-directory: .
         run: |
-          for repo in luce-js luce-regex luce-compress luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-browser-engine; do
+          for repo in luce-js luce-regex luce-compress luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-fonts luce-browser-engine; do
             git clone -q --depth 1 "https://github.com/dymokomi/$repo" "$repo"
           done
       - name: Build pinned seed

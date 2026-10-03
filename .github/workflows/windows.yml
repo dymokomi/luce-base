@@ -98,7 +98,7 @@ jobs:
       # for every target
       - name: Compile budget
         run: |
-          for repo in luce-js luce-regex luce-compress luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-browser-engine; do
+          for repo in luce-js luce-regex luce-compress luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-fonts luce-browser-engine; do
             git -c core.autocrlf=true clone -q --depth 1 "https://github.com/dymokomi/$repo" "../$repo"
           done
           python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/web/module.lucb
