@@ -22,6 +22,7 @@ import platform
 import files
 import support.cache as cache
 import memory
+import strings
 
 # mark: Settings ==============================================================================
 
@@ -58,7 +59,7 @@ pub func settings(text: str) -> Setting[]!:
     var saw_path = false
     var rest = text
     while rest.length > 0:
-        let cut = find_byte(rest, '\n')
+        let cut = strings.find(rest, "\n") else rest.length
         let line = trim((str)rest.bytes[..<cut])
         rest = (str)rest.bytes[cut + 1..] if cut < rest.length else ""
         if line.length == 0 or line.bytes[0] == '#':
@@ -73,7 +74,7 @@ pub func settings(text: str) -> Setting[]!:
             continue
         if line.length > 4 and (str)line.bytes[..<4] == "def ":
             let after = trim((str)line.bytes[4..])
-            let space = find_byte(after, ' ')
+            let space = strings.find(after, " ") else after.length
             let word = (str)after.bytes[..<space]
             let named = trim((str)after.bytes[space..])
             if named.length < 3 or named.bytes[named.length - 1] != '{':
@@ -90,11 +91,11 @@ pub func settings(text: str) -> Setting[]!:
                 element = try identifier_of(name) if word == "dependency" else name
                 saw_path = false
             continue
-        let eq = find_byte(line, '=')
+        let eq = strings.find(line, "=") else line.length
         if eq >= line.length:
             return error(malformed, "a property is `type key = value`")
         let left = trim((str)line.bytes[..<eq])
-        let type_end = find_byte(left, ' ')
+        let type_end = strings.find(left, " ") else left.length
         if type_end >= left.length:
             return error(malformed, "a property is `type key = value`")
         let key = trim((str)left.bytes[type_end..])
@@ -204,7 +205,7 @@ pub func parse(text: str, root: str) -> Manifest!:
             elif key == "symbol_prefix":
                 m.symbol_prefix = value
         elif section == "[native]":
-            let slash = find_byte(key, '/')
+            let slash = strings.find(key, "/") else key.length
             if slash >= key.length or not applies((str)key.bytes[..<slash]):
                 continue
             let field = (str)key.bytes[slash + 1..]
@@ -252,7 +253,7 @@ func searched(items: c.str[]) -> c.str[]!:
             out[count] = item
             count += 1
             continue
-        let slash = find_byte(text, '/')
+        let slash = strings.find(text, "/") else text.length
         let name = try alloc u8[slash]
         memory.copy(name, text.bytes[1..<slash], slash - 1)
         name[slash - 1] = 0
@@ -347,15 +348,6 @@ pub func unquote(value: str) -> str:
         if end < b.length:
             return (str)b[1..<end]
     return value
-
-## The index of `wanted` in `text`, or the length when absent.
-func find_byte(text: str, wanted: u8) -> usize:
-    var i: usize = 0
-    for b in text.bytes:
-        if b == wanted:
-            return i
-        i += 1
-    return text.length
 
 ## `text` without the blanks at either end.
 func trim(text: str) -> str:

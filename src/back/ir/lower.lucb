@@ -20,6 +20,7 @@ from back.effects import arguments_have_effect
 import back.ir.ir
 import back.isa
 import back.names
+import back.calls
 import back.target as targets
 import front.ast
 import front.source as sources
@@ -276,12 +277,6 @@ pub struct Lowerer:
     func is_tagged_opt(id: u32) -> bool:
         return self.is_opt(id) and not self.is_nullable_ptr(id) and not self.is_nullable_view(id)
 
-    func is_int_enum(id: u32) -> bool:
-        if self.kind(id) != types.Kind.enum_:
-            return false
-        let d = self.c.table.get(id).decl else return false
-        return d.ty != none
-
     func enum_backing(id: u32) -> u32:
         let d = self.c.table.get(id).decl else return types.i32_id
         let backing = d.ty else return types.i32_id
@@ -299,7 +294,7 @@ pub struct Lowerer:
             return true
         if self.is_nullable_ptr(id):
             return true
-        if self.is_int_enum(id):
+        if self.c.is_backed_enum(id):
             return true
         if k == types.Kind.atomic:
             return self.is_scalar(self.elem(id))
@@ -313,7 +308,7 @@ pub struct Lowerer:
             return ir.Class.s
         if id == types.f64_id or id == types.untyped_float_id:
             return ir.Class.d
-        if self.is_int_enum(id):
+        if self.c.is_backed_enum(id):
             return self.class_of(self.enum_backing(id))
         if self.kind(id) == types.Kind.atomic:
             return self.class_of(self.elem(id))
@@ -322,14 +317,14 @@ pub struct Lowerer:
 
     ## Signedness of a scalar for loads, division, and comparison.
     func signed_of(id: u32) -> bool:
-        if self.is_int_enum(id):
+        if self.c.is_backed_enum(id):
             return self.is_signed(self.enum_backing(id))
         if self.kind(id) == types.Kind.atomic:
             return self.signed_of(self.elem(id))
         return self.is_signed(id)
 
     func scalar_size(id: u32) -> u64:
-        if self.is_int_enum(id):
+        if self.c.is_backed_enum(id):
             return self.c.table.size_of(self.enum_backing(id))
         if self.kind(id) == types.Kind.atomic:
             return self.scalar_size(self.elem(id))
@@ -398,7 +393,7 @@ pub struct Lowerer:
                     try self.push_leaves(t.elem, base)
                 try self.program_unit.leaves.push(ir.Leaf(offset = u32(base + self.failed_offset(id)), size = 1, cls = ir.Class.w))
             .enum_:
-                if self.is_int_enum(id):
+                if self.c.is_backed_enum(id):
                     try self.program_unit.leaves.push(ir.Leaf(offset = u32(base), size = (u8)size, cls = self.class_of(id)))
                     return
                 # the tag, then every case's payload over the union
@@ -629,7 +624,7 @@ pub struct Lowerer:
             let i = (usize)self.func_slots[slot] - 1
             # through a pointer: the comparison must not copy a record
             let r = &self.funcs.items[i]
-            if r.decl == f and lower_same_args(r.args, args) and r.owner == owner and lower_same_args(r.owner_args, owner_args):
+            if r.decl == f and types.same_args(r.args, args) and r.owner == owner and types.same_args(r.owner_args, owner_args):
                 return i
             slot = (slot + 1) & mask
         if check.nesting_of_all(&self.c.table, args) > check.max_nesting or check.nesting_of_all(&self.c.table, owner_args) > check.max_nesting:
@@ -1258,7 +1253,7 @@ pub struct Lowerer:
                 try self.with_stmt(s)
             .expr_stmt:
                 let e = s.left else return
-                if lower_is_error_call(e):
+                if calls.is_error_call(e):
                     try self.error_return(e)
                 else:
                     discard(try self.expr(e))
@@ -1491,7 +1486,7 @@ pub struct Lowerer:
             self.pop_scope()
             return
         # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
-        let indexed = lower_indexed_receiver(seq)
+        let indexed = calls.indexed_receiver(seq)
         var it = try self.ty(seq)
         var sequence = LowerValue(ref = ir.none_ref(), type_id = types.unit_id, in_memory = false)
         if let receiver = indexed:
@@ -1609,10 +1604,10 @@ pub struct Lowerer:
 
     mutating func return_stmt(s: ast.Node*) -> !:
         if let v = s.left:
-            if lower_is_trap_call(v):
+            if calls.is_trap_call(v):
                 discard(try self.expr(v))
                 return
-            if lower_is_error_call(v):
+            if calls.is_error_call(v):
                 try self.error_return(v)
                 return
             if lower_never_valued(v):
@@ -2034,16 +2029,16 @@ pub struct Lowerer:
             return try self.none_of(t)
         let b = e.text.bytes
         if b[0] == '\'':
-            return LowerValue(ref = ir.const_ref((i64)check.decode_char(e.text)), type_id = t, in_memory = false)
+            return LowerValue(ref = ir.const_ref((i64)literals.decode_char(e.text)), type_id = t, in_memory = false)
         if b[0] == '"' or b[0] == 'r' or b[0] == 'b':
-            let text = check.decode_text(e.text)
+            let text = literals.decode_text(e.text)
             let index = try self.program_unit.text(text)
             let data = try self.f.address_of(ir.text_ref(index))
             if t == types.cstr_id or (self.c.table.kind(t) == types.Kind.optional and self.c.table.get(t).elem == types.cstr_id):
                 return LowerValue(ref = data, type_id = t, in_memory = false)
             let span_type = try self.c.table.span(types.u8_id, true) if b[0] == 'b' else types.str_id
             return try self.span_of(data, ir.const_ref((i64)text.length), span_type)
-        if check.is_float_text(e.text):
+        if literals.is_float_literal(e.text):
             let digits = literals.literal_body(e.text)
             let bits = float_bits(digits)
             if t == types.f16_id:
@@ -2097,7 +2092,7 @@ pub struct Lowerer:
         if t == types.str_id:
             if b.length == 0 or b[0] != '"':
                 return none
-            let text = check.decode_text(leaf.text)
+            let text = literals.decode_text(leaf.text)
             let index = try self.program_unit.text(text)
             let data = try self.f.address_of(ir.text_ref(index))
             return try self.span_of(data, ir.const_ref((i64)text.length), types.str_id)
@@ -2138,7 +2133,7 @@ pub struct Lowerer:
         let c = e.resolved else return try self.fail(e, "no case")
         let t = try self.ty(e)
         let d = self.decl_of(t) else return try self.fail(e, "no enum")
-        if self.is_int_enum(t):
+        if self.c.is_backed_enum(t):
             return LowerValue(ref = ir.const_ref((i64)types.case_value(d, c)), type_id = t, in_memory = false)
         let slot = try self.new_slot(t)
         let a = try self.slot_address(slot)
@@ -3130,11 +3125,11 @@ pub struct Lowerer:
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, text.ref)
             return LowerValue(ref = data, type_id = dest, in_memory = false)
         let v = try self.expr(src)
-        if self.is_int_enum(dest):
+        if self.c.is_backed_enum(dest):
             if checked:
                 try self.enum_check(dest, v.ref)
             return LowerValue(ref = try self.convert_int(v.ref, st, self.enum_backing(dest), false), type_id = dest, in_memory = false)
-        if self.is_int_enum(st) and self.is_int(dest):
+        if self.c.is_backed_enum(st) and self.is_int(dest):
             return LowerValue(ref = try self.convert_int(v.ref, self.enum_backing(st), dest, false), type_id = dest, in_memory = false)
         if self.is_float(st) and self.is_int(dest):
             if not checked and self.in_core():
@@ -3442,7 +3437,7 @@ pub struct Lowerer:
         let lt = try self.ty(l)
         let payload = self.elem(lt)
         let v = try self.expr(l)
-        let leaves = r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_ or lower_is_error_call(r) or lower_is_trap_call(r) or r.type_id == types.never_id
+        let leaves = r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_ or calls.is_error_call(r) or calls.is_trap_call(r) or r.type_id == types.never_id
         let present_label = self.f.label()
         let absent_label = self.f.label()
         let done = self.f.label()
@@ -3467,7 +3462,7 @@ pub struct Lowerer:
         try self.f.jump(done)
         try self.f.place_label(absent_label)
         if leaves:
-            if lower_is_error_call(r):
+            if calls.is_error_call(r):
                 try self.error_return(r)
             elif r.kind == ast.Kind.return_:
                 try self.return_stmt(r)
@@ -3601,7 +3596,7 @@ pub struct Lowerer:
     ## `pattern_test`s would store it and load and compare once per arm in turn. False,
     ## having emitted nothing, for any other `match`.
     mutating func dispatch(m: ast.Node*, st: u32, v: LowerValue, done: u32, is_expr: bool) -> bool!:
-        if not (self.is_int(st) or self.is_int_enum(st) or st == types.char_id or st == types.bool_id):
+        if not (self.is_int(st) or self.c.is_backed_enum(st) or st == types.char_id or st == types.bool_id):
             return false
         var values = try list.List[i64].create(16)
         defer values.destroy()
@@ -3664,7 +3659,7 @@ pub struct Lowerer:
         if v.kind == ast.Kind.case_value:
             let c = v.resolved else return none
             let d = self.decl_of(st) else return none
-            if not self.is_int_enum(st):
+            if not self.c.is_backed_enum(st):
                 return none
             return (i64)types.case_value(d, c)
         let before = self.f.instrs.count
@@ -3737,7 +3732,7 @@ pub struct Lowerer:
         if v.kind == ast.Kind.case_value:
             let c = v.resolved else return
             let d = self.decl_of(st) else return
-            if self.is_int_enum(st):
+            if self.c.is_backed_enum(st):
                 let current = try self.load_from(a, st)
                 let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, ir.const_ref((i64)types.case_value(d, c)))
                 try self.f.branch(hit, take, miss)
@@ -4637,7 +4632,7 @@ pub struct Lowerer:
         if self.is_iface(t):
             let v = try self.expr(e)
             return v.ref
-        let iface = try self.allocator_iface()
+        let iface = self.c.allocator_type()
         if self.is_ptr(t):
             let p = try self.expr(e)
             let view = try self.iface_view(p.ref, self.elem(t), iface)
@@ -4645,12 +4640,6 @@ pub struct Lowerer:
         let address = try self.place(e)
         let view = try self.iface_view(address, t, iface)
         return view.ref
-
-    mutating func allocator_iface() -> u32!:
-        let mi = self.c.find_module("memory") else return types.none_id
-        let m = self.c.modules.get(mi).tree
-        let d = check.find_decl(m, "Allocator") else return types.none_id
-        return d.type_id
 
     ## `view.allocate(size, alignment)`: the optional span answered, in memory; under the
     ## diagnostic profile the block is also recorded with the function and line asking (§19.4).
@@ -4947,7 +4936,7 @@ pub struct Lowerer:
         if v.has(ast.flag_format_sink):
             # `value.display(__sink)` at a scalar or text: a `Display` parameter instantiated
             # at a type the compiler displays itself (§14.4)
-            if let receiver = lower_sink_receiver(v):
+            if let receiver = calls.sink_receiver(v):
                 if self.kind(try self.map(receiver.type_id)) != types.Kind.struct_:
                     try self.display(fb, receiver)
                     return
@@ -4994,7 +4983,7 @@ pub struct Lowerer:
             try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.s if single else ir.Class.d, size = 0, align = 4 if single else 8, type_id = width, shape = 0))
             discard(try self.call_named("lb_core_10format_f32" if single else "lb_core_10format_f64", start, 2, ir.Class.w, true, types.i32_id))
             return
-        let unsigned = self.is_ptr(t) or (self.is_int(t) and not self.is_signed(t)) or t == types.char_id or (self.is_int_enum(t) and not self.signed_of(t)) or t == types.error_code_id or t == types.cstr_id
+        let unsigned = self.is_ptr(t) or (self.is_int(t) and not self.is_signed(t)) or t == types.char_id or (self.c.is_backed_enum(t) and not self.signed_of(t)) or t == types.error_code_id or t == types.cstr_id
         let word = try self.to_word(x.ref, t) if t != types.untyped_int_id and not self.is_ptr(t) and t != types.cstr_id else x.ref
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
@@ -5006,7 +4995,7 @@ pub struct Lowerer:
         var part = f.body
         while let p = part:
             if p.kind == ast.Kind.format_text:
-                let text = lower_unescape_braces(check.decode_text(p.text))
+                let text = literals.unescape_braces(literals.decode_text(p.text))
                 let index = try self.program_unit.text(text)
                 let data = try self.f.address_of(ir.text_ref(index))
                 let start = u32(self.f.args.count)
@@ -5056,7 +5045,7 @@ pub struct Lowerer:
         while let p = part:
             part = p.next
             if p.kind == ast.Kind.format_text:
-                let text = lower_unescape_braces(check.decode_text(p.text))
+                let text = literals.unescape_braces(literals.decode_text(p.text))
                 let data = try self.f.address_of(ir.text_ref(try self.program_unit.text(text)))
                 try self.stream_put(fb, data, ir.const_ref((i64)text.length), descriptor)
             elif p.kind == ast.Kind.format_field:
@@ -5564,7 +5553,7 @@ pub struct Lowerer:
                 discard(try self.call_named("lb_testing_begin", s1, 1, ir.Class.w, false, types.unit_id))
                 let r = try self.call_aggregate(try self.test_name(u32(i)), u32(self.f.args.count), 0, try self.c.table.fallible(types.unit_id))
                 discard(try self.call_named("lb_testing_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
-                let title = check.decode_text(t.text)
+                let title = literals.decode_text(t.text)
                 let index = try self.program_unit.text(title)
                 let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
                 let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
@@ -5695,15 +5684,6 @@ pub struct Lowerer:
 
 # mark: Helpers ================================================================================
 
-## The receiver of a `value.display(__sink)` call, the value being formatted.
-func lower_sink_receiver(v: ast.Node*) -> ast.Node*?:
-    if v.kind != ast.Kind.call:
-        return none
-    let callee = v.left else return none
-    if callee.kind != ast.Kind.member:
-        return none
-    return callee.left
-
 ## The index of a method among an interface's requirements.
 func method_index(iface: ast.Node*, method: ast.Node*) -> u64:
     var i: u64 = 0
@@ -5739,52 +5719,8 @@ func lower_case_tag(d: ast.Node*, target: ast.Node*) -> u32:
         cursor = c.next
     return 0
 
-func lower_is_error_call(e: ast.Node*) -> bool:
-    if e.kind != ast.Kind.call:
-        return false
-    let callee = e.left else return false
-    return callee.kind == ast.Kind.name and callee.text == "error" and callee.resolved == none
-
-func lower_is_trap_call(e: ast.Node*) -> bool:
-    if e.kind != ast.Kind.call:
-        return false
-    let callee = e.left else return false
-    return callee.kind == ast.Kind.name and callee.text == "trap" and callee.resolved == none
-
 func lower_never_valued(e: ast.Node*) -> bool:
     return e.type_id == types.never_id
-
-## The receiver of `items.indexed()`, when `e` is that call of the method the compiler
-## supplies: a `for` over it walks `items` by index (§8.3).
-func lower_indexed_receiver(e: ast.Node*) -> ast.Node*?:
-    if e.kind != ast.Kind.call:
-        return none
-    let callee = e.left else return none
-    if callee.kind != ast.Kind.member or callee.text != "indexed" or callee.resolved != none:
-        return none
-    return callee.left
-
-func lower_unescape_braces(text: str) -> str:
-    let b = text.bytes
-    var any = false
-    var i: usize = 0
-    while i + 1 < b.length:
-        if (b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}'):
-            any = true
-        i += 1
-    if not any:
-        return text
-    let out = alloc u8[b.length] catch failure:
-        trap("out of memory")
-    var n: usize = 0
-    i = 0
-    while i < b.length:
-        out[n] = b[i]
-        n += 1
-        if i + 1 < b.length and ((b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}')):
-            i += 1
-        i += 1
-    return (str)out[..<n]
 
 ## `size` free slots for the instances' index, from the heap, where a grown table's old
 ## slots go back (`add_func`).
@@ -5809,16 +5745,6 @@ func instance_hash(f: ast.Node*, args: const u32[], owner: ast.Node*?, owner_arg
     for a in owner_args:
         h = (h ^ (u64)a) *% 1099511628211
     return (usize)h
-
-func lower_same_args(a: const u32[], b: const u32[]) -> bool:
-    if a.length != b.length:
-        return false
-    var i: usize = 0
-    while i < a.length:
-        if a[i] != b[i]:
-            return false
-        i += 1
-    return true
 
 func lower_round_up(value: u64, align: u64) -> u64:
     if align <= 1:
@@ -5848,7 +5774,7 @@ func section_of(d: ast.Node*) -> str:
     while let a = cursor:
         if a.text == "section":
             let name = a.left else return ""
-            return check.decode_text(name.text)
+            return literals.decode_text(name.text)
         cursor = a.next
     return ""
 

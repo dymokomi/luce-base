@@ -30,15 +30,6 @@ func declared_result(d: ast.Node*) -> u32:
     let r = d.ty else return types.unit_id
     return r.type_id
 
-## The receiver of a `value.display(__sink)` call, the value being formatted.
-func sink_receiver(v: ast.Node*) -> ast.Node*?:
-    if v.kind != ast.Kind.call:
-        return none
-    let callee = v.left else return none
-    if callee.kind != ast.Kind.member:
-        return none
-    return callee.left
-
 ## The C spelling of one of the `c` module's distinct types (base.md §5.2).
 func c_spelling(id: u32) -> str:
     if id == types.c_char_id: return "char"
@@ -128,19 +119,6 @@ func helper_name(op: str) -> str:
         return "shr"
     return "add"
 
-## `error(...)` as an expression statement or a return.
-func is_error_call(e: ast.Node*) -> bool:
-    if e.kind != ast.Kind.call:
-        return false
-    let callee = e.left else return false
-    return callee.kind == ast.Kind.name and callee.text == "error" and callee.resolved == none
-
-func is_trap_call(e: ast.Node*) -> bool:
-    if e.kind != ast.Kind.call:
-        return false
-    let callee = e.left else return false
-    return callee.kind == ast.Kind.name and callee.text == "trap" and callee.resolved == none
-
 ## A value that never arrives: `never`, or `try` on a `never!` call.
 func never_valued(e: ast.Node*) -> bool:
     if e.type_id == types.never_id:
@@ -166,56 +144,12 @@ func case_tag(d: ast.Node*, target: ast.Node*) -> u32:
         cursor = node.next
     return 0
 
-## The receiver of `items.indexed()`, when `e` is that call of the method the compiler
-## supplies: a `for` over it walks `items` by index (§8.3).
-func indexed_receiver(e: ast.Node*) -> ast.Node*?:
-    if e.kind != ast.Kind.call:
-        return none
-    let callee = e.left else return none
-    if callee.kind != ast.Kind.member or callee.text != "indexed" or callee.resolved != none:
-        return none
-    return callee.left
-
-## A float literal without its digit separators.
-## `{{` and `}}` in a formatted piece are one brace each.
-func unescape_braces(text: str) -> str:
-    let b = text.bytes
-    var any = false
-    var i: usize = 0
-    while i + 1 < b.length:
-        if (b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}'):
-            any = true
-        i += 1
-    if not any:
-        return text
-    let out = alloc u8[b.length] catch failure:
-        trap("out of memory")
-    var n: usize = 0
-    i = 0
-    while i < b.length:
-        out[n] = b[i]
-        n += 1
-        if i + 1 < b.length and ((b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}')):
-            i += 1
-        i += 1
-    return (str)out[..<n]
-
-## Functions of stdio.h, stdlib.h, and string.h, which the generated C includes.
+## Whether `ids` holds `id`.
 func contains_id(ids: const u32[], id: u32) -> bool:
     for x in ids:
         if x == id:
             return true
     return false
-
-func same_args(a: const u32[], b: const u32[]) -> bool:
-    if a.length != b.length:
-        return false
-    var i: usize = 0
-    while i < a.length:
-        if a[i] != b[i]:
-            return false
-        i += 1
-    return true
 
 ## Whether an `in` or `inout` operand of the asm block `s` names the register `place`.
 func asm_block_reads(s: ast.Node*, place: str) -> bool:

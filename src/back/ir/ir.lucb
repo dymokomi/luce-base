@@ -472,6 +472,39 @@ pub struct Param:
     ## Whether the scalar parameter is signed.
     pub var scalar_signed: bool
 
+## The class a load produces.
+pub func load_class(op: Op) -> Class:
+    match op:
+        .loadsb, .loadub, .loadsh, .loaduh, .loaduw: return Class.w
+        .loadsw, .loadl: return Class.l
+        .loads: return Class.s
+        .loadhf: return Class.h
+        _: return Class.d
+
+## The class a store writes: `w` for the narrow integer stores, as wide as a word.
+pub func store_class(op: Op) -> Class:
+    match op:
+        .storeb, .storeh, .storew: return Class.w
+        .stores: return Class.s
+        .stored: return Class.d
+        .storehf: return Class.h
+        _: return Class.l
+
+## The class a float conversion reads: `exth` a half, `exts` and `truncs` a single, `truncd` a double.
+pub func float_source_class(op: Op) -> Class:
+    match op:
+        .exth: return Class.h
+        .exts, .truncs: return Class.s
+        _: return Class.d
+
+## The class whose bits `cast` moves into `cls`: the integer as wide as a float, and back.
+pub func cast_partner(cls: Class) -> Class:
+    match cls:
+        .h, .s: return Class.w
+        .d: return Class.l
+        .w: return Class.s
+        _: return Class.d
+
 # mark: Functions and the unit ================================================================
 
 ## One incoming value of a phi: what the block whose label is `pred` supplies.

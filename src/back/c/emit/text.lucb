@@ -14,7 +14,7 @@ extend Emitter:
         if v.has(ast.flag_format_sink):
             # `value.display(__sink)` at a scalar or text: a `Display` parameter instantiated
             # at a type the compiler displays itself (§14.4)
-            if let receiver = sink_receiver(v):
+            if let receiver = calls.sink_receiver(v):
                 if self.kind(try self.map(receiver.type_id)) != types.Kind.struct_:
                     try self.display(n, prefix, receiver)
                     return
@@ -74,7 +74,7 @@ extend Emitter:
             try self.expr(v)
             try self.put("))")
             return
-        if (self.is_int(t) and not self.is_signed(t)) or t == types.char_id or (self.is_int_enum(t) and not self.signed_of(t)) or t == types.error_code_id:
+        if (self.is_int(t) and not self.is_signed(t)) or t == types.char_id or (self.c.is_backed_enum(t) and not self.signed_of(t)) or t == types.error_code_id:
             try self.put("lb_fmtbuf_u64(&")
             try self.put_tmp(prefix, n)
             try self.put(", (uint64_t)(")
@@ -179,7 +179,7 @@ extend Emitter:
                 try self.put("true")
             try self.put(")")
             return
-        if k == types.Kind.enum_ and not self.is_int_enum(t):
+        if k == types.Kind.enum_ and not self.c.is_backed_enum(t):
             let record = self.c.table.get(t)
             let d = record.decl else return try self.put("true")
             let n = self.tmp()
@@ -253,7 +253,7 @@ extend Emitter:
         var part = f.body
         while let p = part:
             if p.kind == ast.Kind.format_text:
-                let text = unescape_braces(check.decode_text(p.text))
+                let text = literals.unescape_braces(literals.decode_text(p.text))
                 try self.put("(void)lb_fmtbuf_put(&")
                 try self.put_tmp(prefix, n)
                 try self.put(", ")
@@ -330,7 +330,7 @@ extend Emitter:
         while let p = part:
             part = p.next
             if p.kind == ast.Kind.format_text:
-                let text = unescape_braces(check.decode_text(p.text))
+                let text = literals.unescape_braces(literals.decode_text(p.text))
                 try self.put("lb_stream_put(&")
                 try self.put_tmp("sf", line)
                 try self.put(", ")
@@ -462,7 +462,7 @@ extend Emitter:
             var inner = try alloc u8[seed.length + 20]
             try self.hash_value(self.elem(t), try self.path(a, ".value"), try format(inner, f"lb_hash_mix({seed}, 1)"))
             try self.put_all(" : lb_hash_mix(", seed, ", 0))")
-        elif k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.struct_ or (k == types.Kind.enum_ and not self.is_int_enum(t)):
+        elif k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.struct_ or (k == types.Kind.enum_ and not self.c.is_backed_enum(t)):
             try self.hash_members(t, a, seed)
         else:
             try self.put_all("lb_hash_mix(", seed, ", (uint64_t)(")

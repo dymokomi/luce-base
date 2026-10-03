@@ -63,7 +63,7 @@ extend Emitter:
         let lt = try self.ty(l)
         let payload = self.elem(lt)
         let n = self.tmp()
-        let leaves = r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_ or is_error_call(r) or is_trap_call(r) or r.type_id == types.never_id
+        let leaves = r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_ or calls.is_error_call(r) or calls.is_trap_call(r) or r.type_id == types.never_id
         try self.put("({ ")
         try self.put_type(lt)
         try self.put(" ")
@@ -91,7 +91,7 @@ extend Emitter:
         if leaves:
             try self.put("{")
             self.indent += 1
-            if is_error_call(r):
+            if calls.is_error_call(r):
                 try self.error_return(r)
             elif r.kind == ast.Kind.return_:
                 try self.return_stmt(r)
@@ -215,7 +215,7 @@ extend Emitter:
         try self.value(scrutinee, st)
         try self.put(";")
         # a guarded arm may repeat a value or a `_`, which C's `switch` cannot: those go to the chain
-        if (self.is_int(st) or self.is_int_enum(st) or st == types.bool_id or st == types.char_id) and not has_guard(m):
+        if (self.is_int(st) or self.c.is_backed_enum(st) or st == types.bool_id or st == types.char_id) and not has_guard(m):
             try self.line("switch ((int64_t)(")
             try self.put_tmp("m", n)
             try self.put(")) {")
@@ -346,7 +346,7 @@ extend Emitter:
                             try self.put(".present")
                         elif self.is_nullable_view(st):
                             try self.put(".data")
-                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_ and self.is_int_enum(st):
+                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_ and self.c.is_backed_enum(st):
                         # an integer-backed enum is its representation: compare the value
                         let d = self.decl_of(st) else return
                         let resolved = v.resolved else return

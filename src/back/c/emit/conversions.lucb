@@ -33,7 +33,7 @@ extend Emitter:
         if st == types.cstr_id and dest == types.str_id:
             try self.str_conversion(src, checked)
             return
-        if self.is_int_enum(dest):
+        if self.c.is_backed_enum(dest):
             if checked:
                 try self.enum_check(dest, src)
                 return
@@ -43,7 +43,7 @@ extend Emitter:
             try self.expr(src)
             try self.put("))")
             return
-        if self.is_int_enum(st) and self.is_int(dest):
+        if self.c.is_backed_enum(st) and self.is_int(dest):
             try self.put("((")
             try self.put_type(dest)
             try self.put(")(")

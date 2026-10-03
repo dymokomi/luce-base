@@ -374,7 +374,7 @@ pub struct Generator:
     ## (`selection.offset_access`).
     mutating func offset_access(n: ir.Instr, base: ir.Ref, offset: i64) -> !:
         if (u8)n.op <= (u8)ir.Op.loadd:
-            let lc = load_class(n.op)
+            let lc = ir.load_class(n.op)
             let d = self.target(n.dst, lc, self.reg(lc, 0))
             let b = try self.source(base, ir.Class.l, "%r10")
             try self.line(load_mnemonic(n.op))
@@ -384,7 +384,7 @@ pub struct Generator:
             try self.put2("), ", d)
             try self.finish(n.dst, lc, d)
             return
-        let cls = store_class(n.op)
+        let cls = ir.store_class(n.op)
         let v = try self.source(n.a, cls, self.reg(cls, 0))
         let b = try self.source(base, ir.Class.l, "%r10")
         if n.op == ir.Op.storeb:
@@ -1198,7 +1198,7 @@ pub struct Generator:
                 else:
                     try self.comparison(n)
             .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd, .loadhf:
-                let lc = load_class(n.op)
+                let lc = ir.load_class(n.op)
                 let d = self.target(n.dst, lc, self.reg(lc, 0))
                 let from_slot = self.promoted_address(n.a)
                 if from_slot != 0:
@@ -1214,7 +1214,7 @@ pub struct Generator:
                         try self.put2(", ", d)
                 try self.finish(n.dst, lc, d)
             .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
-                let cls = store_class(n.op)
+                let cls = ir.store_class(n.op)
                 let v = try self.source(n.a, cls, self.reg(cls, 0))
                 let to_slot = self.promoted_address(n.b)
                 if to_slot != 0:
@@ -1262,7 +1262,7 @@ pub struct Generator:
                 try self.int_to_float(n)
             .cast:
                 # bits move between an integer and a float of the same width
-                let other = cast_partner(n.cls)
+                let other = ir.cast_partner(n.cls)
                 let v = try self.source(n.a, other, self.reg(other, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 try self.line4("movq " if n.cls == ir.Class.d or n.cls == ir.Class.l else "movd ", v, ", ", d)
@@ -1660,7 +1660,7 @@ pub struct Generator:
     ## Conversions between float widths: `exth` a half up, `exts` a single up, `truncs` a
     ## single down to a half, `truncd` a double down.
     mutating func float_convert(n: ir.Instr) -> !:
-        let src = float_source_class(n.op)
+        let src = ir.float_source_class(n.op)
         let v = try self.source(n.a, src, self.reg(src, 0))
         let d = self.reg(n.cls, 0)
         match n.op:
@@ -3170,30 +3170,6 @@ func with_percent(name: str) -> str:
     memory.copy(copy, spelled.bytes, spelled.length)
     return (str)copy
 
-## The class a float conversion reads: `exth` a half, `exts` and `truncs` a single, `truncd` a double.
-func float_source_class(op: ir.Op) -> ir.Class:
-    match op:
-        .exth: return ir.Class.h
-        .exts, .truncs: return ir.Class.s
-        _: return ir.Class.d
-
-## The class whose bits `cast` moves into `cls`: the integer as wide as a float, and back.
-func cast_partner(cls: ir.Class) -> ir.Class:
-    match cls:
-        .h, .s: return ir.Class.w
-        .d: return ir.Class.l
-        .w: return ir.Class.s
-        _: return ir.Class.d
-
-## The class a load produces.
-func load_class(op: ir.Op) -> ir.Class:
-    match op:
-        .loadsb, .loadub, .loadsh, .loaduh, .loaduw: return ir.Class.w
-        .loadsw, .loadl: return ir.Class.l
-        .loads: return ir.Class.s
-        .loadhf: return ir.Class.h
-        _: return ir.Class.d
-
 func load_mnemonic(op: ir.Op) -> str:
     match op:
         .loadsb: return "movsbl "
@@ -3212,14 +3188,6 @@ func store_mnemonic(op: ir.Op) -> str:
         .stores: return "movss "
         .stored: return "movsd "
         _: return "movq "
-
-func store_class(op: ir.Op) -> ir.Class:
-    match op:
-        .storeb, .storeh, .storew: return ir.Class.w
-        .stores: return ir.Class.s
-        .stored: return ir.Class.d
-        .storehf: return ir.Class.h
-        _: return ir.Class.l
 
 func round_up(value: u64, align: u64) -> u64:
     if align <= 1:

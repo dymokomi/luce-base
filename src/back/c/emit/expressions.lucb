@@ -88,7 +88,7 @@ extend Emitter:
             return
         if (want == types.cstr_id or (self.kind(want) == types.Kind.optional and self.c.table.get(want).elem == types.cstr_id)) and have == types.str_id:
             if e.kind == ast.Kind.literal:
-                try self.put_c_string(check.decode_text(e.text))
+                try self.put_c_string(literals.decode_text(e.text))
                 return
             try self.put("((char*)")
             try self.expr(e)
@@ -433,25 +433,25 @@ extend Emitter:
             return
         let b = e.text.bytes
         if b[0] == '\'':
-            try self.put_u64((u64)check.decode_char(e.text))
+            try self.put_u64((u64)literals.decode_char(e.text))
             try self.put("u")
             return
         if b[0] == '"' or b[0] == 'r':
-            let text = check.decode_text(e.text)
+            let text = literals.decode_text(e.text)
             if t == types.cstr_id or (self.kind(t) == types.Kind.optional and self.c.table.get(t).elem == types.cstr_id):
                 try self.put_c_string(text)
                 return
             try self.put_str_literal(text)
             return
         if b[0] == 'b':
-            let bytes = check.decode_text(e.text)
+            let bytes = literals.decode_text(e.text)
             try self.put("((lb_cspan){(void*)")
             try self.put_c_string(bytes)
             try self.put(", ")
             try self.put_u64((u64)bytes.length)
             try self.put("})")
             return
-        if check.is_float_text(e.text):
+        if literals.is_float_literal(e.text):
             # the bits the literal rounds to (§4.3), spelled as C's exact hexadecimal float,
             # so the C compiler neither rounds again nor refuses a small value
             let width: u32 = 16 if t == types.f16_id else 32 if t == types.f32_id else 64
@@ -534,7 +534,7 @@ extend Emitter:
         let resolved = e.resolved else return try self.put("0")
         let t = try self.ty(e)
         let d = self.decl_of(t) else return try self.put("0")
-        if self.is_int_enum(t):
+        if self.c.is_backed_enum(t):
             try self.put("((")
             try self.put_type(t)
             try self.put(")")

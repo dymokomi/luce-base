@@ -55,7 +55,7 @@ extend Emitter:
                 try self.with_stmt(s)
             .expr_stmt:
                 let e = s.left else return
-                if is_error_call(e):
+                if calls.is_error_call(e):
                     try self.error_return(e)
                 else:
                     try self.line("(void)(")
@@ -124,7 +124,7 @@ extend Emitter:
         let k = self.kind(t)
         if t == types.bool_id:
             try self.put("false")
-        elif self.is_int(t) or self.is_float(t) or t == types.char_id or self.is_int_enum(t) or t == types.error_code_id:
+        elif self.is_int(t) or self.is_float(t) or t == types.char_id or self.c.is_backed_enum(t) or t == types.error_code_id:
             try self.put("0")
         elif k == types.Kind.pointer or k == types.Kind.func_ or t == types.cstr_id:
             try self.put("((void*)0)")
@@ -440,7 +440,7 @@ extend Emitter:
                 try self.put("++) {")
         else:
             # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
-            let indexed = indexed_receiver(seq)
+            let indexed = calls.indexed_receiver(seq)
             var it = try self.ty(seq)
             var sequence = seq
             if let receiver = indexed:
@@ -607,12 +607,12 @@ extend Emitter:
     ## `return` with the deferred calls of every scope run first.
     mutating func return_stmt(s: ast.Node*) -> !:
         if let v = s.left:
-            if is_trap_call(v):
+            if calls.is_trap_call(v):
                 try self.line("")
                 try self.expr(v)
                 try self.put(";")
                 return
-            if is_error_call(v):
+            if calls.is_error_call(v):
                 try self.error_return(v)
                 return
             if never_valued(v):

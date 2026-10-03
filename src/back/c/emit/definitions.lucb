@@ -18,7 +18,7 @@ extend Emitter:
         match t.kind:
             .pointer, .span, .atomic:
                 # only the pointee's name is needed; records are forward-declared
-                if not self.is_record(t.elem) or self.is_int_enum(t.elem):
+                if not self.is_record(t.elem) or self.c.is_backed_enum(t.elem):
                     try self.define_type(t.elem)
                 try self.defined.push(id)
             .array:
@@ -99,7 +99,7 @@ extend Emitter:
                 try self.put(");")
             .struct_, .union_, .enum_:
                 try self.defined.push(id)
-                if self.is_int_enum(id):
+                if self.c.is_backed_enum(id):
                     return
                 let d = t.decl else return
                 if t.args.length > 0:
@@ -313,7 +313,7 @@ extend Emitter:
                 if word == "section":
                     try self.put("section(\"")
                     if let name = a.left:
-                        try self.put(targets.section_name(check.decode_text(name.text), is_func, self.c.build_target.os))
+                        try self.put(targets.section_name(literals.decode_text(name.text), is_func, self.c.build_target.os))
                     try self.put("\")")
                 else:
                     try self.put(word)

@@ -1,14 +1,20 @@
 #==============================================================================================
 #
-#   literals - Number literals as text
+#   literals - Literals as text
 #
 #   DESCRIPTION:
-#       The spelling of an integer literal (§4.2): its digits in any base with `_`
-#       separators, its optional type suffix, and its value as a `u64`. The checker, the type
-#       table, and both backends read literals through this one module, so a literal means
-#       the same thing everywhere.
+#       The spelling of a number literal (§4.2, §4.3): its digits in any base with `_`
+#       separators, its optional type suffix, and an integer's value as a `u64`; and the
+#       bytes a text or character literal denotes (§4.4), escapes and triple-quoted
+#       indentation decoded. The checker, the type table, and both backends read literals
+#       through this one module, so a literal means the same thing everywhere.
 #
 #==============================================================================================
+import memory
+
+# mark: Numbers ===============================================================================
+
+## An integer literal with a digit its base lacks, or a value past `u64`.
 pub let bad_literal: ErrorCode = ErrorCode.package(18)
 
 ## The type suffix of a number literal, `u8` in `255u8` or `f32` in `0.5f32`, or empty
@@ -68,3 +74,217 @@ pub func decode_integer(text: str) -> u64!:
             error(bad_literal, "integer literal does not fit")
         value = value * base + digit
     return value
+
+## A number literal with a point or an exponent, outside the prefixed forms.
+pub func is_float_literal(text: str) -> bool:
+    let b = literal_body(text).bytes
+    if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'X' or b[1] == 'b' or b[1] == 'B' or b[1] == 'o' or b[1] == 'O'):
+        return false
+    for byte in b:
+        if byte == '.' or byte == 'e' or byte == 'E':
+            return true
+    return false
+
+# mark: Text and characters ===================================================================
+
+## The bytes a text literal denotes, in the current allocator: delimiters and
+## prefix removed, CRLF normalised and indentation stripped for triple quotes,
+## escapes decoded except in raw text (§4.4).
+pub func decode_text(spelled: str) -> str:
+    var b = spelled.bytes
+    var raw = false
+    var is_bytes = false
+    if b.length >= 2 and b[0] == 'r' and b[1] == '"':
+        raw = true
+        b = b[1..]
+    elif b.length >= 2 and b[0] == 'b' and b[1] == '"':
+        is_bytes = true
+        b = b[1..]
+    var body = b
+    var triple = false
+    if b.length >= 6 and b[0] == '"' and b[1] == '"' and b[2] == '"':
+        triple = true
+        body = b[3..<b.length - 3]
+    elif b.length >= 2 and b[0] == '"':
+        body = b[1..<b.length - 1]
+    let out = alloc u8[body.length + 1] catch failure:
+        trap("out of memory")
+    var n: usize = 0
+    if triple:
+        # the closing delimiter's column is the indentation to strip
+        var indent: usize = 0
+        var k = body.length
+        while k > 0 and body[k - 1] == ' ':
+            k -= 1
+            indent += 1
+        if k > 0 and body[k - 1] != '\n':
+            indent = 0
+        var i: usize = 0
+        # a newline directly after the opening delimiter is not part of the text (§4.4)
+        if body.length > 0 and body[0] == '\n':
+            i = 1
+        elif body.length > 1 and body[0] == '\r' and body[1] == '\n':
+            i = 2
+        var at_line_start = true
+        while i < body.length:
+            if body[i] == '\r' and i + 1 < body.length and body[i + 1] == '\n':
+                i += 1
+                continue
+            if at_line_start:
+                var skipped: usize = 0
+                while skipped < indent and i < body.length and body[i] == ' ':
+                    i += 1
+                    skipped += 1
+                at_line_start = false
+                if i >= body.length:
+                    break
+            let byte = body[i]
+            out[n] = byte
+            n += 1
+            if byte == '\n':
+                at_line_start = true
+            i += 1
+        body = out[..<n]
+        n = 0
+        if raw:
+            return (str)body
+        # decode escapes in place is unsafe; copy again
+        let second = alloc u8[body.length + 1] catch failure:
+            trap("out of memory")
+        n = decode_escapes(body, second, is_bytes)
+        return (str)second[..<n]
+    if raw:
+        memory.copy(out, body, body.length)
+        return (str)out[..<body.length]
+    n = decode_escapes(body, out, is_bytes)
+    return (str)out[..<n]
+
+## Decode the escapes of `body` into `out`; returns the byte count.
+func decode_escapes(body: const u8[], out: u8[], is_bytes: bool) -> usize:
+    var n: usize = 0
+    var i: usize = 0
+    while i < body.length:
+        let byte = body[i]
+        if byte != '\\' or i + 1 >= body.length:
+            out[n] = byte
+            n += 1
+            i += 1
+            continue
+        let e = body[i + 1]
+        i += 2
+        if e == 'n':
+            out[n] = '\n'
+            n += 1
+        elif e == 'r':
+            out[n] = '\r'
+            n += 1
+        elif e == 't':
+            out[n] = '\t'
+            n += 1
+        elif e == '0':
+            out[n] = 0
+            n += 1
+        elif e == 'x' and is_bytes and i + 1 < body.length:
+            out[n] = (u8)(hex_value(body[i]) * 16 + hex_value(body[i + 1]))
+            n += 1
+            i += 2
+        elif e == 'u' and i < body.length and body[i] == '{':
+            var cp: u32 = 0
+            i += 1
+            while i < body.length and body[i] != '}':
+                cp = cp * 16 + (u32)hex_value(body[i])
+                i += 1
+            i += 1
+            n += encode_utf8(cp, out[n..])
+        else:
+            out[n] = e
+            n += 1
+    return n
+
+func hex_value(digit: u8) -> u8:
+    if digit >= '0' and digit <= '9':
+        return digit - '0'
+    if digit >= 'a' and digit <= 'f':
+        return digit - 'a' + 10
+    if digit >= 'A' and digit <= 'F':
+        return digit - 'A' + 10
+    return 0
+
+## Write `cp` as UTF-8 into `out`; returns the byte count.
+pub func encode_utf8(cp: u32, out: u8[]) -> usize:
+    if cp < 128:
+        out[0] = (u8)cp
+        return 1
+    if cp < 2048:
+        out[0] = (u8)(192 + (cp >> 6))
+        out[1] = (u8)(128 + (cp & 63))
+        return 2
+    if cp < 65536:
+        out[0] = (u8)(224 + (cp >> 12))
+        out[1] = (u8)(128 + ((cp >> 6) & 63))
+        out[2] = (u8)(128 + (cp & 63))
+        return 3
+    out[0] = (u8)(240 + (cp >> 18))
+    out[1] = (u8)(128 + ((cp >> 12) & 63))
+    out[2] = (u8)(128 + ((cp >> 6) & 63))
+    out[3] = (u8)(128 + (cp & 63))
+    return 4
+
+## The scalar value of a character literal.
+pub func decode_char(spelled: str) -> u32:
+    let b = spelled.bytes
+    if b.length < 3:
+        return 0
+    let body = b[1..<b.length - 1]
+    if body[0] != '\\':
+        # one UTF-8 scalar
+        let c0 = body[0]
+        if c0 < 128:
+            return (u32)c0
+        if c0 < 224 and body.length >= 2:
+            return ((u32)(c0 & 31) << 6) | (u32)(body[1] & 63)
+        if c0 < 240 and body.length >= 3:
+            return ((u32)(c0 & 15) << 12) | ((u32)(body[1] & 63) << 6) | (u32)(body[2] & 63)
+        if body.length >= 4:
+            return ((u32)(c0 & 7) << 18) | ((u32)(body[1] & 63) << 12) | ((u32)(body[2] & 63) << 6) | (u32)(body[3] & 63)
+        return 0
+    let e = body[1]
+    if e == 'n':
+        return 10
+    if e == 'r':
+        return 13
+    if e == 't':
+        return 9
+    if e == '0':
+        return 0
+    if e == 'u' and body.length > 3:
+        var cp: u32 = 0
+        var i: usize = 3
+        while i < body.length and body[i] != '}':
+            cp = cp * 16 + (u32)hex_value(body[i])
+            i += 1
+        return cp
+    return (u32)e
+
+## `{{` and `}}` in a formatted piece are one brace each.
+pub func unescape_braces(text: str) -> str:
+    let b = text.bytes
+    var any = false
+    var i: usize = 0
+    while i + 1 < b.length:
+        if (b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}'):
+            any = true
+        i += 1
+    if not any:
+        return text
+    let out = alloc u8[b.length] catch failure:
+        trap("out of memory")
+    var n: usize = 0
+    i = 0
+    while i < b.length:
+        out[n] = b[i]
+        n += 1
+        if i + 1 < b.length and ((b[i] == '{' and b[i + 1] == '{') or (b[i] == '}' and b[i + 1] == '}')):
+            i += 1
+        i += 1
+    return (str)out[..<n]

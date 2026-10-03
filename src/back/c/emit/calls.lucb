@@ -236,7 +236,7 @@ extend Emitter:
     mutating func variadic_value(v: ast.Node*) -> !:
         let have = try self.ty(v)
         if have == types.str_id and v.kind == ast.Kind.literal:
-            try self.put_c_string(check.decode_text(v.text))
+            try self.put_c_string(literals.decode_text(v.text))
             return
         if have == types.str_id:
             try self.put("(")

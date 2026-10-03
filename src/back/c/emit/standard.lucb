@@ -254,10 +254,10 @@ extend Emitter:
             return
         let target = self.elem(t) if self.is_ptr(t) else t
         if self.is_ptr(t):
-            try self.iface_view(e, target, try self.allocator_iface())
+            try self.iface_view(e, target, self.c.allocator_type())
             return
         # a `var` record: take its address
-        let i = self.decl_of(try self.allocator_iface()) else return try self.expr(e)
+        let i = self.decl_of(self.c.allocator_type()) else return try self.expr(e)
         try self.put("((lb_iface){ (void*)(&(")
         try self.place(e)
         try self.put(")), &lb_vt_")
@@ -265,14 +265,7 @@ extend Emitter:
         try self.put("_")
         try self.put(i.text)
         try self.put(" })")
-        try self.note_vtable(target, try self.allocator_iface())
-
-    ## The `Allocator` interface type from the prelude.
-    mutating func allocator_iface() -> u32!:
-        let mi = self.c.find_module("memory") else return types.none_id
-        let m = self.c.modules.get(mi).tree
-        let d = check.find_decl(m, "Allocator") else return types.none_id
-        return d.type_id
+        try self.note_vtable(target, self.c.allocator_type())
 
     ## The failing result for exhaustion.
     mutating func exhausted(result: u32) -> !:

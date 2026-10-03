@@ -1,0 +1,45 @@
+#==============================================================================================
+#
+#   calls - The calls both backends recognise in the checked tree
+#
+#   DESCRIPTION:
+#       Shapes of call the checker leaves for the backends to recognise: the core `error`
+#       and `trap`, the receiver a formatted field's `display` writes, and the `indexed()`
+#       a `for` walks by index. The C backend and the IR lowering ask the same questions
+#       here, so they agree on the answers.
+#
+#==============================================================================================
+import front.ast
+
+## `error(...)`, the core function rather than a declaration of that name.
+pub func is_error_call(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.call:
+        return false
+    let callee = e.left else return false
+    return callee.kind == ast.Kind.name and callee.text == "error" and callee.resolved == none
+
+## `trap(...)`, the core function rather than a declaration of that name.
+pub func is_trap_call(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.call:
+        return false
+    let callee = e.left else return false
+    return callee.kind == ast.Kind.name and callee.text == "trap" and callee.resolved == none
+
+## The receiver of a `value.display(__sink)` call, the value being formatted.
+pub func sink_receiver(v: ast.Node*) -> ast.Node*?:
+    if v.kind != ast.Kind.call:
+        return none
+    let callee = v.left else return none
+    if callee.kind != ast.Kind.member:
+        return none
+    return callee.left
+
+## The receiver of `items.indexed()`, when `e` is that call of the method the compiler
+## supplies: a `for` over it walks `items` by index (§8.3).
+pub func indexed_receiver(e: ast.Node*) -> ast.Node*?:
+    if e.kind != ast.Kind.call:
+        return none
+    let callee = e.left else return none
+    if callee.kind != ast.Kind.member or callee.text != "indexed" or callee.resolved != none:
+        return none
+    return callee.left

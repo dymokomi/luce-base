@@ -204,7 +204,7 @@ pub func promote(f: ir.Function*) -> bool!:
                 kind[(usize)sa] = no
         if sb != none_index:
             if is_store(x.op) and sa != sb and store_fits(x.op, width[(usize)sb]):
-                let k = store_class(x.op)
+                let k = ir.store_class(x.op)
                 if has_store[(usize)sb] and cls[(usize)sb] != k:
                     kind[(usize)sb] = no
                 has_store[(usize)sb] = true
@@ -331,15 +331,6 @@ func load_fits(op: ir.Op, size: u32) -> bool:
 
 func store_fits(op: ir.Op, size: u32) -> bool:
     return store_width(op) == size
-
-## The class a store's value has.
-func store_class(op: ir.Op) -> ir.Class:
-    match op:
-        .storel: return ir.Class.l
-        .stores: return ir.Class.s
-        .stored: return ir.Class.d
-        .storehf: return ir.Class.h
-        _: return ir.Class.w
 
 ## Whether a load reads a slot the stores wrote in class `k`.
 func load_reads(op: ir.Op, k: ir.Class) -> bool:

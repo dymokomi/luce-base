@@ -430,7 +430,7 @@ extend Emitter:
         if t == types.str_id:
             if b.length == 0 or b[0] != '"':
                 return false
-            try self.put_str_literal(check.decode_text(leaf.text))
+            try self.put_str_literal(literals.decode_text(leaf.text))
             return true
         return false
 
@@ -537,9 +537,9 @@ extend Emitter:
             try self.put("); lb_r_unit r = lb_test_")
             try self.put_u64((u64)i)
             try self.put("(); lb_testing_end(); if (r.failed) { failed++; fprintf(stdout, \"FAIL  %s\\n      error: %.*s\\n\", ")
-            try self.put_c_string(check.decode_text(t.text))
+            try self.put_c_string(literals.decode_text(t.text))
             try self.put(", (int)r.error.message.length, r.error.message.data); } else { fprintf(stdout, \"ok    %s\\n\", ")
-            try self.put_c_string(check.decode_text(t.text))
+            try self.put_c_string(literals.decode_text(t.text))
             try self.put("); } }")
             i += 1
         try self.line("    fprintf(stdout, \"%d passed\\n\", ")

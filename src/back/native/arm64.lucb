@@ -260,7 +260,7 @@ pub struct Generator:
     ## (`selection.offset_access`).
     mutating func offset_access(n: ir.Instr, base: ir.Ref, offset: i64) -> !:
         if (u8)n.op <= (u8)ir.Op.loadd:
-            let lc = load_class(n.op)
+            let lc = ir.load_class(n.op)
             let d = self.target(n.dst, lc, load_register(n.op))
             let b = try self.source(base, ir.Class.l, "x10")
             try self.line4(load_mnemonic(n.op), " ", d, ", [")
@@ -270,7 +270,7 @@ pub struct Generator:
             try self.put("]")
             try self.finish(n.dst, lc, d)
             return
-        let cls = store_class(n.op)
+        let cls = ir.store_class(n.op)
         let v = try self.source(n.a, cls, self.reg(cls, 0))
         let b = try self.source(base, ir.Class.l, "x10")
         try self.line4(store_mnemonic(n.op), " ", v, ", [")
@@ -322,7 +322,7 @@ pub struct Generator:
         let b = try self.source(base, ir.Class.l, "x10")
         let x = try self.source(index, ir.Class.l, "x11")
         if (u8)n.op <= (u8)ir.Op.loadd:
-            let lc = load_class(n.op)
+            let lc = ir.load_class(n.op)
             let d = self.target(n.dst, lc, load_register(n.op))
             try self.line4(load_mnemonic(n.op), " ", d, ", [")
             try self.put(b)
@@ -334,7 +334,7 @@ pub struct Generator:
             try self.put("]")
             try self.finish(n.dst, lc, d)
             return
-        let cls = store_class(n.op)
+        let cls = ir.store_class(n.op)
         let v = try self.source(n.a, cls, self.reg(cls, 0))
         try self.line4(store_mnemonic(n.op), " ", v, ", [")
         try self.put(b)
@@ -1307,7 +1307,7 @@ pub struct Generator:
                 else:
                     try self.comparison(n)
             .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd, .loadhf:
-                let lc = load_class(n.op)
+                let lc = ir.load_class(n.op)
                 let d = self.target(n.dst, lc, load_register(n.op))
                 let from_slot = self.promoted_address(n.a)
                 if from_slot != 0:
@@ -1324,7 +1324,7 @@ pub struct Generator:
                     try self.put("]")
                 try self.finish(n.dst, lc, d)
             .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
-                let cls = store_class(n.op)
+                let cls = ir.store_class(n.op)
                 let v = try self.source(n.a, cls, self.reg(cls, 0))
                 let to_slot = self.promoted_address(n.b)
                 if to_slot != 0:
@@ -1363,7 +1363,7 @@ pub struct Generator:
                     try self.extend_from(n.op, v, d)
                 try self.finish(n.dst, n.cls, d)
             .exth, .exts, .truncs, .truncd:
-                let src_cls = float_source_class(n.op)
+                let src_cls = ir.float_source_class(n.op)
                 let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 try self.line3("fcvt ", d, ", ")
@@ -1392,7 +1392,7 @@ pub struct Generator:
             .cast:
                 # bits move between an integer and a float of the same width; a half's
                 # sixteen bits travel through its single view where there is no half move
-                let other = cast_partner(n.cls)
+                let other = ir.cast_partner(n.cls)
                 let v = try self.source(n.a, other, self.reg(other, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 try self.fmove(d, v)
@@ -2925,21 +2925,6 @@ func float_letter_of(size: u64) -> str:
         return "h"
     return "s" if size == 4 else "d"
 
-## The class a float conversion reads: `exth` a half, `exts` and `truncs` a single, `truncd` a double.
-func float_source_class(op: ir.Op) -> ir.Class:
-    match op:
-        .exth: return ir.Class.h
-        .exts, .truncs: return ir.Class.s
-        _: return ir.Class.d
-
-## The class whose bits `cast` moves into `cls`: the integer as wide as a float, and back.
-func cast_partner(cls: ir.Class) -> ir.Class:
-    match cls:
-        .h, .s: return ir.Class.w
-        .d: return ir.Class.l
-        .w: return ir.Class.s
-        _: return ir.Class.d
-
 let argument_names: str[8] = ["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"]
 
 ## The integer argument register `n` of the calling convention.
@@ -3071,15 +3056,6 @@ func narrow_name(reg: str) -> str:
         return "w11"
     return reg
 
-## The class a load produces.
-func load_class(op: ir.Op) -> ir.Class:
-    match op:
-        .loadsb, .loadub, .loadsh, .loaduh, .loaduw: return ir.Class.w
-        .loadsw, .loadl: return ir.Class.l
-        .loads: return ir.Class.s
-        .loadhf: return ir.Class.h
-        _: return ir.Class.d
-
 func store_mnemonic_for(c: ir.Class) -> str:
     return "str"
 
@@ -3108,14 +3084,6 @@ func store_mnemonic(op: ir.Op) -> str:
         .storeb: return "strb"
         .storeh: return "strh"
         _: return "str"
-
-func store_class(op: ir.Op) -> ir.Class:
-    match op:
-        .storeb, .storeh, .storew: return ir.Class.w
-        .stores: return ir.Class.s
-        .stored: return ir.Class.d
-        .storehf: return ir.Class.h
-        _: return ir.Class.l
 
 func width_suffix(width: u32) -> str:
     if width == 1:

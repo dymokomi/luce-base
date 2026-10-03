@@ -169,11 +169,11 @@ struct Plan:
             if x.op == ir.Op.addr:
                 continue
             if is_load(x.op):
-                self.access(f, x.a, access_width(x.op), load_class(x.op, x.cls))
+                self.access(f, x.a, access_width(x.op), access_class(x.op))
                 self.escape(x.b)
             elif is_store(x.op):
                 self.escape(x.a)
-                self.access(f, x.b, access_width(x.op), store_class(x.op))
+                self.access(f, x.b, access_width(x.op), ir.store_class(x.op))
             elif x.op == ir.Op.zero:
                 self.whole(f, x.a, x.extra)
                 self.escape(x.b)
@@ -481,7 +481,9 @@ func access_width(op: ir.Op) -> u32:
         _:
             return 0
 
-func load_class(op: ir.Op, cls: ir.Class) -> ir.Class:
+## The class of the memory a load reads, as wide as its access: `w` for a word or less,
+## whatever the register it fills.
+func access_class(op: ir.Op) -> ir.Class:
     match op:
         .loads:
             return ir.Class.s
@@ -490,19 +492,6 @@ func load_class(op: ir.Op, cls: ir.Class) -> ir.Class:
         .loadhf:
             return ir.Class.h
         .loadl:
-            return ir.Class.l
-        _:
-            return ir.Class.w
-
-func store_class(op: ir.Op) -> ir.Class:
-    match op:
-        .stores:
-            return ir.Class.s
-        .stored:
-            return ir.Class.d
-        .storehf:
-            return ir.Class.h
-        .storel:
             return ir.Class.l
         _:
             return ir.Class.w

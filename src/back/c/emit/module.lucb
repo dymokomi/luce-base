@@ -27,6 +27,7 @@
 from back.effects import may_have_effect, arguments_have_effect
 import back.declarations as declarations
 import back.names
+import back.calls
 import strings
 import back.target as targets
 import front.ast

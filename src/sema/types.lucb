@@ -254,16 +254,6 @@ pub struct Table:
     pub func count() -> u32:
         return u32(self.types.count)
 
-    func same_args(a: const u32[], b: const u32[]) -> bool:
-        if a.length != b.length:
-            return false
-        var i: usize = 0
-        while i < a.length:
-            if a[i] != b[i]:
-                return false
-            i += 1
-        return true
-
     ## The id of a type equal to `t`, adding it when new. Nominal types with a
     ## declaration compare by declaration and type arguments.
     pub mutating func intern(t: Type) -> u32!:
@@ -285,7 +275,7 @@ pub struct Table:
     ## Whether `have` is the type `t` describes: the same structure, and for a generic
     ## parameter, which is its own type, or a type without a declaration, the same name.
     func same_type(have: Type, t: Type) -> bool:
-        if have.kind != t.kind or have.elem != t.elem or have.length != t.length or have.is_const != t.is_const or have.is_volatile != t.is_volatile or have.variadic != t.variadic or have.decl != t.decl or not self.same_args(have.args, t.args):
+        if have.kind != t.kind or have.elem != t.elem or have.length != t.length or have.is_const != t.is_const or have.is_volatile != t.is_volatile or have.variadic != t.variadic or have.decl != t.decl or not same_args(have.args, t.args):
             return false
         if t.kind == Kind.param:
             return have.name == t.name
@@ -821,6 +811,17 @@ func round_up(value: u64, align: u64) -> u64:
     if align <= 1:
         return value
     return (value + align - 1) // align * align
+
+## Whether two lists of type arguments are the same, id for id.
+pub func same_args(a: const u32[], b: const u32[]) -> bool:
+    if a.length != b.length:
+        return false
+    var i: usize = 0
+    while i < a.length:
+        if a[i] != b[i]:
+            return false
+        i += 1
+    return true
 
 # mark: Tests ==================================================================================
 

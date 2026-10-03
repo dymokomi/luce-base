@@ -209,16 +209,6 @@ func store_width(op: ir.Op) -> i64:
         .storew, .stores: return 4
         _: return 8
 
-## The class a store's value has, and whether a load of `op` at class `cls` reads exactly
-## a value of that class: the same width, integer or float alike, a word as a word.
-func store_class(op: ir.Op) -> ir.Class:
-    match op:
-        .storel: return ir.Class.l
-        .stores: return ir.Class.s
-        .stored: return ir.Class.d
-        .storehf: return ir.Class.h
-        _: return ir.Class.w
-
 func load_takes(op: ir.Op, cls: ir.Class, k: ir.Class) -> bool:
     match op:
         .loadl: return k == ir.Class.l
@@ -382,7 +372,7 @@ func find_value(s: Search*, start_address: Alias, width: i64, op: ir.Op, cls: ir
             if is_store(x.op):
                 let rel = s.aliases.relation(address, width, x.b, store_width(x.op))
                 if rel == must_alias:
-                    if store_width(x.op) == width and load_takes(op, cls, store_class(x.op)) and s.aliases.at(x.b, 0).offset == address.offset:
+                    if store_width(x.op) == width and load_takes(op, cls, ir.store_class(x.op)) and s.aliases.at(x.b, 0).offset == address.offset:
                         return x.a
                     return none
                 if rel == may_alias:
