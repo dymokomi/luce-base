@@ -195,6 +195,9 @@ pub struct Checker:
     var loading: list.List[str]
     ## Package-export aliases from a name to its canonical module.
     pub var module_aliases: list.List[ModuleAlias]
+    ## `luce-base test`: the module under test also takes the fragments its package keeps
+    ## under `tests/` (§16.5).
+    pub var test_fragments: bool = false
     ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
     pub var package_name: str
     ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.

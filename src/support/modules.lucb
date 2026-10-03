@@ -196,7 +196,7 @@ func parse_package(path: str) -> Package!:
 ## is not there, as when an application published with its author's sibling checkouts is
 ## installed elsewhere.
 func dependency_directory(package: Package, dependency: Mapping) -> str!:
-    let synced = starts_with_text(dependency.value, ".luc/deps/") or contains_text(package.root, "/.luc/deps/")
+    let synced = strings.starts_with(dependency.value, ".luc/deps/") or strings.contains(package.root, "/.luc/deps/")
     if not synced:
         let declared = try paths.join(package.root, dependency.value)
         if try present(declared):
@@ -212,21 +212,6 @@ func dependency_directory(package: Package, dependency: Mapping) -> str!:
             error(invalid, "a registry dependency is not synced; run luc sync")
         directory = parent
 
-func starts_with_text(text: str, prefix: str) -> bool:
-    if text.length < prefix.length:
-        return false
-    return (str)text.bytes[..<prefix.length] == prefix
-
-func contains_text(text: str, part: str) -> bool:
-    if part.length > text.length:
-        return false
-    var i: usize = 0
-    while i + part.length <= text.length:
-        if (str)text.bytes[i..<i + part.length] == part:
-            return true
-        i += 1
-    return false
-
 ## The package that owns the file at `path` and its root directory, when a manifest
 ## encloses it; the root is canonical, as module paths are.
 pub func owner_root(path: str) -> (str, str)?!:
@@ -234,6 +219,38 @@ pub func owner_root(path: str) -> (str, str)?!:
     if package.name.length == 0:
         return none
     return (package.name, package.root)
+
+## Module `name` of the package whose root is `directory`: its file or fragment directory
+## under the package's source root, with that root, when `directory` holds a
+## `package.prisma` and the module is there. An entry outside the source root, a test
+## program under `tests/`, reaches its package's own modules this way.
+pub func package_source_module(directory: str, name: str) -> (str, str)?!:
+    let candidate = try paths.join(directory, "package.prisma")
+    if not try present(candidate):
+        return none
+    let package = try read_package(candidate)
+    let found = try source_file(package.source, name, true) else return none
+    return (found, package.source)
+
+## The directory of test fragments for the module at `path` (§16.5): under the package's
+## `tests/`, the module's path below the source root, when a `TESTS` file there lists them;
+## none otherwise. `luce-base test` adds them to the module under test; a build never reads
+## them. The list is not an `ORDER`, so the directory is never taken for a module that an
+## import from `tests/` would resolve to.
+pub func test_fragments_of(path: str) -> str?!:
+    let module = try canonical(path)
+    let package = try enclosing(module) else return none
+    # the root is canonical, so the source root under it is spelled as `module` is
+    let source = package.source
+    if module.length <= source.length + 1 or not strings.starts_with(module, source) or (module.bytes[source.length] != '/' and module.bytes[source.length] != '\\'):
+        return none
+    var relative = (str)module.bytes[source.length + 1..]
+    if strings.ends_with(relative, ".lucb"):
+        relative = (str)relative.bytes[..<relative.length - 5]
+    let directory = try paths.join(try paths.join(package.root, "tests"), relative)
+    if not try present(try paths.join(directory, "TESTS")):
+        return none
+    return directory
 
 func enclosing(path: str) -> Package?!:
     var directory = paths.directory(path)

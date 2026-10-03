@@ -54,7 +54,7 @@ extend Checker:
                     var path = try format(path_bytes, f"{directory}/{name}.lucb")
                     if not file_exists((c.str)path):
                         path = try format(path_bytes, f"{directory}/{name}")
-                    var src = try self.load_source((c.str)path)
+                    var src = try self.load_source((c.str)path, false)
                     try src.rebase(directory, "std")
                     try self.add_module(name, src, true)
             if blank:
@@ -76,7 +76,7 @@ extend Checker:
         try self.loading.push(name)
         defer self.finish_load()
         let text = (str)path
-        let src = self.load_source(path) catch failure:
+        let src = self.load_source(path, self.test_fragments and self.loading.count == 1) catch failure:
             let half = self.scratch.length // 2
             # a located message (`path:line:column: ...`) stands as it is, copied into the
             # scratch that outlives the build's arena; only a file that cannot be opened is
@@ -192,6 +192,13 @@ extend Checker:
             if file_exists((c.str)try format(order_buffer, f"{directory}/ORDER")):
                 self.root = dir
                 return directory
+            # a package's root names its modules under its source root, for an entry beside
+            # them rather than among them (§16.4)
+            if let module = try module_paths.package_source_module(dir, text):
+                let (found, source_root) = module
+                let room = try alloc u8[source_root.length + 2]
+                self.root = try format(room, f"{source_root}/")
+                return found
             if dir.length == 0:
                 # nowhere left to look: the file's own name goes into the diagnostic
                 self.root = dir
@@ -200,31 +207,28 @@ extend Checker:
 
     ## The source at `path`: one file, or the fragments its `ORDER` lists when `path` is a
     ## directory, assembled in order as one module whose positions name the fragment files.
-    func load_source(path: c.str) -> source.Source!:
+    ## `with_tests` adds, after them, the test fragments the package keeps for this module
+    ## under `tests/` (§16.5).
+    func load_source(path: c.str, with_tests: bool) -> source.Source!:
         let text = (str)path
-        var order_bytes = try alloc u8[text.length + 8]
-        let order = files.read((c.str)try format(order_bytes, f"{text}/ORDER")) catch:
-            return try source.Source.load(path)
-        cache.note_input(text, order)
         var names = try list.List[str].create(8)
         var texts = try list.List[u8[]].create(8)
-        var start: usize = 0
-        var i: usize = 0
-        while i <= order.length:
-            let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
-            if blank and i > start:
-                let part = (str)order[start..<i]
-                var fragment_bytes = try alloc u8[text.length + part.length + 2]
-                let fragment = try format(fragment_bytes, f"{text}/{part}")
-                try names.push(fragment)
-                let bytes = try files.read((c.str)fragment)
-                cache.note_input(fragment, bytes)
-                try texts.push(bytes)
-            if blank:
-                start = i + 1
-            i += 1
-        if names.count == 0:
-            error(unknown_name, "an `ORDER` names at least one fragment")
+        var order_bytes = try alloc u8[text.length + 8]
+        let ordered = file_exists((c.str)try format(order_bytes, f"{text}/ORDER"))
+        if ordered:
+            try add_fragments(text, "ORDER", &names, &texts)
+        elif not with_tests:
+            return try source.Source.load(path)
+        else:
+            try names.push(text)
+            let bytes = try files.read(path)
+            cache.note_input(text, bytes)
+            try texts.push(bytes)
+        if with_tests:
+            if let tests = try module_paths.test_fragments_of(text):
+                try add_fragments(tests, "TESTS", &names, &texts)
+        if names.count == 1 and not ordered:
+            return try source.Source.load(path)
         return try source.Source.assembled(text, names.span(), texts.span())
 
     ## Whether `m` is the standard `c` module, whose types the checker supplies (§5.2).
@@ -408,3 +412,30 @@ extend Checker:
                     self.set_origin(d)
                     names = n.next
             cursor = d.next
+
+## The fragments that the list file `listing` in `directory` names (`ORDER` for a module,
+## `TESTS` for its test fragments), whitespace apart, added in order to `names` and their
+## bytes to `texts`; each is a build input, so an edit rebuilds.
+func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: list.List[u8[]]*) -> !:
+    var order_bytes = try alloc u8[directory.length + listing.length + 2]
+    let order_path = try format(order_bytes, f"{directory}/{listing}")
+    let order = try files.read((c.str)order_path)
+    cache.note_input(directory, order)
+    let before = names.count
+    var start: usize = 0
+    var i: usize = 0
+    while i <= order.length:
+        let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
+        if blank and i > start:
+            let part = (str)order[start..<i]
+            var fragment_bytes = try alloc u8[directory.length + part.length + 2]
+            let fragment = try format(fragment_bytes, f"{directory}/{part}")
+            try names.push(fragment)
+            let bytes = try files.read((c.str)fragment)
+            cache.note_input(fragment, bytes)
+            try texts.push(bytes)
+        if blank:
+            start = i + 1
+        i += 1
+    if names.count == before:
+        error(unknown_name, try format(try alloc u8[listing.length + 40], f"a `{listing}` names at least one fragment"))

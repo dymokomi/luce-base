@@ -1411,7 +1411,7 @@ def package "demo" {
 }
 ```
 
-A dependency is `def dependency "name" { str path = "../name" }`; one without a `path` is a registry package that `luc` has unpacked under `.luc/deps/<name>` at or above the package root. Public modules are `def export "alias" { str module = "demo.module" }` and C inputs are `def native "inputs" { str[] sources = [...] }` with `link_search`, `libraries`, `frameworks` and `pkg_config` alongside. The tool `luc` adds the fields it needs (kind, version, owner, tasks); the compiler reads only what is named here.
+A dependency is `def dependency "name" { str path = "../name" }`; one without a `path` is a registry package that `luc` has unpacked under `.luc/deps/<name>` at or above the package root. Public modules are `def export "alias" { str module = "demo.module" }` and C inputs are `def native "inputs" { str[] sources = [...] }` with `link_search`, `libraries`, `frameworks` and `pkg_config` alongside. The tool `luc` adds the fields it needs (kind, version, owner, tasks); the compiler reads only what is named here. A file of the package outside its source root, a test program under `tests/` say, imports the package's own modules by their paths under the source root, as a file inside it does.
 
 ### 16.5 Tests
 
@@ -1422,7 +1422,7 @@ test "cursor advances by one":
     assert(cursor.offset == 1)
 ```
 
-`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test build compiles what its tests reach, of the file under test as of its imports, so a function no test calls is not compiled, and may name a symbol only another platform links. A test may use its module's private declarations. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others, and the runner reports which globals it wrote.
+`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test build compiles what its tests reach, of the file under test as of its imports, so a function no test calls is not compiled, and may name a symbol only another platform links. A test may use its module's private declarations. A package keeps test code out of the source it ships: under `tests/`, the directory that mirrors a module's path below the source root (`tests/mime/parse/` for `src/mime/parse.lucb` or the fragment directory `src/mime/parse/`) holds test fragments that a `TESTS` file lists in order; `luce test` on the module adds them after the module's own source, in its scope, and a build never reads them. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others, and the runner reports which globals it wrote.
 
 ### 16.6 Standard modules
 

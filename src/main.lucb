@@ -289,7 +289,7 @@ func generate_library(path: c.str) -> (str, str)!:
     return (code, try names.keep(&text))
 
 ## The program at `path`, checked, with its warnings reported.
-func checked(path: c.str) -> check.Checker!:
+func checked(path: c.str, test_fragments: bool = false) -> check.Checker!:
     cache.begin()
     let m = try manifest.load(try module_paths.canonical((str)path))
     package = m
@@ -299,6 +299,7 @@ func checked(path: c.str) -> check.Checker!:
     checker.debug_locals = debug_backend
     checker.package_name = m.name
     checker.build_target = build_target()
+    checker.test_fragments = test_fragments
     try checker.add_prelude()
     try checker.load(path)
     try checker.check_program()
@@ -952,7 +953,7 @@ func test_file(path: c.str, native: bool) -> i32!:
     defer arena.destroy()
     with arena:
         native_backend = native
-        var checker = try checked(path)
+        var checker = try checked(path, true)
         let entry = checker.modules.get(checker.modules.count - 1).tree
         used_mode = try settle_mode(entry, path, 1)
         # a function no test reaches is not compiled, so one naming another platform's

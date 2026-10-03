@@ -93,6 +93,7 @@ jobs:
           python tools/test_windows_publish.py build/luce-base.exe
           python tools/test_windows_parameters.py build/luce-base.exe
           python tools/test_module_batches.py build/luce-base.exe
+          python tools/test_package_tests.py build/luce-base.exe
       # real programs, checked out with CRLF line endings as Git for Windows does, built
       # for every target
       - name: Compile budget
