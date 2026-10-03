@@ -16,6 +16,36 @@ extend Lowerer:
     mutating func new_slot(id: u32) -> u32!:
         return try self.f.slot(self.size(id), self.align(id))
 
+    ## Open a loop `for i in 0..<count` in the function being built: the index is in a slot
+    ## of its own, and the body follows this; `count_on` closes it.
+    mutating func count_up(count: i64) -> Counting!:
+        let counter = try self.f.slot(8, 8)
+        try self.f.store(ir.Op.storel, ir.const_ref(0), try self.slot_address(counter))
+        let head = self.f.label()
+        let body = self.f.label()
+        let done = self.f.label()
+        try self.f.jump(head)
+        try self.f.place_label(head)
+        let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter))
+        let more = try self.f.binary(ir.Op.cult, ir.Class.l, i, ir.const_ref(count))
+        try self.f.branch(more, body, done)
+        try self.f.place_label(body)
+        return Counting(counter = counter, head = head, done = done, index = i)
+
+    ## Close a loop `count_up` opened: the next index, back to the test, and out after it.
+    mutating func count_on(counting: Counting) -> !:
+        let next = try self.f.binary(ir.Op.add, ir.Class.l, try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counting.counter)), ir.const_ref(1))
+        try self.f.store(ir.Op.storel, next, try self.slot_address(counting.counter))
+        try self.f.jump(counting.head)
+        try self.f.place_label(counting.done)
+
+    ## The slot of a parameter of type `pt`: at least a register wide and aligned, since it
+    ## arrives as one.
+    mutating func param_slot(pt: u32) -> u32!:
+        let size = self.size(pt)
+        let align = self.align(pt)
+        return try self.f.slot(size if size >= 16 else 16, align if align >= 8 else 8)
+
     mutating func slot_address(slot: u32) -> ir.Ref!:
         return try self.f.address_of(ir.slot_ref(slot))
 
@@ -83,19 +113,6 @@ extend Lowerer:
         let f = self.current_fn else return self.src_file
         return self.source_of(f)
 
-    ## The source a declaration came from, when the checker has it.
-    func source_unit_of(decl: ast.Node*) -> sources.Source?:
-        var i: usize = 0
-        while i < self.c.modules.count:
-            let module = self.c.modules.get(i)
-            if let m = decl.resolved:
-                if module.tree == m:
-                    return module.src
-            if module.src.path == self.src_file:
-                return module.src
-            i += 1
-        return none
-
     ## The statement being lowered: what a trap in it names (§11.5), through the source's
     ## position directives (§3.3).
     mutating func set_position(n: ast.Node*):
@@ -107,7 +124,7 @@ extend Lowerer:
             if self.position_fn != f or self.position_file != self.src_file:
                 self.position_fn = f
                 self.position_file = self.src_file
-                self.position_source = self.source_unit_of(f)
+                self.position_source = instances.source_unit_of(self.c, f, self.src_file)
             if let s = self.position_source:
                 let (file, line, column) = s.mapped(n.line, s.statement_column(n.line))
                 # a directive's file is the source's own text, named as it says
@@ -182,7 +199,7 @@ extend Lowerer:
             let parent = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0
             try self.f.debug_scopes.push(ir.DebugScope(parent = parent, start = self.f.instrs.count, end = 0, site = 0))
             self.f.at_scope = u32(scope)
-        try self.scopes.push(LowerScope(debug_scope = scope, defer_base = self.defers.count, loop = loop, label = label, break_label = break_label, continue_label = continue_label, restore_alloc = false, alloc_slot = 0))
+        try self.scopes.push(exits.Scope(defer_base = self.defers.count, loop = loop, label = label, restore_alloc = false, alloc_saved = 0, exit = break_label, continue_label = continue_label, debug_scope = scope))
 
     mutating func pop_scope():
         let sc = self.scopes.get(self.scopes.count - 1)
@@ -194,18 +211,11 @@ extend Lowerer:
 
     mutating func unwind(index: usize, failing: bool) -> !:
         let sc = self.scopes.get(index)
-        let end = self.defers.count if index + 1 >= self.scopes.count else self.scopes.get(index + 1).defer_base
-        var i = end
-        while i > sc.defer_base:
-            i -= 1
-            let d = self.defers.get(i)
-            if d.kind == ast.Kind.errdefer_ and not failing:
-                continue
-            # the deferred block, written out on this exit: it reads its names as they are now
-            let deferred = d.body else continue
+        var at = exits.deferred_end(&self.scopes, self.defers.count, index)
+        while let deferred = exits.next_deferred(&self.defers, sc.defer_base, &at, failing):
             try self.block(deferred)
         if sc.restore_alloc:
-            let saved = try self.slot_address(sc.alloc_slot)
+            let saved = try self.slot_address(sc.alloc_saved)
             let target = try self.allocator_global()
             try self.f.copy_bytes(target, saved, 16)
 
@@ -214,15 +224,6 @@ extend Lowerer:
         while i > start:
             i -= 1
             try self.unwind(i, failing)
-
-    func loop_scope(label: str) -> usize:
-        var i = self.scopes.count
-        while i > 0:
-            i -= 1
-            let sc = self.scopes.get(i)
-            if sc.loop and (label.length == 0 or sc.label == label):
-                return i
-        return 0
 
     ## The address of `memory.allocator`, the thread-local current allocator.
     mutating func allocator_global() -> ir.Ref!:

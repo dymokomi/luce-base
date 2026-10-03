@@ -6,8 +6,8 @@ limited, planned, or excluded today; nothing is listed here that already exists.
 
 ## Active priority
 
-The standard library (`math`, `net` with HTTP/1.1 and WebSocket, `io`, `files`,
-`strings`) is in place; [NET_PROTOCOLS.md](https://github.com/dymokomi/luce-std/blob/main/docs/NET_PROTOCOLS.md) holds the protocol
+The standard modules (`io`, `strings`, `memory`, `os`, `thread`, …) and luce-std's
+(`math`, `net` with HTTP/1.1 and WebSocket, `files`, `paths`, …) are in place; [NET_PROTOCOLS.md](https://github.com/dymokomi/luce-std/blob/main/docs/NET_PROTOCOLS.md) holds the protocol
 contracts. TLS is paused and `luce-server` is a separate package;
 [ECOSYSTEM.md](ECOSYSTEM.md) defines those boundaries.
 The compiler items below remain a backlog and are pulled forward only when they block
@@ -56,10 +56,10 @@ runs it for longer. Every finding becomes a test.
    nothing else rebuilds; a gate in the same tree makes false findings.
 6. **The shape of the compiler, from the audit of 2026-09-14.** The remaining work
     of `~/dev/luce-base-audit-2026-09-14.md`, in order: unit tests for the rest of the
-    standard library under `tests/std` (`net`, `process`, `unicode`, `os`, the
-    graphics modules through their proving programs); every runtime
-    layout and mode named once and shared by the C emitter and the lowerer (error
-    layout, allocator vtable, `lb_fmtbuf`, memory orders, program modes) and the Win32,
+    standard modules under `tests/std`; every runtime layout and mode named once and
+    shared by the C emitter and the lowerer (error layout, allocator vtable,
+    `lb_fmtbuf`, program modes; the instances, scopes and memory orders are shared
+    since `back/instances`, `back/exits` and `back/calls`) and the Win32,
     AppKit, Metal, and GDI numbers named in the adapters; `back/c/emit/`,
     `sema/check/`, `back/ir/lower/`, and the native generators split along the
     seams the audit names, with the tree helpers and type layout written once; the

@@ -1,0 +1,363 @@
+#==============================================================================================
+#
+#   objects - Mach-O, ELF and COFF sections and symbols, for both native generators
+#
+#   DESCRIPTION:
+#       What the object format decides, whatever the instruction set: the sections code,
+#       data, thread-locals and initialisers go in, how a symbol is declared global, weak,
+#       hidden or kept, and the trailer an object ends with. The arm64 and x86-64
+#       generators ask for these without spelling object-format rules; how each loads an
+#       address (through a page, the GOT or the thread pointer) is its own (`object`).
+#       ELF directives are written with `%` (`%function`, `%progbits`), which the GNU and
+#       LLVM assemblers take on every target, where arm64's `@` would begin a comment.
+#
+#==============================================================================================
+
+import back.native.assembly
+import back.native.stable_names
+import back.ir.ir
+import back.target as build_target
+import support.buffer
+
+## The object format of a target: Mach-O on macOS, ELF on Linux, COFF on Windows.
+pub struct Format:
+    ## The target operating system, which selects the format.
+    pub let os: build_target.Os
+    let symbol_prefix: str
+    ## Whether the target is Apple's: Mach-O, and on arm64 Apple's calling convention.
+    pub let apple: bool
+    ## What begins a label the assembler keeps to itself: `L` on Mach-O, `.L` elsewhere.
+    pub let local_label: str
+    ## What begins a text literal's label.
+    pub let text_label: str
+    ## A function's alignment, as a power of two: 4 bytes for arm64's fixed-width
+    ## instructions, 16 for x86-64's decoder.
+    let function_alignment: u32
+
+    ## The format for `os`, with `symbol_prefix` on every symbol, aligning functions to
+    ## `2^function_alignment` bytes.
+    pub func init(os: build_target.Os, symbol_prefix: str, function_alignment: u32):
+        let apple = os == build_target.Os.macos
+        self.os = os
+        self.symbol_prefix = symbol_prefix
+        self.apple = apple
+        self.local_label = "L" if apple else ".L"
+        self.text_label = "l_text_" if apple else ".Ltext_"
+        self.function_alignment = function_alignment
+
+    ## Whether the format is ELF.
+    func elf() -> bool:
+        return self.os == build_target.Os.linux
+
+    ## Whether the format is COFF.
+    func coff() -> bool:
+        return self.os == build_target.Os.windows
+
+    ## `name` as the object spells a symbol: behind the target's prefix.
+    pub func symbol(out: buffer.Buffer*, name: str) -> !:
+        try out.put(self.symbol_prefix)
+        try out.put(name)
+
+    # mark: Symbols ===========================================================================
+
+    ## `.globl` and the linkage words: on ELF a weak symbol is `.weak` alone, since `.globl`
+    ## before it would only be changed back.
+    pub func global_symbol(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
+        if weak and self.elf():
+            try out.put("    .weak ")
+            try self.symbol(out, name)
+            try out.put("\n")
+            return
+        try out.put("    .globl ")
+        try self.symbol(out, name)
+        try out.put("\n")
+        try self.linkage(out, name, weak, used)
+
+    ## The words a symbol with those attributes needs after `.globl` (§9.8): Mach-O's
+    ## `.weak_definition` and `.no_dead_strip`, ELF's `.weak`; COFF declares its weak
+    ## symbols up front (`begin`), and ELF and COFF keep every symbol anyway.
+    pub func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
+        if weak and not self.coff():
+            try out.put("    .weak_definition " if self.apple else "    .weak ")
+            try self.symbol(out, name)
+            try out.put("\n")
+        if used and self.apple:
+            try out.put("    .no_dead_strip ")
+            try self.symbol(out, name)
+            try out.put("\n")
+
+    ## `name` a global the linker keeps to the image: `.private_extern` on Mach-O, `.hidden`
+    ## elsewhere. Pieces of one program's assembly name it; nothing outside the image can.
+    pub func hidden_global(out: buffer.Buffer*, name: str) -> !:
+        if self.apple:
+            try out.put("    .private_extern ")
+        else:
+            try out.put("    .globl ")
+            try out.put(name)
+            try out.put("\n    .hidden ")
+        try out.put(name)
+        try out.put("\n")
+
+    ## Declare the unit's weak symbols before any code: COFF's weak definitions and the
+    ## witness tables every unit that views a record defines, so the linker keeps one.
+    pub func begin(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
+        if not self.coff():
+            return
+        for global in program_unit.globals.span():
+            if global.weak:
+                try self.weak_reference(out, global.name)
+        for function in program_unit.functions.span():
+            if function.weak:
+                try self.weak_reference(out, function.name)
+        for table in program_unit.tables.span():
+            try self.weak_reference(out, table.name)
+
+    func weak_reference(out: buffer.Buffer*, name: str) -> !:
+        try out.put("    .weak ")
+        try self.symbol(out, name)
+        try out.put("\n")
+
+    # mark: Sections ==========================================================================
+
+    ## Switch to the text section.
+    pub func text_section(out: buffer.Buffer*) -> !:
+        try out.put("    .section __TEXT,__text,regular,pure_instructions\n" if self.apple else "    .text\n")
+
+    ## Open a function's section, align it, and emit its label. A COFF weak definition
+    ## gets a section of its own, so its fallback symbol is at offset zero.
+    pub func function_start(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if self.coff() and function.weak:
+            try out.put("\n    .section .text$")
+            try self.symbol(out, function.name)
+            try out.put(",\"xr\"")
+        elif function.section.length > 0:
+            try out.put("\n    .section ")
+            try out.put(build_target.section_name(function.section, true, self.os))
+            if self.coff():
+                try out.put(",\"xr\"")
+            elif self.elf():
+                try out.put(",\"ax\",%progbits")
+        try out.put("\n    .p2align ")
+        try out.put_u64((u64)self.function_alignment)
+        try out.put("\n")
+        try self.global_symbol(out, function.name, function.weak, function.used)
+        if self.elf():
+            try self.elf_type(out, function.name, "%function")
+        try self.symbol(out, function.name)
+        try out.put(":")
+
+    ## After a function's last instruction: on ELF its symbol's size, which tools and
+    ## `dladdr` (a crash report's names) want; then back to the text section after a
+    ## function placed in a named one.
+    pub func function_end(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if self.elf():
+            try out.put("\n    .size ")
+            try self.symbol(out, function.name)
+            try out.put(", .-")
+            try self.symbol(out, function.name)
+            try out.put("\n")
+        if function.section.length > 0 or (self.coff() and function.weak):
+            try out.put("\n")
+            try self.text_section(out)
+
+    ## The loader runs the unit's initialiser (§17.6): Mach-O's `__mod_init_func`, ELF's
+    ## `.init_array`, COFF's `.CRT$XCU`.
+    pub func initializer(out: buffer.Buffer*, name: str) -> !:
+        if name.length == 0:
+            return
+        if self.apple:
+            try out.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
+        elif self.coff():
+            try out.put("\n    .section .CRT$XCU,\"dr\"\n    .p2align 3\n    .quad ")
+        else:
+            try out.put("\n    .section .init_array,\"aw\"\n    .p2align 3\n    .quad ")
+        try self.symbol(out, name)
+        try out.put("\n")
+        try self.text_section(out)
+
+    ## Where text literals go: Mach-O's `__const`, not `__cstring`, because the linker
+    ## merges C string literals by their content up to a NUL, and a Base text may hold one
+    ## (§4.4).
+    pub func read_only(out: buffer.Buffer*) -> !:
+        if self.apple:
+            try out.put("\n    .section __TEXT,__const\n")
+        elif self.coff():
+            try out.put("\n    .section .rdata,\"dr\"\n")
+        else:
+            try out.put("\n    .section .rodata\n")
+
+    ## Where witness tables go: read-only data with relocations.
+    pub func relocated_read_only(out: buffer.Buffer*) -> !:
+        if self.apple:
+            try out.put("\n    .section __DATA,__const\n    .p2align 3\n")
+        elif self.coff():
+            try out.put("\n    .section .rdata,\"dr\"\n    .p2align 3\n")
+        else:
+            try out.put("\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
+
+    ## Where a witness table goes on COFF, which coalesces weak definitions by section: a
+    ## section named after it. Elsewhere the relocated read-only section holds them all.
+    pub func table_start(out: buffer.Buffer*, name: str) -> !:
+        if self.coff():
+            try out.put("\n    .section .rdata$")
+            try self.symbol(out, name)
+            try out.put(",\"dr\"\n    .p2align 3\n")
+
+    ## The unit's last line: on Mach-O every symbol an atom of its own, what the linker
+    ## needs to coalesce weak definitions across units and drop dead ones; on ELF a
+    ## non-executable stack note.
+    pub func finish(out: buffer.Buffer*) -> !:
+        if self.apple:
+            try out.put(".subsections_via_symbols\n")
+        elif self.elf():
+            try out.put("\n    .section .note.GNU-stack,\"\",%progbits\n")
+
+    # mark: Data both generators lay out ======================================================
+
+    ## The name of text literal `n`: the format's local text label and its index, or with
+    ## `split` the program's own symbol `lb_text_<tag>` every piece of the assembly can name.
+    pub func text_name(out: buffer.Buffer*, split: bool, tags: const u64[], n: u32) -> !:
+        if split:
+            try self.symbol(out, "lb_text_")
+            try stable_names.put_tag(out, tags[(usize)n])
+        else:
+            try out.put(self.text_label)
+            try out.put_u64((u64)n)
+
+    ## The unit's text literals, NUL-terminated, each under its `text_name`, after the
+    ## read-only section is opened; with `split` each a hidden global the pieces share.
+    pub func texts(writer: assembly.Text*, program_unit: ir.Unit*, split: bool, tags: const u64[]) -> !:
+        for i in 0..<program_unit.texts.count:
+            var name = try buffer.Buffer.create(32)
+            defer name.destroy()
+            try self.text_name(&name, split, tags, u32(i))
+            if split:
+                try self.hidden_global(&writer.out, name.view())
+            try writer.put(name.view())
+            try writer.put(":\n    .asciz ")
+            try writer.c_string(program_unit.texts.get(i).bytes)
+            try writer.put("\n")
+
+    ## The unit's witness tables, in the relocated read-only section: every unit that views
+    ## a record has the same table, weak, and the linker keeps one.
+    pub func witness_tables(writer: assembly.Text*, program_unit: ir.Unit*) -> !:
+        try self.relocated_read_only(&writer.out)
+        for t in program_unit.tables.span():
+            try self.table_start(&writer.out, t.name)
+            try self.global_symbol(&writer.out, t.name, true, false)
+            try self.symbol(&writer.out, t.name)
+            try writer.put(":\n")
+            for entry in t.entries.span():
+                try writer.put("    .quad ")
+                if entry.length == 0:
+                    try writer.put("0")
+                else:
+                    try self.symbol(&writer.out, entry)
+                try writer.put("\n")
+
+    ## The unit's module-level asm blocks, verbatim, in the text section (§8.9).
+    pub func module_asm(writer: assembly.Text*, program_unit: ir.Unit*) -> !:
+        for block in program_unit.module_asm.span():
+            try writer.put("\n")
+            try writer.put(block.bytes)
+
+    # mark: Globals ===========================================================================
+
+    ## Every global of the unit that the unit defines: thread-locals, named sections, weak
+    ## and ordinary zero-filled storage.
+    pub func globals(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
+        for g in program_unit.globals.span():
+            if g.external:
+                continue
+            let size = (u64)g.size if g.size > 0 else 1
+            let align = assembly.alignment_power((u64)g.align if g.align > 0 else 1)
+            if self.apple:
+                try self.macho_global(out, g, size, align)
+            else:
+                try self.global(out, g, size, align)
+
+    func macho_global(out: buffer.Buffer*, g: ir.Global, size: u64, align: u64) -> !:
+        if g.is_thread_local:
+            try out.put("\n    .section __DATA,__thread_bss,thread_local_zerofill\n    .p2align 4\n")
+            try self.symbol(out, g.name)
+            try out.put("$tlv$init:\n    .space ")
+            try out.put_u64(size)
+            try out.put("\n    .section __DATA,__thread_vars,thread_local_variables\n    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.symbol(out, g.name)
+            try out.put(":\n    .quad __tlv_bootstrap\n    .quad 0\n    .quad ")
+            try self.symbol(out, g.name)
+            try out.put("$tlv$init\n")
+        elif g.section.length > 0:
+            # a named section: laid out as zeroed space where the program asked
+            try out.put("\n    .section ")
+            try out.put(build_target.section_name(g.section, false, self.os))
+            try out.put("\n    .p2align ")
+            try out.put_u64(align)
+            try out.put("\n    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.linkage(out, g.name, g.weak, g.used)
+            try self.symbol(out, g.name)
+            try out.put(":\n    .space ")
+            try out.put_u64(size)
+            try out.put("\n")
+        elif g.weak:
+            # the linker coalesces weak storage only when it is data, not zero-fill
+            try out.put("    .section __DATA,__data\n    .p2align ")
+            try out.put_u64(align)
+            try out.put("\n    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.linkage(out, g.name, true, g.used)
+            try self.symbol(out, g.name)
+            try out.put(":\n    .zero ")
+            try out.put_u64(size)
+            try out.put("\n")
+        else:
+            try out.put("    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.linkage(out, g.name, g.weak, g.used)
+            try out.put("    .zerofill __DATA,__bss,")
+            try self.symbol(out, g.name)
+            try out.put(",")
+            try out.put_u64(size)
+            try out.put(",")
+            try out.put_u64(align)
+            try out.put("\n")
+
+    ## An ELF or COFF global: its section, then the symbol and zeroed space. A COFF weak
+    ## definition gets a section of its own, as a weak function does.
+    func global(out: buffer.Buffer*, g: ir.Global, size: u64, align: u64) -> !:
+        if g.weak and self.coff():
+            try out.put("\n    .section .data$")
+            try self.symbol(out, g.name)
+            try out.put(",\"dw\"\n")
+        elif g.is_thread_local:
+            try out.put("\n    .section .tls$LUCE,\"dw\"\n" if self.coff() else "\n    .section .tbss,\"awT\",%nobits\n")
+        elif g.section.length > 0:
+            try out.put("\n    .section ")
+            try out.put(build_target.section_name(g.section, false, self.os))
+            try out.put(",\"dw\"\n" if self.coff() else ",\"aw\"\n")
+        else:
+            try out.put("\n    .bss\n")
+        try self.global_symbol(out, g.name, g.weak, g.used)
+        if self.elf():
+            try self.elf_type(out, g.name, "%object")
+        try out.put("    .p2align ")
+        try out.put_u64(align)
+        try out.put("\n")
+        try self.symbol(out, g.name)
+        try out.put(":\n    .zero ")
+        try out.put_u64(size)
+        try out.put("\n")
+
+    ## ELF's `.type name, kind`.
+    func elf_type(out: buffer.Buffer*, name: str, kind: str) -> !:
+        try out.put("    .type ")
+        try self.symbol(out, name)
+        try out.put(", ")
+        try out.put(kind)
+        try out.put("\n")

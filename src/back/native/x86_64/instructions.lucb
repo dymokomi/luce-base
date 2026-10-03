@@ -154,7 +154,7 @@ extend Generator:
                     try self.address_operand(d, n.a)
                     try self.finish(n.dst, ir.Class.l, d)
             .addr_tls:
-                try self.object_format.thread_address(&self.writer.out, n.a.name)
+                try object.thread_address(&self.object_format, &self.writer.out, n.a.name)
                 try self.store_temp("%rax", ir.Class.l, n.dst)
             .blit:
                 if n.extra <= regalloc.inline_block:

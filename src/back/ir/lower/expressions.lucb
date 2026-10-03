@@ -329,7 +329,7 @@ extend Lowerer:
         let slot = try self.new_slot(t)
         let a = try self.slot_address(slot)
         try self.f.zero_bytes(a, self.size(t))
-        try self.f.store(ir.Op.storew, ir.const_ref((i64)lower_case_tag(d, c)), a)
+        try self.f.store(ir.Op.storew, ir.const_ref((i64)instances.case_tag(d, c)), a)
         if e.body != none and c.body != none:
             let base = self.payload_offset(t)
             var offset: u64 = 0

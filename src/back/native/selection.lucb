@@ -405,17 +405,3 @@ func access_bytes(op: ir.Op) -> u32:
 
 func same_temp(a: ir.Ref, b: ir.Ref) -> bool:
     return a.kind == ir.RefKind.temp and b.kind == ir.RefKind.temp and a.index == b.index
-
-## The comparison that a fused branch inverts to when the fall-through is the taken side.
-pub func inverse(op: ir.Op) -> ir.Op:
-    match op:
-        .ceq: return ir.Op.cne
-        .cne: return ir.Op.ceq
-        .cslt: return ir.Op.csge
-        .csle: return ir.Op.csgt
-        .csgt: return ir.Op.csle
-        .csge: return ir.Op.cslt
-        .cult: return ir.Op.cuge
-        .cule: return ir.Op.cugt
-        .cugt: return ir.Op.cule
-        _: return ir.Op.cult

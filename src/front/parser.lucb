@@ -271,14 +271,9 @@ pub struct Parser:
         let n = try self.node(ast.Kind.extend_, "")
         discard(self.take())
         n.text = try self.expect_name()
-        try self.expect_op(":")
-        try self.expect_newline()
-        try self.expect_indent()
+        try self.open_block()
         var tail: ast.Node*? = none
-        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
-            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
-                discard(self.take())
-                continue
+        while self.block_continues():
             let m = try self.parse_member(false)
             if m.kind != ast.Kind.func_:
                 return try self.fail_at(m, "an extension adds methods; a field belongs in the type's declaration (§9.5)")
@@ -328,9 +323,7 @@ pub struct Parser:
         let n = try self.node(ast.Kind.extern_type, "")
         discard(self.take())
         n.text = try self.expect_name()
-        try self.expect_op(":")
-        try self.expect_newline()
-        try self.expect_indent()
+        try self.open_block()
         if not self.at_name("destroy"):
             return try self.fail("a handle names its `destroy` function (§17.7)")
         discard(self.take())
@@ -614,14 +607,43 @@ pub struct Parser:
         try self.expect_newline()
         try self.expect_indent()
         var tail: ast.Node*? = none
-        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
-            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
-                discard(self.take())
-                continue
+        while self.block_continues():
             let m = try self.parse_member(is_extern)
             ast.append(&n.body, &tail, m)
         discard(self.take())
         return n
+
+    ## From the `open` bracket at lookahead `*i` to just past its partner `close`, nested
+    ## pairs included; false when the source ends first.
+    func skip_bracketed(i: usize*, open: str, close: str) -> bool:
+        var depth: usize = 1
+        *i += 1
+        while depth > 0:
+            let inner = self.peek(*i)
+            if inner.kind == token.Kind.eof:
+                return false
+            if inner.kind == token.Kind.operator:
+                let text = self.text_of(inner)
+                if text == open:
+                    depth += 1
+                elif text == close:
+                    depth -= 1
+            *i += 1
+        return true
+
+    ## `:`, the end of the line and an indent: the start of an indented block of members,
+    ## cases or statements.
+    mutating func open_block() -> !:
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+
+    ## Whether the indented block goes on: the blank lines and doc comments between its
+    ## entries are passed over, and it ends at its dedent or at the end of the source.
+    mutating func block_continues() -> bool:
+        while self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+            discard(self.take())
+        return not self.at(token.Kind.dedent) and not self.at(token.Kind.eof)
 
     mutating func expect_indent() -> !:
         if not self.at(token.Kind.indent):
@@ -689,10 +711,7 @@ pub struct Parser:
         try self.expect_newline()
         try self.expect_indent()
         var tail: ast.Node*? = none
-        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
-            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
-                discard(self.take())
-                continue
+        while self.block_continues():
             let method_ahead = self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or (self.at_attribute() and not self.peek_op(1, "=") and not self.peek_op(1, ":")) or (self.at_kw("func") and self.peek(1).kind == token.Kind.name)
             if method_ahead:
                 let m = try self.parse_member(false)
@@ -713,14 +732,9 @@ pub struct Parser:
         let n = try self.node(ast.Kind.extern_union if is_extern else ast.Kind.union_, "")
         try self.expect_kw("union")
         n.text = try self.expect_name()
-        try self.expect_op(":")
-        try self.expect_newline()
-        try self.expect_indent()
+        try self.open_block()
         var tail: ast.Node*? = none
-        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
-            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
-                discard(self.take())
-                continue
+        while self.block_continues():
             let pub_member = self.at_kw("pub") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":")
             if not is_extern and not pub_member and (self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func")):
                 let m = try self.parse_member(false)
@@ -744,14 +758,9 @@ pub struct Parser:
         n.text = try self.expect_name()
         if self.at_op("["):
             n.left = try self.parse_generic_params()
-        try self.expect_op(":")
-        try self.expect_newline()
-        try self.expect_indent()
+        try self.open_block()
         var tail: ast.Node*? = none
-        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
-            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
-                discard(self.take())
-                continue
+        while self.block_continues():
             let sig = try self.parse_func_sig()
             ast.append(&n.body, &tail, sig)
         discard(self.take())
@@ -860,9 +869,7 @@ pub struct Parser:
                 if not self.eat_op(","):
                     break
             try self.expect_op(")")
-        try self.expect_op(":")
-        try self.expect_newline()
-        try self.expect_indent()
+        try self.open_block()
         var tail: ast.Node*? = none
         while self.at(token.Kind.raw_line):
             let line = try self.taken(ast.Kind.literal)
@@ -887,10 +894,7 @@ pub struct Parser:
         discard(self.take())
         try self.expect_indent()
         try self.enter()
-        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
-            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
-                discard(self.take())
-                continue
+        while self.block_continues():
             let s = try self.parse_statement()
             ast.append(&block.body, &tail, s)
         if self.at(token.Kind.dedent):
@@ -1101,14 +1105,9 @@ pub struct Parser:
         let n = try self.node(ast.Kind.match_expr if is_expr else ast.Kind.match_, "")
         try self.expect_kw("match")
         n.left = try self.parse_expression()
-        try self.expect_op(":")
-        try self.expect_newline()
-        try self.expect_indent()
+        try self.open_block()
         var tail: ast.Node*? = none
-        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
-            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
-                discard(self.take())
-                continue
+        while self.block_continues():
             let arm = try self.node(ast.Kind.match_arm, "")
             var ptail: ast.Node*? = none
             while true:
@@ -1339,19 +1338,8 @@ pub struct Parser:
         if qualified and t.kind == token.Kind.operator and self.text_of(t) == "(":
             # `(const (T*)*)p`: a parenthesised pointer type after a qualifier, C's
             # `T *const *` (§5.3); `((x))` alone is a grouped expression
-            var depth: usize = 1
-            i += 1
-            while depth > 0:
-                let inner = self.peek(i)
-                if inner.kind == token.Kind.eof:
-                    return false
-                if inner.kind == token.Kind.operator:
-                    let text = self.text_of(inner)
-                    if text == "(":
-                        depth += 1
-                    elif text == ")":
-                        depth -= 1
-                i += 1
+            if not self.skip_bracketed(&i, "(", ")"):
+                return false
             typed = true
         else:
             if t.kind != token.Kind.name:
@@ -1375,19 +1363,8 @@ pub struct Parser:
                 i += 2
             elif s == "[" and typed:
                 # `(List[T]*)p`: the type arguments of a generic instance (§7.5)
-                var depth: usize = 1
-                i += 1
-                while depth > 0:
-                    let inner = self.peek(i)
-                    if inner.kind == token.Kind.eof:
-                        return false
-                    if inner.kind == token.Kind.operator:
-                        let text = self.text_of(inner)
-                        if text == "[":
-                            depth += 1
-                        elif text == "]":
-                            depth -= 1
-                    i += 1
+                if not self.skip_bracketed(&i, "[", "]"):
+                    return false
             else:
                 break
             t = self.peek(i)

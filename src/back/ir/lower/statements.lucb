@@ -414,10 +414,10 @@ extend Lowerer:
         return try self.call_named("lb_core_11utf8_scalar", start, 4, ir.Class.w, true, types.char_id)
 
     mutating func jump(s: ast.Node*) -> !:
-        let target = self.loop_scope(s.text)
+        let target = exits.innermost_loop(&self.scopes, s.text)
         try self.unwind_from(target + 1, false)
         let sc = self.scopes.get(target)
-        try self.f.jump(sc.break_label if s.kind == ast.Kind.break_ else sc.continue_label)
+        try self.f.jump(sc.exit if s.kind == ast.Kind.break_ else sc.continue_label)
         # what follows is unreachable; a fresh label keeps the block structure sound
         try self.f.place_label(self.f.label())
 
@@ -549,7 +549,7 @@ extend Lowerer:
         try self.push_scope(false, "", 0, 0)
         var sc = self.scopes.get(self.scopes.count - 1)
         sc.restore_alloc = true
-        sc.alloc_slot = saved
+        sc.alloc_saved = saved
         self.scopes.set(self.scopes.count - 1, sc)
         if let body = s.body:
             try self.block(body)

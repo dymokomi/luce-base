@@ -1,217 +1,43 @@
 #==============================================================================================
 #
-#   object - ELF and COFF sections, symbols and relocations for x86-64
+#   object - How x86-64 code loads an address, on ELF and COFF
 #
 #   DESCRIPTION:
-#       The instruction selector requests storage and addresses without spelling
-#       object-format rules.
+#       An external symbol's address (through the GOT on ELF) and a thread-local's (the
+#       initial-exec model, or COFF's TLS index). Everything else about the object format
+#       is the shared `objects.Format`.
 #
 #==============================================================================================
 
-import back.native.assembly
-import back.ir.ir
+import back.native.objects
 import back.target as build_target
 import support.buffer
 
-## Emits ELF or COFF sections, symbols and relocations for x86-64.
-pub struct Format:
-    ## The target operating system, which selects ELF or COFF.
-    pub let os: build_target.Os
-    let symbol_prefix: str
+## Load the address of external symbol `name` into `reg`, through the GOT on ELF.
+pub func external_address(object_format: const objects.Format*, out: buffer.Buffer*, name: str, reg: str) -> !:
+    # a function's address, or another image's data (`import_ref`), goes through the
+    # GOT, so a symbol defined in a linked shared object resolves
+    try line(out, "leaq " if object_format.os == build_target.Os.windows else "movq ")
+    try object_format.symbol(out, name)
+    try out.put("(%rip), " if object_format.os == build_target.Os.windows else "@GOTPCREL(%rip), ")
+    try out.put(reg)
 
-    ## A formatter for `os`, with `symbol_prefix` on every emitted symbol.
-    pub func init(os: build_target.Os, symbol_prefix: str):
-        self.os = os
-        self.symbol_prefix = symbol_prefix
-
-    func symbol(out: buffer.Buffer*, name: str) -> !:
-        try out.put(self.symbol_prefix)
-        try out.put(name)
-
-    ## `.globl` and the linkage words: on ELF a weak symbol is `.weak` alone, since
-    ## `.globl` before it would only be changed back.
-    pub func global_symbol(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
-        if weak and self.os == build_target.Os.linux:
-            try out.put("    .weak ")
-            try self.symbol(out, name)
-            try out.put("\n")
-            return
-        try out.put("    .globl ")
-        try self.symbol(out, name)
-        try out.put("\n")
-        try self.linkage(out, name, weak, used)
-
-    ## `name` a global the linker keeps to the image (ELF `.hidden`): pieces of one program's
-    ## assembly name it; nothing outside the image can.
-    pub func hidden_global(out: buffer.Buffer*, name: str) -> !:
-        try out.put("    .globl ")
-        try out.put(name)
-        try out.put("\n    .hidden ")
-        try out.put(name)
-        try out.put("\n")
-
-    ## The extra `.weak` a non-Windows target needs after `.globl`; `used` has no directive.
-    pub func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
-        if weak and self.os != build_target.Os.windows:
-            try out.put("    .weak ")
-            try self.symbol(out, name)
-            try out.put("\n")
-        discard(used)
-
-    ## Where a witness table goes: COFF coalesces weak definitions by section, so each
-    ## table has one named after it; ELF keeps the read-only relocated section.
-    pub func table_start(out: buffer.Buffer*, name: str) -> !:
-        if self.os == build_target.Os.windows:
-            try out.put("\n    .section .rdata$")
-            try self.symbol(out, name)
-            try out.put(",\"dr\"\n    .p2align 3\n")
-
-    ## End a function: on ELF its symbol's size, which dladdr needs to place an
-    ## address inside it (a crash report's names); then back to the text section
-    ## after a function placed in a named one.
-    pub func leave_section(out: buffer.Buffer*, function: ir.Function*) -> !:
-        if self.os == build_target.Os.linux:
-            try out.put("\n    .size ")
-            try self.symbol(out, function.name)
-            try out.put(", .-")
-            try self.symbol(out, function.name)
-            try out.put("\n")
-        if function.section.length > 0 or (self.os == build_target.Os.windows and function.weak):
-            try out.put("\n    .text\n")
-
-    # mark: Functions, sections and globals ===================================================
-
-    ## Open a function's section, align it, and emit its label.
-    pub func function_start(out: buffer.Buffer*, function: ir.Function*) -> !:
-        if self.os == build_target.Os.windows and function.weak:
-            try out.put("\n    .section .text$")
-            try self.symbol(out, function.name)
-            try out.put(",\"xr\"")
-        elif function.section.length > 0:
-            try out.put("\n    .section ")
-            try out.put(build_target.section_name(function.section, true, self.os))
-            try out.put(",\"xr\"" if self.os == build_target.Os.windows else ",\"ax\",@progbits")
-        try out.put("\n    .p2align 4\n")
-        try self.global_symbol(out, function.name, function.weak, function.used)
-        if self.os != build_target.Os.windows:
-            try out.put("    .type ")
-            try self.symbol(out, function.name)
-            try out.put(", @function\n")
-        try self.symbol(out, function.name)
-        try out.put(":")
-
-    ## Declare the unit's weak symbols before any code (COFF).
-    pub func begin(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
-        # Declare COFF weak references before emitting code. Weak definitions
-        # receive individual sections so their fallback symbol has zero offset.
-        if self.os == build_target.Os.windows:
-            for global in program_unit.globals.span():
-                if global.weak:
-                    try out.put("    .weak ")
-                    try self.symbol(out, global.name)
-                    try out.put("\n")
-            for function in program_unit.functions.span():
-                if function.weak:
-                    try out.put("    .weak ")
-                    try self.symbol(out, function.name)
-                    try out.put("\n")
-            # every unit that views a record defines its witness table: weak, so the
-            # linker keeps one
-            for table in program_unit.tables.span():
-                try out.put("    .weak ")
-                try self.symbol(out, table.name)
-                try out.put("\n")
-
-    ## Register `name` as a load-time initializer (`.init_array`, `__mod_init_func`, `.CRT$XCU`).
-    pub func initializer(out: buffer.Buffer*, name: str) -> !:
-        # the loader runs the unit's initialiser: ELF's `.init_array`, Mach-O's
-        # `__mod_init_func` (§17.6)
-        if name.length > 0:
-            if self.os == build_target.Os.macos:
-                try out.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
-            elif self.os == build_target.Os.windows:
-                try out.put("\n    .section .CRT$XCU,\"dr\"\n    .p2align 3\n    .quad ")
-            else:
-                try out.put("\n    .section .init_array,\"aw\"\n    .p2align 3\n    .quad ")
-            try self.symbol(out, name)
-            try out.put("\n    .text\n")
-
-    ## Emit the reserved storage for the unit's own globals.
-    pub func globals(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
-        var i: usize = 0
-        while i < program_unit.globals.count:
-            let g = program_unit.globals.get(i)
-            if g.external:
-                i += 1
-                continue
-            let size = (u64)g.size if g.size > 0 else 1
-            let align = assembly.alignment_power((u64)g.align if g.align > 0 else 1)
-            if g.weak and self.os == build_target.Os.windows:
-                try out.put("\n    .section .data$")
-                try self.symbol(out, g.name)
-                try out.put(",\"dw\"\n")
-            elif g.is_thread_local:
-                try out.put("\n    .section .tls$LUCE,\"dw\"\n" if self.os == build_target.Os.windows else "\n    .section .tbss,\"awT\",@nobits\n")
-            elif g.section.length > 0:
-                try out.put("\n    .section ")
-                try out.put(build_target.section_name(g.section, false, self.os))
-                try out.put(",\"dw\"\n" if self.os == build_target.Os.windows else ",\"aw\"\n")
-            else:
-                try out.put("\n    .bss\n")
-            try self.global_symbol(out, g.name, g.weak, g.used)
-            if self.os != build_target.Os.windows:
-                try out.put("    .type ")
-                try self.symbol(out, g.name)
-                try out.put(", @object\n")
-            try out.put("    .p2align ")
-            try out.put_u64(align)
-            try out.put("\n")
-            try self.symbol(out, g.name)
-            try out.put(":\n    .zero ")
-            try out.put_u64(size)
-            try out.put("\n")
-            i += 1
-
-    ## Emit the object's trailer (the non-executable-stack note on ELF).
-    pub func finish(out: buffer.Buffer*) -> !:
-        if self.os != build_target.Os.windows:
-            try out.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
-
-    # mark: Addresses =========================================================================
-
-    ## Load the address of external symbol `name` into `reg`, through the GOT on ELF.
-    pub func external_address(out: buffer.Buffer*, name: str, reg: str) -> !:
-        # a function's address, or another image's data (`import_ref`), goes through the
-        # GOT, so a symbol defined in a linked shared object resolves
-        try line(out, "leaq " if self.os == build_target.Os.windows else "movq ")
-        try self.symbol(out, name)
-        try out.put("(%rip), " if self.os == build_target.Os.windows else "@GOTPCREL(%rip), ")
-        try out.put(reg)
-
-    ## Load the address of thread-local `name` under the initial-exec model.
-    pub func thread_address(out: buffer.Buffer*, name: str) -> !:
-        # the initial-exec model: the thread pointer plus the variable's offset in
-        # the static thread block, which the linker writes into the GOT
-        if self.os == build_target.Os.windows:
-            try line(out, "movl _tls_index(%rip), %eax")
-            try line(out, "movq %gs:88, %r11")
-            try line(out, "movq (%r11,%rax,8), %rax")
-            try line(out, "leaq ")
-            try self.symbol(out, name)
-            try out.put("@SECREL32(%rax), %rax")
-        else:
-            try line(out, "movq %fs:0, %rax")
-            try line(out, "addq ")
-            try self.symbol(out, name)
-            try out.put("@GOTTPOFF(%rip), %rax")
-
-    ## The read-only data section directive.
-    pub func read_only() -> str:
-        return "\n    .section .rdata,\"dr\"" if self.os == build_target.Os.windows else "\n    .section .rodata"
-
-    ## The section directive for read-only data that carries relocations.
-    pub func relocated_read_only() -> str:
-        return "\n    .section .rdata,\"dr\"\n    .p2align 3\n" if self.os == build_target.Os.windows else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n"
+## Load the address of thread-local `name` under the initial-exec model.
+pub func thread_address(object_format: const objects.Format*, out: buffer.Buffer*, name: str) -> !:
+    # the initial-exec model: the thread pointer plus the variable's offset in
+    # the static thread block, which the linker writes into the GOT
+    if object_format.os == build_target.Os.windows:
+        try line(out, "movl _tls_index(%rip), %eax")
+        try line(out, "movq %gs:88, %r11")
+        try line(out, "movq (%r11,%rax,8), %rax")
+        try line(out, "leaq ")
+        try object_format.symbol(out, name)
+        try out.put("@SECREL32(%rax), %rax")
+    else:
+        try line(out, "movq %fs:0, %rax")
+        try line(out, "addq ")
+        try object_format.symbol(out, name)
+        try out.put("@GOTTPOFF(%rip), %rax")
 
 func line(out: buffer.Buffer*, text: str) -> !:
     try out.put("\n    ")

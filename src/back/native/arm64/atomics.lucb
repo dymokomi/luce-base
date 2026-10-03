@@ -10,6 +10,22 @@
 extend Generator:
     # mark: Atomics ============================================================================
 
+    ## `fresh = old` when `old` compares `cond` (`ge` or `le`) to `value`, else `value`: the
+    ## new value of an atomic max or min.
+    mutating func extreme(fresh: str, old: str, value: str, cond: str) -> !:
+        try self.writer.line("cmp ")
+        try self.writer.put(old)
+        try self.writer.put(", ")
+        try self.writer.put(value)
+        try self.writer.line("csel ")
+        try self.writer.put(fresh)
+        try self.writer.put(", ")
+        try self.writer.put(old)
+        try self.writer.put(", ")
+        try self.writer.put(value)
+        try self.writer.put(", ")
+        try self.writer.put(cond)
+
     ## Read-modify-write atomics as an exclusive-load, compute, exclusive-store loop that
     ## retries until the store holds; acquire and release follow the ordering asked for,
     ## and the old value is the result.
@@ -42,29 +58,9 @@ extend Generator:
             .atomic_swap:
                 try self.writer.line("mov ")
             .atomic_max:
-                try self.writer.line("cmp ")
-                try self.writer.put(old)
-                try self.writer.put(", ")
-                try self.writer.put(value)
-                try self.writer.line("csel ")
-                try self.writer.put(fresh)
-                try self.writer.put(", ")
-                try self.writer.put(old)
-                try self.writer.put(", ")
-                try self.writer.put(value)
-                try self.writer.put(", ge")
+                try self.extreme(fresh, old, value, "ge")
             .atomic_min:
-                try self.writer.line("cmp ")
-                try self.writer.put(old)
-                try self.writer.put(", ")
-                try self.writer.put(value)
-                try self.writer.line("csel ")
-                try self.writer.put(fresh)
-                try self.writer.put(", ")
-                try self.writer.put(old)
-                try self.writer.put(", ")
-                try self.writer.put(value)
-                try self.writer.put(", le")
+                try self.extreme(fresh, old, value, "le")
             _:
                 try self.writer.line("mov ")
         if n.op != ir.Op.atomic_max and n.op != ir.Op.atomic_min:

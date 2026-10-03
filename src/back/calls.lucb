@@ -4,8 +4,9 @@
 #
 #   DESCRIPTION:
 #       Shapes of call the checker leaves for the backends to recognise: the core `error`
-#       and `trap`, the receiver a formatted field's `display` writes, and the `indexed()`
-#       a `for` walks by index. The C backend and the IR lowering ask the same questions
+#       and `trap`, the receiver a formatted field's `display` writes, the `indexed()` a
+#       `for` walks by index, the argument a call gives each parameter, and the fields a
+#       record literal supplies, and an atomic call's arguments and orderings. The C backend and the IR lowering ask the same questions
 #       here, so they agree on the answers.
 #
 #==============================================================================================
@@ -43,3 +44,57 @@ pub func indexed_receiver(e: ast.Node*) -> ast.Node*?:
     if callee.kind != ast.Kind.member or callee.text != "indexed" or callee.resolved != none:
         return none
     return callee.left
+
+## The argument a call's `args` give parameter `p`, the `index`-th: the one named for it,
+## else the `index`-th positional one; none when neither is given.
+pub func given_argument(args: ast.Node*?, p: ast.Node*, index: usize) -> ast.Node*?:
+    var given: ast.Node*? = none
+    var position: usize = 0
+    var a = args
+    while let arg = a:
+        if arg.text.length > 0:
+            if arg.text == p.text:
+                given = arg
+        else:
+            if position == index:
+                given = arg
+            position += 1
+        a = arg.next
+    return given
+
+## Whether the record literal `e` gives `field` a value.
+pub func supplies(e: ast.Node*, field: ast.Node*) -> bool:
+    var argument = e.body
+    while let given = argument:
+        if given.resolved == field:
+            return true
+        argument = given.next
+    return false
+
+## The values of a call's first `out.length` arguments, in order, the rest of `out` none;
+## returns how many arguments the call has.
+pub func argument_values(e: ast.Node*, out: ast.Node*?[]) -> usize:
+    for i in 0..<out.length:
+        out[i] = none
+    var count: usize = 0
+    var cursor = e.body
+    while let a = cursor:
+        if count < out.length:
+            out[count] = a.left
+        count += 1
+        cursor = a.next
+    return count
+
+## An `atomic.Ordering` argument as C11 numbers it, `memory_order_relaxed` 0 to `seq_cst`
+## 5; an ordering not given is `seq_cst`.
+pub func ordering(given: ast.Node*?) -> u32:
+    let e = given else return 5
+    if e.text == "relaxed":
+        return 0
+    if e.text == "acquire":
+        return 2
+    if e.text == "release":
+        return 3
+    if e.text == "acq_rel":
+        return 4
+    return 5

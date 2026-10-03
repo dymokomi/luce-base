@@ -115,7 +115,7 @@ extend Generator:
         let branch = self.f.instrs.get(i + 1)
         var comparison = self.f.instrs.get(i)
         if next == branch.extra:
-            comparison.op = selection.inverse(comparison.op)
+            comparison.op = ir.negated(comparison.op)
         try self.comparison(comparison, branch, next)
 
     ## `.weak` for a weak symbol (§9.8); ELF has no directive for `used`, which only matters
@@ -163,7 +163,7 @@ extend Generator:
                 self.at = k
                 try self.instruction(self.f.instrs.get(k))
                 k += 1
-            try self.object_format.leave_section(&self.writer.out, self.f)
+            try self.object_format.function_end(&self.writer.out, self.f)
             return
         try self.unwinding.begin(&self.writer.out, self.symbol_prefix, self.f.name)
         try self.writer.line("pushq %rbp")
@@ -250,4 +250,4 @@ extend Generator:
         try self.settle_windows_saves(text_start)
         if self.f.debug:
             try assembly.describe_frame(&self.descriptors, self.symbol_prefix, ".Ltext_", self.program_unit, self.f, &self.fr)
-        try self.object_format.leave_section(&self.writer.out, self.f)
+        try self.object_format.function_end(&self.writer.out, self.f)

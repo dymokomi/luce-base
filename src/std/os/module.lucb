@@ -23,7 +23,6 @@ extern func getppid() -> i32
 extern func gethostname(buffer: u8*, size: usize) -> i32
 extern func c_exit as "exit"(code: i32) -> never
 extern func sysconf(option: i32) -> i64
-extern func getpagesize() -> i32
 extern func getentropy(buffer: void*, count: usize) -> i32
 extern func BCryptGenRandom(algorithm: void*?, buffer: u8*, count: u32, flags: u32) -> i32
 
@@ -115,11 +114,7 @@ pub func cpus() -> u32:
 
 ## The host's memory page size in bytes.
 pub func page_size() -> usize:
-    if platform.windows:
-        var info: SystemInfo = ---
-        GetSystemInfo(&info)
-        return (usize)info.page_size
-    return (usize)getpagesize()
+    return memory.page_size()
 
 ## The value of an environment variable, or none when it is not set. Copy a view
 ## that must survive another env call on this thread or an environment mutation.

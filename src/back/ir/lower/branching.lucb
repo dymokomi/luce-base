@@ -127,6 +127,19 @@ extend Lowerer:
 
     # -- match ----------------------------------------------------------------------------
 
+    ## The body of match arm `a`, its value stored for a `match` expression, then out of the
+    ## arm's scope to `done`.
+    mutating func finish_arm(a: ast.Node*, is_expr: bool, done: u32) -> !:
+        if let body = a.body:
+            if is_expr:
+                let bv = try self.value(body, self.match_type)
+                try self.store_to(try self.slot_address(self.match_slot), bv)
+            else:
+                try self.block(body)
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        try self.f.jump(done)
+
     mutating func match_stmt(m: ast.Node*, is_expr: bool) -> !:
         let scrutinee = m.left else return
         let st = try self.ty(scrutinee)
@@ -169,15 +182,7 @@ extend Lowerer:
                 try self.unwind(self.scopes.count - 1, false)
                 try self.f.jump(skip)
                 try self.f.place_label(run)
-            let body = a.body else return
-            if is_expr:
-                let bv = try self.value(body, self.match_type)
-                try self.store_to(try self.slot_address(self.match_slot), bv)
-            else:
-                try self.block(body)
-            try self.unwind(self.scopes.count - 1, false)
-            self.pop_scope()
-            try self.f.jump(done)
+            try self.finish_arm(a, is_expr, done)
             try self.f.place_label(skip)
             arm = a.next
         try self.f.jump(done)
@@ -230,15 +235,7 @@ extend Lowerer:
         while let a = arm:
             try self.f.place_label(takes.get(index))
             try self.push_scope(false, "", 0, 0)
-            let body = a.body else return true
-            if is_expr:
-                let bv = try self.value(body, self.match_type)
-                try self.store_to(try self.slot_address(self.match_slot), bv)
-            else:
-                try self.block(body)
-            try self.unwind(self.scopes.count - 1, false)
-            self.pop_scope()
-            try self.f.jump(done)
+            try self.finish_arm(a, is_expr, done)
             index += 1
             arm = a.next
         return true
@@ -332,7 +329,7 @@ extend Lowerer:
                 try self.f.branch(hit, take, miss)
                 return
             let tag = try self.f.load(ir.Op.loadsw, ir.Class.w, a)
-            let hit = try self.f.binary(ir.Op.ceq, ir.Class.w, tag, ir.const_ref((i64)lower_case_tag(d, c)))
+            let hit = try self.f.binary(ir.Op.ceq, ir.Class.w, tag, ir.const_ref((i64)instances.case_tag(d, c)))
             try self.f.branch(hit, take, miss)
             return
         let current = try self.load_from(a, st)

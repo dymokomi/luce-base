@@ -58,8 +58,8 @@ modules, and a module reached both ways, `import layout` inside luce-ui and
 package imports from. Source paths are canonicalized, so symlinks cannot load one file
 twice.
 
-`import math` and `import net` in Luce use Base's canonical embedded standard
-modules. Types unsupported by the boundary stay unavailable; their absence does
+`import io` and the other standard modules in Luce use Base's canonical embedded
+modules; luce-std's `math` and `net` are packages like any other. Types unsupported by the boundary stay unavailable; their absence does
 not invalidate unrelated exports. A native value's mutable interface conformance
 is unavailable in Luce, whose value-interface contract is read-only. Native owned
 objects and checked views can expose mutable interface implementations.

@@ -11,14 +11,7 @@ extend Lowerer:
     # mark: Types ==============================================================================
 
     mutating func map(id: u32) -> u32!:
-        var t = id
-        if let o = self.owner_decl:
-            if self.owner_args.length > 0:
-                t = try self.c.substitute(t, o, self.owner_args)
-        if let fd = self.fn_decl:
-            if self.fn_args.length > 0:
-                t = try self.c.substitute(t, fd, self.fn_args)
-        return t
+        return try self.generic.map(self.c, id)
 
     mutating func ty(e: ast.Node*) -> u32!:
         return try self.map(e.type_id)
@@ -254,39 +247,8 @@ extend Lowerer:
 
     ## Register a function instance; returns its index.
     mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
-        let mask = self.func_slots.length - 1
-        var slot = instance_hash(f, args, owner, owner_args) & mask
-        while self.func_slots[slot] != 0:
-            let i = (usize)self.func_slots[slot] - 1
-            # through a pointer: the comparison must not copy a record
-            let r = &self.funcs.items[i]
-            if r.decl == f and types.same_args(r.args, args) and r.owner == owner and types.same_args(r.owner_args, owner_args):
-                return i
-            slot = (slot + 1) & mask
-        if check.nesting_of_all(&self.c.table, args) > check.max_nesting or check.nesting_of_all(&self.c.table, owner_args) > check.max_nesting:
-            return try self.fail(f, "an infinite chain of instantiations")
-        try self.funcs.push(LowerInstance(decl = f, args = args, owner = owner, owner_args = owner_args, done = false))
-        let index = self.funcs.count - 1
-        if (self.funcs.count + 1) * 2 > self.func_slots.length:
-            # grown: every instance placed again in a table twice the size
-            let grown = try instance_slots(self.func_slots.length * 2)
-            with memory.heap:
-                free(self.func_slots)
-            self.func_slots = grown
-            for k in 0..<self.funcs.count:
-                self.place_instance(k)
-        else:
-            self.place_instance(index)
-        return index
-
-    ## Put instance `index` in the first free slot of its probe sequence.
-    mutating func place_instance(index: usize):
-        let r = &self.funcs.items[index]
-        let mask = self.func_slots.length - 1
-        var slot = instance_hash(r.decl, r.args, r.owner, r.owner_args) & mask
-        while self.func_slots[slot] != 0:
-            slot = (slot + 1) & mask
-        self.func_slots[slot] = u32(index + 1)
+        return self.funcs.add(&self.c.table, f, args, owner, owner_args) catch failure:
+            return try self.fail(f, failure.message)
 
     mutating func note_vtable(record: u32, iface: u32) -> !:
         var i: usize = 0
@@ -299,21 +261,8 @@ extend Lowerer:
         let d = self.decl_of(record) else return
         let t = self.c.table.get(record)
         let i_decl = self.decl_of(iface) else return
-        var req = i_decl.body
-        while let r = req:
-            if let m = check.find_member(d, r.text, ast.Kind.func_):
-                discard(try self.add_func(m, try types.no_args(), d, t.args))
-            req = r.next
+        for m in (try instances.witnessed(d, i_decl)).span():
+            discard(try self.add_func(m, try types.no_args(), d, t.args))
 
     mutating func type_args(holder: ast.Node*) -> u32[]!:
-        let n = ast.count(holder.body)
-        if n == 0:
-            return try types.no_args()
-        var args = try alloc u32[n]
-        var i: usize = 0
-        var cursor = holder.body
-        while let a = cursor:
-            args[i] = try self.map(a.type_id)
-            i += 1
-            cursor = a.next
-        return args
+        return try self.generic.type_args(self.c, holder)

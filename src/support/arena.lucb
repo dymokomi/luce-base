@@ -112,7 +112,8 @@ struct ArenaChunk:
     var used: usize
 
 ## Align the address inside a bounded span, without rounding an addition past
-## usize's range. The remainder works for arbitrary positive byte alignments.
+## usize's range. The remainder works for arbitrary positive byte alignments. The same as
+## `memory`'s, which the seed that builds the compiler does not have.
 func aligned_offset(storage: u8[], used: usize, alignment: usize) -> usize?:
     if used > storage.length:
         return none

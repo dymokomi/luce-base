@@ -422,13 +422,13 @@ extend Generator:
         if r.kind == ir.RefKind.slot:
             try self.frame_address(reg, self.slot_home(r.index))
         elif r.kind == ir.RefKind.global and r.value == 0:
-            try self.object_format.page_address(&self.writer.out, reg, r.name, true)
+            try object.page_address(&self.object_format, &self.writer.out, reg, r.name, true)
         elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
             # a function's address, or another image's data (`import_ref`), goes through the
             # GOT, so a symbol defined in a linked shared library resolves
-            try self.object_format.got_address(&self.writer.out, reg, r.name)
+            try object.got_address(&self.object_format, &self.writer.out, reg, r.name)
         elif r.kind == ir.RefKind.text:
-            try self.object_format.page_address(&self.writer.out, reg, try self.text_label_name(r.index), false)
+            try object.page_address(&self.object_format, &self.writer.out, reg, try self.text_label_name(r.index), false)
         elif r.kind == ir.RefKind.temp:
             try self.load_temp(reg, ir.Class.l, r.index)
         elif r.kind == ir.RefKind.constant:

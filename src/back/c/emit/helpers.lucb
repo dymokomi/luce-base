@@ -132,18 +132,6 @@ func never_valued(e: ast.Node*) -> bool:
 func width_mask(bits: u32) -> u64:
     return 0xFFFFFFFFFFFFFFFF if bits >= 64 else (u64(1) << (u64)bits) - 1
 
-## The tag of a payload enum case: its position among the cases.
-func case_tag(d: ast.Node*, target: ast.Node*) -> u32:
-    var i: u32 = 0
-    var cursor = d.body
-    while let node = cursor:
-        if node.kind == ast.Kind.enum_case:
-            if node == target:
-                return i
-            i += 1
-        cursor = node.next
-    return 0
-
 ## Whether `ids` holds `id`.
 func contains_id(ids: const u32[], id: u32) -> bool:
     for x in ids:

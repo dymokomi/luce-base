@@ -52,6 +52,12 @@ pub enum Kind:
     function
     unsupported
 
+## What `__attribute__((...))` says that a binding uses.
+struct Attributes:
+    var noreturn: bool = false
+    var packed: bool = false
+    var aligned: i64 = 0
+
 ## A C type. Nodes are shared and never changed after they are made; a qualifier makes
 ## a copy.
 pub struct CType:
@@ -503,7 +509,7 @@ pub struct Parser:
                 discard(w)
             elif w == "__attribute__" or w == "__attribute" or w == "__declspec":
                 self.advance()
-                if try self.attribute():
+                if (try self.attributes()).noreturn:
                     s.noreturn = true
                 continue
             elif w == "_Alignas" or w == "__alignas":
@@ -607,25 +613,6 @@ pub struct Parser:
             t.width = 2
         return t
 
-    ## `__attribute__((...))` after the word: read for `noreturn`, the rest dropped.
-    mutating func attribute() -> bool!:
-        if not self.at_punct("("):
-            return false
-        var noreturn = false
-        var level: u32 = 0
-        while self.tok.kind != pre.Kind.eof:
-            if self.at_punct("("):
-                level += 1
-            elif self.at_punct(")"):
-                level -= 1
-                if level == 0:
-                    self.advance()
-                    return noreturn
-            elif level == 2 and (self.at_word("noreturn") or self.at_word("__noreturn__")):
-                noreturn = true
-            self.advance()
-        return noreturn
-
     ## Attributes, qualifiers, and nullability after a declarator or a pointer star; the
     ## nullability seen, and whether `noreturn` was.
     mutating func trailing() -> (u8, bool, bool)!:
@@ -636,7 +623,7 @@ pub struct Parser:
             let w = self.tok.text
             if w == "__attribute__" or w == "__attribute" or w == "__declspec":
                 self.advance()
-                if try self.attribute():
+                if (try self.attributes()).noreturn:
                     noreturn = true
             elif w == "_Nonnull" or w == "__nonnull":
                 nullable = 1
@@ -815,7 +802,8 @@ pub struct Parser:
         var aligned: i64 = 0
         while self.at_word("__attribute__") or self.at_word("__attribute") or self.at_word("__declspec"):
             self.advance()
-            let (p, a) = try self.record_attribute()
+            let attributes = try self.attributes()
+            let (p, a) = (attributes.packed, attributes.aligned)
             if p:
                 packed = true
             if a > 0:
@@ -854,7 +842,8 @@ pub struct Parser:
         self.advance()
         while self.at_word("__attribute__") or self.at_word("__attribute"):
             self.advance()
-            let (p, a) = try self.record_attribute()
+            let attributes = try self.attributes()
+            let (p, a) = (attributes.packed, attributes.aligned)
             if p:
                 r.packed = true
             if a > 0:
@@ -868,10 +857,12 @@ pub struct Parser:
         try self.records.push(r)
         return r
 
-    ## `__attribute__((packed, aligned(N)))` on a record: packed, and the alignment.
-    mutating func record_attribute() -> (bool, i64)!:
-        var packed = false
-        var aligned: i64 = 0
+    ## `__attribute__((...))` after a word, when one follows: what the binding reads of it,
+    ## `noreturn` on a function, `packed` and `aligned(N)` on a record; the rest is dropped.
+    mutating func attributes() -> Attributes!:
+        var found = Attributes()
+        if not self.at_punct("("):
+            return found
         var level: u32 = 0
         while self.tok.kind != pre.Kind.eof:
             if self.at_punct("("):
@@ -880,18 +871,20 @@ pub struct Parser:
                 level -= 1
                 if level == 0:
                     self.advance()
-                    return (packed, aligned)
+                    return found
+            elif level == 2 and (self.at_word("noreturn") or self.at_word("__noreturn__")):
+                found.noreturn = true
             elif level == 2 and (self.at_word("packed") or self.at_word("__packed__")):
-                packed = true
+                found.packed = true
             elif level == 2 and (self.at_word("aligned") or self.at_word("__aligned__")):
                 let n = self.tok.next else trap("unreachable")
                 if n.is_punct("("):
                     let v = n.next else trap("unreachable")
                     if v.kind == pre.Kind.number:
                         if let value = try pre.integer(v.text):
-                            aligned = value.value
+                            found.aligned = value.value
             self.advance()
-        return (packed, aligned)
+        return found
 
     ## One member line of a struct: fields with optional bit widths, or an anonymous
     ## struct or union.
@@ -935,7 +928,7 @@ pub struct Parser:
         self.advance()
         while self.at_word("__attribute__") or self.at_word("__attribute"):
             self.advance()
-            discard(try self.attribute())
+            discard(try self.attributes())
         var tag = ""
         if self.tok.kind == pre.Kind.ident:
             tag = self.tok.text
@@ -965,7 +958,7 @@ pub struct Parser:
             self.advance()
             while self.at_word("__attribute__") or self.at_word("__attribute"):
                 self.advance()
-                discard(try self.attribute())
+                discard(try self.attributes())
             if self.eat_punct("="):
                 let evaluated = try self.constant_expression()
                 next = evaluated.value
@@ -977,7 +970,7 @@ pub struct Parser:
         try self.expect("}")
         while self.at_word("__attribute__") or self.at_word("__attribute"):
             self.advance()
-            discard(try self.attribute())
+            discard(try self.attributes())
         return (e, true)
 
     mutating func new_enum(tag: str, file: u32, line: u32) -> Enum*!:

@@ -347,24 +347,12 @@ extend Lowerer:
         let stride = (u64)self.c.table.size_of(et)
         let slot = try self.f.slot(8, 8)
         try self.f.store(ir.Op.storel, seed, try self.slot_address(slot))
-        let counter = try self.f.slot(8, 8)
-        try self.f.store(ir.Op.storel, ir.const_ref(0), try self.slot_address(counter))
-        let head = self.f.label()
-        let body = self.f.label()
-        let done = self.f.label()
-        try self.f.jump(head)
-        try self.f.place_label(head)
-        let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter))
-        let more = try self.f.binary(ir.Op.cult, ir.Class.l, i, ir.const_ref((i64)tt.length))
-        try self.f.branch(more, body, done)
-        try self.f.place_label(body)
+        let counting = try self.count_up((i64)tt.length)
+        let i = counting.index
         let element = try self.f.binary(ir.Op.add, ir.Class.l, a, try self.f.binary(ir.Op.mul, ir.Class.l, i, ir.const_ref((i64)stride)))
         let so_far = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(slot))
         try self.f.store(ir.Op.storel, try self.hash_at(element, et, so_far), try self.slot_address(slot))
-        let next = try self.f.binary(ir.Op.add, ir.Class.l, try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter)), ir.const_ref(1))
-        try self.f.store(ir.Op.storel, next, try self.slot_address(counter))
-        try self.f.jump(head)
-        try self.f.place_label(done)
+        try self.count_on(counting)
         return try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(slot))
 
     ## A payload enum: the tag, then the payload of the case it carries.
@@ -379,7 +367,7 @@ extend Lowerer:
         var cursor = d.body
         while let c = cursor:
             if c.kind == ast.Kind.enum_case and c.body != none:
-                let this_case = try self.f.binary(ir.Op.ceq, ir.Class.w, tag, ir.const_ref((i64)lower_case_tag(d, c)))
+                let this_case = try self.f.binary(ir.Op.ceq, ir.Class.w, tag, ir.const_ref((i64)instances.case_tag(d, c)))
                 let here = self.f.label()
                 let next = self.f.label()
                 try self.f.branch(this_case, here, next)

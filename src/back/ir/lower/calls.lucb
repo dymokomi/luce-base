@@ -79,18 +79,7 @@ extend Lowerer:
                     outs += 1
                     param = p.next
                     continue
-                var given: ast.Node*? = none
-                var position: usize = 0
-                var a = args
-                while let arg = a:
-                    if arg.text.length > 0:
-                        if arg.text == p.text:
-                            given = arg
-                    else:
-                        if position == pi:
-                            given = arg
-                        position += 1
-                    a = arg.next
+                let given = calls.given_argument(args, p, pi)
                 let want = f.args[pi] if pi < f.args.length else types.none_id
                 if let g = given:
                     var at: usize = 0
@@ -564,13 +553,7 @@ extend Lowerer:
             argument = given.next
         var member = d.body
         while let field = member:
-            var supplied = false
-            argument = e.body
-            while let given = argument:
-                if given.resolved == field:
-                    supplied = true
-                argument = given.next
-            if field.kind == ast.Kind.field and not supplied:
+            if field.kind == ast.Kind.field and not calls.supplies(e, field):
                 if let default = field.left:
                     let ft = try self.map(try self.c.substitute(field.type_id, d, t.args))
                     let value = try self.value(default, ft)
@@ -708,7 +691,7 @@ extend Lowerer:
         if module == "atomic" and name == "fence":
             let first = e.body else return try self.fail(e, "no order")
             let order = first.left else return try self.fail(e, "no order")
-            try self.f.emit(ir.Op.fence, ir.Class.l, 0, ir.const_ref((i64)memory_order(order)), ir.none_ref(), 0)
+            try self.f.emit(ir.Op.fence, ir.Class.l, 0, ir.const_ref((i64)calls.ordering(order)), ir.none_ref(), 0)
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         if module == "c" and (name == "stdin" or name == "stdout" or name == "stderr"):
             let t = self.c.build_target
@@ -727,13 +710,7 @@ extend Lowerer:
         let name = callee.text
         let et = self.elem(rt)
         var args: MaybeNode[5]
-        var count: usize = 0
-        var cursor = e.body
-        while let a = cursor:
-            if count < 5:
-                args[count] = a.left
-            count += 1
-            cursor = a.next
+        discard(calls.argument_values(e, args[0..]))
         var address = ir.none_ref()
         if through_ptr:
             let p = try self.expr(receiver)
@@ -742,14 +719,12 @@ extend Lowerer:
             address = try self.place(receiver)
         let cls = self.class_of(et)
         let width = u32(self.scalar_size(et))
-        var order: u32 = 5
         var order_index: usize = 1
         if name == "load":
             order_index = 0
         if name == "cas":
             order_index = 2
-        if let o = args[order_index]:
-            order = memory_order(o)
+        let order = calls.ordering(args[order_index])
         if name == "load":
             let t = try self.f.temp(cls)
             try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = order, line = 0, file = 0, scope = 0, site = 0))

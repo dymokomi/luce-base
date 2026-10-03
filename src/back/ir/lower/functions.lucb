@@ -10,7 +10,7 @@ extend Lowerer:
     # mark: Functions ==========================================================================
 
     ## Lower one function instance into the unit.
-    mutating func function(inst: LowerInstance) -> !:
+    mutating func function(inst: instances.Instance) -> !:
         let d = inst.decl
         if ast.is_linked(d):
             return  # another object defines it; calls name the symbol
@@ -36,14 +36,7 @@ extend Lowerer:
         var cursor = d.right
         while let p = cursor:
             let pt = try self.map(p.type_id)
-            # a parameter's slot is at least a register wide, since it arrives as one
-            var size = self.size(pt)
-            var align = self.align(pt)
-            if size < 16:
-                size = 16
-            if align < 8:
-                align = 8
-            let s = try self.f.slot(size, align)
+            let s = try self.param_slot(pt)
             try self.locals.push(LowerLocal(decl = p, slot = s))
             try self.describe_local(p, s, pt)
             try self.f.params.push(try self.param_of(pt, s))
@@ -70,14 +63,14 @@ extend Lowerer:
     ## n)` being the empty span) into a call of the function by its internal name; a
     ## fallible result becomes an `int` status, 0 or the error's code, with the value
     ## written through a final out-pointer.
-    mutating func export_wrapper(inst: LowerInstance) -> !:
+    mutating func export_wrapper(inst: instances.Instance) -> !:
         let d = inst.decl
         let internal = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         self.scratch.clear()
         try names.export_symbol(&self.scratch, d, inst.owner)
         let symbol = try names.keep(&self.scratch)
         try self.begin_function(symbol, none, inst)
-        self.fn_decl = none
+        self.generic.fn_decl = none
         self.current_fn = none
         self.f.exported = true
         self.f.used = true
@@ -105,13 +98,7 @@ extend Lowerer:
                 try self.locals.push(LowerLocal(decl = p, slot = data))
                 try length_slots.push(length)
             else:
-                var size = self.size(pt)
-                var align = self.align(pt)
-                if size < 16:
-                    size = 16
-                if align < 8:
-                    align = 8
-                let s = try self.f.slot(size, align)
+                let s = try self.param_slot(pt)
                 try self.locals.push(LowerLocal(decl = p, slot = s))
                 try self.f.params.push(try self.param_of(pt, s))
                 try length_slots.push(0)
@@ -218,7 +205,7 @@ extend Lowerer:
         return ir.Param(cls = ir.Class.l, size = self.size(id), align = self.align(id), type_id = id, slot = slot, shape = try self.shape_of(id))
 
     ## Open a function: its result shape and the slot the result is built in.
-    mutating func begin_function(name: str, d: ast.Node*?, inst: LowerInstance) -> !:
+    mutating func begin_function(name: str, d: ast.Node*?, inst: instances.Instance) -> !:
         self.f = try ir.Function.create(name)
         self.pool_count = 0
         self.pool_used = 0
@@ -248,10 +235,10 @@ extend Lowerer:
         self.defers.count = 0
         self.self_slot = 0
         self.current_fn = d
-        self.fn_decl = inst.decl
-        self.fn_args = inst.args
-        self.owner_decl = inst.owner
-        self.owner_args = inst.owner_args
+        self.generic.fn_decl = inst.decl
+        self.generic.fn_args = inst.args
+        self.generic.owner_decl = inst.owner
+        self.generic.owner_args = inst.owner_args
         self.set_position(inst.decl)
         let result = try self.result_type_of(d)
         try self.set_result(result)

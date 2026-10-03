@@ -32,54 +32,19 @@ extend Generator:
                 try self.function(i)
                 i += 1
         self.starts[self.program_unit.functions.count] = self.writer.out.used
-        # module-level asm blocks, verbatim, in the text section (§8.9)
-        i = 0
-        while i < self.program_unit.module_asm.count:
-            try self.writer.put("\n")
-            try self.writer.put(self.program_unit.module_asm.get(i).bytes)
-            i += 1
+        try self.object_format.module_asm(&self.writer, self.program_unit)
         try self.object_format.initializer(&self.writer.out, self.program_unit.init_function)
         # text literals, after the sign masks vector negation and unsigned lane checks read
-        try self.writer.put(self.object_format.read_only())
+        try self.object_format.read_only(&self.writer.out)
         try self.writer.put("\n    .p2align 4\n")
         try self.shared_label(".Lvsign32")
         try self.writer.put("    .long 2147483648, 2147483648, 2147483648, 2147483648\n")
         try self.shared_label(".Lvsign64")
         try self.writer.put("    .quad -9223372036854775808, -9223372036854775808\n")
-        i = 0
-        while i < self.program_unit.texts.count:
-            if self.split:
-                var name = try buffer.Buffer.create(32)
-                try name.put("lb_text_")
-                try stable_names.put_tag(&name, self.text_tags[i])
-                try self.object_format.hidden_global(&self.writer.out, name.view())
-            try self.text_label(u32(i))
-            try self.writer.put(":\n    .asciz ")
-            try self.writer.c_string(self.program_unit.texts.get(i).bytes)
-            try self.writer.put("\n")
-            i += 1
+        try self.object_format.texts(&self.writer, self.program_unit, self.split, self.text_tags)
         # witness tables and frame descriptors hold addresses, which a position-independent
         # image relocates when it loads
-        try self.writer.put(self.object_format.relocated_read_only())
-        i = 0
-        while i < self.program_unit.tables.count:
-            let t = self.program_unit.tables.get(i)
-            try self.object_format.table_start(&self.writer.out, t.name)
-            # every unit that views the record has the same table; the linker keeps one
-            try self.object_format.global_symbol(&self.writer.out, t.name, true, false)
-            try self.symbol(t.name)
-            try self.writer.put(":\n")
-            var k: usize = 0
-            while k < t.entries.count:
-                let entry = t.entries.get(k)
-                try self.writer.put("    .quad ")
-                if entry.length == 0:
-                    try self.writer.put("0")
-                else:
-                    try self.symbol(entry)
-                try self.writer.put("\n")
-                k += 1
-            i += 1
+        try self.object_format.witness_tables(&self.writer, self.program_unit)
         if self.descriptors.used > 0:
             try self.writer.put(self.descriptors.view())
         try self.object_format.globals(&self.writer.out, self.program_unit)

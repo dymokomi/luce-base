@@ -20,55 +20,8 @@ func method_index(iface: ast.Node*, method: ast.Node*) -> u64:
         cursor = r.next
     return 0
 
-## `atomic.Ordering` case to the C memory order number.
-func memory_order(e: ast.Node*) -> u32:
-    if e.text == "relaxed":
-        return 0
-    if e.text == "acquire":
-        return 2
-    if e.text == "release":
-        return 3
-    if e.text == "acq_rel":
-        return 4
-    return 5
-
-func lower_case_tag(d: ast.Node*, target: ast.Node*) -> u32:
-    var i: u32 = 0
-    var cursor = d.body
-    while let c = cursor:
-        if c.kind == ast.Kind.enum_case:
-            if c == target:
-                return i
-            i += 1
-        cursor = c.next
-    return 0
-
 func lower_never_valued(e: ast.Node*) -> bool:
     return e.type_id == types.never_id
-
-## `size` free slots for the instances' index, from the heap, where a grown table's old
-## slots go back (`add_func`).
-func instance_slots(size: usize) -> u32[]!:
-    with memory.heap:
-        var slots = try alloc u32[size]
-        for k in 0..<size:
-            slots[k] = 0
-        return slots
-
-## FNV-1a over an instance's declaration, owner and type arguments.
-func instance_hash(f: ast.Node*, args: const u32[], owner: ast.Node*?, owner_args: const u32[]) -> usize:
-    var h: u64 = 14695981039346656037
-    h = (h ^ (u64)(usize)f) *% 1099511628211
-    var owner_bits: u64 = 0
-    if let o = owner:
-        owner_bits = (u64)(usize)o
-    h = (h ^ owner_bits) *% 1099511628211
-    for a in args:
-        h = (h ^ (u64)a) *% 1099511628211
-    h = (h ^ 0xff) *% 1099511628211
-    for a in owner_args:
-        h = (h ^ (u64)a) *% 1099511628211
-    return (usize)h
 
 func lower_round_up(value: u64, align: u64) -> u64:
     if align <= 1:

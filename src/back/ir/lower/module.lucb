@@ -22,6 +22,8 @@
 #==============================================================================================
 from back.effects import arguments_have_effect
 import back.ir.ir
+import back.exits
+import back.instances
 import back.isa
 import back.names
 import back.calls
@@ -46,14 +48,6 @@ let small_copy_limit: u64 = 64
 type NodeRef = ast.Node*
 type MaybeNode = ast.Node*?
 
-## One monomorphised function: a declaration with concrete type arguments.
-struct LowerInstance:
-    var decl: ast.Node*
-    var args: u32[]
-    var owner: ast.Node*?
-    var owner_args: u32[]
-    var done: bool
-
 ## A witness table the program needs: one record viewed as one interface.
 struct LowerWitness:
     var record: u32
@@ -69,17 +63,13 @@ struct LowerCallArgument:
     var node: ast.Node*
     var value: ir.Arg
 
-## A lexical scope: its deferred calls, whether it is a loop and how to leave it,
-## and the allocator it restores.
-struct LowerScope:
-    var debug_scope: usize
-    var defer_base: usize
-    var loop: bool
-    var label: str
-    var break_label: u32
-    var continue_label: u32
-    var restore_alloc: bool
-    var alloc_slot: u32
+## A loop `for i in 0..<count` being built (`count_up`, `count_on`): the index's slot, the
+## labels of its test and its exit, and the index read at the top of the body.
+struct Counting:
+    var counter: u32
+    var head: u32
+    var done: u32
+    var index: ir.Ref
 
 ## A value: a scalar in `ref`, or the address of its bytes when `in_memory`.
 pub struct LowerValue:
@@ -114,11 +104,10 @@ pub struct Lowerer:
     var scratch: buffer.Buffer
     var modules: list.List[NodeRef]
     var entry: ast.Node*
-    var funcs: list.List[LowerInstance]
+    var funcs: instances.Instances
     ## An open-addressing index over `funcs` by declaration, owner and type arguments: a
     ## slot holds 1 + the instance's index, 0 when free. A program asks for an instance at
     ## every call; a search through all of them made lowering grow with their square.
-    var func_slots: u32[]
     var tests: list.List[NodeRef]
     var vtables: list.List[LowerWitness]
     ## `--debug`: describe every frame and call the `debug` module at every statement.
@@ -135,12 +124,9 @@ pub struct Lowerer:
     ## The project root, with its trailing slash, that positions name a source relative to,
     ## as the build cache's key does; empty to name sources as they were read.
     pub var position_root: str = ""
-    var fn_decl: ast.Node*?
-    var fn_args: u32[]
-    var owner_decl: ast.Node*?
-    var owner_args: u32[]
+    var generic: instances.Generic
     var locals: list.List[LowerLocal]
-    var scopes: list.List[LowerScope]
+    var scopes: list.List[exits.Scope]
     var defers: list.List[NodeRef]
     ## The slot the function's result is built in before every `ret`.
     var result_slot: u32
@@ -191,10 +177,10 @@ pub struct Lowerer:
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, target = targets.Target.host(),
                        modules = try list.List[NodeRef].create(16), entry = entry,
-                       funcs = try list.List[LowerInstance].create(64), func_slots = try instance_slots(256), tests = try list.List[NodeRef].create(32),
-                       vtables = try list.List[LowerWitness].create(16), current_fn = none, fn_decl = none,
-                       fn_args = try types.no_args(), owner_decl = none, owner_args = try types.no_args(),
-                       locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
+                       funcs = try instances.Instances.create(), tests = try list.List[NodeRef].create(32),
+                       vtables = try list.List[LowerWitness].create(16), current_fn = none,
+                       generic = try instances.Generic.none_yet(),
+                       locals = try list.List[LowerLocal].create(64), scopes = try list.List[exits.Scope].create(32),
                        defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
                        catch_done = 0, catch_scope = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
                        match_type = 0, src_file = entry.text, at_file = entry.text, at_line = 0, at_column = 0, at_text = 0, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0)

@@ -190,18 +190,8 @@ pub struct Formatter:
     ## Whether the source breaks the line between the bracket opening a list and its first
     ## item at `offset`: the list is laid out in block form, one level in.
     func open_break(offset: usize) -> bool:
-        var i = offset
-        var broke = false
-        while i > 0:
-            i -= 1
-            let b = self.src.bytes[i]
-            if b == '\n':
-                broke = true
-            elif b == ' ' or b == '\r':
-                continue
-            else:
-                return broke and (b == '[' or b == '(')
-        return false
+        let (b, broke) = self.mark_before(offset)
+        return broke and (b == '[' or b == '(')
 
     ## The offset of the bracket closing the list whose last item begins at `after`: the
     ## first closing bracket at depth zero, literals and comments skipped.
@@ -264,6 +254,12 @@ pub struct Formatter:
 
     ## Whether the source breaks the line between the comma before `offset` and it.
     func break_before(offset: usize) -> bool:
+        let (b, broke) = self.mark_before(offset)
+        return broke and b == ','
+
+    ## The last byte before `offset` that is not white space, 0 at the start of the source,
+    ## and whether a line break comes between the two.
+    func mark_before(offset: usize) -> (u8, bool):
         var i = offset
         var broke = false
         while i > 0:
@@ -271,11 +267,9 @@ pub struct Formatter:
             let b = self.src.bytes[i]
             if b == '\n':
                 broke = true
-            elif b == ' ' or b == '\r':
-                continue
-            else:
-                return broke and b == ','
-        return false
+            elif b != ' ' and b != '\r':
+                return (b, broke)
+        return (0, broke)
 
     # mark: Output =============================================================================
 
@@ -1231,6 +1225,15 @@ pub struct Formatter:
 
     # mark: Types ==============================================================================
 
+    ## Types separated by commas: a function type's parameters, a tuple's members.
+    mutating func type_list(first: ast.Node*?) -> !:
+        var cursor = first
+        while let m = cursor:
+            if m != first:
+                try self.put(", ")
+            try self.type_node(m)
+            cursor = m.next
+
     mutating func type_node(t: ast.Node*) -> !:
         if t.has(ast.flag_atomic):
             try self.put("@")
@@ -1275,27 +1278,13 @@ pub struct Formatter:
             try self.put("volatile ")
         if t.has(ast.flag_func_type):
             try self.put("func(")
-            var cursor = t.body
-            var first = true
-            while let m = cursor:
-                if not first:
-                    try self.put(", ")
-                first = false
-                try self.type_node(m)
-                cursor = m.next
+            try self.type_list(t.body)
             try self.put(") -> ")
             try self.type_node(t.left else return)
             return
         if t.has(ast.flag_tuple_type):
             try self.put("(")
-            var cursor = t.body
-            var first = true
-            while let m = cursor:
-                if not first:
-                    try self.put(", ")
-                first = false
-                try self.type_node(m)
-                cursor = m.next
+            try self.type_list(t.body)
             try self.put(")")
             return
         if t.text == "(":

@@ -170,18 +170,7 @@ extend Emitter:
                 if not first:
                     try self.put(", ")
                 first = false
-                var given: ast.Node*? = none
-                var position: usize = 0
-                var a = args
-                while let arg = a:
-                    if arg.text.length > 0:
-                        if arg.text == p.text:
-                            given = arg
-                    else:
-                        if position == pi:
-                            given = arg
-                        position += 1
-                    a = arg.next
+                let given = calls.given_argument(args, p, pi)
                 let want = f.args[pi] if pi < f.args.length else types.none_id
                 if let g = given:
                     let v = g.left else return
@@ -794,13 +783,7 @@ extend Emitter:
                 argument = given.next
             member = d.body
             while let field = member:
-                var supplied = false
-                argument = e.body
-                while let given = argument:
-                    if given.resolved == field:
-                        supplied = true
-                    argument = given.next
-                if field.kind == ast.Kind.field and not supplied:
+                if field.kind == ast.Kind.field and not calls.supplies(e, field):
                     if let default = field.left:
                         let want = try self.map(try self.c.substitute(field.type_id, d, t.args))
                         hoisted += try self.hoist(default, want)

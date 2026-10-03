@@ -208,7 +208,7 @@ pub struct PageAllocator: Allocator:
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)8, 0)
-        let page = system_page_size()
+        let page = page_size()
         if alignment > page or (alignment != 0 and page % alignment != 0):
             note_refusal("page allocator", size, alignment, 0)
             return none
@@ -251,7 +251,9 @@ extern func getpagesize() -> i32
 extern func VirtualAlloc(address: void*?, size: usize, kind: u32, protection: u32) -> void*?
 extern func VirtualFree(address: void*, size: usize, kind: u32) -> i32
 
-func system_page_size() -> usize:
+## The host's memory page size in bytes: the one query `os.page_size` and the threads'
+## stack sizes use too.
+pub func page_size() -> usize:
     if platform.windows:
         var info: SystemInfo = ---
         GetSystemInfo(&info)

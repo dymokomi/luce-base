@@ -199,7 +199,7 @@ extend Emitter:
             while let case_decl = cursor:
                 if case_decl.kind == ast.Kind.enum_case and case_decl.body != none:
                     try self.put("case ")
-                    try self.put_u64((u64)case_tag(d, case_decl))
+                    try self.put_u64((u64)instances.case_tag(d, case_decl))
                     try self.put(": ")
                     try self.put(eq)
                     try self.put(" = (")
@@ -516,7 +516,7 @@ extend Emitter:
                 while let case_decl = cursor:
                     if case_decl.kind == ast.Kind.enum_case and case_decl.body != none:
                         try self.put("case ")
-                        try self.put_u64((u64)case_tag(d, case_decl))
+                        try self.put_u64((u64)instances.case_tag(d, case_decl))
                         try self.put(": ")
                         var param = case_decl.body
                         while let p = param:
@@ -561,11 +561,8 @@ extend Emitter:
         let d = self.decl_of(record) else return
         let t = self.c.table.get(record)
         let i_decl = self.decl_of(iface) else return
-        var req = i_decl.body
-        while let r = req:
-            if let m = check.find_member(d, r.text, ast.Kind.func_):
-                discard(try self.add_func(m, try types.no_args(), d, t.args))
-            req = r.next
+        for m in (try instances.witnessed(d, i_decl)).span():
+            discard(try self.add_func(m, try types.no_args(), d, t.args))
 
     ## `typedef struct lb_vt_Name { ... } lb_vt_Name;` for a user interface.
     mutating func interface_typedef(d: ast.Node*) -> !:

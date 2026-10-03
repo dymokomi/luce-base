@@ -280,7 +280,7 @@ extend Emitter:
                     elif let v = p.left:
                         if let resolved = v.resolved:
                             try self.line("case ")
-                            try self.put_u64((u64)case_tag(d, resolved))
+                            try self.put_u64((u64)instances.case_tag(d, resolved))
                             try self.put(":")
                             if v.body != none:
                                 payload_pattern = p
@@ -290,24 +290,7 @@ extend Emitter:
                 if let p = payload_pattern:
                     if let v = p.left:
                         if let resolved = v.resolved:
-                            var name = v.body
-                            var param = resolved.body
-                            while let nm = name:
-                                let q = param else break
-                                if nm.text != "_":
-                                    try self.line("")
-                                    try self.put_type(try self.map(nm.type_id))
-                                    try self.put(" ")
-                                    try self.put_ident(nm.text)
-                                    try self.put(" __attribute__((unused)) = ")
-                                    try self.put_tmp("m", n)
-                                    try self.put(".u.")
-                                    try self.put(try self.field(resolved.text))
-                                    try self.put(".")
-                                    try self.put(try self.field(q.text))
-                                    try self.put(";")
-                                name = nm.next
-                                param = q.next
+                            try self.bind_payload_names(v, resolved, n)
                 try self.arm_body(a, dest, n, false)
                 if a.right == none:
                     try self.line("break;")
@@ -361,7 +344,7 @@ extend Emitter:
                         let resolved = v.resolved else return
                         try self.put_tmp("m", n)
                         try self.put(".tag == ")
-                        try self.put_u64((u64)case_tag(d, resolved))
+                        try self.put_u64((u64)instances.case_tag(d, resolved))
                     elif st == types.str_id:
                         let k = self.tmp()
                         try self.put("({ lb_str ")
@@ -438,8 +421,13 @@ extend Emitter:
             try self.put(";")
             return
         let resolved = v.resolved else return
+        try self.bind_payload_names(v, resolved, n)
+
+    ## The names a case pattern `v` binds to the payload fields of `case_decl`, read from the
+    ## matched value `m<n>`; `_` binds nothing.
+    mutating func bind_payload_names(v: ast.Node*, case_decl: ast.Node*, n: u32) -> !:
         var name = v.body
-        var param = resolved.body
+        var param = case_decl.body
         while let nm = name:
             let q = param else break
             if nm.text != "_":
@@ -450,7 +438,7 @@ extend Emitter:
                 try self.put(" __attribute__((unused)) = ")
                 try self.put_tmp("m", n)
                 try self.put(".u.")
-                try self.put(try self.field(resolved.text))
+                try self.put(try self.field(case_decl.text))
                 try self.put(".")
                 try self.put(try self.field(q.text))
                 try self.put(";")

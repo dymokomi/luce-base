@@ -33,6 +33,8 @@ Builtin names are single words. The language's own operations are keywords (`new
 ### 1.2 What it looks like
 
 ```luce
+let past_end = ErrorCode.package(1)
+
 struct Cursor:
     var data: const u8[]
     var offset: usize
@@ -195,7 +197,7 @@ let local match mutating new none not or pub recover return self static struct t
 true try type union var volatile while with
 ```
 
-Contextual words, meaningful only in the positions stated: `void` before `*`; `packed`, `align`, `naked`, `weak`, `used`, `noinline`, `cold`, `section`, and `inline` before a declaration (§9.8); `noalias` before a parameter type; `blocking` and `out` in `extern` declarations; `reg` and `options` in an `asm` operand list. `goto` is reserved and unused (§8.6). `class`, `weak` as a field marker, and `spawn` belong to full Luce and are rejected in Base with a diagnostic that names the tier they belong to. `none` is a literal (§4.1) and is never a case name.
+Contextual words, meaningful only in the positions stated: `void` before `*`; `packed`, `align`, `naked`, `weak`, `used`, `noinline`, `cold`, `section`, `linked`, and `inline` before a declaration (§9.8); `extend` before a type's name (§9.5); `handle` and `destroy` in a handle declaration (§17.7); `inout` before an `asm` operand (§8.9); `noalias` before a parameter type; `blocking` and `out` in `extern` declarations; `reg` and `options` in an `asm` operand list. `goto` is reserved and unused (§8.6). `class`, `weak` as a field marker, and `spawn` belong to full Luce and are rejected in Base with a diagnostic that names the tier they belong to. `none` is a literal (§4.1) and is never a case name.
 
 ## 4. Literals
 
@@ -209,7 +211,7 @@ Contextual words, meaningful only in the positions stated: `void` before `*`; `p
 42        1_000_000     0xff     0o755     0b1010_1100     255u8     -20i32
 ```
 
-Underscores may separate digits. Based prefixes are lowercase. Context chooses the integer type; absent context the default is `i64`, except in a variadic C argument position, where it is `c.int` (§17.2), and as the bound of a `for` range, where it is `usize` (§8.3). A suffix names an exact type. An untyped expression computes in the contextual type, `3 -| 7` as `u8`, and a literal outside that type's range is a compile error wherever it sits in the expression. A negative literal is unary minus applied directly to a positive literal; `-9223372036854775808` is accepted as `i64` although its positive part alone is out of range, where `-(9223372036854775808)` is not a negative literal and is refused.
+Underscores may separate digits. Based prefixes are lowercase. Context chooses the integer type; absent context the default is `i64`, except in a variadic C argument position, where it is `c.int` (§17.2). A suffix names an exact type. An untyped expression computes in the contextual type, `3 -| 7` as `u8`, and a literal outside that type's range is a compile error wherever it sits in the expression. A negative literal is unary minus applied directly to a positive literal; `-9223372036854775808` is accepted as `i64` although its positive part alone is out of range, where `-(9223372036854775808)` is not a negative literal and is refused.
 
 ### 4.3 Floats
 
@@ -490,7 +492,7 @@ pub let max_header: usize = 16 * 1024
 
 A module may declare `var` at top level. It is zero before `main` runs, or holds the constant its initialiser names; the initialiser must be a constant expression (§6.4), so there is no initialisation order. `local var` is one such variable per thread, C11's `_Thread_local`: ordinary zero-initialised or constant-initialised storage in each thread, with no per-access guard; every thread's copy starts with the initialiser, a spawned thread's as the initial thread's. A global's initialiser also runs nothing: a construction through a type's own `init`, or one that leaves out a field default that calls, is a constant where it is made at its use (a default argument, a top-level `let`) but not a value storage can hold before anything runs, on every thread for a `local var`; the program keeps an optional and sets it where it is first needed. A top-level `let` is a constant. C's function-scope `static` local is a module-level `var`.
 
-**Why.** Full Luce forbids mutable globals because their initialisation order and their effect on test isolation are unmanageable. Base cannot forbid them, because a C replacement without globals is not a C replacement, but it removes the two hazards: a constant initialiser is static data with nothing to order, and the test runner reports which globals a test wrote (§16.5).
+**Why.** Full Luce forbids mutable globals because their initialisation order and their effect on test isolation are unmanageable. Base cannot forbid them, because a C replacement without globals is not a C replacement, but it removes the two hazards: a constant initialiser is static data with nothing to order, and the test runner is to report which globals a test wrote (§16.5, planned).
 
 ### 6.4 Constant expressions
 
@@ -535,7 +537,7 @@ Left to right, always: receiver then arguments, operands, array elements, interp
 | `%` | remainder with the sign of the dividend: `-7 % 2 == -1`, as in C |
 | unary `-` | sign; rejected on unsigned types (use `-%`) |
 
-Two integers of one width and signedness compute together, `hash(key) % table.length` with a `u64` and a `usize`, in the pointer-sized type when one operand is; storing the result is still the strict rule of §5.1. Integer division by zero traps. `minimum_signed // -1` traps as overflow. Floor division and modulo are `math.div_floor(a, b)` and `math.mod_floor(a, b)`. Constant folding uses the same rules as runtime. Float arithmetic is IEEE 754 with no contraction or reassociation. The one fused operation is written out: `a.mul_add(b, c)` on an `f32` or `f64` is `a * b + c` rounded once, one instruction where the target has it (every arm64, x86-64 from `v3`) and the C library's `fma` elsewhere, with the same bits on both.
+Two integers of one width and signedness compute together, `hash(key) % table.length` with a `u64` and a `usize`, in the pointer-sized type when one operand is; storing the result is still the strict rule of §5.1. Integer division by zero traps. `minimum_signed // -1` traps as overflow. Floor division and modulo are luce-std's `math.div_floor(a, b)` and `math.mod_floor(a, b)`. Constant folding uses the same rules as runtime. Float arithmetic is IEEE 754 with no contraction or reassociation. The one fused operation is written out: `a.mul_add(b, c)` on an `f32` or `f64` is `a * b + c` rounded once, one instruction where the target has it (every arm64, x86-64 from `v3`) and the C library's `fma` elsewhere, with the same bits on both.
 
 **Why trapping is the default.** C wraps unsigned arithmetic silently and leaves signed overflow undefined, and both are the source of most exploitable integer bugs. Base traps, because a trap reports the location of the overflow and a wrap does not, and the check is one predicted branch. Hashing, PRNGs, and checksums wrap on purpose and use the `%` operators; overflow-aware code uses `+?` and handles `none`.
 
@@ -819,7 +821,7 @@ func render(scene: Scene*, samples: u32 = 64, denoise: bool = true) -> Image!:
     ...
 
 func log(level: Level, message: fmt, at: Location = luce.location):
-    io.stderr().write(f"{at.file}:{at.line}: {message}\n")
+    discard(io.stderr().write(f"{at.file}:{at.line}: {message}\n") catch: recover 0)
 
 let image = try render(&scene, samples = 256, denoise = false)
 log(.warn, f"lost {count} packets")
@@ -1029,7 +1031,7 @@ union Value:
     bytes: u8[8]
 ```
 
-A union stores one member at one address. Its alignment is its most-aligned member's, and its size is its largest member's size rounded up to that alignment. Reading a member other than the last written reinterprets the bytes, the rule of C11 §6.5.2.3 footnote 95. A member may be of any type, and `pub` before a member opens it to other modules as it does a field; reading a member whose type has an invariant, a `bool`, an enum, a bare pointer, a `str`, an optional, after another member was written is undefined (§12.6), as it is in C. A union is zeroed as bytes, may declare methods, and cannot implement interfaces or cross into full Luce.
+A union stores one member at one address. Its members are written `name: Type`, without `let` or `var`. Its alignment is its most-aligned member's, and its size is its largest member's size rounded up to that alignment. Reading a member other than the last written reinterprets the bytes, the rule of C11 §6.5.2.3 footnote 95. A member may be of any type, and `pub` before a member opens it to other modules as it does a field; reading a member whose type has an invariant, a `bool`, an enum, a bare pointer, a `str`, an optional, after another member was written is undefined (§12.6), as it is in C. A union is zeroed as bytes, may declare methods, and cannot implement interfaces or cross into full Luce.
 
 **Why.** The tagged enum is the safe sum type. The raw union exists because C has it, C libraries expose it, and type punning through it is defined C. Members of every type are admitted because a union declared in Base must be able to mirror one bound from C.
 
@@ -1241,8 +1243,6 @@ There are no value parameters (array length is the one built-in exception), no v
 ### 14.1 Declaration and conformance
 
 ```luce
-from io import Writer
-
 pub interface Writer:
     mutating func write(bytes: const u8[]) -> usize!
 
@@ -1431,7 +1431,7 @@ test "cursor advances by one":
     assert(cursor.offset == 1)
 ```
 
-`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test build compiles what its tests reach, of the file under test as of its imports, so a function no test calls is not compiled, and may name a symbol only another platform links. A test may use its module's private declarations. A package keeps test code out of the source it ships: under `tests/`, the directory that mirrors a module's path below the source root (`tests/mime/parse/` for `src/mime/parse.lucb` or the fragment directory `src/mime/parse/`) holds test fragments that a `TESTS` file lists in order; `luce test` on the module adds them after the module's own source, in its scope, and a build never reads them. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others, and the runner reports which globals it wrote.
+`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test build compiles what its tests reach, of the file under test as of its imports, so a function no test calls is not compiled, and may name a symbol only another platform links. A test may use its module's private declarations. A package keeps test code out of the source it ships: under `tests/`, the directory that mirrors a module's path below the source root (`tests/mime/parse/` for `src/mime/parse.lucb` or the fragment directory `src/mime/parse/`) holds test fragments that a `TESTS` file lists in order; `luce test` on the module adds them after the module's own source, in its scope, and a build never reads them. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others; the runner is to report which globals it wrote (planned).
 
 ### 16.6 Standard modules
 
@@ -1439,15 +1439,17 @@ The language depends on these modules by name. Their full surfaces are in the li
 
 | Module | What the language relies on |
 | --- | --- |
-| `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `read`, `write`, `copy`, `move`, `set`, `grow`, `frame` (§12.7) |
+| `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `read`, `write`, `copy`, `move`, `set`, `grow`, `frame` (§12.7), `page_size()` |
 | `io` | `stdout()` and `stderr()` as `Writer`s; `path.user()`, `path.home()`, `path.temp()`, `path.config()` for the process's directories |
-| `os` | the target as constants: `arm64`, `x86_64`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`; `cpus()`, `page_size()`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
+| `os` | the target as constants: `arm64`, `x86_64`, `wasm32`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`, `cpu_level` (§19.5); `cpu_level_running()`, `cpus()`, `page_size()`, `random_bytes`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
 | `thread` | `spawn`, `Handle`, `current`, `pause`, `yield`, `sleep` |
 | `sync` | `Mutex`, `Condition`, `Once`, `Semaphore`, `Cancellation` |
 | `atomic` | `fence`, `Ordering` |
-| `c` | the C types of §5.2, `errno()`, `errno(value)`, `stdin()`, `stdout()`, `stderr()` |
+| `luce` | the protocols `Equatable`, `Hashable`, `Comparable` (§13.1), `Iterator`, `Iterable` and `Display` (§14.4); the source facts `location`, `file`, `line`, `function` (§9.1) |
+| `strings` | `copy`, `release` (§5.5), `join`, `split`, `find`, `trim`, `replace`, the number parsers and formatters |
+| `time` | `now`, `unix`, `since` |
+| `c` | the C types of §5.2, `errno()`, `set_errno(value)`, `stdin()`, `stdout()`, `stderr()` |
 | `testing` | assertions, seeds, and the per-test allocator of §16.5 |
-| `runtime` | `heap()` inside a full Luce program (§18.9) |
 
 These are the runtime: the modules the compiler and every program's startup need, shipped
 with the compiler and read from source with every build: `src/std` of a source tree, or
@@ -1536,16 +1538,19 @@ Nothing is decoded. A handle is a pointer; a nullable result is unwrapped with t
 
 ### 17.4 C sources and libraries
 
-```toml
-[native]
-sources = ["vendor/stb_image.c", "shims.c"]
-libraries = ["sqlite3", "m"]
-link_search = ["/opt/homebrew/lib"]
-frameworks = ["Metal"]
-pkg_config = ["sdl2"]
+```prisma
+def native "inputs" {
+    str[] sources = ["vendor/stb_image.c", "shims.c"]
+    str[] libraries = ["sqlite3", "m"]
+    str[] link_search = ["/opt/homebrew/lib", "$VULKAN_SDK/lib"]
+    str[] pkg_config = ["sdl2"]
+}
+def native "macos" {
+    str[] frameworks = ["Metal"]
+}
 ```
 
-`sources` are compiled with the host C compiler the build already uses for assembly and linking, and linked into the artifact. `libraries`, `link_search`, `frameworks`, and `pkg_config` are passed to the linker. There is no inline C inside a `.lucb` file: the formatter, the language server, and the test runner would each need a C parser, and a sidecar `.c` file gives the same power with the tooling intact.
+A `def native` element of `package.prisma` applies by its name: `inputs` (or `all`) to every target, an operating system (`macos`, `linux`, `windows`, `wasi`) to each of its architectures, an exact target (`x86_64-windows`) to that one; the elements that apply add up. A search directory that begins with `$NAME` takes the environment variable's value there, and is left out where it is not set. `sources` are compiled with the host C compiler the build already uses for assembly and linking, and linked into the artifact. `libraries`, `link_search`, `frameworks`, and `pkg_config` are passed to the linker. There is no inline C inside a `.lucb` file: the formatter, the language server, and the test runner would each need a C parser, and a sidecar `.c` file gives the same power with the tooling intact.
 
 ### 17.5 `luce bind`
 
@@ -1633,7 +1638,7 @@ This chapter is the contract between a full Luce program and the Base modules it
 
 ### 18.1 One program, two representations
 
-A full Luce program that imports a Base package compiles both into one intermediate representation. A call from full Luce into Base whose signature uses only shared types (§18.2) or plain types (§18.3) is an ordinary call: no thunk, no marshalling. A call whose signature involves a type with two representations, `str`, `Error` (and so every `T!`), spans, or interface views, goes through an adapter the compiler generates at the call site, which lends or copies as §18.4 and §18.5 state. Every adapter is reported by `luce build --costs`, the cost report.
+A full Luce program that imports a Base package compiles both into one intermediate representation. A call from full Luce into Base whose signature uses only shared types (§18.2) or plain types (§18.3) is an ordinary call: no thunk, no marshalling. A call whose signature involves a type with two representations, `str`, `Error` (and so every `T!`), spans, or interface views, goes through an adapter the compiler generates at the call site, which lends or copies as §18.4 and §18.5 state. Every adapter is to be reported by `luce build --costs`, the cost report (planned).
 
 ### 18.2 Shared types
 
@@ -1697,7 +1702,7 @@ A `pub var` in a Base module is not accessible from full Luce, which has no muta
 
 ### 18.9 Allocation
 
-Inside a full Luce program, `memory.heap` is the runtime's heap, also available as `runtime.heap()`, and it is the current allocator for Base code called from full Luce. Memory Base allocates from it belongs to Base structures; full Luce sees those only through §18.6 wrappers. Memory owned by full Luce is never freed by Base.
+Inside a full Luce program, `memory.heap` is the runtime's heap, and it is the current allocator for Base code called from full Luce. Memory Base allocates from it belongs to Base structures; full Luce sees those only through §18.6 wrappers. Memory owned by full Luce is never freed by Base.
 
 ### 18.10 Errors and traps
 
@@ -1744,7 +1749,9 @@ The verifier checks each. `new`, `alloc`, and `free` lower to calls through the 
 The Base compiler uses its native backend by default. It lowers checked Base through
 its own IR, optimization passes and register allocation to target assembly, then
 assembles and links the result. Native executable, test-runner and static-library
-builds support arm64 macOS and x86-64 Linux. `--native` is an explicit alias for the
+builds target arm64 macOS, arm64 Linux, x86-64 Linux and x86-64 Windows, from any host:
+`--emit=asm` writes another target's assembly anywhere, and the build links it where the
+target's toolchain is. `--native` is an explicit alias for the
 default; `--opt 0` through `--opt 3` select native optimization levels.
 
 The bootstrap starts with a C snapshot compiled by the host C compiler, or with a
@@ -1768,7 +1775,7 @@ A Base executable links a startup shim and a trap reporter and no Luce runtime (
 
 ### 19.5 Targets
 
-`luce build --target NAME` compiles for a target; without `--target` the host is the target. The compiler writes the `platform` standard module for the build, whose constants `os` re-exports, so `if os.linux and os.x86_64:` is decided at compile time and the other arms are pruned (§19.6): one source covers every target, and each target links only what it uses. The standard library is written that way: a constant whose value differs by target is a conditional of constants, `6 if platform.macos else 1`, and a call whose shape differs is an `if` over the target's arms. The native backend emits the host's target; another target's program is written as C with `--emit=c` and compiled there.
+`luce build --target NAME` compiles for a target; without `--target` the host is the target. The compiler writes the `platform` standard module for the build, whose constants `os` re-exports, so `if os.linux and os.x86_64:` is decided at compile time and the other arms are pruned (§19.6): one source covers every target, and each target links only what it uses. The standard library is written that way: a constant whose value differs by target is a conditional of constants, `6 if platform.macos else 1`, and a call whose shape differs is an `if` over the target's arms. The native backend emits arm64-macos, arm64-linux, x86_64-linux and x86_64-windows from any host (§19.3); another target's program, x86_64-macos or wasm32, is written as C with `--emit=c` and compiled there.
 
 | `--target` | `asm` name | Pointer width | `c.long` | `c.char` | Calling convention |
 | --- | --- | --- | --- | --- | --- |
@@ -1785,9 +1792,9 @@ A target has an **instruction-set level** beyond its family's baseline: on x86-6
 
 ### 19.6 Tooling
 
-Every diagnostic is `file:line:column: message`, one per line, and a rejection exits with status 1. A declaration that does not check is reported and the next declaration of its module is checked, so one run names every failing declaration; a diagnostic with a second site, the earlier binding a name would shadow or the earlier import a repeated one, follows it with an indented `note: file:line:column: ...` line. An error in a module's imports or signatures ends the run, since nothing after it can be checked.
+Every diagnostic is `file:line:column: message`, one per line behind the tool's name (`luce-base: `), and a rejection exits with status 1. A declaration that does not check is reported and the next declaration of its module is checked, so one run names every failing declaration; a diagnostic with a second site, the earlier binding a name would shadow or the earlier import a repeated one, follows it with an indented `note: file:line:column: ...` line. An error in a module's imports or signatures ends the run, since nothing after it can be checked.
 
-`luce fmt`, `luce check`, `luce build`, `luce test`, `luce describe` (§17.7), and `luce bind` apply to Base modules. `luce fmt FILE` prints the module in the canonical layout, `--write` puts it back in the file, and `--check` prints nothing and exits with 1 when the file is not in that layout. The layout: four spaces per block, one statement per line, one space around a binary operator and after a comma, none inside brackets or around a range operator, one blank line between declarations with bodies, at most one blank line elsewhere where the source had one, a one-statement suite on its header's line where the source wrote it there, a list broken across lines kept broken at the same items with each continuation under the first item, and comments kept: one on a line of its own stays before what follows it, one after code stays after that line. The parser reads the result back into the same tree, and formatting the result again changes nothing. `-W` on `check`, `build`, or `test` prints the checker's warnings: an unused local (a name beginning with `_` is exempt), an unused import, a private function nothing references, a statement no path reaches, and a branch or loop whose literal condition rules it out. Each is also pruned from the program by the checker, so nothing after the checker sees it. A condition that is a constant expression without being a literal, `if os.arm64:` or `if os.pointer_bits == 64:`, is decided the same way and its ruled-out branch pruned, silently, since the program meant it, and so is what follows a branch it makes always leave: this is how a program covers several targets in one source; `luce check FILE --target NAME` decides such conditions for NAME, and `check -W` exits with 1 when it printed a warning; an unused binding whose initialiser may have an effect stays as that expression. `luce build --lib` produces a library and header. `luce build --freestanding` drops the shim. `luce build --costs` prints the adapter and allocation report of §18.1. `luce build --target NAME` selects a target (§19.5); `--target` with no argument lists the targets above and the `asm` architectures a package covers.
+`luce fmt`, `luce check`, `luce build`, `luce test`, `luce describe` (§17.7), and `luce bind` apply to Base modules. `luce fmt FILE` prints the module in the canonical layout, `--write` puts it back in the file, and `--check` prints nothing and exits with 1 when the file is not in that layout. The layout: four spaces per block, one statement per line, one space around a binary operator and after a comma, none inside brackets or around a range operator, one blank line between declarations with bodies, at most one blank line elsewhere where the source had one, a one-statement suite on its header's line where the source wrote it there, a list broken across lines kept broken at the same items with each continuation under the first item, and comments kept: one on a line of its own stays before what follows it, one after code stays after that line. The parser reads the result back into the same tree, and formatting the result again changes nothing. `-W` on `check`, `build`, or `test` prints the checker's warnings: an unused local (a name beginning with `_` is exempt), an unused import, a private function nothing references, a statement no path reaches, and a branch or loop whose literal condition rules it out. Each is also pruned from the program by the checker, so nothing after the checker sees it. A condition that is a constant expression without being a literal, `if os.arm64:` or `if os.pointer_bits == 64:`, is decided the same way and its ruled-out branch pruned, silently, since the program meant it, and so is what follows a branch it makes always leave: this is how a program covers several targets in one source; `luce check FILE --target NAME` decides such conditions for NAME, and `check -W` exits with 1 when it printed a warning; an unused binding whose initialiser may have an effect stays as that expression. `luce build --lib` produces a library and header. `luce build --freestanding` drops the shim. `luce build --costs` is to print the adapter and allocation report of §18 (planned).1. `luce build --target NAME` selects a target (§19.5); `--target` with no argument lists the targets above and the `asm` architectures a package covers.
 
 ### 19.7 The build cache
 
@@ -1816,7 +1823,8 @@ Repetition is `{...}`, optional syntax is `[...]`, quoted text is a token. `NEWL
 module          = { import_decl | top_decl }, EOF ;
 
 import_decl     = "import", module_path, [ "as", IDENT ], NEWLINE
-                | "from", module_path, "import", IDENT, { ",", IDENT }, NEWLINE ;
+                | "from", module_path, "import", IDENT, [ "as", IDENT ],
+                  { ",", IDENT, [ "as", IDENT ] }, NEWLINE ;
 module_path     = IDENT, { ".", IDENT } ;
 
 top_decl        = [ "pub" ], ( constant_decl | global_decl | type_alias
@@ -1833,7 +1841,7 @@ constant_decl   = "let", IDENT, [ ":", type ], "=", constant_expression, NEWLINE
 global_decl     = [ "local" ], { attribute }, "var", IDENT, ":", type,
                   [ "=", constant_expression ], NEWLINE ;
 type_alias      = "type", TYPE_IDENT, "=", type, NEWLINE ;
-attribute       = "inline" | "noinline" | "cold" | "naked" | "weak" | "used"
+attribute       = "inline" | "noinline" | "cold" | "naked" | "weak" | "used" | "linked"
                 | "section", "(", STRING_LITERAL, ")" ;
 
 function_decl   = { attribute }, [ "static" ], [ "mutating" ], "func", IDENT,

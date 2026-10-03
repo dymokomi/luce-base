@@ -164,15 +164,20 @@ static inline uint64_t lb_mul_u(uint64_t a, uint64_t b, int bits) {
 
 /* The arithmetic, shifts and conversions the generated C calls at every operation, inline
    so that a release build compiles them into the expression that uses them. */
-static inline int64_t lb_div_s(int64_t a, int64_t b, int bits) {
-    a = sext(a, bits);
-    b = sext(b, bits);
+/* A divisor of zero, or the one quotient that overflows (the smallest value over -1), traps. */
+static inline void lb_check_division(int64_t a, int64_t b, int bits) {
     if (b == 0) {
         lb_trap("division by zero");
     }
     if (a == smin(bits) && b == -1) {
         lb_trap("integer overflow");
     }
+}
+
+static inline int64_t lb_div_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    lb_check_division(a, b, bits);
     return a / b;
 }
 
@@ -188,12 +193,7 @@ static inline uint64_t lb_div_u(uint64_t a, uint64_t b, int bits) {
 static inline int64_t lb_mod_s(int64_t a, int64_t b, int bits) {
     a = sext(a, bits);
     b = sext(b, bits);
-    if (b == 0) {
-        lb_trap("division by zero");
-    }
-    if (a == smin(bits) && b == -1) {
-        lb_trap("integer overflow");
-    }
+    lb_check_division(a, b, bits);
     return a % b;
 }
 

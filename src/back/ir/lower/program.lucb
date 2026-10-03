@@ -49,17 +49,12 @@ extend Lowerer:
         try self.globals_initialiser()
         var next: usize = 0
         var tests_done: usize = 0
-        while next < self.funcs.count or tests_done < self.tests.count:
-            while next < self.funcs.count:
-                var inst = self.funcs.get(next)
-                if not inst.done:
-                    inst.done = true
-                    self.funcs.set(next, inst)
-                    try self.function(inst)
-                    if names.export_wrapped(&self.c.table, inst.decl):
-                        try self.export_wrapper(inst)
-                next += 1
-            while tests_done < self.tests.count and next >= self.funcs.count:
+        while next < self.funcs.items.count or tests_done < self.tests.count:
+            while let inst = self.funcs.next_pending(&next):
+                try self.function(inst)
+                if names.export_wrapped(&self.c.table, inst.decl):
+                    try self.export_wrapper(inst)
+            while tests_done < self.tests.count and next >= self.funcs.items.count:
                 try self.test_body(self.tests.get(tests_done), u32(tests_done))
                 tests_done += 1
         if mode == 3:
@@ -89,9 +84,9 @@ extend Lowerer:
                 cursor = d.next
             i += 1
         let locals = try self.thread_locals_initialiser()
-        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function("lb_init_globals", none, inst)
-        self.fn_decl = none
+        self.generic.fn_decl = none
         self.current_fn = none
         # kept whole: the pruner drops the calls to dead initialisers here, not in `main`
         self.f.noinline = true
@@ -135,9 +130,9 @@ extend Lowerer:
             i += 1
         if not any:
             return false
-        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function(thread_locals_function, none, inst)
-        self.fn_decl = none
+        self.generic.fn_decl = none
         self.current_fn = none
         # kept whole, as `lb_init_globals` is: the pruner drops its calls to dead initialisers
         self.f.noinline = true
@@ -184,7 +179,7 @@ extend Lowerer:
 
     ## One standard global's initialiser as its own function, named on the global.
     mutating func global_initialiser(d: ast.Node*) -> !:
-        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         let name = try self.init_function_name(d)
         let global = try self.global_name(d)
         var g: usize = 0
@@ -193,7 +188,7 @@ extend Lowerer:
                 self.program_unit.globals.items[g].init_function = name
             g += 1
         try self.begin_function(name, none, inst)
-        self.fn_decl = none
+        self.generic.fn_decl = none
         self.current_fn = none
         self.f.standard = true
         # never expanded into `lb_init_globals`: the pruner must still see it apart
@@ -207,7 +202,7 @@ extend Lowerer:
         try self.end_function()
 
     mutating func test_body(t: ast.Node*, index: u32) -> !:
-        let inst = LowerInstance(decl = t, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        let inst = instances.Instance(decl = t, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function(try self.test_name(index), t, inst)
         # never expanded into the runner's `main`: a module of many small tests would make
         # one huge function, whose passes are then slower than all the tests apart
@@ -226,9 +221,9 @@ extend Lowerer:
     ## A library has no `main`: `lb_library_init`, run when the library is loaded through the
     ## target's initialiser section, starts the globals and the allocator (§17.6).
     mutating func library_init_function() -> !:
-        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function("lb_library_init", none, inst)
-        self.fn_decl = none
+        self.generic.fn_decl = none
         self.current_fn = none
         self.f.used = true
         try self.push_scope(false, "", 0, 0)
@@ -241,9 +236,9 @@ extend Lowerer:
 
     ## `main`: startup, the arguments, the program's entry, the exit code; or the test runner.
     mutating func entry_function(mode: u32) -> !:
-        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function("main", none, inst)
-        self.fn_decl = none
+        self.generic.fn_decl = none
         self.current_fn = none
         self.f.exported = true
         try self.set_result(types.i32_id)

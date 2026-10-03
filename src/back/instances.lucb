@@ -1,0 +1,199 @@
+#==============================================================================================
+#
+#   instances - What both backends share while generating bodies
+#
+#   DESCRIPTION:
+#       The C emitter and the IR lowering walk the same checked tree for the same program,
+#       and need the same bookkeeping to do it: the function instances the program reaches,
+#       each once (§13); the generic context of the body being generated, whose type
+#       arguments are substituted into every type the checker recorded; the source a
+#       declaration came from; and the tag of an enum case. One copy here keeps the two
+#       backends from drifting apart.
+#
+#==============================================================================================
+
+import memory
+import front.ast
+import front.source as sources
+import sema.check
+import sema.types
+import support.list
+
+# mark: Function instances ====================================================================
+
+## One monomorphised function or method: a declaration with concrete type arguments.
+pub struct Instance:
+    ## The function or method declaration.
+    pub var decl: ast.Node*
+    ## Its own type arguments.
+    pub var args: u32[]
+    ## For a method of a generic record: the record and its arguments.
+    pub var owner: ast.Node*?
+    ## The record's type arguments.
+    pub var owner_args: u32[]
+    ## Whether its body was generated.
+    pub var done: bool
+
+## The function instances a program needs, each once, in the order they were first needed,
+## with an open-addressed index over a hash of the declaration and its arguments.
+pub struct Instances:
+    ## The instances, by index.
+    pub var items: list.List[Instance]
+    var slots: u32[]
+
+    ## No instances yet.
+    pub static func create() -> Instances!:
+        return Instances(items = try list.List[Instance].create(64), slots = try empty_slots(256))
+
+    ## Register a function instance; returns its index. An instance whose arguments nest
+    ## past the checker's limit is an infinite chain of instantiations.
+    pub mutating func add(table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
+        let mask = self.slots.length - 1
+        var slot = instance_hash(f, args, owner, owner_args) & mask
+        while self.slots[slot] != 0:
+            let i = (usize)self.slots[slot] - 1
+            # through a pointer: the comparison must not copy a record
+            let r = &self.items.items[i]
+            if r.decl == f and types.same_args(r.args, args) and r.owner == owner and types.same_args(r.owner_args, owner_args):
+                return i
+            slot = (slot + 1) & mask
+        if check.nesting_of_all(table, args) > check.max_nesting or check.nesting_of_all(table, owner_args) > check.max_nesting:
+            error(endless, "an infinite chain of instantiations")
+        try self.items.push(Instance(decl = f, args = args, owner = owner, owner_args = owner_args, done = false))
+        let index = self.items.count - 1
+        if (self.items.count + 1) * 2 > self.slots.length:
+            # grown: every instance placed again in a table twice the size
+            let grown = try empty_slots(self.slots.length * 2)
+            with memory.heap:
+                free(self.slots)
+            self.slots = grown
+            for k in 0..<self.items.count:
+                self.place(k)
+        else:
+            self.place(index)
+        return index
+
+    ## The next instance whose body is still to generate, from `*next` on, marked done; none
+    ## when the list is drained. A body may need new instances, so generating goes on until
+    ## this says none after the last one.
+    pub mutating func next_pending(next: usize*) -> Instance?:
+        while *next < self.items.count:
+            var inst = self.items.get(*next)
+            *next += 1
+            if not inst.done:
+                inst.done = true
+                self.items.set(*next - 1, inst)
+                return inst
+        return none
+
+    ## Put instance `index` in the first free slot of its probe sequence.
+    mutating func place(index: usize):
+        let r = &self.items.items[index]
+        let mask = self.slots.length - 1
+        var slot = instance_hash(r.decl, r.args, r.owner, r.owner_args) & mask
+        while self.slots[slot] != 0:
+            slot = (slot + 1) & mask
+        self.slots[slot] = u32(index + 1)
+
+## A failed `add`: the chain of instantiations never ends.
+pub let endless: ErrorCode = ErrorCode.package(53)
+
+## `size` free slots for the index, from the heap, where a grown table's old slots go back.
+func empty_slots(size: usize) -> u32[]!:
+    with memory.heap:
+        var slots = try alloc u32[size]
+        for k in 0..<size:
+            slots[k] = 0
+        return slots
+
+## FNV-1a over an instance's declaration, owner and type arguments.
+func instance_hash(f: ast.Node*, args: const u32[], owner: ast.Node*?, owner_args: const u32[]) -> usize:
+    var h: u64 = 14695981039346656037
+    h = (h ^ (u64)(usize)f) *% 1099511628211
+    var owner_bits: u64 = 0
+    if let o = owner:
+        owner_bits = (u64)(usize)o
+    h = (h ^ owner_bits) *% 1099511628211
+    for a in args:
+        h = (h ^ (u64)a) *% 1099511628211
+    h = (h ^ 0xff) *% 1099511628211
+    for a in owner_args:
+        h = (h ^ (u64)a) *% 1099511628211
+    return (usize)h
+
+# mark: The body being generated ==============================================================
+
+## The generic context of a body: the instance's own type arguments and, for a method of a
+## generic record, the record's.
+pub struct Generic:
+    ## The function whose body it is.
+    pub var fn_decl: ast.Node*?
+    ## That function's type arguments.
+    pub var fn_args: u32[]
+    ## The generic record the function is a method of.
+    pub var owner_decl: ast.Node*?
+    ## That record's type arguments.
+    pub var owner_args: u32[]
+
+    ## The context before any body: no instance, no arguments.
+    pub static func none_yet() -> Generic!:
+        return Generic(fn_decl = none, fn_args = try types.no_args(), owner_decl = none, owner_args = try types.no_args())
+
+    ## A type of the body, with the instance's arguments substituted.
+    pub func map(c: check.Checker*, id: u32) -> u32!:
+        var t = id
+        if let o = self.owner_decl:
+            if self.owner_args.length > 0:
+                t = try c.substitute(t, o, self.owner_args)
+        if let f = self.fn_decl:
+            if self.fn_args.length > 0:
+                t = try c.substitute(t, f, self.fn_args)
+        return t
+
+    ## The concrete type arguments recorded on a call or name.
+    pub func type_args(c: check.Checker*, holder: ast.Node*) -> u32[]!:
+        let n = ast.count(holder.body)
+        if n == 0:
+            return try types.no_args()
+        var args = try alloc u32[n]
+        var i: usize = 0
+        var cursor = holder.body
+        while let a = cursor:
+            args[i] = try self.map(c, a.type_id)
+            i += 1
+            cursor = a.next
+        return args
+
+## The source a declaration came from, when the checker has it: the module it resolved to,
+## else, for a declaration of the file being generated, that file's.
+pub func source_unit_of(c: check.Checker*, decl: ast.Node*, file: str) -> sources.Source?:
+    for module in c.modules.span():
+        if let m = decl.resolved:
+            if module.tree == m:
+                return module.src
+        elif module.src.path == file:
+            return module.src
+    return none
+
+## Each method of record `d` that interface `iface` requires: what the record's witness
+## table for it points at, so each needs an instance.
+pub func witnessed(d: ast.Node*, iface: ast.Node*) -> list.List[ast.Node*]!:
+    var methods = try list.List[ast.Node*].create(8)
+    var req = iface.body
+    while let r = req:
+        if let m = check.find_member(d, r.text, ast.Kind.func_):
+            try methods.push(m)
+        req = r.next
+    return methods
+
+## The tag of a payload enum case: its position among the cases.
+pub func case_tag(d: ast.Node*, target: ast.Node*) -> u32:
+    var i: u32 = 0
+    var cursor = d.body
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
+            if node == target:
+                return i
+            i += 1
+        cursor = node.next
+    return 0

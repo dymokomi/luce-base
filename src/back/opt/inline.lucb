@@ -196,18 +196,7 @@ func keep_retained(program: ir.Unit*, index: Index*, retained: bool[]) -> !:
                 drop_dead_initialiser_calls(&f, index, retained)
             try kept.push(f)
         else:
-            f.points.destroy()
-            f.debug_scopes.destroy()
-            f.locals.destroy()
-            f.params.destroy()
-            f.slots.destroy()
-            f.instrs.destroy()
-            f.args.destroy()
-            f.calls.destroy()
-            f.temps.destroy()
-            f.phi_args.destroy()
-            f.jump_tables.destroy()
-            f.jump_labels.destroy()
+            f.destroy()
     program.functions.destroy()
     program.functions = kept
 
@@ -431,7 +420,7 @@ func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> 
                 let w = f.instrs.get(ix)
                 ix += 1
                 let at = try word_address(f, &out, expansion.info.result_slot, w.extra)
-                try out.push(ir.Instr(op = load_op(w.cls), cls = w.cls, dst = w.dst, a = at, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+                try out.push(ir.Instr(op = ir.load_of(w.cls), cls = w.cls, dst = w.dst, a = at, b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
         else:
             try out.push(n)
     f.instrs.destroy()
@@ -576,15 +565,7 @@ func drop_expanded(program: ir.Unit*, index: Index*, census: Census*) -> !:
     while i < program.functions.count:
         var f = program.functions.get(i)
         if census.expanded[i] and not census.pinned[i] and not referenced[i]:
-            f.points.destroy()
-            f.debug_scopes.destroy()
-            f.locals.destroy()
-            f.params.destroy()
-            f.slots.destroy()
-            f.instrs.destroy()
-            f.args.destroy()
-            f.calls.destroy()
-            f.temps.destroy()
+            f.destroy()
         else:
             try kept.push(f)
         i += 1
@@ -848,7 +829,7 @@ struct Expansion:
             let a = self.f.args.get((usize)self.info.args_start + i)
             let target = ir.slot_ref(self.slot_of(p.slot))
             if p.size == 0:
-                try out.push(ir.Instr(op = store_op(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+                try out.push(ir.Instr(op = ir.store_of(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             else:
                 try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = target, b = a.value, extra = p.size, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             i += 1
@@ -858,7 +839,7 @@ struct Expansion:
         if self.result_slot == 0 or self.call.dst == 0:
             return
         let cls = self.info.result_cls
-        try out.push(ir.Instr(op = load_op(cls), cls = cls, dst = self.call.dst, a = ir.slot_ref(self.result_slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+        try out.push(ir.Instr(op = ir.load_of(cls), cls = cls, dst = self.call.dst, a = ir.slot_ref(self.result_slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
 
     ## `--release --debug`: the body is an inlined subroutine of the caller. A site names the
     ## callee and the call; the callee's scopes, named locals and own sites join the caller's
@@ -947,7 +928,7 @@ struct Expansion:
     func leave(value: ir.Ref, out: Sink*) -> !:
         if self.info.has_result:
             if self.info.result_size == 0:
-                try out.push(ir.Instr(op = store_op(self.info.result_cls), cls = ir.Class.l, dst = 0, a = value, b = ir.slot_ref(self.result_slot), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+                try out.push(ir.Instr(op = ir.store_of(self.info.result_cls), cls = ir.Class.l, dst = 0, a = value, b = ir.slot_ref(self.result_slot), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             else:
                 # a record result is built where the caller's call sequence would have put it
                 try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
@@ -960,7 +941,7 @@ struct Expansion:
         while k < n.extra2:
             let word = self.g.args.get((usize)(n.extra + k))
             let at = try word_address(self.f, out, self.info.result_slot, k)
-            try out.push(ir.Instr(op = store_op(word.cls), cls = ir.Class.l, dst = 0, a = self.renumber(word.value), b = at, extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+            try out.push(ir.Instr(op = ir.store_of(word.cls), cls = ir.Class.l, dst = 0, a = self.renumber(word.value), b = at, extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
             k += 1
         try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
 
@@ -1011,23 +992,6 @@ struct Expansion:
         if (usize)old < self.own_slots.length and self.own_slots[(usize)old] != no_slots:
             return self.own_slots[(usize)old]
         return self.slot_base + old
-
-## The store and load that move a scalar of class `cls` through an eight-byte slot.
-func store_op(cls: ir.Class) -> ir.Op:
-    match cls:
-        .w: return ir.Op.storew
-        .l: return ir.Op.storel
-        .s: return ir.Op.stores
-        .h: return ir.Op.storehf
-        _: return ir.Op.stored
-
-func load_op(cls: ir.Class) -> ir.Op:
-    match cls:
-        .w: return ir.Op.loaduw
-        .l: return ir.Op.loadl
-        .s: return ir.Op.loads
-        .h: return ir.Op.loadhf
-        _: return ir.Op.loadd
 
 # mark: Finding functions by name ==============================================================
 

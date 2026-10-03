@@ -122,23 +122,20 @@ extend Checker:
                     let message = try format(self.scratch[half..], f"{file}:{line}:{column}: this package has a module `{d.text}`, which the standard module of that name hides; rename it (§16.6)")
                     error(unknown_name, message)
                 if not is_standard_module(d.text):
-                    let packaged = try module_paths.package_import(text, d.text, self.package_name)
+                    let resolution = module_paths.resolve(text, self.root, d.text, true, self.package_name) catch failure:
+                        let half = self.scratch.length // 2
+                        let (file, line, column) = src.located(d.start)
+                        let located = try format(self.scratch[half..], f"{file}:{line}:{column}: cannot resolve module `{d.text}`: {failure.message}")
+                        error(unknown_name, located)
+                    # the imported module's own imports search from where it was found
                     let saved_root = self.root
-                    var sibling: str
-                    var canonical_name: str
-                    if let public_module = packaged:
-                        sibling = public_module.path
-                        canonical_name = public_module.name
-                        self.root = public_module.root
-                        if self.root.length > 0 and self.root.bytes[self.root.length - 1] != '/':
-                            let room = try alloc u8[self.root.length + 2]
-                            self.root = try format(room, f"{self.root}/")
-                    else:
-                        sibling = try self.resolve_import(d.text, manifest.directory_of(text), canonical)
-                        canonical_name = try module_paths.local_name(text, d.text, self.package_name)
+                    self.root = resolution.root
+                    # spelled as the importer is, so positions and `luce.file` read the same
+                    # on every machine
+                    let sibling = try module_paths.spelled_like(resolution.path, text)
                     # a module that cannot be read is reported at the import that named it;
                     # a message that already names a place stands as it is
-                    self.load_as((c.str)sibling, canonical_name) catch failure:
+                    self.load_as((c.str)sibling, resolution.name) catch failure:
                         if failure.code == unknown_name and not names_a_place(failure.message):
                             # the message sits in the scratch's lower half; the located one
                             # goes to the upper half
@@ -151,8 +148,7 @@ extend Checker:
                     # modules in different packages (`painter` in luce_ui and in the program)
                     let index = try self.module_at(sibling) else error(unknown_name, "an imported module was not loaded")
                     d.resolved = self.modules.get(index).tree
-                    if packaged != none:
-                        self.root = saved_root
+                    self.root = saved_root
             cursor = d.next
         tree.text = name
         let owner = try module_paths.package_of(text, self.package_name)
@@ -177,58 +173,6 @@ extend Checker:
     ## Leave the active import path on success and on every loading error.
     mutating func finish_load():
         self.loading.count -= 1
-
-    ## `import front.lexer` is `front/lexer.lucb` beside the importing file, else under the
-    ## root. The root starts as the entry file's directory; when a module under a
-    ## subdirectory is the entry (its tests, say), the first import that is missing there
-    ## moves the root up until it resolves. A file outside its package's source root, a test
-    ## under `tests/`, reaches the package's modules first; the importing file, canonical
-    ## `importer`, is never its own import.
-    mutating func resolve_import(text: str, here: str, importer: str) -> str!:
-        if let module = try module_paths.outside_source_module(importer, text):
-            let (found, source_root) = module
-            let room = try alloc u8[source_root.length + 2]
-            self.root = try format(room, f"{source_root}/")
-            return found
-        if here != self.root:
-            var beside_buffer = try alloc u8[here.length + text.length + 6]
-            let beside = try format(beside_buffer, f"{here}{text}.lucb")
-            for i in here.length..<beside.length:
-                if beside.bytes[i] == '.' and i + 5 < beside.length:
-                    beside_buffer[i] = '/'
-            if file_exists((c.str)beside) and try module_paths.canonical(beside) != importer:
-                return beside
-        var dir = self.root
-        while true:
-            var buffer = try alloc u8[dir.length + text.length + 6]
-            let candidate = try format(buffer, f"{dir}{text}.lucb")
-            for i in dir.length..<candidate.length:
-                if candidate.bytes[i] == '.' and i + 5 < candidate.length:
-                    buffer[i] = '/'
-            if file_exists((c.str)candidate) and try module_paths.canonical(candidate) != importer:
-                self.root = dir
-                return candidate
-            # a directory whose `ORDER` lists the module's fragments stands for the file; its
-            # path gets a terminated buffer of its own, since the candidate's runs on
-            let stem = (str)candidate.bytes[..<candidate.length - 5]
-            var directory_buffer = try alloc u8[stem.length + 1]
-            let directory = try format(directory_buffer, f"{stem}")
-            var order_buffer = try alloc u8[directory.length + 8]
-            if file_exists((c.str)try format(order_buffer, f"{directory}/ORDER")):
-                self.root = dir
-                return directory
-            # a package's root names its modules under its source root, for an entry beside
-            # them rather than among them (§16.4)
-            if let module = try module_paths.package_source_module(dir, text):
-                let (found, source_root) = module
-                let room = try alloc u8[source_root.length + 2]
-                self.root = try format(room, f"{source_root}/")
-                return found
-            if dir.length == 0:
-                # nowhere left to look: the file's own name goes into the diagnostic
-                self.root = dir
-                return candidate
-            dir = manifest.parent_of(dir)
 
     ## The source at `path`: one file, or the fragments its `ORDER` lists when `path` is a
     ## directory, assembled in order as one module whose positions name the fragment files.

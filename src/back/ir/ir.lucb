@@ -35,10 +35,25 @@ pub enum Class as u8:
     ## on the instruction (`lanes`)
     v = 6
 
-## Whether `cls` lives in the float registers.
 ## The ten comparisons: their result is a word whatever they compare.
 pub func is_comparison(op: Op) -> bool:
     return (u8)op >= (u8)Op.ceq and (u8)op <= (u8)Op.cuge
+
+## The comparison true exactly when `op` is false, on integers (and on floats for the two
+## equalities): what a fused branch tests when its fall-through is the taken side, and
+## what folds `x == 0` of a comparison.
+pub func negated(op: Op) -> Op:
+    match op:
+        .ceq: return Op.cne
+        .cne: return Op.ceq
+        .cslt: return Op.csge
+        .csle: return Op.csgt
+        .csgt: return Op.csle
+        .csge: return Op.cslt
+        .cult: return Op.cuge
+        .cule: return Op.cugt
+        .cugt: return Op.cule
+        _: return Op.cult
 
 ## Whether `cls` is a float or half-precision register class.
 pub func is_float_class(cls: Class) -> bool:
@@ -671,6 +686,22 @@ pub struct Function:
                         result_cls = Class.l, result_size = 0, result_align = 0, result_type = 0,
                         result_shape = 0, variadic = false)
 
+    ## Free the function's lists, when it is dropped from its unit.
+    pub mutating func destroy():
+        self.points.destroy()
+        self.debug_scopes.destroy()
+        self.sites.destroy()
+        self.locals.destroy()
+        self.params.destroy()
+        self.slots.destroy()
+        self.instrs.destroy()
+        self.args.destroy()
+        self.calls.destroy()
+        self.temps.destroy()
+        self.phi_args.destroy()
+        self.jump_tables.destroy()
+        self.jump_labels.destroy()
+
     ## A fresh temporary of class `cls`; its 1-based number.
     pub mutating func temp(cls: Class) -> u32!:
         try self.temps.push(cls)
@@ -936,6 +967,23 @@ pub func store_op(size: u64, is_float: bool) -> Op:
     if size == 4:
         return Op.storew
     return Op.storel
+
+## The load of a whole register of class `cls`: a word, a long, a float of its width, or
+## a vector.
+pub func load_of(cls: Class) -> Op:
+    match cls:
+        .w: return Op.loaduw
+        .l: return Op.loadl
+        .v: return Op.loadv
+        _: return load_op(8 if cls == Class.d else (2 if cls == Class.h else 4), false, true)
+
+## The store of a whole register of class `cls`.
+pub func store_of(cls: Class) -> Op:
+    match cls:
+        .w: return Op.storew
+        .l: return Op.storel
+        .v: return Op.storev
+        _: return store_op(8 if cls == Class.d else (2 if cls == Class.h else 4), true)
 
 test "a function collects temporaries, slots, and instructions":
     var backing: u8[262144]

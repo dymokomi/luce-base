@@ -396,7 +396,7 @@ struct Plan:
                     let field = self.fields[(usize)self.field_start[r] + k]
                     let value = try self.zero_of(f, x, field.cls)
                     let target = try self.slot_address(f, x, self.new_slot[(usize)s * most_fields + k])
-                    try push(f, x, store_op(field), ir.Class.l, 0, value, target, 0)
+                    try push(f, x, ir.store_op((u64)field.width, ir.is_float_class(field.cls)), ir.Class.l, 0, value, target, 0)
                 return
         elif x.op == ir.Op.blit:
             let target_of = self.split_address(x.a)
@@ -421,8 +421,8 @@ struct Plan:
                     else:
                         target = try offset_address(f, x, x.a, field.offset)
                     let value = try f.temp(field.cls)
-                    try push(f, x, load_op(field), field.cls, value, source, ir.none_ref(), 0)
-                    try push(f, x, store_op(field), ir.Class.l, 0, ir.temp_ref(value), target, 0)
+                    try push(f, x, ir.load_op((u64)field.width, false, ir.is_float_class(field.cls)), field.cls, value, source, ir.none_ref(), 0)
+                    try push(f, x, ir.store_op((u64)field.width, ir.is_float_class(field.cls)), ir.Class.l, 0, ir.temp_ref(value), target, 0)
                 return
         try f.instrs.push(x)
 
@@ -495,26 +495,3 @@ func access_class(op: ir.Op) -> ir.Class:
             return ir.Class.l
         _:
             return ir.Class.w
-
-## The load and store that move a field whole in its class.
-func load_op(field: Field) -> ir.Op:
-    match field.width:
-        1:
-            return ir.Op.loadub
-        2:
-            return ir.Op.loadhf if field.cls == ir.Class.h else ir.Op.loaduh
-        4:
-            return ir.Op.loads if field.cls == ir.Class.s else ir.Op.loaduw
-        _:
-            return ir.Op.loadd if field.cls == ir.Class.d else ir.Op.loadl
-
-func store_op(field: Field) -> ir.Op:
-    match field.width:
-        1:
-            return ir.Op.storeb
-        2:
-            return ir.Op.storehf if field.cls == ir.Class.h else ir.Op.storeh
-        4:
-            return ir.Op.stores if field.cls == ir.Class.s else ir.Op.storew
-        _:
-            return ir.Op.stored if field.cls == ir.Class.d else ir.Op.storel

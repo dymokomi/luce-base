@@ -162,7 +162,7 @@ func negations(f: ir.Function*) -> bool:
         let integer = d.cls == ir.Class.w or d.cls == ir.Class.l
         if x.op == ir.Op.ceq and not integer and d.op != ir.Op.ceq and d.op != ir.Op.cne:
             continue
-        x.op = d.op if x.op == ir.Op.cne else opposite(d.op)
+        x.op = d.op if x.op == ir.Op.cne else ir.negated(d.op)
         x.cls = d.cls
         x.a = d.a
         x.b = d.b
@@ -172,21 +172,6 @@ func negations(f: ir.Function*) -> bool:
 
 func same_ref(a: ir.Ref, b: ir.Ref) -> bool:
     return a.kind == b.kind and a.index == b.index and a.value == b.value
-
-## The comparison true exactly when `op` is false, on integers (and on floats for the two
-## equalities).
-func opposite(op: ir.Op) -> ir.Op:
-    match op:
-        .ceq: return ir.Op.cne
-        .cne: return ir.Op.ceq
-        .cslt: return ir.Op.csge
-        .csle: return ir.Op.csgt
-        .csgt: return ir.Op.csle
-        .csge: return ir.Op.cslt
-        .cult: return ir.Op.cuge
-        .cule: return ir.Op.cugt
-        .cugt: return ir.Op.cule
-        _: return ir.Op.cult
 
 ## Whether `d`'s result has the same low `bits` bits as its first operand, an integer:
 ## an extension from at least that width, or a mask whose low bits are all ones.

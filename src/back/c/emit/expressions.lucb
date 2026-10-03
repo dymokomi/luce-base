@@ -334,7 +334,7 @@ extend Emitter:
                 # `else return x`: leaves the function from inside an expression
                 try self.return_in_expr(e)
             .break_:
-                let target = self.loop_scope(e.text)
+                let target = exits.innermost_loop(&self.scopes, e.text)
                 try self.unwind_from(target + 1, false)
                 if e.text.length == 0:
                     try self.break_to(target)
@@ -342,7 +342,7 @@ extend Emitter:
                     try self.put("goto lb_brk_")
                     try self.put(e.text)
             .continue_:
-                let target = self.loop_scope(e.text)
+                let target = exits.innermost_loop(&self.scopes, e.text)
                 try self.unwind_from(target + 1, false)
                 if e.text.length == 0:
                     try self.put("continue")
@@ -517,17 +517,7 @@ extend Emitter:
 
     ## The concrete type arguments recorded on a call or name.
     mutating func type_args(holder: ast.Node*) -> u32[]!:
-        let n = ast.count(holder.body)
-        if n == 0:
-            return try types.no_args()
-        var args = try alloc u32[n]
-        var i: usize = 0
-        var cursor = holder.body
-        while let a = cursor:
-            args[i] = try self.map(a.type_id)
-            i += 1
-            cursor = a.next
-        return args
+        return try self.generic.type_args(self.c, holder)
 
     ## An enum case value: the integer, or the tagged record with its payload.
     mutating func enum_value(e: ast.Node*) -> !:
@@ -544,7 +534,7 @@ extend Emitter:
         try self.put("((")
         try self.put_type(t)
         try self.put("){ .tag = ")
-        try self.put_u64((u64)case_tag(d, resolved))
+        try self.put_u64((u64)instances.case_tag(d, resolved))
         if e.body != none and resolved.body != none:
             try self.put(", .u.")
             try self.put(try self.field(resolved.text))

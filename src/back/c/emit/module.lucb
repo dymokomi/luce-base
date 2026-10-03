@@ -26,6 +26,8 @@
 #==============================================================================================
 from back.effects import may_have_effect, arguments_have_effect
 import back.declarations as declarations
+import back.exits
+import back.instances
 import back.names
 import back.calls
 import strings
@@ -47,32 +49,10 @@ type MaybeNode = ast.Node*?
 
 # mark: Instances and scopes ==================================================================
 
-## One monomorphised function or record: a declaration with concrete type arguments.
-struct Instance:
-    var decl: ast.Node*
-    var args: u32[]
-    ## For a method of a generic record: the record and its arguments.
-    var owner: ast.Node*?
-    var owner_args: u32[]
-    var done: bool
-
 ## A witness table the program needs: one record viewed as one interface.
 struct Witness:
     var record: u32
     var iface: u32
-
-## One lexical scope while emitting a body: the deferred calls registered in it,
-## whether it is a loop (and its label), and whether it restored an allocator.
-struct Scope:
-    var defer_base: usize
-    var loop: bool
-    var label: str
-    var restore_alloc: bool
-    var alloc_save: u32
-    ## A loop's own exit label, `lb_brk_N`, which an unlabelled `break` jumps to: C's
-    ## `break` inside a `switch`, which a `match` may be, would leave the switch alone.
-    var exit: u32 = 0
-    var exit_used: bool = false
 
 ## The buffer `put` writes to.
 let to_out: u8 = 0
@@ -110,8 +90,8 @@ pub struct Emitter:
     ## Storage referenced by emitted bodies or global initializers.
     var referenced_storage: list.List[NodeRef]
     var entry: ast.Node*
-    var funcs: list.List[Instance]
-    var records: list.List[Instance]
+    var funcs: instances.Instances
+    var records: list.List[instances.Instance]
     ## Type ids whose typedef is needed, and those already written.
     var needed: list.List[u32]
     var defined: list.List[u32]
@@ -127,11 +107,8 @@ pub struct Emitter:
     var defined_globals: list.List[NodeRef]
     ## Emission context: the function, its instance arguments, its owner's.
     var current_fn: ast.Node*?
-    var fn_decl: ast.Node*?
-    var fn_args: u32[]
-    var owner_decl: ast.Node*?
-    var owner_args: u32[]
-    var scopes: list.List[Scope]
+    var generic: instances.Generic
+    var scopes: list.List[exits.Scope]
     var defers: list.List[NodeRef]
     var catch_var: u32
     var catch_done: u32
@@ -180,13 +157,12 @@ pub struct Emitter:
                        scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
                        modules = try list.List[NodeRef].create(16), referenced_storage = try list.List[NodeRef].create(8), entry = entry,
-                       funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
+                       funcs = try instances.Instances.create(), records = try list.List[instances.Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
                        vtables = try list.List[Witness].create(16), runtime_globals = try list.List[NodeRef].create(8),
                        defined_globals = try list.List[NodeRef].create(64),
-                       current_fn = none, fn_decl = none, fn_args = try types.no_args(), owner_decl = none,
-                       owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
+                       current_fn = none, generic = try instances.Generic.none_yet(), scopes = try list.List[exits.Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
                        catch_scope = 0, catch_payload = 0, match_result = 0, in_catch = false, src_file = source_path(checker, entry), wrote_writer = false,
                        sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0, folding = false, seq_in_place = false)
@@ -223,19 +199,6 @@ pub struct Emitter:
         try self.put("\"assert failed: \" ")
         try self.put_c_string(e.text)
 
-    ## The source a declaration came from, when the checker has it.
-    func source_unit_of(decl: ast.Node*) -> sources.Source?:
-        var i: usize = 0
-        while i < self.c.modules.count:
-            let module = self.c.modules.get(i)
-            if let m = decl.resolved:
-                if module.tree == m:
-                    return module.src
-            elif module.src.path == self.src_file:
-                return module.src
-            i += 1
-        return none
-
     ## `lb_pos = "file:line:column";` before a statement: what a trap in it names (§11.5),
     ## through the source's position directives (§3.3).
     mutating func put_position(n: ast.Node*) -> !:
@@ -243,7 +206,7 @@ pub struct Emitter:
         var line = n.line
         var column: u32 = 1
         if let f = self.current_fn:
-            if let s = self.source_unit_of(f):
+            if let s = instances.source_unit_of(self.c, f, self.src_file):
                 let (mf, ml, mc) = s.mapped(n.line, s.statement_column(n.line))
                 file = mf
                 line = ml

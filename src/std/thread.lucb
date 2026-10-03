@@ -8,8 +8,6 @@
 #
 #==============================================================================================
 
-from windows_abi import SystemInfo
-from windows_abi import GetSystemInfo
 from windows_abi import Sleep
 import c
 import core
@@ -31,14 +29,6 @@ extern func mac_setname as "pthread_setname_np"(name: c.str) -> i32
 extern func linux_setname as "pthread_setname_np"(thread: void*, name: c.str) -> i32
 extern func sched_yield() -> i32
 extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
-extern func getpagesize() -> i32
-
-func page_size() -> usize:
-    if platform.windows:
-        var info: SystemInfo = ---
-        GetSystemInfo(&info)
-        return (usize)info.page_size
-    return (usize)getpagesize()
 
 ## `struct timespec`: `tv_nsec` is a C `long`, four bytes on Windows.
 extern struct Duration:
@@ -124,7 +114,7 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
         free(start) in memory.heap
         error(failed, "spawn")
     let wanted = stack if stack > 0 else default_stack
-    let page = page_size()
+    let page = memory.page_size()
     var size = wanted if wanted > least_stack else least_stack
     size = (size + page - 1) // page * page
     if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:

@@ -4,8 +4,9 @@
 #
 #   DESCRIPTION:
 #       Turns an `ir.Unit` into assembly text for the system assembler, for arm64-macos
-#       and arm64-linux: sections, symbols, page addressing, and thread-locals as
-#       arm64/object spells them for Mach-O or ELF, and calls under AAPCS64 with Apple's
+#       and arm64-linux: sections and symbols as native/objects spells them for Mach-O or
+#       ELF, page addressing and thread-locals as arm64/object does, and calls under
+#       AAPCS64 with Apple's
 #       variant on macOS (base.md §19.5): integers in x0-x7, floats in d0-d7, aggregates
 #       up to sixteen bytes in registers, larger ones by address, homogeneous float
 #       aggregates in d registers, results the same way with x8 for the large ones, and
@@ -25,6 +26,7 @@
 import back.native.arm64.object
 import back.native.dwarf
 import back.native.assembly
+import back.native.objects
 import back.native.frame
 import back.native.regalloc
 import back.native.incoming
@@ -63,7 +65,7 @@ pub struct Generator:
     ## What precedes a C symbol in this target's assembler: `_` on macOS (§19.5).
     pub var symbol_prefix: str
     ## Mach-O or ELF: what differs between arm64-macos and arm64-linux.
-    var object_format: object.Format
+    var object_format: objects.Format
     ## Whether the target promises FEAT_FP16, half-precision arithmetic in registers:
     ## Apple's arm64 does; ARMv8.0-A, arm64-linux's baseline, has the conversions only, so
     ## halves compute through single precision, which rounds the same (§19.5).
@@ -116,7 +118,7 @@ pub struct Generator:
 
     ## A generator for `program_unit`, targeting `os` with the given C symbol prefix.
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
-        return Generator(symbol_prefix = symbol_prefix, object_format = object.Format(os, symbol_prefix), fp16 = os == build_target.Os.macos, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+        return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 2), fp16 = os == build_target.Os.macos, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
@@ -133,28 +135,13 @@ pub struct Generator:
         try self.writer.out.put_u64((u64)n)
 
     mutating func text_label(n: u32) -> !:
-        try self.writer.out.put(self.texts_prefix())
-        if self.split:
-            try stable_names.put_tag(&self.writer.out, self.text_tags[(usize)n])
-        else:
-            try self.writer.out.put_u64((u64)n)
+        try self.object_format.text_name(&self.writer.out, self.split, self.text_tags, n)
 
     ## The text literal's label as text, for an address the format spells.
     func text_label_name(n: u32) -> str!:
         var name = try buffer.Buffer.create(32)
-        try name.put(self.texts_prefix())
-        if self.split:
-            try stable_names.put_tag(&name, self.text_tags[(usize)n])
-        else:
-            try name.put_u64((u64)n)
+        try self.object_format.text_name(&name, self.split, self.text_tags, n)
         return name.view()
-
-    ## What begins a text literal's name: the format's local label, or with `split` a
-    ## symbol of the program's own (`lb_text_`) every piece of the assembly can name.
-    func texts_prefix() -> str:
-        if self.split:
-            return "_lb_text_" if self.object_format.apple else "lb_text_"
-        return self.object_format.text_label
 
     ## The assembly emitted so far.
     pub func text() -> str:

@@ -35,34 +35,36 @@ extend Emitter:
         else:
             try self.address(receiver)
 
-    ## `atomic.Ordering` case to a C memory order.
-    mutating func memory_order(e: ast.Node*) -> !:
-        var name = e.text
-        if e.kind == ast.Kind.member:
-            name = e.text
-        if name == "relaxed":
-            try self.put("memory_order_relaxed")
-        elif name == "acquire":
-            try self.put("memory_order_acquire")
-        elif name == "release":
-            try self.put("memory_order_release")
-        elif name == "acq_rel":
-            try self.put("memory_order_acq_rel")
-        else:
-            try self.put("memory_order_seq_cst")
+    ## An `atomic.Ordering` argument as a C memory order; an ordering not given is `seq_cst`.
+    mutating func memory_order(given: ast.Node*?) -> !:
+        let spelled = ["memory_order_relaxed", "memory_order_consume", "memory_order_acquire", "memory_order_release", "memory_order_acq_rel", "memory_order_seq_cst"]
+        try self.put(spelled[calls.ordering(given)])
+
+    ## `co<n> = atomic_compare_exchange_<strength>_explicit(&x, &ce<n>, desired, orders)`, the
+    ## exchange `cas` writes, weak or strong as its argument chooses.
+    mutating func compare_exchange(strength: str, receiver: ast.Node*, through_ptr: bool, n: u32, et: u32, desired: ast.Node*, success: ast.Node*?, failure: ast.Node*?) -> !:
+        try self.put_tmp("co", n)
+        try self.put(" = atomic_compare_exchange_")
+        try self.put(strength)
+        try self.put("_explicit(")
+        try self.receiver_address(receiver, through_ptr)
+        try self.put(", &")
+        try self.put_tmp("ce", n)
+        try self.put(", (")
+        try self.put_type(et)
+        try self.put(")(")
+        try self.value(desired, et)
+        try self.put("), ")
+        try self.memory_order(success)
+        try self.put(", ")
+        try self.memory_order(failure)
 
     ## The operations of `@T` (§15.1).
     mutating func atomic_call(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, through_ptr: bool) -> !:
         let name = callee.text
         let et = self.elem(rt)
         var args: MaybeNode[5]
-        var count: usize = 0
-        var cursor = e.body
-        while let a = cursor:
-            if count < 5:
-                args[count] = a.left
-            count += 1
-            cursor = a.next
+        discard(calls.argument_values(e, args[0..]))
         let n = self.tmp()
         if name == "load":
             try self.put("((")
@@ -70,10 +72,7 @@ extend Emitter:
             try self.put(")atomic_load_explicit(")
             try self.receiver_address(receiver, through_ptr)
             try self.put(", ")
-            if let o = args[0]:
-                try self.memory_order(o)
-            else:
-                try self.put("memory_order_seq_cst")
+            try self.memory_order(args[0])
             try self.put("))")
             return
         if name == "store":
@@ -85,10 +84,7 @@ extend Emitter:
             try self.put(")(")
             try self.value(v, et)
             try self.put("), ")
-            if let o = args[1]:
-                try self.memory_order(o)
-            else:
-                try self.put("memory_order_seq_cst")
+            try self.memory_order(args[1])
             try self.put("), (void)0)")
             return
         if name == "wait":
@@ -127,45 +123,9 @@ extend Emitter:
             else:
                 try self.put("0")
             try self.put(") { ")
-            try self.put_tmp("co", n)
-            try self.put(" = atomic_compare_exchange_weak_explicit(")
-            try self.receiver_address(receiver, through_ptr)
-            try self.put(", &")
-            try self.put_tmp("ce", n)
-            try self.put(", (")
-            try self.put_type(et)
-            try self.put(")(")
-            try self.value(desired, et)
-            try self.put("), ")
-            if let o = args[2]:
-                try self.memory_order(o)
-            else:
-                try self.put("memory_order_seq_cst")
-            try self.put(", ")
-            if let o = args[3]:
-                try self.memory_order(o)
-            else:
-                try self.put("memory_order_seq_cst")
+            try self.compare_exchange("weak", receiver, through_ptr, n, et, desired, args[2], args[3])
             try self.put("); } else { ")
-            try self.put_tmp("co", n)
-            try self.put(" = atomic_compare_exchange_strong_explicit(")
-            try self.receiver_address(receiver, through_ptr)
-            try self.put(", &")
-            try self.put_tmp("ce", n)
-            try self.put(", (")
-            try self.put_type(et)
-            try self.put(")(")
-            try self.value(desired, et)
-            try self.put("), ")
-            if let o = args[2]:
-                try self.memory_order(o)
-            else:
-                try self.put("memory_order_seq_cst")
-            try self.put(", ")
-            if let o = args[3]:
-                try self.memory_order(o)
-            else:
-                try self.put("memory_order_seq_cst")
+            try self.compare_exchange("strong", receiver, through_ptr, n, et, desired, args[2], args[3])
             try self.put("); } (")
             try self.put_type(result)
             try self.put("){ ")
@@ -234,10 +194,7 @@ extend Emitter:
         else:
             try self.value(v, et)
         try self.put("), ")
-        if let o = args[1]:
-            try self.memory_order(o)
-        else:
-            try self.put("memory_order_seq_cst")
+        try self.memory_order(args[1])
         try self.put("))")
 
     # mark: Memory =============================================================================
@@ -276,17 +233,8 @@ extend Emitter:
         try self.put(", .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true })")
 
     mutating func new_expr(e: ast.Node*) -> !:
-        self.site_line = e.line
         let t = e.ty else return
-        let result = try self.ty(e)
-        let payload = self.elem(result)
-        try self.note(result)
-        let n = self.tmp()
-        try self.put("({ lb_iface ")
-        try self.put_tmp("a", n)
-        try self.put(" = ")
-        try self.allocator_of(e.right)
-        try self.put("; ")
+        let (n, result, payload) = try self.open_allocation(e)
         if self.is_span(payload):
             let count = t.right else return
             try self.counted_allocation(n, payload, count, result, true)
@@ -462,7 +410,9 @@ extend Emitter:
         try self.put_tmp("r", n)
         try self.put("; })")
 
-    mutating func alloc_expr(e: ast.Node*) -> !:
+    ## The start of an allocation's statement expression, `({ lb_iface a<n> = allocator; `:
+    ## its temporary's number, the result type and the type it points at.
+    mutating func open_allocation(e: ast.Node*) -> (u32, u32, u32)!:
         self.site_line = e.line
         let result = try self.ty(e)
         let payload = self.elem(result)
@@ -473,6 +423,10 @@ extend Emitter:
         try self.put(" = ")
         try self.allocator_of(e.right)
         try self.put("; ")
+        return (n, result, payload)
+
+    mutating func alloc_expr(e: ast.Node*) -> !:
+        let (n, result, payload) = try self.open_allocation(e)
         if let t = e.ty:
             let count = t.right else return
             try self.counted_allocation(n, payload, count, result, false)

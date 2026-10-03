@@ -221,33 +221,6 @@ pub func owner_root(path: str) -> (str, str)?!:
         return none
     return (package.name, package.root)
 
-## Module `name` of the package whose root is `directory`: its file or fragment directory
-## under the package's source root, with that root, when `directory` holds a
-## `package.prisma` and the module is there. An entry outside the source root, a test
-## program under `tests/`, reaches its package's own modules this way.
-pub func package_source_module(directory: str, name: str) -> (str, str)?!:
-    let candidate = try paths.join(directory, "package.prisma")
-    if not try present(candidate):
-        return none
-    let package = try read_package(candidate)
-    let found = try source_file(package.source, name, true) else return none
-    return (found, package.source)
-
-## Module `name` of the package the file `importer` belongs to, with the package's source
-## root, when `importer` lies outside that root (a test program under `tests/`) and the
-## package has the module: such a file reaches its package's modules before the ones beside
-## it (§16.4).
-pub func outside_source_module(importer: str, name: str) -> (str, str)?!:
-    let input = try canonical(importer)
-    let package = try enclosing(input) else return none
-    if not try present(package.source):
-        return none
-    let source = try canonical(package.source)
-    if contained(input, source):
-        return none
-    let found = try source_file(source, name, true) else return none
-    return (found, source)
-
 ## The directory of test fragments for the module at `path` (§16.5): under the package's
 ## `tests/`, the module's path below the source root, when a `TESTS` file there lists them;
 ## none otherwise. `luce-base test` adds them to the module under test; a build never reads
@@ -391,12 +364,6 @@ pub func has_local_module(importer: str, name: str) -> bool!:
         return false
     return try source_file(try canonical(package.source), name, true) != none
 
-## The name a module the importer reaches by a bare path has in a build of `building`: the
-## path, behind the importer's package identifier when that is another package.
-pub func local_name(importer: str, name: str, building: str) -> str!:
-    let package = try enclosing(try canonical(importer)) else return name
-    return try build_name(package, name, building)
-
 ## The identifier of the package a build with source root `source_root` builds, whose
 ## modules keep their bare names (§16.3); empty outside a package.
 pub func building_package(source_root: str) -> str!:
@@ -405,41 +372,73 @@ pub func building_package(source_root: str) -> str!:
     let built = try enclosing(try paths.join(try canonical(source_root), "x")) else return ""
     return built.name
 
-## Resolution for the Luce consumer, as a build of the package enclosing `source_root`
-## resolves: a package's module behind its identifier, else one under the importer's
-## source root, else, outside a package, under the caller's root.
-pub func resolve(importer: str, source_root: str, name: str, base_only: bool = false) -> Resolution!:
-    let building = try building_package(source_root)
+## Where import `name` of the file `importer` leads, for every compiler that resolves
+## imports (the Base checker and Luce), `source_root` being where the importer's search
+## stands (base.md §16.3, §16.4). In order:
+## - a package's module behind its identifier, `luce_ui.ui`, public unless it is the
+##   importer's own package's;
+## - for a file inside a package's source root, the module at that path under the root;
+## - for a file of a package outside its source root, a test under `tests/`, the package's
+##   module first, then as for a file in no package;
+## - for a file in no package, a module beside it (never the file itself), then under
+##   `source_root` and each directory enclosing it, where a directory holding a
+##   `package.prisma` offers that package's modules.
+## `base_only` leaves `.luc` modules out. `built` names the package being built, whose
+## modules keep bare names; empty, it is the package enclosing `source_root`. The
+## resolution's root is where the module was found.
+pub func resolve(importer: str, source_root: str, name: str, base_only: bool = false, built: str = "") -> Resolution!:
+    let building = built if built.length > 0 else try building_package(source_root)
     if let external = try package_import(importer, name, building, base_only):
         return external
     let input = try canonical(importer)
-    var root = source_root
-    var package_root = false
-    var module_name = name
+    let here = try canonical(paths.directory(input))
     if let package = try enclosing(input):
         if try present(package.source):
-            let candidate = try canonical(package.source)
-            if not contained(input, candidate):
-                # a file of the package outside its source root, a test under `tests/`: the
-                # package's modules first, then the helpers beside it, never itself (§16.4)
-                if let path = try source_file(candidate, name, base_only):
-                    return Resolution(try build_name(package, name, building), path, candidate)
-                if let path = try source_file(try canonical(root), name, base_only):
-                    if try canonical(path) != input:
-                        return Resolution(name, path, try canonical(root))
-            root = candidate
-            package_root = true
-            module_name = try build_name(package, name, building)
-    root = try canonical(root)
+            let source = try canonical(package.source)
+            if let path = try source_file(source, name, base_only):
+                return Resolution(try build_name(package, name, building), path, source)
+            if contained(input, source):
+                error(invalid, "the module is neither this package's nor a public module of a package it depends on")
+    # a file in no package, or one of a package outside its source root (a program under
+    # `tests/`): beside it, then up from where the search stands
+    if let path = try beside(here, name, base_only, input):
+        return Resolution(name, path, here)
+    var root = try canonical(source_root if source_root.length > 0 else ".")
     while true:
-        if let path = try source_file(root, name, base_only):
-            return Resolution(module_name, path, root)
-        # A standalone Base module may import from an enclosing source directory,
-        # as Base's compiler loader does. Package roots are explicit boundaries.
+        if let path = try beside(root, name, base_only, input):
+            return Resolution(name, path, root)
+        let manifest_path = try paths.join(root, "package.prisma")
+        if try present(manifest_path):
+            let package = try read_package(manifest_path)
+            if let path = try source_file(package.source, name, base_only):
+                return Resolution(name, path, try canonical(package.source))
         let parent = paths.directory(root)
-        if package_root or not base_only or parent == root or parent.length == 0:
-            error(invalid, "the module is neither this package's nor a public module of a package it depends on")
+        if parent == root or parent.length == 0:
+            break
         root = parent
+    # nothing else of the name: a file importing itself, which the loader reports as the
+    # cycle it is
+    if let path = try source_file(here, name, base_only):
+        return Resolution(name, path, here)
+    error(invalid, "the module is neither this package's nor a public module of a package it depends on")
+
+## `path`, a canonical module path, spelled as `importer` is: relative to the working
+## directory when the importer's path is relative and `path` lies below it, else as is.
+pub func spelled_like(path: str, importer: str) -> str!:
+    if importer.length == 0 or paths.is_absolute(importer):
+        return path
+    let here = try canonical(".")
+    if contained(path, here) and path.length > here.length:
+        return (str)path.bytes[here.length + 1..]
+    return path
+
+## Module `name` under `directory` unless it is the file `importer` itself: an import of
+## its own name looks past it first (`tests/area.lucb` importing `area`).
+func beside(directory: str, name: str, base_only: bool, importer: str) -> str?!:
+    let path = try source_file(directory, name, base_only) else return none
+    if path == importer:
+        return none
+    return path
 
 ## The module's canonical dotted name inside its own package source root.
 pub func name_of(path: str) -> str!:

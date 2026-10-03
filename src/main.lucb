@@ -998,17 +998,28 @@ func trim(text: str) -> str:
         end -= 1
     return (str)b[..<end]
 
+## A checker for the build's target with the prelude loaded: the start of every command
+## that checks without settings of its own.
+func new_checker() -> check.Checker!:
+    var checker = try check.Checker.create(scratch_of())
+    checker.build_target = build_target()
+    try checker.add_prelude()
+    return checker
+
+## The program whose entry is `path`, loaded and checked by a `new_checker`.
+func checked_entry(path: c.str) -> check.Checker!:
+    var checker = try new_checker()
+    try checker.load(path)
+    try checker.check_program()
+    return checker
+
 ## Check FILE and the modules it imports from its directory; silence means success. Whether
 ## it printed warnings, which `-W` makes a failure.
 func check_file(path: c.str) -> bool!:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        var checker = try check.Checker.create(scratch_of())
-        checker.build_target = build_target()
-        try checker.add_prelude()
-        try checker.load(path)
-        try checker.check_program()
+        var checker = try checked_entry(path)
         try report_warnings(&checker)
         return show_warnings and checker.warnings.count > 0
 
@@ -1031,11 +1042,7 @@ func describe_file(path: c.str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        var checker = try check.Checker.create(scratch_of())
-        checker.build_target = build_target()
-        try checker.add_prelude()
-        try checker.load(path)
-        try checker.check_program()
+        var checker = try checked_entry(path)
         let entry = checker.modules.get(checker.modules.count - 1)
         try describe.write(out, &checker, entry.tree, entry.name)
 
@@ -1045,11 +1052,7 @@ func interface_file(path: c.str, output: str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        var checker = try check.Checker.create(scratch_of())
-        checker.build_target = build_target()
-        try checker.add_prelude()
-        try checker.load(path)
-        try checker.check_program()
+        var checker = try checked_entry(path)
         var text = try buffer.Buffer.create(65536)
         try declarations.write(&text, checker.modules.get(checker.modules.count - 1), &checker.table)
         if output.length > 0:
@@ -1062,9 +1065,7 @@ func interface_standard(name: str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        var checker = try check.Checker.create(scratch_of())
-        checker.build_target = build_target()
-        try checker.add_prelude()
+        var checker = try new_checker()
         let index = checker.find_module(name) else error(build_failed, "unknown standard module")
         try checker.check_program()
         var text = try buffer.Buffer.create(65536)
@@ -1077,9 +1078,7 @@ func describe_standard(name: str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        var checker = try check.Checker.create(scratch_of())
-        checker.build_target = build_target()
-        try checker.add_prelude()
+        var checker = try new_checker()
         let index = checker.find_module(name) else error(build_failed, "unknown standard module")
         try checker.check_program()
         try describe.write(out, &checker, checker.modules.get(index).tree, name)
@@ -1090,19 +1089,21 @@ func resolve_module(importer: str, root: str, name: str, base_only: bool, out: i
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        if check.is_standard_module(name):
-            try out.write(f"luce-base-module-v1\0standard\0{name}\0\0\0")
-            return
-        if try module_paths.names_modules(importer, name):
-            # `from pkg import module`, `from pkg.dir import module`: names modules (§16.3)
-            try out.write(f"luce-base-module-v1\0package\0{name}\0{root}\0{root}\0")
-            return
-        let resolved = try module_paths.resolve(importer, root, name, base_only)
-        # a Base module is a `.lucb` file or a directory whose `ORDER` lists its fragments
-        let order = try alloc u8[resolved.path.length + 8]
-        let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try format(order, f"{resolved.path}/ORDER"))
-        let kind = "base" if base else "luce"
+        let (kind, resolved) = try classified(importer, root, name, base_only)
         try out.write(f"luce-base-module-v1\0{kind}\0{resolved.name}\0{resolved.path}\0{resolved.root}\0")
+
+## What import `name` of `importer` is, for the resolve commands: its kind, `standard`,
+## `package` (a `from` import whose names are modules, §16.3), `base` or `luce`, and where it
+## leads. A Base module is a `.lucb` file or a directory whose `ORDER` lists its fragments.
+func classified(importer: str, root: str, name: str, base_only: bool) -> (str, module_paths.Resolution)!:
+    if check.is_standard_module(name):
+        return ("standard", module_paths.Resolution(name, "", ""))
+    if try module_paths.names_modules(importer, name):
+        return ("package", module_paths.Resolution(name, root, root))
+    let resolved = try module_paths.resolve(importer, root, name, base_only)
+    let order = try alloc u8[resolved.path.length + 8]
+    let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try format(order, f"{resolved.path}/ORDER"))
+    return ("base" if base else "luce", resolved)
 
 ## `resolve-all IMPORTER ROOT NAME...`: each import of one module resolved as `resolve` does,
 ## in one run: a record for each name, `module`, the name, kind, canonical name, path and
@@ -1115,18 +1116,9 @@ func resolve_modules(importer: str, root: str, requested: c.str[], out: io.Write
         var arena = Arena(memory.heap)
         defer arena.destroy()
         with arena:
-            if check.is_standard_module(name):
-                try out.write(f"module\0{name}\0standard\0{name}\0\0\0")
-                continue
-            if try module_paths.names_modules(importer, name):
-                try out.write(f"module\0{name}\0package\0{name}\0{root}\0{root}\0")
-                continue
-            let resolved = module_paths.resolve(importer, root, name, false) catch failure:
+            let (kind, resolved) = classified(importer, root, name, false) catch failure:
                 try out.write(f"error\0{name}\0{failure.message}\0")
                 continue
-            let order = try alloc u8[resolved.path.length + 8]
-            let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try format(order, f"{resolved.path}/ORDER"))
-            let kind = "base" if base else "luce"
             try out.write(f"module\0{name}\0{kind}\0{resolved.name}\0{resolved.path}\0{resolved.root}\0")
 
 ## Report the resolved nonstandard import closure for source packaging. The entry
@@ -1188,15 +1180,20 @@ func describe_closure(path: c.str, out: io.Writer) -> !:
     defer arena.destroy()
     with arena:
         var checker = try checked_closure(path)
-        try out.write("luce-base-closure-v1\0")
-        for module in checker.modules.span():
-            if module.is_prelude:
-                continue
-            try out.write(f"module\0{module.canonical}\0")
-            try describe.write(out, &checker, module.tree, module.name)
-            try out.write("\0")
+        try write_closure(&checker, out, true)
+
+## A checked closure as `describe-closure` reports it: each module but the prelude with its
+## description, then the dependency report, whose entry `entry_last` leaves out.
+func write_closure(checker: check.Checker*, out: io.Writer, entry_last: bool) -> !:
+    try out.write("luce-base-closure-v1\0")
+    for module in checker.modules.span():
+        if module.is_prelude:
+            continue
+        try out.write(f"module\0{module.canonical}\0")
+        try describe.write(out, checker, module.tree, module.name)
         try out.write("\0")
-        try write_dependencies(&checker, out)
+    try out.write("\0")
+    try write_dependencies(checker, out, entry_last)
 
 ## `describe-closure --modules BUILD_ROOT NAME PATH ROOT...`: several modules, each loaded under its
 ## canonical name from its package's source root, checked together once, then described as
@@ -1225,15 +1222,7 @@ func describe_closures(build_root: str, triples: c.str[], out: io.Writer) -> !:
                 try checker.load_as(triples[at + 1], (str)triples[at])
             at += 3
         try checker.check_program()
-        try out.write("luce-base-closure-v1\0")
-        for module in checker.modules.span():
-            if module.is_prelude:
-                continue
-            try out.write(f"module\0{module.canonical}\0")
-            try describe.write(out, &checker, module.tree, module.name)
-            try out.write("\0")
-        try out.write("\0")
-        try write_dependencies(&checker, out, false)
+        try write_closure(&checker, out, false)
 
 ## Collect the packages actually loaded, including the entry and private imports.
 func native_inputs(checker: check.Checker*) -> native_packages.Inputs!:

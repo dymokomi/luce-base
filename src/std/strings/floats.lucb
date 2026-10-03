@@ -263,11 +263,11 @@ func lemire64(mantissa: u64, exponent: i64, negative: bool) -> f64?:
     var binary = (u64)(((217706 * exponent) >> 16) + 64 + 1023 - (i64)zeros)
     let row = (usize)(exponent - smallest_power) * 2
     var low: u64 = 0
-    var high = product(man, lemire_powers[row], &low)
+    var high = float_text.product(man, lemire_powers[row], &low)
     # the top 55 bits may be off by the truncated low word: widen when unsure
     if high & 0x1FF == 0x1FF and low +% man < man:
         var extra_low: u64 = 0
-        let extra_high = product(man, lemire_powers[row + 1], &extra_low)
+        let extra_high = float_text.product(man, lemire_powers[row + 1], &extra_low)
         var merged_high = high
         let merged_low = low +% extra_high
         if merged_low < low:
@@ -303,10 +303,10 @@ func lemire32(mantissa: u64, exponent: i64, negative: bool) -> f32?:
     var binary = (u64)(((217706 * exponent) >> 16) + 64 + 127 - (i64)zeros)
     let row = (usize)(exponent - smallest_power) * 2
     var low: u64 = 0
-    var high = product(man, lemire_powers[row], &low)
+    var high = float_text.product(man, lemire_powers[row], &low)
     if high & 0x3FFFFFFFFF == 0x3FFFFFFFFF and low +% man < man:
         var extra_low: u64 = 0
-        let extra_high = product(man, lemire_powers[row + 1], &extra_low)
+        let extra_high = float_text.product(man, lemire_powers[row + 1], &extra_low)
         var merged_high = high
         let merged_low = low +% extra_high
         if merged_low < low:
@@ -330,20 +330,6 @@ func lemire32(mantissa: u64, exponent: i64, negative: bool) -> f32?:
     if negative:
         bits |= 0x80000000
     return f32.bits(bits)
-
-## The 128-bit product a * b: the high word, the low word stored in `low`.
-inline func product(a: u64, b: u64, low: u64*) -> u64:
-    let a0 = a & 0xFFFFFFFF
-    let a1 = a >> 32
-    let b0 = b & 0xFFFFFFFF
-    let b1 = b >> 32
-    let p00 = a0 * b0
-    let p01 = a0 * b1
-    let p10 = a1 * b0
-    let p11 = a1 * b1
-    let middle = (p00 >> 32) + (p01 & 0xFFFFFFFF) + (p10 & 0xFFFFFFFF)
-    *low = (middle << 32) | (p00 & 0xFFFFFFFF)
-    return p11 + (p01 >> 32) + (p10 >> 32) + (middle >> 32)
 
 ## Leading zero bits of a nonzero value.
 inline func leading_zeros(value: u64) -> u64:

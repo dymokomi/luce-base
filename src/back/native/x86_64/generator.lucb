@@ -4,7 +4,7 @@
 #
 #   DESCRIPTION:
 #       Emits AT&T assembly for x86-64. Calling-convention classification lives in
-#       x86_64/abi; object sections and relocations live in x86_64/object; frame
+#       x86_64/abi; sections and symbols live in native/objects, address loads in x86_64/object; frame
 #       unwind directives live in x86_64/unwind. Instruction selection consumes
 #       these policies for System V on Linux and Microsoft x64 on Windows.
 #
@@ -20,10 +20,11 @@
 #==============================================================================================
 from back.native.x86_64.abi import Convention
 from back.native.x86_64.abi import Placement
-from back.native.x86_64.object import Format
+import back.native.x86_64.object
 from back.native.x86_64.unwind import FrameUnwind
 import back.native.dwarf
 import back.native.assembly
+import back.native.objects
 import back.native.frame
 import back.native.regalloc
 import back.native.incoming
@@ -52,7 +53,7 @@ pub struct Generator:
     var crossing: usize = 0
     ## What precedes a C symbol in this target's assembler: nothing on Linux (§19.5).
     let symbol_prefix: str
-    let object_format: Format
+    let object_format: objects.Format
     ## Independent calling-convention and unwind policies.
     let convention: Convention
     var unwinding: FrameUnwind
@@ -101,7 +102,7 @@ pub struct Generator:
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
-        return Generator(symbol_prefix = symbol_prefix, object_format = Format(os, symbol_prefix), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+        return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 4), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
                          fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(4096))
 
@@ -126,19 +127,13 @@ pub struct Generator:
         try self.writer.out.put_u64((u64)n)
 
     mutating func text_label(n: u32) -> !:
-        try self.writer.out.put(self.shared(".Ltext_"))
-        if self.split:
-            try stable_names.put_tag(&self.writer.out, self.text_tags[(usize)n])
-        else:
-            try self.writer.out.put_u64((u64)n)
+        try self.object_format.text_name(&self.writer.out, self.split, self.text_tags, n)
 
     ## A label functions share, as this assembly spells it: local to the file (`.Lname`), or
     ## with `split` the hidden symbol `lb_name` every piece can name.
     func shared(label: str) -> str:
         if not self.split:
             return label
-        if label == ".Ltext_":
-            return "lb_text_"
         if label == ".Lvsign32":
             return "lb_vsign32"
         if label == ".Lvsign64":

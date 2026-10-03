@@ -64,17 +64,19 @@ func shortest64(ieee_mantissa: u64, ieee_exponent: u32) -> (u64, i32):
                 vp -= 1
         elif q < 63:
             vr_trailing_zeros = (mv & (((u64)1 << (u64)q) - 1)) == 0
-    return trimmed64(vr, vp, vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros)
+    return trimmed(vr, vp, vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros, 0)
 
-## Ryu's digit removal for d2d: drop digits while the bounds still differ, then round.
-func trimmed64(start_vr: u64, start_vp: u64, start_vm: u64, e10: i32, accept_bounds: bool, start_vm_zeros: bool, start_vr_zeros: bool) -> (u64, i32):
+## Ryu's digit removal, d2d's and f2s's alike: drop digits while the bounds still differ,
+## then round on the last digit removed (`start_last`, the one f2s's bounds computation
+## already dropped, or 0). Dropping two digits at once leaves their tens digit as the last.
+func trimmed(start_vr: u64, start_vp: u64, start_vm: u64, e10: i32, accept_bounds: bool, start_vm_zeros: bool, start_vr_zeros: bool, start_last: u64) -> (u64, i32):
     var vr = start_vr
     var vp = start_vp
     var vm = start_vm
     var vm_trailing_zeros = start_vm_zeros
     var vr_trailing_zeros = start_vr_zeros
     var removed: i32 = 0
-    var last_removed: u64 = 0
+    var last_removed = start_last
     if vm_trailing_zeros or vr_trailing_zeros:
         while vp // 10 > vm // 10:
             vm_trailing_zeros = vm_trailing_zeros and vm % 10 == 0
@@ -96,20 +98,19 @@ func trimmed64(start_vr: u64, start_vp: u64, start_vm: u64, e10: i32, accept_bou
             last_removed = 4
         let up = (vr == vm and (not accept_bounds or not vm_trailing_zeros)) or last_removed >= 5
         return (vr + (1 if up else 0), e10 + removed)
-    var round_up = false
     if vp // 100 > vm // 100:
-        round_up = vr % 100 >= 50
+        last_removed = (vr % 100) // 10
         vr = vr // 100
         vp = vp // 100
         vm = vm // 100
         removed += 2
     while vp // 10 > vm // 10:
-        round_up = vr % 10 >= 5
+        last_removed = vr % 10
         vr = vr // 10
         vp = vp // 10
         vm = vm // 10
         removed += 1
-    return (vr + (1 if vr == vm or round_up else 0), e10 + removed)
+    return (vr + (1 if vr == vm or last_removed >= 5 else 0), e10 + removed)
 
 ## Ryu's f2s over the same tables: the shortest decimal digits * 10^exponent of a finite,
 ## nonzero f32.
@@ -172,45 +173,8 @@ func shortest32(ieee_mantissa: u32, ieee_exponent: u32) -> (u32, i32):
                 vp -= 1
         elif q < 31:
             vr_trailing_zeros = (mv & (((u32)1 << (u32)(q - 1)) - 1)) == 0
-    return trimmed32(vr, vp, vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros, last_removed)
-
-## Ryu's digit removal for f2s.
-func trimmed32(start_vr: u32, start_vp: u32, start_vm: u32, e10: i32, accept_bounds: bool, start_vm_zeros: bool, start_vr_zeros: bool, start_last: u32) -> (u32, i32):
-    var vr = start_vr
-    var vp = start_vp
-    var vm = start_vm
-    var vm_trailing_zeros = start_vm_zeros
-    var vr_trailing_zeros = start_vr_zeros
-    var last_removed = start_last
-    var removed: i32 = 0
-    if vm_trailing_zeros or vr_trailing_zeros:
-        while vp // 10 > vm // 10:
-            vm_trailing_zeros = vm_trailing_zeros and vm % 10 == 0
-            vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
-            last_removed = vr % 10
-            vr = vr // 10
-            vp = vp // 10
-            vm = vm // 10
-            removed += 1
-        if vm_trailing_zeros:
-            while vm % 10 == 0:
-                vr_trailing_zeros = vr_trailing_zeros and last_removed == 0
-                last_removed = vr % 10
-                vr = vr // 10
-                vp = vp // 10
-                vm = vm // 10
-                removed += 1
-        if vr_trailing_zeros and last_removed == 5 and vr % 2 == 0:
-            last_removed = 4
-        let up = (vr == vm and (not accept_bounds or not vm_trailing_zeros)) or last_removed >= 5
-        return (vr + (1 if up else 0), e10 + removed)
-    while vp // 10 > vm // 10:
-        last_removed = vr % 10
-        vr = vr // 10
-        vp = vp // 10
-        vm = vm // 10
-        removed += 1
-    return (vr + (1 if vr == vm or last_removed >= 5 else 0), e10 + removed)
+    let (digits, exponent) = trimmed((u64)vr, (u64)vp, (u64)vm, e10, accept_bounds, vm_trailing_zeros, vr_trailing_zeros, (u64)last_removed)
+    return (u32(digits), exponent)
 
 ## floor(log2(5^e)) + 1 for 0 <= e <= 3528.
 inline func pow5_bits(e: i32) -> i32:
@@ -261,8 +225,9 @@ inline func pow5_inv_div_pow2(m: u32, q: i32, j: i32) -> u32:
 inline func pow5_div_pow2(m: u32, i: i32, j: i32) -> u32:
     return mul_shift32(m, pow5_split[(usize)i * 2 + 1], j)
 
-## The 128-bit product a * b: the high word, the low word stored in `low`.
-inline func product(a: u64, b: u64, low: u64*) -> u64:
+## The 128-bit product a * b: the high word, the low word stored in `low`. Ryu's
+## multiplications and strings' float parsing (Lemire's) both take it.
+pub inline func product(a: u64, b: u64, low: u64*) -> u64:
     let a0 = a & 0xFFFFFFFF
     let a1 = a >> 32
     let b0 = b & 0xFFFFFFFF

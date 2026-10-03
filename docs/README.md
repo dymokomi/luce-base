@@ -14,7 +14,7 @@
   Base/Luce boundary.
 - [Callbacks and workers](CALLBACKS-WORKERS.md) — retained callbacks and application
   worker threads across that boundary.
-- [Public package imports](PACKAGE-IMPORTS.md) — exports, local dependencies,
+- [Public package imports](PACKAGE-IMPORTS.md) — public modules, local dependencies,
   canonical standard modules and relocatable source bundles.
 - [Package descriptions](PACKAGE-DESCRIPTION.md) — the current compiler-to-compiler
   API format, its records and executable adapter limits.

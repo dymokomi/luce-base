@@ -371,6 +371,11 @@ extend Emitter:
             try self.line("if (!(")
             try self.value(cond, types.bool_id)
             try self.put(")) break;")
+        try self.loop_body_and_exit(s)
+
+    ## The rest of loop `s` once its head is open: the body, the `continue` label a labelled
+    ## loop has, the close, the scope's deferred calls, and the `break` labels after it.
+    mutating func loop_body_and_exit(s: ast.Node*) -> !:
         if let body = s.body:
             try self.block(body)
         if s.text.length > 0:
@@ -543,22 +548,7 @@ extend Emitter:
             self.indent -= 1
             self.seq_in_place = false
         self.indent += 1
-        if let body = s.body:
-            try self.block(body)
-        if s.text.length > 0:
-            try self.line("lb_cont_")
-            try self.put(s.text)
-            try self.put(": __attribute__((unused));")
-        self.indent -= 1
-        try self.line("}")
-        try self.unwind(self.scopes.count - 1, false)
-        let finished = self.scopes.get(self.scopes.count - 1)
-        self.pop_scope()
-        try self.loop_exit(finished)
-        if s.text.length > 0:
-            try self.line("lb_brk_")
-            try self.put(s.text)
-            try self.put(": __attribute__((unused));")
+        try self.loop_body_and_exit(s)
 
     ## Element `i` of the sequence temporary `n`: an array, a span, or text.
     mutating func element_of(it: u32, n: u32) -> !:
@@ -587,7 +577,7 @@ extend Emitter:
             try self.put("]")
 
     mutating func jump(s: ast.Node*) -> !:
-        let target = self.loop_scope(s.text)
+        let target = exits.innermost_loop(&self.scopes, s.text)
         try self.unwind_from(target + 1, false)
         if s.text.length == 0 and s.kind == ast.Kind.break_:
             try self.line("")
@@ -772,7 +762,7 @@ extend Emitter:
         try self.push_scope(false, "")
         var sc = self.scopes.get(self.scopes.count - 1)
         sc.restore_alloc = true
-        sc.alloc_save = n
+        sc.alloc_saved = n
         self.scopes.set(self.scopes.count - 1, sc)
         if let body = s.body:
             try self.block(body)

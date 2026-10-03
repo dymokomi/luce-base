@@ -86,6 +86,8 @@ Whole pages from the host, each block its own mapping (§12.4). Safe from severa
 - `mutating func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
 - `mutating func release(block: u8[])` — Free `block`.
 
+- `func page_size() -> usize` — The host's memory page size in bytes: the one query `os.page_size` and the threads' stack sizes use too.
+
 - `var diagnostic: bool` — `--profile diagnostic`: set by the startup shim before `startup` runs.
 
 ### `Site` (struct)

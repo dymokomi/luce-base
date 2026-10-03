@@ -338,7 +338,7 @@ extend Generator:
             try self.writer.put("(%rip), ")
             try self.writer.put(reg)
         elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
-            try self.object_format.external_address(&self.writer.out, r.name, reg)
+            try object.external_address(&self.object_format, &self.writer.out, r.name, reg)
         elif r.kind == ir.RefKind.text:
             try self.writer.line("leaq ")
             try self.text_label(r.index)

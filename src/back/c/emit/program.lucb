@@ -70,16 +70,11 @@ extend Emitter:
         # bodies, until the worklist is drained: a body may need new instances
         var next: usize = 0
         var tests_done: usize = 0
-        while next < self.funcs.count or tests_done < self.tests.count:
-            while next < self.funcs.count:
-                var inst = self.funcs.get(next)
-                if not inst.done:
-                    inst.done = true
-                    self.funcs.set(next, inst)
-                    if not ast.is_linked(inst.decl):
-                        try self.function(inst)
-                next += 1
-            while tests_done < self.tests.count and next >= self.funcs.count:
+        while next < self.funcs.items.count or tests_done < self.tests.count:
+            while let inst = self.funcs.next_pending(&next):
+                if not ast.is_linked(inst.decl):
+                    try self.function(inst)
+            while tests_done < self.tests.count and next >= self.funcs.items.count:
                 try self.test_body(self.tests.get(tests_done))
                 tests_done += 1
         self.target = to_globals
@@ -183,24 +178,24 @@ extend Emitter:
                 cursor = d.next
             i += 1
         i = 0
-        while i < self.funcs.count:
-            let inst = self.funcs.get(i)
+        while i < self.funcs.items.count:
+            let inst = self.funcs.items.get(i)
             # Spelling a prototype's types can register a generic type's methods after every
             # body is written (`interop.Outcome[gpu.Rect]`'s): nothing calls those, and a
             # `static` prototype with no definition is an error under GCC's -Werror.
             if not inst.done:
                 i += 1
                 continue
-            self.fn_decl = inst.decl
-            self.fn_args = inst.args
-            self.owner_decl = inst.owner
-            self.owner_args = inst.owner_args
+            self.generic.fn_decl = inst.decl
+            self.generic.fn_args = inst.args
+            self.generic.owner_decl = inst.owner
+            self.generic.owner_args = inst.owner_args
             try self.signature(inst.decl, false)
             i += 1
-        self.fn_decl = none
-        self.fn_args = try types.no_args()
-        self.owner_decl = none
-        self.owner_args = try types.no_args()
+        self.generic.fn_decl = none
+        self.generic.fn_args = try types.no_args()
+        self.generic.owner_decl = none
+        self.generic.owner_args = try types.no_args()
         i = 0
         while i < self.tests.count:
             try self.line("lb_r_unit lb_test_")
@@ -444,10 +439,10 @@ extend Emitter:
     mutating func test_body(t: ast.Node*) -> !:
         let saved_fn = self.current_fn
         self.current_fn = t
-        self.fn_decl = none
-        self.fn_args = try types.no_args()
-        self.owner_decl = none
-        self.owner_args = try types.no_args()
+        self.generic.fn_decl = none
+        self.generic.fn_args = try types.no_args()
+        self.generic.owner_decl = none
+        self.generic.owner_args = try types.no_args()
         # the body into the scratch first, as a function's, so its format buffers and the
         # arrays it takes the address of are declared at its top
         self.target = to_scratch

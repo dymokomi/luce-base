@@ -123,12 +123,40 @@ extend Emitter:
             return
         try self.define_record(d, try types.no_args(), d.type_id)
 
+    ## ` { fields } name;` of record `id`, a struct's or a union's: each field with its own
+    ## alignment, and a placeholder `int` when there is none, which C requires.
+    mutating func record_fields(d: ast.Node*, id: u32) -> !:
+        try self.put(" {")
+        self.indent += 1
+        var any = false
+        var member = d.body
+        while let m = member:
+            if m.kind == ast.Kind.field:
+                any = true
+                try self.line("")
+                try self.put_type(try self.map(m.type_id))
+                try self.put(" ")
+                try self.put(try self.field(m.text))
+                if let al = m.right:
+                    if al.kind == ast.Kind.literal:
+                        try self.put(" __attribute__((aligned(")
+                        try self.put(al.text)
+                        try self.put(")))")
+                try self.put(";")
+            member = m.next
+        if not any:
+            try self.line("int unused;")
+        self.indent -= 1
+        try self.line("} ")
+        try self.put_record_name(id)
+        try self.put(";")
+
     ## Write the C definition of a record declaration with `args` substituted.
     mutating func define_record(d: ast.Node*, args: u32[], id: u32) -> !:
-        let saved_owner = self.owner_decl
-        let saved_args = self.owner_args
-        self.owner_decl = d
-        self.owner_args = args
+        let saved_owner = self.generic.owner_decl
+        let saved_args = self.generic.owner_args
+        self.generic.owner_decl = d
+        self.generic.owner_args = args
         # members held by value come first
         var member = d.body
         while let m = member:
@@ -151,52 +179,11 @@ extend Emitter:
                     try self.put(")))")
             try self.put(" ")
             try self.put_record_name(id)
-            try self.put(" {")
-            self.indent += 1
-            var any = false
-            member = d.body
-            while let m = member:
-                if m.kind == ast.Kind.field:
-                    any = true
-                    try self.line("")
-                    try self.put_type(try self.map(m.type_id))
-                    try self.put(" ")
-                    try self.put(try self.field(m.text))
-                    if let al = m.right:
-                        if al.kind == ast.Kind.literal:
-                            try self.put(" __attribute__((aligned(")
-                            try self.put(al.text)
-                            try self.put(")))")
-                    try self.put(";")
-                member = m.next
-            if not any:
-                try self.line("int unused;")
-            self.indent -= 1
-            try self.line("} ")
-            try self.put_record_name(id)
-            try self.put(";")
+            try self.record_fields(d, id)
         elif d.kind == ast.Kind.union_ or d.kind == ast.Kind.extern_union:
             try self.line("typedef union ")
             try self.put_record_name(id)
-            try self.put(" {")
-            self.indent += 1
-            var any = false
-            member = d.body
-            while let m = member:
-                if m.kind == ast.Kind.field:
-                    any = true
-                    try self.line("")
-                    try self.put_type(try self.map(m.type_id))
-                    try self.put(" ")
-                    try self.put(try self.field(m.text))
-                    try self.put(";")
-                member = m.next
-            if not any:
-                try self.line("int unused;")
-            self.indent -= 1
-            try self.line("} ")
-            try self.put_record_name(id)
-            try self.put(";")
+            try self.record_fields(d, id)
         elif d.kind == ast.Kind.enum_:
             try self.line("typedef struct ")
             try self.put_record_name(id)
@@ -236,8 +223,8 @@ extend Emitter:
             try self.line("} ")
             try self.put_record_name(id)
             try self.put(";")
-        self.owner_decl = saved_owner
-        self.owner_args = saved_args
+        self.generic.owner_decl = saved_owner
+        self.generic.owner_args = saved_args
 
     ## `typedef struct X X;` for every record the program defines.
     mutating func forward_declarations() -> !:
@@ -332,24 +319,14 @@ extend Emitter:
             # Standard functions belong to this artifact, unless explicitly exported
             # or given linkage attributes. Internal linkage lets the host compiler
             # omit unused platform code (for example AppKit in a console program).
-            if check.is_library_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
+            if check.is_library_module(names.module_of(self.generic.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
                 try self.put("static __attribute__((unused)) ")
             try self.attribute_prefix(f, true)
             try self.put_result_type(f)
             try self.put(" ")
-            try self.put_func_name(f, self.fn_args, self.owner_decl, self.owner_args)
+            try self.put_func_name(f, self.generic.fn_args, self.generic.owner_decl, self.generic.owner_args)
             try self.put("(")
-            var first = true
-            if let o = self.owner_decl:
-                if not f.has(ast.flag_static):
-                    let oid = try self.map(o.type_id)
-                    if f.has(ast.flag_mutating) or f.text == "init":
-                        try self.put_type(oid)
-                    else:
-                        try self.put("const ")
-                        try self.put_type(oid)
-                    try self.put("* self")
-                    first = false
+            var first = not try self.put_receiver(f)
             var cursor = f.right
             while let p = cursor:
                 if not first:
@@ -366,6 +343,18 @@ extend Emitter:
             try self.put(";")
             return
         try self.put(" {")
+
+    ## The receiver of method `f` of the record being emitted, `T* self`, `const` unless
+    ## the method mutates or initialises; whether there is one (a static method has none).
+    mutating func put_receiver(f: ast.Node*) -> bool!:
+        let o = self.generic.owner_decl else return false
+        if f.has(ast.flag_static):
+            return false
+        if not (f.has(ast.flag_mutating) or f.text == "init"):
+            try self.put("const ")
+        try self.put_type(try self.map(o.type_id))
+        try self.put("* self")
+        return true
 
     ## The locals a body written into the scratch asked for, declared at its top: the format
     ## buffers of its formatted texts, and the arrays whose addresses it took.
@@ -391,18 +380,18 @@ extend Emitter:
         self.indent -= 1
 
     ## Emit one function instance into the body buffer.
-    mutating func function(inst: Instance) -> !:
+    mutating func function(inst: instances.Instance) -> !:
         let f = inst.decl
         let saved_fn = self.current_fn
-        let saved_decl = self.fn_decl
-        let saved_args = self.fn_args
-        let saved_owner = self.owner_decl
-        let saved_owner_args = self.owner_args
+        let saved_decl = self.generic.fn_decl
+        let saved_args = self.generic.fn_args
+        let saved_owner = self.generic.owner_decl
+        let saved_owner_args = self.generic.owner_args
         self.current_fn = f
-        self.fn_decl = f
-        self.fn_args = inst.args
-        self.owner_decl = inst.owner
-        self.owner_args = inst.owner_args
+        self.generic.fn_decl = f
+        self.generic.fn_args = inst.args
+        self.generic.owner_decl = inst.owner
+        self.generic.owner_args = inst.owner_args
         # the body first, into the scratch, so its format buffers can be declared at its top
         self.target = to_scratch
         self.scratch.clear()
@@ -450,10 +439,10 @@ extend Emitter:
             try self.export_wrapper(f)
         discard(base)
         self.current_fn = saved_fn
-        self.fn_decl = saved_decl
-        self.fn_args = saved_args
-        self.owner_decl = saved_owner
-        self.owner_args = saved_owner_args
+        self.generic.fn_decl = saved_decl
+        self.generic.fn_args = saved_args
+        self.generic.owner_decl = saved_owner
+        self.generic.owner_args = saved_owner_args
 
     ## The C face of an export whose signature C cannot take as it is (§17.6): a span
     ## parameter arrives as a pointer and a length, `(NULL, n)` being the empty span, and a
@@ -472,20 +461,12 @@ extend Emitter:
             try self.put_result_type(f)
         try self.put(" ")
         try self.put(names.export_prefix)
-        if let o = self.owner_decl:
+        if let o = self.generic.owner_decl:
             try self.put(o.text)
             try self.put("_")
         try self.put(f.text)
         try self.put("(")
-        var first = true
-        if let o = self.owner_decl:
-            if not f.has(ast.flag_static):
-                let oid = try self.map(o.type_id)
-                if not (f.has(ast.flag_mutating) or f.text == "init"):
-                    try self.put("const ")
-                try self.put_type(oid)
-                try self.put("* self")
-                first = false
+        var first = not try self.put_receiver(f)
         var cursor = f.right
         while let p = cursor:
             if not first:
@@ -520,10 +501,10 @@ extend Emitter:
             try self.put(" lb_r = ")
         elif payload != types.unit_id and payload != types.never_id:
             try self.put("return ")
-        try self.put_func_name(f, none_args, self.owner_decl, none_args)
+        try self.put_func_name(f, none_args, self.generic.owner_decl, none_args)
         try self.put("(")
         first = true
-        if let o = self.owner_decl:
+        if let o = self.generic.owner_decl:
             if not f.has(ast.flag_static):
                 try self.put("self")
                 first = false
@@ -567,10 +548,10 @@ extend Emitter:
 
     mutating func push_scope(loop: bool, label: str) -> !:
         let exit = self.tmp() if loop else 0
-        try self.scopes.push(Scope(defer_base = self.defers.count, loop = loop, label = label, restore_alloc = false, alloc_save = 0, exit = exit))
+        try self.scopes.push(exits.Scope(defer_base = self.defers.count, loop = loop, label = label, restore_alloc = false, alloc_saved = 0, exit = exit))
 
     ## The label after a loop that its unlabelled `break`s jump to, when one did.
-    mutating func loop_exit(sc: Scope) -> !:
+    mutating func loop_exit(sc: exits.Scope) -> !:
         if sc.exit_used:
             try self.line("")
             try self.put_tmp("brk", sc.exit)
@@ -593,19 +574,12 @@ extend Emitter:
     ## restore its allocator; `failing` includes the `errdefer` calls.
     mutating func unwind(index: usize, failing: bool) -> !:
         let sc = self.scopes.get(index)
-        let end = self.defers.count if index + 1 >= self.scopes.count else self.scopes.get(index + 1).defer_base
-        var i = end
-        while i > sc.defer_base:
-            i -= 1
-            let d = self.defers.get(i)
-            if d.kind == ast.Kind.errdefer_ and not failing:
-                continue
-            # the deferred block, written out on this exit: it reads its names as they are now
-            let deferred = d.body else continue
+        var at = exits.deferred_end(&self.scopes, self.defers.count, index)
+        while let deferred = exits.next_deferred(&self.defers, sc.defer_base, &at, failing):
             try self.block(deferred)
         if sc.restore_alloc:
             try self.line("lb_memory_allocator = ")
-            try self.put_tmp("as", sc.alloc_save)
+            try self.put_tmp("as", sc.alloc_saved)
             try self.put(";")
 
     ## Unwind every scope from the innermost down to `from`, for an exit.
@@ -614,13 +588,3 @@ extend Emitter:
         while i > start:
             i -= 1
             try self.unwind(i, failing)
-
-    ## The innermost loop scope, or the one with `label`.
-    func loop_scope(label: str) -> usize:
-        var i = self.scopes.count
-        while i > 0:
-            i -= 1
-            let sc = self.scopes.get(i)
-            if sc.loop and (label.length == 0 or sc.label == label):
-                return i
-        return 0

@@ -102,10 +102,6 @@ extend Generator:
                 if v != w_names[code]:
                     try self.writer.line4("mov ", w_names[code], ", ", v)
 
-    ## Back to the text section after a function placed in a named one.
-    mutating func leave_section() -> !:
-        try self.object_format.leave_section(&self.writer.out, self.f)
-
     ## The prologue: the frame record, the frame below it, the hidden result pointer kept,
     ## and the callee-saved registers the function uses saved.
     mutating func open_frame() -> !:
@@ -165,7 +161,6 @@ extend Generator:
                 try self.instruction(self.f.instrs.get(k))
                 k += 1
             try self.object_format.function_end(&self.writer.out, self.f)
-            try self.leave_section()
             return
         try self.open_frame()
         var moves = try list.List[incoming.Move].create(8)
@@ -226,7 +221,6 @@ extend Generator:
         try self.object_format.function_end(&self.writer.out, self.f)
         if self.f.debug:
             try assembly.describe_frame(&self.descriptors, self.symbol_prefix, self.object_format.text_label, self.program_unit, self.f, &self.fr)
-        try self.leave_section()
 
     ## Emit the instructions from `i` that select as one, when they do (a comparison and
     ## its branch, an address and its access, a shift and its add): how many they were, or
@@ -273,7 +267,7 @@ extend Generator:
             if ir.is_float_class(comparison.cls):
                 negate = true
             else:
-                comparison.op = selection.inverse(comparison.op)
+                comparison.op = ir.negated(comparison.op)
         try self.comparison(comparison, branch, next, negate)
 
     ## Store the incoming arguments into their slots.

@@ -1,0 +1,67 @@
+#==============================================================================================
+#
+#   exits - The scopes a body opens, and what leaving them runs
+#
+#   DESCRIPTION:
+#       Each block a body opens is a scope: the deferred calls registered in it, whether it
+#       is a loop and its label, whether it set an allocator to restore. An exit (`break`,
+#       `continue`, `return`, an error) leaves scopes and runs their deferred calls,
+#       innermost and latest first, an `errdefer` only when it fails (§10.4). The C backend
+#       and the IR lowering write those calls out each in its own way, and agree here on
+#       which scope an exit names and which calls it runs.
+#
+#==============================================================================================
+
+import front.ast
+import support.list
+
+## One lexical scope of the body being generated.
+pub struct Scope:
+    ## The index of the scope's first deferred call in the body's list of them.
+    pub var defer_base: usize
+    ## Whether the scope is a loop's, which `break` and `continue` name.
+    pub var loop: bool
+    ## A labelled loop's label, empty otherwise.
+    pub var label: str
+    ## Whether the scope set the allocator, and so restores it on every exit.
+    pub var restore_alloc: bool
+    ## Where the allocator in force on entry was saved: a C temporary or an IR slot.
+    pub var alloc_saved: u32
+    ## A loop's exit: the C label `lb_brk_N` an unlabelled `break` jumps to, or the IR
+    ## block after the loop.
+    pub var exit: u32 = 0
+    ## Whether a jump to the C label was written.
+    pub var exit_used: bool = false
+    ## The IR block a `continue` jumps to.
+    pub var continue_label: u32 = 0
+    ## The IR debug scope it opened.
+    pub var debug_scope: usize = 0
+
+## The innermost loop scope, or the one labelled `label`; 0 when there is none, which the
+## checker has ruled out.
+pub func innermost_loop(scopes: list.List[Scope]*, label: str) -> usize:
+    var i = scopes.count
+    while i > 0:
+        i -= 1
+        let sc = scopes.get(i)
+        if sc.loop and (label.length == 0 or sc.label == label):
+            return i
+    return 0
+
+## Where the deferred calls of scope `index` end: the next scope's first, or the last one.
+pub func deferred_end(scopes: list.List[Scope]*, deferred_count: usize, index: usize) -> usize:
+    return deferred_count if index + 1 >= scopes.count else scopes.get(index + 1).defer_base
+
+## The next block leaving a scope runs, walking `*at` down from `deferred_end` to the
+## scope's `defer_base`: its deferred calls, latest first, an `errdefer` only when the exit
+## is `failing`; none when they are done.
+pub func next_deferred(defers: list.List[ast.Node*]*, defer_base: usize, at: usize*, failing: bool) -> ast.Node*?:
+    while *at > defer_base:
+        *at -= 1
+        let d = defers.get(*at)
+        if d.kind == ast.Kind.errdefer_ and not failing:
+            continue
+        # the deferred block, written out on this exit: it reads its names as they are now
+        if let deferred = d.body:
+            return deferred
+    return none
