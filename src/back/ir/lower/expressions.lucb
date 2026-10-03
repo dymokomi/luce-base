@@ -1,0 +1,364 @@
+#==============================================================================================
+#
+#   lower/expressions - Expressions
+#
+#   DESCRIPTION:
+#       `value`, the one place a conversion the checker allowed is lowered, and literals
+#       and names.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Expressions ========================================================================
+
+    ## `e` as a value of type `want`, converting where the checker allowed it.
+    mutating func value(e: ast.Node*, want: u32) -> LowerValue!:
+        let have = try self.ty(e)
+        if want == types.none_id or have == want or have == types.never_id or have == types.error_id:
+            return try self.expr(e)
+        let w = self.c.table.get(want)
+        let h = self.c.table.get(have)
+        if e.kind == ast.Kind.literal and e.text == "none":
+            return try self.none_of(want)
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.pointer:
+            let p = try self.expr(e)
+            return try self.iface_view(p.ref, h.elem, want)
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.interface_:
+            return try self.expr(e)
+        if w.kind == types.Kind.optional:
+            if h.kind == types.Kind.optional:
+                return try self.expr(e)
+            if self.is_nullable_ptr(want):
+                # the same word as the payload, converted as the niche type asks (§5.3)
+                let p = try self.value(e, w.elem)
+                return LowerValue(ref = p.ref, type_id = want, in_memory = false)
+            if self.is_nullable_view(want):
+                # the view itself: its data word is never null when present (§14.3)
+                let view = try self.value(e, w.elem)
+                return LowerValue(ref = view.ref, type_id = want, in_memory = true)
+            let inner = try self.value(e, w.elem)
+            let slot = try self.new_slot(want)
+            let a = try self.slot_address(slot)
+            try self.store_to(a, inner)
+            try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.c.table.size_of(w.elem)))
+            return LowerValue(ref = a, type_id = want, in_memory = true)
+        if w.kind == types.Kind.span:
+            if h.kind == types.Kind.array:
+                let arr = try self.expr(e)
+                return try self.span_of(arr.ref, ir.const_ref((i64)h.length), want)
+            if have == types.str_id or have == types.fmt_id:
+                let text = try self.expr(e)
+                return LowerValue(ref = text.ref, type_id = want, in_memory = true)
+            return try self.expr(e)
+        if (want == types.cstr_id or (w.kind == types.Kind.optional and w.elem == types.cstr_id)) and have == types.str_id:
+            let text = try self.expr(e)
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, text.ref)
+            return LowerValue(ref = data, type_id = want, in_memory = false)
+        if want == types.fmt_id and have == types.str_id:
+            return try self.expr(e)
+        if w.kind == types.Kind.atomic:
+            return try self.value(e, w.elem)
+        if h.kind == types.Kind.atomic:
+            let v = try self.expr(e)
+            return LowerValue(ref = v.ref, type_id = want, in_memory = v.in_memory)
+        if w.kind == types.Kind.func_ and h.kind == types.Kind.func_:
+            let v = try self.expr(e)
+            return LowerValue(ref = v.ref, type_id = want, in_memory = false)
+        if self.is_int(want) and (self.is_int(have) or have == types.untyped_int_id):
+            let v = try self.expr(e)
+            return LowerValue(ref = try self.widen(v.ref, have, want), type_id = want, in_memory = false)
+        if self.is_float(want) and (have == types.untyped_int_id or have == types.untyped_float_id or self.is_float(have)):
+            let v = try self.expr(e)
+            if have == types.untyped_int_id:
+                return LowerValue(ref = try self.f.unary(ir.Op.sltof, self.class_of(want), v.ref), type_id = want, in_memory = false)
+            return LowerValue(ref = try self.convert_float(v.ref, have, want), type_id = want, in_memory = false)
+        let v = try self.expr(e)
+        return LowerValue(ref = v.ref, type_id = want, in_memory = v.in_memory)
+
+    ## A float temporary of `have` as the float `want`: itself when the widths agree, else
+    ## extended or rounded once, directly between the two widths. An untyped literal is a double.
+    mutating func convert_float(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
+        let source = self.c.table.bits(have)
+        let target = self.c.table.bits(want)
+        if source == target:
+            return r
+        if source < target:
+            return try self.f.unary(ir.Op.exth if source == 16 else ir.Op.exts, self.class_of(want), r)
+        return try self.f.unary(ir.Op.truncs if source == 32 else ir.Op.truncd, self.class_of(want), r)
+
+    ## An integer temporary widened from `have` to `want` (§7.5 implicit widening).
+    mutating func widen(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
+        if have == types.untyped_int_id or have == types.none_id:
+            return r
+        let from_size = self.scalar_size(have)
+        let to_size = self.scalar_size(want)
+        if to_size <= 4 and from_size <= 4:
+            return r
+        if to_size > 4 and from_size <= 4:
+            return try self.f.unary(ir.Op.extsw if self.signed_of(have) else ir.Op.extuw, ir.Class.l, r)
+        return r
+
+    ## A tagged optional without a value, or a null pointer.
+    mutating func none_of(t: u32) -> LowerValue!:
+        if self.is_scalar(t):
+            return LowerValue(ref = ir.const_ref(0), type_id = t, in_memory = false)
+        let slot = try self.new_slot(t)
+        let a = try self.slot_address(slot)
+        try self.f.zero_bytes(a, self.size(t))
+        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    ## `{ pointer, &vtable }` as a two-word view in memory.
+    mutating func iface_view(pointer: ir.Ref, record: u32, iface: u32) -> LowerValue!:
+        let i = self.decl_of(iface) else return try self.fail(self.entry, "no interface")
+        try self.note_vtable(record, iface)
+        let name = try self.vtable_name(record, i)
+        let slot = try self.f.slot(16, 8)
+        let a = try self.slot_address(slot)
+        try self.f.store(ir.Op.storel, pointer, a)
+        let table = try self.f.address_of(ir.global_ref(name))
+        try self.f.store(ir.Op.storel, table, try self.offset_address(a, 8))
+        return LowerValue(ref = a, type_id = iface, in_memory = true)
+
+    ## The `Writer` view of an `io.FormatSink` over the buffer a formatted string is built in.
+    mutating func format_sink_view() -> LowerValue!:
+        let sink_type = self.c.standard_type("io", "FormatSink")
+        let slot = try self.new_slot(sink_type)
+        let a = try self.slot_address(slot)
+        try self.f.store(ir.Op.storel, self.format_sink, a)
+        return try self.iface_view(a, sink_type, self.c.standard_type("io", "Writer"))
+
+    ## `{ data, length }` in memory.
+    mutating func span_of(data: ir.Ref, length: ir.Ref, t: u32) -> LowerValue!:
+        let slot = try self.f.slot(16, 8)
+        let a = try self.slot_address(slot)
+        try self.f.store(ir.Op.storel, data, a)
+        try self.f.store(ir.Op.storel, length, try self.offset_address(a, 8))
+        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    mutating func expr(e: ast.Node*) -> LowerValue!:
+        match e.kind:
+            .literal:
+                return try self.literal(e)
+            .name:
+                return try self.name(e)
+            .self_:
+                let p = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(self.self_slot))
+                let st = self.elem(try self.ty(e))
+                discard(st)
+                return try self.load_from(p, try self.ty(e))
+            .unit_:
+                return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
+            .group:
+                let inner = e.left else return try self.fail(e, "empty group")
+                return try self.expr(inner)
+            .unary:
+                return try self.unary(e)
+            .propagate:
+                return try self.try_expr(e)
+            .binary:
+                return try self.binary(e)
+            .conditional:
+                return try self.conditional(e)
+            .call:
+                return try self.call(e)
+            .member:
+                return try self.member(e)
+            .index:
+                let t = try self.ty(e)
+                return try self.load_from(try self.index_address(e), t)
+            .slice:
+                return try self.slice(e)
+            .tuple:
+                return try self.tuple(e)
+            .array_lit:
+                return try self.array_literal(e)
+            .lambda:
+                let d = e.resolved else return try self.fail(e, "a lambda without its function")
+                return try self.func_value(e, d)
+            .else_:
+                return try self.else_expr(e)
+            .catch_:
+                return try self.catch_expr(e)
+            .cast:
+                let inner = e.left else return try self.fail(e, "empty cast")
+                return try self.conversion(inner, try self.ty(e), false)
+            .case_value:
+                return try self.enum_value(e)
+            .formatted:
+                return try self.formatted_value(e)
+            .new_:
+                return try self.new_expr(e)
+            .alloc_:
+                return try self.alloc_expr(e)
+            .span_make:
+                let first = e.body else return try self.fail(e, "empty span")
+                let p = first.left else return try self.fail(e, "empty span")
+                let second = first.next else return try self.fail(e, "empty span")
+                let count = second.left else return try self.fail(e, "empty span")
+                let pv = try self.expr(p)
+                let cv = try self.value(count, types.usize_id)
+                return try self.span_of(pv.ref, cv.ref, try self.ty(e))
+            .match_expr:
+                return try self.match_expr(e)
+            .return_:
+                try self.return_stmt(e)
+                return LowerValue(ref = ir.const_ref(0), type_id = types.never_id, in_memory = false)
+            .break_, .continue_:
+                try self.jump(e)
+                return LowerValue(ref = ir.const_ref(0), type_id = types.never_id, in_memory = false)
+            _:
+                return try self.fail(e, "native_unsupported expression in the native backend")
+
+    # -- literals and names ---------------------------------------------------------------
+
+    mutating func literal(e: ast.Node*) -> LowerValue!:
+        let t = try self.ty(e)
+        if e.text == "true":
+            return LowerValue(ref = ir.const_ref(1), type_id = types.bool_id, in_memory = false)
+        if e.text == "false":
+            return LowerValue(ref = ir.const_ref(0), type_id = types.bool_id, in_memory = false)
+        if e.text == "none":
+            return try self.none_of(t)
+        let b = e.text.bytes
+        if b[0] == '\'':
+            return LowerValue(ref = ir.const_ref((i64)literals.decode_char(e.text)), type_id = t, in_memory = false)
+        if b[0] == '"' or b[0] == 'r' or b[0] == 'b':
+            let text = literals.decode_text(e.text)
+            let index = try self.program_unit.text(text)
+            let data = try self.f.address_of(ir.text_ref(index))
+            if t == types.cstr_id or (self.c.table.kind(t) == types.Kind.optional and self.c.table.get(t).elem == types.cstr_id):
+                return LowerValue(ref = data, type_id = t, in_memory = false)
+            let span_type = try self.c.table.span(types.u8_id, true) if b[0] == 'b' else types.str_id
+            return try self.span_of(data, ir.const_ref((i64)text.length), span_type)
+        if literals.is_float_literal(e.text):
+            let digits = literals.literal_body(e.text)
+            let bits = float_bits(digits)
+            if t == types.f16_id:
+                let h = try self.f.unary(ir.Op.cast, ir.Class.h, ir.const_ref((i64)float16_bits(digits)))
+                return LowerValue(ref = h, type_id = t, in_memory = false)
+            if t == types.f32_id:
+                let w = try self.f.unary(ir.Op.cast, ir.Class.s, ir.const_ref((i64)float32_bits(digits)))
+                return LowerValue(ref = w, type_id = t, in_memory = false)
+            let d = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref((i64)bits))
+            return LowerValue(ref = d, type_id = types.f64_id if t == types.untyped_float_id else t, in_memory = false)
+        let v = try literals.decode_integer(e.text)
+        let it = types.i64_id if t == types.untyped_int_id else t
+        return LowerValue(ref = ir.const_ref((i64)v), type_id = it, in_memory = false)
+
+    mutating func name(e: ast.Node*) -> LowerValue!:
+        if e.has(ast.flag_format_sink):
+            return try self.format_sink_view()
+        let t = try self.ty(e)
+        if let d = e.resolved:
+            if d.kind == ast.Kind.enum_case:
+                return try self.enum_value(e)
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
+                return try self.func_value(e, d)
+            if d.kind == ast.Kind.constant:
+                if let v = try self.folded_constant(e, t):
+                    return v
+            if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
+                return try self.load_from(try self.global_address(d), t)
+            if let slot = self.find_local(d):
+                return try self.load_from(try self.slot_address(slot), t)
+        return try self.fail(e, "a name without a place")
+
+    ## A constant read as the literal it denotes, `platform.windows` or `os.name`: a bool,
+    ## an integer or a text, so no initialiser depends on another library member's having
+    ## run first (§17.6); none for the rest.
+    mutating func folded_constant(e: ast.Node*, t: u32) -> LowerValue?!:
+        if self.is_int(t):
+            if let v = self.folded_integer(e, t):
+                return LowerValue(ref = ir.const_ref(v), type_id = t, in_memory = false)
+        let leaf = self.c.constant_leaf(e) else return none
+        let b = leaf.text.bytes
+        if t == types.bool_id:
+            if leaf.text != "true" and leaf.text != "false":
+                return none
+            return LowerValue(ref = ir.const_ref(1 if leaf.text == "true" else 0), type_id = t, in_memory = false)
+        if self.is_int(t):
+            if b.length == 0 or b[0] < '0' or b[0] > '9':
+                return none
+            let v = try literals.decode_integer(leaf.text)
+            return LowerValue(ref = ir.const_ref((i64)v), type_id = t, in_memory = false)
+        if t == types.str_id:
+            if b.length == 0 or b[0] != '"':
+                return none
+            let text = literals.decode_text(leaf.text)
+            let index = try self.program_unit.text(text)
+            let data = try self.f.address_of(ir.text_ref(index))
+            return try self.span_of(data, ir.const_ref((i64)text.length), types.str_id)
+        return none
+
+    ## An integer constant whose initialiser is arithmetic on constants, `3 << 4`, as the value
+    ## of its type (§6.4), when the checker folds it exactly (`check.exact_integer`).
+    func folded_integer(e: ast.Node*, t: u32) -> i64?:
+        let d = e.resolved else return none
+        if d.kind != ast.Kind.constant:
+            return none
+        let init = d.left else return none
+        return self.c.exact_integer(init, self.scalar_size(t) * 8, self.is_signed(t))
+
+    mutating func global_address(d: ast.Node*) -> ir.Ref!:
+        let name = try self.global_name(d)
+        if d.has(ast.flag_thread_local):
+            let t = try self.temp(ir.Class.l)
+            try self.f.emit(ir.Op.addr_tls, ir.Class.l, t.index, ir.global_ref(name), ir.none_ref(), 0)
+            return t
+        if d.kind == ast.Kind.extern_var:
+            return try self.f.address_of(ir.import_ref(name))
+        return try self.f.address_of(ir.global_ref(name))
+
+    mutating func func_value(e: ast.Node*, d: ast.Node*) -> LowerValue!:
+        let t = try self.ty(e)
+        if d.kind == ast.Kind.extern_func:
+            return LowerValue(ref = try self.f.address_of(ir.function_ref(names.c_symbol(d))), type_id = t, in_memory = false)
+        var args = try types.no_args()
+        if let holder = e.ty:
+            args = try self.type_args(holder)
+        discard(try self.add_func(d, args, none, try types.no_args()))
+        let name = try self.function_name(d, args, none, try types.no_args())
+        return LowerValue(ref = try self.f.address_of(ir.function_ref(name)), type_id = t, in_memory = false)
+
+    ## An enum case: the integer, or the tagged record with its payload.
+    mutating func enum_value(e: ast.Node*) -> LowerValue!:
+        let c = e.resolved else return try self.fail(e, "no case")
+        let t = try self.ty(e)
+        let d = self.decl_of(t) else return try self.fail(e, "no enum")
+        if self.c.is_backed_enum(t):
+            return LowerValue(ref = ir.const_ref((i64)types.case_value(d, c)), type_id = t, in_memory = false)
+        let slot = try self.new_slot(t)
+        let a = try self.slot_address(slot)
+        try self.f.zero_bytes(a, self.size(t))
+        try self.f.store(ir.Op.storew, ir.const_ref((i64)lower_case_tag(d, c)), a)
+        if e.body != none and c.body != none:
+            let base = self.payload_offset(t)
+            var offset: u64 = 0
+            var param = c.body
+            var arg = e.body
+            let instance = self.c.table.get(t)
+            while let p = param:
+                let a_node = arg else break
+                let v = a_node.left else break
+                let pt = try self.map(try self.c.substitute(p.type_id, d, instance.args))
+                offset = lower_round_up(offset, self.c.table.align_of(pt))
+                let pv = try self.value(v, pt)
+                try self.store_to(try self.offset_address(a, base + offset), pv)
+                offset += self.c.table.size_of(pt)
+                param = p.next
+                arg = a_node.next
+        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    ## Where a payload enum's union starts: after the tag, at the widest payload alignment.
+    func payload_offset(t: u32) -> u64:
+        let d = self.decl_of(t) else return 4
+        var widest: u64 = 4
+        var cursor = d.body
+        while let c = cursor:
+            if c.kind == ast.Kind.enum_case:
+                var p = c.body
+                while let q = p:
+                    let a = self.c.table.align_of(q.type_id)
+                    widest = a if a > widest else widest
+                    p = q.next
+            cursor = c.next
+        return lower_round_up(4, widest)

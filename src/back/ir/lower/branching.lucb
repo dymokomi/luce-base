@@ -1,0 +1,404 @@
+#==============================================================================================
+#
+#   lower/branching - Failure and matching
+#
+#   DESCRIPTION:
+#       `try`, `else`, and `catch` over fallible and optional values (§11), and `match`.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Failure and absence ================================================================
+
+    mutating func try_expr(e: ast.Node*) -> LowerValue!:
+        let inner = e.left else return try self.fail(e, "no operand")
+        let ft = try self.ty(inner)
+        let payload = self.elem(ft)
+        let v = try self.expr(inner)
+        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.failed_offset(ft)))
+        let ok = self.f.label()
+        let bad = self.f.label()
+        try self.f.branch(failed, bad, ok)
+        try self.f.place_label(bad)
+        try self.propagate(v.ref, ft)
+        try self.f.place_label(ok)
+        if payload == types.unit_id or payload == types.never_id:
+            return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
+        return try self.load_from(v.ref, payload)
+
+    mutating func else_expr(e: ast.Node*) -> LowerValue!:
+        let l = e.left else return try self.fail(e, "no operand")
+        let r = e.right else return try self.fail(e, "no alternative")
+        let lt = try self.ty(l)
+        let payload = self.elem(lt)
+        let v = try self.expr(l)
+        let leaves = r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_ or calls.is_error_call(r) or calls.is_trap_call(r) or r.type_id == types.never_id
+        let present_label = self.f.label()
+        let absent_label = self.f.label()
+        let done = self.f.label()
+        var slot: u32 = 0
+        if payload != types.unit_id and payload != types.never_id:
+            slot = try self.new_slot(payload)
+        if self.is_fail(lt):
+            let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.failed_offset(lt)))
+            try self.f.branch(failed, absent_label, present_label)
+        elif self.is_tagged_opt(lt):
+            let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.c.table.size_of(payload)))
+            try self.f.branch(present, present_label, absent_label)
+        elif self.is_nullable_view(lt):
+            let word = try self.f.load(ir.Op.loadl, ir.Class.l, v.ref)
+            try self.f.branch(word, present_label, absent_label)
+        else:
+            try self.f.branch(v.ref, present_label, absent_label)
+        try self.f.place_label(present_label)
+        if payload != types.unit_id and payload != types.never_id:
+            let inner = try self.load_from(v.ref, payload) if not self.is_nullable_ptr(lt) else LowerValue(ref = v.ref, type_id = payload, in_memory = false)
+            try self.store_to(try self.slot_address(slot), inner)
+        try self.f.jump(done)
+        try self.f.place_label(absent_label)
+        if leaves:
+            if calls.is_error_call(r):
+                try self.error_return(r)
+            elif r.kind == ast.Kind.return_:
+                try self.return_stmt(r)
+            elif r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_:
+                try self.jump(r)
+            else:
+                discard(try self.expr(r))
+                try self.trap_with("unreachable")
+        else:
+            if payload != types.unit_id and payload != types.never_id:
+                let alt = try self.value(r, payload)
+                try self.store_to(try self.slot_address(slot), alt)
+            else:
+                discard(try self.expr(r))
+        try self.f.jump(done)
+        try self.f.place_label(done)
+        if payload == types.unit_id or payload == types.never_id:
+            return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
+        return try self.load_from(try self.slot_address(slot), payload)
+
+    mutating func catch_expr(e: ast.Node*) -> LowerValue!:
+        let l = e.left else return try self.fail(e, "no operand")
+        let body = e.body else return try self.fail(e, "no handler")
+        let payload = try self.ty(l)
+        let result = try self.ty(e)
+        let has_value = payload != types.unit_id and payload != types.never_id
+        let slot = try self.new_slot(result) if has_value else 0
+        let error_slot = try self.new_slot(types.error_value_id)
+        let handler = self.f.label()
+        let done = self.f.label()
+        let saved_target = self.failure_target
+        let saved_error = self.failure_slot
+        let saved_failure_scope = self.failure_scope
+        self.failure_target = handler
+        self.failure_slot = error_slot
+        self.failure_scope = self.scopes.count
+        let v = try self.value(l, result)
+        self.failure_target = saved_target
+        self.failure_slot = saved_error
+        self.failure_scope = saved_failure_scope
+        if has_value:
+            try self.store_to(try self.slot_address(slot), v)
+        try self.f.jump(done)
+        try self.f.place_label(handler)
+        if e.text.length > 0:
+            try self.locals.push(LowerLocal(decl = e, slot = error_slot))
+        let saved_slot = self.catch_slot
+        let saved_done = self.catch_done
+        let saved_scope = self.catch_scope
+        let saved_payload = self.catch_payload
+        let saved_in = self.in_catch
+        self.catch_slot = slot
+        self.catch_done = done
+        self.catch_scope = self.scopes.count
+        self.catch_payload = result
+        self.in_catch = true
+        try self.block(body)
+        self.catch_slot = saved_slot
+        self.catch_done = saved_done
+        self.catch_scope = saved_scope
+        self.catch_payload = saved_payload
+        self.in_catch = saved_in
+        try self.f.jump(done)
+        try self.f.place_label(done)
+        if not has_value:
+            return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
+        return try self.load_from(try self.slot_address(slot), result)
+
+    # -- match ----------------------------------------------------------------------------
+
+    mutating func match_stmt(m: ast.Node*, is_expr: bool) -> !:
+        let scrutinee = m.left else return
+        let st = try self.ty(scrutinee)
+        let v = try self.expr(scrutinee)
+        let done = self.f.label()
+        # a match on constants dispatches on the value itself, which never goes to memory
+        if try self.dispatch(m, st, v, done, is_expr):
+            try self.f.place_label(done)
+            return
+        let keep = try self.materialise(v) if not v.in_memory else v.ref
+        let scrutinee_slot = try self.new_slot(st)
+        try self.f.copy_bytes(try self.slot_address(scrutinee_slot), keep, self.size(st))
+        var arm = m.body
+        while let a = arm:
+            let take = self.f.label()
+            let skip = self.f.label()
+            var pattern = a.left
+            while let p = pattern:
+                let next_pattern = self.f.label()
+                try self.pattern_test(p, st, scrutinee_slot, take, next_pattern)
+                try self.f.place_label(next_pattern)
+                pattern = p.next
+            try self.f.jump(skip)
+            try self.f.place_label(take)
+            try self.push_scope(false, "", 0, 0)
+            # bind the payload of the first payload pattern
+            var bound = a.left
+            while let p = bound:
+                if let pv = p.left:
+                    if pv.kind == ast.Kind.case_value and pv.body != none:
+                        try self.bind_payload(pv, st, scrutinee_slot)
+                        break
+                bound = p.next
+            if let guard = a.right:
+                let g = try self.value(guard, types.bool_id)
+                let run = self.f.label()
+                let out = self.f.label()
+                try self.f.branch(g.ref, run, out)
+                try self.f.place_label(out)
+                try self.unwind(self.scopes.count - 1, false)
+                try self.f.jump(skip)
+                try self.f.place_label(run)
+            let body = a.body else return
+            if is_expr:
+                let bv = try self.value(body, self.match_type)
+                try self.store_to(try self.slot_address(self.match_slot), bv)
+            else:
+                try self.block(body)
+            try self.unwind(self.scopes.count - 1, false)
+            self.pop_scope()
+            try self.f.jump(done)
+            try self.f.place_label(skip)
+            arm = a.next
+        try self.f.jump(done)
+        try self.f.place_label(done)
+
+    ## A `match` on an integer, integer enum, char or bool whose arms have no guard and
+    ## whose patterns are constants, four values or more, finds its arm from the sorted
+    ## values (`search`): through a jump table where they are dense, by binary search where
+    ## they are not, reading the scrutinee `v` where it is, where the chain of
+    ## `pattern_test`s would store it and load and compare once per arm in turn. False,
+    ## having emitted nothing, for any other `match`.
+    mutating func dispatch(m: ast.Node*, st: u32, v: LowerValue, done: u32, is_expr: bool) -> bool!:
+        if not (self.is_int(st) or self.c.is_backed_enum(st) or st == types.char_id or st == types.bool_id):
+            return false
+        var values = try list.List[i64].create(16)
+        defer values.destroy()
+        var branches = try list.List[u32].create(16)
+        defer branches.destroy()
+        var takes = try list.List[u32].create(16)
+        defer takes.destroy()
+        # the first wildcard's arm takes what no value names; the arms after it never run
+        var fallback = done
+        var open = true
+        var arm = m.body
+        while let a = arm:
+            if a.right != none:
+                return false
+            let take = self.f.label()
+            try takes.push(take)
+            var pattern = a.left
+            while let p = pattern:
+                if p.has(ast.flag_wildcard):
+                    if open:
+                        fallback = take
+                    open = false
+                elif open:
+                    let value = try self.constant_pattern(p, st) else return false
+                    if not holds(values.span(), value):
+                        try values.push(value)
+                        try branches.push(take)
+                pattern = p.next
+            arm = a.next
+        if values.count < 4:
+            return false
+        sort_cases(values.span(), branches.span(), self.signed_of(st) or st == types.char_id)
+        let current = (try self.load_from(v.ref, st)).ref if v.in_memory else v.ref
+        try self.search(current, st, values.span(), branches.span(), fallback)
+        var index: usize = 0
+        arm = m.body
+        while let a = arm:
+            try self.f.place_label(takes.get(index))
+            try self.push_scope(false, "", 0, 0)
+            let body = a.body else return true
+            if is_expr:
+                let bv = try self.value(body, self.match_type)
+                try self.store_to(try self.slot_address(self.match_slot), bv)
+            else:
+                try self.block(body)
+            try self.unwind(self.scopes.count - 1, false)
+            self.pop_scope()
+            try self.f.jump(done)
+            index += 1
+            arm = a.next
+        return true
+
+    ## The value a pattern names when it is a constant of the scrutinee's type (a literal,
+    ## an integer enum's case, a named constant), none for a range or anything computed.
+    ## Whatever lowering it tried is taken back.
+    mutating func constant_pattern(p: ast.Node*, st: u32) -> i64?!:
+        if p.right != none:
+            return none
+        let v = p.left else return none
+        if v.kind == ast.Kind.case_value:
+            let c = v.resolved else return none
+            let d = self.decl_of(st) else return none
+            if not self.c.is_backed_enum(st):
+                return none
+            return (i64)types.case_value(d, c)
+        let before = self.f.instrs.count
+        let lowered = try self.value(v, st)
+        let emitted = self.f.instrs.count != before
+        self.f.instrs.count = before
+        if emitted or lowered.ref.kind != ir.RefKind.constant:
+            return none
+        return lowered.ref.value
+
+    ## Branch on `current` to the target of the value it equals among the sorted `values`,
+    ## else to `fallback`: through a jump table when the values are dense enough
+    ## (`dense_range`), else halve while more than three remain, then compare each.
+    mutating func search(current: ir.Ref, st: u32, values: i64[], branches: u32[], fallback: u32) -> !:
+        let cls = self.class_of(st)
+        if let entries = dense_range(values):
+            try self.jump_table(current, cls, values, branches, entries, fallback)
+            return
+        if values.length <= 3:
+            for k in 0..<values.length:
+                let next = self.f.label()
+                let hit = try self.f.binary(ir.Op.ceq, cls, current, ir.const_ref(values[k]))
+                try self.f.branch(hit, branches[k], next)
+                try self.f.place_label(next)
+            try self.f.jump(fallback)
+            return
+        let middle = values.length // 2
+        let lower = self.f.label()
+        let upper = self.f.label()
+        let signed = self.signed_of(st) or st == types.char_id
+        let below = try self.f.binary(ir.Op.cslt if signed else ir.Op.cult, cls, current, ir.const_ref(values[middle]))
+        try self.f.branch(below, lower, upper)
+        try self.f.place_label(lower)
+        try self.search(current, st, values[..<middle], branches[..<middle], fallback)
+        try self.f.place_label(upper)
+        try self.search(current, st, values[middle..], branches[middle..], fallback)
+
+    ## Jump through a table of `entries` labels from the first of the sorted `values`: each
+    ## value's entry is its target, every value between them none names goes to `fallback`,
+    ## as does whatever lies outside the table.
+    mutating func jump_table(current: ir.Ref, cls: ir.Class, values: i64[], branches: u32[], entries: usize, fallback: u32) -> !:
+        var labels = try alloc u32[entries]
+        defer free(labels)
+        for k in 0..<entries:
+            labels[k] = fallback
+        let low = values[0]
+        for k in 0..<values.length:
+            labels[(usize)((u64)values[k] -% (u64)low)] = branches[k]
+        try self.f.switch(current, cls, low, labels, fallback)
+
+    ## Branch to `take` when the pattern matches the scrutinee in its slot.
+    mutating func pattern_test(p: ast.Node*, st: u32, scrutinee_slot: u32, take: u32, miss: u32) -> !:
+        if p.has(ast.flag_wildcard):
+            try self.f.jump(take)
+            return
+        let v = p.left else return
+        let a = try self.slot_address(scrutinee_slot)
+        if v.kind == ast.Kind.case_value and v.resolved == none and self.kind(st) == types.Kind.optional:
+            # `.some` and `.none` test the optional's presence (§8.4)
+            let payload = self.elem(st)
+            let hit = take if v.text == "some" else miss
+            let other = miss if v.text == "some" else take
+            if self.is_tagged_opt(st):
+                let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(a, self.c.table.size_of(payload)))
+                try self.f.branch(present, hit, other)
+            else:
+                let word = try self.f.load(ir.Op.loadl, ir.Class.l, a)
+                try self.f.branch(word, hit, other)
+            return
+        if v.kind == ast.Kind.case_value:
+            let c = v.resolved else return
+            let d = self.decl_of(st) else return
+            if self.c.is_backed_enum(st):
+                let current = try self.load_from(a, st)
+                let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, ir.const_ref((i64)types.case_value(d, c)))
+                try self.f.branch(hit, take, miss)
+                return
+            let tag = try self.f.load(ir.Op.loadsw, ir.Class.w, a)
+            let hit = try self.f.binary(ir.Op.ceq, ir.Class.w, tag, ir.const_ref((i64)lower_case_tag(d, c)))
+            try self.f.branch(hit, take, miss)
+            return
+        let current = try self.load_from(a, st)
+        if let hi = p.right:
+            let lo = try self.value(v, st)
+            let hv = try self.value(hi, st)
+            let signed = self.signed_of(st) or st == types.char_id
+            let above = try self.f.binary(ir.Op.csge if signed else ir.Op.cuge, self.class_of(st), current.ref, lo.ref)
+            let mid = self.f.label()
+            try self.f.branch(above, mid, miss)
+            try self.f.place_label(mid)
+            let upper = ir.Op.cslt if p.text == "..<" else ir.Op.csle
+            let uupper = ir.Op.cult if p.text == "..<" else ir.Op.cule
+            let below = try self.f.binary(upper if signed else uupper, self.class_of(st), current.ref, hv.ref)
+            try self.f.branch(below, take, miss)
+            return
+        if st == types.str_id:
+            let text = try self.value(v, st)
+            let same = try self.text_equal(a, text.ref)
+            try self.f.branch(same, take, miss)
+            return
+        let want = try self.value(v, st)
+        let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, want.ref)
+        try self.f.branch(hit, take, miss)
+
+    mutating func bind_payload(v: ast.Node*, st: u32, scrutinee_slot: u32) -> !:
+        if v.resolved == none and self.kind(st) == types.Kind.optional:
+            # `.some(name)`: the value sits first in a tagged optional, and is the word itself
+            # of a nullable pointer
+            let payload = self.elem(st)
+            let at = try self.slot_address(scrutinee_slot)
+            if let nm = v.body:
+                if nm.text != "_":
+                    let slot = try self.bind_local(nm, payload)
+                    let value = try self.load_from(at, payload)
+                    try self.store_to(try self.slot_address(slot), value)
+            return
+        let c = v.resolved else return
+        let d = self.decl_of(st) else return
+        let instance = self.c.table.get(st)
+        let a = try self.slot_address(scrutinee_slot)
+        let base = self.payload_offset(st)
+        var offset: u64 = 0
+        var name = v.body
+        var param = c.body
+        while let nm = name:
+            let q = param else break
+            let pt = try self.map(try self.c.substitute(q.type_id, d, instance.args))
+            offset = lower_round_up(offset, self.c.table.align_of(pt))
+            if nm.text != "_":
+                let slot = try self.bind_local(nm, pt)
+                let value = try self.load_from(try self.offset_address(a, base + offset), pt)
+                try self.store_to(try self.slot_address(slot), value)
+            offset += self.c.table.size_of(pt)
+            name = nm.next
+            param = q.next
+
+    mutating func match_expr(m: ast.Node*) -> LowerValue!:
+        let t = try self.ty(m)
+        let saved_slot = self.match_slot
+        let saved_type = self.match_type
+        self.match_slot = try self.new_slot(t)
+        self.match_type = t
+        try self.f.zero_bytes(try self.slot_address(self.match_slot), self.size(t))
+        try self.match_stmt(m, true)
+        let out = try self.load_from(try self.slot_address(self.match_slot), t)
+        self.match_slot = saved_slot
+        self.match_type = saved_type
+        return out

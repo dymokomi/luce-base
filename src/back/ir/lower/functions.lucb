@@ -1,0 +1,455 @@
+#==============================================================================================
+#
+#   lower/functions - Functions
+#
+#   DESCRIPTION:
+#       Each function's signature, parameters, frame, and body, from the worklist.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Functions ==========================================================================
+
+    ## Lower one function instance into the unit.
+    mutating func function(inst: LowerInstance) -> !:
+        let d = inst.decl
+        if ast.is_linked(d):
+            return  # another object defines it; calls name the symbol
+        let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
+        try self.begin_function(name, d, inst)
+        self.f.standard = check.is_library_module(names.module_of(inst.owner else d))
+        self.f.naked = ast.has_attribute(d, "naked")
+        self.f.weak = ast.has_attribute(d, "weak")
+        self.f.used = ast.has_attribute(d, "used")
+        self.f.noinline = ast.has_attribute(d, "noinline")
+        self.f.always_inline = ast.has_attribute(d, "inline")
+        self.f.section = section_of(d)
+        # parameters: `self` first for methods, each in a slot
+        if let o = inst.owner:
+            if not d.has(ast.flag_static):
+                let oid = try self.map(o.type_id)
+                let pointer = try self.c.table.pointer(oid, not (d.has(ast.flag_mutating) or d.text == "init"), false)
+                let s = try self.f.slot(8, 8)
+                self.self_slot = s
+                if self.f.debug or self.f.symbols:
+                    try self.f.locals.push(ir.LocalInfo(name = "self", slot = s, kind = try self.c.spell(pointer), size = 8, type_id = pointer, line = d.line, parameter = true, scope = 0, site = 0))
+                try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = pointer, slot = s, shape = 0))
+        var cursor = d.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            # a parameter's slot is at least a register wide, since it arrives as one
+            var size = self.size(pt)
+            var align = self.align(pt)
+            if size < 16:
+                size = 16
+            if align < 8:
+                align = 8
+            let s = try self.f.slot(size, align)
+            try self.locals.push(LowerLocal(decl = p, slot = s))
+            try self.describe_local(p, s, pt)
+            try self.f.params.push(try self.param_of(pt, s))
+            cursor = p.next
+        if d.has(ast.flag_export) and not self.f.naked:
+            try self.check_foreign_parameters(d)
+        try self.push_scope(false, "", 0, 0)
+        if self.f.debug:
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = try self.descriptor_ref(), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+            try self.debug_call("lb_debug_enter", start, 1)
+        if let body = d.body:
+            var s = body.body
+            while let st = s:
+                try self.stmt(st)
+                s = st.next
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        try self.fall_off_end()
+        try self.end_function()
+
+    ## The C face of an export whose signature C cannot take as it is (§17.6), as `emit`
+    ## writes it in C: the C-visible parameters (a span as a pointer and a length, `(NULL,
+    ## n)` being the empty span) into a call of the function by its internal name; a
+    ## fallible result becomes an `int` status, 0 or the error's code, with the value
+    ## written through a final out-pointer.
+    mutating func export_wrapper(inst: LowerInstance) -> !:
+        let d = inst.decl
+        let internal = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
+        self.scratch.clear()
+        try names.export_symbol(&self.scratch, d, inst.owner)
+        let symbol = try names.keep(&self.scratch)
+        try self.begin_function(symbol, none, inst)
+        self.fn_decl = none
+        self.current_fn = none
+        self.f.exported = true
+        self.f.used = true
+        let ft = self.c.table.get(try self.map(d.type_id))
+        let fallible = d.has(ast.flag_fallible)
+        let payload = self.elem(ft.elem) if fallible else ft.elem
+        # the C-visible parameters, each in a slot; a span's pointer and length in two
+        var self_slot: u32 = 0
+        var self_type: u32 = 0
+        if let o = inst.owner:
+            if not d.has(ast.flag_static):
+                let oid = try self.map(o.type_id)
+                self_type = try self.c.table.pointer(oid, not (d.has(ast.flag_mutating) or d.text == "init"), false)
+                self_slot = try self.f.slot(8, 8)
+                try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = self_type, slot = self_slot, shape = 0))
+        var length_slots = try list.List[u32].create(4)
+        var cursor = d.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            if self.is_span(pt):
+                let data = try self.f.slot(16, 8)
+                let length = try self.f.slot(16, 8)
+                try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, slot = data, shape = 0))
+                try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, slot = length, shape = 0))
+                try self.locals.push(LowerLocal(decl = p, slot = data))
+                try length_slots.push(length)
+            else:
+                var size = self.size(pt)
+                var align = self.align(pt)
+                if size < 16:
+                    size = 16
+                if align < 8:
+                    align = 8
+                let s = try self.f.slot(size, align)
+                try self.locals.push(LowerLocal(decl = p, slot = s))
+                try self.f.params.push(try self.param_of(pt, s))
+                try length_slots.push(0)
+            cursor = p.next
+        var out_slot: u32 = 0
+        if fallible and payload != types.unit_id:
+            out_slot = try self.f.slot(8, 8)
+            try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, slot = out_slot, shape = 0))
+        if fallible:
+            try self.set_result(types.i32_id)
+        else:
+            try self.set_result(ft.elem)
+        try self.push_scope(false, "", 0, 0)
+        # the arguments of the call: the receiver, then each parameter as the function takes it
+        let start = u32(self.f.args.count)
+        if self_slot != 0:
+            let receiver = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(self_slot))
+            try self.f.args.push(ir.Arg(value = receiver, cls = ir.Class.l, size = 0, align = 8, type_id = self_type, shape = 0))
+        var i: usize = 0
+        cursor = d.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            let slot = self.find_local(p) else return try self.fail(p, "a parameter without a slot")
+            if self.is_span(pt):
+                # `(NULL, n)` is the empty span: a data pointer of 8 and no length
+                let data_at = try self.slot_address(slot)
+                let length_at = try self.slot_address(length_slots.get(i))
+                let given = try self.f.load(ir.Op.loadl, ir.Class.l, data_at)
+                let present = self.f.label()
+                let absent = self.f.label()
+                let joined = self.f.label()
+                try self.f.branch(given, present, absent)
+                try self.f.place_label(absent)
+                try self.f.store(ir.Op.storel, ir.const_ref(8), data_at)
+                try self.f.store(ir.Op.storel, ir.const_ref(0), length_at)
+                try self.f.jump(joined)
+                try self.f.place_label(present)
+                try self.f.jump(joined)
+                try self.f.place_label(joined)
+                let data = try self.f.load(ir.Op.loadl, ir.Class.l, data_at)
+                let length = try self.f.load(ir.Op.loadl, ir.Class.l, length_at)
+                try self.f.args.push(try self.arg_of(try self.span_of(data, length, pt)))
+            else:
+                try self.f.args.push(try self.arg_of(try self.load_from(try self.slot_address(slot), pt)))
+            i += 1
+            cursor = p.next
+        let count = u32(self.f.args.count) - start
+        # the call, its result in a slot when it is an aggregate or fallible
+        let result_type = ft.elem
+        var result = LowerValue(ref = ir.none_ref(), type_id = types.unit_id, in_memory = false)
+        if result_type == types.unit_id or result_type == types.never_id:
+            discard(try self.call_named(internal, start, count, ir.Class.w, false, types.unit_id))
+        elif self.is_scalar(result_type):
+            let cls = self.class_of(result_type)
+            result = LowerValue(ref = try self.call_named(internal, start, count, cls, true, result_type), type_id = result_type, in_memory = false)
+        else:
+            let slot = try self.new_slot(result_type)
+            let info = ir.CallInfo(args_start = start, args_count = count, fixed_count = count, variadic = false, result_cls = ir.Class.l, has_result = true, result_size = self.size(result_type), result_align = self.align(result_type), result_type = result_type, result_slot = slot, result_shape = try self.shape_of(result_type))
+            try self.f.calls.push(info)
+            try self.f.emit(ir.Op.call, ir.Class.l, 0, ir.function_ref(internal), ir.none_ref(), u32(self.f.calls.count - 1))
+            result = LowerValue(ref = try self.slot_address(slot), type_id = result_type, in_memory = true)
+        if fallible:
+            # the status: the error's code when the call failed, else 0 with the value out
+            let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(result.ref, self.failed_offset(result_type)))
+            let bad = self.f.label()
+            let good = self.f.label()
+            try self.f.branch(failed, bad, good)
+            try self.f.place_label(bad)
+            let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.failure_address())
+            try self.f.emit(ir.Op.ret, ir.Class.w, 0, code, ir.none_ref(), 0)
+            try self.f.place_label(good)
+            if payload != types.unit_id:
+                let out = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(out_slot))
+                try self.store_to(out, try self.load_from(result.ref, payload))
+            try self.f.emit(ir.Op.ret, ir.Class.w, 0, ir.const_ref(0), ir.none_ref(), 0)
+        elif result_type == types.unit_id or result_type == types.never_id:
+            try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+        else:
+            try self.f.emit(ir.Op.ret, self.class_of(result_type) if not result.in_memory else ir.Class.l, 0, result.ref, ir.none_ref(), 0)
+        self.pop_scope()
+        try self.end_function()
+
+    ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
+    ## traps `null_foreign`: the one boundary check, in this direction (§17.1).
+    mutating func check_foreign_parameters(d: ast.Node*) -> !:
+        var cursor = d.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            if self.is_ptr(pt) or pt == types.cstr_id or self.c.table.is_opaque_handle(pt):
+                let slot = self.find_local(p) else return try self.fail(p, "a parameter without a slot")
+                let value = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(slot))
+                let ok = self.f.label()
+                let bad = self.f.label()
+                try self.f.branch(value, ok, bad)
+                try self.f.place_label(bad)
+                try self.trap_with("null_foreign")
+                try self.f.place_label(ok)
+            cursor = p.next
+
+    ## A parameter description from its type and slot.
+    mutating func param_of(id: u32, slot: u32) -> ir.Param!:
+        if self.is_scalar(id):
+            return ir.Param(cls = self.class_of(id), size = 0, align = 8, type_id = id, slot = slot, shape = 0, scalar_width = (u32)self.scalar_size(id), scalar_signed = self.signed_of(id))
+        return ir.Param(cls = ir.Class.l, size = self.size(id), align = self.align(id), type_id = id, slot = slot, shape = try self.shape_of(id))
+
+    ## Open a function: its result shape and the slot the result is built in.
+    mutating func begin_function(name: str, d: ast.Node*?, inst: LowerInstance) -> !:
+        self.f = try ir.Function.create(name)
+        self.pool_count = 0
+        self.pool_used = 0
+        # a function taking frame storage keeps its format buffers in its fixed frame: the
+        # dynamic area's levels are set from the frame and would cut the storage short
+        self.pooling = true
+        if let decl = d:
+            self.pooling = not self.calls_frame(decl.body)
+        # the program's own functions are described and hooked; the standard modules are not
+        self.f.debug = false
+        self.f.symbols = false
+        if let decl = d:
+            let owner = inst.owner else decl
+            let own = not check.is_standard_module(names.module_of(owner))
+            self.f.debug = self.debug and own
+            self.f.symbols = self.symbols and own
+            self.src_file = self.source_of(owner)
+        self.f.source = self.src_file
+        if let decl = d:
+            self.f.source_name = decl.text
+            self.f.source_line = decl.line
+        if self.f.debug or self.f.symbols:
+            try self.f.debug_scopes.push(ir.DebugScope(parent = 0, start = 0, end = 0, site = 0))
+        self.f.at_scope = 0
+        self.locals.count = 0
+        self.scopes.count = 0
+        self.defers.count = 0
+        self.self_slot = 0
+        self.current_fn = d
+        self.fn_decl = inst.decl
+        self.fn_args = inst.args
+        self.owner_decl = inst.owner
+        self.owner_args = inst.owner_args
+        self.set_position(inst.decl)
+        let result = try self.result_type_of(d)
+        try self.set_result(result)
+
+    mutating func set_result(result: u32) -> !:
+        self.f.has_result = result != types.unit_id and result != types.never_id
+        self.f.result_type = result
+        if self.f.has_result:
+            if self.is_scalar(result):
+                self.f.result_cls = self.class_of(result)
+                self.f.result_size = 0
+                self.f.result_align = 8
+            else:
+                self.f.result_cls = ir.Class.l
+                self.f.result_size = self.size(result)
+                self.f.result_align = self.align(result)
+                self.f.result_shape = try self.shape_of(result)
+            self.result_slot = try self.new_slot(result)
+        else:
+            self.result_slot = 0
+
+    ## The C-visible result type of a declaration: `T`, `T!` as one aggregate, or none.
+    mutating func result_type_of(d: ast.Node*?) -> u32!:
+        let f = d else return types.unit_id
+        if f.kind == ast.Kind.test_:
+            return try self.c.table.fallible(types.unit_id)
+        let ft = self.c.table.get(try self.map(f.type_id))
+        return ft.elem
+
+    ## The unwrapped result the body's `return` values have.
+    mutating func result_payload() -> u32:
+        let r = self.f.result_type
+        if self.is_fail(r):
+            return self.elem(r)
+        return r
+
+    func fn_fallible() -> bool:
+        return self.is_fail(self.f.result_type)
+
+    ## Reaching the end: a unit function returns; a fallible unit function returns success.
+    mutating func fall_off_end() -> !:
+        if self.fn_fallible() and self.result_payload() == types.unit_id:
+            let r = try self.slot_address(self.result_slot)
+            try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(r, self.failed_offset(self.f.result_type)))
+            try self.debug_leave()
+            try self.f.emit(ir.Op.ret, ir.Class.l, 0, r, ir.none_ref(), 0)
+            return
+        if not self.f.has_result:
+            try self.debug_leave()
+            try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+            return
+        try self.trap_with("unreachable")
+
+    mutating func end_function() -> !:
+        if self.f.debug or self.f.symbols:
+            self.f.debug_scopes.items[0].end = self.f.instrs.count
+        # a fallible result of up to four words comes back in registers, both ways
+        self.f.result_private = self.f.has_result and self.private_result(self.f.result_type, self.f.result_size)
+        for k in 0..<self.f.calls.count:
+            var info = self.f.calls.get(k)
+            if info.has_result and self.private_result(info.result_type, info.result_size):
+                info.result_private = true
+                self.f.calls.set(k, info)
+        if not (self.f.debug or self.f.symbols):
+            try self.result_words()
+        try self.program_unit.functions.push(self.f)
+
+    ## A private result's words as values of their own: after each call answering one, a
+    ## `word` for each register it comes back in, stored to the call's slot; each `ret` of
+    ## one loads its words from the result slot and returns them. Neither slot's address
+    ## then leaves the function, so the optimiser takes them apart into temporaries
+    ## (`split`, `promote`) and a failure's flag is tested in the register it arrives in.
+    ## A build with symbols keeps the slots: its scopes count instructions this would move.
+    mutating func result_words() -> !:
+        let returned = self.register_words(self.f.has_result, self.f.result_type, self.f.result_size, self.f.result_shape, self.f.result_private)
+        var any = returned > 0
+        for info in self.f.calls.span():
+            any = any or self.register_words(info.has_result, info.result_type, info.result_size, info.result_shape, info.result_private) > 0
+        if not any:
+            return
+        var old = self.f.instrs
+        self.f.instrs = try list.List[ir.Instr].create(old.count + 32)
+        defer old.destroy()
+        for x in old.span():
+            if x.op == ir.Op.ret and returned > 0 and x.a.kind != ir.RefKind.none_:
+                let start = u32(self.f.args.count)
+                let words = returned
+                for k in 0..<words:
+                    let (cls, store, load) = self.word_access(self.f.result_type, k)
+                    discard(store)
+                    let v = try self.f.temp(cls)
+                    var read = stamped(x, load, v, try self.word_address(x, x.a, k), ir.none_ref())
+                    read.cls = cls
+                    try self.f.instrs.push(read)
+                    try self.f.args.push(ir.Arg(value = ir.temp_ref(v), cls = cls, size = 0, align = 8, type_id = types.u64_id, shape = 0))
+                var r = x
+                r.a = ir.none_ref()
+                r.extra = start
+                r.extra2 = words
+                try self.f.instrs.push(r)
+                continue
+            try self.f.instrs.push(x)
+            if x.op != ir.Op.call:
+                continue
+            var info = self.f.calls.get((usize)x.extra)
+            let words = self.register_words(info.has_result, info.result_type, info.result_size, info.result_shape, info.result_private)
+            if words == 0:
+                continue
+            info.result_words = true
+            self.f.calls.set((usize)x.extra, info)
+            var got: u32[4] = [0, 0, 0, 0]
+            for k in 0..<words:
+                let (cls, store, load) = self.word_access(info.result_type, k)
+                discard(store)
+                discard(load)
+                got[k] = try self.f.temp(cls)
+                var w = stamped(x, ir.Op.word, got[k], ir.none_ref(), ir.none_ref())
+                w.cls = cls
+                w.extra = k
+                # the failure flag comes back 0 or 1 (`opt.failure_flags`)
+                w.extra2 = 1 if info.result_private and (u64)k * 8 == self.failed_offset(info.result_type) else 0
+                try self.f.instrs.push(w)
+            let base = try self.f.temp(ir.Class.l)
+            try self.f.instrs.push(stamped(x, ir.Op.addr, base, ir.slot_ref(info.result_slot), ir.none_ref()))
+            for k in 0..<words:
+                let (cls, store, load) = self.word_access(info.result_type, k)
+                discard(cls)
+                discard(load)
+                try self.f.instrs.push(stamped(x, store, 0, ir.temp_ref(got[k]), try self.word_address(x, ir.temp_ref(base), k)))
+
+    ## How word `k` of a private result of type `result` is moved to and from its slot: as
+    ## the lowerer reaches that part of the slot, so the two agree and the optimiser keeps
+    ## the word in a temporary; the flag as a byte, a scalar payload at its own width,
+    ## anything else (a float, an aggregate's words) whole.
+    func word_access(result: u32, k: u32) -> (ir.Class, ir.Op, ir.Op):
+        let offset = (u64)k * 8
+        if self.kind(result) != types.Kind.fallible:
+            return (ir.Class.l, ir.Op.storel, ir.Op.loadl)
+        if offset == self.failed_offset(result):
+            return (ir.Class.w, ir.Op.storeb, ir.Op.loadub)
+        let payload = self.elem(result)
+        if offset == 0 and self.is_scalar(payload) and not self.is_float(payload) and self.kind(payload) != types.Kind.atomic:
+            let size = self.scalar_size(payload)
+            if size == 1 or size == 2 or size == 4 or size == 8:
+                return (ir.Class.w if size <= 4 else ir.Class.l, ir.store_op(size, false), ir.load_op(size, false, false))
+        return (ir.Class.l, ir.Op.storel, ir.Op.loadl)
+
+    ## How many integer registers a result of `size` bytes and shape `shape` comes back in,
+    ## for `result_words`: a private result's words (up to four); an aggregate of whole
+    ## words that the C convention returns in integer registers, two at most on arm64 and
+    ## on System V (every word holding an integer member, none a float, none misaligned),
+    ## one on Windows x64; 0 for a scalar, for a result through memory, and for an array,
+    ## whose lanes a vector register holds (§5.12).
+    func register_words(has_result: bool, result: u32, size: u32, shape: u32, private: bool) -> u32:
+        if not has_result or size == 0:
+            return 0
+        if private:
+            return (size + 7) // 8
+        if size % 8 != 0 or shape == 0 or size > 16 or result == 0 or self.kind(result) == types.Kind.array:
+            return 0
+        if self.target.os == targets.Os.windows:
+            return 1 if size == 8 else 0
+        var covered: u32 = 0
+        for leaf in self.program_unit.leaves_of(shape):
+            if leaf.cls != ir.Class.w and leaf.cls != ir.Class.l:
+                return 0
+            if leaf.size > 1 and leaf.offset % (u32)leaf.size != 0:
+                return 0
+            covered = covered | ((u32)1 << (leaf.offset // 8))
+        let words = size // 8
+        return words if covered == ((u32)1 << words) - 1 else 0
+
+    ## The address of word `k` of the result at `base`, for `result_words`.
+    mutating func word_address(x: ir.Instr, base: ir.Ref, k: u32) -> ir.Ref!:
+        if k == 0:
+            return base
+        let p = try self.f.temp(ir.Class.l)
+        try self.f.instrs.push(stamped(x, ir.Op.add, p, base, ir.const_ref((i64)k * 8)))
+        return ir.temp_ref(p)
+
+    ## Whether a result of type `result`, `size` bytes, takes the program's own convention.
+    func private_result(result: u32, size: u32) -> bool:
+        return result != 0 and self.kind(result) == types.Kind.fallible and size > 0 and size <= 32
+
+    ## Where a result keeps its flag: after its value, whose error is `core.failure`'s.
+    func failed_offset(result: u32) -> u64:
+        let payload = self.elem(result)
+        if payload == types.unit_id or payload == types.never_id:
+            return 0
+        return round_up8(self.c.table.size_of(payload))
+
+    ## The address of `core.failure`, the thread's error of the call that failed last.
+    mutating func failure_address() -> ir.Ref!:
+        let t = try self.temp(ir.Class.l)
+        try self.f.emit(ir.Op.addr_tls, ir.Class.l, t.index, ir.global_ref("lb_core_failure"), ir.none_ref(), 0)
+        return t
+
+    mutating func trap_with(reason: str) -> !:
+        let t = try self.program_unit.text(reason)
+        let p = try self.position_ref()
+        try self.f.emit(ir.Op.trap_, ir.Class.l, 0, ir.text_ref(t), p, 0)

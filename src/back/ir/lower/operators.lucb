@@ -1,0 +1,726 @@
+#==============================================================================================
+#
+#   lower/operators - Operators
+#
+#   DESCRIPTION:
+#       Unary and binary operators through checked arithmetic, chains, vector lanes, and
+#       equality.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Operators ==========================================================================
+
+    mutating func unary(e: ast.Node*) -> LowerValue!:
+        let inner = e.left else return try self.fail(e, "no operand")
+        let t = try self.ty(e)
+        if self.is_vector(t):
+            return try self.vector_unary(e, inner, t)
+        if e.text == "try":
+            return try self.try_expr(e)
+        if e.text == "not":
+            let v = try self.value(inner, types.bool_id)
+            return LowerValue(ref = try self.f.binary(ir.Op.ceq, ir.Class.w, v.ref, ir.const_ref(0)), type_id = types.bool_id, in_memory = false)
+        if e.text == "&":
+            if inner.kind == ast.Kind.index:
+                return LowerValue(ref = try self.index_address_at(inner, true), type_id = t, in_memory = false)
+            return LowerValue(ref = try self.place(inner), type_id = t, in_memory = false)
+        if e.text == "*":
+            let p = try self.expr(inner)
+            return try self.load_from(p.ref, t)
+        if e.text == "+":
+            return try self.expr(inner)
+        if e.text == "-" and inner.kind == ast.Kind.literal and self.is_int(t):
+            # `-literal` is one constant, not a checked negation: `-128` is a valid `i8`
+            let magnitude = literals.decode_integer(inner.text) catch failure:
+                recover 0
+            let negative = (i64)(0 -% magnitude)
+            return LowerValue(ref = ir.const_ref(negative), type_id = t, in_memory = false)
+        let v = try self.value(inner, t)
+        return LowerValue(ref = try self.unary_scalar(e.text, t, v.ref), type_id = t, in_memory = false)
+
+    ## `-x`, `~x`, or `-%x` on one scalar of type `t`.
+    mutating func unary_scalar(op: str, t: u32, x: ir.Ref) -> ir.Ref!:
+        if self.is_float(t):
+            return try self.f.unary(ir.Op.neg, self.class_of(t), x)
+        let cls = self.class_of(t)
+        if op == "~":
+            let flipped = try self.f.binary(ir.Op.xor, cls, x, ir.const_ref(-1))
+            return try self.narrow(flipped, t)
+        if op == "-%":
+            let neg = try self.f.binary(ir.Op.sub, cls, ir.const_ref(0), x)
+            return try self.narrow(neg, t)
+        let neg = try self.f.binary(ir.Op.subo, cls, ir.const_ref(0), x)
+        try self.mark_position()
+        try self.mark_signed(self.signed_of(t))
+        try self.check_range(neg, t)
+        return neg
+
+    ## Bring a `w`/`l` result back into the range of a narrower integer type (wrapping).
+    mutating func narrow(r: ir.Ref, t: u32) -> ir.Ref!:
+        let bits = self.scalar_size(t) * 8
+        if bits >= 32 and self.class_of(t) == ir.Class.w:
+            return r
+        if bits >= 64:
+            return r
+        let cls = self.class_of(t)
+        if bits == 8:
+            return try self.f.unary(ir.Op.extsb if self.signed_of(t) else ir.Op.extub, cls, r)
+        if bits == 16:
+            return try self.f.unary(ir.Op.extsh if self.signed_of(t) else ir.Op.extuh, cls, r)
+        if bits == 32:
+            return try self.f.unary(ir.Op.extsw if self.signed_of(t) else ir.Op.extuw, cls, r)
+        return r
+
+    ## Trap when a value computed at class width does not fit the narrower type.
+    mutating func check_range(r: ir.Ref, t: u32) -> !:
+        let bits = self.scalar_size(t) * 8
+        let cls = self.class_of(t)
+        if (cls == ir.Class.w and bits == 32) or (cls == ir.Class.l and bits == 64):
+            return
+        let back = try self.narrow(r, t)
+        let same = try self.f.binary(ir.Op.ceq, cls, back, r)
+        let ok = self.f.label()
+        let bad = self.f.label()
+        try self.f.branch(same, ok, bad)
+        try self.f.place_label(bad)
+        try self.trap_with("integer overflow")
+        try self.f.place_label(ok)
+
+    ## `a op b` on `t`, checked, wrapping, or saturating as the operator says.
+    mutating func arithmetic(op: str, t: u32, a: ir.Ref, b: ir.Ref, at: ast.Node*) -> ir.Ref!:
+        let cls = self.class_of(t)
+        if self.is_float(t):
+            if op == "+":
+                return try self.f.binary(ir.Op.add, cls, a, b)
+            if op == "-":
+                return try self.f.binary(ir.Op.sub, cls, a, b)
+            if op == "*":
+                return try self.f.binary(ir.Op.mul, cls, a, b)
+            if op == "/":
+                return try self.f.binary(ir.Op.sdiv, cls, a, b)
+            return try self.fail(at, "no such float operator")
+        if op == "&":
+            return try self.f.binary(ir.Op.and_, cls, a, b)
+        if op == "|":
+            return try self.f.binary(ir.Op.or_, cls, a, b)
+        if op == "^":
+            return try self.f.binary(ir.Op.xor, cls, a, b)
+        let signed = self.signed_of(t)
+        let bits = self.scalar_size(t) * 8
+        if op == "+" or op == "-" or op == "*":
+            let checked = ir.Op.addo if op == "+" else (ir.Op.subo if op == "-" else ir.Op.mulo)
+            if (cls == ir.Class.w and bits == 32) or (cls == ir.Class.l and bits == 64):
+                let r = try self.f.binary(checked, cls, a, b)
+                # the target traps on overflow of the full width; signedness is in `extra`
+                try self.mark_signed(signed)
+                try self.mark_position()
+                return r
+            # narrower: compute at width, then check the range
+            let plain = ir.Op.add if op == "+" else (ir.Op.sub if op == "-" else ir.Op.mul)
+            let wide = try self.f.binary(plain, cls, a, b)
+            try self.check_range(wide, t)
+            return wide
+        if op == "+%" or op == "-%" or op == "*%":
+            let plain = ir.Op.add if op == "+%" else (ir.Op.sub if op == "-%" else ir.Op.mul)
+            let wide = try self.f.binary(plain, cls, a, b)
+            return try self.narrow(wide, t)
+        if op == "//" or op == "%":
+            return try self.divide(op == "//", t, a, b)
+        if (op == "+|" or op == "-|") and not signed:
+            return try self.saturate_unsigned(op == "+|", t, a, b)
+        if op == "+|" or op == "-|" or op == "*|":
+            let helper = "adds" if op == "+|" else ("subs" if op == "-|" else "muls")
+            return try self.runtime_arith(helper, t, a, b)
+        if op == "<<" or op == ">>":
+            return try self.shift(op == "<<", t, a, b)
+        return try self.fail(at, "unknown operator")
+
+    ## Unsigned `a +| b` and `a -| b` in a few instructions, no branch and no call: the
+    ## difference masked to 0 when `b` exceeds `a`; the sum turned to all ones when it
+    ## passed the type's largest value, then cut to the type's width.
+    mutating func saturate_unsigned(adding: bool, t: u32, a: ir.Ref, b: ir.Ref) -> ir.Ref!:
+        let cls = self.class_of(t)
+        let bits = self.scalar_size(t) * 8
+        let full = (cls == ir.Class.w and bits == 32) or (cls == ir.Class.l and bits == 64)
+        if not adding:
+            let difference = try self.f.binary(ir.Op.sub, cls, a, b)
+            let under = try self.f.binary(ir.Op.cult, cls, a, b)
+            let wide = try self.f.unary(ir.Op.extuw, cls, under) if cls == ir.Class.l else under
+            let keep = try self.f.binary(ir.Op.sub, cls, wide, ir.const_ref(1))
+            return try self.f.binary(ir.Op.and_, cls, difference, keep)
+        let sum = try self.f.binary(ir.Op.add, cls, a, b)
+        let largest = ir.const_ref((i64)(((u64)1 << (u64)bits) - 1)) if bits < 64 else ir.const_ref(-1)
+        let over = try self.f.binary(ir.Op.cult, cls, sum, a) if full else try self.f.binary(ir.Op.cugt, cls, sum, largest)
+        let wide = try self.f.unary(ir.Op.extuw, cls, over) if cls == ir.Class.l else over
+        let all = try self.f.unary(ir.Op.neg, cls, wide)
+        let clamped = try self.f.binary(ir.Op.or_, cls, sum, all)
+        if full:
+            return clamped
+        return try self.f.binary(ir.Op.and_, cls, clamped, largest)
+
+    ## `a // b` and `a % b`: a zero divisor traps, so does the one overflowing quotient.
+    mutating func divide(quotient: bool, t: u32, a: ir.Ref, b: ir.Ref) -> ir.Ref!:
+        let cls = self.class_of(t)
+        let signed = self.signed_of(t)
+        let bits = self.scalar_size(t) * 8
+        let zero = try self.f.binary(ir.Op.ceq, cls, b, ir.const_ref(0))
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(zero, bad, ok)
+        try self.f.place_label(bad)
+        try self.trap_with("division by zero")
+        try self.f.place_label(ok)
+        if signed:
+            # the most negative value divided by -1 has no representable result; `a` arrives
+            # sign-extended, so the bound is that value, not the bit at `bits - 1`
+            let lowest: i64 = -9223372036854775807 - 1 if bits == 64 else 0 - (1 << (i64)(bits - 1))
+            let is_lowest = try self.f.binary(ir.Op.ceq, cls, a, ir.const_ref(lowest))
+            let minus_one = try self.f.binary(ir.Op.ceq, cls, b, ir.const_ref(-1))
+            let both = try self.f.binary(ir.Op.and_, ir.Class.w, is_lowest, minus_one)
+            let over = self.f.label()
+            let fine = self.f.label()
+            try self.f.branch(both, over, fine)
+            try self.f.place_label(over)
+            try self.trap_with("integer overflow")
+            try self.f.place_label(fine)
+        var op = ir.Op.sdiv if quotient else ir.Op.srem
+        if not signed:
+            op = ir.Op.udiv if quotient else ir.Op.urem
+        let r = try self.f.binary(op, cls, a, b)
+        return try self.narrow(r, t)
+
+    ## `a << n` and `a >> n`: a count at or past the width traps; the result keeps the width.
+    mutating func shift(left: bool, t: u32, a: ir.Ref, n: ir.Ref) -> ir.Ref!:
+        let cls = self.class_of(t)
+        let signed = self.signed_of(t)
+        let bits = self.scalar_size(t) * 8
+        let count = try self.to_word(n, t)
+        let over = try self.f.binary(ir.Op.cuge, ir.Class.l, count, ir.const_ref((i64)bits))
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(over, bad, ok)
+        try self.f.place_label(bad)
+        try self.trap_with("shift count out of range")
+        try self.f.place_label(ok)
+        var op = ir.Op.shl
+        if not left:
+            op = ir.Op.ashr if signed else ir.Op.lshr
+        let r = try self.f.binary(op, cls, a, n)
+        return try self.narrow(r, t)
+
+    ## The last emitted checked instruction carries its signedness in `extra`.
+    mutating func mark_signed(signed: bool) -> !:
+        var last = self.f.instrs.get(self.f.instrs.count - 1)
+        last.extra = 1 if signed else 0
+        self.f.instrs.set(self.f.instrs.count - 1, last)
+
+    ## The symbol of `core.<helper>_s` or `core.<helper>_u`, spelled as `names` spells it.
+    mutating func core_helper(helper: str, signed: bool) -> str!:
+        var text: u8[64]
+        let suffix = "_s" if signed else "_u"
+        let full = try format(text, f"{helper}{suffix}")
+        self.scratch.clear()
+        try self.scratch.put("lb_core_")
+        try names.put_piece(&self.scratch, full)
+        return try names.keep(&self.scratch)
+
+    ## `core.<helper>_s(a, b, bits)`, cast back to the type.
+    mutating func runtime_arith(helper: str, t: u32, a: ir.Ref, b: ir.Ref) -> ir.Ref!:
+        let signed = self.signed_of(t)
+        let bits = self.scalar_size(t) * 8
+        let name = try self.core_helper(helper, signed)
+        let wa = try self.to_word(a, t)
+        let wb = try self.to_word(b, t)
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = wa, cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = wb, cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)bits), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        let r = try self.call_named(name, start, 3, ir.Class.l, true, types.i64_id)
+        return try self.from_word(r, t)
+
+    ## A scalar widened to the 64-bit word the runtime helpers take.
+    mutating func to_word(r: ir.Ref, t: u32) -> ir.Ref!:
+        if self.class_of(t) == ir.Class.l:
+            return r
+        return try self.f.unary(ir.Op.extsw if self.signed_of(t) else ir.Op.extuw, ir.Class.l, r)
+
+    mutating func from_word(r: ir.Ref, t: u32) -> ir.Ref!:
+        if self.class_of(t) == ir.Class.l:
+            return r
+        let w = try self.f.unary(ir.Op.copy, ir.Class.w, r)
+        return try self.narrow(w, t)
+
+    mutating func binary(e: ast.Node*) -> LowerValue!:
+        let l = e.left else return try self.fail(e, "no operand")
+        let r = e.right else return try self.fail(e, "no operand")
+        let op = e.text
+        let t = try self.ty(e)
+        if self.is_vector(t):
+            return try self.vector_binary(e, l, r, t)
+        if op == "and" or op == "or":
+            # short-circuit through a slot
+            let slot = try self.f.slot(1, 1)
+            let a = try self.slot_address(slot)
+            let lv = try self.value(l, types.bool_id)
+            try self.f.store(ir.Op.storeb, lv.ref, a)
+            let more = self.f.label()
+            let done = self.f.label()
+            if op == "and":
+                try self.f.branch(lv.ref, more, done)
+            else:
+                try self.f.branch(lv.ref, done, more)
+            try self.f.place_label(more)
+            let rv = try self.value(r, types.bool_id)
+            try self.f.store(ir.Op.storeb, rv.ref, try self.slot_address(slot))
+            try self.f.jump(done)
+            try self.f.place_label(done)
+            let out = try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+            return LowerValue(ref = out, type_id = types.bool_id, in_memory = false)
+        let lt = try self.ty(l)
+        let rt = try self.ty(r)
+        var ot = lt
+        if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
+            ot = rt
+        if ot == types.untyped_int_id or ot == types.none_id or ot == types.untyped_float_id:
+            # two literals: the checker settled the expression's own type, `let b: i32 = 7 * 2`
+            if self.is_int(t) or self.is_float(t) or t == types.char_id:
+                ot = t
+            elif ot == types.untyped_float_id:
+                ot = types.f64_id
+            else:
+                ot = types.i64_id
+        if op == "==" or op == "!=":
+            return try self.equality(l, lt, r, rt, ot, op == "!=")
+        if op == "<" or op == "<=" or op == ">" or op == ">=":
+            if ot == types.str_id:
+                let lv = try self.expr(l)
+                let rv = try self.expr(r)
+                let start = u32(self.f.args.count)
+                try self.f.args.push(try self.arg_of(lv))
+                try self.f.args.push(try self.arg_of(rv))
+                let c = try self.call_named("lb_core_11str_compare", start, 2, ir.Class.w, true, types.i32_id)
+                let cop = ir.Op.cslt if op == "<" else (ir.Op.csle if op == "<=" else (ir.Op.csgt if op == ">" else ir.Op.csge))
+                return LowerValue(ref = try self.f.binary(cop, ir.Class.w, c, ir.const_ref(0)), type_id = types.bool_id, in_memory = false)
+            let lv = try self.value(l, ot)
+            let rv = try self.value(r, ot)
+            let signed = self.is_float(ot) or self.signed_of(ot) or ot == types.char_id
+            var cop = ir.Op.cslt
+            if op == "<":
+                cop = ir.Op.cslt if signed else ir.Op.cult
+            elif op == "<=":
+                cop = ir.Op.csle if signed else ir.Op.cule
+            elif op == ">":
+                cop = ir.Op.csgt if signed else ir.Op.cugt
+            else:
+                cop = ir.Op.csge if signed else ir.Op.cuge
+            return LowerValue(ref = try self.f.binary(cop, self.class_of(ot), lv.ref, rv.ref), type_id = types.bool_id, in_memory = false)
+        if self.is_ptr(ot):
+            let lv = try self.expr(l)
+            let rv = try self.expr(r)
+            if op == "-" and self.is_ptr(rt):
+                let bytes = try self.f.binary(ir.Op.sub, ir.Class.l, lv.ref, rv.ref)
+                let diff = try self.f.binary(ir.Op.sdiv, ir.Class.l, bytes, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
+                return LowerValue(ref = diff, type_id = t, in_memory = false)
+            let stride = self.c.table.size_of(self.elem(ot))
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, try self.to_word(rv.ref, rt), ir.const_ref((i64)stride))
+            let moved = try self.f.binary(ir.Op.add if op == "+" else ir.Op.sub, ir.Class.l, lv.ref, scaled)
+            return LowerValue(ref = moved, type_id = t, in_memory = false)
+        if op == "+?" or op == "-?" or op == "*?":
+            let et = self.elem(t)
+            let lv = try self.value(l, et)
+            let rv = try self.value(r, et)
+            let helper = "qadd" if op == "+?" else ("qsub" if op == "-?" else "qmul")
+            return try self.checked_optional(helper, et, lv.ref, rv.ref, t)
+        let lv = try self.value(l, ot)
+        let rv = try self.value(r, ot)
+        let result = try self.arithmetic(op, ot, lv.ref, rv.ref, e)
+        return LowerValue(ref = result, type_id = ot, in_memory = false)
+
+    ## Lane-wise arithmetic (§5.12): one vector instruction where the target computes the
+    ## lanes at once (`isa.has_vector`), else each lane computed as the scalar operator
+    ## would, in lane order, into a slot of the vector type; a scalar operand stands for
+    ## every lane.
+    mutating func vector_binary(e: ast.Node*, l: ast.Node*, r: ast.Node*, t: u32) -> LowerValue!:
+        let et = self.elem(t)
+        let lt = try self.ty(l)
+        let rt = try self.ty(r)
+        let lv = try self.value(l, lt if self.kind(lt) == types.Kind.array else et)
+        let rv = try self.value(r, rt if self.kind(rt) == types.Kind.array else et)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(t).length
+        let slot = try self.new_slot(t)
+        let out = try self.slot_address(slot)
+        let shape = self.lane_shape(t)
+        let vop = vector_op(e.text, self.is_float(et))
+        if vop != ir.Op.copy and isa.has_vector(self.target.arch, self.target.level, vop, shape):
+            let a = try self.vector_operand(lv, et, shape)
+            if e.text == "<<" or e.text == ">>":
+                # the count is one scalar, checked against the lane width as for a scalar
+                let count_ref = try self.checked_shift_count(rv.ref, et)
+                let shifted = try self.vector_instr(vop, a, count_ref, shape)
+                try self.f.emit(ir.Op.storev, ir.Class.v, 0, shifted, out, shape)
+                return LowerValue(ref = out, type_id = t, in_memory = true)
+            let b = try self.vector_operand(rv, et, shape)
+            let computed = try self.vector_instr(vop, a, b, shape)
+            try self.f.emit(ir.Op.storev, ir.Class.v, 0, computed, out, shape)
+            return LowerValue(ref = out, type_id = t, in_memory = true)
+        var i: u64 = 0
+        while i < count:
+            let a = try self.lane_of(lv, et, i * stride)
+            let b = try self.lane_of(rv, et, i * stride)
+            let result = try self.arithmetic(e.text, et, a, b, e)
+            try self.store_to(try self.offset_address(out, i * stride), LowerValue(ref = result, type_id = et, in_memory = false))
+            i += 1
+        return LowerValue(ref = out, type_id = t, in_memory = true)
+
+    ## The lane shape of vector type `t` (§5.12), as `ir.lanes` spells it.
+    func lane_shape(t: u32) -> u32:
+        let et = self.elem(t)
+        let bits = u32(self.c.table.size_of(et) * 8)
+        return ir.lanes(bits, u32(self.c.table.get(t).length), self.is_float(et), self.signed_of(et))
+
+    ## A vector operand in a vector temporary: loaded from its memory, or a scalar spread
+    ## over every lane.
+    mutating func vector_operand(v: LowerValue, et: u32, shape: u32) -> ir.Ref!:
+        if self.kind(v.type_id) == types.Kind.array:
+            let t = try self.f.temp(ir.Class.v)
+            try self.f.emit(ir.Op.loadv, ir.Class.v, t, v.ref, ir.none_ref(), shape)
+            return ir.temp_ref(t)
+        let t = try self.f.temp(ir.Class.v)
+        try self.f.emit(ir.Op.vsplat, ir.Class.v, t, v.ref, ir.none_ref(), shape)
+        return ir.temp_ref(t)
+
+    ## A vector instruction on two vector temporaries (or a scalar count), lane shape `shape`.
+    mutating func vector_instr(op: ir.Op, a: ir.Ref, b: ir.Ref, shape: u32) -> ir.Ref!:
+        let t = try self.f.temp(ir.Class.v)
+        try self.f.emit(op, ir.Class.v, t, a, b, shape)
+        return ir.temp_ref(t)
+
+    ## A shift count as a word, trapping when it reaches the lane width (§7.3).
+    mutating func checked_shift_count(n: ir.Ref, et: u32) -> ir.Ref!:
+        let bits = self.scalar_size(et) * 8
+        let count = try self.to_word(n, et)
+        let over = try self.f.binary(ir.Op.cuge, ir.Class.l, count, ir.const_ref((i64)bits))
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(over, bad, ok)
+        try self.f.place_label(bad)
+        try self.trap_with("shift count out of range")
+        try self.f.place_label(ok)
+        return count
+
+    ## The lane at `offset` of a vector operand, or a scalar operand itself.
+    mutating func lane_of(v: LowerValue, et: u32, offset: u64) -> ir.Ref!:
+        if self.kind(v.type_id) != types.Kind.array:
+            return v.ref
+        let lane = try self.load_from(try self.offset_address(v.ref, offset), et)
+        return lane.ref
+
+    ## Every lane of a vector under `~`, `-`, or `-%` (§5.12): one vector instruction
+    ## where the target has it, else lane by lane.
+    mutating func vector_unary(e: ast.Node*, inner: ast.Node*, t: u32) -> LowerValue!:
+        let et = self.elem(t)
+        let v = try self.value(inner, t)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(t).length
+        let slot = try self.new_slot(t)
+        let out = try self.slot_address(slot)
+        let shape = self.lane_shape(t)
+        var vop = ir.Op.copy
+        if e.text == "~":
+            vop = ir.Op.vnot
+        elif e.text == "-" and self.is_float(et):
+            vop = ir.Op.vneg
+        elif e.text == "-%":
+            vop = ir.Op.vsubw
+        if vop != ir.Op.copy and isa.has_vector(self.target.arch, self.target.level, vop, shape):
+            let x = try self.vector_operand(v, et, shape)
+            var computed = ir.none_ref()
+            if vop == ir.Op.vsubw:
+                # `-%x` is `0 -% x`, lane by lane
+                let zero = try self.f.temp(ir.Class.v)
+                try self.f.emit(ir.Op.vsplat, ir.Class.v, zero, ir.const_ref(0), ir.none_ref(), shape)
+                computed = try self.vector_instr(vop, ir.temp_ref(zero), x, shape)
+            else:
+                computed = try self.vector_instr(vop, x, ir.none_ref(), shape)
+            try self.f.emit(ir.Op.storev, ir.Class.v, 0, computed, out, shape)
+            return LowerValue(ref = out, type_id = t, in_memory = true)
+        var i: u64 = 0
+        while i < count:
+            let x = try self.lane_of(v, et, i * stride)
+            let result = try self.unary_scalar(e.text, et, x)
+            try self.store_to(try self.offset_address(out, i * stride), LowerValue(ref = result, type_id = et, in_memory = false))
+            i += 1
+        return LowerValue(ref = out, type_id = t, in_memory = true)
+
+    ## `T[N](x)`: every lane is `x`, computed once (§5.12): one vector instruction where
+    ## the target spreads a scalar, else lane by lane.
+    mutating func splat(e: ast.Node*, t: u32) -> LowerValue!:
+        let first = e.body else return try self.fail(e, "no argument")
+        let v = first.left else return try self.fail(e, "no argument")
+        let et = self.elem(t)
+        let x = try self.value(v, et)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(t).length
+        let slot = try self.new_slot(t)
+        let out = try self.slot_address(slot)
+        let shape = self.lane_shape(t)
+        if isa.has_vector(self.target.arch, self.target.level, ir.Op.vsplat, shape):
+            let spread = try self.vector_operand(x, et, shape)
+            try self.f.emit(ir.Op.storev, ir.Class.v, 0, spread, out, shape)
+            return LowerValue(ref = out, type_id = t, in_memory = true)
+        var i: u64 = 0
+        while i < count:
+            try self.store_to(try self.offset_address(out, i * stride), x)
+            i += 1
+        return LowerValue(ref = out, type_id = t, in_memory = true)
+
+    ## `v.sum()`, `v.min()`, `v.max()`: the lanes folded in order through a slot (§5.12); a
+    ## float `min` or `max` skips a NaN lane when another lane compares.
+    mutating func vector_fold(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, result: u32) -> LowerValue!:
+        let et = self.elem(rt)
+        let v = try self.receiver_value(receiver, rt)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(rt).length
+        let acc_slot = try self.new_slot(et)
+        let acc = try self.slot_address(acc_slot)
+        try self.store_to(acc, try self.load_from(v.ref, et))
+        let cls = self.class_of(et)
+        let signed = self.is_float(et) or self.signed_of(et)
+        var i: u64 = 1
+        while i < count:
+            let lane = (try self.load_from(try self.offset_address(v.ref, i * stride), et)).ref
+            let have = (try self.load_from(acc, et)).ref
+            if callee.text == "sum":
+                let sum = try self.arithmetic("+", et, have, lane, e)
+                try self.store_to(acc, LowerValue(ref = sum, type_id = et, in_memory = false))
+            else:
+                var cop = ir.Op.cslt if signed else ir.Op.cult
+                if callee.text == "max":
+                    cop = ir.Op.csgt if signed else ir.Op.cugt
+                var take = try self.f.binary(cop, cls, lane, have)
+                if self.is_float(et):
+                    let nan = try self.f.binary(ir.Op.cne, cls, have, have)
+                    take = try self.f.binary(ir.Op.or_, ir.Class.w, take, nan)
+                let yes = self.f.label()
+                let done = self.f.label()
+                try self.f.branch(take, yes, done)
+                try self.f.place_label(yes)
+                try self.store_to(acc, LowerValue(ref = lane, type_id = et, in_memory = false))
+                try self.f.jump(done)
+                try self.f.place_label(done)
+            i += 1
+        let folded = try self.load_from(acc, et)
+        return LowerValue(ref = folded.ref, type_id = result, in_memory = false)
+
+    ## `core.qadd_s(a, b, bits, &out)` into a tagged optional.
+    mutating func checked_optional(helper: str, et: u32, a: ir.Ref, b: ir.Ref, t: u32) -> LowerValue!:
+        let signed = self.signed_of(et)
+        let bits = self.scalar_size(et) * 8
+        let name = try self.core_helper(helper, signed)
+        let out_slot = try self.f.slot(8, 8)
+        let out = try self.slot_address(out_slot)
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = try self.to_word(a, et), cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = try self.to_word(b, et), cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)bits), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = out, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        let present = try self.call_named(name, start, 4, ir.Class.w, true, types.i32_id)
+        let slot = try self.new_slot(t)
+        let a_slot = try self.slot_address(slot)
+        let word = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(out_slot))
+        let narrowed = try self.from_word(word, et)
+        try self.f.store(ir.store_op(self.scalar_size(et), false), narrowed, a_slot)
+        try self.f.store(ir.Op.storeb, present, try self.offset_address(a_slot, self.c.table.size_of(et)))
+        return LowerValue(ref = a_slot, type_id = t, in_memory = true)
+
+    ## `==` and `!=` over scalars, text, and memory.
+    mutating func equality(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, ot: u32, negate: bool) -> LowerValue!:
+        let l_none = l.kind == ast.Kind.literal and l.text == "none"
+        let r_none = r.kind == ast.Kind.literal and r.text == "none"
+        var result = ir.none_ref()
+        if (self.is_nullable_view(lt) or self.is_nullable_view(rt)) and (l_none or r_none):
+            # `view == none`: the data word (§14.3)
+            let side = try self.expr(r if l_none else l)
+            let word = try self.f.load(ir.Op.loadl, ir.Class.l, side.ref)
+            result = try self.f.binary(ir.Op.ceq, ir.Class.l, word, ir.const_ref(0))
+        elif self.is_tagged_opt(lt) or self.is_tagged_opt(rt):
+            let vt = lt if self.is_tagged_opt(lt) else rt
+            if l_none or r_none:
+                let side = try self.expr(r if l_none else l)
+                let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(side.ref, self.c.table.size_of(self.elem(vt))))
+                result = try self.f.binary(ir.Op.ceq, ir.Class.w, present, ir.const_ref(0))
+            else:
+                let a = try self.value(l, vt)
+                let b = try self.value(r, vt)
+                result = try self.value_equal(a.ref, b.ref, vt)
+        elif ot == types.str_id or ot == types.fmt_id:
+            let a = try self.expr(l)
+            let b = try self.expr(r)
+            result = try self.text_equal(a.ref, b.ref)
+        elif not self.is_scalar(ot):
+            let a = try self.value(l, ot)
+            let b = try self.value(r, ot)
+            result = try self.value_equal(a.ref, b.ref, ot)
+        else:
+            let a = try self.value(l, ot) if not l_none else LowerValue(ref = ir.const_ref(0), type_id = ot, in_memory = false)
+            let b = try self.value(r, ot) if not r_none else LowerValue(ref = ir.const_ref(0), type_id = ot, in_memory = false)
+            result = try self.f.binary(ir.Op.ceq, self.class_of(ot), a.ref, b.ref)
+        if negate:
+            result = try self.f.binary(ir.Op.ceq, ir.Class.w, result, ir.const_ref(0))
+        return LowerValue(ref = result, type_id = types.bool_id, in_memory = false)
+
+    ## Two values of type `t` in memory at `a` and `b`, compared component by component
+    ## so that padding never speaks (§7.4).
+    mutating func value_equal(a: ir.Ref, b: ir.Ref, t: u32) -> ir.Ref!:
+        if t == types.str_id or t == types.fmt_id:
+            return try self.text_equal(a, b)
+        if self.is_scalar(t):
+            let x = try self.load_from(a, t)
+            let y = try self.load_from(b, t)
+            return try self.f.binary(ir.Op.ceq, self.class_of(t), x.ref, y.ref)
+        let tt = self.c.table.get(t)
+        if self.is_tagged_opt(t):
+            let et = self.elem(t)
+            let flag = (u64)self.c.table.size_of(et)
+            let pa = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(a, flag))
+            let pb = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(b, flag))
+            let slot = try self.f.slot(1, 1)
+            let out = try self.slot_address(slot)
+            try self.f.store(ir.Op.storeb, try self.f.binary(ir.Op.ceq, ir.Class.w, pa, pb), out)
+            let both = try self.f.binary(ir.Op.and_, ir.Class.w, pa, pb)
+            let inner = self.f.label()
+            let done = self.f.label()
+            try self.f.branch(both, inner, done)
+            try self.f.place_label(inner)
+            let same = try self.value_equal(a, b, et)
+            try self.f.store(ir.Op.storeb, same, try self.slot_address(slot))
+            try self.f.jump(done)
+            try self.f.place_label(done)
+            return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+        if tt.kind == types.Kind.struct_ or tt.kind == types.Kind.tuple:
+            var out = ir.const_ref(1)
+            var offset: u64 = 0
+            if tt.kind == types.Kind.tuple:
+                for at in tt.args:
+                    let ft = try self.map(at)
+                    offset = lower_round_up(offset, self.c.table.align_of(ft))
+                    let same = try self.value_equal(try self.offset_address(a, offset), try self.offset_address(b, offset), ft)
+                    out = try self.f.binary(ir.Op.and_, ir.Class.w, out, same)
+                    offset += self.c.table.size_of(ft)
+                return out
+            let d = tt.decl else return try self.memory_equal(a, b, self.size(t))
+            var cursor = d.body
+            while let m = cursor:
+                if m.kind == ast.Kind.field:
+                    let ft = try self.map(try self.c.substitute(m.type_id, d, tt.args))
+                    if not d.has(ast.flag_packed):
+                        offset = lower_round_up(offset, self.c.table.field_alignment(ft, m))
+                    let same = try self.value_equal(try self.offset_address(a, offset), try self.offset_address(b, offset), ft)
+                    out = try self.f.binary(ir.Op.and_, ir.Class.w, out, same)
+                    offset += self.c.table.size_of(ft)
+                cursor = m.next
+            return out
+        if tt.kind == types.Kind.array:
+            let et = try self.map(tt.elem)
+            if self.is_scalar(et) and not self.is_float(et):
+                return try self.memory_equal(a, b, self.size(t))
+            let stride = (u64)self.c.table.size_of(et)
+            let slot = try self.f.slot(1, 1)
+            let out = try self.slot_address(slot)
+            try self.f.store(ir.Op.storeb, ir.const_ref(1), out)
+            let counter = try self.f.slot(8, 8)
+            let i_address = try self.slot_address(counter)
+            try self.f.store(ir.Op.storel, ir.const_ref(0), i_address)
+            let head = self.f.label()
+            let body = self.f.label()
+            let done = self.f.label()
+            try self.f.jump(head)
+            try self.f.place_label(head)
+            let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter))
+            let more = try self.f.binary(ir.Op.cult, ir.Class.l, i, ir.const_ref((i64)tt.length))
+            try self.f.branch(more, body, done)
+            try self.f.place_label(body)
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, i, ir.const_ref((i64)stride))
+            let ea = try self.f.binary(ir.Op.add, ir.Class.l, a, scaled)
+            let eb = try self.f.binary(ir.Op.add, ir.Class.l, b, scaled)
+            let same = try self.value_equal(ea, eb, et)
+            let so_far = try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+            try self.f.store(ir.Op.storeb, try self.f.binary(ir.Op.and_, ir.Class.w, so_far, same), try self.slot_address(slot))
+            let next = try self.f.binary(ir.Op.add, ir.Class.l, try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter)), ir.const_ref(1))
+            try self.f.store(ir.Op.storel, next, try self.slot_address(counter))
+            try self.f.jump(head)
+            try self.f.place_label(done)
+            return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+        if tt.kind == types.Kind.enum_:
+            # the tag, then the payload of the case both carry
+            let d = tt.decl else return try self.memory_equal(a, b, self.size(t))
+            let ta = try self.f.load(ir.Op.loadsw, ir.Class.w, a)
+            let tb = try self.f.load(ir.Op.loadsw, ir.Class.w, b)
+            let slot = try self.f.slot(1, 1)
+            let out = try self.slot_address(slot)
+            try self.f.store(ir.Op.storeb, try self.f.binary(ir.Op.ceq, ir.Class.w, ta, tb), out)
+            let done = self.f.label()
+            let base = self.payload_offset(t)
+            var cursor = d.body
+            while let c = cursor:
+                if c.kind == ast.Kind.enum_case and c.body != none:
+                    let tag_matches = try self.f.binary(ir.Op.ceq, ir.Class.w, ta, ir.const_ref((i64)lower_case_tag(d, c)))
+                    let same_tag = try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+                    let this_case = try self.f.binary(ir.Op.and_, ir.Class.w, tag_matches, same_tag)
+                    let here = self.f.label()
+                    let next = self.f.label()
+                    try self.f.branch(this_case, here, next)
+                    try self.f.place_label(here)
+                    var offset: u64 = 0
+                    var param = c.body
+                    var same = ir.const_ref(1)
+                    while let q = param:
+                        let pt = try self.map(try self.c.substitute(q.type_id, d, tt.args))
+                        offset = lower_round_up(offset, self.c.table.align_of(pt))
+                        let field_same = try self.value_equal(try self.offset_address(a, base + offset), try self.offset_address(b, base + offset), pt)
+                        same = try self.f.binary(ir.Op.and_, ir.Class.w, same, field_same)
+                        offset += self.c.table.size_of(pt)
+                        param = q.next
+                    try self.f.store(ir.Op.storeb, same, try self.slot_address(slot))
+                    try self.f.jump(done)
+                    try self.f.place_label(next)
+                cursor = c.next
+            try self.f.jump(done)
+            try self.f.place_label(done)
+            return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+        return try self.memory_equal(a, b, self.size(t))
+
+    mutating func memory_equal(a: ir.Ref, b: ir.Ref, size: u32) -> ir.Ref!:
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = a, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = b, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)size), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        let c = try self.call_named("memcmp", start, 3, ir.Class.w, true, types.i32_id)
+        return try self.f.binary(ir.Op.ceq, ir.Class.w, c, ir.const_ref(0))
+
+    ## Two `str` views in memory compared by length then bytes.
+    mutating func text_equal(a: ir.Ref, b: ir.Ref) -> ir.Ref!:
+        let slot = try self.f.slot(1, 1)
+        let out = try self.slot_address(slot)
+        let la = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(a, 8))
+        let lb = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(b, 8))
+        let same_length = try self.f.binary(ir.Op.ceq, ir.Class.l, la, lb)
+        try self.f.store(ir.Op.storeb, same_length, out)
+        let compare = self.f.label()
+        let done = self.f.label()
+        try self.f.branch(same_length, compare, done)
+        try self.f.place_label(compare)
+        let da = try self.f.load(ir.Op.loadl, ir.Class.l, a)
+        let db = try self.f.load(ir.Op.loadl, ir.Class.l, b)
+        let n = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(a, 8))
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = da, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = db, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = n, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        let c = try self.call_named("memcmp", start, 3, ir.Class.w, true, types.i32_id)
+        let equal = try self.f.binary(ir.Op.ceq, ir.Class.w, c, ir.const_ref(0))
+        try self.f.store(ir.Op.storeb, equal, try self.slot_address(slot))
+        try self.f.jump(done)
+        try self.f.place_label(done)
+        return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))

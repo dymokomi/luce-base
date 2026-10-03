@@ -56,7 +56,7 @@ subdirectory keeps a generated module of its own beside it.
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
 | `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract; a directory of fragments, one per concern (types, statements, operators, calls, …) |
 | `back.ir.ir` | the intermediate form: functions of blocks of typed instructions |
-| `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit` |
+| `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit`; a directory of fragments, one per concern |
 | `back.native.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
 | `back.native.arm64` | IR to arm64 assembly: frames, the calling convention, atomics; arm64-macos and arm64-linux |
 | `back.native.arm64.object` | Mach-O and ELF for arm64: sections, symbols, relocations, thread-locals, and where Apple's convention differs from AAPCS64 (variadic and stack arguments) |

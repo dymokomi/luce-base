@@ -1,0 +1,639 @@
+#==============================================================================================
+#
+#   lower/statements - Statements
+#
+#   DESCRIPTION:
+#       Blocks, bindings, assignments, loops, returns, and failure.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Statements =========================================================================
+
+    mutating func block(b: ast.Node*) -> !:
+        try self.push_scope(false, "", 0, 0)
+        var cursor = b.body
+        while let s = cursor:
+            try self.stmt(s)
+            cursor = s.next
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+
+    mutating func stmt(s: ast.Node*) -> !:
+        # the format buffers this statement takes are free again when it is lowered, and
+        # their levels of the dynamic area once it has run
+        let pooled = self.pool_used
+        try self.statement(s)
+        if self.pool_used != pooled:
+            self.pool_used = pooled
+            let count = self.f.instrs.count
+            if count == 0 or not ir.is_terminator(self.f.instrs.get(count - 1).op):
+                try self.reserve_levels()
+
+    ## `reserve`: the dynamic area holds the levels of the format buffers taken so far.
+    mutating func reserve_levels() -> !:
+        try self.f.emit(ir.Op.reserve, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), u32(self.pool_used))
+
+    mutating func statement(s: ast.Node*) -> !:
+        if s.kind != ast.Kind.block:
+            self.set_position(s)
+        if self.f.debug and s.kind != ast.Kind.block and s.line > 0:
+            try self.f.points.push(ir.DebugPoint(instruction = self.f.instrs.count, file = self.at_file, line = self.at_line, column = self.at_column))
+            # `--debug`: the descriptor, the line, and the frame, before the statement runs
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = try self.descriptor_ref(), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+            try self.f.args.push(ir.Arg(value = ir.const_ref((i64)s.line), cls = ir.Class.w, size = 0, align = 4, type_id = types.u32_id, shape = 0))
+            let frame = try self.f.unary(ir.Op.frame, ir.Class.l, ir.none_ref())
+            try self.f.args.push(ir.Arg(value = frame, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+            try self.debug_call("lb_debug_at", start, 3)
+        match s.kind:
+            .block:
+                try self.block(s)
+            .let_, .var_:
+                try self.binding(s)
+            .assign:
+                try self.assign(s)
+            .if_:
+                try self.if_stmt(s)
+            .while_:
+                try self.while_stmt(s)
+            .for_:
+                try self.for_stmt(s)
+            .match_:
+                try self.match_stmt(s, false)
+            .return_:
+                try self.return_stmt(s)
+            .break_, .continue_:
+                try self.jump(s)
+            .defer_, .errdefer_:
+                try self.defers.push(s)
+            .recover_:
+                try self.recover_stmt(s)
+            .free_:
+                try self.free_stmt(s)
+            .with_:
+                try self.with_stmt(s)
+            .expr_stmt:
+                let e = s.left else return
+                if calls.is_error_call(e):
+                    try self.error_return(e)
+                else:
+                    discard(try self.expr(e))
+            .asm_:
+                try self.asm_stmt(s)
+            _:
+                return try self.fail(s, "native_unsupported statement in the native backend")
+
+    mutating func binding(s: ast.Node*) -> !:
+        if s.body != none:
+            let init = s.left else return
+            let v = try self.expr(init)
+            let t = self.c.table.get(v.type_id)
+            let base = try self.address_of_value(v)
+            var offset: u64 = 0
+            var i: usize = 0
+            var cursor = s.body
+            while let name = cursor:
+                let mt = t.args[i]
+                offset = lower_round_up(offset, self.c.table.align_of(mt))
+                if name.text != "_":
+                    let slot = try self.bind_local(name, mt)
+                    let member = try self.load_from(try self.offset_address(base, offset), mt)
+                    try self.store_to(try self.slot_address(slot), member)
+                offset += self.c.table.size_of(mt)
+                i += 1
+                cursor = name.next
+            return
+        let t = try self.map(s.type_id)
+        let slot = try self.bind_local(s, t)
+        if s.has(ast.flag_uninit):
+            if self.diagnostic:
+                # the diagnostic profile fills `---` storage with a pattern (§19.4)
+                try self.f.emit(ir.Op.fill, ir.Class.l, 0, try self.slot_address(slot), ir.const_ref(170), self.size(t))
+            return
+        let address = try self.slot_address(slot)
+        if let init = s.left:
+            let v = try self.value(init, t)
+            try self.store_to(address, v)
+        else:
+            try self.f.zero_bytes(address, self.size(t))
+
+    mutating func assign(s: ast.Node*) -> !:
+        let place = s.left else return
+        let value = s.right else return
+        if place.kind == ast.Kind.member and place.text == "allocator":
+            if let owner = place.left:
+                if self.kind(owner.type_id) == types.Kind.module:
+                    let view = try self.allocator_view(value)
+                    try self.f.copy_bytes(try self.allocator_global(), view, 16)
+                    return
+        let pt = try self.ty(place)
+        let address = try self.place(place)
+        if self.kind(pt) == types.Kind.atomic:
+            try self.atomic_assign(s, address, self.elem(pt), value)
+            return
+        if s.text == "=":
+            let v = try self.value(value, pt)
+            try self.store_to(address, v)
+            return
+        let op = (str)s.text.bytes[..<s.text.length - 1]
+        let old = try self.load_from(address, pt)
+        if self.is_ptr(pt):
+            # `p += n`: element-scaled, as `p + n` (§7.7)
+            let rt = try self.ty(value)
+            let rv = try self.expr(value)
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, try self.to_word(rv.ref, rt), ir.const_ref((i64)self.c.table.size_of(self.elem(pt))))
+            let moved = try self.f.binary(ir.Op.add if op == "+" else ir.Op.sub, ir.Class.l, old.ref, scaled)
+            try self.f.store(ir.Op.storel, moved, address)
+            return
+        let rhs = try self.value(value, pt)
+        let result = try self.arithmetic(op, pt, old.ref, rhs.ref, s)
+        try self.f.store(ir.store_op(self.scalar_size(pt), self.is_float(pt)), result, address)
+
+    ## `=` on an `@T` is the sequentially consistent store; `+=` `-=` `|=` `&=` `^=` are the
+    ## read-modify-write instructions and wrap (§15.1). `&=` is `and-not` of the complement.
+    mutating func atomic_assign(s: ast.Node*, address: ir.Ref, et: u32, value: ast.Node*) -> !:
+        let cls = self.class_of(et)
+        let width = u32(self.scalar_size(et))
+        let vv = try self.value(value, et)
+        if s.text == "=":
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
+            return
+        let op = (str)s.text.bytes[..<s.text.length - 1]
+        var operand = vv.ref
+        var instr = ir.Op.atomic_add
+        if op == "-":
+            instr = ir.Op.atomic_sub
+        elif op == "|":
+            instr = ir.Op.atomic_or
+        elif op == "^":
+            instr = ir.Op.atomic_xor
+        elif op == "&":
+            instr = ir.Op.atomic_and_not
+            operand = try self.f.binary(ir.Op.xor, cls, vv.ref, ir.const_ref(-1))
+        let t = try self.f.temp(cls)
+        try self.f.instrs.push(ir.Instr(op = instr, cls = cls, dst = t, a = operand, b = address, extra = width, extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
+
+    mutating func if_stmt(s: ast.Node*) -> !:
+        let then_label = self.f.label()
+        let else_label = self.f.label()
+        let end_label = self.f.label()
+        try self.push_scope(false, "", 0, 0)
+        try self.condition(s, then_label, else_label)
+        try self.f.place_label(then_label)
+        if let body = s.body:
+            try self.block(body)
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        try self.f.jump(end_label)
+        try self.f.place_label(else_label)
+        if let rest = s.right:
+            if rest.kind == ast.Kind.if_:
+                self.set_position(rest)
+                try self.if_stmt(rest)
+            else:
+                try self.block(rest)
+        try self.f.place_label(end_label)
+
+    ## Branch on a condition, binding an `if let` name in the then scope.
+    mutating func condition(s: ast.Node*, then_label: u32, else_label: u32) -> !:
+        let c = s.left else return
+        if s.has(ast.flag_if_let):
+            let init = c.left else return
+            let v = try self.expr(init)
+            let ot = v.type_id
+            let payload = self.elem(ot)
+            let slot = try self.bind_local(c, payload)
+            if self.is_tagged_opt(ot) or self.is_nullable_view(ot):
+                let present = try self.f.load(ir.Op.loadl, ir.Class.l, v.ref) if self.is_nullable_view(ot) else try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.c.table.size_of(payload)))
+                let take = self.f.label()
+                try self.f.branch(present, take, else_label)
+                try self.f.place_label(take)
+                let inner = try self.load_from(v.ref, payload)
+                try self.store_to(try self.slot_address(slot), inner)
+                try self.f.jump(then_label)
+            else:
+                let take = self.f.label()
+                try self.f.branch(v.ref, take, else_label)
+                try self.f.place_label(take)
+                try self.f.store(ir.Op.storel, v.ref, try self.slot_address(slot))
+                try self.f.jump(then_label)
+            return
+        try self.branch_on(c, then_label, else_label)
+
+    ## Branch to `then_label` when `e` holds, else to `else_label`: `and`, `or` and `not` as
+    ## jumps, so that `while a < b and c <= d:` branches on each comparison as it is made
+    ## rather than on a byte the two leave in a slot, the value `and` has in an expression.
+    mutating func branch_on(e: ast.Node*, then_label: u32, else_label: u32) -> !:
+        if e.kind == ast.Kind.group:
+            let inner = e.left else return try self.fail(e, "empty group")
+            try self.branch_on(inner, then_label, else_label)
+            return
+        if e.kind == ast.Kind.binary and (e.text == "and" or e.text == "or") and not self.is_vector(try self.ty(e)):
+            let l = e.left else return try self.fail(e, "no operand")
+            let r = e.right else return try self.fail(e, "no operand")
+            let more = self.f.label()
+            if e.text == "and":
+                try self.branch_on(l, more, else_label)
+            else:
+                try self.branch_on(l, then_label, more)
+            try self.f.place_label(more)
+            try self.branch_on(r, then_label, else_label)
+            return
+        if e.kind == ast.Kind.unary and e.text == "not" and not self.is_vector(try self.ty(e)):
+            let inner = e.left else return try self.fail(e, "no operand")
+            try self.branch_on(inner, else_label, then_label)
+            return
+        let v = try self.value(e, types.bool_id)
+        try self.f.branch(v.ref, then_label, else_label)
+
+    mutating func while_stmt(s: ast.Node*) -> !:
+        let head = self.f.label()
+        let body_label = self.f.label()
+        let end_label = self.f.label()
+        try self.push_scope(true, s.text, end_label, head)
+        try self.f.place_label(head)
+        try self.condition(s, body_label, end_label)
+        try self.f.place_label(body_label)
+        if let body = s.body:
+            try self.block(body)
+        try self.f.jump(head)
+        try self.f.place_label(end_label)
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+
+    mutating func for_stmt(s: ast.Node*) -> !:
+        let binding = s.left else return
+        let seq = s.right else return
+        let head = self.f.label()
+        let body_label = self.f.label()
+        let step = self.f.label()
+        let end_label = self.f.label()
+        try self.push_scope(true, s.text, end_label, step)
+        if seq.kind == ast.Kind.binary and (seq.text == "..<" or seq.text == "..="):
+            let lo = seq.left else return
+            let hi = seq.right else return
+            let t = try self.map(binding.type_id)
+            let slot = try self.bind_local(binding, t)
+            let counter = try self.slot_address(slot)
+            let start = try self.value(lo, t)
+            try self.store_to(counter, start)
+            let limit_slot = try self.new_slot(t)
+            let limit_address = try self.slot_address(limit_slot)
+            let limit = try self.value(hi, t)
+            try self.store_to(limit_address, limit)
+            try self.f.place_label(head)
+            let current = try self.load_from(counter, t)
+            let bound = try self.load_from(limit_address, t)
+            let op = (ir.Op.csle if seq.text == "..=" else ir.Op.cslt) if self.signed_of(t) else (ir.Op.cule if seq.text == "..=" else ir.Op.cult)
+            let go = try self.f.binary(op, self.class_of(t), current.ref, bound.ref)
+            try self.f.branch(go, body_label, end_label)
+            try self.f.place_label(body_label)
+            if let body = s.body:
+                try self.block(body)
+            try self.f.place_label(step)
+            let again = try self.load_from(counter, t)
+            if seq.text == "..=":
+                # the last value is visited before the increment, so `..=T.max` cannot wrap
+                let last = try self.load_from(limit_address, t)
+                let at_last = try self.f.binary(ir.Op.ceq, self.class_of(t), again.ref, last.ref)
+                let more = self.f.label()
+                try self.f.branch(at_last, end_label, more)
+                try self.f.place_label(more)
+            let next = try self.f.binary(ir.Op.add, self.class_of(t), again.ref, ir.const_ref(1))
+            try self.f.store(ir.store_op(self.scalar_size(t), false), next, counter)
+            try self.f.jump(head)
+            try self.f.place_label(end_label)
+            try self.unwind(self.scopes.count - 1, false)
+            self.pop_scope()
+            return
+        # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
+        let indexed = calls.indexed_receiver(seq)
+        var it = try self.ty(seq)
+        var sequence = LowerValue(ref = ir.none_ref(), type_id = types.unit_id, in_memory = false)
+        if let receiver = indexed:
+            let rt = try self.ty(receiver)
+            it = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
+            sequence = try self.value(receiver, it)
+        else:
+            sequence = try self.expr(seq)
+        # the data pointer and the count, in slots that outlive the loop's blocks
+        let data_slot = try self.f.slot(8, 8)
+        let count_slot = try self.f.slot(8, 8)
+        let index_slot = try self.f.slot(8, 8)
+        # text is walked by scalar (§5.5): the width of the last one steps the index
+        let width_slot = try self.f.slot(8, 8)
+        var element_type = types.u8_id
+        var stride: u64 = 1
+        if self.is_array(it):
+            element_type = self.elem(it)
+            stride = self.c.table.size_of(element_type)
+            try self.f.store(ir.Op.storel, sequence.ref, try self.slot_address(data_slot))
+            try self.f.store(ir.Op.storel, ir.const_ref((i64)self.c.table.get(it).length), try self.slot_address(count_slot))
+        elif it == types.str_id:
+            element_type = types.u8_id
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, sequence.ref)
+            let count = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(sequence.ref, 8))
+            try self.f.store(ir.Op.storel, data, try self.slot_address(data_slot))
+            try self.f.store(ir.Op.storel, count, try self.slot_address(count_slot))
+        else:
+            element_type = self.elem(it)
+            stride = self.c.table.size_of(element_type)
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, sequence.ref)
+            let count = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(sequence.ref, 8))
+            try self.f.store(ir.Op.storel, data, try self.slot_address(data_slot))
+            try self.f.store(ir.Op.storel, count, try self.slot_address(count_slot))
+        try self.f.store(ir.Op.storel, ir.const_ref(0), try self.slot_address(index_slot))
+        try self.f.place_label(head)
+        let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
+        let n = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(count_slot))
+        let go = try self.f.binary(ir.Op.cult, ir.Class.l, i, n)
+        try self.f.branch(go, body_label, end_label)
+        try self.f.place_label(body_label)
+        let base = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(data_slot))
+        let i2 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
+        let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, i2, ir.const_ref((i64)stride))
+        let element_address = try self.f.binary(ir.Op.add, ir.Class.l, base, scaled)
+        if binding.body != none and indexed != none:
+            # `(index, element)`
+            let index_name = binding.body else return
+            if index_name.text != "_":
+                let slot = try self.bind_local(index_name, types.usize_id)
+                try self.f.store(ir.Op.storel, i2, try self.slot_address(slot))
+            if let element_name = index_name.next:
+                if element_name.text != "_":
+                    let slot = try self.bind_local(element_name, element_type)
+                    try self.store_to(try self.slot_address(slot), try self.load_from(element_address, element_type))
+        elif binding.body != none:
+            let et = self.c.table.get(element_type)
+            var offset: u64 = 0
+            var k: usize = 0
+            var cursor = binding.body
+            while let name = cursor:
+                let mt = et.args[k]
+                offset = lower_round_up(offset, self.c.table.align_of(mt))
+                if name.text != "_":
+                    let slot = try self.bind_local(name, mt)
+                    let member = try self.load_from(try self.offset_address(element_address, offset), mt)
+                    try self.store_to(try self.slot_address(slot), member)
+                offset += self.c.table.size_of(mt)
+                k += 1
+                cursor = name.next
+        elif s.has(ast.flag_by_pointer):
+            let slot = try self.bind_local(binding, try self.map(binding.type_id))
+            try self.f.store(ir.Op.storel, element_address, try self.slot_address(slot))
+        elif it == types.str_id:
+            let slot = try self.bind_local(binding, types.char_id)
+            let scalar = try self.utf8_scalar(base, n, i2, try self.slot_address(width_slot))
+            try self.f.store(ir.Op.storew, scalar, try self.slot_address(slot))
+        else:
+            let bt = try self.map(binding.type_id)
+            let slot = try self.bind_local(binding, bt)
+            let element = try self.load_from(element_address, element_type)
+            try self.store_to(try self.slot_address(slot), element)
+        if let body = s.body:
+            try self.block(body)
+        try self.f.place_label(step)
+        let i3 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
+        var advance = ir.const_ref(1)
+        if it == types.str_id:
+            advance = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(width_slot))
+        let next = try self.f.binary(ir.Op.add, ir.Class.l, i3, advance)
+        try self.f.store(ir.Op.storel, next, try self.slot_address(index_slot))
+        try self.f.jump(head)
+        try self.f.place_label(end_label)
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+
+    ## `core.utf8_scalar(data, count, index, &width)`: the scalar at a byte of valid UTF-8.
+    mutating func utf8_scalar(data: ir.Ref, count: ir.Ref, index: ir.Ref, width: ir.Ref) -> ir.Ref!:
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = count, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = index, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = width, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        return try self.call_named("lb_core_11utf8_scalar", start, 4, ir.Class.w, true, types.char_id)
+
+    mutating func jump(s: ast.Node*) -> !:
+        let target = self.loop_scope(s.text)
+        try self.unwind_from(target + 1, false)
+        let sc = self.scopes.get(target)
+        try self.f.jump(sc.break_label if s.kind == ast.Kind.break_ else sc.continue_label)
+        # what follows is unreachable; a fresh label keeps the block structure sound
+        try self.f.place_label(self.f.label())
+
+    # -- returns and failure --------------------------------------------------------------
+
+    mutating func return_stmt(s: ast.Node*) -> !:
+        if let v = s.left:
+            if calls.is_trap_call(v):
+                discard(try self.expr(v))
+                return
+            if calls.is_error_call(v):
+                try self.error_return(v)
+                return
+            if lower_never_valued(v):
+                discard(try self.expr(v))
+                try self.trap_with("unreachable")
+                return
+            let want = self.result_payload()
+            if want == types.unit_id or want == types.never_id:
+                discard(try self.expr(v))
+            else:
+                let value = try self.value(v, want)
+                try self.store_to(try self.slot_address(self.result_slot), value)
+        try self.leave(false)
+
+    ## Leave the function: mark success when fallible, run cleanup, return the result slot.
+    mutating func leave(failing: bool) -> !:
+        if self.f.has_result:
+            let r = try self.slot_address(self.result_slot)
+            if self.fn_fallible():
+                try self.f.store(ir.Op.storeb, ir.const_ref(1 if failing else 0), try self.offset_address(r, self.failed_offset(self.f.result_type)))
+            if failing:
+                try self.unwind_keeping_failure()
+            else:
+                try self.unwind_from(0, failing)
+            try self.debug_leave()
+            let again = try self.slot_address(self.result_slot)
+            let out = try self.load_from(again, self.f.result_type)
+            try self.f.emit(ir.Op.ret, ir.Class.l, 0, out.ref, ir.none_ref(), 0)
+        else:
+            try self.unwind_from(0, failing)
+            try self.debug_leave()
+            try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+        try self.f.place_label(self.f.label())
+
+    ## Run the cleanup of a failing exit with the error kept: deferred code may fail and
+    ## recover inside itself, which writes `core.failure` over the error on its way out.
+    mutating func unwind_keeping_failure() -> !:
+        if self.defers.count == 0:
+            try self.unwind_from(0, true)
+            return
+        let kept = try self.f.slot(24, 8)
+        try self.f.copy_bytes(try self.slot_address(kept), try self.failure_address(), 24)
+        try self.unwind_from(0, true)
+        try self.f.copy_bytes(try self.failure_address(), try self.slot_address(kept), 24)
+
+    mutating func debug_leave() -> !:
+        if self.f.debug:
+            try self.debug_call("lb_debug_leave", u32(self.f.args.count), 0)
+
+    ## `error(code, message)`: the failing result leaves the function.
+    mutating func error_return(e: ast.Node*) -> !:
+        let first = e.body else return
+        let code = first.left else return
+        let second = first.next else return
+        let message = second.left else return
+        # the code and the message first: reaching `core.failure` may set up the thread's
+        # storage, which can change errno before a code computed from it is read
+        let c = try self.value(code, types.error_code_id)
+        let m = try self.value(message, types.str_id)
+        let err = try self.slot_address(self.failure_slot) if self.failure_target != 0 else try self.failure_address()
+        try self.f.store(ir.Op.storew, c.ref, err)
+        try self.f.copy_bytes(try self.offset_address(err, 8), m.ref, 16)
+        if self.failure_target != 0:
+            try self.unwind_from(self.failure_scope, true)
+            try self.f.jump(self.failure_target)
+        else:
+            try self.leave(true)
+
+    ## Pass on the failure of a result at `source`: to the enclosing handler, which takes
+    ## the error from `core.failure`, or out of the function with the error left there.
+    mutating func propagate(source: ir.Ref, source_type: u32) -> !:
+        discard(source)
+        discard(source_type)
+        if self.failure_target != 0:
+            try self.f.copy_bytes(try self.slot_address(self.failure_slot), try self.failure_address(), 24)
+            try self.unwind_from(self.failure_scope, true)
+            try self.f.jump(self.failure_target)
+            return
+        try self.leave(true)
+
+    mutating func recover_stmt(s: ast.Node*) -> !:
+        let v = s.left else return
+        if self.catch_payload != types.unit_id and self.catch_payload != types.never_id:
+            let value = try self.value(v, self.catch_payload)
+            try self.store_to(try self.slot_address(self.catch_slot), value)
+        else:
+            discard(try self.expr(v))
+        try self.unwind_from(self.catch_scope, false)
+        try self.f.jump(self.catch_done)
+        try self.f.place_label(self.f.label())
+
+    mutating func free_stmt(s: ast.Node*) -> !:
+        let v = s.left else return
+        let t = try self.ty(v)
+        let block = try self.expr(v)
+        let view = try self.allocator_of(s.right)
+        var span_slot = try self.f.slot(16, 8)
+        let span = try self.slot_address(span_slot)
+        if self.is_ptr(t):
+            try self.f.store(ir.Op.storel, block.ref, span)
+            try self.f.store(ir.Op.storel, ir.const_ref((i64)self.c.table.size_of(self.elem(t))), try self.offset_address(span, 8))
+        else:
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, block.ref)
+            let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(block.ref, 8))
+            let bytes = try self.f.binary(ir.Op.mulo, ir.Class.l, length, ir.const_ref((i64)self.c.table.size_of(self.elem(t))))
+            try self.mark_signed(false)
+            try self.mark_position()
+            try self.f.store(ir.Op.storel, data, span)
+            try self.f.store(ir.Op.storel, bytes, try self.offset_address(span, 8))
+        try self.allocator_release(view, span)
+
+    mutating func with_stmt(s: ast.Node*) -> !:
+        let a = s.left else return
+        let saved = try self.f.slot(16, 8)
+        try self.f.copy_bytes(try self.slot_address(saved), try self.allocator_global(), 16)
+        let view = try self.allocator_view(a)
+        try self.f.copy_bytes(try self.allocator_global(), view, 16)
+        try self.push_scope(false, "", 0, 0)
+        var sc = self.scopes.get(self.scopes.count - 1)
+        sc.restore_alloc = true
+        sc.alloc_slot = saved
+        self.scopes.set(self.scopes.count - 1, sc)
+        if let body = s.body:
+            try self.block(body)
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+
+    ## Inline assembly (§16.7): each `in`/`inout` operand is moved into its named register
+    ## before the block, each `out`/`inout` register stored back after it. The raw lines name
+    ## the registers directly, so a specific register (`x0`, `d1`) is required, not `reg`.
+    mutating func asm_stmt(s: ast.Node*) -> !:
+        # the block for another architecture is not this build's (§8.9)
+        if s.text != self.arch_name():
+            return
+        var chosen = try AsmRegisters.choose(s, self.target.arch)
+        # the inputs are computed first, then moved into their registers together, so that
+        # computing one cannot touch a register another already holds
+        var values: LowerValue[16] = ---
+        var outputs: ir.Ref[16] = ---
+        var output_count: usize = 0
+        var count: usize = 0
+        var operand = s.right
+        while let o = operand:
+            if o.text == "in" or o.text == "inout":
+                if count >= 16:
+                    return try self.fail(o, "at most sixteen asm inputs")
+                let value = o.left else return try self.fail(o, "an asm operand needs a value")
+                values[count] = try self.value(value, self.asm_operand_type(chosen.place_of(o)))
+                count += 1
+            operand = o.next
+        # Compute output addresses before installing input registers. The get_reg
+        # instructions must immediately follow the block, and evaluating an address
+        # after the block could itself overwrite a register holding an output.
+        operand = s.right
+        while let o = operand:
+            if o.text == "out" or o.text == "inout":
+                if output_count >= 16:
+                    return try self.fail(o, "at most sixteen asm outputs")
+                let target = o.left else return try self.fail(o, "an asm output needs a place")
+                outputs[output_count] = ir.none_ref() if target.text == "_" else try self.place(target)
+                output_count += 1
+            operand = o.next
+        count = 0
+        operand = s.right
+        while let o = operand:
+            if o.text == "in" or o.text == "inout":
+                let place = chosen.place_of(o)
+                try self.f.emit(ir.Op.set_reg, self.class_of(self.asm_operand_type(place)), 0, values[count].ref, ir.text_ref(try self.program_unit.text(place)), 0)
+                count += 1
+            operand = o.next
+        var text = try buffer.Buffer.create(64)
+        var lines = s.body
+        while let l = lines:
+            try chosen.substitute(l.text, &text)
+            try text.put("\n")
+            lines = l.next
+        let arch = try self.program_unit.text(s.text)
+        let body = try self.program_unit.text(try names.keep(&text))
+        try self.f.emit(ir.Op.asm_, ir.Class.l, 0, ir.text_ref(arch), ir.text_ref(body), 0)
+        # outputs, from their registers back into the named places
+        output_count = 0
+        operand = s.right
+        while let o = operand:
+            if o.text == "out" or o.text == "inout":
+                let place = chosen.place_of(o)
+                let target = o.left else return try self.fail(o, "an asm output needs a place")
+                if target.text != "_":
+                    let want = self.asm_operand_type(place)
+                    let address = outputs[output_count]
+                    try self.f.emit(ir.Op.get_reg, self.class_of(want), 0, address, ir.text_ref(try self.program_unit.text(place)), 0)
+                else:
+                    # a discarded output names a register the block writes; the generator
+                    # stores nothing but may need to save the register around the block
+                    try self.f.emit(ir.Op.get_reg, ir.Class.l, 0, ir.none_ref(), ir.text_ref(try self.program_unit.text(place)), 0)
+                output_count += 1
+            operand = o.next
+
+    ## The type an asm operand's register carries, which the instruction set says (`isa`):
+    ## a float of the register's width, or an unsigned integer of it.
+    func asm_operand_type(place: str) -> u32:
+        let r = isa.register_of(self.target.arch, place)
+        if r.is_float:
+            return types.f64_id if r.bits == 64 else types.f32_id
+        return types.u64_id if r.bits == 64 else types.u32_id
+
+    ## The architecture's name in `asm ARCH` (§8.9).
+    func arch_name() -> str:
+        return self.target.arch_name()

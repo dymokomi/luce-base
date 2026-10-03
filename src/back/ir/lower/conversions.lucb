@@ -1,0 +1,222 @@
+#==============================================================================================
+#
+#   lower/conversions - Conversions
+#
+#   DESCRIPTION:
+#       Checked and wrapping conversions between scalars, enums, and text (§7.5).
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Conversions ========================================================================
+
+    ## `(T)x` (C cast, `checked` false) and `T(x)` (checked, `checked` true).
+    mutating func conversion(src: ast.Node*, dest: u32, checked: bool) -> LowerValue!:
+        let st = try self.ty(src)
+        let s = self.c.table.get(st)
+        if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
+            return try self.str_conversion(src, checked)
+        if dest == types.cstr_id and st == types.str_id:
+            # A raw C cast borrows the address. A span carries no proof that its
+            # following byte is readable, so checking that byte is itself invalid.
+            let text = try self.expr(src)
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, text.ref)
+            return LowerValue(ref = data, type_id = dest, in_memory = false)
+        let v = try self.expr(src)
+        if self.c.is_backed_enum(dest):
+            if checked:
+                try self.enum_check(dest, v.ref)
+            return LowerValue(ref = try self.convert_int(v.ref, st, self.enum_backing(dest), false), type_id = dest, in_memory = false)
+        if self.c.is_backed_enum(st) and self.is_int(dest):
+            return LowerValue(ref = try self.convert_int(v.ref, self.enum_backing(st), dest, false), type_id = dest, in_memory = false)
+        if self.is_float(st) and self.is_int(dest):
+            if not checked and self.in_core():
+                # `core.f_to_s` and `core.f_to_u` end in this cast: the instruction itself
+                let wide = try self.convert_float(v.ref, st, types.f64_id)
+                let raw = try self.f.unary(ir.Op.dtosi if self.is_signed(dest) else ir.Op.dtoui, ir.Class.l, wide)
+                return LowerValue(ref = try self.from_word(raw, dest), type_id = dest, in_memory = false)
+            let wide = try self.convert_float(v.ref, st, types.f64_id)
+            if let r = try self.float_to_int(wide, dest, checked):
+                return LowerValue(ref = r, type_id = dest, in_memory = false)
+            let helper = "lb_core_6f_to_s" if self.is_signed(dest) else "lb_core_6f_to_u"
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.d, size = 0, align = 8, type_id = types.f64_id, shape = 0))
+            try self.f.args.push(ir.Arg(value = ir.const_ref((i64)(self.scalar_size(dest) * 8)), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+            try self.f.args.push(ir.Arg(value = ir.const_ref(0 if checked else 1), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+            try self.push_position_arg()
+            let r = try self.call_named(helper, start, 4, ir.Class.l, true, types.i64_id)
+            return LowerValue(ref = try self.from_word(r, dest), type_id = dest, in_memory = false)
+        if (self.is_int(st) or st == types.untyped_int_id) and self.is_float(dest):
+            let signed = st == types.untyped_int_id or self.is_signed(st)
+            let word = try self.to_word(v.ref, st) if st != types.untyped_int_id else v.ref
+            let op = ir.Op.sltof if signed else ir.Op.ultof
+            return LowerValue(ref = try self.f.unary(op, self.class_of(dest), word), type_id = dest, in_memory = false)
+        if (self.is_float(st) or st == types.untyped_float_id) and self.is_float(dest):
+            return LowerValue(ref = try self.convert_float(v.ref, st, dest), type_id = dest, in_memory = false)
+        let s_word = self.is_int(st) or st == types.char_id or st == types.bool_id or st == types.untyped_int_id
+        let d_word = self.is_int(dest) or dest == types.char_id
+        if s_word and d_word:
+            let word = try self.convert_int(v.ref, st, dest, checked)
+            if dest == types.char_id and checked:
+                return LowerValue(ref = try self.scalar_check(word), type_id = dest, in_memory = false)
+            return LowerValue(ref = word, type_id = dest, in_memory = false)
+        if s_word and dest == types.bool_id:
+            # `(bool)n`: nonzero (§7.5)
+            let word = try self.to_word(v.ref, st) if st != types.untyped_int_id else v.ref
+            return LowerValue(ref = try self.f.binary(ir.Op.cne, ir.Class.l, word, ir.const_ref(0)), type_id = dest, in_memory = false)
+        # pointers, spans, and everything else convert by reinterpretation
+        return LowerValue(ref = v.ref, type_id = dest, in_memory = v.in_memory)
+
+    ## Whether the function being lowered belongs to the `core` module, whose bodies are
+    ## what the other conversions call.
+    ## A double to an integer without `core.f_to_s` or `core.f_to_u`, where the instruction
+    ## can say what they do: checked (`T(x)`), a compare of the double with the type's
+    ## bounds (NaN and the infinities fail it) before the conversion, which then truncates
+    ## exactly; unchecked (`(T)x`) into a 32- or 64-bit signed integer, the conversion
+    ## marked saturating (`extra` 1: NaN is 0, the rest clamps to the range), which the
+    ## target does in an instruction or a few. None for a saturating conversion into an
+    ## unsigned or narrower integer, which the helper does.
+    mutating func float_to_int(wide: ir.Ref, dest: u32, checked: bool) -> ir.Ref?!:
+        let bits = self.scalar_size(dest) * 8
+        let signed = self.is_signed(dest)
+        if not checked:
+            if not signed or (bits != 32 and bits != 64):
+                return none
+            let cls = self.class_of(dest)
+            let t = try self.f.temp(cls)
+            try self.f.emit(ir.Op.dtosi, cls, t, wide, ir.none_ref(), 1)
+            return ir.temp_ref(t)
+        # the range is [-2^(bits-1), 2^(bits-1)) or [0, 2^bits), whose bounds are exact
+        let top = bits - 1 if signed else bits
+        let high = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref(power_of_two_bits(top, false)))
+        let low = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref(power_of_two_bits(top, true) if signed else 0))
+        let above = try self.f.binary(ir.Op.csge, ir.Class.d, wide, low)
+        let below = try self.f.binary(ir.Op.cslt, ir.Class.d, wide, high)
+        let inside = try self.f.binary(ir.Op.and_, ir.Class.w, above, below)
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(inside, ok, bad)
+        try self.f.place_label(bad)
+        try self.trap_with("integer conversion out of range")
+        try self.f.place_label(ok)
+        let raw = try self.f.unary(ir.Op.dtosi if signed else ir.Op.dtoui, ir.Class.l, wide)
+        return try self.from_word(raw, dest)
+
+    func in_core() -> bool:
+        let f = self.current_fn else return false
+        return names.module_of(f) == "core"
+
+    ## The current statement's position, `file:line:column`, as the last argument of a
+    ## core helper that may trap, so the trap names the statement (§11.5).
+    mutating func push_position_arg() -> !:
+        let position = try self.f.address_of(try self.position_ref())
+        try self.f.args.push(ir.Arg(value = position, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+
+    ## `char(n)`: the runtime refuses a surrogate or a value past U+10FFFF (§7.5).
+    mutating func scalar_check(value: ir.Ref) -> ir.Ref!:
+        let word = try self.to_word(value, types.char_id)
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = word, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.push_position_arg()
+        let r = try self.call_named("lb_core_7to_char", start, 3, ir.Class.l, true, types.u64_id)
+        return try self.from_word(r, types.char_id)
+
+    ## An integer converted between widths, checked through the runtime when asked.
+    mutating func convert_int(r: ir.Ref, st: u32, dest: u32, checked: bool) -> ir.Ref!:
+        let from_bits = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else (self.scalar_size(st) * 8))
+        let to_bits = 32 if dest == types.char_id else self.scalar_size(dest) * 8
+        let from_signed = st != types.char_id and st != types.bool_id and (st == types.untyped_int_id or self.signed_of(st))
+        let to_signed = dest != types.char_id and self.signed_of(dest)
+        # a conversion that cannot fail needs no check: to the same width and signedness, or
+        # wider with the same signedness, or unsigned into a wider signed type
+        let safe = (to_bits == from_bits and from_signed == to_signed) or (to_bits > from_bits and (from_signed == to_signed or not from_signed))
+        if not checked or safe:
+            # C's cast: truncation or reinterpretation
+            let word = try self.to_word(r, st) if st != types.untyped_int_id else r
+            return try self.from_word(word, dest)
+        let word = try self.to_word(r, st) if st != types.untyped_int_id else r
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = word, cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)from_bits), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(1 if from_signed else 0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)to_bits), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(1 if to_signed else 0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.push_position_arg()
+        let out = try self.call_named("lb_core_6conv_s" if from_signed else "lb_core_6conv_u", start, 7, ir.Class.l, true, types.i64_id)
+        return try self.from_word(out, dest)
+
+    mutating func enum_check(dest: u32, v: ir.Ref) -> !:
+        let d = self.decl_of(dest) else return
+        let ok = self.f.label()
+        let bad = self.f.label()
+        # both sides at the representation's width, so `-1` in an `i8` enum is the byte 0xFF
+        let bits = self.c.table.bits(self.enum_backing(dest))
+        let mask: u64 = 0xFFFFFFFFFFFFFFFF if bits >= 64 else (u64(1) << (u64)bits) - 1
+        let word = try self.f.binary(ir.Op.and_, ir.Class.l, try self.to_word(v, types.u64_id), ir.const_ref((i64)mask))
+        var cursor = d.body
+        var next = ok
+        while let c = cursor:
+            if c.kind == ast.Kind.enum_case:
+                let value = types.case_value(d, c) & mask
+                let hit = try self.f.binary(ir.Op.ceq, ir.Class.l, word, ir.const_ref((i64)value))
+                let miss = self.f.label()
+                try self.f.branch(hit, ok, miss)
+                try self.f.place_label(miss)
+            cursor = c.next
+        try self.f.jump(bad)
+        try self.f.place_label(bad)
+        try self.trap_with("invalid enum value")
+        try self.f.place_label(ok)
+        discard(next)
+
+    ## `(str)bytes` and `str(bytes)`: a view, checked for UTF-8 when `checked`.
+    mutating func str_conversion(src: ast.Node*, checked: bool) -> LowerValue!:
+        let st = try self.ty(src)
+        let v = try self.expr(src)
+        var data = ir.none_ref()
+        var length = ir.none_ref()
+        if st == types.cstr_id:
+            data = v.ref
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = v.ref, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+            length = try self.call_named("strlen", start, 1, ir.Class.l, true, types.usize_id)
+        elif self.is_array(st):
+            data = v.ref
+            length = ir.const_ref((i64)self.c.table.get(st).length)
+        else:
+            data = try self.f.load(ir.Op.loadl, ir.Class.l, v.ref)
+            length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(v.ref, 8))
+        let text = try self.span_of(data, length, types.str_id)
+        if not checked:
+            return text
+        let result = try self.c.table.fallible(types.str_id)
+        let slot = try self.new_slot(result)
+        let a = try self.slot_address(slot)
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = length, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        let ok = try self.call_named("lb_core_7utf8_ok", start, 2, ir.Class.w, true, types.i32_id)
+        let good = self.f.label()
+        let bad = self.f.label()
+        let done = self.f.label()
+        try self.f.branch(ok, good, bad)
+        try self.f.place_label(good)
+        try self.f.copy_bytes(a, text.ref, 16)
+        try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(a, self.failed_offset(result)))
+        try self.f.jump(done)
+        try self.f.place_label(bad)
+        try self.store_error(a, result, 3, "invalid_utf8")
+        try self.f.jump(done)
+        try self.f.place_label(done)
+        return LowerValue(ref = a, type_id = result, in_memory = true)
+
+    ## Fail a result at `a` with a code and a message: its flag, and `core.failure`.
+    mutating func store_error(a: ir.Ref, result: u32, code: i64, message: str) -> !:
+        let err = try self.failure_address()
+        try self.f.store(ir.Op.storew, ir.const_ref(code), err)
+        let index = try self.program_unit.text(message)
+        let data = try self.f.address_of(ir.text_ref(index))
+        try self.f.store(ir.Op.storel, data, try self.offset_address(err, 8))
+        try self.f.store(ir.Op.storel, ir.const_ref((i64)message.length), try self.offset_address(err, 16))
+        try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.failed_offset(result)))

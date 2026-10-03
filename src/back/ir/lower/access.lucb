@@ -1,0 +1,319 @@
+#==============================================================================================
+#
+#   lower/access - Places and members
+#
+#   DESCRIPTION:
+#       Addresses of bindings, elements, and fields, bounds-checked indexing and slicing,
+#       and members.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Places =============================================================================
+
+    ## The address of an assignable location.
+    mutating func place(e: ast.Node*) -> ir.Ref!:
+        match e.kind:
+            .name:
+                let d = e.resolved else return try self.fail(e, "a name without a place")
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
+                    return try self.global_address(d)
+                let slot = self.find_local(d) else return try self.fail(e, "an unbound name")
+                return try self.slot_address(slot)
+            .self_:
+                return try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(self.self_slot))
+            .group:
+                let inner = e.left else return try self.fail(e, "empty group")
+                return try self.place(inner)
+            .unary:
+                if e.text != "*":
+                    # `(-v)[1]`: the operator's value, in a temporary of its own
+                    let v = try self.expr(e)
+                    return try self.address_of_value(v)
+                let inner = e.left else return try self.fail(e, "empty deref")
+                let p = try self.expr(inner)
+                return p.ref
+            .member:
+                return try self.member_address(e)
+            .index:
+                return try self.index_address(e)
+            _:
+                let v = try self.expr(e)
+                return try self.address_of_value(v)
+
+    mutating func member_address(e: ast.Node*) -> ir.Ref!:
+        let owner = e.left else return try self.fail(e, "no owner")
+        if let d = e.resolved:
+            # `module.global` names a place of its own
+            if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
+                return try self.global_address(d)
+        let ot = try self.ty(owner)
+        var base = ir.none_ref()
+        var record = ot
+        if self.is_ptr(ot):
+            let p = try self.expr(owner)
+            base = p.ref
+            record = self.elem(ot)
+        else:
+            base = try self.place(owner)
+        if e.text == "length" and (record == types.str_id or self.is_span(record)):
+            return try self.offset_address(base, 8)
+        if e.text == "data" and (record == types.str_id or self.is_span(record)):
+            return base
+        if record == types.error_value_id:
+            return try self.offset_address(base, 0 if e.text == "code" else 8)
+        if self.kind(record) == types.Kind.tuple:
+            let wanted = try literals.decode_integer(e.text)
+            var offset: u64 = 0
+            var i: u64 = 0
+            for at in self.c.table.get(record).args:
+                let mt = try self.map(at)
+                offset = lower_round_up(offset, self.c.table.align_of(mt))
+                if i == wanted:
+                    return try self.offset_address(base, offset)
+                offset += self.c.table.size_of(mt)
+                i += 1
+            return try self.fail(e, "no such tuple member")
+        let field = e.resolved else return try self.fail(e, "no field")
+        let d = self.decl_of(record) else return try self.fail(e, "no record")
+        let t = self.c.table.get(record)
+        if d.kind == ast.Kind.union_ or d.kind == ast.Kind.extern_union:
+            return base
+        # the field's offset with the instance's arguments in place
+        var offset: u64 = 0
+        var cursor = d.body
+        while let m = cursor:
+            if m.kind == ast.Kind.field:
+                let mt = try self.map(try self.c.substitute(m.type_id, d, t.args))
+                if not d.has(ast.flag_packed):
+                    offset = lower_round_up(offset, self.c.table.field_alignment(mt, m))
+                if m == field:
+                    return try self.offset_address(base, offset)
+                offset += self.c.table.size_of(mt)
+            cursor = m.next
+        return try self.fail(e, "no such field")
+
+    mutating func index_address(e: ast.Node*) -> ir.Ref!:
+        return try self.index_address_at(e, false)
+
+    ## The address of `owner[i]`; under `&` the index may equal the length, C's one past
+    ## the end (§7.7), so the bound is one more.
+    mutating func index_address_at(e: ast.Node*, one_past: bool) -> ir.Ref!:
+        let owner = e.left else return try self.fail(e, "no owner")
+        let i = e.body else return try self.fail(e, "no index")
+        let ot = try self.ty(owner)
+        let iv = try self.value(i, types.usize_id)
+        let index = try self.widen(iv.ref, iv.type_id, types.usize_id)
+        # `index <= length` one past the end, `index < length` otherwise
+        let inclusive: u32 = 1 if one_past else 0
+        if self.is_array(ot):
+            let base = try self.place(owner)
+            let t = self.c.table.get(ot)
+            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length), inclusive)
+            try self.mark_position()
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(t.elem)))
+            return try self.f.binary(ir.Op.add, ir.Class.l, base, scaled)
+        if self.is_span(ot):
+            let span = try self.expr(owner)
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, span.ref)
+            let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
+            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, length, inclusive)
+            try self.mark_position()
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
+            return try self.f.binary(ir.Op.add, ir.Class.l, data, scaled)
+        if self.is_ptr(ot):
+            # element-scaled by the pointee, an array included (§7.7)
+            let p = try self.expr(owner)
+            let inner = self.elem(ot)
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(inner)))
+            return try self.f.binary(ir.Op.add, ir.Class.l, p.ref, scaled)
+        return try self.fail(e, "indexing needs a span or an array")
+
+    mutating func slice(e: ast.Node*) -> LowerValue!:
+        let owner = e.left else return try self.fail(e, "no owner")
+        let ot = try self.ty(owner)
+        let result = try self.ty(e)
+        var data = ir.none_ref()
+        var length = ir.none_ref()
+        var stride: u64 = 1
+        if self.is_array(ot):
+            data = try self.place(owner)
+            let t = self.c.table.get(ot)
+            length = ir.const_ref((i64)t.length)
+            stride = self.c.table.size_of(t.elem)
+        else:
+            let span = try self.expr(owner)
+            data = try self.f.load(ir.Op.loadl, ir.Class.l, span.ref)
+            length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
+            stride = self.c.table.size_of(self.elem(ot))
+        var start = ir.const_ref(0)
+        if let s = e.body:
+            let sv = try self.value(s, types.usize_id)
+            start = try self.widen(sv.ref, sv.type_id, types.usize_id)
+        var end = length
+        if let en = e.right:
+            let ev = try self.value(en, types.usize_id)
+            end = try self.widen(ev.ref, ev.type_id, types.usize_id)
+        # both ends at most the length
+        try self.f.emit(ir.Op.bounds, ir.Class.l, 0, start, length, 1)
+        try self.mark_position()
+        try self.f.emit(ir.Op.bounds, ir.Class.l, 0, end, length, 1)
+        try self.mark_position()
+        # start must not pass end
+        let ordered = try self.f.binary(ir.Op.cule, ir.Class.l, start, end)
+        let ok = self.f.label()
+        let bad = self.f.label()
+        try self.f.branch(ordered, ok, bad)
+        try self.f.place_label(bad)
+        try self.trap_with("index out of bounds")
+        try self.f.place_label(ok)
+        let offset = try self.f.binary(ir.Op.mul, ir.Class.l, start, ir.const_ref((i64)stride))
+        let new_data = try self.f.binary(ir.Op.add, ir.Class.l, data, offset)
+        let new_length = try self.f.binary(ir.Op.sub, ir.Class.l, end, start)
+        return try self.span_of(new_data, new_length, result)
+
+    mutating func tuple(e: ast.Node*) -> LowerValue!:
+        let t = try self.ty(e)
+        let tt = self.c.table.get(t)
+        let slot = try self.new_slot(t)
+        let a = try self.slot_address(slot)
+        var offset: u64 = 0
+        var i: usize = 0
+        var cursor = e.body
+        while let m = cursor:
+            let mt = tt.args[i]
+            offset = lower_round_up(offset, self.c.table.align_of(mt))
+            let v = try self.value(m, mt)
+            try self.store_to(try self.offset_address(a, offset), v)
+            offset += self.c.table.size_of(mt)
+            i += 1
+            cursor = m.next
+        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    mutating func array_literal(e: ast.Node*) -> LowerValue!:
+        let t = try self.ty(e)
+        let et = self.elem(t)
+        let stride = self.c.table.size_of(et)
+        let slot = try self.new_slot(t)
+        let a = try self.slot_address(slot)
+        var offset: u64 = 0
+        var cursor = e.body
+        while let m = cursor:
+            let v = try self.value(m, et)
+            try self.store_to(try self.offset_address(a, offset), v)
+            offset += stride
+            cursor = m.next
+        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    mutating func conditional(e: ast.Node*) -> LowerValue!:
+        let cond = e.ty else return try self.fail(e, "no condition")
+        let l = e.left else return try self.fail(e, "no value")
+        let r = e.right else return try self.fail(e, "no alternative")
+        let t = try self.ty(e)
+        # a constant condition, `6 if platform.macos else 1`, chooses at compile time
+        if let truth = self.c.constant_bool(cond):
+            return try self.value(l if truth else r, t)
+        let slot = try self.new_slot(t)
+        let then_label = self.f.label()
+        let else_label = self.f.label()
+        let end_label = self.f.label()
+        let c = try self.value(cond, types.bool_id)
+        try self.f.branch(c.ref, then_label, else_label)
+        try self.f.place_label(then_label)
+        let lv = try self.value(l, t)
+        try self.store_to(try self.slot_address(slot), lv)
+        try self.f.jump(end_label)
+        try self.f.place_label(else_label)
+        let rv = try self.value(r, t)
+        try self.store_to(try self.slot_address(slot), rv)
+        try self.f.jump(end_label)
+        try self.f.place_label(end_label)
+        return try self.load_from(try self.slot_address(slot), t)
+
+    # mark: Members ============================================================================
+
+    mutating func member(e: ast.Node*) -> LowerValue!:
+        let owner = e.left else return try self.fail(e, "no owner")
+        let t = try self.ty(e)
+        if let d = e.resolved:
+            if d.kind == ast.Kind.enum_case:
+                return try self.enum_value(e)
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
+                return try self.method_value(e, owner, d)
+            if d.kind == ast.Kind.constant:
+                if let v = try self.folded_constant(e, t):
+                    return v
+            if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
+                return try self.load_from(try self.global_address(d), t)
+        let ot = try self.ty(owner)
+        if self.kind(ot) == types.Kind.module:
+            return try self.module_member(e, ot)
+        let record = self.elem(ot) if self.is_ptr(ot) else ot
+        if e.text == "length" and self.is_array(record):
+            return LowerValue(ref = ir.const_ref((i64)self.c.table.get(record).length), type_id = types.usize_id, in_memory = false)
+        if e.text == "bytes" and record == types.str_id:
+            var base = ir.none_ref()
+            if self.is_ptr(ot):
+                let p = try self.expr(owner)
+                base = p.ref
+            else:
+                base = try self.place(owner)
+            return LowerValue(ref = base, type_id = t, in_memory = true)
+        if e.text == "data" and (record == types.str_id or self.is_span(record)):
+            var base = ir.none_ref()
+            if self.is_ptr(ot):
+                let p = try self.expr(owner)
+                base = p.ref
+            else:
+                let v = try self.expr(owner)
+                base = v.ref
+            return LowerValue(ref = try self.f.load(ir.Op.loadl, ir.Class.l, base), type_id = t, in_memory = false)
+        if e.text == "length" and (record == types.str_id or self.is_span(record)):
+            var base = ir.none_ref()
+            if self.is_ptr(ot):
+                let p = try self.expr(owner)
+                base = p.ref
+            else:
+                let v = try self.expr(owner)
+                base = v.ref
+            return LowerValue(ref = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(base, 8)), type_id = t, in_memory = false)
+        return try self.load_from(try self.member_address(e), t)
+
+    mutating func module_member(e: ast.Node*, module_type: u32) -> LowerValue!:
+        let m = self.decl_of(module_type) else return try self.fail(e, "no module")
+        if m.text == "luce":
+            if e.text == "location":
+                return try self.location_value(e)
+            if e.text == "line":
+                return LowerValue(ref = ir.const_ref((i64)e.line), type_id = types.u32_id, in_memory = false)
+            let text = self.src_file if e.text == "file" else self.function_name_text()
+            let index = try self.program_unit.text(text)
+            let data = try self.f.address_of(ir.text_ref(index))
+            return try self.span_of(data, ir.const_ref((i64)text.length), types.str_id)
+        return try self.fail(e, "no such member")
+
+    func function_name_text() -> str:
+        let f = self.current_fn else return ""
+        return f.text
+
+    mutating func location_value(e: ast.Node*) -> LowerValue!:
+        let t = try self.ty(e)
+        let slot = try self.new_slot(t)
+        let a = try self.slot_address(slot)
+        let file = try self.program_unit.text(self.src_file)
+        try self.f.store(ir.Op.storel, try self.f.address_of(ir.text_ref(file)), a)
+        try self.f.store(ir.Op.storel, ir.const_ref((i64)self.src_file.length), try self.offset_address(a, 8))
+        try self.f.store(ir.Op.storew, ir.const_ref((i64)e.line), try self.offset_address(a, 16))
+        let fname = self.function_name_text()
+        let fi = try self.program_unit.text(fname)
+        try self.f.store(ir.Op.storel, try self.f.address_of(ir.text_ref(fi)), try self.offset_address(a, 24))
+        try self.f.store(ir.Op.storel, ir.const_ref((i64)fname.length), try self.offset_address(a, 32))
+        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    mutating func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> LowerValue!:
+        let ot = try self.ty(owner)
+        if self.kind(ot) == types.Kind.module or d.kind == ast.Kind.extern_func:
+            return try self.func_value(e, d)
+        let t = self.c.table.get(self.elem(ot) if self.is_ptr(ot) else ot)
+        discard(try self.add_func(d, try types.no_args(), t.decl, t.args))
+        let name = try self.function_name(d, try types.no_args(), t.decl, t.args)
+        return LowerValue(ref = try self.f.address_of(ir.function_ref(name)), type_id = try self.ty(e), in_memory = false)

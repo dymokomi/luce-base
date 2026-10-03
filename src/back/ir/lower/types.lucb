@@ -1,0 +1,319 @@
+#==============================================================================================
+#
+#   lower/types - Types and names
+#
+#   DESCRIPTION:
+#       The IR class and layout of checked types, and the names of functions,
+#       instances, and globals, registering each instance a body needs (§13).
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Types ==============================================================================
+
+    mutating func map(id: u32) -> u32!:
+        var t = id
+        if let o = self.owner_decl:
+            if self.owner_args.length > 0:
+                t = try self.c.substitute(t, o, self.owner_args)
+        if let fd = self.fn_decl:
+            if self.fn_args.length > 0:
+                t = try self.c.substitute(t, fd, self.fn_args)
+        return t
+
+    mutating func ty(e: ast.Node*) -> u32!:
+        return try self.map(e.type_id)
+
+    func kind(id: u32) -> types.Kind:
+        return self.c.table.kind(id)
+
+    func elem(id: u32) -> u32:
+        return self.c.table.get(id).elem
+
+    func size(id: u32) -> u32:
+        if self.kind(id) == types.Kind.fallible:
+            # the value, then the flag: the error waits in `core.failure` (failure_address)
+            return u32(self.failed_offset(id) + 8)
+        return u32(self.c.table.size_of(id))
+
+    func align(id: u32) -> u32:
+        if self.kind(id) == types.Kind.fallible:
+            return 8
+        return u32(self.c.table.align_of(id))
+
+    func is_int(id: u32) -> bool:
+        return self.c.table.is_integer(id)
+
+    func is_signed(id: u32) -> bool:
+        return self.c.table.is_signed(id)
+
+    func is_vector(id: u32) -> bool:
+        return self.c.table.is_vector(id)
+
+    func is_float(id: u32) -> bool:
+        return self.c.table.is_float(id)
+
+    func is_ptr(id: u32) -> bool:
+        return self.kind(id) == types.Kind.pointer
+
+    func is_span(id: u32) -> bool:
+        return self.kind(id) == types.Kind.span
+
+    func is_array(id: u32) -> bool:
+        return self.kind(id) == types.Kind.array
+
+    func is_opt(id: u32) -> bool:
+        return self.kind(id) == types.Kind.optional
+
+    func is_fail(id: u32) -> bool:
+        return self.kind(id) == types.Kind.fallible
+
+    func is_iface(id: u32) -> bool:
+        return self.kind(id) == types.Kind.interface_
+
+    func is_nullable_ptr(id: u32) -> bool:
+        return self.c.table.is_nullable_pointer(id)
+
+    ## `Writer?`: the two-word view in memory, none when its data word is null (§14.3).
+    func is_nullable_view(id: u32) -> bool:
+        return self.c.table.is_nullable_view(id)
+
+    func is_tagged_opt(id: u32) -> bool:
+        return self.is_opt(id) and not self.is_nullable_ptr(id) and not self.is_nullable_view(id)
+
+    func enum_backing(id: u32) -> u32:
+        let d = self.c.table.get(id).decl else return types.i32_id
+        let backing = d.ty else return types.i32_id
+        return backing.type_id
+
+    func decl_of(id: u32) -> ast.Node*?:
+        return self.c.table.get(id).decl
+
+    ## A value of this type moves through a temporary rather than memory.
+    func is_scalar(id: u32) -> bool:
+        let k = self.kind(id)
+        if self.is_int(id) or self.is_float(id) or id == types.bool_id or id == types.char_id or id == types.cstr_id or id == types.error_code_id or id == types.unit_id or id == types.never_id or id == types.void_id or id == types.untyped_int_id or id == types.untyped_float_id:
+            return true
+        if k == types.Kind.pointer or k == types.Kind.func_:
+            return true
+        if self.is_nullable_ptr(id):
+            return true
+        if self.c.is_backed_enum(id):
+            return true
+        if k == types.Kind.atomic:
+            return self.is_scalar(self.elem(id))
+        return self.c.table.is_opaque_handle(id)
+
+    ## The register class of a scalar type.
+    func class_of(id: u32) -> ir.Class:
+        if id == types.f16_id:
+            return ir.Class.h
+        if id == types.f32_id:
+            return ir.Class.s
+        if id == types.f64_id or id == types.untyped_float_id:
+            return ir.Class.d
+        if self.c.is_backed_enum(id):
+            return self.class_of(self.enum_backing(id))
+        if self.kind(id) == types.Kind.atomic:
+            return self.class_of(self.elem(id))
+        let s = self.c.table.size_of(id)
+        return ir.Class.l if s > 4 or s == 0 else ir.Class.w
+
+    ## Signedness of a scalar for loads, division, and comparison.
+    func signed_of(id: u32) -> bool:
+        if self.c.is_backed_enum(id):
+            return self.is_signed(self.enum_backing(id))
+        if self.kind(id) == types.Kind.atomic:
+            return self.signed_of(self.elem(id))
+        return self.is_signed(id)
+
+    func scalar_size(id: u32) -> u64:
+        if self.c.is_backed_enum(id):
+            return self.c.table.size_of(self.enum_backing(id))
+        if self.kind(id) == types.Kind.atomic:
+            return self.scalar_size(self.elem(id))
+        let s = self.c.table.size_of(id)
+        return s if s > 0 else 8
+
+    ## The shape of an aggregate the calling convention will place, 1-based into the
+    ## unit's shapes, or 0 for a scalar or anything past 32 bytes, which every convention
+    ## passes in memory. The walk is the layout's: every scalar member at its offset, a
+    ## union's members overlapping, padding absent. Cached per type.
+    mutating func shape_of(id: u32) -> u32!:
+        if self.is_scalar(id) or self.size(id) > 32:
+            return 0
+        while self.shape_cache.count <= (usize)id:
+            try self.shape_cache.push(0)
+        let known = self.shape_cache.get((usize)id)
+        if known != 0:
+            return known
+        let start = self.program_unit.leaves.count
+        try self.push_leaves(id, 0)
+        let shape = try self.program_unit.shape_from(start)
+        self.shape_cache.set((usize)id, shape)
+        return shape
+
+    mutating func push_leaves(id: u32, base: u64) -> !:
+        let size = self.c.table.size_of(id)
+        if self.is_scalar(id):
+            try self.program_unit.leaves.push(ir.Leaf(offset = u32(base), size = (u8)(size if size > 0 else 8), cls = self.class_of(id)))
+            return
+        let t = self.c.table.get(id)
+        match t.kind:
+            .tuple:
+                var offset: u64 = 0
+                for at in t.args:
+                    let ft = try self.map(at)
+                    offset = lower_round_up(offset, self.c.table.align_of(ft))
+                    try self.push_leaves(ft, base + offset)
+                    offset += self.c.table.size_of(ft)
+            .array:
+                let each = self.c.table.size_of(t.elem)
+                var k: u64 = 0
+                while k < t.length:
+                    try self.push_leaves(t.elem, base + k * each)
+                    k += 1
+            .struct_:
+                let d = t.decl else return
+                var offset: u64 = 0
+                var cursor = d.body
+                while let m = cursor:
+                    if m.kind == ast.Kind.field:
+                        let ft = try self.map(try self.c.substitute(m.type_id, d, t.args))
+                        if not d.has(ast.flag_packed):
+                            offset = lower_round_up(offset, self.c.table.field_alignment(ft, m))
+                        try self.push_leaves(ft, base + offset)
+                        offset += self.c.table.size_of(ft)
+                    cursor = m.next
+            .optional:
+                # the value, then the flag byte
+                try self.push_leaves(t.elem, base)
+                try self.program_unit.leaves.push(ir.Leaf(offset = u32(base + self.c.table.size_of(t.elem)), size = 1, cls = ir.Class.w))
+            .fallible:
+                # the value, then the flag
+                if t.elem != types.unit_id and t.elem != types.never_id:
+                    try self.push_leaves(t.elem, base)
+                try self.program_unit.leaves.push(ir.Leaf(offset = u32(base + self.failed_offset(id)), size = 1, cls = ir.Class.w))
+            .enum_:
+                if self.c.is_backed_enum(id):
+                    try self.program_unit.leaves.push(ir.Leaf(offset = u32(base), size = (u8)size, cls = self.class_of(id)))
+                    return
+                # the tag, then every case's payload over the union
+                try self.program_unit.leaves.push(ir.Leaf(offset = u32(base), size = 4, cls = ir.Class.w))
+                let d = self.decl_of(id) else return
+                let start = base + self.payload_offset(id)
+                var cursor = d.body
+                while let c = cursor:
+                    if c.kind == ast.Kind.enum_case:
+                        var offset: u64 = 0
+                        var p = c.body
+                        while let q = p:
+                            let ft = try self.map(q.type_id)
+                            offset = lower_round_up(offset, self.c.table.align_of(ft))
+                            try self.push_leaves(ft, start + offset)
+                            offset += self.c.table.size_of(ft)
+                            p = q.next
+                    cursor = c.next
+            .union_:
+                let d = t.decl else return
+                var cursor = d.body
+                while let m = cursor:
+                    if m.kind == ast.Kind.field:
+                        try self.push_leaves(try self.map(m.type_id), base)
+                    cursor = m.next
+            .span, .interface_:
+                try self.program_unit.leaves.push(ir.Leaf(offset = u32(base), size = 8, cls = ir.Class.l))
+                try self.program_unit.leaves.push(ir.Leaf(offset = u32(base + 8), size = 8, cls = ir.Class.l))
+            _:
+                # anything else is words of integers
+                var at: u64 = 0
+                while at < size:
+                    try self.program_unit.leaves.push(ir.Leaf(offset = u32(base + at), size = (u8)(8 if size - at >= 8 else size - at), cls = ir.Class.l))
+                    at += 8
+
+    # mark: Names ==============================================================================
+
+    mutating func function_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> str!:
+        self.scratch.clear()
+        try names.function_name(&self.scratch, &self.c.table, f, args, owner, owner_args, self.entry)
+        return try names.keep(&self.scratch)
+
+    mutating func global_name(d: ast.Node*) -> str!:
+        self.scratch.clear()
+        try names.global_name(&self.scratch, d)
+        return try names.keep(&self.scratch)
+
+    mutating func vtable_name(record: u32, iface: ast.Node*) -> str!:
+        self.scratch.clear()
+        try names.vtable_name(&self.scratch, &self.c.table, record, iface)
+        return try names.keep(&self.scratch)
+
+    mutating func test_name(index: u32) -> str!:
+        self.scratch.clear()
+        try names.test_name(&self.scratch, index)
+        return try names.keep(&self.scratch)
+
+    ## Register a function instance; returns its index.
+    mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
+        let mask = self.func_slots.length - 1
+        var slot = instance_hash(f, args, owner, owner_args) & mask
+        while self.func_slots[slot] != 0:
+            let i = (usize)self.func_slots[slot] - 1
+            # through a pointer: the comparison must not copy a record
+            let r = &self.funcs.items[i]
+            if r.decl == f and types.same_args(r.args, args) and r.owner == owner and types.same_args(r.owner_args, owner_args):
+                return i
+            slot = (slot + 1) & mask
+        if check.nesting_of_all(&self.c.table, args) > check.max_nesting or check.nesting_of_all(&self.c.table, owner_args) > check.max_nesting:
+            return try self.fail(f, "an infinite chain of instantiations")
+        try self.funcs.push(LowerInstance(decl = f, args = args, owner = owner, owner_args = owner_args, done = false))
+        let index = self.funcs.count - 1
+        if (self.funcs.count + 1) * 2 > self.func_slots.length:
+            # grown: every instance placed again in a table twice the size
+            let grown = try instance_slots(self.func_slots.length * 2)
+            with memory.heap:
+                free(self.func_slots)
+            self.func_slots = grown
+            for k in 0..<self.funcs.count:
+                self.place_instance(k)
+        else:
+            self.place_instance(index)
+        return index
+
+    ## Put instance `index` in the first free slot of its probe sequence.
+    mutating func place_instance(index: usize):
+        let r = &self.funcs.items[index]
+        let mask = self.func_slots.length - 1
+        var slot = instance_hash(r.decl, r.args, r.owner, r.owner_args) & mask
+        while self.func_slots[slot] != 0:
+            slot = (slot + 1) & mask
+        self.func_slots[slot] = u32(index + 1)
+
+    mutating func note_vtable(record: u32, iface: u32) -> !:
+        var i: usize = 0
+        while i < self.vtables.count:
+            let v = self.vtables.get(i)
+            if v.record == record and v.iface == iface:
+                return
+            i += 1
+        try self.vtables.push(LowerWitness(record = record, iface = iface))
+        let d = self.decl_of(record) else return
+        let t = self.c.table.get(record)
+        let i_decl = self.decl_of(iface) else return
+        var req = i_decl.body
+        while let r = req:
+            if let m = check.find_member(d, r.text, ast.Kind.func_):
+                discard(try self.add_func(m, try types.no_args(), d, t.args))
+            req = r.next
+
+    mutating func type_args(holder: ast.Node*) -> u32[]!:
+        let n = ast.count(holder.body)
+        if n == 0:
+            return try types.no_args()
+        var args = try alloc u32[n]
+        var i: usize = 0
+        var cursor = holder.body
+        while let a = cursor:
+            args[i] = try self.map(a.type_id)
+            i += 1
+            cursor = a.next
+        return args

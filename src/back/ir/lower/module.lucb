@@ -1,0 +1,210 @@
+#==============================================================================================
+#
+#   lower - The checked tree to the intermediate representation
+#
+#   DESCRIPTION:
+#       The native backend's front half: every function instance of the program becomes an
+#       `ir.Function`. Locals live in stack slots; scalars move through temporaries; every
+#       aggregate (records, tuples, tagged optionals, results, arrays, text views, spans,
+#       interface views) lives in memory and is addressed, copied with `blit`, and passed
+#       to calls by address for the target to classify (base.md §19.2).
+#
+#       The semantic decisions mirror the C backend's: monomorphisation from a worklist,
+#       conversions at the sites where the checker allowed them, cleanup of deferred calls
+#       at every exit, failure as a flag beside the value. Where the C backend leans on the
+#       host compiler, this one spells the operation out: a checked add is `addo`, a bounds
+#       check is `bounds`, a switch is a chain of compares.
+#
+#       This fragment holds the `Lowerer` with its fields; each concern's methods are in a
+#       fragment of their own under `extend Lowerer:`, in the order `ORDER` lists them
+#       (§16.1), parallel to the C backend's.
+#
+#==============================================================================================
+from back.effects import arguments_have_effect
+import back.ir.ir
+import back.isa
+import back.names
+import back.calls
+import back.target as targets
+import front.ast
+import front.source as sources
+import memory
+import sema.check
+import sema.types
+import support.buffer
+import support.decimal
+import support.list
+import support.literals
+## The native backend does not support the build's target (§19.5).
+pub let native_unsupported: ErrorCode = ErrorCode.package(14)
+## The function that gives a thread its `local var`s' initialisers (`thread_locals_initialiser`).
+let thread_locals_function: str = "lb_init_thread_locals"
+## The largest `memcpy` of a known size lowered to the copy itself (`small_copy`): the
+## generators inline a block copy up to this size.
+let small_copy_limit: u64 = 64
+
+type NodeRef = ast.Node*
+type MaybeNode = ast.Node*?
+
+## One monomorphised function: a declaration with concrete type arguments.
+struct LowerInstance:
+    var decl: ast.Node*
+    var args: u32[]
+    var owner: ast.Node*?
+    var owner_args: u32[]
+    var done: bool
+
+## A witness table the program needs: one record viewed as one interface.
+struct LowerWitness:
+    var record: u32
+    var iface: u32
+
+## A binding of the body being lowered and the slot holding it.
+struct LowerLocal:
+    var decl: ast.Node*
+    var slot: u32
+
+## A supplied argument evaluated in source order, before ABI parameter ordering.
+struct LowerCallArgument:
+    var node: ast.Node*
+    var value: ir.Arg
+
+## A lexical scope: its deferred calls, whether it is a loop and how to leave it,
+## and the allocator it restores.
+struct LowerScope:
+    var debug_scope: usize
+    var defer_base: usize
+    var loop: bool
+    var label: str
+    var break_label: u32
+    var continue_label: u32
+    var restore_alloc: bool
+    var alloc_slot: u32
+
+## A value: a scalar in `ref`, or the address of its bytes when `in_memory`.
+pub struct LowerValue:
+    ## The scalar value, or the address of the value's bytes when `in_memory`.
+    pub var ref: ir.Ref
+    ## The value's type.
+    pub var type_id: u32
+    ## Whether `ref` is the address of the value's bytes rather than the value itself.
+    pub var in_memory: bool
+
+# mark: The lowerer ============================================================================
+
+## `assert failed: condition`, and `: message` when one is given (§11.6), in an allocation
+## of its own length; the position is the trap's (§11.5).
+func assert_text(condition: str, message: str) -> str!:
+    var length = 32 + condition.length
+    if message.length > 0:
+        length += 2 + message.length
+    let room = try alloc u8[length]
+    if message.length > 0:
+        return try format(room, f"assert failed: {condition}: {message}")
+    return try format(room, f"assert failed: {condition}")
+
+## The native backend's front half: it lowers each function instance to an `ir.Function`.
+pub struct Lowerer:
+    var c: check.Checker*
+    ## The lowered program, filled as functions are visited.
+    pub var program_unit: ir.Unit
+    ## Per type, the shape recorded for it (1-based), 0 until asked.
+    var shape_cache: list.List[u32]
+    var f: ir.Function
+    var scratch: buffer.Buffer
+    var modules: list.List[NodeRef]
+    var entry: ast.Node*
+    var funcs: list.List[LowerInstance]
+    ## An open-addressing index over `funcs` by declaration, owner and type arguments: a
+    ## slot holds 1 + the instance's index, 0 when free. A program asks for an instance at
+    ## every call; a search through all of them made lowering grow with their square.
+    var func_slots: u32[]
+    var tests: list.List[NodeRef]
+    var vtables: list.List[LowerWitness]
+    ## `--debug`: describe every frame and call the `debug` module at every statement.
+    pub var debug: bool
+    ## `--release --debug`: the program's functions carry lines and describe their locals
+    ## without the debugger's hooks (`Function.symbols`).
+    pub var symbols: bool
+    var current_fn: ast.Node*?
+    ## The source `set_position` found for `position_fn` while `src_file` was
+    ## `position_file`: every statement of a function asks again.
+    var position_fn: ast.Node*? = none
+    var position_file: str = ""
+    var position_source: sources.Source? = none
+    ## The project root, with its trailing slash, that positions name a source relative to,
+    ## as the build cache's key does; empty to name sources as they were read.
+    pub var position_root: str = ""
+    var fn_decl: ast.Node*?
+    var fn_args: u32[]
+    var owner_decl: ast.Node*?
+    var owner_args: u32[]
+    var locals: list.List[LowerLocal]
+    var scopes: list.List[LowerScope]
+    var defers: list.List[NodeRef]
+    ## The slot the function's result is built in before every `ret`.
+    var result_slot: u32
+    var self_slot: u32
+    var catch_slot: u32
+    var catch_done: u32
+    var catch_scope: usize
+    var catch_payload: u32
+    var catch_error_slot: u32
+    var in_catch: bool
+    ## While evaluating a handled operand, propagation enters this local handler.
+    var failure_target: u32 = 0
+    var failure_slot: u32 = 0
+    var failure_scope: usize = 0
+    var match_slot: u32
+    var match_type: u32
+    var src_file: str
+    ## The statement being lowered, as a trap names it (§11.5): its mapped position, and
+    ## the unit's text of it once one was needed (index + 1; 0 while none was)
+    var at_file: str
+    var at_line: u32
+    var at_column: u32
+    var at_text: u32
+    var mode: u32
+    ## The format buffer a `Display` field writes into, while lowering its call.
+    var format_sink: ir.Ref
+    ## The function's pool of 1024-byte format buffers (a `fmt` argument's, a streamed
+    ## print's): the chars and buffer slots of each made so far, and how many the statement
+    ## being lowered and those around it hold. A statement gives back what it took when it
+    ## ends, so the f-strings of disjoint statements share one buffer, where each call site
+    ## once had its own (luce-js COMPILER-REQUESTS item 6: a 3.4 KB frame for three).
+    var pool_chars: u32[16]
+    var pool_fb: u32[16]
+    var pool_count: usize = 0
+    var pool_used: usize = 0
+    ## Whether this function's format buffers may live in the dynamic area (`memory.frame`
+    ## and those levels do not mix).
+    var pooling: bool = true
+    ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
+    pub var diagnostic: bool
+    ## The target of the build (§19.5): which `asm` arms are taken and how a library
+    ## initialises itself depend on it.
+    pub var target: targets.Target
+    ## The line of the allocation being lowered, for the diagnostic profile's record.
+    var site_line: u32
+
+    ## A lowerer for `entry`, checked by `c`.
+    pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
+        return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, target = targets.Target.host(),
+                       modules = try list.List[NodeRef].create(16), entry = entry,
+                       funcs = try list.List[LowerInstance].create(64), func_slots = try instance_slots(256), tests = try list.List[NodeRef].create(32),
+                       vtables = try list.List[LowerWitness].create(16), current_fn = none, fn_decl = none,
+                       fn_args = try types.no_args(), owner_decl = none, owner_args = try types.no_args(),
+                       locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
+                       defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
+                       catch_done = 0, catch_scope = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
+                       match_type = 0, src_file = entry.text, at_file = entry.text, at_line = 0, at_column = 0, at_text = 0, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0)
+
+    ## Stop lowering with a diagnostic naming the file and line of `node`, and its text when
+    ## it has one.
+    func fail(node: ast.Node*, what: str) -> never!:
+        # the checker's scratch outlives the arena the tree lives in, so the report does too
+        let half = self.c.scratch.length // 2
+        let file = self.source_of_current()
+        if node.text.length == 0:
+            error(native_unsupported, try format(self.c.scratch[..<half], f"{file}:{node.line}: {what}"))
+        error(native_unsupported, try format(self.c.scratch[..<half], f"{file}:{node.line}: {what} `{node.text}`"))

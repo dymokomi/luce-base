@@ -1,0 +1,292 @@
+#==============================================================================================
+#
+#   lower/helpers - Helpers
+#
+#   DESCRIPTION:
+#       Functions of the tree and of types that need no lowerer.
+#
+#==============================================================================================
+# mark: Helpers ================================================================================
+
+## The index of a method among an interface's requirements.
+func method_index(iface: ast.Node*, method: ast.Node*) -> u64:
+    var i: u64 = 0
+    var cursor = iface.body
+    while let r = cursor:
+        if r.kind == ast.Kind.func_:
+            if r.text == method.text:
+                return i
+            i += 1
+        cursor = r.next
+    return 0
+
+## `atomic.Ordering` case to the C memory order number.
+func memory_order(e: ast.Node*) -> u32:
+    if e.text == "relaxed":
+        return 0
+    if e.text == "acquire":
+        return 2
+    if e.text == "release":
+        return 3
+    if e.text == "acq_rel":
+        return 4
+    return 5
+
+func lower_case_tag(d: ast.Node*, target: ast.Node*) -> u32:
+    var i: u32 = 0
+    var cursor = d.body
+    while let c = cursor:
+        if c.kind == ast.Kind.enum_case:
+            if c == target:
+                return i
+            i += 1
+        cursor = c.next
+    return 0
+
+func lower_never_valued(e: ast.Node*) -> bool:
+    return e.type_id == types.never_id
+
+## `size` free slots for the instances' index, from the heap, where a grown table's old
+## slots go back (`add_func`).
+func instance_slots(size: usize) -> u32[]!:
+    with memory.heap:
+        var slots = try alloc u32[size]
+        for k in 0..<size:
+            slots[k] = 0
+        return slots
+
+## FNV-1a over an instance's declaration, owner and type arguments.
+func instance_hash(f: ast.Node*, args: const u32[], owner: ast.Node*?, owner_args: const u32[]) -> usize:
+    var h: u64 = 14695981039346656037
+    h = (h ^ (u64)(usize)f) *% 1099511628211
+    var owner_bits: u64 = 0
+    if let o = owner:
+        owner_bits = (u64)(usize)o
+    h = (h ^ owner_bits) *% 1099511628211
+    for a in args:
+        h = (h ^ (u64)a) *% 1099511628211
+    h = (h ^ 0xff) *% 1099511628211
+    for a in owner_args:
+        h = (h ^ (u64)a) *% 1099511628211
+    return (usize)h
+
+func lower_round_up(value: u64, align: u64) -> u64:
+    if align <= 1:
+        return value
+    return (value + align - 1) // align * align
+
+func round_up8(value: u64) -> u64:
+    return lower_round_up(value, 8)
+
+## The IEEE bits of a decimal float literal at each width, correctly rounded (§4.3): one
+## rounding from the digits, by `decimal`, so an `f32` or `f16` literal is never rounded
+## through a double. The checker has already accepted the text as a float literal.
+pub func float_bits(text: str) -> u64:
+    return decimal.bits(text, 64) else 0
+
+## The f32 bit pattern of the float literal `text`, 0 when it is not finite.
+pub func float32_bits(text: str) -> u64:
+    return decimal.bits(text, 32) else 0
+
+## The f16 bit pattern of the float literal `text`, 0 when it is not finite.
+pub func float16_bits(text: str) -> u64:
+    return decimal.bits(text, 16) else 0
+
+## The name in `section("name")` on `d`, or empty.
+func section_of(d: ast.Node*) -> str:
+    var cursor = d.attrs
+    while let a = cursor:
+        if a.text == "section":
+            let name = a.left else return ""
+            return literals.decode_text(name.text)
+        cursor = a.next
+    return ""
+
+## The registers of one asm block (§8.9): the ones its operands name, and for each `reg`
+## operand one the compiler chooses, from the scratch registers the instruction set offers
+## (`isa`), skipping any the block names.
+struct AsmRegisters:
+    var operands: ast.Node*?[16]
+    var places: str[16]
+    var count: usize
+
+    static func choose(s: ast.Node*, arch: targets.Arch) -> AsmRegisters!:
+        var chosen = AsmRegisters(operands = [none, none, none, none, none, none, none, none, none, none, none, none, none, none, none, none],
+                                  places = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], count = 0)
+        let ints = isa.scratch_ints(arch)
+        let floats = isa.scratch_floats(arch)
+        var next_int: usize = 0
+        var next_float: usize = 0
+        var operand = s.right
+        while let o = operand:
+            if chosen.count >= 16:
+                return error(native_unsupported, "at most sixteen asm operands")
+            let named = check.asm_operand_place(o)
+            var place = named
+            if named == "reg":
+                let float = o.left != none and is_float_operand(o)
+                if float:
+                    if next_float >= floats.length:
+                        return error(native_unsupported, "too many `reg` float operands")
+                    place = floats[next_float]
+                    next_float += 1
+                else:
+                    while next_int < ints.length and block_names(s, ints[next_int]):
+                        next_int += 1
+                    if next_int >= ints.length:
+                        return error(native_unsupported, "too many `reg` operands")
+                    place = ints[next_int]
+                    next_int += 1
+            chosen.operands[chosen.count] = o
+            chosen.places[chosen.count] = place
+            chosen.count += 1
+            operand = o.next
+        return chosen
+
+    ## The register operand `o` uses.
+    func place_of(o: ast.Node*) -> str:
+        var i: usize = 0
+        while i < self.count:
+            if self.operands[i] == o:
+                return self.places[i]
+            i += 1
+        return ""
+
+    ## `line` with each `{name}` replaced by the register of the `reg` operand named `name`.
+    func substitute(line: str, out: buffer.Buffer*) -> !:
+        let b = line.bytes
+        var i: usize = 0
+        while i < b.length:
+            if b[i] == '{':
+                var j = i + 1
+                while j < b.length and b[j] != '}':
+                    j += 1
+                if j < b.length:
+                    try out.put(self.register_named((str)b[i + 1..<j]))
+                    i = j + 1
+                    continue
+            try out.put_byte(b[i])
+            i += 1
+
+    ## The register of the `reg` operand whose expression is the name `name`, spelled at the
+    ## operand's width; empty when there is none (the checker refused that already).
+    func register_named(name: str) -> str:
+        var i: usize = 0
+        while i < self.count:
+            if let o = self.operands[i]:
+                if let v = o.left:
+                    if v.kind == ast.Kind.name and v.text == name and check.asm_operand_place(o) == "reg":
+                        return self.places[i]
+            i += 1
+        return ""
+
+## Whether the block names register `place` for some operand of its own.
+func block_names(s: ast.Node*, place: str) -> bool:
+    var operand = s.right
+    while let o = operand:
+        if same_register(check.asm_operand_place(o), place):
+            return true
+        operand = o.next
+    return false
+
+## Two spellings of one register, with or without the `%` of the AT&T syntax.
+func same_register(a: str, b: str) -> bool:
+    let x = a.bytes[1..] if a.length > 0 and a.bytes[0] == '%' else a.bytes
+    let y = b.bytes[1..] if b.length > 0 and b.bytes[0] == '%' else b.bytes
+    return (str)x == (str)y
+
+## A `reg` operand of float type takes a float register.
+func is_float_operand(o: ast.Node*) -> bool:
+    let v = o.left else return false
+    let t = v.type_id
+    return t == types.f32_id or t == types.f64_id
+
+## The vector instruction of a lane-wise operator (§5.12), `copy` for one that has none.
+func vector_op(op: str, floats: bool) -> ir.Op:
+    if floats:
+        if op == "+":
+            return ir.Op.vadd
+        if op == "-":
+            return ir.Op.vsub
+        if op == "*":
+            return ir.Op.vmul
+        if op == "/":
+            return ir.Op.vdiv
+        return ir.Op.copy
+    if op == "+%":
+        return ir.Op.vaddw
+    if op == "-%":
+        return ir.Op.vsubw
+    if op == "*%":
+        return ir.Op.vmulw
+    if op == "+":
+        return ir.Op.vaddo
+    if op == "-":
+        return ir.Op.vsubo
+    if op == "+|":
+        return ir.Op.vadds
+    if op == "-|":
+        return ir.Op.vsubs
+    if op == "&":
+        return ir.Op.vand
+    if op == "|":
+        return ir.Op.vor
+    if op == "^":
+        return ir.Op.vxor
+    if op == "<<":
+        return ir.Op.vshl
+    if op == ">>":
+        return ir.Op.vshr
+    return ir.Op.copy
+
+## A jump table needs this many values at least, of which one entry in `table_density`
+## percent names one (the rest go to the fallback), and no more than `table_entries`.
+let table_cases: usize = 4
+let table_density: u64 = 40
+let table_entries: u64 = 4095
+
+## How many entries a jump table over the sorted `values` has, from the first to the
+## last, when they are enough and dense enough for one; none when a search does better.
+func dense_range(values: i64[]) -> usize?:
+    if values.length < table_cases:
+        return none
+    # sorted signed or unsigned, the last is above the first either way: the distance
+    # is the same in 64-bit arithmetic that wraps
+    let distance = (u64)values[values.length - 1] -% (u64)values[0]
+    if distance >= table_entries:
+        return none
+    let entries = distance + 1
+    if (u64)values.length * 100 < entries * table_density:
+        return none
+    return (usize)entries
+
+## The bits of the double `2^power`, or of `-2^power`: exact for every power up to 1023.
+func power_of_two_bits(power: u64, negative: bool) -> i64:
+    let bits = (1023 + power) << 52
+    return (i64)(bits | ((u64)1 << 63)) if negative else (i64)bits
+
+## Whether `value` is among `values`.
+func holds(values: i64[], value: i64) -> bool:
+    for v in values:
+        if v == value:
+            return true
+    return false
+
+## Sort the case values, as signed or unsigned numbers, carrying each one's target along.
+func sort_cases(values: i64[], branches: u32[], signed: bool):
+    var i: usize = 1
+    while i < values.length:
+        let value = values[i]
+        let target = branches[i]
+        var j = i
+        while j > 0 and (values[j - 1] > value if signed else (u64)values[j - 1] > (u64)value):
+            values[j] = values[j - 1]
+            branches[j] = branches[j - 1]
+            j -= 1
+        values[j] = value
+        branches[j] = target
+        i += 1
+
+## An instruction of class `l` at `x`'s source position, for the lowerer's rewrites.
+func stamped(x: ir.Instr, op: ir.Op, dst: u32, a: ir.Ref, b: ir.Ref) -> ir.Instr:
+    return ir.Instr(op = op, cls = ir.Class.l, dst = dst, a = a, b = b, extra = 0, extra2 = 0, line = x.line, file = x.file, scope = x.scope, site = x.site)

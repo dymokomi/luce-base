@@ -1,0 +1,231 @@
+#==============================================================================================
+#
+#   lower/function - The current function
+#
+#   DESCRIPTION:
+#       The function being lowered: its temporaries, slots, labels, and debug
+#       scopes, and the deferred blocks each scope's exits run.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: The current function ===============================================================
+
+    mutating func temp(cls: ir.Class) -> ir.Ref!:
+        return ir.temp_ref(try self.f.temp(cls))
+
+    mutating func new_slot(id: u32) -> u32!:
+        return try self.f.slot(self.size(id), self.align(id))
+
+    mutating func slot_address(slot: u32) -> ir.Ref!:
+        return try self.f.address_of(ir.slot_ref(slot))
+
+    ## The address `base + offset`.
+    mutating func offset_address(base: ir.Ref, offset: u64) -> ir.Ref!:
+        if offset == 0:
+            return base
+        return try self.f.binary(ir.Op.add, ir.Class.l, base, ir.const_ref((i64)offset))
+
+    ## Store a value at an address, by class or by blit.
+    mutating func store_to(address: ir.Ref, v: LowerValue) -> !:
+        if v.in_memory:
+            try self.f.copy_bytes(address, v.ref, self.size(v.type_id))
+            return
+        if v.type_id == types.unit_id or v.type_id == types.never_id:
+            return
+        try self.f.store(ir.store_op(self.scalar_size(v.type_id), self.is_float(v.type_id)), v.ref, address)
+
+    ## A value read from an address.
+    mutating func load_from(address: ir.Ref, id: u32) -> LowerValue!:
+        if self.kind(id) == types.Kind.atomic and self.is_scalar(self.elem(id)):
+            # a plain read of `@T` is a sequentially consistent load (§15.1)
+            let et = self.elem(id)
+            let cls = self.class_of(et)
+            let t = try self.f.temp(cls)
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = u32(self.scalar_size(et)), extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
+            return LowerValue(ref = ir.temp_ref(t), type_id = id, in_memory = false)
+        if not self.is_scalar(id):
+            return LowerValue(ref = address, type_id = id, in_memory = true)
+        if id == types.unit_id or id == types.never_id:
+            return LowerValue(ref = ir.const_ref(0), type_id = id, in_memory = false)
+        let op = ir.load_op(self.scalar_size(id), self.signed_of(id), self.is_float(id))
+        return LowerValue(ref = try self.f.load(op, self.class_of(id), address), type_id = id, in_memory = false)
+
+    ## A value copied into a fresh slot; its address.
+    mutating func materialise(v: LowerValue) -> ir.Ref!:
+        let s = try self.new_slot(v.type_id)
+        let a = try self.slot_address(s)
+        try self.store_to(a, v)
+        return a
+
+    ## A value as its address, materialising scalars.
+    mutating func address_of_value(v: LowerValue) -> ir.Ref!:
+        if v.in_memory:
+            return v.ref
+        return try self.materialise(v)
+
+    mutating func find_local(decl: ast.Node*) -> u32?:
+        var i = self.locals.count
+        while i > 0:
+            i -= 1
+            let l = self.locals.get(i)
+            if l.decl == decl:
+                return l.slot
+        return none
+
+    mutating func bind_local(decl: ast.Node*, id: u32) -> u32!:
+        let s = try self.new_slot(id)
+        try self.locals.push(LowerLocal(decl = decl, slot = s))
+        try self.describe_local(decl, s, id)
+        return s
+
+    ## The path of the file the function being lowered came from.
+    func source_of_current() -> str:
+        let f = self.current_fn else return self.src_file
+        return self.source_of(f)
+
+    ## The source a declaration came from, when the checker has it.
+    func source_unit_of(decl: ast.Node*) -> sources.Source?:
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if let m = decl.resolved:
+                if module.tree == m:
+                    return module.src
+            if module.src.path == self.src_file:
+                return module.src
+            i += 1
+        return none
+
+    ## The statement being lowered: what a trap in it names (§11.5), through the source's
+    ## position directives (§3.3).
+    mutating func set_position(n: ast.Node*):
+        self.at_text = 0
+        self.at_file = self.src_file
+        self.at_line = n.line
+        self.at_column = 1
+        if let f = self.current_fn:
+            if self.position_fn != f or self.position_file != self.src_file:
+                self.position_fn = f
+                self.position_file = self.src_file
+                self.position_source = self.source_unit_of(f)
+            if let s = self.position_source:
+                let (file, line, column) = s.mapped(n.line, s.statement_column(n.line))
+                # a directive's file is the source's own text, named as it says
+                self.at_file = file if s.directed(n.line) else self.under_root(file)
+                self.at_line = line
+                self.at_column = column
+
+        ## The unit's text of the current statement's position, `file:line:column`.
+        # the instructions emitted from here carry the position (`--release --debug`)
+        if self.f.symbols:
+            self.f.at_line = self.at_line
+            self.f.at_file = self.program_unit.file_index(self.at_file) catch failure:
+                discard(failure)
+                recover 0
+
+    ## `path` relative to `position_root` when under it.
+    func under_root(path: str) -> str:
+        let root = self.position_root
+        if root.length > 0 and path.length > root.length and (str)path.bytes[..<root.length] == root:
+            return (str)path.bytes[root.length..]
+        return path
+
+    mutating func position_ref() -> ir.Ref!:
+        if self.at_text == 0:
+            let room = try alloc u8[self.at_file.length + 24]
+            let text = try format(room, f"{self.at_file}:{self.at_line}:{self.at_column}")
+            self.at_text = (try self.program_unit.text(text)) + 1
+        return ir.text_ref(self.at_text - 1)
+
+    ## The last instruction emitted, a `bounds` or a checked operation, names the current
+    ## statement's position in `extra2` (index + 1) for the trap it may raise.
+    mutating func mark_position() -> !:
+        let p = try self.position_ref()
+        var last = self.f.instrs.get(self.f.instrs.count - 1)
+        last.extra2 = p.index + 1
+        self.f.instrs.set(self.f.instrs.count - 1, last)
+
+    ## The path of the file a declaration came from; a standard module's is its name.
+    func source_of(decl: ast.Node*) -> str:
+        let m = decl.resolved else return self.src_file
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if module.tree == m:
+                return module.src.path
+            i += 1
+        return self.src_file
+
+    ## `--debug`: a named local joins the frame's descriptor.
+    mutating func describe_local(decl: ast.Node*, slot: u32, id: u32) -> !:
+        if not (self.f.debug or self.f.symbols) or decl.text.length == 0 or decl.text == "_":
+            return
+        try self.f.locals.push(ir.LocalInfo(name = decl.text, slot = slot, kind = try self.c.spell(id), size = self.size(id), type_id = id, line = decl.line, parameter = decl.kind == ast.Kind.param, scope = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0, site = 0))
+
+    ## `--debug`: the address of this function's descriptor, `lbd_<name>`.
+    mutating func descriptor_ref() -> ir.Ref!:
+        self.scratch.clear()
+        try self.scratch.put("lbd_")
+        try self.scratch.put(self.f.name)
+        let name = try names.keep(&self.scratch)
+        return try self.f.address_of(ir.global_ref(name))
+
+    mutating func debug_call(name: str, start: u32, count: u32) -> !:
+        discard(try self.call_named(name, start, count, ir.Class.w, false, types.unit_id))
+
+    # mark: Scopes and cleanup =================================================================
+
+    mutating func push_scope(loop: bool, label: str, break_label: u32, continue_label: u32) -> !:
+        var scope: usize = 0
+        if self.f.debug or self.f.symbols:
+            scope = self.f.debug_scopes.count
+            let parent = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0
+            try self.f.debug_scopes.push(ir.DebugScope(parent = parent, start = self.f.instrs.count, end = 0, site = 0))
+            self.f.at_scope = u32(scope)
+        try self.scopes.push(LowerScope(debug_scope = scope, defer_base = self.defers.count, loop = loop, label = label, break_label = break_label, continue_label = continue_label, restore_alloc = false, alloc_slot = 0))
+
+    mutating func pop_scope():
+        let sc = self.scopes.get(self.scopes.count - 1)
+        if self.f.debug or self.f.symbols:
+            self.f.debug_scopes.items[sc.debug_scope].end = self.f.instrs.count
+            self.f.at_scope = u32(self.f.debug_scopes.get(sc.debug_scope).parent)
+        self.defers.count = sc.defer_base
+        self.scopes.count -= 1
+
+    mutating func unwind(index: usize, failing: bool) -> !:
+        let sc = self.scopes.get(index)
+        let end = self.defers.count if index + 1 >= self.scopes.count else self.scopes.get(index + 1).defer_base
+        var i = end
+        while i > sc.defer_base:
+            i -= 1
+            let d = self.defers.get(i)
+            if d.kind == ast.Kind.errdefer_ and not failing:
+                continue
+            # the deferred block, written out on this exit: it reads its names as they are now
+            let deferred = d.body else continue
+            try self.block(deferred)
+        if sc.restore_alloc:
+            let saved = try self.slot_address(sc.alloc_slot)
+            let target = try self.allocator_global()
+            try self.f.copy_bytes(target, saved, 16)
+
+    mutating func unwind_from(start: usize, failing: bool) -> !:
+        var i = self.scopes.count
+        while i > start:
+            i -= 1
+            try self.unwind(i, failing)
+
+    func loop_scope(label: str) -> usize:
+        var i = self.scopes.count
+        while i > 0:
+            i -= 1
+            let sc = self.scopes.get(i)
+            if sc.loop and (label.length == 0 or sc.label == label):
+                return i
+        return 0
+
+    ## The address of `memory.allocator`, the thread-local current allocator.
+    mutating func allocator_global() -> ir.Ref!:
+        let t = try self.temp(ir.Class.l)
+        try self.f.emit(ir.Op.addr_tls, ir.Class.l, t.index, ir.global_ref("lb_memory_allocator"), ir.none_ref(), 0)
+        return t
