@@ -1,4 +1,7 @@
-## Painting: more methods of `Canvas`, and one of `Tool`, each calling across fragments.
+## Painting: more methods of `Canvas`, and of `Tool`, each calling across fragments. A
+## fragment opens with imports of its own (§16.1).
+import strings
+
 extend Canvas:
     pub mutating func paint(tool: Tool) -> !:
         if tool.erases() and self.strokes == 0:
@@ -9,5 +12,9 @@ extend Canvas:
 extend Tool:
     pub func erases() -> bool:
         return self == Tool.eraser
+
+    ## Whether `name` spells an erasing tool exactly when this one erases.
+    pub func is_named(name: str) -> bool:
+        return strings.starts_with(name, "eraser") == self.erases()
 
 pub let nothing_to_erase: ErrorCode = ErrorCode.package(1)

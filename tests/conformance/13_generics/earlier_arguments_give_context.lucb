@@ -1,0 +1,29 @@
+## §13.1: arguments are inferred in parameter order, and once earlier arguments fix every
+## type parameter a later parameter names, that argument is checked against the
+## substituted type, so it takes context as a plain function's argument does:
+## `put(&box, .number(1))` reads `.number` as a case of `Item`, `none` as the optional.
+enum Item:
+    number(value: i64)
+    nothing
+
+struct Box[T]:
+    var value: T
+
+func put[T](this: Box[T]*, value: T):
+    this.value = value
+
+func pick[T](first: T, second: T, take_second: bool) -> T:
+    return second if take_second else first
+
+func describe(item: Item) -> i64:
+    match item:
+        .number(v): return v
+        .nothing: return -1
+
+pub func main(arguments: str[]) -> i32:
+    var box = Box[Item](value = Item.nothing)
+    put(&box, .number(4))
+    let kept: i64? = 3
+    let chosen = pick(kept, none, true)
+    print(f"{describe(box.value)} {describe(pick(Item.nothing, .number(9), true))} {chosen else -1}")
+    return 0

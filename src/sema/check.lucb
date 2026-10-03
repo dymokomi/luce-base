@@ -4602,9 +4602,10 @@ pub struct Checker:
             var want = f.args[i]
             if let t = template:
                 if self.mentions_param(want):
-                    # written type arguments give the parameter its type, so an argument is
-                    # checked against it (`count[i64?]([none, 2])`); otherwise it is inferred
-                    want = try self.substitute(want, t, inferred) if explicit != none else types.none_id
+                    # written type arguments, or earlier arguments that fixed every parameter
+                    # this one names, give it its type, so the argument is checked against it
+                    # (`count[i64?]([none, 2])`, `put(&box, .number(1))`); otherwise it is inferred
+                    want = try self.substitute(want, t, inferred) if explicit != none or self.all_inferred(want, t, inferred) else types.none_id
             if let a = slots[i]:
                 let v = a.left else return try self.fail(a, "empty argument")
                 var got = try self.check_expr(v, want)
@@ -4665,6 +4666,32 @@ pub struct Checker:
         discard(hint)
         discard(extra)
         return result
+
+    ## Is every generic parameter of `decl` that `id` mentions already bound in `inferred`?
+    ## An enclosing generic's parameter is not this call's to infer.
+    func all_inferred(id: u32, decl: ast.Node*, inferred: u32[]) -> bool:
+        let t = self.table.get(id)
+        match t.kind:
+            .param:
+                var i: usize = 0
+                var cursor = generic_params_of(decl)
+                while let g = cursor:
+                    if g.type_id == id:
+                        return i < inferred.length and inferred[i] != types.none_id
+                    i += 1
+                    cursor = g.next
+                return true
+            .pointer, .span, .array, .optional, .fallible, .atomic:
+                return self.all_inferred(t.elem, decl, inferred)
+            .tuple, .func_, .struct_, .enum_, .union_, .interface_:
+                var i: usize = 0
+                while i < t.args.length:
+                    if not self.all_inferred(t.args[i], decl, inferred):
+                        return false
+                    i += 1
+                return t.kind != types.Kind.func_ or self.all_inferred(t.elem, decl, inferred)
+            _:
+                return true
 
     ## Does `id` mention a generic parameter type anywhere?
     func mentions_param(id: u32) -> bool:

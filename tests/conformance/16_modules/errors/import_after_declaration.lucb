@@ -1,0 +1,9 @@
+# error: imports come before a file's declarations
+## §16.1: a file's imports come before its declarations.
+func one() -> i32:
+    return 1
+
+import io
+
+pub func main(arguments: str[]) -> i32:
+    return one() - 1

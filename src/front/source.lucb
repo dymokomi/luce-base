@@ -101,15 +101,21 @@ pub struct Source:
     pub func fragment_of(line: u32, column: u32) -> (str, u32, u32):
         if let paths = self.segment_paths:
             if let starts = self.segment_starts:
-                var k: usize = 0
-                var found: usize = 0
-                while k < self.segment_count:
-                    if starts[k] <= line:
-                        found = k
-                    k += 1
                 if self.segment_count > 0:
+                    let found = self.segment_of(line)
                     return (paths[found], line - starts[found] + 1, column)
         return (self.path, line, column)
+
+    ## Which fragment a line of an assembled module belongs to; 0 for one file.
+    pub func segment_of(line: u32) -> usize:
+        var found: usize = 0
+        if let starts = self.segment_starts:
+            var k: usize = 0
+            while k < self.segment_count:
+                if starts[k] <= line:
+                    found = k
+                k += 1
+        return found
 
     ## Spell this source's path, and its fragments', under `replacement` instead of the
     ## directory `prefix` (relative to it when `replacement` is empty): a standard module's

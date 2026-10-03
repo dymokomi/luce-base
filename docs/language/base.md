@@ -1228,7 +1228,7 @@ func largest[T: Comparable](left: T, right: T) -> T:
     return right
 ```
 
-Type parameters are declared in square brackets and inferred from argument types; when no argument mentions a parameter, it is written at the call, `decode[Header](bytes)`. A constraint is one or more interfaces joined by `&`. A generic body type-checks from its declaration and written constraints alone; it never accepts syntax that happens to work for one instantiation. Generic code is monomorphised: each instantiation is compiled separately, and the compiler reports every instantiation's origin and size and rejects an infinite chain.
+Type parameters are declared in square brackets and inferred from argument types, in parameter order, the first argument to bind a parameter fixing it; when no argument mentions a parameter, it is written at the call, `decode[Header](bytes)`. An argument whose parameter names only type parameters already fixed, by earlier arguments or written at the call, is checked against the substituted type and so takes context as any argument does: `put(&box, .number(1))` reads the case from `box`'s `Item`. A constraint is one or more interfaces joined by `&`. A generic body type-checks from its declaration and written constraints alone; it never accepts syntax that happens to work for one instantiation. Generic code is monomorphised: each instantiation is compiled separately, and the compiler reports every instantiation's origin and size and rejects an infinite chain.
 
 A type argument to a Base generic may be any type a Base module can spell: scalars, pointers, spans, tuples, structs, enums, unions, interface views, function types. It may not be a runtime-dependent type of full Luce. Inside Base this is automatic; at the boundary, §18.11 states it.
 
@@ -1372,7 +1372,7 @@ pub func main(arguments: str[]) -> i32!:
 
 ### 16.1 Files and modules
 
-One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. A larger module may be a directory of that name instead, whose `ORDER` file lists its source fragments in order; the fragments share the one module scope, a diagnostic or a trap names the fragment file, a type declared in one fragment may take methods in another under `extend` (§9.5), and nothing else about the module changes. There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
+One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. A larger module may be a directory of that name instead, whose `ORDER` file lists its source fragments in order; the fragments share the one module scope, a diagnostic or a trap names the fragment file, a type declared in one fragment may take methods in another under `extend` (§9.5), and nothing else about the module changes. A file's imports come before its declarations; each fragment may open with imports of its own, and a module is imported once across the fragments (§16.3). There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
 
 ### 16.2 The three module kinds
 

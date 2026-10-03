@@ -222,8 +222,17 @@ pub struct Parser:
     pub mutating func parse_module() -> ast.Node*!:
         let module = try self.node(ast.Kind.module, self.src.path)
         var tail: ast.Node*? = none
+        # the fragment whose declarations have begun: a file's or fragment's imports
+        # come before its declarations (§16.1)
+        var declaring: usize? = none
         self.skip_newlines()
         while not self.at(token.Kind.eof):
+            let fragment = self.src.segment_of(self.cur().line)
+            if self.at_kw("import") or self.at_kw("from"):
+                if declaring == fragment:
+                    discard(try self.fail("imports come before a file's declarations (§16.1)"))
+            else:
+                declaring = fragment
             let d = try self.parse_top_decl()
             ast.append(&module.body, &tail, d)
             self.skip_newlines()
