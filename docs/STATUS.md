@@ -37,7 +37,8 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 3.5 | no shadowing: a local or a parameter may not reuse a visible local, a parameter, an import, or a declaration of its module | verified | `03_source/errors` |
 | 5 | scalars, pointers, arrays, spans, text, tuples, optionals, atomics, aliases, records, packed and aligned layout, vectors | verified | conformance chapter 05; `align(N)` on a field honoured by every layout site through `types.field_alignment` |
 | 6–8 | bindings, constants, expressions, evaluation order, control flow, `defer`, `errdefer`, labels | verified | chapters 06–08; the C backend evaluates a receiver before its arguments and every argument in order |
-| 9 | functions, defaults, `fmt`, multiple results, function values, lambdas without capture, attributes, naked functions, inline `asm` | verified | chapter 09, `tests/programs/asm` |
+| 9 | functions, defaults, multiple results, function values, lambdas without capture, attributes, naked functions, inline `asm` | verified | chapter 09, `tests/programs/asm` |
+| 5.5, 9.1 | a formatted argument, as `fmt` or as bytes | limited | formatted before the call, not lazily by a generated function: into a 1024-byte buffer on the stack that moves to the heap when the text outgrows it and is freed once the call returns or an exit leaves it (through C, when the function returns or the expression runs again); no length is cut. `04_literals/formatted_long_arguments` |
 | 10 | structs, enums with payloads, unions and their punning | limited | chapter 10; a union member written only through a pointer taken earlier is not seen by the seed's punning (`# oracle: none` where it matters) |
 | 11 | errors, `try`, `catch`, `recover`, `assert`, traps | verified | chapter 11; an assertion's report carries a condition of any length |
 | 12 | allocators, `with`, `new … in`, `Arena`, `PageAllocator`, `FixedBuffer`, `CAllocator` | verified | chapter 12, the robustness suite; `FixedBuffer` aligns addresses, not offsets |
@@ -114,6 +115,8 @@ so the C compilers a release meets have compiled the emitted C before the releas
 
 - The seed's interpreter cannot run `asm`; naked functions and module-level `asm` are
   proved by the two backends agreeing (`# oracle: none`).
+- The seed's checker refuses `else` on a fallible operand (§11.1), which this compiler
+  takes; the conformance suite spells those fallbacks with `catch`.
 - `var views: Interface[N]` is rejected by both compilers: a view has no zero value.
 - `allocation_sites()` is a view of the diagnostic record; read it while no other thread
   allocates. The record's updates are guarded.

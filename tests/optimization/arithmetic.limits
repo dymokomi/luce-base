@@ -14,9 +14,11 @@
 # lowered to what the passes reach.
 # 0.27: small leaf functions are expanded again once optimised, and the stores, blocks
 # and jumps that leaves behind are tidied: ir 28→25, calls 7→5, asm-arm64 112→99.
-ir 25
+# 0.35.1: a format buffer records whether it grows, so a formatted argument is never cut;
+# the print's buffer stores that it does not: ir 25→26, stores 3→4.
+ir 26
 loads 2
-stores 3
+stores 4
 calls 5
 asm-arm64 99
 asm-x86_64 106

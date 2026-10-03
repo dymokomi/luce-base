@@ -445,6 +445,7 @@ extend Lowerer:
 
     ## Leave the function: mark success when fallible, run cleanup, return the result slot.
     mutating func leave(failing: bool) -> !:
+        try self.release_grown(0)
         if self.f.has_result:
             let r = try self.slot_address(self.result_slot)
             if self.fn_fallible():
@@ -492,6 +493,7 @@ extend Lowerer:
         try self.f.store(ir.Op.storew, c.ref, err)
         try self.f.copy_bytes(try self.offset_address(err, 8), m.ref, 16)
         if self.failure_target != 0:
+            try self.release_grown(self.failure_grown)
             try self.unwind_from(self.failure_scope, true)
             try self.f.jump(self.failure_target)
         else:
@@ -504,6 +506,7 @@ extend Lowerer:
         discard(source_type)
         if self.failure_target != 0:
             try self.f.copy_bytes(try self.slot_address(self.failure_slot), try self.failure_address(), 24)
+            try self.release_grown(self.failure_grown)
             try self.unwind_from(self.failure_scope, true)
             try self.f.jump(self.failure_target)
             return

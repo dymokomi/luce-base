@@ -1,0 +1,48 @@
+## §4 formatted strings, §5.5 `fmt`: a formatted argument longer than any format buffer
+## the compiler keeps reaches the call whole, as bytes and as `fmt`, however often the call
+## runs and whether or not a later argument fails.
+from io import Writer
+
+let refused: ErrorCode = ErrorCode.package(9)
+
+struct Counter: Writer:
+    var bytes: usize
+
+    mutating func write(data: const u8[]) -> usize!:
+        self.bytes += data.length
+        return data.length
+
+func letters(room: u8[], count: usize) -> str:
+    for i in 0..<count:
+        room[i] = 97 + (u8)(i % 26)
+    return (str)room[..<count]
+
+func measured(text: fmt) -> usize:
+    var room: u8[8192] = ---
+    let s = format(room, text) catch:
+        recover ""
+    return s.length
+
+func joined(bytes: const u8[], extra: usize) -> usize!:
+    return bytes.length + extra
+
+func refuse() -> usize!:
+    error(refused, "refused")
+
+func caught(text: str) -> usize:
+    return joined(f"{text}{text}", try refuse()) catch:
+        recover 1
+
+pub func main(arguments: str[]) -> i32!:
+    var room: u8[3000] = ---
+    let text = letters(room, 2600)
+    var counter = Counter(bytes = 0)
+    var total: usize = 0
+    for i in 0..<100:
+        discard(i)
+        discard(try counter.write(f"[{text}]"))
+        total += measured(f"<{text}|{text}>")
+        total += try joined(f"{text}", 2)
+        total += caught(text)
+    print(f"{counter.bytes} {total}")
+    return 0

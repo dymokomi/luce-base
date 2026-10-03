@@ -38,6 +38,7 @@ extend Lowerer:
     ## arguments per the declaration (names, defaults), classifies the result.
     mutating func call_through(callee: ir.Ref, fn: u32, decl: ast.Node*?, args: ast.Node*?, receiver: ir.Ref, has_receiver: bool, template: ast.Node*?, template_args: u32[]) -> LowerValue!:
         let f = self.c.table.get(fn)
+        let grown_before = self.grown.count
         # the arguments are evaluated first, into a list of their own, because evaluating
         # one may lower calls whose arguments would otherwise interleave with these
         var pending = try list.List[ir.Arg].create(8)
@@ -144,6 +145,9 @@ extend Lowerer:
         if info.has_result and info.result_size == 0:
             dst = try self.f.temp(info.result_cls)
         try self.f.emit(ir.Op.call, info.result_cls, dst, callee, ir.none_ref(), u32(self.f.calls.count - 1))
+        # the formatted arguments' text, read by the call, is done with
+        try self.release_grown(grown_before)
+        self.grown.count = grown_before
         discard(template)
         discard(template_args)
         var answered = LowerValue(ref = ir.const_ref(0), type_id = result, in_memory = false)
@@ -190,6 +194,10 @@ extend Lowerer:
     ## An argument: its parameter's type, with text passed as bytes where wanted.
     mutating func argument_value(v: ast.Node*, want: u32) -> LowerValue!:
         let have = try self.ty(v)
+        if v.kind == ast.Kind.formatted:
+            # an f"..." argument, as bytes or `fmt`: its text may be any length (§5.5)
+            let text = try self.formatted_value(v, true)
+            return LowerValue(ref = text.ref, type_id = want if want != types.none_id and self.is_span(want) else text.type_id, in_memory = true)
         if want != types.none_id and self.is_span(want) and self.elem(want) == types.u8_id and (have == types.str_id or have == types.fmt_id):
             let text = try self.expr(v)
             return LowerValue(ref = text.ref, type_id = want, in_memory = true)

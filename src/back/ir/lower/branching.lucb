@@ -90,13 +90,16 @@ extend Lowerer:
         let saved_target = self.failure_target
         let saved_error = self.failure_slot
         let saved_failure_scope = self.failure_scope
+        let saved_failure_grown = self.failure_grown
         self.failure_target = handler
         self.failure_slot = error_slot
         self.failure_scope = self.scopes.count
+        self.failure_grown = self.grown.count
         let v = try self.value(l, result)
         self.failure_target = saved_target
         self.failure_slot = saved_error
         self.failure_scope = saved_failure_scope
+        self.failure_grown = saved_failure_grown
         if has_value:
             try self.store_to(try self.slot_address(slot), v)
         try self.f.jump(done)

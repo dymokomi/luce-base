@@ -593,9 +593,20 @@ typedef struct lb_fmtbuf {
     char* data;
     size_t cap;
     size_t used;
+    // what text past `cap` does: cut (LB_FMT_FIXED), move to the heap (LB_FMT_GROWS), or
+    // grow on the heap it is on (LB_FMT_GROWN), as core.FormatBuffer
+    size_t growth;
 } lb_fmtbuf;
 
+#define LB_FMT_FIXED 0
+#define LB_FMT_GROWS 1
+#define LB_FMT_GROWN 2
+
 int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n);
+// a growing buffer over `cap` bytes at `data`, after freeing what it last took from the heap
+void lb_fmtbuf_begin(lb_fmtbuf* b, char* data, size_t cap);
+// free what a growing buffer took from the heap; the cleanup of a function's buffers
+void lb_fmtbuf_release(lb_fmtbuf* b);
 int lb_fmtbuf_i64(lb_fmtbuf* b, int64_t v);
 int lb_fmtbuf_u64(lb_fmtbuf* b, uint64_t v);
 int lb_fmtbuf_bool(lb_fmtbuf* b, bool v);

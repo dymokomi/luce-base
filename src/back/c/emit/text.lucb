@@ -271,13 +271,10 @@ extend Emitter:
     ## A formatted string as an `lb_str` in one of the function's format buffers: the
     ## buffer is declared at the function's top (`function`), so the text outlives the
     ## expression, as the value it is passed to may read it after the expression ends.
+    ## The buffer grows onto the heap past its 1024 bytes; what it took is freed when the
+    ## expression is written again or the function returns.
     mutating func formatted_value(f: ast.Node*) -> !:
-        let n = try self.format_buffer(f)
-        try self.put("({ ")
-        try self.put_tmp("ff", n)
-        try self.put(" = (lb_fmtbuf){ ")
-        try self.put_tmp("fb", n)
-        try self.put(", 1024, 0 }; ")
+        let n = try self.growing_format_buffer(f)
         try self.pieces(n, "ff", f)
         try self.put("lb_fmtbuf_finish(&")
         try self.put_tmp("ff", n)
@@ -294,20 +291,27 @@ extend Emitter:
         try self.formats.push(n)
         return n
 
-    ## A formatted string as `lb_cspan` for a `Writer`, in a format buffer of the function.
+    ## A formatted string as `lb_cspan` for a `Writer`, in a format buffer of the function
+    ## that grows as `formatted_value`'s.
     mutating func formatted_bytes(f: ast.Node*) -> !:
-        let n = try self.format_buffer(f)
-        try self.put("({ ")
-        try self.put_tmp("ff", n)
-        try self.put(" = (lb_fmtbuf){ ")
-        try self.put_tmp("fb", n)
-        try self.put(", 1024, 0 }; ")
+        let n = try self.growing_format_buffer(f)
         try self.pieces(n, "ff", f)
         try self.put("(lb_cspan){ (void*)(")
         try self.put_tmp("ff", n)
         try self.put(".data), ")
         try self.put_tmp("ff", n)
         try self.put(".used }; })")
+
+    ## Open a statement expression that starts a growing format buffer of the function;
+    ## the buffer's number.
+    mutating func growing_format_buffer(f: ast.Node*) -> u32!:
+        let n = try self.format_buffer(f)
+        try self.put("({ lb_fmtbuf_begin(&")
+        try self.put_tmp("ff", n)
+        try self.put(", ")
+        try self.put_tmp("fb", n)
+        try self.put(", 1024); ")
+        return n
 
     ## A formatted string written piece by piece to the C stream `stream`, so no buffer
     ## bounds it: text and `str` fields go as they are, and each other field is displayed

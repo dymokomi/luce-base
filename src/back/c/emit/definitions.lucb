@@ -366,7 +366,8 @@ extend Emitter:
             try self.put_tmp("fb", self.formats.get(k))
             try self.put("[1024]; lb_fmtbuf ")
             try self.put_tmp("ff", self.formats.get(k))
-            try self.put(";")
+            # a buffer that grew onto the heap is freed when the function returns
+            try self.put(" __attribute__((cleanup(lb_fmtbuf_release))) = { 0 };")
             k += 1
         k = 0
         while k < self.arrays.count:

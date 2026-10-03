@@ -44,6 +44,8 @@ let thread_locals_function: str = "lb_init_thread_locals"
 ## The largest `memcpy` of a known size lowered to the copy itself (`small_copy`): the
 ## generators inline a block copy up to this size.
 let small_copy_limit: u64 = 64
+## The size of a `core.FormatBuffer`: its data, capacity, used count and growth.
+let format_buffer_size: u32 = 32
 
 type NodeRef = ast.Node*
 type MaybeNode = ast.Node*?
@@ -141,6 +143,13 @@ pub struct Lowerer:
     var failure_target: u32 = 0
     var failure_slot: u32 = 0
     var failure_scope: usize = 0
+    ## The growing format buffers (`core.format_grows`) of the calls whose arguments are
+    ## being lowered, by slot: each call releases its own once it returns, and an exit
+    ## taken from inside the arguments releases those it leaves behind.
+    var grown: list.List[u32]
+    ## How many of `grown` were there when the innermost `catch` began: a failure caught
+    ## there releases only those after.
+    var failure_grown: usize = 0
     var match_slot: u32
     var match_type: u32
     var src_file: str
@@ -183,7 +192,8 @@ pub struct Lowerer:
                        locals = try list.List[LowerLocal].create(64), scopes = try list.List[exits.Scope].create(32),
                        defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
                        catch_done = 0, catch_scope = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
-                       match_type = 0, src_file = entry.text, at_file = entry.text, at_line = 0, at_column = 0, at_text = 0, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0)
+                       match_type = 0, src_file = entry.text, at_file = entry.text, at_line = 0, at_column = 0, at_text = 0, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0,
+                       grown = try list.List[u32].create(8))
 
     ## Stop lowering with a diagnostic naming the file and line of `node`, and its text when
     ## it has one.

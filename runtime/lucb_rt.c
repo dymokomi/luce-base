@@ -24,6 +24,48 @@
 #include <stdlib.h>
 #include <string.h>
 
+// make room in a growing buffer for `need` bytes and a NUL, at least doubling it
+static bool lb_fmtbuf_grow(lb_fmtbuf* b, size_t need) {
+    size_t size = b->cap * 2;
+    if (size <= need) {
+        size = need + 1;
+    }
+    char* data;
+    if (b->growth == LB_FMT_GROWN) {
+        data = realloc(b->data, size);
+        if (data == NULL) {
+            return false;
+        }
+    } else {
+        data = malloc(size);
+        if (data == NULL) {
+            return false;
+        }
+        memcpy(data, b->data, b->used);
+        b->growth = LB_FMT_GROWN;
+    }
+    b->data = data;
+    b->cap = size;
+    return true;
+}
+
+void lb_fmtbuf_release(lb_fmtbuf* b) {
+    if (b->growth == LB_FMT_GROWN) {
+        free(b->data);
+        b->growth = LB_FMT_GROWS;
+        b->cap = 0;
+        b->used = 0;
+    }
+}
+
+void lb_fmtbuf_begin(lb_fmtbuf* b, char* data, size_t cap) {
+    lb_fmtbuf_release(b);
+    b->data = data;
+    b->cap = cap;
+    b->used = 0;
+    b->growth = LB_FMT_GROWS;
+}
+
 int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n) {
     if (b == NULL) {
         return 1;
@@ -31,7 +73,7 @@ int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n) {
     if (b->used > b->cap) {
         return 1;
     }
-    if (n > b->cap - b->used) {
+    if (n > b->cap - b->used && !(b->growth != LB_FMT_FIXED && lb_fmtbuf_grow(b, b->used + n))) {
         // what fits is kept; over capacity, `format` fails and `lb_fmtbuf_finish` marks the cut
         if (s != NULL && b->cap > b->used) {
             memcpy(b->data + b->used, s, b->cap - b->used);

@@ -209,6 +209,8 @@ extend Lowerer:
         self.f = try ir.Function.create(name)
         self.pool_count = 0
         self.pool_used = 0
+        self.grown.count = 0
+        self.failure_grown = 0
         # a function taking frame storage keeps its format buffers in its fixed frame: the
         # dynamic area's levels are set from the frame and would cut the storage short
         self.pooling = true

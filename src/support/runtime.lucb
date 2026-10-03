@@ -608,9 +608,20 @@ typedef struct lb_fmtbuf {
     char* data;
     size_t cap;
     size_t used;
+    // what text past `cap` does: cut (LB_FMT_FIXED), move to the heap (LB_FMT_GROWS), or
+    // grow on the heap it is on (LB_FMT_GROWN), as core.FormatBuffer
+    size_t growth;
 } lb_fmtbuf;
 
+#define LB_FMT_FIXED 0
+#define LB_FMT_GROWS 1
+#define LB_FMT_GROWN 2
+
 int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n);
+// a growing buffer over `cap` bytes at `data`, after freeing what it last took from the heap
+void lb_fmtbuf_begin(lb_fmtbuf* b, char* data, size_t cap);
+// free what a growing buffer took from the heap; the cleanup of a function's buffers
+void lb_fmtbuf_release(lb_fmtbuf* b);
 int lb_fmtbuf_i64(lb_fmtbuf* b, int64_t v);
 int lb_fmtbuf_u64(lb_fmtbuf* b, uint64_t v);
 int lb_fmtbuf_bool(lb_fmtbuf* b, bool v);
@@ -703,6 +714,48 @@ pub let source: str = r"""//====================================================
 #include <stdlib.h>
 #include <string.h>
 
+// make room in a growing buffer for `need` bytes and a NUL, at least doubling it
+static bool lb_fmtbuf_grow(lb_fmtbuf* b, size_t need) {
+    size_t size = b->cap * 2;
+    if (size <= need) {
+        size = need + 1;
+    }
+    char* data;
+    if (b->growth == LB_FMT_GROWN) {
+        data = realloc(b->data, size);
+        if (data == NULL) {
+            return false;
+        }
+    } else {
+        data = malloc(size);
+        if (data == NULL) {
+            return false;
+        }
+        memcpy(data, b->data, b->used);
+        b->growth = LB_FMT_GROWN;
+    }
+    b->data = data;
+    b->cap = size;
+    return true;
+}
+
+void lb_fmtbuf_release(lb_fmtbuf* b) {
+    if (b->growth == LB_FMT_GROWN) {
+        free(b->data);
+        b->growth = LB_FMT_GROWS;
+        b->cap = 0;
+        b->used = 0;
+    }
+}
+
+void lb_fmtbuf_begin(lb_fmtbuf* b, char* data, size_t cap) {
+    lb_fmtbuf_release(b);
+    b->data = data;
+    b->cap = cap;
+    b->used = 0;
+    b->growth = LB_FMT_GROWS;
+}
+
 int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n) {
     if (b == NULL) {
         return 1;
@@ -710,7 +763,7 @@ int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n) {
     if (b->used > b->cap) {
         return 1;
     }
-    if (n > b->cap - b->used) {
+    if (n > b->cap - b->used && !(b->growth != LB_FMT_FIXED && lb_fmtbuf_grow(b, b->used + n))) {
         // what fits is kept; over capacity, `format` fails and `lb_fmtbuf_finish` marks the cut
         if (s != NULL && b->cap > b->used) {
             memcpy(b->data + b->used, s, b->cap - b->used);

@@ -41,6 +41,8 @@ func write(descriptor: i32, buffer: const void*, count: usize) -> isize:
 
 extern func c_exit as "exit"(code: i32) -> never
 extern func malloc(size: usize) -> void*?
+extern func realloc(block: void*?, size: usize) -> void*?
+extern func c_free as "free"(block: void*?)
 extern func memcpy(target: void*, source: const void*, count: usize) -> void*
 extern func memcmp(a: const void*, b: const void*, count: usize) -> i32
 extern func strlen(text: c.str) -> usize
@@ -558,13 +560,25 @@ pub struct FormatBuffer:
     pub var capacity: usize
     ## The number of bytes used.
     pub var used: usize
+    ## What text past the capacity does: `format_fixed`, it is cut; `format_grows`, the
+    ## text moves to the heap and goes on there; `format_grown`, it is on the heap.
+    pub var growth: usize = 0
+
+## A buffer of the caller's, as `format` fills: text past its capacity is cut.
+pub let format_fixed: usize = 0
+## A buffer the compiler made for a formatted argument (§5.5): it starts on the stack, moves
+## to the heap when the text outgrows it, and is released once the call it feeds returns.
+pub let format_grows: usize = 1
+## A growing buffer whose text is on the heap, which `format_release` frees.
+pub let format_grown: usize = 2
 
 ## Append `count` bytes; 1 when they do not fit: the bytes that fit are kept, and the buffer
-## is then over capacity, which `format` reports and `format_finish` marks.
+## is then over capacity, which `format` reports and `format_finish` marks. A growing
+## buffer makes room instead, and fails only when the heap has none.
 pub func format_put(b: FormatBuffer*, text: const void*?, count: usize) -> i32:
     if b.used > b.capacity:
         return 1
-    if count > b.capacity - b.used:
+    if count > b.capacity - b.used and not (b.growth != format_fixed and format_grow(b, b.used + count)):
         if let source = text:
             if b.capacity > b.used:
                 discard(memcpy(&b.data[b.used], source, b.capacity - b.used))
@@ -575,6 +589,31 @@ pub func format_put(b: FormatBuffer*, text: const void*?, count: usize) -> i32:
             discard(memcpy(&b.data[b.used], source, count))
     b.used += count
     return 0
+
+## Make room in a growing buffer for `need` bytes and the NUL `format_finish` puts after
+## them, at least doubling it; false when the heap has no room.
+func format_grow(b: FormatBuffer*, need: usize) -> bool:
+    var size = b.capacity * 2
+    if size <= need:
+        size = need + 1
+    if b.growth == format_grown:
+        let moved = realloc(b.data, size) else return false
+        b.data = (u8*)moved
+    else:
+        let fresh = malloc(size) else return false
+        discard(memcpy(fresh, b.data, b.used))
+        b.data = (u8*)fresh
+        b.growth = format_grown
+    b.capacity = size
+    return true
+
+## Free what a growing buffer took from the heap; its text is gone with it.
+pub func format_release(b: FormatBuffer*):
+    if b.growth == format_grown:
+        c_free(b.data)
+        b.growth = format_grows
+        b.capacity = 0
+        b.used = 0
 
 ## Append the decimal `value` to `b`; the bytes written.
 pub func format_u64(b: FormatBuffer*, value: u64) -> i32:
@@ -745,14 +784,13 @@ pub func raw_arguments(count: i32, vector: c.str*) -> c.str[]:
 extern func GetCommandLineW() -> u16*
 extern func CommandLineToArgvW(command: u16*, count: i32*) -> u16**?
 extern func LocalFree(block: void*) -> void*?
-extern func release_argument_block as "free"(block: void*)
 extern func atexit(callback: func() -> unit) -> i32
 var windows_argument_vector: c.str[]
 
 func free_windows_arguments():
     for text in windows_argument_vector:
-        release_argument_block((void*)text)
-    release_argument_block((void*)windows_argument_vector.data)
+        c_free((void*)text)
+    c_free((void*)windows_argument_vector.data)
 
 ## The wide command line preserves names the Windows ANSI code page cannot encode.
 func windows_arguments() -> c.str[]:
