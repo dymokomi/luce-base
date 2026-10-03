@@ -19,6 +19,7 @@
 
 import back.native.arm64.object
 import back.native.dwarf
+import back.native.assembly
 import back.native.frame
 import back.native.regalloc
 import back.native.incoming
@@ -48,7 +49,8 @@ struct ArgPlacement:
 pub struct Generator:
     ## `--debug` or `--release --debug`: the DWARF emitter, else none.
     pub var dw: dwarf.Emitter*?
-    var out: buffer.Buffer
+    ## The assembly text being written.
+    var writer: assembly.Text
     ## The next of the frame's `crossings` not yet passed, in the function being emitted.
     var crossing: usize = 0
     ## What precedes a C symbol in this target's assembler: `_` on macOS (§19.5).
@@ -107,48 +109,28 @@ pub struct Generator:
 
     ## A generator for `program_unit`, targeting `os` with the given C symbol prefix.
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
-        return Generator(symbol_prefix = symbol_prefix, object_format = object.Format(os, symbol_prefix), fp16 = os == build_target.Os.macos, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+        return Generator(symbol_prefix = symbol_prefix, object_format = object.Format(os, symbol_prefix), fp16 = os == build_target.Os.macos, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
-    mutating func put(text: str) -> !:
-        try self.out.put(text)
-
-    mutating func line(text: str) -> !:
-        try self.out.put("\n    ")
-        try self.out.put(text)
-
-    mutating func put_u64(v: u64) -> !:
-        try self.out.put_u64(v)
-
-    mutating func put_i64(v: i64) -> !:
-        try self.out.put_i64(v)
-
     ## `_name`
     mutating func symbol(name: str) -> !:
-        try self.out.put(self.symbol_prefix)
-        try self.out.put(name)
+        try self.writer.out.put(self.symbol_prefix)
+        try self.writer.out.put(name)
 
     mutating func label_name(n: u32) -> !:
-        try self.out.put(self.object_format.local_label)
-        try self.function_label()
-        try self.out.put("_")
-        try self.out.put_u64((u64)n)
-
-    ## What names the function's own labels: its index, or with `split` its tag.
-    mutating func function_label() -> !:
-        if self.split:
-            try stable_names.put_tag(&self.out, self.function_tags[self.index])
-        else:
-            try self.out.put_u64((u64)self.index)
+        try self.writer.out.put(self.object_format.local_label)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try self.writer.out.put("_")
+        try self.writer.out.put_u64((u64)n)
 
     mutating func text_label(n: u32) -> !:
-        try self.out.put(self.texts_prefix())
+        try self.writer.out.put(self.texts_prefix())
         if self.split:
-            try stable_names.put_tag(&self.out, self.text_tags[(usize)n])
+            try stable_names.put_tag(&self.writer.out, self.text_tags[(usize)n])
         else:
-            try self.out.put_u64((u64)n)
+            try self.writer.out.put_u64((u64)n)
 
     ## The text literal's label as text, for an address the format spells.
     func text_label_name(n: u32) -> str!:
@@ -169,7 +151,7 @@ pub struct Generator:
 
     ## The assembly emitted so far.
     pub func text() -> str:
-        return self.out.view()
+        return self.writer.out.view()
 
     # -- registers and immediates ---------------------------------------------------------
 
@@ -177,29 +159,29 @@ pub struct Generator:
     mutating func load_immediate(reg: str, value: i64) -> !:
         let bits = (u64)value
         if bits == 0:
-            try self.line("mov ")
-            try self.put(reg)
-            try self.put(", #0")
+            try self.writer.line("mov ")
+            try self.writer.put(reg)
+            try self.writer.put(", #0")
             return
         # a negative number is shorter with movn
         if value < 0 and value >= -65536:
-            try self.line("movn ")
-            try self.put(reg)
-            try self.put(", #")
-            try self.put_u64((u64)(-1 - value))
+            try self.writer.line("movn ")
+            try self.writer.put(reg)
+            try self.writer.put(", #")
+            try self.writer.put_u64((u64)(-1 - value))
             return
         var first = true
         var shift: u64 = 0
         while shift < 64:
             let piece = (bits >> shift) & 65535
             if piece != 0 or (first and shift == 48):
-                try self.line("movz " if first else "movk ")
-                try self.put(reg)
-                try self.put(", #")
-                try self.put_u64(piece)
+                try self.writer.line("movz " if first else "movk ")
+                try self.writer.put(reg)
+                try self.writer.put(", #")
+                try self.writer.put_u64(piece)
                 if shift > 0:
-                    try self.put(", lsl #")
-                    try self.put_u64(shift)
+                    try self.writer.put(", lsl #")
+                    try self.writer.put_u64(shift)
                 first = false
             shift += 16
 
@@ -213,9 +195,9 @@ pub struct Generator:
         return n % width == 0 and n // width <= 4095
 
     mutating func frame_operand(offset: u64) -> !:
-        try self.put("[x28, #" if self.frame_base else "[sp, #")
-        try self.put_u64(self.fr.size - offset + self.frame_bias())
-        try self.put("]")
+        try self.writer.put("[x28, #" if self.frame_base else "[sp, #")
+        try self.writer.put_u64(self.fr.size - offset + self.frame_bias())
+        try self.writer.put("]")
 
     ## How far below the frame's bottom sp is: none through x28 (`frame_base`).
     func frame_bias() -> u64:
@@ -263,21 +245,21 @@ pub struct Generator:
             let lc = ir.load_class(n.op)
             let d = self.target(n.dst, lc, load_register(n.op))
             let b = try self.source(base, ir.Class.l, "x10")
-            try self.line4(load_mnemonic(n.op), " ", d, ", [")
-            try self.put(b)
-            try self.put(", #")
-            try self.put_i64(offset)
-            try self.put("]")
+            try self.writer.line4(load_mnemonic(n.op), " ", d, ", [")
+            try self.writer.put(b)
+            try self.writer.put(", #")
+            try self.writer.put_i64(offset)
+            try self.writer.put("]")
             try self.finish(n.dst, lc, d)
             return
         let cls = ir.store_class(n.op)
         let v = try self.source(n.a, cls, self.reg(cls, 0))
         let b = try self.source(base, ir.Class.l, "x10")
-        try self.line4(store_mnemonic(n.op), " ", v, ", [")
-        try self.put(b)
-        try self.put(", #")
-        try self.put_i64(offset)
-        try self.put("]")
+        try self.writer.line4(store_mnemonic(n.op), " ", v, ", [")
+        try self.writer.put(b)
+        try self.writer.put(", #")
+        try self.writer.put_i64(offset)
+        try self.writer.put("]")
 
     ## Emit instructions `at` to `at + 2` as one scaled-index access when they are one
     ## (`selection.scaled_access`); whether they were.
@@ -287,7 +269,7 @@ pub struct Generator:
         if self.fr.is_rematerialised(self.f.instrs.get(at).dst) or self.fr.is_rematerialised(self.f.instrs.get(at + 1).dst):
             return false
         if let dw = self.dw:
-            try dw.mark(&self.out, self.f, &self.fr, index, at + 2)
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, at + 2)
         try self.indexed_access(self.f.instrs.get(at + 2), base, scaled_index, shift)
         return true
 
@@ -298,10 +280,10 @@ pub struct Generator:
         let o = try self.source(other, n.cls, self.reg(n.cls, 0))
         let x = try self.source(shifted, n.cls, self.reg(n.cls, 1))
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-        try self.line5("add ", d, ", ", o, ", ")
-        try self.put(x)
-        try self.put(", lsl #")
-        try self.put_u64((u64)shift)
+        try self.writer.line5("add ", d, ", ", o, ", ")
+        try self.writer.put(x)
+        try self.writer.put(", lsl #")
+        try self.writer.put_u64((u64)shift)
         try self.finish(n.dst, n.cls, d)
 
     ## Emit instructions `at` and `at + 1` as one register-offset access when they are one
@@ -312,7 +294,7 @@ pub struct Generator:
         if self.fr.is_rematerialised(self.f.instrs.get(at).dst):
             return false
         if let dw = self.dw:
-            try dw.mark(&self.out, self.f, &self.fr, index, at + 1)
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, at + 1)
         try self.indexed_access(self.f.instrs.get(at + 1), base, offset, 0)
         return true
 
@@ -324,54 +306,54 @@ pub struct Generator:
         if (u8)n.op <= (u8)ir.Op.loadd:
             let lc = ir.load_class(n.op)
             let d = self.target(n.dst, lc, load_register(n.op))
-            try self.line4(load_mnemonic(n.op), " ", d, ", [")
-            try self.put(b)
-            try self.put(", ")
-            try self.put(x)
+            try self.writer.line4(load_mnemonic(n.op), " ", d, ", [")
+            try self.writer.put(b)
+            try self.writer.put(", ")
+            try self.writer.put(x)
             if shift != 0:
-                try self.put(", lsl #")
-                try self.put_u64((u64)shift)
-            try self.put("]")
+                try self.writer.put(", lsl #")
+                try self.writer.put_u64((u64)shift)
+            try self.writer.put("]")
             try self.finish(n.dst, lc, d)
             return
         let cls = ir.store_class(n.op)
         let v = try self.source(n.a, cls, self.reg(cls, 0))
-        try self.line4(store_mnemonic(n.op), " ", v, ", [")
-        try self.put(b)
-        try self.put(", ")
-        try self.put(x)
+        try self.writer.line4(store_mnemonic(n.op), " ", v, ", [")
+        try self.writer.put(b)
+        try self.writer.put(", ")
+        try self.writer.put(x)
         if shift != 0:
-            try self.put(", lsl #")
-            try self.put_u64((u64)shift)
-        try self.put("]")
+            try self.writer.put(", lsl #")
+            try self.writer.put_u64((u64)shift)
+        try self.writer.put("]")
 
     ## `mnemonic reg` to or from the frame `below` bytes under x29, `width` bytes wide:
     ## through sp when the scaled offset reaches, else x29 with an unscaled one, else an
     ## address in x16.
     mutating func frame_access(mnemonic: str, reg: str, below: u64, width: u32) -> !:
         if self.frame_fits(below, (u64)width):
-            try self.line4(mnemonic, " ", reg, ", ")
+            try self.writer.line4(mnemonic, " ", reg, ", ")
             try self.frame_operand(below)
         elif below <= 256:
-            try self.line4(mnemonic, " ", reg, ", [x29, #-")
-            try self.put_u64(below)
-            try self.put("]")
+            try self.writer.line4(mnemonic, " ", reg, ", [x29, #-")
+            try self.writer.put_u64(below)
+            try self.writer.put("]")
         else:
             try self.frame_address("x16", below)
-            try self.line4(mnemonic, " ", reg, ", [x16]")
+            try self.writer.line4(mnemonic, " ", reg, ", [x16]")
 
     ## `reg = x29 - offset`.
     mutating func frame_address(reg: str, offset: u64) -> !:
         if offset <= 4095:
-            try self.line("sub ")
-            try self.put(reg)
-            try self.put(", x29, #")
-            try self.put_u64(offset)
+            try self.writer.line("sub ")
+            try self.writer.put(reg)
+            try self.writer.put(", x29, #")
+            try self.writer.put_u64(offset)
             return
         try self.load_immediate("x16", (i64)offset)
-        try self.line("sub ")
-        try self.put(reg)
-        try self.put(", x29, x16")
+        try self.writer.line("sub ")
+        try self.writer.put(reg)
+        try self.writer.put(", x29, x16")
 
     ## Before the barrier at instruction `at`: each temporary that keeps a caller-saved
     ## register across it goes to its home (`frame.Frame.crossings`).
@@ -508,28 +490,28 @@ pub struct Generator:
     ## `fmov to, from` between float registers, halves through their single views where
     ## the target has no half moves.
     mutating func fmove(target_reg: str, from_reg: str) -> !:
-        try self.line("fmov ")
-        try self.put(try self.hv(target_reg))
-        try self.put(", ")
-        try self.put(try self.hv(from_reg))
+        try self.writer.line("fmov ")
+        try self.writer.put(try self.hv(target_reg))
+        try self.writer.put(", ")
+        try self.writer.put(try self.hv(from_reg))
 
     ## `to = from` between registers: `mov` for integers, `fmov` for floats, and the whole
     ## vector for a `q` view.
     mutating func register_move(target_reg: str, from_reg: str, code: u8) -> !:
         if target_reg.bytes[0] == 'q':
-            try self.line("mov ")
-            try self.put(vector_view(target_reg))
-            try self.put(".16b, ")
-            try self.put(vector_view(from_reg))
-            try self.put(".16b")
+            try self.writer.line("mov ")
+            try self.writer.put(vector_view(target_reg))
+            try self.writer.put(".16b, ")
+            try self.writer.put(vector_view(from_reg))
+            try self.writer.put(".16b")
             return
         if self.fr.float_code(code):
             try self.fmove(target_reg, from_reg)
             return
-        try self.line("mov ")
-        try self.put(target_reg)
-        try self.put(", ")
-        try self.put(from_reg)
+        try self.writer.line("mov ")
+        try self.writer.put(target_reg)
+        try self.writer.put(", ")
+        try self.writer.put(from_reg)
 
     ## An operand into a scratch register of class `cls`.
     mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
@@ -585,21 +567,21 @@ pub struct Generator:
         if r.kind == ir.RefKind.slot:
             try self.frame_address(reg, self.slot_home(r.index))
         elif r.kind == ir.RefKind.global and r.value == 0:
-            try self.object_format.page_address(&self.out, reg, r.name, true)
+            try self.object_format.page_address(&self.writer.out, reg, r.name, true)
         elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
             # a function's address, or another image's data (`import_ref`), goes through the
             # GOT, so a symbol defined in a linked shared library resolves
-            try self.object_format.got_address(&self.out, reg, r.name)
+            try self.object_format.got_address(&self.writer.out, reg, r.name)
         elif r.kind == ir.RefKind.text:
-            try self.object_format.page_address(&self.out, reg, try self.text_label_name(r.index), false)
+            try self.object_format.page_address(&self.writer.out, reg, try self.text_label_name(r.index), false)
         elif r.kind == ir.RefKind.temp:
             try self.load_temp(reg, ir.Class.l, r.index)
         elif r.kind == ir.RefKind.constant:
             try self.load_immediate(reg, r.value)
         else:
-            try self.line("mov ")
-            try self.put(reg)
-            try self.put(", #0")
+            try self.writer.line("mov ")
+            try self.writer.put(reg)
+            try self.writer.put(", #0")
 
     # mark: Functions ==========================================================================
 
@@ -641,18 +623,11 @@ pub struct Generator:
 
     ## `mnemonic` then `base, #offset]`.
     mutating func pair_move(mnemonic: str, base: str, offset: u64) -> !:
-        try self.line(mnemonic)
-        try self.put(base)
-        try self.put(", #")
-        try self.put_u64(offset)
-        try self.put("]")
-
-    ## The promoted slot an address reference reaches, 1-based, or 0.
-    func promoted_address(r: ir.Ref) -> u32:
-        let k = self.fr.slot_of(r)
-        if k == 0 or self.fr.slot_regs.get((usize)k - 1) == 0:
-            return 0
-        return k
+        try self.writer.line(mnemonic)
+        try self.writer.put(base)
+        try self.writer.put(", #")
+        try self.writer.put_u64(offset)
+        try self.writer.put("]")
 
     ## A load from a promoted slot: the register, extended as the load would extend from
     ## memory, since a narrow store leaves the register's upper bits as they were.
@@ -666,21 +641,21 @@ pub struct Generator:
                     try self.fmove(d, h_names[code])
             .loadl:
                 if d != xs:
-                    try self.line4("mov ", d, ", ", xs)
+                    try self.writer.line4("mov ", d, ", ", xs)
             .loaduw:
                 if d != ws:
-                    try self.line4("mov ", d, ", ", ws)
-            .loadsw: try self.line4("sxtw ", d, ", ", ws)
-            .loadub: try self.line5("and ", d, ", ", ws, ", #0xff")
-            .loadsb: try self.line4("sxtb ", d, ", ", ws)
-            .loaduh: try self.line5("and ", d, ", ", ws, ", #0xffff")
-            .loadsh: try self.line4("sxth ", d, ", ", ws)
+                    try self.writer.line4("mov ", d, ", ", ws)
+            .loadsw: try self.writer.line4("sxtw ", d, ", ", ws)
+            .loadub: try self.writer.line5("and ", d, ", ", ws, ", #0xff")
+            .loadsb: try self.writer.line4("sxtb ", d, ", ", ws)
+            .loaduh: try self.writer.line5("and ", d, ", ", ws, ", #0xffff")
+            .loadsh: try self.writer.line4("sxth ", d, ", ", ws)
             .loads:
                 if d != ws:
-                    try self.line4("fmov ", d, ", ", ws)
+                    try self.writer.line4("fmov ", d, ", ", ws)
             _:
                 if d != xs:
-                    try self.line4("fmov ", d, ", ", xs)
+                    try self.writer.line4("fmov ", d, ", ", xs)
 
     ## A store into a promoted slot: the value's register `v` moves in.
     mutating func store_promoted(op: ir.Op, k: u32, v: str) -> !:
@@ -688,71 +663,58 @@ pub struct Generator:
         match op:
             .storel:
                 if v != x_names[code]:
-                    try self.line4("mov ", x_names[code], ", ", v)
+                    try self.writer.line4("mov ", x_names[code], ", ", v)
             .stores:
                 if v != w_names[code]:
-                    try self.line4("fmov ", w_names[code], ", ", v)
+                    try self.writer.line4("fmov ", w_names[code], ", ", v)
             .storehf:
                 if v != h_names[code]:
                     try self.fmove(h_names[code], v)
             .stored:
                 if v != x_names[code]:
-                    try self.line4("fmov ", x_names[code], ", ", v)
+                    try self.writer.line4("fmov ", x_names[code], ", ", v)
             _:
                 if v != w_names[code]:
-                    try self.line4("mov ", w_names[code], ", ", v)
+                    try self.writer.line4("mov ", w_names[code], ", ", v)
 
     mutating func line2(a: str, b: str) -> !:
-        try self.line(a)
-        try self.put(b)
+        try self.writer.line(a)
+        try self.writer.put(b)
 
     mutating func line3(a: str, b: str, c: str) -> !:
-        try self.line(a)
-        try self.put(b)
-        try self.put(c)
-
-    mutating func line4(a: str, b: str, c: str, d: str) -> !:
-        try self.line(a)
-        try self.put(b)
-        try self.put(c)
-        try self.put(d)
-
-    mutating func line5(a: str, b: str, c: str, d: str, e: str) -> !:
-        try self.line(a)
-        try self.put(b)
-        try self.put(c)
-        try self.put(d)
-        try self.put(e)
+        try self.writer.line(a)
+        try self.writer.put(b)
+        try self.writer.put(c)
 
     ## Back to the text section after a function placed in a named one.
     mutating func leave_section() -> !:
-        try self.object_format.leave_section(&self.out, self.f)
+        try self.object_format.leave_section(&self.writer.out, self.f)
 
     ## The prologue: the frame record, the frame below it, the hidden result pointer kept,
     ## and the callee-saved registers the function uses saved.
     mutating func open_frame() -> !:
         if self.dw != none:
-            try self.line(".cfi_startproc")
-        try self.line("stp x29, x30, [sp, #-16]!")
+            try self.writer.line(".cfi_startproc")
+        try self.writer.line("stp x29, x30, [sp, #-16]!")
         if self.dw != none:
-            try self.line(".cfi_def_cfa_offset 16")
-            try self.line(".cfi_offset 29, -16")
-            try self.line(".cfi_offset 30, -8")
-        try self.line("mov x29, sp")
+            try self.writer.line(".cfi_def_cfa_offset 16")
+            try self.writer.line(".cfi_offset 29, -16")
+            try self.writer.line(".cfi_offset 30, -8")
+        try self.writer.line("mov x29, sp")
         if self.dw != none:
-            try self.line(".cfi_def_cfa_register 29")
+            try self.writer.line(".cfi_def_cfa_register 29")
         if self.fr.size <= 4095:
-            try self.line("sub sp, sp, #")
-            try self.put_u64(self.fr.size)
+            try self.writer.line("sub sp, sp, #")
+            try self.writer.put_u64(self.fr.size)
         else:
             try self.load_immediate("x16", (i64)self.fr.size)
-            try self.line("sub sp, sp, x16")
+            try self.writer.line("sub sp, sp, x16")
         if self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0 and not self.f.result_private:
             try self.frame_address("x16", self.fr.indirect_home)
-            try self.line("str x8, [x16]")
+            try self.writer.line("str x8, [x16]")
         try self.save_callee_saved()
         if self.f.allocates_frame:
-            try self.line("mov x28, sp")
+            try self.writer.line("mov x28, sp")
             self.frame_base = true
 
     mutating func function(index: usize) -> !:
@@ -762,7 +724,7 @@ pub struct Generator:
         # reserved (a statement that never completes), carries over
         self.dynamic_shift = 0
         if let dw = self.dw:
-            try dw.entry(&self.out)
+            try dw.entry(&self.writer.out)
         self.f = &self.program_unit.functions.items[index]
         self.fr.reserved = 0
         self.frame_base = false
@@ -779,14 +741,14 @@ pub struct Generator:
         let straight = try self.straight_params(entry)
         defer free(straight)
         try self.fr.layout(self.f, 0, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0 and not self.f.result_private, straight)
-        try self.object_format.function_start(&self.out, self.f)
+        try self.object_format.function_start(&self.writer.out, self.f)
         if self.f.naked:
             # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
             var k: usize = 0
             while k < self.f.instrs.count:
                 try self.instruction(self.f.instrs.get(k))
                 k += 1
-            try self.object_format.function_end(&self.out, self.f)
+            try self.object_format.function_end(&self.writer.out, self.f)
             try self.leave_section()
             return
         try self.open_frame()
@@ -816,7 +778,7 @@ pub struct Generator:
         var i: usize = 0
         while i < self.f.instrs.count:
             if let dw = self.dw:
-                try dw.mark(&self.out, self.f, &self.fr, index, i)
+                try dw.mark(&self.writer.out, self.f, &self.fr, index, i)
             self.dynamic_shift = (u64)dynamic.before[i] * (u64)ir.level_bytes
             if received[i]:
                 i += 1
@@ -837,17 +799,17 @@ pub struct Generator:
         self.head_tests = tests[0..<0]
         self.flag_roles = roles[0..<0]
         if let dw = self.dw:
-            try dw.mark(&self.out, self.f, &self.fr, index, i)
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, i)
             if self.f.debug or self.f.symbols:
-                try self.put("\nLdw_end_")
-                try self.put_u64((u64)index)
-                try self.put(":\n")
-            try self.line(".cfi_endproc")
+                try self.writer.put("\nLdw_end_")
+                try self.writer.put_u64((u64)index)
+                try self.writer.put(":\n")
+            try self.writer.line(".cfi_endproc")
             try dw.function(self.f, &self.fr, index)
-        try self.put("\n")
-        try self.object_format.function_end(&self.out, self.f)
+        try self.writer.put("\n")
+        try self.object_format.function_end(&self.writer.out, self.f)
         if self.f.debug:
-            try self.describe_frame()
+            try assembly.describe_frame(&self.descriptors, self.symbol_prefix, self.object_format.text_label, self.program_unit, self.f, &self.fr)
         try self.leave_section()
 
     ## Emit the instructions from `i` that select as one, when they do (a comparison and
@@ -862,7 +824,7 @@ pub struct Generator:
             let access = self.f.instrs.get(i + 1)
             if not self.fr.is_rematerialised(self.f.instrs.get(i).dst) and offset_reaches(offset, frame.access_width(access.op)):
                 if let dw = self.dw:
-                    try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+                    try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
                 try self.offset_access(access, base, offset)
                 return 2
         if try self.scaled_access_at(i, uses, index):
@@ -872,7 +834,7 @@ pub struct Generator:
         if let fused = selection.shifted_add(self.f, i, uses):
             if not self.fr.is_rematerialised(self.f.instrs.get(i).dst) and not self.fr.is_rematerialised(self.f.instrs.get(i + 1).dst):
                 if let dw = self.dw:
-                    try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+                    try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
                 try self.shifted_add(self.f.instrs.get(i + 1), fused)
                 return 2
         return 0
@@ -881,7 +843,7 @@ pub struct Generator:
     mutating func branch_pair(i: usize, index: usize) -> !:
         if let dw = self.dw:
             # the fused branch's own line and labels, ahead of the pair
-            try dw.mark(&self.out, self.f, &self.fr, index, i + 1)
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
         try self.fused_branch(i, selection.label_at(self.f, i + 2))
 
     ## The comparison at `i` and the branch on it after, with `next` as the fall-through:
@@ -897,46 +859,6 @@ pub struct Generator:
             else:
                 comparison.op = selection.inverse(comparison.op)
         try self.comparison(comparison, branch, next, negate)
-
-    ## `lbd_<name>`: the function's name and source, then each named local's name, type
-    ## spelling, distance below the frame pointer, and size; every text is a `str`.
-    mutating func describe_frame() -> !:
-        var d = &self.descriptors
-        try d.put("    .globl ")
-        try d.put(self.symbol_prefix)
-        try d.put("lbd_")
-        try d.put(self.f.name)
-        try d.put("\n")
-        try d.put(self.symbol_prefix)
-        try d.put("lbd_")
-        try d.put(self.f.name)
-        try d.put(":\n")
-        try self.describe_text(self.f.name)
-        try self.describe_text(self.f.source)
-        try d.put("    .quad ")
-        try d.put_u64((u64)self.f.locals.count)
-        try d.put("\n")
-        var i: usize = 0
-        while i < self.f.locals.count:
-            let described = self.f.locals.get(i)
-            try self.describe_text(described.name)
-            try self.describe_text(described.kind)
-            try d.put("    .quad ")
-            try d.put_u64(self.slot_home(described.slot))
-            try d.put(", ")
-            try d.put_u64((u64)described.size)
-            try d.put("\n")
-            i += 1
-
-    mutating func describe_text(text: str) -> !:
-        let index = try self.program_unit.text(text)
-        var d = &self.descriptors
-        try d.put("    .quad ")
-        try d.put(self.object_format.text_label)
-        try d.put_u64((u64)index)
-        try d.put(", ")
-        try d.put_u64((u64)text.length)
-        try d.put("\n")
 
     ## Store the incoming arguments into their slots.
     ## By slot, the parameters `receive_params` moves straight from their argument registers
@@ -988,61 +910,61 @@ pub struct Generator:
                         next_float += 1
                     elif next_float < 8:
                         if code != 0:
-                            try self.line("fmov ")
-                            try self.put(try self.hv(class_name((u8)code, p.cls)))
-                            try self.put(", ")
-                            try self.put(self.half_letter(p.cls))
+                            try self.writer.line("fmov ")
+                            try self.writer.put(try self.hv(class_name((u8)code, p.cls)))
+                            try self.writer.put(", ")
+                            try self.writer.put(self.half_letter(p.cls))
                         else:
                             try self.frame_address("x16", home)
-                            try self.line("str ")
-                            try self.put(float_letter(p.cls))
-                        try self.put_u64((u64)next_float)
+                            try self.writer.line("str ")
+                            try self.writer.put(float_letter(p.cls))
+                        try self.writer.put_u64((u64)next_float)
                         if code == 0:
-                            try self.put(", [x16]")
+                            try self.writer.put(", [x16]")
                         next_float += 1
                     else:
                         let width = scalar_stack_width(p.cls, p.scalar_width)
                         let slot = self.stack_slot(width)
                         stack_offset = arm_round_up(stack_offset, (u64)slot)
-                        try self.line(scalar_stack_load(width, false))
-                        try self.put(" [x29, #")
-                        try self.put_u64(stack_offset)
-                        try self.put("]")
+                        try self.writer.line(scalar_stack_load(width, false))
+                        try self.writer.put(" [x29, #")
+                        try self.writer.put_u64(stack_offset)
+                        try self.writer.put("]")
                         if code != 0:
                             try self.line3("fmov ", x_names[code], ", x9")
                         else:
                             try self.frame_address("x16", home)
-                            try self.line("str x9, [x16]")
+                            try self.writer.line("str x9, [x16]")
                         stack_offset += (u64)slot
                 elif next_int < 8 and straight:
                     try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_int), float = false))
                     next_int += 1
                 elif next_int < 8:
                     if code != 0:
-                        try self.line("mov ")
-                        try self.put(w_names[code] if p.cls == ir.Class.w else x_names[code])
-                        try self.put(", ")
-                        try self.put("w" if p.cls == ir.Class.w else "x")
-                        try self.put_u64((u64)next_int)
+                        try self.writer.line("mov ")
+                        try self.writer.put(w_names[code] if p.cls == ir.Class.w else x_names[code])
+                        try self.writer.put(", ")
+                        try self.writer.put("w" if p.cls == ir.Class.w else "x")
+                        try self.writer.put_u64((u64)next_int)
                     else:
                         try self.frame_address("x16", home)
-                        try self.line("str w" if p.cls == ir.Class.w else "str x")
-                        try self.put_u64((u64)next_int)
-                        try self.put(", [x16]")
+                        try self.writer.line("str w" if p.cls == ir.Class.w else "str x")
+                        try self.writer.put_u64((u64)next_int)
+                        try self.writer.put(", [x16]")
                     next_int += 1
                 else:
                     let width = scalar_stack_width(p.cls, p.scalar_width)
                     let slot = self.stack_slot(width)
                     stack_offset = arm_round_up(stack_offset, (u64)slot)
-                    try self.line(scalar_stack_load(width, p.scalar_signed))
-                    try self.put(" [x29, #")
-                    try self.put_u64(stack_offset)
-                    try self.put("]")
+                    try self.writer.line(scalar_stack_load(width, p.scalar_signed))
+                    try self.writer.put(" [x29, #")
+                    try self.writer.put_u64(stack_offset)
+                    try self.writer.put("]")
                     if code != 0:
                         try self.line3("mov ", w_names[code] if p.cls == ir.Class.w else x_names[code], ", w9" if p.cls == ir.Class.w else ", x9")
                     else:
                         try self.frame_address("x16", home)
-                        try self.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
+                        try self.writer.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
                     stack_offset += (u64)slot
             elif self.hfa(p.shape) > 0 and next_float + self.hfa(p.shape) <= 8:
                 # a homogeneous float aggregate in d or s registers
@@ -1050,12 +972,12 @@ pub struct Generator:
                 var k: u32 = 0
                 while k < self.hfa(p.shape):
                     try self.frame_address("x16", home)
-                    try self.line("str ")
-                    try self.put(float_letter_of(each))
-                    try self.put_u64((u64)(next_float + k))
-                    try self.put(", [x16, #")
-                    try self.put_u64((u64)k * each)
-                    try self.put("]")
+                    try self.writer.line("str ")
+                    try self.writer.put(float_letter_of(each))
+                    try self.writer.put_u64((u64)(next_float + k))
+                    try self.writer.put(", [x16, #")
+                    try self.writer.put_u64((u64)k * each)
+                    try self.writer.put("]")
                     k += 1
                 next_float += self.hfa(p.shape)
             elif self.hfa(p.shape) > 0:
@@ -1067,39 +989,39 @@ pub struct Generator:
                 let each = (u64)self.program_unit.leaves_of(p.shape)[0].size
                 var k: u32 = 0
                 while k < self.hfa(p.shape):
-                    try self.line("ldr x9, [x29, #" if each == 8 else ("ldr w9, [x29, #" if each == 4 else "ldrh w9, [x29, #"))
-                    try self.put_u64(stack_offset + (u64)k * each)
-                    try self.put("]")
+                    try self.writer.line("ldr x9, [x29, #" if each == 8 else ("ldr w9, [x29, #" if each == 4 else "ldrh w9, [x29, #"))
+                    try self.writer.put_u64(stack_offset + (u64)k * each)
+                    try self.writer.put("]")
                     try self.frame_address("x16", home)
-                    try self.line("str x9, [x16, #" if each == 8 else ("str w9, [x16, #" if each == 4 else "strh w9, [x16, #"))
-                    try self.put_u64((u64)k * each)
-                    try self.put("]")
+                    try self.writer.line("str x9, [x16, #" if each == 8 else ("str w9, [x16, #" if each == 4 else "strh w9, [x16, #"))
+                    try self.writer.put_u64((u64)k * each)
+                    try self.writer.put("]")
                     k += 1
                 stack_offset += (u64)p.size
             elif p.size <= 16:
                 let words = (p.size + 7) // 8
                 if next_int + words <= 8:
                     try self.frame_address("x16", home)
-                    try self.line("str x")
-                    try self.put_u64((u64)next_int)
-                    try self.put(", [x16]")
+                    try self.writer.line("str x")
+                    try self.writer.put_u64((u64)next_int)
+                    try self.writer.put(", [x16]")
                     if words == 2:
-                        try self.line("str x")
-                        try self.put_u64((u64)next_int + 1)
-                        try self.put(", [x16, #8]")
+                        try self.writer.line("str x")
+                        try self.writer.put_u64((u64)next_int + 1)
+                        try self.writer.put(", [x16, #8]")
                     next_int += words
                 else:
                     next_int = 8
                     stack_offset = arm_round_up(stack_offset, 8)
                     var k: u32 = 0
                     while k < words:
-                        try self.line("ldr x9, [x29, #")
-                        try self.put_u64(stack_offset)
-                        try self.put("]")
+                        try self.writer.line("ldr x9, [x29, #")
+                        try self.writer.put_u64(stack_offset)
+                        try self.writer.put("]")
                         try self.frame_address("x16", home)
-                        try self.line("str x9, [x16, #")
-                        try self.put_u64((u64)k * 8)
-                        try self.put("]")
+                        try self.writer.line("str x9, [x16, #")
+                        try self.writer.put_u64((u64)k * 8)
+                        try self.writer.put("]")
                         stack_offset += 8
                         k += 1
             else:
@@ -1107,17 +1029,17 @@ pub struct Generator:
                 # copied in a second pass, after every register is safely stored
                 if next_int < 8:
                     try self.frame_address("x16", home)
-                    try self.line("str x")
-                    try self.put_u64((u64)next_int)
-                    try self.put(", [x16]")
+                    try self.writer.line("str x")
+                    try self.writer.put_u64((u64)next_int)
+                    try self.writer.put(", [x16]")
                     next_int += 1
                 else:
                     stack_offset = arm_round_up(stack_offset, 8)
-                    try self.line("ldr x9, [x29, #")
-                    try self.put_u64(stack_offset)
-                    try self.put("]")
+                    try self.writer.line("ldr x9, [x29, #")
+                    try self.writer.put_u64(stack_offset)
+                    try self.writer.put("]")
                     try self.frame_address("x16", home)
-                    try self.line("str x9, [x16]")
+                    try self.writer.line("str x9, [x16]")
                     stack_offset += 8
             i += 1
         i = 0
@@ -1128,13 +1050,13 @@ pub struct Generator:
                 if p.size <= 128:
                     # through scratch: arguments may still wait in x0-x7 (`receive_directly`)
                     try self.frame_address("x9", home)
-                    try self.line("ldr x10, [x9]")
+                    try self.writer.line("ldr x10, [x9]")
                     try self.inline_copy("x10", "x9", (u64)p.size)
                 else:
                     try self.frame_address("x0", home)
-                    try self.line("ldr x1, [x0]")
+                    try self.writer.line("ldr x1, [x0]")
                     try self.load_immediate("x2", (i64)p.size)
-                    try self.line("bl ")
+                    try self.writer.line("bl ")
                     try self.symbol("memcpy")
             i += 1
 
@@ -1195,19 +1117,19 @@ pub struct Generator:
         match n.op:
             .loadl:
                 if d != x:
-                    try self.line4("mov ", d, ", ", x)
+                    try self.writer.line4("mov ", d, ", ", x)
             .loaduw:
-                try self.line4("mov ", d, ", ", w)
+                try self.writer.line4("mov ", d, ", ", w)
             .loadsw:
-                try self.line4("sxtw " if n.cls == ir.Class.l else "mov ", d, ", ", w)
+                try self.writer.line4("sxtw " if n.cls == ir.Class.l else "mov ", d, ", ", w)
             .loaduh:
-                try self.line4("uxth ", narrow_name(d), ", ", w)
+                try self.writer.line4("uxth ", narrow_name(d), ", ", w)
             .loadsh:
-                try self.line4("sxth ", d, ", ", w)
+                try self.writer.line4("sxth ", d, ", ", w)
             .loadub:
-                try self.line4("uxtb ", narrow_name(d), ", ", w)
+                try self.writer.line4("uxtb ", narrow_name(d), ", ", w)
             _:
-                try self.line4("sxtb ", d, ", ", w)
+                try self.writer.line4("sxtb ", d, ", ", w)
         if code == 0:
             try self.frame_store(d, self.temp_home(n.dst))
 
@@ -1223,10 +1145,10 @@ pub struct Generator:
             .label:
                 if (usize)n.extra < self.loop_heads.length and self.loop_heads[(usize)n.extra]:
                     # a loop starts on a sixteen-byte boundary
-                    try self.put("\n    .p2align 4")
-                try self.put("\n")
+                    try self.writer.put("\n    .p2align 4")
+                try self.writer.put("\n")
                 try self.label_name(n.extra)
-                try self.put(":")
+                try self.writer.put(":")
             .jmp:
                 if n.extra == next_label:
                     return
@@ -1234,7 +1156,7 @@ pub struct Generator:
                     # the head's own test, falling through to what follows the jump
                     try self.fused_branch((usize)self.head_tests[(usize)n.extra] - 1, next_label)
                     return
-                try self.line("b ")
+                try self.writer.line("b ")
                 try self.label_name(n.extra)
             .jnz:
                 let c = try self.source(n.a, n.cls, "x9" if n.cls == ir.Class.l else "w9")
@@ -1246,7 +1168,7 @@ pub struct Generator:
                 try self.line3("cbnz ", c, ", ")
                 try self.label_name(n.extra)
                 if n.extra2 != next_label:
-                    try self.line("b ")
+                    try self.writer.line("b ")
                     try self.label_name(n.extra2)
             .switch_:
                 try self.jump_table(n)
@@ -1259,8 +1181,8 @@ pub struct Generator:
                     let v = try self.source(n.a, ir.Class.v, "q16")
                     let d = self.target(n.dst, ir.Class.v, "q16")
                     if v != d:
-                        try self.line4("mov ", vector_view(d), ".16b, ", vector_view(v))
-                        try self.put(".16b")
+                        try self.writer.line4("mov ", vector_view(d), ".16b, ", vector_view(v))
+                        try self.writer.put(".16b")
                     try self.finish(n.dst, ir.Class.v, d)
                     return
                 if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.a.kind == ir.RefKind.constant:
@@ -1276,7 +1198,7 @@ pub struct Generator:
                         try self.fmove(d, v)
                     else:
                         try self.line3("mov ", d, ", ")
-                        try self.put(v)
+                        try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .add, .sub, .mul, .sdiv, .udiv, .srem, .urem, .and_, .or_, .xor, .shl, .lshr, .ashr:
                 if self.role() & (flags.joined | flags.folded) == 0:
@@ -1286,13 +1208,13 @@ pub struct Generator:
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 if n.cls == ir.Class.h and not self.fp16:
                     try self.line3("fcvt s16, ", v, "")
-                    try self.line("fneg s16, s16")
+                    try self.writer.line("fneg s16, s16")
                     try self.line3("fcvt ", d, ", s16")
                 else:
-                    try self.line("fneg " if ir.is_float_class(n.cls) else "neg ")
-                    try self.put(d)
-                    try self.put(", ")
-                    try self.put(v)
+                    try self.writer.line("fneg " if ir.is_float_class(n.cls) else "neg ")
+                    try self.writer.put(d)
+                    try self.writer.put(", ")
+                    try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
                 if self.role() & (flags.first | flags.either | flags.both) != 0:
@@ -1302,50 +1224,50 @@ pub struct Generator:
             .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd, .loadhf:
                 let lc = ir.load_class(n.op)
                 let d = self.target(n.dst, lc, load_register(n.op))
-                let from_slot = self.promoted_address(n.a)
+                let from_slot = self.fr.promoted_slot_of(n.a)
                 if from_slot != 0:
                     try self.load_promoted(n.op, from_slot, d)
                 elif let below = self.frame_place(n.a, n.op):
                     try self.frame_access(load_mnemonic(n.op), d, below, frame.access_width(n.op))
                 else:
                     let address = try self.source(n.a, ir.Class.l, "x9")
-                    try self.line(load_mnemonic(n.op))
-                    try self.put(" ")
-                    try self.put(d)
-                    try self.put(", [")
-                    try self.put(address)
-                    try self.put("]")
+                    try self.writer.line(load_mnemonic(n.op))
+                    try self.writer.put(" ")
+                    try self.writer.put(d)
+                    try self.writer.put(", [")
+                    try self.writer.put(address)
+                    try self.writer.put("]")
                 try self.finish(n.dst, lc, d)
             .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
                 let cls = ir.store_class(n.op)
                 let v = try self.source(n.a, cls, self.reg(cls, 0))
-                let to_slot = self.promoted_address(n.b)
+                let to_slot = self.fr.promoted_slot_of(n.b)
                 if to_slot != 0:
                     try self.store_promoted(n.op, to_slot, v)
                 elif let below = self.frame_place(n.b, n.op):
                     try self.frame_access(store_mnemonic(n.op), v, below, frame.access_width(n.op))
                 else:
                     let address = try self.source(n.b, ir.Class.l, "x10")
-                    try self.line(store_mnemonic(n.op))
-                    try self.put(" ")
-                    try self.put(v)
-                    try self.put(", [")
-                    try self.put(address)
-                    try self.put("]")
+                    try self.writer.line(store_mnemonic(n.op))
+                    try self.writer.put(" ")
+                    try self.writer.put(v)
+                    try self.writer.put(", [")
+                    try self.writer.put(address)
+                    try self.writer.put("]")
             .alloca:
                 # frame storage (`memory.frame`): sp down by a multiple of sixteen, at most
                 # 4096, and the new bottom touched, so no guard page is stepped over
                 let bytes = try self.source(n.a, ir.Class.l, "x16")
                 try self.line3("sub sp, sp, ", bytes, "")
-                try self.line("str xzr, [sp]")
+                try self.writer.line("str xzr, [sp]")
                 let d = self.target(n.dst, ir.Class.l, "x9")
                 try self.line3("mov ", d, ", sp")
                 try self.finish(n.dst, ir.Class.l, d)
             .frame:
                 let d = self.target(n.dst, ir.Class.l, "x9")
-                try self.line("mov ")
-                try self.put(d)
-                try self.put(", x29")
+                try self.writer.line("mov ")
+                try self.writer.put(d)
+                try self.writer.put(", x29")
                 try self.finish(n.dst, ir.Class.l, d)
             .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
                 let v = try self.source(n.a, ir.Class.w, "w9")
@@ -1360,14 +1282,14 @@ pub struct Generator:
                 let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 try self.line3("fcvt ", d, ", ")
-                try self.put(v)
+                try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .stosi, .stoui, .dtosi, .dtoui:
                 let src_cls = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
                 let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 try self.line3("fcvtzs " if n.op == ir.Op.stosi or n.op == ir.Op.dtosi else "fcvtzu ", d, ", ")
-                try self.put(v)
+                try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .swtof, .uwtof, .sltof, .ultof:
                 let src_cls = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
@@ -1380,7 +1302,7 @@ pub struct Generator:
                     try self.line3("fcvt ", d, ", s16")
                 else:
                     try self.line3(convert, d, ", ")
-                    try self.put(v)
+                    try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .cast:
                 # bits move between an integer and a float of the same width; a half's
@@ -1391,8 +1313,8 @@ pub struct Generator:
                 try self.fmove(d, v)
                 if other == ir.Class.h and not self.fp16:
                     try self.line3("and ", d, ", ")
-                    try self.put(d)
-                    try self.put(", #0xffff")
+                    try self.writer.put(d)
+                    try self.writer.put(", #0xffff")
                 try self.finish(n.dst, n.cls, d)
             .addr:
                 if self.fr.promoted_slot(n.dst) == 0:
@@ -1400,7 +1322,7 @@ pub struct Generator:
                     try self.address_operand(d, n.a)
                     try self.finish(n.dst, ir.Class.l, d)
             .addr_tls:
-                try self.object_format.thread_address(&self.out, n.a.name)
+                try self.object_format.thread_address(&self.writer.out, n.a.name)
                 try self.store_temp("x0", n.dst)
             .blit:
                 if n.extra <= regalloc.inline_block:
@@ -1414,9 +1336,9 @@ pub struct Generator:
                     # address may live in x0, and the origin's in x1
                     try self.address_operand("x10", n.b)
                     try self.address_operand("x0", n.a)
-                    try self.line("mov x1, x10")
+                    try self.writer.line("mov x1, x10")
                     try self.load_immediate("x2", (i64)n.extra)
-                    try self.line("bl ")
+                    try self.writer.line("bl ")
                     try self.symbol("memcpy")
             .zero:
                 if n.extra <= regalloc.inline_block:
@@ -1424,15 +1346,15 @@ pub struct Generator:
                     try self.inline_zero(to, (u64)n.extra)
                 else:
                     try self.address_operand("x0", n.a)
-                    try self.line("mov x1, #0")
+                    try self.writer.line("mov x1, #0")
                     try self.load_immediate("x2", (i64)n.extra)
-                    try self.line("bl ")
+                    try self.writer.line("bl ")
                     try self.symbol("memset")
             .fill:
                 try self.address_operand("x0", n.a)
                 try self.load_immediate("x1", n.b.value)
                 try self.load_immediate("x2", (i64)n.extra)
-                try self.line("bl ")
+                try self.writer.line("bl ")
                 try self.symbol("memset")
             .call:
                 try self.call(n)
@@ -1446,7 +1368,7 @@ pub struct Generator:
                     # the position first, then the reason (§11.5)
                     try self.address_operand("x0", n.b)
                     try self.address_operand("x1", n.a)
-                    try self.line("bl ")
+                    try self.writer.line("bl ")
                     try self.symbol(self.program_unit.trap_at_function)
                 else:
                     try self.address_operand("x0", n.a)
@@ -1455,10 +1377,10 @@ pub struct Generator:
                 let a = try self.source(n.a, ir.Class.l, "x9")
                 let b = try self.source(n.b, ir.Class.l, "x10")
                 try self.line3("cmp ", a, ", ")
-                try self.put(b)
-                try self.line("b.ls 1f" if n.extra == 1 else "b.lo 1f")
+                try self.writer.put(b)
+                try self.writer.line("b.ls 1f" if n.extra == 1 else "b.lo 1f")
                 try self.trap_text("index out of bounds", n.extra2)
-                try self.put("\n1:")
+                try self.writer.put("\n1:")
             .addo, .subo, .mulo:
                 try self.checked(n)
             .asm_:
@@ -1474,38 +1396,38 @@ pub struct Generator:
                     return
                 let reg = self.program_unit.texts.get((usize)n.b.index).bytes
                 try self.address_operand("x16", n.a)
-                try self.line(store_mnemonic_for(n.cls))
-                try self.put(" ")
-                try self.put(reg)
-                try self.put(", [x16]")
+                try self.writer.line(store_mnemonic_for(n.cls))
+                try self.writer.put(" ")
+                try self.writer.put(reg)
+                try self.writer.put(", [x16]")
             .atomic_load:
                 let address = try self.source(n.a, ir.Class.l, "x9")
                 let d = self.target(n.dst, ir.Class.w if n.extra <= 4 else ir.Class.l, self.reg(ir.Class.w if n.extra <= 4 else ir.Class.l, 0))
-                try self.line("ldar" if n.extra2 >= 2 else "ldr")
-                try self.put(width_suffix(n.extra))
-                try self.put(" ")
-                try self.put(d)
-                try self.put(", [")
-                try self.put(address)
-                try self.put("]")
+                try self.writer.line("ldar" if n.extra2 >= 2 else "ldr")
+                try self.writer.put(width_suffix(n.extra))
+                try self.writer.put(" ")
+                try self.writer.put(d)
+                try self.writer.put(", [")
+                try self.writer.put(address)
+                try self.writer.put("]")
                 try self.finish(n.dst, n.cls, d)
             .atomic_store:
                 let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
                 let v = try self.source(n.a, cls, self.reg(cls, 0))
                 let address = try self.source(n.b, ir.Class.l, "x10")
-                try self.line("stlr" if n.extra2 >= 3 else "str")
-                try self.put(width_suffix(n.extra))
-                try self.put(" ")
-                try self.put(v)
-                try self.put(", [")
-                try self.put(address)
-                try self.put("]")
+                try self.writer.line("stlr" if n.extra2 >= 3 else "str")
+                try self.writer.put(width_suffix(n.extra))
+                try self.writer.put(" ")
+                try self.writer.put(v)
+                try self.writer.put(", [")
+                try self.writer.put(address)
+                try self.writer.put("]")
             .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min:
                 try self.read_modify_write(n)
             .atomic_cas:
                 try self.compare_and_swap(n)
             .fence:
-                try self.line("dmb ish")
+                try self.writer.line("dmb ish")
             .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
                 try self.vector(n)
             .fma:
@@ -1528,10 +1450,10 @@ pub struct Generator:
             if n.op == ir.Op.mul and value > 2 and power_of_two(value - 1) > 0 and power_of_two(value - 1) < (i64)width:
                 # times 2^k + 1: x plus x shifted by k, one instruction a multiply's latency
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-                try self.line5("add ", d, ", ", a, ", ")
-                try self.put(a)
-                try self.put(", lsl #")
-                try self.put_i64(power_of_two(value - 1))
+                try self.writer.line5("add ", d, ", ", a, ", ")
+                try self.writer.put(a)
+                try self.writer.put(", lsl #")
+                try self.writer.put_i64(power_of_two(value - 1))
                 try self.finish(n.dst, n.cls, d)
                 return
             if immediate or (n.op == ir.Op.mul and shift > 0 and shift < (i64)width):
@@ -1547,13 +1469,13 @@ pub struct Generator:
                     .or_: mnemonic = "orr "
                     .xor: mnemonic = "eor "
                     _: discard(0)
-                try self.line4(mnemonic, d, ", ", a)
-                try self.put(", #")
+                try self.writer.line4(mnemonic, d, ", ", a)
+                try self.writer.put(", #")
                 if logical:
                     # the mask as the assembler reads it: the operand's width of it, unsigned
-                    try self.put_u64((u64)value if width == 64 else (u64)value & 0xFFFFFFFF)
+                    try self.writer.put_u64((u64)value if width == 64 else (u64)value & 0xFFFFFFFF)
                 else:
-                    try self.put_i64(shift if n.op == ir.Op.mul else (0 - value if negated else value))
+                    try self.writer.put_i64(shift if n.op == ir.Op.mul else (0 - value if negated else value))
                 try self.finish(n.dst, n.cls, d)
                 return
         let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
@@ -1588,30 +1510,30 @@ pub struct Generator:
             .lshr: mnemonic = "lsr"
             .ashr: mnemonic = "asr"
             .srem, .urem:
-                try self.line("sdiv " if n.op == ir.Op.srem else "udiv ")
-                try self.put(self.reg(n.cls, 2))
-                try self.put(", ")
-                try self.put(a)
-                try self.put(", ")
-                try self.put(b)
-                try self.line("msub ")
-                try self.put(d)
-                try self.put(", ")
-                try self.put(self.reg(n.cls, 2))
-                try self.put(", ")
-                try self.put(b)
-                try self.put(", ")
-                try self.put(a)
+                try self.writer.line("sdiv " if n.op == ir.Op.srem else "udiv ")
+                try self.writer.put(self.reg(n.cls, 2))
+                try self.writer.put(", ")
+                try self.writer.put(a)
+                try self.writer.put(", ")
+                try self.writer.put(b)
+                try self.writer.line("msub ")
+                try self.writer.put(d)
+                try self.writer.put(", ")
+                try self.writer.put(self.reg(n.cls, 2))
+                try self.writer.put(", ")
+                try self.writer.put(b)
+                try self.writer.put(", ")
+                try self.writer.put(a)
                 try self.finish(n.dst, n.cls, d)
                 return
             _: mnemonic = "add"
-        try self.line(mnemonic)
-        try self.put(" ")
-        try self.put(d)
-        try self.put(", ")
-        try self.put(a)
-        try self.put(", ")
-        try self.put(b)
+        try self.writer.line(mnemonic)
+        try self.writer.put(" ")
+        try self.writer.put(d)
+        try self.writer.put(", ")
+        try self.writer.put(a)
+        try self.writer.put(", ")
+        try self.writer.put(b)
         try self.finish(n.dst, n.cls, d)
 
     mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0, negate: bool = false) -> !:
@@ -1622,31 +1544,31 @@ pub struct Generator:
         let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
         if immediate:
             try self.line3("cmp " if n.b.value >= 0 else "cmn ", a, ", #")
-            try self.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
+            try self.writer.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
         elif n.cls == ir.Class.h and not self.fp16:
             try self.line3("fcvt s16, ", a, "")
             try self.line3("fcvt s17, ", b, "")
-            try self.line("fcmp s16, s17")
+            try self.writer.line("fcmp s16, s17")
         else:
-            try self.line("fcmp " if is_float else "cmp ")
-            try self.put(a)
-            try self.put(", ")
-            try self.put(b)
+            try self.writer.line("fcmp " if is_float else "cmp ")
+            try self.writer.put(a)
+            try self.writer.put(", ")
+            try self.writer.put(b)
         var cond = condition(n.op, is_float)
         if negate:
             cond = opposite_condition(cond)
         if let jump = branch:
-            try self.line("b.")
-            try self.put(cond)
-            try self.put(" ")
+            try self.writer.line("b.")
+            try self.writer.put(cond)
+            try self.writer.put(" ")
             try self.label_name(jump.extra2 if next_label == jump.extra else jump.extra)
             if next_label != jump.extra and next_label != jump.extra2:
-                try self.line("b ")
+                try self.writer.line("b ")
                 try self.label_name(jump.extra2)
             return
         let d = self.target(n.dst, ir.Class.w, "w9")
         try self.line3("cset ", d, ", ")
-        try self.put(cond)
+        try self.writer.put(cond)
         try self.finish(n.dst, ir.Class.w, d)
 
     ## `switch`: the value less the table's first is the entry, when it is below the
@@ -1665,56 +1587,56 @@ pub struct Generator:
         if low == 0:
             discard(0)
         elif low <= 4095:
-            try self.line5("sub ", scratch, ", ", v, ", #")
-            try self.put_u64(low)
+            try self.writer.line5("sub ", scratch, ", ", v, ", #")
+            try self.writer.put_u64(low)
             index = scratch
         elif modulus <= 4095:
-            try self.line5("add ", scratch, ", ", v, ", #")
-            try self.put_u64(modulus)
+            try self.writer.line5("add ", scratch, ", ", v, ", #")
+            try self.writer.put_u64(modulus)
             index = scratch
         else:
             try self.load_immediate("x10", (i64)low)
-            try self.line5("sub ", scratch, ", ", v, ", ")
-            try self.put("x10" if wide else "w10")
+            try self.writer.line5("sub ", scratch, ", ", v, ", ")
+            try self.writer.put("x10" if wide else "w10")
             index = scratch
         try self.line3("cmp ", index, ", #")
-        try self.put_u64((u64)table.count)
-        try self.line("b.hs ")
+        try self.writer.put_u64((u64)table.count)
+        try self.writer.line("b.hs ")
         try self.label_name(n.extra)
-        try self.line("adr x10, ")
+        try self.writer.line("adr x10, ")
         try self.table_name(n.extra2)
         try self.line3("ldrsw x9, [x10, ", index, ", lsl #2]" if wide else ", uxtw #2]")
-        try self.line("add x10, x10, x9")
-        try self.line("br x10")
-        try self.put("\n")
+        try self.writer.line("add x10, x10, x9")
+        try self.writer.line("br x10")
+        try self.writer.put("\n")
         try self.table_name(n.extra2)
-        try self.put(":")
+        try self.writer.put(":")
         for label in self.f.table_targets(n.extra2):
-            try self.line(".long ")
+            try self.writer.line(".long ")
             try self.label_name(label)
-            try self.put(" - ")
+            try self.writer.put(" - ")
             try self.table_name(n.extra2)
 
     ## The label of jump table `n` of the function.
     mutating func table_name(n: u32) -> !:
-        try self.out.put(self.object_format.local_label)
-        try self.function_label()
-        try self.out.put("_jt")
-        try self.out.put_u64((u64)n)
+        try self.writer.out.put(self.object_format.local_label)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try self.writer.out.put("_jt")
+        try self.writer.out.put_u64((u64)n)
 
     ## `op` applied to the 32-bit view `v` of a value, into `d`.
     mutating func extend_from(op: ir.Op, v: str, d: str) -> !:
         match op:
-            .extsb: try self.line4("sxtb ", d, ", ", v)
-            .extub: try self.line5("and ", d, ", ", v, ", #255")
-            .extsh: try self.line4("sxth ", d, ", ", v)
-            .extuh: try self.line5("and ", d, ", ", v, ", #65535")
-            .extsw: try self.line4("sxtw ", d, ", ", v)
+            .extsb: try self.writer.line4("sxtb ", d, ", ", v)
+            .extub: try self.writer.line5("and ", d, ", ", v, ", #255")
+            .extsh: try self.writer.line4("sxth ", d, ", ", v)
+            .extuh: try self.writer.line5("and ", d, ", ", v, ", #65535")
+            .extsw: try self.writer.line4("sxtw ", d, ", ", v)
             _:
                 # zero-extension of a word: writing the 32-bit view clears the upper half,
                 # also when the source is that same register, whose upper half may hold a
                 # sign extension or what a wider write left there
-                try self.line4("mov ", narrow_name(d), ", ", v)
+                try self.writer.line4("mov ", narrow_name(d), ", ", v)
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width.
     ## `select`: the condition word against 0, then one `csel` (`fcsel` for a float) of the
@@ -1736,18 +1658,18 @@ pub struct Generator:
             let then_sum = role & flags.then_increments != 0
             let v = try self.source(other if then_sum else n.b, n.cls, self.reg(n.cls, 2))
             let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-            try self.line5("cinc ", d, ", ", v, ", ")
-            try self.put(cond if then_sum else opposite_condition(cond))
+            try self.writer.line5("cinc ", d, ", ", v, ", ")
+            try self.writer.put(cond if then_sum else opposite_condition(cond))
             try self.finish(n.dst, n.cls, d)
             return
         let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let e = try self.source(other, n.cls, self.reg(n.cls, 2))
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-        try self.line4("csel " if n.cls == ir.Class.w or n.cls == ir.Class.l else "fcsel ", d, ", ", t)
-        try self.put(", ")
-        try self.put(e)
-        try self.put(", ")
-        try self.put(cond)
+        try self.writer.line4("csel " if n.cls == ir.Class.w or n.cls == ir.Class.l else "fcsel ", d, ", ", t)
+        try self.writer.put(", ")
+        try self.writer.put(e)
+        try self.writer.put(", ")
+        try self.writer.put(cond)
         try self.finish(n.dst, n.cls, d)
 
     ## The role in a condition kept in the flags of the instruction being emitted.
@@ -1774,16 +1696,16 @@ pub struct Generator:
         else:
             try self.line3("fccmp " if is_float else "ccmp ", a, ", ")
         if immediate:
-            try self.put("#")
-            try self.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
+            try self.writer.put("#")
+            try self.writer.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
         else:
-            try self.put(b)
+            try self.writer.put(b)
         if not opening:
             let either = role & flags.either != 0
-            try self.put(", #")
-            try self.put_u64(settling_flags(cond, either))
-            try self.put(", ")
-            try self.put(opposite_condition(self.flag_condition) if either else self.flag_condition)
+            try self.writer.put(", #")
+            try self.writer.put_u64(settling_flags(cond, either))
+            try self.writer.put(", ")
+            try self.writer.put(opposite_condition(self.flag_condition) if either else self.flag_condition)
         self.flag_condition = cond
 
     ## `fma`: `fmadd` for a scalar; for a vector, `fmla`, which accumulates into its
@@ -1796,11 +1718,11 @@ pub struct Generator:
             let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
             let c = try self.source(addend, n.cls, self.reg(n.cls, 2))
             let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-            try self.line4("fmadd ", d, ", ", a)
-            try self.put(", ")
-            try self.put(b)
-            try self.put(", ")
-            try self.put(c)
+            try self.writer.line4("fmadd ", d, ", ", a)
+            try self.writer.put(", ")
+            try self.writer.put(b)
+            try self.writer.put(", ")
+            try self.writer.put(c)
             try self.finish(n.dst, n.cls, d)
             return
         let arr = arrangement(n.extra)
@@ -1813,12 +1735,12 @@ pub struct Generator:
             d = "q18"
         let accumulator = vector_view(d)
         if c != accumulator:
-            try self.line5("mov ", accumulator, ".16b, ", c, ".16b")
-        try self.line5("fmla ", accumulator, arr, ", ", a)
-        try self.put(arr)
-        try self.put(", ")
-        try self.put(b)
-        try self.put(arr)
+            try self.writer.line5("mov ", accumulator, ".16b, ", c, ".16b")
+        try self.writer.line5("fmla ", accumulator, arr, ", ", a)
+        try self.writer.put(arr)
+        try self.writer.put(", ")
+        try self.writer.put(b)
+        try self.writer.put(arr)
         if d == "q18" and self.target(n.dst, ir.Class.v, "q18") != "q18":
             d = self.target(n.dst, ir.Class.v, "q18")
             try self.line3("mov ", vector_view(d), ".16b, v18.16b")
@@ -1841,31 +1763,31 @@ pub struct Generator:
             if n.op == ir.Op.loadv:
                 let address = try self.source(n.a, ir.Class.l, "x9")
                 let d = self.target(n.dst, ir.Class.v, "q16")
-                try self.line4("ldr ", d, ", [", address)
-                try self.put("]")
+                try self.writer.line4("ldr ", d, ", [", address)
+                try self.writer.put("]")
                 try self.finish(n.dst, ir.Class.v, d)
                 return
             if n.op == ir.Op.storev:
                 let value = try self.source(n.a, ir.Class.v, "q16")
                 let address = try self.source(n.b, ir.Class.l, "x9")
-                try self.line4("str ", value, ", [", address)
-                try self.put("]")
+                try self.writer.line4("str ", value, ", [", address)
+                try self.writer.put("]")
                 return
             if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
                 let a = try self.source(n.a, ir.Class.v, "q16")
                 let b = try self.source(n.b, ir.Class.v, "q17")
                 let d = self.target(n.dst, ir.Class.v, "q16")
                 let form = all if n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor else arr
-                try self.line(vector_mnemonic(n.op, ir.lanes_signed(shape)))
-                try self.put(" ")
-                try self.put(vector_view(d))
-                try self.put(form)
-                try self.put(", ")
-                try self.put(vector_view(a))
-                try self.put(form)
-                try self.put(", ")
-                try self.put(vector_view(b))
-                try self.put(form)
+                try self.writer.line(vector_mnemonic(n.op, ir.lanes_signed(shape)))
+                try self.writer.put(" ")
+                try self.writer.put(vector_view(d))
+                try self.writer.put(form)
+                try self.writer.put(", ")
+                try self.writer.put(vector_view(a))
+                try self.writer.put(form)
+                try self.writer.put(", ")
+                try self.writer.put(vector_view(b))
+                try self.writer.put(form)
                 try self.finish(n.dst, ir.Class.v, d)
                 return
         match n.op:
@@ -1883,10 +1805,10 @@ pub struct Generator:
             .vneg, .vnot:
                 try self.vector_source(0, n.a, bytes)
                 let form = arr if n.op == ir.Op.vneg else all
-                try self.line("fneg v16" if n.op == ir.Op.vneg else "mvn v16")
-                try self.put(form)
-                try self.put(", v16")
-                try self.put(form)
+                try self.writer.line("fneg v16" if n.op == ir.Op.vneg else "mvn v16")
+                try self.writer.put(form)
+                try self.writer.put(", v16")
+                try self.writer.put(form)
                 try self.vector_result(n.dst, 0, bytes)
             .vshl, .vshr:
                 # the count, one scalar, spread over the lanes; a right shift is a left
@@ -1894,65 +1816,65 @@ pub struct Generator:
                 try self.vector_source(0, n.a, bytes)
                 let wide = ir.lane_bits(shape) == 64
                 let count = try self.source(n.b, ir.Class.l if wide else ir.Class.w, "x9" if wide else "w9")
-                try self.line("dup v17")
-                try self.put(arr)
-                try self.put(", ")
-                try self.put(count)
+                try self.writer.line("dup v17")
+                try self.writer.put(arr)
+                try self.writer.put(", ")
+                try self.writer.put(count)
                 if n.op == ir.Op.vshr:
-                    try self.line("neg v17")
-                    try self.put(arr)
-                    try self.put(", v17")
-                    try self.put(arr)
-                try self.line("sshl v16" if ir.lanes_signed(shape) else "ushl v16")
-                try self.put(arr)
-                try self.put(", v16")
-                try self.put(arr)
-                try self.put(", v17")
-                try self.put(arr)
+                    try self.writer.line("neg v17")
+                    try self.writer.put(arr)
+                    try self.writer.put(", v17")
+                    try self.writer.put(arr)
+                try self.writer.line("sshl v16" if ir.lanes_signed(shape) else "ushl v16")
+                try self.writer.put(arr)
+                try self.writer.put(", v16")
+                try self.writer.put(arr)
+                try self.writer.put(", v17")
+                try self.writer.put(arr)
                 try self.vector_result(n.dst, 0, bytes)
             .vaddo, .vsubo:
                 # the wrapping result beside the saturating one: a lane that differs overflowed
                 try self.vector_source(0, n.a, bytes)
                 try self.vector_source(1, n.b, bytes)
                 let add = n.op == ir.Op.vaddo
-                try self.line("add v18" if add else "sub v18")
-                try self.put(arr)
-                try self.put(", v16")
-                try self.put(arr)
-                try self.put(", v17")
-                try self.put(arr)
+                try self.writer.line("add v18" if add else "sub v18")
+                try self.writer.put(arr)
+                try self.writer.put(", v16")
+                try self.writer.put(arr)
+                try self.writer.put(", v17")
+                try self.writer.put(arr)
                 let signed = ir.lanes_signed(shape)
-                try self.line(("sqadd v16" if signed else "uqadd v16") if add else ("sqsub v16" if signed else "uqsub v16"))
-                try self.put(arr)
-                try self.put(", v16")
-                try self.put(arr)
-                try self.put(", v17")
-                try self.put(arr)
-                try self.line("cmeq v16")
-                try self.put(arr)
-                try self.put(", v16")
-                try self.put(arr)
-                try self.put(", v18")
-                try self.put(arr)
-                try self.line("uminv b16, v16")
-                try self.put(all)
-                try self.line("fmov w9, s16")
-                try self.line("cbnz w9, 1f")
+                try self.writer.line(("sqadd v16" if signed else "uqadd v16") if add else ("sqsub v16" if signed else "uqsub v16"))
+                try self.writer.put(arr)
+                try self.writer.put(", v16")
+                try self.writer.put(arr)
+                try self.writer.put(", v17")
+                try self.writer.put(arr)
+                try self.writer.line("cmeq v16")
+                try self.writer.put(arr)
+                try self.writer.put(", v16")
+                try self.writer.put(arr)
+                try self.writer.put(", v18")
+                try self.writer.put(arr)
+                try self.writer.line("uminv b16, v16")
+                try self.writer.put(all)
+                try self.writer.line("fmov w9, s16")
+                try self.writer.line("cbnz w9, 1f")
                 try self.trap_text("integer overflow", n.extra2)
-                try self.put("\n1:")
+                try self.writer.put("\n1:")
                 try self.vector_result(n.dst, 2, bytes)
             _:
                 try self.vector_source(0, n.a, bytes)
                 try self.vector_source(1, n.b, bytes)
                 let bitwise = n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor
                 let form = all if bitwise else arr
-                try self.line(vector_mnemonic(n.op, ir.lanes_signed(shape)))
-                try self.put(" v16")
-                try self.put(form)
-                try self.put(", v16")
-                try self.put(form)
-                try self.put(", v17")
-                try self.put(form)
+                try self.writer.line(vector_mnemonic(n.op, ir.lanes_signed(shape)))
+                try self.writer.put(" v16")
+                try self.writer.put(form)
+                try self.writer.put(", v16")
+                try self.writer.put(form)
+                try self.writer.put(", v17")
+                try self.writer.put(form)
                 try self.vector_result(n.dst, 0, bytes)
 
     ## `T[N](x)`: the scalar into every lane of v16.
@@ -1960,16 +1882,16 @@ pub struct Generator:
         if ir.lanes_float(shape):
             let cls = ir.Class.d if ir.lane_bits(shape) == 64 else ir.Class.s
             try self.operand(self.reg(cls, 0), cls, n.a)
-            try self.line("dup v16")
-            try self.put(arr)
-            try self.put(", v16.d[0]" if cls == ir.Class.d else ", v16.s[0]")
+            try self.writer.line("dup v16")
+            try self.writer.put(arr)
+            try self.writer.put(", v16.d[0]" if cls == ir.Class.d else ", v16.s[0]")
             return
         let wide = ir.lane_bits(shape) == 64
         let scalar = try self.source(n.a, ir.Class.l if wide else ir.Class.w, "x9" if wide else "w9")
-        try self.line("dup v16")
-        try self.put(arr)
-        try self.put(", ")
-        try self.put(scalar)
+        try self.writer.line("dup v16")
+        try self.writer.put(arr)
+        try self.writer.put(", ")
+        try self.writer.put(scalar)
 
     ## A vector temporary into scratch register `k`: from the register it lives in, else
     ## from its home.
@@ -1997,52 +1919,52 @@ pub struct Generator:
                 if signed:
                     try self.line3("sxtw x9, ", a, "")
                     try self.line3("sxtw x10, ", b, "")
-                    try self.line("mul x9, x9, x10")
-                    try self.line("cmp x9, w9, sxtw")
+                    try self.writer.line("mul x9, x9, x10")
+                    try self.writer.line("cmp x9, w9, sxtw")
                 else:
                     try self.line3("mov w9, ", a, "")
                     try self.line3("mov w10, ", b, "")
-                    try self.line("mul x9, x9, x10")
-                    try self.line("cmp x9, w9, uxtw")
-                try self.line("b.eq 1f")
+                    try self.writer.line("mul x9, x9, x10")
+                    try self.writer.line("cmp x9, w9, uxtw")
+                try self.writer.line("b.eq 1f")
             else:
                 if signed:
                     try self.line3("smulh x11, ", a, ", ")
-                    try self.put(b)
+                    try self.writer.put(b)
                     try self.line3("mul x9, ", a, ", ")
-                    try self.put(b)
-                    try self.line("cmp x11, x9, asr #63")
-                    try self.line("b.eq 1f")
+                    try self.writer.put(b)
+                    try self.writer.line("cmp x11, x9, asr #63")
+                    try self.writer.line("b.eq 1f")
                 else:
                     try self.line3("umulh x11, ", a, ", ")
-                    try self.put(b)
+                    try self.writer.put(b)
                     try self.line3("mul x9, ", a, ", ")
-                    try self.put(b)
-                    try self.line("cbz x11, 1f")
+                    try self.writer.put(b)
+                    try self.writer.line("cbz x11, 1f")
             try self.trap_text("integer overflow", n.extra2)
-            try self.put("\n1:")
+            try self.writer.put("\n1:")
             try self.finish(n.dst, n.cls, self.reg(n.cls, 0))
             return
         let add = n.op == ir.Op.addo
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-        try self.line("adds " if add else "subs ")
-        try self.put(d)
-        try self.put(", ")
-        try self.put(a)
-        try self.put(", ")
+        try self.writer.line("adds " if add else "subs ")
+        try self.writer.put(d)
+        try self.writer.put(", ")
+        try self.writer.put(a)
+        try self.writer.put(", ")
         if immediate:
-            try self.put("#")
-            try self.put_i64(n.b.value)
+            try self.writer.put("#")
+            try self.writer.put_i64(n.b.value)
         else:
-            try self.put(b)
+            try self.writer.put(b)
         if signed:
-            try self.line("b.vc 1f")
+            try self.writer.line("b.vc 1f")
         elif add:
-            try self.line("b.cc 1f")
+            try self.writer.line("b.cc 1f")
         else:
-            try self.line("b.cs 1f")
+            try self.writer.line("b.cs 1f")
         try self.trap_text("integer overflow", n.extra2)
-        try self.put("\n1:")
+        try self.writer.put("\n1:")
         try self.finish(n.dst, n.cls, d)
 
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
@@ -2054,7 +1976,7 @@ pub struct Generator:
         if at > 0:
             try self.address_operand("x0", ir.text_ref(at - 1))
             try self.address_operand("x1", ir.text_ref(index))
-            try self.line("bl ")
+            try self.writer.line("bl ")
             try self.symbol(self.program_unit.trap_at_function)
             return
         try self.address_operand("x0", ir.text_ref(index))
@@ -2062,7 +1984,7 @@ pub struct Generator:
 
     ## The program's trap reporter, with the reason in x0.
     mutating func call_trap() -> !:
-        try self.line("bl ")
+        try self.writer.line("bl ")
         try self.symbol(self.program_unit.trap_function)
 
     mutating func inline_asm(n: ir.Instr) -> !:
@@ -2070,8 +1992,8 @@ pub struct Generator:
         if arch != "arm64":
             return
         let body = self.program_unit.texts.get((usize)n.b.index).bytes
-        try self.put("\n")
-        try self.put(body)
+        try self.writer.put("\n")
+        try self.writer.put(body)
 
     mutating func read_modify_write(n: ir.Instr) -> !:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
@@ -2080,66 +2002,66 @@ pub struct Generator:
         try self.address_operand("x17", n.b)
         let acquire = n.extra2 == 2 or n.extra2 == 4 or n.extra2 == 5
         let release = n.extra2 >= 3
-        try self.put("\n1:")
-        try self.line("ldaxr" if acquire else "ldxr")
-        try self.put(width_suffix(n.extra))
-        try self.put(" ")
-        try self.put(self.reg(cls, 0))
-        try self.put(", [x17]")
+        try self.writer.put("\n1:")
+        try self.writer.line("ldaxr" if acquire else "ldxr")
+        try self.writer.put(width_suffix(n.extra))
+        try self.writer.put(" ")
+        try self.writer.put(self.reg(cls, 0))
+        try self.writer.put(", [x17]")
         let old = self.reg(cls, 0)
         let fresh = self.reg(cls, 2)
         match n.op:
             .atomic_add:
-                try self.line("add ")
+                try self.writer.line("add ")
             .atomic_sub:
-                try self.line("sub ")
+                try self.writer.line("sub ")
             .atomic_or:
-                try self.line("orr ")
+                try self.writer.line("orr ")
             .atomic_and_not:
-                try self.line("bic ")
+                try self.writer.line("bic ")
             .atomic_xor:
-                try self.line("eor ")
+                try self.writer.line("eor ")
             .atomic_swap:
-                try self.line("mov ")
+                try self.writer.line("mov ")
             .atomic_max:
-                try self.line("cmp ")
-                try self.put(old)
-                try self.put(", ")
-                try self.put(value)
-                try self.line("csel ")
-                try self.put(fresh)
-                try self.put(", ")
-                try self.put(old)
-                try self.put(", ")
-                try self.put(value)
-                try self.put(", ge")
+                try self.writer.line("cmp ")
+                try self.writer.put(old)
+                try self.writer.put(", ")
+                try self.writer.put(value)
+                try self.writer.line("csel ")
+                try self.writer.put(fresh)
+                try self.writer.put(", ")
+                try self.writer.put(old)
+                try self.writer.put(", ")
+                try self.writer.put(value)
+                try self.writer.put(", ge")
             .atomic_min:
-                try self.line("cmp ")
-                try self.put(old)
-                try self.put(", ")
-                try self.put(value)
-                try self.line("csel ")
-                try self.put(fresh)
-                try self.put(", ")
-                try self.put(old)
-                try self.put(", ")
-                try self.put(value)
-                try self.put(", le")
+                try self.writer.line("cmp ")
+                try self.writer.put(old)
+                try self.writer.put(", ")
+                try self.writer.put(value)
+                try self.writer.line("csel ")
+                try self.writer.put(fresh)
+                try self.writer.put(", ")
+                try self.writer.put(old)
+                try self.writer.put(", ")
+                try self.writer.put(value)
+                try self.writer.put(", le")
             _:
-                try self.line("mov ")
+                try self.writer.line("mov ")
         if n.op != ir.Op.atomic_max and n.op != ir.Op.atomic_min:
-            try self.put(fresh)
-            try self.put(", ")
+            try self.writer.put(fresh)
+            try self.writer.put(", ")
             if n.op != ir.Op.atomic_swap:
-                try self.put(old)
-                try self.put(", ")
-            try self.put(value)
-        try self.line("stlxr" if release else "stxr")
-        try self.put(width_suffix(n.extra))
-        try self.put(" w16, ")
-        try self.put(fresh)
-        try self.put(", [x17]")
-        try self.line("cbnz w16, 1b")
+                try self.writer.put(old)
+                try self.writer.put(", ")
+            try self.writer.put(value)
+        try self.writer.line("stlxr" if release else "stxr")
+        try self.writer.put(width_suffix(n.extra))
+        try self.writer.put(" w16, ")
+        try self.writer.put(fresh)
+        try self.writer.put(", [x17]")
+        try self.writer.line("cbnz w16, 1b")
         try self.store_temp(old, n.dst)
 
     mutating func compare_and_swap(n: ir.Instr) -> !:
@@ -2149,25 +2071,25 @@ pub struct Generator:
         try self.operand(self.reg(cls, 1), cls, expected.value)
         try self.operand(self.reg(cls, 2), cls, desired.value)
         try self.address_operand("x17", n.a)
-        try self.put("\n1:")
-        try self.line("ldaxr")
-        try self.put(width_suffix(n.extra))
-        try self.put(" ")
-        try self.put(self.reg(cls, 0))
-        try self.put(", [x17]")
-        try self.line("cmp ")
-        try self.put(self.reg(cls, 0))
-        try self.put(", ")
-        try self.put(self.reg(cls, 1))
-        try self.line("b.ne 2f")
-        try self.line("stlxr")
-        try self.put(width_suffix(n.extra))
-        try self.put(" w16, ")
-        try self.put(self.reg(cls, 2))
-        try self.put(", [x17]")
-        try self.line("cbnz w16, 1b")
-        try self.put("\n2:")
-        try self.line("clrex")
+        try self.writer.put("\n1:")
+        try self.writer.line("ldaxr")
+        try self.writer.put(width_suffix(n.extra))
+        try self.writer.put(" ")
+        try self.writer.put(self.reg(cls, 0))
+        try self.writer.put(", [x17]")
+        try self.writer.line("cmp ")
+        try self.writer.put(self.reg(cls, 0))
+        try self.writer.put(", ")
+        try self.writer.put(self.reg(cls, 1))
+        try self.writer.line("b.ne 2f")
+        try self.writer.line("stlxr")
+        try self.writer.put(width_suffix(n.extra))
+        try self.writer.put(" w16, ")
+        try self.writer.put(self.reg(cls, 2))
+        try self.writer.put(", [x17]")
+        try self.writer.line("cbnz w16, 1b")
+        try self.writer.put("\n2:")
+        try self.writer.line("clrex")
         try self.store_temp(self.reg(cls, 0), n.dst)
 
     # mark: Calls ==============================================================================
@@ -2239,11 +2161,11 @@ pub struct Generator:
 
     ## The second register of a two-register aggregate argument, from `at` + 8.
     mutating func second_word(p: ArgPlacement, a: ir.Arg, at: str) -> !:
-        try self.line("ldr x" if a.size > 12 else "ldr w")
-        try self.put_u64((u64)p.first + 1)
-        try self.put(", [")
-        try self.put(at)
-        try self.put(", #8]")
+        try self.writer.line("ldr x" if a.size > 12 else "ldr w")
+        try self.writer.put_u64((u64)p.first + 1)
+        try self.writer.put(", [")
+        try self.writer.put(at)
+        try self.writer.put(", #8]")
 
     ## The integer register arguments as one parallel move: an argument may live in an
     ## argument register another argument takes, so a move waits while its destination is
@@ -2312,27 +2234,27 @@ pub struct Generator:
             if at.length == 0:
                 at = try self.source(a.value, ir.Class.l, "x9")
             if p.where == 3:
-                try self.line("mov x")
-                try self.put_u64((u64)p.first)
-                try self.put(", ")
-                try self.put(at)
+                try self.writer.line("mov x")
+                try self.writer.put_u64((u64)p.first)
+                try self.writer.put(", ")
+                try self.writer.put(at)
                 return
             # the address may live in one of the destinations: that word loads last
             let first_last = p.count == 2 and at == arg_register(p.first)
             if first_last:
                 try self.second_word(p, a, at)
-            try self.line("ldr x")
-            try self.put_u64((u64)p.first)
-            try self.put(", [")
-            try self.put(at)
-            try self.put("]")
+            try self.writer.line("ldr x")
+            try self.writer.put_u64((u64)p.first)
+            try self.writer.put(", [")
+            try self.writer.put(at)
+            try self.writer.put("]")
             if p.count == 2 and not first_last:
                 try self.second_word(p, a, at)
             return
         if read.length > 0:
             if read != arg_register(p.first):
                 try self.line3("mov ", arg_register(p.first), ", ")
-                try self.put(read)
+                try self.writer.put(read)
             return
         try self.operand(arg_register(p.first), ir.Class.l, a.value)
 
@@ -2361,7 +2283,7 @@ pub struct Generator:
         let area = (u64)arm_round_up((u64)stack, 16)
         if area > 0:
             try self.load_immediate("x16", (i64)area)
-            try self.line("sub sp, sp, x16")
+            try self.writer.line("sub sp, sp, x16")
             self.sp_shift += area
         # the callee's address first, kept in a slot-free register the arguments do not touch
         var through_register = false
@@ -2370,7 +2292,7 @@ pub struct Generator:
             # It is still an indirect call, never an unnamed external symbol.
             through_register = true
             try self.operand("x17", ir.Class.l, n.a)
-            try self.line("str x17, [sp, #-16]!")
+            try self.writer.line("str x17, [sp, #-16]!")
             self.sp_shift += 16
         # stack arguments
         i = 0
@@ -2383,43 +2305,43 @@ pub struct Generator:
                     try self.operand(self.reg(a.cls, 0), a.cls, a.value)
                     let width = scalar_stack_width(a.cls, a.scalar_width)
                     if info.variadic and i >= info.fixed_count and self.object_format.apple:
-                        try self.line("str ")
-                        try self.put(self.wide(a.cls, 0))
+                        try self.writer.line("str ")
+                        try self.writer.put(self.wide(a.cls, 0))
                     elif ir.is_float_class(a.cls):
-                        try self.line("str ")
-                        try self.put(self.reg(a.cls, 0))
+                        try self.writer.line("str ")
+                        try self.writer.put(self.reg(a.cls, 0))
                     else:
-                        try self.line("strb " if width == 1 else ("strh " if width == 2 else "str "))
-                        try self.put(self.reg(ir.Class.w if width < 8 else ir.Class.l, 0))
-                    try self.put(", [sp, #")
-                    try self.put_u64(base_offset)
-                    try self.put("]")
+                        try self.writer.line("strb " if width == 1 else ("strh " if width == 2 else "str "))
+                        try self.writer.put(self.reg(ir.Class.w if width < 8 else ir.Class.l, 0))
+                    try self.writer.put(", [sp, #")
+                    try self.writer.put_u64(base_offset)
+                    try self.writer.put("]")
                 elif self.hfa(a.shape) > 0:
                     let at = try self.source(a.value, ir.Class.l, "x9")
                     let each = (u64)self.program_unit.leaves_of(a.shape)[0].size
                     var k: u32 = 0
                     while k < self.hfa(a.shape):
                         try self.pair_move("ldr x10, [" if each == 8 else ("ldr w10, [" if each == 4 else "ldrh w10, ["), at, (u64)k * each)
-                        try self.line("str x10, [sp, #" if each == 8 else ("str w10, [sp, #" if each == 4 else "strh w10, [sp, #"))
-                        try self.put_u64(base_offset + (u64)k * each)
-                        try self.put("]")
+                        try self.writer.line("str x10, [sp, #" if each == 8 else ("str w10, [sp, #" if each == 4 else "strh w10, [sp, #"))
+                        try self.writer.put_u64(base_offset + (u64)k * each)
+                        try self.writer.put("]")
                         k += 1
                 elif a.size <= 16:
                     let at = try self.source(a.value, ir.Class.l, "x9")
                     try self.pair_move("ldr x10, [", at, 0)
-                    try self.line("str x10, [sp, #")
-                    try self.put_u64(base_offset)
-                    try self.put("]")
+                    try self.writer.line("str x10, [sp, #")
+                    try self.writer.put_u64(base_offset)
+                    try self.writer.put("]")
                     if a.size > 8:
                         try self.pair_move("ldr x10, [", at, 8)
-                        try self.line("str x10, [sp, #")
-                        try self.put_u64(base_offset + 8)
-                        try self.put("]")
+                        try self.writer.line("str x10, [sp, #")
+                        try self.writer.put_u64(base_offset + 8)
+                        try self.writer.put("]")
                 else:
                     let at = try self.source(a.value, ir.Class.l, "x9")
                     try self.line3("str ", at, ", [sp, #")
-                    try self.put_u64(base_offset)
-                    try self.put("]")
+                    try self.writer.put_u64(base_offset)
+                    try self.writer.put("]")
             i += 1
         # register arguments, floats first so integer scratch stays free
         i = 0
@@ -2429,24 +2351,24 @@ pub struct Generator:
             if p.where == 1:
                 if a.size == 0:
                     try self.operand(self.reg(a.cls, 0), a.cls, a.value)
-                    try self.line("fmov ")
-                    try self.put(self.half_letter(a.cls))
-                    try self.put_u64((u64)p.first)
-                    try self.put(", ")
-                    try self.put(try self.hv(self.reg(a.cls, 0)))
+                    try self.writer.line("fmov ")
+                    try self.writer.put(self.half_letter(a.cls))
+                    try self.writer.put_u64((u64)p.first)
+                    try self.writer.put(", ")
+                    try self.writer.put(try self.hv(self.reg(a.cls, 0)))
                 else:
                     let at = try self.source(a.value, ir.Class.l, "x9")
                     let each = (u64)a.size // (u64)self.hfa(a.shape)
                     var k: u32 = 0
                     while k < p.count:
-                        try self.line("ldr ")
-                        try self.put(float_letter_of(each))
-                        try self.put_u64((u64)(p.first + k))
-                        try self.put(", [")
-                        try self.put(at)
-                        try self.put(", #")
-                        try self.put_u64((u64)k * each)
-                        try self.put("]")
+                        try self.writer.line("ldr ")
+                        try self.writer.put(float_letter_of(each))
+                        try self.writer.put_u64((u64)(p.first + k))
+                        try self.writer.put(", [")
+                        try self.writer.put(at)
+                        try self.writer.put(", #")
+                        try self.writer.put_u64((u64)k * each)
+                        try self.writer.put("]")
                         k += 1
             i += 1
         try self.integer_arguments(info, placements)
@@ -2454,15 +2376,15 @@ pub struct Generator:
         if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0 and not info.result_private:
             try self.frame_address("x8", self.slot_home(info.result_slot))
         if through_register:
-            try self.line("ldr x17, [sp], #16")
+            try self.writer.line("ldr x17, [sp], #16")
             self.sp_shift -= 16
-            try self.line("blr x17")
+            try self.writer.line("blr x17")
         else:
-            try self.line("bl ")
+            try self.writer.line("bl ")
             try self.symbol(n.a.name)
         if area > 0:
             try self.load_immediate("x16", (i64)area)
-            try self.line("add sp, sp, x16")
+            try self.writer.line("add sp, sp, x16")
             self.sp_shift -= area
         # the result
         if not info.has_result:
@@ -2488,12 +2410,12 @@ pub struct Generator:
             var k: u32 = 0
             while k < self.hfa(info.result_shape):
                 try self.frame_address("x16", home)
-                try self.line("str ")
-                try self.put(float_letter_of(each))
-                try self.put_u64((u64)k)
-                try self.put(", [x16, #")
-                try self.put_u64((u64)k * each)
-                try self.put("]")
+                try self.writer.line("str ")
+                try self.writer.put(float_letter_of(each))
+                try self.writer.put_u64((u64)k)
+                try self.writer.put(", [x16, #")
+                try self.writer.put_u64((u64)k * each)
+                try self.writer.put("]")
                 k += 1
             return
         if info.result_size <= 16 or info.result_private:
@@ -2512,35 +2434,35 @@ pub struct Generator:
     ## `[x16, #offset]`, nothing past them; the odd widths go in two pieces through x17.
     mutating func store_low(x: str, w: str, offset: u64, width: u64) -> !:
         if width == 8 or width == 4 or width == 2 or width == 1:
-            try self.line("str " if width >= 4 else ("strh " if width == 2 else "strb "))
-            try self.put(x if width == 8 else w)
-            try self.put(", [x16, #")
-            try self.put_u64(offset)
-            try self.put("]")
+            try self.writer.line("str " if width >= 4 else ("strh " if width == 2 else "strb "))
+            try self.writer.put(x if width == 8 else w)
+            try self.writer.put(", [x16, #")
+            try self.writer.put_u64(offset)
+            try self.writer.put("]")
             return
         let low: u64 = 4 if width > 4 else 2
         try self.store_low(x, w, offset, low)
         try self.line3("lsr x17, ", x, ", #")
-        try self.put_u64(low * 8)
+        try self.writer.put_u64(low * 8)
         try self.store_low("x17", "w17", offset + low, width - low)
 
     ## Exactly `width` bytes from `[x16, #offset]` into `x`, zero above them.
     mutating func load_low(x: str, w: str, offset: u64, width: u64) -> !:
         if width == 8 or width == 4 or width == 2 or width == 1:
-            try self.line("ldr " if width >= 4 else ("ldrh " if width == 2 else "ldrb "))
-            try self.put(x if width == 8 else w)
-            try self.put(", [x16, #")
-            try self.put_u64(offset)
-            try self.put("]")
+            try self.writer.line("ldr " if width >= 4 else ("ldrh " if width == 2 else "ldrb "))
+            try self.writer.put(x if width == 8 else w)
+            try self.writer.put(", [x16, #")
+            try self.writer.put_u64(offset)
+            try self.writer.put("]")
             return
         let low: u64 = 4 if width > 4 else 2
         try self.load_low("x17", "w17", offset + low, width - low)
         try self.load_low(x, w, offset, low)
-        try self.line("lsl x17, x17, #")
-        try self.put_u64(low * 8)
+        try self.writer.line("lsl x17, x17, #")
+        try self.writer.put_u64(low * 8)
         try self.line3("orr ", x, ", ")
-        try self.put(x)
-        try self.put(", x17")
+        try self.writer.put(x)
+        try self.writer.put(", x17")
 
     ## The wide name of a class's first scratch register for a stack store.
     func wide(cls: ir.Class, n: u32) -> str:
@@ -2555,11 +2477,11 @@ pub struct Generator:
     mutating func reserve_levels(count: u32) -> !:
         let below = self.fr.size + (u64)count * (u64)ir.level_bytes
         if below <= 4095:
-            try self.line("sub sp, x29, #")
-            try self.put_u64(below)
+            try self.writer.line("sub sp, x29, #")
+            try self.writer.put_u64(below)
             return
         try self.load_immediate("x16", (i64)below)
-        try self.line("sub sp, x29, x16")
+        try self.writer.line("sub sp, x29, x16")
 
     ## The words of a private result, from x0-x3 into the `word`s right after the call at
     ## `self.at`: those kept in the frame stored first, then the rest as one parallel copy
@@ -2601,7 +2523,7 @@ pub struct Generator:
             let to = w_names[(usize)targets[k]] if narrow else x_names[(usize)targets[k]]
             let read = ("w16" if narrow else "x16") if step.parked else (w_names[reg] if narrow else x_names[reg])
             if to != read or narrow:
-                try self.line4("mov ", to, ", ", read)
+                try self.writer.line4("mov ", to, ", ", read)
 
     ## A `ret` of a private result's words, arrived its arguments into x0-x3: those living in
     ## registers as one parallel copy, x17 parking one to break a cycle; then the rest,
@@ -2632,7 +2554,7 @@ pub struct Generator:
                         blocked = true
                 if not blocked:
                     if reads[k] != target:
-                        try self.line4("mov ", target, ", ", reads[k])
+                        try self.writer.line4("mov ", target, ", ", reads[k])
                     pending[k] = false
                     moved = true
             if left and not moved:
@@ -2662,12 +2584,12 @@ pub struct Generator:
                 let each = (u64)self.f.result_size // (u64)self.hfa(self.f.result_shape)
                 var k: u32 = 0
                 while k < self.hfa(self.f.result_shape):
-                    try self.line("ldr ")
-                    try self.put(float_letter_of(each))
-                    try self.put_u64((u64)k)
-                    try self.put(", [x9, #")
-                    try self.put_u64((u64)k * each)
-                    try self.put("]")
+                    try self.writer.line("ldr ")
+                    try self.writer.put(float_letter_of(each))
+                    try self.writer.put_u64((u64)k)
+                    try self.writer.put(", [x9, #")
+                    try self.writer.put_u64((u64)k * each)
+                    try self.writer.put("]")
                     k += 1
             elif self.f.result_size <= 16 or self.f.result_private:
                 try self.address_operand("x16", n.a)
@@ -2680,33 +2602,33 @@ pub struct Generator:
             else:
                 try self.address_operand("x1", n.a)
                 try self.frame_address("x16", self.fr.indirect_home)
-                try self.line("ldr x0, [x16]")
+                try self.writer.line("ldr x0, [x16]")
                 if self.f.result_size <= 128:
                     # a few words: loads and stores, not a call, on every return
                     try self.inline_copy("x1", "x0", (u64)self.f.result_size)
                 else:
                     try self.load_immediate("x2", (i64)self.f.result_size)
-                    try self.line("bl ")
+                    try self.writer.line("bl ")
                     try self.symbol("memcpy")
                     try self.frame_address("x16", self.fr.indirect_home)
-                    try self.line("ldr x0, [x16]")
+                    try self.writer.line("ldr x0, [x16]")
         if self.f.allocates_frame:
             # the frame storage goes: sp back at the frame's bottom, where the saves are
-            try self.line("mov sp, x28")
+            try self.writer.line("mov sp, x28")
             self.frame_base = false
         try self.restore_callee_saved()
         self.frame_base = self.f.allocates_frame
         if self.dw != none:
-            try self.line(".cfi_remember_state")
-        try self.line("mov sp, x29")
-        try self.line("ldp x29, x30, [sp], #16")
+            try self.writer.line(".cfi_remember_state")
+        try self.writer.line("mov sp, x29")
+        try self.writer.line("ldp x29, x30, [sp], #16")
         if self.dw != none:
-            try self.line(".cfi_def_cfa 31, 0")
-            try self.line(".cfi_restore 29")
-            try self.line(".cfi_restore 30")
-        try self.line("ret")
+            try self.writer.line(".cfi_def_cfa 31, 0")
+            try self.writer.line(".cfi_restore 29")
+            try self.writer.line(".cfi_restore 30")
+        try self.writer.line("ret")
         if self.dw != none:
-            try self.line(".cfi_restore_state")
+            try self.writer.line(".cfi_restore_state")
 
     ## The callee-saved registers the function's asm blocks name as operands, `x19`-`x28` and
     ## `d8`-`d15` in any view: reserved, so they are saved and restored like the allocator's.
@@ -2728,10 +2650,10 @@ pub struct Generator:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
                 try self.frame_store(save_name(c), self.fr.save_offset[c])
                 if self.dw != none:
-                    try self.line(".cfi_offset ")
-                    try self.put_u64((u64)c + 18 if c <= 10 else (u64)c + 61)
-                    try self.put(", -")
-                    try self.put_u64(self.fr.save_offset[c] + 16)
+                    try self.writer.line(".cfi_offset ")
+                    try self.writer.put_u64((u64)c + 18 if c <= 10 else (u64)c + 61)
+                    try self.writer.put(", -")
+                    try self.writer.put_u64(self.fr.save_offset[c] + 16)
             c += 1
 
     ## Restore them before returning; the result already sits in x0/x1/d0.
@@ -2745,8 +2667,8 @@ pub struct Generator:
     # mark: The unit ===========================================================================
     pub mutating func generate() -> !:
         if let dw = self.dw:
-            try dw.begin(&self.out)
-        try self.object_format.text_section(&self.out)
+            try dw.begin(&self.writer.out)
+        try self.object_format.text_section(&self.writer.out)
         self.starts = try alloc usize[self.program_unit.functions.count + 1]
         # the reasons generated checks trap with, in the unit's texts before any function is
         # generated: the functions only read the texts, whichever thread generates them
@@ -2761,57 +2683,57 @@ pub struct Generator:
         else:
             # the DWARF emitter gathers every function's lines and frames in order
             while i < self.program_unit.functions.count:
-                self.starts[i] = self.out.used
+                self.starts[i] = self.writer.out.used
                 try self.function(i)
                 i += 1
-        self.starts[self.program_unit.functions.count] = self.out.used
+        self.starts[self.program_unit.functions.count] = self.writer.out.used
         # module-level asm blocks, verbatim, in the text section (§8.9)
         i = 0
         while i < self.program_unit.module_asm.count:
-            try self.put("\n")
-            try self.put(self.program_unit.module_asm.get(i).bytes)
+            try self.writer.put("\n")
+            try self.writer.put(self.program_unit.module_asm.get(i).bytes)
             i += 1
-        try self.object_format.initializer(&self.out, self.program_unit.init_function)
+        try self.object_format.initializer(&self.writer.out, self.program_unit.init_function)
         # text literals
-        try self.object_format.read_only(&self.out)
+        try self.object_format.read_only(&self.writer.out)
         i = 0
         while i < self.program_unit.texts.count:
             if self.split:
-                try self.object_format.hidden_global(&self.out, try self.text_label_name(u32(i)))
+                try self.object_format.hidden_global(&self.writer.out, try self.text_label_name(u32(i)))
             try self.text_label(u32(i))
-            try self.put(":\n    .asciz ")
-            try self.c_string(self.program_unit.texts.get(i).bytes)
-            try self.put("\n")
+            try self.writer.put(":\n    .asciz ")
+            try self.writer.c_string(self.program_unit.texts.get(i).bytes)
+            try self.writer.put("\n")
             i += 1
         # witness tables
-        try self.object_format.relocated_read_only(&self.out)
+        try self.object_format.relocated_read_only(&self.writer.out)
         i = 0
         while i < self.program_unit.tables.count:
             let t = self.program_unit.tables.get(i)
             # every unit that views the record has the same table; the linker keeps one
-            try self.object_format.global_symbol(&self.out, t.name, true, false)
+            try self.object_format.global_symbol(&self.writer.out, t.name, true, false)
             try self.symbol(t.name)
-            try self.put(":\n")
+            try self.writer.put(":\n")
             var k: usize = 0
             while k < t.entries.count:
                 let entry = t.entries.get(k)
-                try self.put("    .quad ")
+                try self.writer.put("    .quad ")
                 if entry.length == 0:
-                    try self.put("0")
+                    try self.writer.put("0")
                 else:
                     try self.symbol(entry)
-                try self.put("\n")
+                try self.writer.put("\n")
                 k += 1
             i += 1
         # frame descriptors, when `--debug` asked for them
         if self.descriptors.used > 0:
-            try self.put(self.descriptors.view())
-        try self.object_format.globals(&self.out, self.program_unit)
-        try self.put("\n")
+            try self.writer.put(self.descriptors.view())
+        try self.object_format.globals(&self.writer.out, self.program_unit)
+        try self.writer.put("\n")
         if let dw = self.dw:
-            try dw.finish(&self.out)
-        self.ending = self.out.used
-        try self.object_format.finish(&self.out)
+            try dw.finish(&self.writer.out)
+        self.ending = self.writer.out.used
+        try self.object_format.finish(&self.writer.out)
 
     ## Every function's text, each generated on whichever thread takes it by a generator of
     ## its own, in an arena of its own, and written here in order. A function's text depends
@@ -2832,38 +2754,19 @@ pub struct Generator:
             try parallel.each(n, generate_task, (void*)&job)
             try parallel.check(job.failures)
             for k in 0..<n:
-                self.starts[k] = self.out.used
-                try self.put(job.texts[k])
+                self.starts[k] = self.writer.out.used
+                try self.writer.put(job.texts[k])
 
     ## A generator for one function like `model`: the same target and settings, its own
     ## frame and output, from the current allocator.
     static func like(model: Generator*) -> Generator!:
-        var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, fp16 = model.fp16, out = try buffer.Buffer.create(16384), program_unit = model.program_unit, f = model.f, index = 0,
+        var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, fp16 = model.fp16, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
                              fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(256))
         made.dw = none
         made.split = model.split
         made.function_tags = model.function_tags
         made.text_tags = model.text_tags
         return made
-
-    mutating func c_string(text: str) -> !:
-        try self.put("\"")
-        for b in text.bytes:
-            if b == '\\' or b == '"':
-                try self.put("\\")
-                try self.out.put_byte(b)
-            elif b == '\n':
-                try self.put("\\n")
-            elif b == '\t':
-                try self.put("\\t")
-            elif b < 32 or b >= 127:
-                try self.put("\\")
-                try self.out.put_byte('0' + (b >> 6))
-                try self.out.put_byte('0' + ((b >> 3) & 7))
-                try self.out.put_byte('0' + (b & 7))
-            else:
-                try self.out.put_byte(b)
-        try self.put("\"")
 
 # mark: Helpers ================================================================================
 
@@ -3218,7 +3121,7 @@ func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
     with scratch:
         var g = try Generator.like(job.model)
         try g.function(index)
-        let made = g.out.view()
+        let made = g.writer.out.view()
         with memory.heap:
             var kept = try alloc u8[made.length]
             memory.copy(kept, made.bytes, made.length)

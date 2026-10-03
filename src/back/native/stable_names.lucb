@@ -39,6 +39,13 @@ pub func text_tags(program: ir.Unit*) -> u64[]!:
         tags[i] = try claim(&used, program.texts.get(i).bytes)
     return tags
 
+## What names function `index`'s own labels: its index, or under `split` its tag.
+pub func put_function_label(out: buffer.Buffer*, index: usize, tags: const u64[], split: bool) -> !:
+    if split:
+        try put_tag(out, tags[index])
+    else:
+        try out.put_u64((u64)index)
+
 ## `tag` as twelve hex digits.
 pub func put_tag(out: buffer.Buffer*, tag: u64) -> !:
     let digits = "0123456789abcdef"

@@ -3,10 +3,11 @@ src/ has a header box; a file over 150 lines has `# mark:` sections; a function 
 100 lines unless it is a dispatch named in `tools/shape.dispatches`; every `pub`
 declaration has a `##` line above it. `--check` exits 1 when a measure rises past the
 limits in `tools/shape.limits`, the ratchet toward the audit's zero; without it the
-numbers and the offenders are printed."""
+numbers and the offenders are printed. `--root DIR` measures another compiler's tree, Luce's,
+against the limits in its own `tools/shape.limits`."""
 import pathlib, re, sys
 
-root = pathlib.Path(__file__).resolve().parent.parent
+root = pathlib.Path(sys.argv[sys.argv.index("--root") + 1]).resolve() if "--root" in sys.argv else pathlib.Path(__file__).resolve().parent.parent
 sources = sorted(root.glob("src/**/*.lucb"))
 declaration = re.compile(r"^(\s*)(?:pub\s+)?(?:static\s+|mutating\s+|extern\s+|local\s+)*(func|struct|enum|union|interface|handle)\s+([A-Za-z_][A-Za-z0-9_]*)")
 public = re.compile(r"^\s*pub\s+(?:static\s+|mutating\s+|extern\s+|local\s+|packed\s+|align\([^)]*\)\s+)*(func|struct|enum|union|interface|let|var|type|handle)\s+([A-Za-z_][A-Za-z0-9_]*)")

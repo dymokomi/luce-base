@@ -181,6 +181,14 @@ pub struct Frame:
             return self.temp_slot.get((usize)r.index - 1)
         return 0
 
+    ## The promoted slot an address reference reaches, 1-based, or 0 when it reaches none
+    ## or the slot stays in the frame.
+    pub func promoted_slot_of(r: ir.Ref) -> u32:
+        let k = self.slot_of(r)
+        if k == 0 or self.slot_regs.get((usize)k - 1) == 0:
+            return 0
+        return k
+
     ## Decide the registers for function `f`: the temporaries' exact lives (`regalloc`), the
     ## pressure they exert, the slots promoted with what the temporaries leave, then the
     ## temporaries themselves.

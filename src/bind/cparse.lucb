@@ -1116,7 +1116,7 @@ pub struct Parser:
     mutating func binary(minimum: u32) -> Const!:
         var left = try self.unary()
         while self.tok.kind == pre.Kind.punct:
-            let p = precedence(self.tok.text)
+            let p = pre.precedence(self.tok.text)
             if p == 0 or p <= minimum:
                 break
             let op = self.tok.text
@@ -1359,19 +1359,6 @@ func less(x: i64, y: i64, unsigned: bool) -> bool:
     if unsigned:
         return (u64)x < (u64)y
     return x < y
-
-func precedence(text: str) -> u32:
-    if text == "||": return 1
-    if text == "&&": return 2
-    if text == "|": return 3
-    if text == "^": return 4
-    if text == "&": return 5
-    if text == "==" or text == "!=": return 6
-    if text == "<" or text == "<=" or text == ">" or text == ">=": return 7
-    if text == "<<" or text == ">>": return 8
-    if text == "+" or text == "-": return 9
-    if text == "*" or text == "/" or text == "%": return 10
-    return 0
 
 ## The words that begin a type.
 pub func is_type_word(w: str) -> bool:

@@ -26,6 +26,7 @@ import paths
 import platform
 import process
 import strings
+import bind.table
 import support.buffer
 import support.list
 
@@ -126,9 +127,8 @@ pub struct Preprocessor:
     ## Every file opened, in order; a token's `file` indexes this list.
     pub var files: list.List[FileEntry]
     var once: list.List[str]
-    var keys: str[]
-    var values: Macro*?[]
-    var count: usize
+    ## Each macro's current definition by name; `#undef` marks it deleted.
+    var macros: table.Table[Macro*]
     ## Every macro defined, in order, redefinitions and undefined ones included.
     pub var defined: list.List[Macro*]
     var conds: list.List[Cond]
@@ -147,14 +147,10 @@ pub struct Preprocessor:
         var p = Preprocessor(dirs = try list.List[str].create(16), user_dirs = 0,
                              frameworks = try list.List[str].create(4),
                              files = try list.List[FileEntry].create(64),
-                             once = try list.List[str].create(64), keys = try alloc str[1024],
-                             values = try alloc Macro*?[1024], count = 0,
+                             once = try list.List[str].create(64), macros = try table.Table[Macro*].create(512),
                              defined = try list.List[Macro*].create(1024),
                              conds = try list.List[Cond].create(32), counter = 0, depth = 0, main_file = 0,
                              report = try buffer.Buffer.create(1024))
-        for i in 0..<p.keys.length:
-            p.keys[i] = ""
-            p.values[i] = none
         try p.ask_directories(compiler)
         try p.ask_macros(compiler)
         try p.add_builtin("__FILE__", builtin_file)
@@ -251,45 +247,12 @@ pub struct Preprocessor:
 
     ## The macro `name` as it stands, when it is defined.
     pub func lookup(name: str) -> Macro*?:
-        let mask = self.keys.length - 1
-        var i = (usize)fnv(name) & mask
-        while true:
-            let key = self.keys[i]
-            if key.length == 0 and self.values[i] == none:
-                return none
-            if key == name:
-                let m = self.values[i] else return none
-                return none if m.deleted else m
-            i = (i + 1) & mask
+        let m = self.macros.get(name) else return none
+        return none if m.deleted else m
 
+    ## `m` as its name's definition, replacing any earlier one.
     mutating func insert(m: Macro*) -> !:
-        if (self.count + 1) * 2 > self.keys.length:
-            try self.grow()
-        let mask = self.keys.length - 1
-        var i = (usize)fnv(m.name) & mask
-        while true:
-            if self.keys[i] == m.name:
-                self.values[i] = m
-                return
-            if self.keys[i].length == 0 and self.values[i] == none:
-                self.keys[i] = m.name
-                self.values[i] = m
-                self.count += 1
-                return
-            i = (i + 1) & mask
-
-    mutating func grow() -> !:
-        let old_keys = self.keys
-        let old_values = self.values
-        self.keys = try alloc str[old_keys.length * 2]
-        self.values = try alloc Macro*?[old_keys.length * 2]
-        for i in 0..<self.keys.length:
-            self.keys[i] = ""
-            self.values[i] = none
-        self.count = 0
-        for i in 0..<old_keys.length:
-            if let m = old_values[i]:
-                try self.insert(m)
+        try self.macros.put(m.name, m)
 
     mutating func add_builtin(name: str, which: u8) -> !:
         let m = try new Macro(name = name, function_like = false, params = try alloc str[0], variadic = false,
@@ -859,23 +822,10 @@ struct Evaluator:
         let no = try self.conditional()
         return yes if condition.value != 0 else no
 
-    func precedence(text: str) -> u32:
-        if text == "||": return 1
-        if text == "&&": return 2
-        if text == "|": return 3
-        if text == "^": return 4
-        if text == "&": return 5
-        if text == "==" or text == "!=": return 6
-        if text == "<" or text == "<=" or text == ">" or text == ">=": return 7
-        if text == "<<" or text == ">>": return 8
-        if text == "+" or text == "-": return 9
-        if text == "*" or text == "/" or text == "%": return 10
-        return 0
-
     mutating func binary(minimum: u32) -> Value!:
         var left = try self.unary()
         while self.tok.kind == Kind.punct:
-            let p = self.precedence(self.tok.text)
+            let p = precedence(self.tok.text)
             if p == 0 or p <= minimum:
                 break
             let op = self.tok.text
@@ -1068,12 +1018,6 @@ pub func split_at(text: str, separator: u8) -> (str, str)?:
 pub func at(path: str, line: u32, what: str) -> str!:
     let text = try format(place[0..], f"{path}:{line}: {what}")
     return try strings.copy(text)
-
-func fnv(text: str) -> u64:
-    var h: u64 = 14695981039346656037
-    for b in text.bytes:
-        h = (h ^ (u64)b) *% 1099511628211
-    return h
 
 func exists(path: str) -> bool!:
     let terminated = try strings.copy(path)
@@ -1400,6 +1344,21 @@ func quoted_end(text: const u8[], open: usize) -> usize:
     if i < text.length and text[i] == quote:
         i += 1
     return i
+
+## How tightly a C binary operator binds, from `||` at 1 to `*` at 10; 0 for text that is
+## no binary operator. The `#if` evaluator and the binder's constant expressions share it.
+pub func precedence(text: str) -> u32:
+    if text == "||": return 1
+    if text == "&&": return 2
+    if text == "|": return 3
+    if text == "^": return 4
+    if text == "&": return 5
+    if text == "==" or text == "!=": return 6
+    if text == "<" or text == "<=" or text == ">" or text == ">=": return 7
+    if text == "<<" or text == ">>": return 8
+    if text == "+" or text == "-": return 9
+    if text == "*" or text == "/" or text == "%": return 10
+    return 0
 
 test "tokens keep their spacing and line":
     var backing: u8[65536]

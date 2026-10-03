@@ -1,0 +1,124 @@
+#==============================================================================================
+#
+#   assembly - The text both native generators write
+#
+#   DESCRIPTION:
+#       A generator writes each function as assembly text: an instruction per line,
+#       indented under the function's labels, and quoted strings for data. Both targets
+#       write through this one `Text`, so a line, a number, and a string are spelled the
+#       same on arm64 and x86-64. The frame descriptors a debugger reads (`lbd_<name>`)
+#       are written here too, since they follow the frame, not the instruction set.
+#
+#==============================================================================================
+import back.ir.ir
+import back.native.frame
+import support.buffer
+
+## Assembly text being written: the buffer, and the line conventions both targets share.
+pub struct Text:
+    ## What has been written so far.
+    pub var out: buffer.Buffer
+
+    ## `text` where the line already is.
+    pub mutating func put(text: str) -> !:
+        try self.out.put(text)
+
+    ## A new instruction line, indented under the function's labels.
+    pub mutating func line(text: str) -> !:
+        try self.out.put("\n    ")
+        try self.out.put(text)
+
+    ## A new line of four pieces, the way most instructions read: the mnemonic, an operand,
+    ## a separator, an operand.
+    pub mutating func line4(a: str, b: str, c: str, d: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+        try self.put(d)
+
+    ## A new line of five pieces.
+    pub mutating func line5(a: str, b: str, c: str, d: str, e: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+        try self.put(d)
+        try self.put(e)
+
+    ## `v` in decimal.
+    pub mutating func put_u64(v: u64) -> !:
+        try self.out.put_u64(v)
+
+    ## `v` in decimal, with its sign.
+    pub mutating func put_i64(v: i64) -> !:
+        try self.out.put_i64(v)
+
+    ## `text` as a quoted string the assembler reads back byte for byte: `\` and `"`
+    ## escaped, newline and tab by name, every other byte outside printable ASCII in octal.
+    pub mutating func c_string(text: str) -> !:
+        try self.put("\"")
+        for b in text.bytes:
+            if b == '\\' or b == '"':
+                try self.put("\\")
+                try self.out.put_byte(b)
+            elif b == '\n':
+                try self.put("\\n")
+            elif b == '\t':
+                try self.put("\\t")
+            elif b < 32 or b >= 127:
+                try self.put("\\")
+                try self.out.put_byte('0' + (b >> 6))
+                try self.out.put_byte('0' + ((b >> 3) & 7))
+                try self.out.put_byte('0' + (b & 7))
+            else:
+                try self.out.put_byte(b)
+        try self.put("\"")
+
+## `lbd_<name>` into `d`: function `f`'s name and source, then each named local's name, type
+## spelling, distance below the frame pointer in frame `fr`, and size. Every text is a
+## `str` the program unit's text table holds, under labels `text_label` begins, as the
+## target's object format spells them.
+pub func describe_frame(d: buffer.Buffer*, symbol_prefix: str, text_label: str, program: ir.Unit*, f: ir.Function*, fr: frame.Frame*) -> !:
+    try d.put("    .globl ")
+    try d.put(symbol_prefix)
+    try d.put("lbd_")
+    try d.put(f.name)
+    try d.put("\n")
+    try d.put(symbol_prefix)
+    try d.put("lbd_")
+    try d.put(f.name)
+    try d.put(":\n")
+    try describe_text(d, text_label, program, f.name)
+    try describe_text(d, text_label, program, f.source)
+    try d.put("    .quad ")
+    try d.put_u64((u64)f.locals.count)
+    try d.put("\n")
+    var i: usize = 0
+    while i < f.locals.count:
+        let described = f.locals.get(i)
+        try describe_text(d, text_label, program, described.name)
+        try describe_text(d, text_label, program, described.kind)
+        try d.put("    .quad ")
+        try d.put_u64(fr.slot_home(described.slot))
+        try d.put(", ")
+        try d.put_u64((u64)described.size)
+        try d.put("\n")
+        i += 1
+
+## A `str` in a descriptor: the address of its text in the program unit's table, and its length.
+func describe_text(d: buffer.Buffer*, text_label: str, program: ir.Unit*, text: str) -> !:
+    let index = try program.text(text)
+    try d.put("    .quad ")
+    try d.put(text_label)
+    try d.put_u64((u64)index)
+    try d.put(", ")
+    try d.put_u64((u64)text.length)
+    try d.put("\n")
+
+## The power of two `bytes` is: what an alignment directive (`.p2align`) takes.
+pub func alignment_power(bytes: u64) -> u64:
+    var result: u64 = 0
+    var remaining = bytes
+    while remaining > 1:
+        remaining = remaining // 2
+        result += 1
+    return result

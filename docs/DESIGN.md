@@ -58,6 +58,7 @@ subdirectory keeps a generated module of its own beside it.
 | `back.ir.ir` | the intermediate form: functions of blocks of typed instructions |
 | `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit`; a directory of fragments, one per concern |
 | `back.native.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
+| `back.native.assembly` | the text both generators write: instruction lines, numbers, quoted strings, alignment powers, and the frame descriptors a debugger reads |
 | `back.native.arm64` | IR to arm64 assembly: frames, the calling convention, atomics; arm64-macos and arm64-linux |
 | `back.native.arm64.object` | Mach-O and ELF for arm64: sections, symbols, relocations, thread-locals, and where Apple's convention differs from AAPCS64 (variadic and stack arguments) |
 | `back.native.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level |

@@ -9,6 +9,7 @@
 #
 #==============================================================================================
 
+import back.native.assembly
 import back.ir.ir
 import back.target as build_target
 import support.buffer
@@ -219,7 +220,7 @@ pub struct Format:
                 i += 1
                 continue
             let size = (u64)g.size if g.size > 0 else 1
-            let align = log2((u64)g.align if g.align > 0 else 1)
+            let align = assembly.alignment_power((u64)g.align if g.align > 0 else 1)
             if self.apple:
                 try self.macho_global(out, g, size, align)
             else:
@@ -308,11 +309,3 @@ pub struct Format:
 func line(out: buffer.Buffer*, text: str) -> !:
     try out.put("\n    ")
     try out.put(text)
-
-func log2(value: u64) -> u64:
-    var result: u64 = 0
-    var remaining = value
-    while remaining > 1:
-        remaining = remaining // 2
-        result += 1
-    return result
