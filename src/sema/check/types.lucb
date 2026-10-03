@@ -232,56 +232,53 @@ extend Checker:
             return none
         return self.table.get(self.self_type).decl
 
-    ## An array length: a literal, a constant name, `sizeof`, or arithmetic on those.
+    ## An array length (§5.4): a constant integer expression (§6.4), the same ones a top-level
+    ## `let` may hold, checked as a `usize` and folded by the evaluator every constant uses.
     mutating func constant_length(e: ast.Node*) -> u64!:
-        if e.kind == ast.Kind.literal:
-            let value = literals.decode_integer(e.text) catch failure:
-                return try self.fail(e, "integer literal does not fit")
-            return value
-        if e.kind == ast.Kind.group:
-            let inner = e.left else return 0
-            return try self.constant_length(inner)
-        if e.kind == ast.Kind.name or e.kind == ast.Kind.member:
-            let d = try self.constant_decl(e) else return try self.fail(e, "an array length must be a constant")
-            let v = d.left else return try self.fail(e, "an array length must be a constant")
-            return try self.constant_length(v)
-        if e.kind == ast.Kind.binary:
-            let l = e.left else return 0
-            let r = e.right else return 0
-            let a = try self.constant_length(l)
-            let b = try self.constant_length(r)
-            let v = length_arith(e.text, a, b) else return try self.fail(e, "an array length is a constant that neither overflows nor divides by zero")
-            return v
-        if e.kind == ast.Kind.call:
-            let callee = e.left else return 0
-            if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof"):
-                let arg = e.body else return try self.fail(e, "sizeof needs an argument")
-                let inner = arg.left else return 0
-                let id = try self.type_of_argument(inner)
-                return self.table.size_of(id) if callee.text == "sizeof" else self.table.align_of(id)
-        return try self.fail(e, "an array length must be a constant")
+        let t = try self.check_expr(e, types.usize_id)
+        if t != types.untyped_int_id and not self.table.is_integer(t):
+            return try self.fail(e, "an array length is an integer")
+        try self.settle_values(e)
+        try self.length_arithmetic_fits(e)
+        return self.constant_u64(e) else return try self.fail(e, "an array length must be a constant integer expression (§6.4)")
 
-    ## The constant a name or `module.name` denotes, or none.
-    mutating func constant_decl(e: ast.Node*) -> ast.Node*?!:
-        if e.kind == ast.Kind.name:
-            # a name inside another module's initialiser was resolved when that module was checked
+    ## Every `+ - * // %` in a length computes inside `u64` (§5.4): where a constant wraps, a
+    ## length that overflows or divides by zero is refused.
+    mutating func length_arithmetic_fits(e: ast.Node*) -> !:
+        if let l = e.left:
+            try self.length_arithmetic_fits(l)
+        if let r = e.right:
+            try self.length_arithmetic_fits(r)
+        if e.kind != ast.Kind.binary or not (e.text == "+" or e.text == "-" or e.text == "*" or e.text == "//" or e.text == "%"):
+            return
+        let l = e.left else return
+        let r = e.right else return
+        let a = self.constant_u64(l) else return
+        let b = self.constant_u64(r) else return
+        if length_arith(e.text, a, b) == none:
+            discard(try self.fail(e, "an array length is a constant that neither overflows nor divides by zero"))
+
+    ## Check the value of every constant `e` reaches whose initialiser is not checked yet, and
+    ## of the constants those reach. A constant with a written type has its type from the
+    ## declarations pass and its value from the bodies pass, which comes after the types that
+    ## need its value as a length; `name_type` checks only a constant without a type.
+    mutating func settle_values(e: ast.Node*) -> !:
+        if e.kind == ast.Kind.name or e.kind == ast.Kind.member:
             if let d = e.resolved:
-                return d if d.kind == ast.Kind.constant else none
-            let b = self.lookup(e.text) else return none
-            let d = b.decl else return none
-            return d if d.kind == ast.Kind.constant else none
-        if e.kind == ast.Kind.member:
-            let owner = e.left else return none
-            if owner.kind != ast.Kind.name:
-                return none
-            let b = self.lookup(owner.text) else return none
-            self.note_origin(b)
-            let m = b.decl else return none
-            if m.kind != ast.Kind.module:
-                return none
-            let d = find_decl(m, e.text) else return none
-            return d if d.kind == ast.Kind.constant else none
-        return none
+                if d.kind == ast.Kind.constant and not ast.is_linked(d):
+                    if let init = d.left:
+                        if init.type_id == types.none_id and d.type_id != types.error_id:
+                            d.type_id = types.none_id
+                            try self.check_constant(d)
+                            try self.settle_values(init)
+        if let l = e.left:
+            try self.settle_values(l)
+        if let r = e.right:
+            try self.settle_values(r)
+        var cursor = e.body
+        while let item = cursor:
+            try self.settle_values(item)
+            cursor = item.next
 
     ## The type an argument of `sizeof`/`alignof` names, or the type of the expression.
     mutating func type_of_argument(e: ast.Node*) -> u32!:

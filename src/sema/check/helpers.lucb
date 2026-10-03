@@ -26,7 +26,6 @@ pub func find_member(owner: ast.Node*, name: str, kind: ast.Kind) -> ast.Node*?:
         cursor = m.next
     return none
 
-## The generic parameter list of a declaration, or none.
 ## `a op b` for an array length: none when the result overflows `u64`, divides by zero,
 ## or the operator is not one of `+ - * // %`.
 func length_arith(op: str, a: u64, b: u64) -> u64?:

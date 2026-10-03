@@ -1,0 +1,20 @@
+## §5.4, §6.4: an array length is any constant integer expression a top-level `let` may
+## hold: casts, arithmetic, and the declared value of an integer-backed enum's case, through
+## constants declared with a type, here or used as a struct's field.
+enum Id as u16:
+    first = 0
+    last = 385
+
+let size_from_arithmetic: usize = (usize)3 + 3
+let size_from_enum: usize = (usize)(u16)Id.last + 1
+
+struct Bits:
+    var by_arithmetic: bool[size_from_arithmetic]
+    var by_enum: bool[size_from_enum]
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    var bits: Bits = ---
+    var direct: u8[(usize)Id.last // 5]
+    print(f"{bits.by_arithmetic.length} {bits.by_enum.length} {direct.length}")
+    return 0

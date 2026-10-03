@@ -205,8 +205,8 @@ extend Checker:
         return (i64)low
 
     ## The value of a constant integer expression (§6.4), or `none` when it is not one this
-    ## evaluator folds: literals, `sizeof`, `alignof`, constants, the arithmetic, bit, and
-    ## shift operators, and casts.
+    ## evaluator folds: literals, `sizeof`, `alignof`, constants, the cases of integer-backed
+    ## enums, the arithmetic, bit, and shift operators, and casts.
     pub func constant_u64(e: ast.Node*) -> u64?:
         match e.kind:
             .literal:
@@ -251,9 +251,10 @@ extend Checker:
                     return self.table.align_of(arg.type_id)
                 return none
             .name, .member:
-                # a top-level `let`, this module's or an imported one's: `os.pointer_bits`
+                # a top-level `let`, this module's or an imported one's: `os.pointer_bits`;
+                # or a case of an integer-backed enum, its declared value: `Id.last`
                 let d = e.resolved else return none
-                if d.kind != ast.Kind.constant:
+                if d.kind != ast.Kind.constant and d.kind != ast.Kind.enum_case:
                     return none
                 let init = d.left else return none
                 return self.constant_u64(init)
