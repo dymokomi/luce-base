@@ -1,0 +1,40 @@
+#==============================================================================================
+#
+#   arm64/parallel - Generating in parallel
+#
+#   DESCRIPTION:
+#       Each function generated on whichever thread takes it, by a generator of its own.
+#
+#==============================================================================================
+# mark: Generating in parallel ================================================================
+
+## What the threads generating a program's functions share: the generator they copy, and
+## each function's text or failure.
+struct Generating:
+    var model: Generator*
+    var texts: str[]
+    var failures: parallel.Failure[]
+
+## Generate function `index` of the job `context` points at into a heap copy of its text.
+func generate_task(context: void*?, index: usize):
+    let job = (Generating*)(context else return)
+    var scratch = arenas.Arena(memory.heap, 1048576)
+    defer scratch.destroy()
+    generate_one(job, index, &scratch) catch failure:
+        job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+
+func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
+    var generated: str = ""
+    with scratch:
+        var g = try Generator.like(job.model)
+        try g.function(index)
+        let made = g.writer.out.view()
+        with memory.heap:
+            var kept = try alloc u8[made.length]
+            memory.copy(kept, made.bytes, made.length)
+            generated = (str)kept
+    job.texts[index] = generated
+
+## The reasons a generated check traps with, added to the unit's texts before its functions
+## are generated (`generate`).
+let trap_reasons: str[2] = ["index out of bounds", "integer overflow"]

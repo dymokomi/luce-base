@@ -1,0 +1,580 @@
+#==============================================================================================
+#
+#   arm64/calls - Calls
+#
+#   DESCRIPTION:
+#       Calls under the platform's convention: arguments placed, results received.
+#
+#==============================================================================================
+extend Generator:
+    # mark: Calls ==============================================================================
+
+    ## Classify one argument under the Apple convention, advancing the counters.
+    ## The stack a scalar argument takes: its own width on Apple's convention, which packs
+    ## stack arguments, eight bytes under AAPCS64.
+    func stack_slot(width: u32) -> u32:
+        return width if self.object_format.apple else 8
+
+    ## Where an aggregate begins on the stack: its own alignment under Apple's convention,
+    ## eight bytes at least under AAPCS64.
+    func stack_boundary(align: u64) -> u64:
+        if self.object_format.apple or align >= 8:
+            return align
+        return 8
+
+    func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> ArgPlacement:
+        if a.size == 0:
+            if ir.is_float_class(a.cls):
+                if *next_float < 8:
+                    let p = ArgPlacement(where = 1, first = *next_float, count = 1, stack_offset = 0)
+                    *next_float += 1
+                    return p
+                let slot = self.stack_slot(scalar_stack_width(a.cls, a.scalar_width))
+                *stack = (u32)arm_round_up((u64)*stack, (u64)slot)
+                let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
+                *stack += slot
+                return p
+            if *next_int < 8:
+                let p = ArgPlacement(where = 0, first = *next_int, count = 1, stack_offset = 0)
+                *next_int += 1
+                return p
+            let slot = self.stack_slot(scalar_stack_width(a.cls, a.scalar_width))
+            *stack = (u32)arm_round_up((u64)*stack, (u64)slot)
+            let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
+            *stack += slot
+            return p
+        let floats = self.hfa(a.shape)
+        if floats > 0 and *next_float + floats <= 8:
+            let p = ArgPlacement(where = 1, first = *next_float, count = floats, stack_offset = 0)
+            *next_float += floats
+            return p
+        if floats > 0:
+            *next_float = 8
+            *stack = (u32)arm_round_up((u64)*stack, self.stack_boundary((u64)a.align))
+            let p = ArgPlacement(where = 2, first = 0, count = floats, stack_offset = *stack)
+            *stack += a.size
+            return p
+        if a.size <= 16:
+            let words = (a.size + 7) // 8
+            if *next_int + words <= 8:
+                let p = ArgPlacement(where = 0, first = *next_int, count = words, stack_offset = 0)
+                *next_int += words
+                return p
+            *next_int = 8
+            *stack = (u32)arm_round_up((u64)*stack, 8)
+            let p = ArgPlacement(where = 2, first = 0, count = words, stack_offset = *stack)
+            *stack += words * 8
+            return p
+        if *next_int < 8:
+            let p = ArgPlacement(where = 3, first = *next_int, count = 1, stack_offset = 0)
+            *next_int += 1
+            return p
+        *stack = (u32)arm_round_up((u64)*stack, 8)
+        let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
+        *stack += 8
+        return p
+
+    ## The second register of a two-register aggregate argument, from `at` + 8.
+    mutating func second_word(p: ArgPlacement, a: ir.Arg, at: str) -> !:
+        try self.writer.line("ldr x" if a.size > 12 else "ldr w")
+        try self.writer.put_u64((u64)p.first + 1)
+        try self.writer.put(", [")
+        try self.writer.put(at)
+        try self.writer.put(", #8]")
+
+    ## The integer register arguments as one parallel move: an argument may live in an
+    ## argument register another argument takes, so a move waits while its destination is
+    ## still read by a pending one, a cycle breaks through x17 (free until the callee is
+    ## reloaded), and the arguments read from the frame or made from constants, which read
+    ## no register, come last.
+    mutating func integer_arguments(info: ir.CallInfo, placements: ArgPlacement[]) -> !:
+        let count = (usize)info.args_count
+        var pending = try alloc bool[count + 1]
+        var reads = try alloc str[count + 1]
+        var i: usize = 0
+        while i < count:
+            let a = self.f.args.get((usize)info.args_start + i)
+            let p = placements[i]
+            pending[i] = p.where == 0 or p.where == 3
+            reads[i] = ""
+            if pending[i] and a.value.kind == ir.RefKind.temp:
+                let code = self.fr.temp_regs.get((usize)a.value.index - 1)
+                if code != 0 and not self.fr.float_code(code):
+                    reads[i] = class_name(code, ir.Class.l)
+            i += 1
+        var left = true
+        while left:
+            left = false
+            var moved = false
+            i = 0
+            while i < count:
+                if pending[i] and reads[i].length > 0:
+                    left = true
+                    if not self.destination_read(placements[i], pending, reads, i, count):
+                        try self.integer_argument(i, info, placements[i], reads[i])
+                        pending[i] = false
+                        moved = true
+                i += 1
+            if left and not moved:
+                # every pending destination is still a source: park one source in x17
+                i = 0
+                while i < count:
+                    if pending[i] and reads[i].length > 0 and is_argument_register(reads[i]):
+                        try self.writer.line3("mov x17, ", reads[i], "")
+                        reads[i] = "x17"
+                        break
+                    i += 1
+        i = 0
+        while i < count:
+            if pending[i]:
+                try self.integer_argument(i, info, placements[i], "")
+            i += 1
+
+    ## Whether a pending argument other than `i` reads a register argument `i` writes.
+    func destination_read(p: ArgPlacement, pending: bool[], reads: str[], i: usize, count: usize) -> bool:
+        var k: usize = 0
+        while k < count:
+            if k != i and pending[k] and reads[k].length > 0:
+                let read = argument_index(reads[k])
+                if read >= 0 and (read == (i32)p.first or (p.count == 2 and read == (i32)p.first + 1)):
+                    return true
+            k += 1
+        return false
+
+    ## One integer register argument: from `read` when it lives in a register, else loaded.
+    mutating func integer_argument(i: usize, info: ir.CallInfo, p: ArgPlacement, read: str) -> !:
+        let a = self.f.args.get((usize)info.args_start + i)
+        if p.where == 3 or a.size > 0:
+            var at = read
+            if at.length == 0:
+                at = try self.source(a.value, ir.Class.l, "x9")
+            if p.where == 3:
+                try self.writer.line("mov x")
+                try self.writer.put_u64((u64)p.first)
+                try self.writer.put(", ")
+                try self.writer.put(at)
+                return
+            # the address may live in one of the destinations: that word loads last
+            let first_last = p.count == 2 and at == arg_register(p.first)
+            if first_last:
+                try self.second_word(p, a, at)
+            try self.writer.line("ldr x")
+            try self.writer.put_u64((u64)p.first)
+            try self.writer.put(", [")
+            try self.writer.put(at)
+            try self.writer.put("]")
+            if p.count == 2 and not first_last:
+                try self.second_word(p, a, at)
+            return
+        if read.length > 0:
+            if read != arg_register(p.first):
+                try self.writer.line3("mov ", arg_register(p.first), ", ")
+                try self.writer.put(read)
+            return
+        try self.operand(arg_register(p.first), ir.Class.l, a.value)
+
+    mutating func call(n: ir.Instr) -> !:
+        let info = self.f.calls.get((usize)n.extra)
+        # first pass: sizes of the stack area
+        var next_int: u32 = 0
+        var next_float: u32 = 0
+        var stack: u32 = 0
+        # one placement per argument, however many: from the build's arena
+        var placements: ArgPlacement[]
+        if info.args_count > 0:
+            placements = try alloc ArgPlacement[(usize)info.args_count]
+        var i: u32 = 0
+        while i < info.args_count:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            if info.variadic and i >= info.fixed_count and self.object_format.apple:
+                # Apple passes every variadic argument on the stack, eight bytes each;
+                # AAPCS64 places them like any other
+                stack = (u32)arm_round_up((u64)stack, 8)
+                placements[i] = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = stack)
+                stack += 8
+            else:
+                placements[i] = self.place(a, &next_int, &next_float, &stack)
+            i += 1
+        let area = (u64)arm_round_up((u64)stack, 16)
+        if area > 0:
+            try self.load_immediate("x16", (i64)area)
+            try self.writer.line("sub sp, sp, x16")
+            self.sp_shift += area
+        # the callee's address first, kept in a slot-free register the arguments do not touch
+        var through_register = false
+        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
+            # SSA can expose a constant callee in a branch that remains unreachable.
+            # It is still an indirect call, never an unnamed external symbol.
+            through_register = true
+            try self.operand("x17", ir.Class.l, n.a)
+            try self.writer.line("str x17, [sp, #-16]!")
+            self.sp_shift += 16
+        # stack arguments
+        i = 0
+        while i < info.args_count:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 2:
+                let base_offset = (u64)p.stack_offset + (16 if through_register else 0)
+                if a.size == 0:
+                    try self.operand(self.reg(a.cls, 0), a.cls, a.value)
+                    let width = scalar_stack_width(a.cls, a.scalar_width)
+                    if info.variadic and i >= info.fixed_count and self.object_format.apple:
+                        try self.writer.line("str ")
+                        try self.writer.put(self.wide(a.cls, 0))
+                    elif ir.is_float_class(a.cls):
+                        try self.writer.line("str ")
+                        try self.writer.put(self.reg(a.cls, 0))
+                    else:
+                        try self.writer.line("strb " if width == 1 else ("strh " if width == 2 else "str "))
+                        try self.writer.put(self.reg(ir.Class.w if width < 8 else ir.Class.l, 0))
+                    try self.writer.put(", [sp, #")
+                    try self.writer.put_u64(base_offset)
+                    try self.writer.put("]")
+                elif self.hfa(a.shape) > 0:
+                    let at = try self.source(a.value, ir.Class.l, "x9")
+                    let each = (u64)self.program_unit.leaves_of(a.shape)[0].size
+                    var k: u32 = 0
+                    while k < self.hfa(a.shape):
+                        try self.pair_move("ldr x10, [" if each == 8 else ("ldr w10, [" if each == 4 else "ldrh w10, ["), at, (u64)k * each)
+                        try self.writer.line("str x10, [sp, #" if each == 8 else ("str w10, [sp, #" if each == 4 else "strh w10, [sp, #"))
+                        try self.writer.put_u64(base_offset + (u64)k * each)
+                        try self.writer.put("]")
+                        k += 1
+                elif a.size <= 16:
+                    let at = try self.source(a.value, ir.Class.l, "x9")
+                    try self.pair_move("ldr x10, [", at, 0)
+                    try self.writer.line("str x10, [sp, #")
+                    try self.writer.put_u64(base_offset)
+                    try self.writer.put("]")
+                    if a.size > 8:
+                        try self.pair_move("ldr x10, [", at, 8)
+                        try self.writer.line("str x10, [sp, #")
+                        try self.writer.put_u64(base_offset + 8)
+                        try self.writer.put("]")
+                else:
+                    let at = try self.source(a.value, ir.Class.l, "x9")
+                    try self.writer.line3("str ", at, ", [sp, #")
+                    try self.writer.put_u64(base_offset)
+                    try self.writer.put("]")
+            i += 1
+        # register arguments, floats first so integer scratch stays free
+        i = 0
+        while i < info.args_count:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 1:
+                if a.size == 0:
+                    try self.operand(self.reg(a.cls, 0), a.cls, a.value)
+                    try self.writer.line("fmov ")
+                    try self.writer.put(self.half_letter(a.cls))
+                    try self.writer.put_u64((u64)p.first)
+                    try self.writer.put(", ")
+                    try self.writer.put(try self.hv(self.reg(a.cls, 0)))
+                else:
+                    let at = try self.source(a.value, ir.Class.l, "x9")
+                    let each = (u64)a.size // (u64)self.hfa(a.shape)
+                    var k: u32 = 0
+                    while k < p.count:
+                        try self.writer.line("ldr ")
+                        try self.writer.put(float_letter_of(each))
+                        try self.writer.put_u64((u64)(p.first + k))
+                        try self.writer.put(", [")
+                        try self.writer.put(at)
+                        try self.writer.put(", #")
+                        try self.writer.put_u64((u64)k * each)
+                        try self.writer.put("]")
+                        k += 1
+            i += 1
+        try self.integer_arguments(info, placements)
+        # a large aggregate result arrives through x8
+        if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0 and not info.result_private:
+            try self.frame_address("x8", self.slot_home(info.result_slot))
+        if through_register:
+            try self.writer.line("ldr x17, [sp], #16")
+            self.sp_shift -= 16
+            try self.writer.line("blr x17")
+        else:
+            try self.writer.line("bl ")
+            try self.symbol(n.a.name)
+        if area > 0:
+            try self.load_immediate("x16", (i64)area)
+            try self.writer.line("add sp, sp, x16")
+            self.sp_shift -= area
+        # the result
+        if not info.has_result:
+            return
+        if info.result_size == 0:
+            if info.result_cls == ir.Class.s:
+                try self.store_temp("s0", n.dst)
+            elif info.result_cls == ir.Class.h:
+                try self.store_temp("h0", n.dst)
+            elif info.result_cls == ir.Class.d:
+                try self.store_temp("d0", n.dst)
+            elif info.result_cls == ir.Class.w:
+                try self.store_temp("w0", n.dst)
+            else:
+                try self.store_temp("x0", n.dst)
+            return
+        if info.result_words:
+            try self.take_words()
+            return
+        let home = self.slot_home(info.result_slot)
+        if self.hfa(info.result_shape) > 0:
+            let each = (u64)info.result_size // (u64)self.hfa(info.result_shape)
+            var k: u32 = 0
+            while k < self.hfa(info.result_shape):
+                try self.frame_address("x16", home)
+                try self.writer.line("str ")
+                try self.writer.put(float_letter_of(each))
+                try self.writer.put_u64((u64)k)
+                try self.writer.put(", [x16, #")
+                try self.writer.put_u64((u64)k * each)
+                try self.writer.put("]")
+                k += 1
+            return
+        if info.result_size <= 16 or info.result_private:
+            # each word is stored only as far as the value reaches: the slot is exactly the
+            # result's size, and its neighbour keeps its bytes; a fallible result of up to
+            # four words arrives in x0-x3 (CallInfo.result_private)
+            try self.frame_address("x16", home)
+            let size = (u64)info.result_size
+            var word: u64 = 0
+            while word * 8 < size:
+                let rest = size - word * 8
+                try self.store_low(x_names[result_codes[word]], w_names[result_codes[word]], word * 8, rest if rest < 8 else 8)
+                word += 1
+
+    ## Exactly `width` bytes (1 to 8) of the register `x` (`w` its narrow view) to
+    ## `[x16, #offset]`, nothing past them; the odd widths go in two pieces through x17.
+    mutating func store_low(x: str, w: str, offset: u64, width: u64) -> !:
+        if width == 8 or width == 4 or width == 2 or width == 1:
+            try self.writer.line("str " if width >= 4 else ("strh " if width == 2 else "strb "))
+            try self.writer.put(x if width == 8 else w)
+            try self.writer.put(", [x16, #")
+            try self.writer.put_u64(offset)
+            try self.writer.put("]")
+            return
+        let low: u64 = 4 if width > 4 else 2
+        try self.store_low(x, w, offset, low)
+        try self.writer.line3("lsr x17, ", x, ", #")
+        try self.writer.put_u64(low * 8)
+        try self.store_low("x17", "w17", offset + low, width - low)
+
+    ## Exactly `width` bytes from `[x16, #offset]` into `x`, zero above them.
+    mutating func load_low(x: str, w: str, offset: u64, width: u64) -> !:
+        if width == 8 or width == 4 or width == 2 or width == 1:
+            try self.writer.line("ldr " if width >= 4 else ("ldrh " if width == 2 else "ldrb "))
+            try self.writer.put(x if width == 8 else w)
+            try self.writer.put(", [x16, #")
+            try self.writer.put_u64(offset)
+            try self.writer.put("]")
+            return
+        let low: u64 = 4 if width > 4 else 2
+        try self.load_low("x17", "w17", offset + low, width - low)
+        try self.load_low(x, w, offset, low)
+        try self.writer.line("lsl x17, x17, #")
+        try self.writer.put_u64(low * 8)
+        try self.writer.line3("orr ", x, ", ")
+        try self.writer.put(x)
+        try self.writer.put(", x17")
+
+    ## The wide name of a class's first scratch register for a stack store.
+    func wide(cls: ir.Class, n: u32) -> str:
+        if cls == ir.Class.w:
+            return "x9" if n == 0 else "x10"
+        if cls == ir.Class.s or cls == ir.Class.h:
+            return "d16" if n == 0 else "d17"
+        return self.reg(cls, n)
+
+    ## sp below `count` levels of the dynamic area under the fixed frame (`ir.Op.reserve`),
+    ## set from x29 whatever it was.
+    mutating func reserve_levels(count: u32) -> !:
+        let below = self.fr.size + (u64)count * (u64)ir.level_bytes
+        if below <= 4095:
+            try self.writer.line("sub sp, x29, #")
+            try self.writer.put_u64(below)
+            return
+        try self.load_immediate("x16", (i64)below)
+        try self.writer.line("sub sp, x29, x16")
+
+    ## The words of a private result, from x0-x3 into the `word`s right after the call at
+    ## `self.at`: those kept in the frame stored first, then the rest as one parallel copy
+    ## (`incoming`), since a word may live in another's register; x16 parks one to break
+    ## a cycle.
+    mutating func take_words() -> !:
+        var sources: u8[4] = [0, 0, 0, 0]
+        var destinations: u8[4] = [0, 0, 0, 0]
+        var targets: u8[4] = [0, 0, 0, 0]
+        var dsts: u32[4] = [0, 0, 0, 0]
+        var count: usize = 0
+        var j = self.at + 1
+        while j < self.f.instrs.count and self.f.instrs.get(j).op == ir.Op.word:
+            let w = self.f.instrs.get(j)
+            j += 1
+            if w.dst == 0 or w.extra >= 4:
+                continue
+            let narrow = w.cls == ir.Class.w
+            let code = self.fr.temp_regs.get((usize)w.dst - 1)
+            if code == 0:
+                let reg = result_codes[(usize)w.extra]
+                try self.frame_store(w_names[reg] if narrow else x_names[reg], self.temp_home(w.dst))
+                continue
+            sources[count] = u8(w.extra)
+            destinations[count] = u8(30 - code) if code >= 27 and code <= 30 else incoming.no_argument
+            targets[count] = code
+            dsts[count] = w.dst
+            count += 1
+        var steps = try incoming.sequence(sources[..<count], destinations[..<count])
+        defer steps.destroy()
+        for step in steps.span():
+            let k = (usize)step.index
+            let reg = result_codes[(usize)sources[k]]
+            if step.park:
+                try self.writer.line3("mov x16, ", x_names[reg], "")
+                continue
+            # a word of class w moves its low half, which zeroes the upper
+            let narrow = self.f.temp_class(dsts[k]) == ir.Class.w
+            let to = w_names[(usize)targets[k]] if narrow else x_names[(usize)targets[k]]
+            let read = ("w16" if narrow else "x16") if step.parked else (w_names[reg] if narrow else x_names[reg])
+            if to != read or narrow:
+                try self.writer.line4("mov ", to, ", ", read)
+
+    ## A `ret` of a private result's words, arrived its arguments into x0-x3: those living in
+    ## registers as one parallel copy, x17 parking one to break a cycle; then the rest,
+    ## loaded or formed straight into theirs.
+    mutating func return_words(n: ir.Instr) -> !:
+        let count = (usize)n.extra2 if n.extra2 <= 4 else 4
+        var reads: str[4] = ["", "", "", ""]
+        var pending: bool[4] = [false, false, false, false]
+        for k in 0..<count:
+            let v = self.f.args.get((usize)n.extra + k).value
+            if v.kind == ir.RefKind.temp and not self.fr.is_rematerialised(v.index):
+                let code = self.fr.temp_regs.get((usize)v.index - 1)
+                if code != 0 and not self.fr.float_code(code):
+                    reads[k] = x_names[(usize)code]
+                    pending[k] = true
+        var left = true
+        while left:
+            left = false
+            var moved = false
+            for k in 0..<count:
+                if not pending[k]:
+                    continue
+                left = true
+                let target = x_names[result_codes[k]]
+                var blocked = false
+                for other in 0..<count:
+                    if other != k and pending[other] and reads[other] == target:
+                        blocked = true
+                if not blocked:
+                    if reads[k] != target:
+                        try self.writer.line4("mov ", target, ", ", reads[k])
+                    pending[k] = false
+                    moved = true
+            if left and not moved:
+                for k in 0..<count:
+                    if pending[k]:
+                        try self.writer.line3("mov x17, ", reads[k], "")
+                        reads[k] = "x17"
+                        break
+        for k in 0..<count:
+            if reads[k].length == 0:
+                try self.operand(x_names[result_codes[k]], ir.Class.l, self.f.args.get((usize)n.extra + k).value)
+
+    mutating func return_value(n: ir.Instr) -> !:
+        if self.f.has_result and n.extra2 == 0:
+            if self.f.result_size == 0:
+                # straight into the result register, from wherever the value lives
+                if self.f.result_cls == ir.Class.s:
+                    try self.operand("s0", ir.Class.s, n.a)
+                elif self.f.result_cls == ir.Class.h:
+                    try self.operand("h0", ir.Class.h, n.a)
+                elif self.f.result_cls == ir.Class.d:
+                    try self.operand("d0", ir.Class.d, n.a)
+                else:
+                    try self.operand("x0", ir.Class.l, n.a)
+            elif self.hfa(self.f.result_shape) > 0:
+                try self.address_operand("x9", n.a)
+                let each = (u64)self.f.result_size // (u64)self.hfa(self.f.result_shape)
+                var k: u32 = 0
+                while k < self.hfa(self.f.result_shape):
+                    try self.writer.line("ldr ")
+                    try self.writer.put(float_letter_of(each))
+                    try self.writer.put_u64((u64)k)
+                    try self.writer.put(", [x9, #")
+                    try self.writer.put_u64((u64)k * each)
+                    try self.writer.put("]")
+                    k += 1
+            elif self.f.result_size <= 16 or self.f.result_private:
+                try self.address_operand("x16", n.a)
+                let size = (u64)self.f.result_size
+                var word: u64 = 0
+                while word * 8 < size:
+                    let rest = size - word * 8
+                    try self.load_low(x_names[result_codes[word]], w_names[result_codes[word]], word * 8, rest if rest < 8 else 8)
+                    word += 1
+            else:
+                try self.address_operand("x1", n.a)
+                try self.frame_address("x16", self.fr.indirect_home)
+                try self.writer.line("ldr x0, [x16]")
+                if self.f.result_size <= 128:
+                    # a few words: loads and stores, not a call, on every return
+                    try self.inline_copy("x1", "x0", (u64)self.f.result_size)
+                else:
+                    try self.load_immediate("x2", (i64)self.f.result_size)
+                    try self.writer.line("bl ")
+                    try self.symbol("memcpy")
+                    try self.frame_address("x16", self.fr.indirect_home)
+                    try self.writer.line("ldr x0, [x16]")
+        if self.f.allocates_frame:
+            # the frame storage goes: sp back at the frame's bottom, where the saves are
+            try self.writer.line("mov sp, x28")
+            self.frame_base = false
+        try self.restore_callee_saved()
+        self.frame_base = self.f.allocates_frame
+        if self.dw != none:
+            try self.writer.line(".cfi_remember_state")
+        try self.writer.line("mov sp, x29")
+        try self.writer.line("ldp x29, x30, [sp], #16")
+        if self.dw != none:
+            try self.writer.line(".cfi_def_cfa 31, 0")
+            try self.writer.line(".cfi_restore 29")
+            try self.writer.line(".cfi_restore 30")
+        try self.writer.line("ret")
+        if self.dw != none:
+            try self.writer.line(".cfi_restore_state")
+
+    ## The callee-saved registers the function's asm blocks name as operands, `x19`-`x28` and
+    ## `d8`-`d15` in any view: reserved, so they are saved and restored like the allocator's.
+    mutating func reserve_asm_registers():
+        for n in self.f.instrs.span():
+            if n.op != ir.Op.set_reg and n.op != ir.Op.get_reg:
+                continue
+            let reg = self.program_unit.texts.get((usize)n.b.index).bytes
+            var c: usize = 1
+            while c <= 18:
+                if reg == x_names[c] or reg == w_names[c] or reg == h_names[c] or reg == q_names[c] or reg == v_names[c]:
+                    self.fr.reserve((u8)c)
+                c += 1
+
+    ## Save every callee-saved register the allocator used, on entry.
+    mutating func save_callee_saved() -> !:
+        var c: usize = 1
+        while c <= 18:
+            if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
+                try self.frame_store(save_name(c), self.fr.save_offset[c])
+                if self.dw != none:
+                    try self.writer.line(".cfi_offset ")
+                    try self.writer.put_u64((u64)c + 18 if c <= 10 else (u64)c + 61)
+                    try self.writer.put(", -")
+                    try self.writer.put_u64(self.fr.save_offset[c] + 16)
+            c += 1
+
+    ## Restore them before returning; the result already sits in x0/x1/d0.
+    mutating func restore_callee_saved() -> !:
+        var c: usize = 1
+        while c <= 18:
+            if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
+                try self.frame_load(save_name(c), self.fr.save_offset[c])
+            c += 1

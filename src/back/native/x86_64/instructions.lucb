@@ -1,0 +1,760 @@
+#==============================================================================================
+#
+#   x86_64/instructions - Instructions
+#
+#   DESCRIPTION:
+#       One IR instruction at a time: moves, arithmetic, compares, loads and stores, and
+#       the checked operations that trap.
+#
+#==============================================================================================
+extend Generator:
+    # mark: Instructions =======================================================================
+
+    mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
+        if n.dst != 0 and self.fr.is_rematerialised(n.dst):
+            # a frame address is formed where it is used
+            return
+        match n.op:
+            .dbg:
+                discard(0)
+            .label:
+                if (usize)n.extra < self.loop_heads.length and self.loop_heads[(usize)n.extra]:
+                    # a loop starts on a sixteen-byte boundary
+                    try self.writer.put("\n    .p2align 4")
+                try self.writer.put("\n")
+                try self.label_name(n.extra)
+                try self.writer.put(":")
+            .jmp:
+                if n.extra == next_label:
+                    return
+                if (usize)n.extra < self.head_tests.length and self.head_tests[(usize)n.extra] != 0:
+                    # the head's own test, falling through to what follows the jump
+                    try self.fused_branch((usize)self.head_tests[(usize)n.extra] - 1, next_label)
+                    return
+                try self.writer.line("jmp ")
+                try self.label_name(n.extra)
+            .jnz:
+                let cls = ir.Class.l if n.cls == ir.Class.l else ir.Class.w
+                let c = try self.source(n.a, cls, self.reg(cls, 0))
+                try self.writer.line5("testq " if cls == ir.Class.l else "testl ", c, ", ", c, "")
+                # into whichever target comes next, one jump to the other
+                if n.extra == next_label:
+                    try self.writer.line("je ")
+                    try self.label_name(n.extra2)
+                    return
+                try self.writer.line("jne ")
+                try self.label_name(n.extra)
+                if n.extra2 != next_label:
+                    try self.writer.line("jmp ")
+                    try self.label_name(n.extra2)
+            .switch_:
+                try self.jump_table(n)
+            .ret:
+                if n.extra2 > 0:
+                    try self.return_words(n)
+                try self.return_value(n)
+            .copy:
+                if n.cls == ir.Class.v:
+                    let value = try self.source(n.a, ir.Class.v, "%xmm8")
+                    let d = self.target(n.dst, ir.Class.v, "%xmm8")
+                    if value != d:
+                        try self.writer.line4("movdqa ", value, ", ", d)
+                    try self.finish(n.dst, ir.Class.v, d)
+                    return
+                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                if v != d:
+                    try self.writer.line4(register_move(n.cls), v, ", ", d)
+                try self.finish(n.dst, n.cls, d)
+            .add, .sub, .mul, .sdiv, .udiv, .srem, .urem, .and_, .or_, .xor, .shl, .lshr, .ashr:
+                if ir.is_float_class(n.cls):
+                    try self.float_arithmetic(n)
+                else:
+                    try self.arithmetic(n)
+            .neg:
+                try self.negate(n)
+            .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
+                if ir.is_float_class(n.cls):
+                    try self.float_comparison(n)
+                else:
+                    try self.comparison(n)
+            .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd, .loadhf:
+                let lc = ir.load_class(n.op)
+                let d = self.target(n.dst, lc, self.reg(lc, 0))
+                let from_slot = self.fr.promoted_slot_of(n.a)
+                if from_slot != 0:
+                    try self.load_promoted(n.op, from_slot, d)
+                else:
+                    let place = try self.memory_place(n.a, n.op)
+                    if n.op == ir.Op.loadhf:
+                        try self.writer.line("movzwl (%r10), %eax")
+                        try self.writer.line3("movd %eax, ", d, "")
+                    else:
+                        try self.writer.line(load_mnemonic(n.op))
+                        try self.put_place(place)
+                        try self.put2(", ", d)
+                try self.finish(n.dst, lc, d)
+            .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
+                let cls = ir.store_class(n.op)
+                let v = try self.source(n.a, cls, self.reg(cls, 0))
+                let to_slot = self.fr.promoted_slot_of(n.b)
+                if to_slot != 0:
+                    try self.store_promoted(n.op, to_slot, v)
+                else:
+                    let place = try self.memory_place(n.b, n.op)
+                    if n.op == ir.Op.storehf:
+                        try self.writer.line3("movd ", v, ", %eax")
+                        try self.writer.line("movw %ax, (%r10)")
+                    else:
+                        if n.op == ir.Op.storeb:
+                            try self.writer.line3("movb ", byte_name(v), ", ")
+                        elif n.op == ir.Op.storeh:
+                            try self.writer.line3("movw ", word_name(v), ", ")
+                        else:
+                            try self.writer.line3(store_mnemonic(n.op), v, ", ")
+                        try self.put_place(place)
+            .alloca:
+                # frame storage (`memory.frame`): rsp down by a multiple of sixteen, at most
+                # 4096, and the new bottom touched, so no guard page is stepped over; the
+                # fixed frame stays reached through rbp, and every epilogue resets rsp from it
+                let bytes = try self.source(n.a, ir.Class.l, "%rax")
+                try self.writer.line3("subq ", bytes, ", %rsp")
+                try self.writer.line("movq $0, (%rsp)")
+                let d = self.target(n.dst, ir.Class.l, "%rax")
+                try self.writer.line3("movq %rsp, ", d, "")
+                try self.finish(n.dst, ir.Class.l, d)
+            .frame:
+                let d = self.target(n.dst, ir.Class.l, "%rax")
+                if self.convention.windows:
+                    try self.frame_address(d, 0)
+                else:
+                    try self.writer.line3("movq %rbp, ", d, "")
+                try self.finish(n.dst, ir.Class.l, d)
+            .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
+                let v = try self.source(n.a, ir.Class.w, "%eax")
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.extend_from(n.op, n.cls, v, d)
+                try self.finish(n.dst, n.cls, d)
+            .exth, .exts, .truncs, .truncd:
+                try self.float_convert(n)
+            .stosi, .stoui, .dtosi, .dtoui:
+                try self.float_to_int(n)
+            .swtof, .uwtof, .sltof, .ultof:
+                try self.int_to_float(n)
+            .cast:
+                # bits move between an integer and a float of the same width
+                let other = ir.cast_partner(n.cls)
+                let v = try self.source(n.a, other, self.reg(other, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.writer.line4("movq " if n.cls == ir.Class.d or n.cls == ir.Class.l else "movd ", v, ", ", d)
+                try self.finish(n.dst, n.cls, d)
+            .addr:
+                if self.fr.promoted_slot(n.dst) == 0:
+                    let d = self.target(n.dst, ir.Class.l, "%rax")
+                    try self.address_operand(d, n.a)
+                    try self.finish(n.dst, ir.Class.l, d)
+            .addr_tls:
+                try self.object_format.thread_address(&self.writer.out, n.a.name)
+                try self.store_temp("%rax", ir.Class.l, n.dst)
+            .blit:
+                if n.extra <= regalloc.inline_block:
+                    # from and to the addresses where they live
+                    let origin = try self.source(n.b, ir.Class.l, "%r10")
+                    let to = try self.source(n.a, ir.Class.l, "%r11")
+                    try self.inline_copy(origin, to, (u64)n.extra)
+                else:
+                    # the origin first, through a scratch no value lives in: the destination's
+                    # address may live in %rdi, and the origin's in %rsi
+                    try self.address_operand("%r10", n.b)
+                    try self.address_operand("%rdi", n.a)
+                    try self.writer.line("movq %r10, %rsi")
+                    try self.load_immediate("%rdx", (i64)n.extra)
+                    try self.call_symbol("memcpy")
+            .zero:
+                if n.extra <= regalloc.inline_block:
+                    let to = try self.source(n.a, ir.Class.l, "%r11")
+                    try self.inline_zero(to, (u64)n.extra)
+                else:
+                    try self.address_operand("%rdi", n.a)
+                    try self.writer.line("xorl %esi, %esi")
+                    try self.load_immediate("%rdx", (i64)n.extra)
+                    try self.call_symbol("memset")
+            .fill:
+                try self.address_operand("%rdi", n.a)
+                try self.load_immediate("%esi", n.b.value)
+                try self.load_immediate("%rdx", (i64)n.extra)
+                try self.call_symbol("memset")
+            .call:
+                try self.call(n)
+            .word:
+                # moved out by the call before it (`take_words`)
+                discard(0)
+            .reserve:
+                try self.reserve_levels(n.extra)
+            .trap_:
+                if n.b.kind == ir.RefKind.text:
+                    # the position first, then the reason (§11.5)
+                    try self.address_operand("%rdi", n.b)
+                    try self.address_operand("%rsi", n.a)
+                    try self.call_symbol(self.program_unit.trap_at_function)
+                else:
+                    try self.address_operand("%rdi", n.a)
+                    try self.call_symbol(self.program_unit.trap_function)
+            .bounds:
+                let a = try self.source(n.a, ir.Class.l, "%rax")
+                let b = try self.source(n.b, ir.Class.l, "%rcx")
+                try self.writer.line4("cmpq ", b, ", ", a)
+                try self.writer.line("jbe 1f" if n.extra == 1 else "jb 1f")
+                try self.trap_text("index out of bounds", n.extra2)
+                try self.writer.put("\n1:")
+            .addo, .subo, .mulo:
+                try self.checked(n)
+            .asm_:
+                try self.inline_asm(n)
+            .set_reg:
+                # move an input operand into the exact register the asm block names
+                let reg = with_percent(self.program_unit.texts.get((usize)n.b.index).bytes)
+                try self.operand(reg, n.cls, n.a)
+            .get_reg:
+                # the outputs of an asm block are stored by `inline_asm`, which follows the
+                # block's operands on both sides
+                discard(n.cls)
+            .atomic_load:
+                # every aligned load is acquire on this target; the fence is for sequential
+                # consistency against stores, which `atomic_store` supplies with `xchg`
+                let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+                try self.address_operand("%r10", n.a)
+                try self.writer.line4(zero_extending_load(n.extra), "(%r10), ", self.reg(cls, 0), "")
+                try self.store_temp(self.reg(cls, 0), cls, n.dst)
+            .atomic_store:
+                let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+                try self.operand(self.reg(cls, 0), cls, n.a)
+                try self.address_operand("%r10", n.b)
+                try self.writer.line("xchg" if n.extra2 >= 5 else "mov")
+                try self.writer.put(width_suffix(n.extra))
+                try self.writer.put(" ")
+                try self.writer.put(register_of_width("%rax", (u64)n.extra))
+                try self.writer.put(", (%r10)")
+            .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min:
+                try self.read_modify_write(n)
+            .atomic_cas:
+                try self.compare_and_swap(n)
+            .fence:
+                try self.writer.line("mfence")
+            .fma:
+                try self.fused(n)
+            .select:
+                try self.selected(n)
+            .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
+                try self.vector(n)
+            _:
+                error(failed, "an instruction the x86_64 generator does not know")
+
+    ## `d = a op b` on the integer classes: the value into `d`, then the two-operand form.
+    mutating func arithmetic(n: ir.Instr) -> !:
+        let cls = n.cls
+        let suffix = "q" if cls == ir.Class.l else "l"
+        if n.op == ir.Op.sdiv or n.op == ir.Op.udiv or n.op == ir.Op.srem or n.op == ir.Op.urem:
+            # the dividend in rax (and rdx), the divisor anywhere else
+            let b = try self.source(n.b, cls, self.reg(cls, 1))
+            try self.operand(self.reg(cls, 0), cls, n.a)
+            if n.op == ir.Op.sdiv or n.op == ir.Op.srem:
+                try self.writer.line("cqto" if cls == ir.Class.l else "cltd")
+                try self.writer.line3("idiv", suffix, " ")
+            else:
+                try self.writer.line("xorl %edx, %edx")
+                try self.writer.line3("div", suffix, " ")
+            try self.writer.put(b)
+            let quotient = self.reg(cls, 0) if n.op == ir.Op.sdiv or n.op == ir.Op.udiv else self.reg(cls, 2)
+            let d = self.target(n.dst, cls, self.reg(cls, 0))
+            if d != quotient:
+                try self.writer.line4("mov", suffix, " ", quotient)
+                try self.writer.put(", ")
+                try self.writer.put(d)
+            try self.finish(n.dst, cls, d)
+            return
+        if n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr:
+            # the count lives in cl
+            try self.operand(self.reg(cls, 1), cls, n.b)
+            let a = try self.source(n.a, cls, self.reg(cls, 0))
+            let d = self.target(n.dst, cls, self.reg(cls, 0))
+            if a != d:
+                try self.writer.line4("mov", suffix, " ", a)
+                try self.writer.put(", ")
+                try self.writer.put(d)
+            try self.writer.line("shl" if n.op == ir.Op.shl else ("shr" if n.op == ir.Op.lshr else "sar"))
+            try self.writer.put(suffix)
+            try self.writer.put(" %cl, ")
+            try self.writer.put(d)
+            try self.finish(n.dst, cls, d)
+            return
+        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        var b = try self.source(n.b, cls, self.reg(cls, 1))
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        # A dying RHS may share the destination. Preserve it before installing the
+        # LHS: x86's destructive two-operand form must not turn a+b into a+a.
+        if b == d and a != d:
+            try self.writer.line4("mov", suffix, " ", b)
+            try self.writer.put(", ")
+            try self.writer.put(self.reg(cls, 1))
+            b = self.reg(cls, 1)
+        if a != d:
+            try self.writer.line4("mov", suffix, " ", a)
+            try self.writer.put(", ")
+            try self.writer.put(d)
+        var mnemonic = "add"
+        match n.op:
+            .add: mnemonic = "add"
+            .sub: mnemonic = "sub"
+            .mul: mnemonic = "imul"
+            .and_: mnemonic = "and"
+            .or_: mnemonic = "or"
+            .xor: mnemonic = "xor"
+            _: mnemonic = "add"
+        try self.writer.line4(mnemonic, suffix, " ", b)
+        try self.writer.put(", ")
+        try self.writer.put(d)
+        try self.finish(n.dst, cls, d)
+
+    ## Float arithmetic: singles and doubles directly, halves through single precision.
+    mutating func float_arithmetic(n: ir.Instr) -> !:
+        let cls = n.cls
+        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(n.b, cls, self.reg(cls, 1))
+        let d = self.reg(cls, 0)
+        if cls == ir.Class.h:
+            if a != d:
+                try self.writer.line4("movaps ", a, ", ", d)
+            try self.widen_half(d)
+            if b != self.reg(cls, 1):
+                try self.writer.line4("movaps ", b, ", ", self.reg(cls, 1))
+            try self.widen_half(self.reg(cls, 1))
+        elif a != d:
+            try self.writer.line4("movaps ", a, ", ", d)
+        var mnemonic = "add"
+        match n.op:
+            .add: mnemonic = "add"
+            .sub: mnemonic = "sub"
+            .mul: mnemonic = "mul"
+            .sdiv: mnemonic = "div"
+            _: mnemonic = "add"
+        try self.writer.line(mnemonic)
+        try self.writer.put("sd " if cls == ir.Class.d else "ss ")
+        try self.writer.put(self.reg(cls, 1) if cls == ir.Class.h else b)
+        try self.writer.put(", ")
+        try self.writer.put(d)
+        if cls == ir.Class.h:
+            try self.round_to_half(d)
+        try self.finish(n.dst, cls, d)
+
+    ## The single in `reg` rounded to a half in its low sixteen bits, zero above, so that a
+    ## reinterpretation of the bits as an integer reads the half alone: F16C from
+    ## x86-64-v3, the unit's own routine below it.
+    mutating func round_to_half(reg: str) -> !:
+        try self.writer.line3("movd ", reg, ", %eax")
+        if self.level >= 3:
+            try self.writer.line4("vcvtps2ph $0, ", reg, ", ", reg)
+            try self.writer.line3("movd ", reg, ", %eax")
+            try self.writer.line("movzwl %ax, %eax")
+        else:
+            self.half_routines = true
+            try self.writer.line2("call ", self.shared(".Llb_single_to_half"))
+        try self.writer.line3("movd %eax, ", reg, "")
+
+    ## The half in the low sixteen bits of `reg` widened to a single, in place.
+    mutating func widen_half(reg: str) -> !:
+        if self.level >= 3:
+            try self.writer.line4("vcvtph2ps ", reg, ", ", reg)
+            return
+        self.half_routines = true
+        try self.writer.line3("movd ", reg, ", %eax")
+        try self.writer.line2("call ", self.shared(".Llb_half_to_single"))
+        try self.writer.line3("movd %eax, ", reg, "")
+
+    mutating func negate(n: ir.Instr) -> !:
+        let cls = n.cls
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        if cls == ir.Class.w or cls == ir.Class.l:
+            if v != d:
+                try self.writer.line4("movq " if cls == ir.Class.l else "movl ", v, ", ", d)
+            try self.writer.line3("negq " if cls == ir.Class.l else "negl ", d, "")
+        elif cls == ir.Class.d:
+            try self.writer.line3("movq ", v, ", %rax")
+            try self.writer.line("btcq $63, %rax")
+            try self.writer.line3("movq %rax, ", d, "")
+        else:
+            try self.writer.line3("movd ", v, ", %eax")
+            try self.writer.line("xorl $32768, %eax" if cls == ir.Class.h else "xorl $2147483648, %eax")
+            try self.writer.line3("movd %eax, ", d, "")
+        try self.finish(n.dst, cls, d)
+
+    ## `switch`: the value less the table's first is the entry, when it is below the
+    ## table's count; the entry is its label's distance from the table, which follows the
+    ## jump in the text, so the table needs no relocation. rax holds the entry, rcx the
+    ## table's address.
+    mutating func jump_table(n: ir.Instr) -> !:
+        let wide = n.cls == ir.Class.l
+        let table = self.f.jump_tables.get((usize)n.extra2)
+        let index = "%rax" if wide else "%eax"
+        try self.operand(index, n.cls, n.a)
+        if wide and table.low != 0:
+            if table.low >= -2147483648 and table.low <= 2147483647:
+                try self.writer.line("subq $")
+                try self.writer.put_i64(table.low)
+                try self.writer.put(", %rax")
+            else:
+                try self.load_immediate("%rcx", table.low)
+                try self.writer.line("subq %rcx, %rax")
+        elif not wide:
+            # the low bits are the whole value at the word's width, spelled signed
+            let low = (i64)((u64)table.low & 0xFFFFFFFF)
+            if low != 0:
+                try self.writer.line("subl $")
+                try self.writer.put_i64(low - 4294967296 if low > 2147483647 else low)
+                try self.writer.put(", %eax")
+        try self.writer.line("cmpq $" if wide else "cmpl $")
+        try self.writer.put_u64((u64)table.count)
+        try self.writer.put(", ")
+        try self.writer.put(index)
+        try self.writer.line("jae ")
+        try self.label_name(n.extra)
+        try self.writer.line("leaq ")
+        try self.table_name(n.extra2)
+        try self.writer.put("(%rip), %rcx")
+        # a word's subtraction left the high half of rax zero
+        try self.writer.line("movslq (%rcx,%rax,4), %rax")
+        try self.writer.line("addq %rcx, %rax")
+        try self.writer.line("jmp *%rax")
+        try self.writer.line(".p2align 2")
+        try self.writer.put("\n")
+        try self.table_name(n.extra2)
+        try self.writer.put(":")
+        for label in self.f.table_targets(n.extra2):
+            try self.writer.line(".long ")
+            try self.label_name(label)
+            try self.writer.put(" - ")
+            try self.table_name(n.extra2)
+
+    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
+        let cls = n.cls
+        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        # a constant the instruction carries: a sign-extended 32-bit immediate
+        if n.b.kind == ir.RefKind.constant and n.b.value >= -2147483648 and n.b.value <= 2147483647:
+            try self.writer.line("cmpq $" if cls == ir.Class.l else "cmpl $")
+            try self.writer.put_i64(n.b.value)
+            try self.put2(", ", a)
+        else:
+            let b = try self.source(n.b, cls, self.reg(cls, 1))
+            try self.writer.line4("cmpq " if cls == ir.Class.l else "cmpl ", b, ", ", a)
+        var cond = "e"
+        match n.op:
+            .ceq: cond = "e"
+            .cne: cond = "ne"
+            .cslt: cond = "l"
+            .csle: cond = "le"
+            .csgt: cond = "g"
+            .csge: cond = "ge"
+            .cult: cond = "b"
+            .cule: cond = "be"
+            .cugt: cond = "a"
+            .cuge: cond = "ae"
+            _: cond = "e"
+        if let jump = branch:
+            try self.writer.line("j")
+            try self.writer.put(cond)
+            try self.writer.put(" ")
+            try self.label_name(jump.extra2 if next_label == jump.extra else jump.extra)
+            if next_label != jump.extra and next_label != jump.extra2:
+                try self.writer.line("jmp ")
+                try self.label_name(jump.extra2)
+            return
+        try self.writer.line3("set", cond, " %al")
+        let d = self.target(n.dst, ir.Class.w, "%eax")
+        try self.writer.line3("movzbl %al, ", d, "")
+        try self.finish(n.dst, ir.Class.w, d)
+
+    ## Float comparison: `ucomis` orders the second operand against the first and leaves the
+    ## unordered case with every flag set, so `<` and `<=` swap operands to use the
+    ## above-conditions, which an unordered pair fails, and equality also tests parity.
+    mutating func float_comparison(n: ir.Instr) -> !:
+        let cls = n.cls
+        var a = try self.source(n.a, cls, self.reg(cls, 0))
+        var b = try self.source(n.b, cls, self.reg(cls, 1))
+        if cls == ir.Class.h:
+            if a != self.reg(cls, 0):
+                try self.writer.line4("movaps ", a, ", ", self.reg(cls, 0))
+            if b != self.reg(cls, 1):
+                try self.writer.line4("movaps ", b, ", ", self.reg(cls, 1))
+            a = self.reg(cls, 0)
+            b = self.reg(cls, 1)
+            try self.widen_half(a)
+            try self.widen_half(b)
+        let mnemonic = "ucomisd " if cls == ir.Class.d else "ucomiss "
+        match n.op:
+            .cslt:
+                try self.writer.line4(mnemonic, a, ", ", b)
+                try self.writer.line("seta %al")
+            .csle:
+                try self.writer.line4(mnemonic, a, ", ", b)
+                try self.writer.line("setae %al")
+            .csgt:
+                try self.writer.line4(mnemonic, b, ", ", a)
+                try self.writer.line("seta %al")
+            .csge:
+                try self.writer.line4(mnemonic, b, ", ", a)
+                try self.writer.line("setae %al")
+            .ceq:
+                try self.writer.line4(mnemonic, b, ", ", a)
+                try self.writer.line("sete %al")
+                try self.writer.line("setnp %cl")
+                try self.writer.line("andb %cl, %al")
+            _:
+                try self.writer.line4(mnemonic, b, ", ", a)
+                try self.writer.line("setne %al")
+                try self.writer.line("setp %cl")
+                try self.writer.line("orb %cl, %al")
+        let d = self.target(n.dst, ir.Class.w, "%eax")
+        try self.writer.line3("movzbl %al, ", d, "")
+        try self.finish(n.dst, ir.Class.w, d)
+
+    ## `op` applied to the 32-bit view `v` of a value, into `d` of class `cls`.
+    mutating func extend_from(op: ir.Op, cls: ir.Class, v: str, d: str) -> !:
+        let to = "q " if cls == ir.Class.l else "l "
+        match op:
+            .extsb: try self.writer.line4("movsb", to, byte_name(v), ", ")
+            .extub: try self.writer.line4("movzb", to, byte_name(v), ", ")
+            .extsh: try self.writer.line4("movsw", to, word_name(v), ", ")
+            .extuh: try self.writer.line4("movzw", to, word_name(v), ", ")
+            .extsw:
+                if cls == ir.Class.l:
+                    try self.writer.line3("movslq ", v, ", ")
+                else:
+                    try self.writer.line3("movl ", v, ", ")
+            _:
+                # zero-extension of a word: writing the 32-bit view clears the upper half
+                try self.writer.line3("movl ", v, ", ")
+                try self.writer.put(narrow_name(d))
+                return
+        try self.writer.put(d)
+
+    ## Conversions between float widths: `exth` a half up, `exts` a single up, `truncs` a
+    ## single down to a half, `truncd` a double down.
+    mutating func float_convert(n: ir.Instr) -> !:
+        let src = ir.float_source_class(n.op)
+        let v = try self.source(n.a, src, self.reg(src, 0))
+        let d = self.reg(n.cls, 0)
+        match n.op:
+            .exth:
+                if v != d:
+                    try self.writer.line4("movaps ", v, ", ", d)
+                try self.widen_half(d)
+                if n.cls == ir.Class.d:
+                    try self.writer.line4("cvtss2sd ", d, ", ", d)
+            .exts:
+                try self.writer.line4("cvtss2sd ", v, ", ", d)
+            .truncs:
+                if v != d:
+                    try self.writer.line4("movaps ", v, ", ", d)
+                try self.round_to_half(d)
+            _:
+                try self.writer.line4("cvtsd2ss ", v, ", ", d)
+                if n.cls == ir.Class.h:
+                    try self.round_to_half(d)
+        try self.finish(n.dst, n.cls, d)
+
+    ## A float to an integer, truncating: signed through the conversion instruction; an
+    ## unsigned word through the 64-bit conversion; an unsigned long by taking 2^63 off
+    ## first when the value reaches it. A saturating signed conversion (`extra` 1) fixes
+    ## up what the instruction leaves out of range (`saturate`).
+    mutating func float_to_int(n: ir.Instr) -> !:
+        let src = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
+        let v = try self.source(n.a, src, self.reg(src, 0))
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        let convert = "cvttsd2si " if src == ir.Class.d else "cvttss2si "
+        if n.op == ir.Op.stosi or n.op == ir.Op.dtosi:
+            try self.writer.line4(convert, v, ", ", d)
+            if n.extra == 1:
+                try self.saturate(n, src, v, d)
+        elif n.cls == ir.Class.w:
+            try self.writer.line4(convert, v, ", ", wide_name(d))
+        else:
+            let work = self.reg(src, 2)
+            let bound = self.reg(src, 1)
+            if v != work:
+                try self.writer.line4("movaps ", v, ", ", work)
+            if src == ir.Class.d:
+                try self.load_immediate("%rax", 4890909195324358656)
+                try self.writer.line3("movq %rax, ", bound, "")
+                try self.writer.line4("ucomisd ", bound, ", ", work)
+            else:
+                try self.load_immediate("%eax", 1593835520)
+                try self.writer.line3("movd %eax, ", bound, "")
+                try self.writer.line4("ucomiss ", bound, ", ", work)
+            try self.writer.line("jae 1f")
+            try self.writer.line4(convert, work, ", ", d)
+            try self.writer.line("jmp 2f")
+            try self.writer.put("\n1:")
+            try self.writer.line4("subsd " if src == ir.Class.d else "subss ", bound, ", ", work)
+            try self.writer.line4(convert, work, ", ", d)
+            try self.writer.line3("btcq $63, ", d, "")
+            try self.writer.put("\n2:")
+        try self.finish(n.dst, n.cls, d)
+
+    ## After `cvttsd2si`, which leaves the least integer for NaN and for every value out of
+    ## range: the greatest for a value at or above 2^(bits-1), 0 for NaN, as arm64's
+    ## `fcvtzs` and `core.f_to_s` answer (the least is already right below the range).
+    mutating func saturate(n: ir.Instr, src: ir.Class, v: str, d: str) -> !:
+        let wide = n.cls == ir.Class.l
+        let bound = self.reg(src, 2)
+        if src == ir.Class.d:
+            try self.load_immediate("%rcx", 4890909195324358656 if wide else 4746794007248502784)
+            try self.writer.line3("movq %rcx, ", bound, "")
+            try self.writer.line4("ucomisd ", bound, ", ", v)
+        else:
+            try self.load_immediate("%ecx", 1593835520 if wide else 1325400064)
+            try self.writer.line3("movd %ecx, ", bound, "")
+            try self.writer.line4("ucomiss ", bound, ", ", v)
+        # below the bound, or unordered
+        try self.writer.line("jb 1f")
+        try self.load_immediate(d, 9223372036854775807 if wide else 2147483647)
+        try self.writer.put("\n1:")
+        try self.writer.line4("ucomisd " if src == ir.Class.d else "ucomiss ", v, ", ", v)
+        try self.writer.line("jnp 2f")
+        try self.load_immediate(d, 0)
+        try self.writer.put("\n2:")
+
+    ## An integer to a float: signed through the conversion instruction at the integer's
+    ## width; an unsigned word as a long; an unsigned long halved when its top bit is set,
+    ## keeping the low bit for the rounding, then doubled.
+    mutating func int_to_float(n: ir.Instr) -> !:
+        let src = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
+        let v = try self.source(n.a, src, self.reg(src, 0))
+        let d = self.reg(n.cls, 0)
+        let single = n.cls != ir.Class.d
+        let convert = "cvtsi2ss" if single else "cvtsi2sd"
+        if n.op == ir.Op.swtof:
+            try self.writer.line4(convert, "l ", v, ", ")
+            try self.writer.put(d)
+        elif n.op == ir.Op.sltof:
+            try self.writer.line4(convert, "q ", v, ", ")
+            try self.writer.put(d)
+        elif n.op == ir.Op.uwtof:
+            try self.writer.line3("movl ", v, ", %eax")
+            try self.writer.line3(convert, "q %rax, ", d)
+        else:
+            try self.writer.line3("movq ", v, ", %rcx")
+            try self.writer.line("testq %rcx, %rcx")
+            try self.writer.line("js 1f")
+            try self.writer.line3(convert, "q %rcx, ", d)
+            try self.writer.line("jmp 2f")
+            try self.writer.put("\n1:")
+            try self.writer.line("movq %rcx, %rax")
+            try self.writer.line("shrq $1, %rax")
+            try self.writer.line("andl $1, %ecx")
+            try self.writer.line("orq %rcx, %rax")
+            try self.writer.line3(convert, "q %rax, ", d)
+            try self.writer.line4("addss " if single else "addsd ", d, ", ", d)
+            try self.writer.put("\n2:")
+        if n.cls == ir.Class.h:
+            try self.round_to_half(d)
+        try self.finish(n.dst, n.cls, d)
+
+    ## `select`: both values read first (a move leaves the flags be), the condition word
+    ## tested, then a `cmov` into r11 for integers, a branch around the float's move.
+    mutating func selected(n: ir.Instr) -> !:
+        let other = self.f.args.get((usize)n.extra2).value
+        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let e = try self.source(other, n.cls, self.reg(n.cls, 2))
+        let wide = ir.Class.l if n.extra == 1 else ir.Class.w
+        let c = try self.source(n.a, wide, self.reg(wide, 0))
+        if n.cls == ir.Class.w or n.cls == ir.Class.l:
+            let long = n.cls == ir.Class.l
+            let r = "%r11" if long else "%r11d"
+            try self.writer.line4("movq " if long else "movl ", e, ", ", r)
+            try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
+            try self.writer.line4("cmovneq " if long else "cmovnel ", t, ", ", r)
+            try self.finish(n.dst, n.cls, r)
+            return
+        let r = "%xmm8"
+        let move = "movaps " if n.cls == ir.Class.s else "movapd "
+        if e != r:
+            try self.writer.line4(move, e, ", ", r)
+        try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
+        try self.writer.line("je 1f")
+        try self.writer.line4(move, t, ", ", r)
+        try self.writer.put("\n1:")
+        try self.finish(n.dst, n.cls, r)
+
+    ## `fma` (x86-64-v3, `isa.has_fma`): FMA3 accumulates into its destination, so the addend
+    ## goes to xmm10 and `vfmadd231` adds the product of the other two to it.
+    mutating func fused(n: ir.Instr) -> !:
+        let addend = self.f.args.get((usize)n.extra2).value
+        let a = try self.source(n.a, n.cls, "%xmm8")
+        let b = try self.source(n.b, n.cls, "%xmm9")
+        let c = try self.source(addend, n.cls, "%xmm10")
+        if c != "%xmm10":
+            try self.writer.line4("movaps ", c, ", ", "%xmm10")
+        let wide = n.cls == ir.Class.d or (n.cls == ir.Class.v and ir.lane_bits(n.extra) == 64)
+        let form = ("pd" if wide else "ps") if n.cls == ir.Class.v else ("sd" if wide else "ss")
+        try self.writer.line4("vfmadd231", form, " ", b)
+        try self.writer.put(", ")
+        try self.writer.put(a)
+        try self.writer.put(", %xmm10")
+        let d = self.target(n.dst, n.cls, "%xmm10")
+        if d != "%xmm10":
+            try self.writer.line4("movaps ", "%xmm10", ", ", d)
+        try self.finish(n.dst, n.cls, d)
+
+    ## Checked add, subtract, and multiply: trap on overflow of the class width. A checked
+    ## operation reads its right operand where it lives and computes into the
+    ## destination's register when it has one, its left operand moved there first; an
+    ## unsigned multiply computes in rax as the instruction demands.
+    mutating func checked(n: ir.Instr) -> !:
+        let signed = n.extra == 1
+        let cls = n.cls
+        let suffix = "q" if cls == ir.Class.l else "l"
+        if n.op == ir.Op.mulo and not signed:
+            let a = self.reg(cls, 0)
+            try self.operand(a, cls, n.a)
+            let b = try self.source(n.b, cls, self.reg(cls, 1))
+            try self.writer.line4("mul", suffix, " ", b)
+            try self.writer.line("jnc 1f")
+            try self.trap_text("integer overflow", n.extra2)
+            try self.writer.put("\n1:")
+            try self.store_temp(a, cls, n.dst)
+            return
+        let b = try self.source(n.b, cls, self.reg(cls, 1))
+        var d = self.target(n.dst, cls, self.reg(cls, 0))
+        if d == b:
+            # the destination is the right operand's register: compute in scratch
+            d = self.reg(cls, 0)
+        let a = try self.source(n.a, cls, d)
+        if a != d:
+            try self.writer.line3(self.move_of(cls), a, ", ")
+            try self.writer.put(d)
+        if n.op == ir.Op.mulo:
+            try self.writer.line5("imul", suffix, " ", b, ", ")
+            try self.writer.put(d)
+            try self.writer.line("jno 1f")
+        else:
+            try self.writer.line5("add" if n.op == ir.Op.addo else "sub", suffix, " ", b, ", ")
+            try self.writer.put(d)
+            try self.writer.line("jno 1f" if signed else "jnc 1f")
+        try self.trap_text("integer overflow", n.extra2)
+        try self.writer.put("\n1:")
+        try self.finish(n.dst, cls, d)
+
+    ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
+    ## position plus one, which the reporter names first (§11.5).
+    mutating func trap_text(reason: str, at: u32) -> !:
+        # the reasons were added before the functions were generated (`trap_reasons`), so
+        # the threads generating them only read the unit's texts
+        let index = self.program_unit.find_text(reason) else error(ir.missing_text, "a trap's reason is not among the unit's texts")
+        if at > 0:
+            try self.address_operand("%rdi", ir.text_ref(at - 1))
+            try self.address_operand("%rsi", ir.text_ref(index))
+            try self.call_symbol(self.program_unit.trap_at_function)
+            return
+        try self.address_operand("%rdi", ir.text_ref(index))
+        try self.call_symbol(self.program_unit.trap_function)

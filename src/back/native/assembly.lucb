@@ -28,6 +28,17 @@ pub struct Text:
         try self.out.put("\n    ")
         try self.out.put(text)
 
+    ## A new line of two pieces: a mnemonic and its operand.
+    pub mutating func line2(a: str, b: str) -> !:
+        try self.line(a)
+        try self.put(b)
+
+    ## A new line of three pieces.
+    pub mutating func line3(a: str, b: str, c: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+
     ## A new line of four pieces, the way most instructions read: the mnemonic, an operand,
     ## a separator, an operand.
     pub mutating func line4(a: str, b: str, c: str, d: str) -> !:

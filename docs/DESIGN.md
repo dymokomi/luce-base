@@ -59,9 +59,9 @@ subdirectory keeps a generated module of its own beside it.
 | `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit`; a directory of fragments, one per concern |
 | `back.native.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
 | `back.native.assembly` | the text both generators write: instruction lines, numbers, quoted strings, alignment powers, and the frame descriptors a debugger reads |
-| `back.native.arm64` | IR to arm64 assembly: frames, the calling convention, atomics; arm64-macos and arm64-linux |
+| `back.native.arm64` | IR to arm64 assembly: frames, the calling convention, atomics; arm64-macos and arm64-linux; fragments per concern beside `arm64/object` |
 | `back.native.arm64.object` | Mach-O and ELF for arm64: sections, symbols, relocations, thread-locals, and where Apple's convention differs from AAPCS64 (variadic and stack arguments) |
-| `back.native.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level |
+| `back.native.x86_64` | IR to x86_64 assembly for Linux and Windows: the System V and Microsoft x64 conventions, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level; fragments per concern beside `x86_64/{abi,object,unwind}` |
 | `back.native.stable_names` | with `split`, labels named by a tag of what they label (a function's symbol, a literal's bytes) instead of its index, so an edit leaves the other pieces' text alone |
 | `back.target` | the targets of §19.5: symbols, streams, libraries, the `platform` module, section names |
 | `support.pieces` | a large program's assembly cut where its functions choose, each piece from the build cache when an earlier build assembled the same text, the rest assembled in parallel, joined with `ld -r` |

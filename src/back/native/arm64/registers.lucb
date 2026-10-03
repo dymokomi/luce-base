@@ -1,0 +1,439 @@
+#==============================================================================================
+#
+#   arm64/registers - Registers and immediates
+#
+#   DESCRIPTION:
+#       The register each class and number names, immediates that fit, and a slot's
+#       or a temporary's place in the frame.
+#
+#==============================================================================================
+extend Generator:
+    # mark: Registers and immediates ===========================================================
+
+    ## `movz`/`movk` for any 64-bit value.
+    mutating func load_immediate(reg: str, value: i64) -> !:
+        let bits = (u64)value
+        if bits == 0:
+            try self.writer.line("mov ")
+            try self.writer.put(reg)
+            try self.writer.put(", #0")
+            return
+        # a negative number is shorter with movn
+        if value < 0 and value >= -65536:
+            try self.writer.line("movn ")
+            try self.writer.put(reg)
+            try self.writer.put(", #")
+            try self.writer.put_u64((u64)(-1 - value))
+            return
+        var first = true
+        var shift: u64 = 0
+        while shift < 64:
+            let piece = (bits >> shift) & 65535
+            if piece != 0 or (first and shift == 48):
+                try self.writer.line("movz " if first else "movk ")
+                try self.writer.put(reg)
+                try self.writer.put(", #")
+                try self.writer.put_u64(piece)
+                if shift > 0:
+                    try self.writer.put(", lsl #")
+                    try self.writer.put_u64(shift)
+                first = false
+            shift += 16
+
+    ## The memory operand `[sp, #n]` for the frame home `offset` bytes below x29, for an
+    ## access of `width` bytes: the scaled unsigned form reaches 4095 units of the width.
+    ## The frame is laid out before any instruction is emitted, so `frame` is known.
+    func frame_fits(offset: u64, width: u64) -> bool:
+        if offset > self.fr.size:
+            return false
+        let n = self.fr.size - offset + self.frame_bias()
+        return n % width == 0 and n // width <= 4095
+
+    mutating func frame_operand(offset: u64) -> !:
+        try self.writer.put("[x28, #" if self.frame_base else "[sp, #")
+        try self.writer.put_u64(self.fr.size - offset + self.frame_bias())
+        try self.writer.put("]")
+
+    ## How far below the frame's bottom sp is: none through x28 (`frame_base`).
+    func frame_bias() -> u64:
+        if self.frame_base:
+            return 0
+        return self.sp_shift + self.dynamic_shift
+
+    ## `reg` stored to or loaded from the frame home `offset`: through sp when the offset
+    ## reaches, else through an address in x16.
+    ## A half register stores through its single view, so its home's whole word is written
+    ## and a reinterpretation as an integer reads zeros above the half.
+    mutating func frame_store(reg: str, offset: u64) -> !:
+        let spelled = single_view(reg)
+        if self.frame_fits(offset, access_width_of(spelled)):
+            try self.writer.line3("str ", spelled, ", ")
+            try self.frame_operand(offset)
+            return
+        try self.frame_address("x16", offset)
+        try self.writer.line3("str ", spelled, ", [x16]")
+
+    mutating func frame_load(reg: str, offset: u64) -> !:
+        if self.frame_fits(offset, access_width_of(reg)):
+            try self.writer.line3("ldr ", reg, ", ")
+            try self.frame_operand(offset)
+            return
+        try self.frame_address("x16", offset)
+        try self.writer.line3("ldr ", reg, ", [x16]")
+
+    ## How far below the frame pointer the bytes that `address` names lie, when it is a
+    ## slot or a frame address formed at its use (`remat`), for an access by `op` that
+    ## addresses the frame directly; none for any other address, or a half's access.
+    func frame_place(address: ir.Ref, op: ir.Op) -> u64?:
+        if op == ir.Op.loadhf or op == ir.Op.storehf:
+            return none
+        if address.kind == ir.RefKind.slot:
+            return self.slot_home(address.index)
+        if address.kind == ir.RefKind.temp and self.fr.temp_regs.get((usize)address.index - 1) == 0:
+            return self.fr.rematerialised(address.index)
+        return none
+
+    ## A load or store at `base + offset`, the add that formed the address folded into it
+    ## (`selection.offset_access`).
+    mutating func offset_access(n: ir.Instr, base: ir.Ref, offset: i64) -> !:
+        if (u8)n.op <= (u8)ir.Op.loadd:
+            let lc = ir.load_class(n.op)
+            let d = self.target(n.dst, lc, load_register(n.op))
+            let b = try self.source(base, ir.Class.l, "x10")
+            try self.writer.line4(load_mnemonic(n.op), " ", d, ", [")
+            try self.writer.put(b)
+            try self.writer.put(", #")
+            try self.writer.put_i64(offset)
+            try self.writer.put("]")
+            try self.finish(n.dst, lc, d)
+            return
+        let cls = ir.store_class(n.op)
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(base, ir.Class.l, "x10")
+        try self.writer.line4(store_mnemonic(n.op), " ", v, ", [")
+        try self.writer.put(b)
+        try self.writer.put(", #")
+        try self.writer.put_i64(offset)
+        try self.writer.put("]")
+
+    ## Emit instructions `at` to `at + 2` as one scaled-index access when they are one
+    ## (`selection.scaled_access`); whether they were.
+    mutating func scaled_access_at(at: usize, uses: u32[], index: usize) -> bool!:
+        let scaled = selection.scaled_access(self.f, at, uses) else return false
+        let (base, scaled_index, shift) = scaled
+        if self.fr.is_rematerialised(self.f.instrs.get(at).dst) or self.fr.is_rematerialised(self.f.instrs.get(at + 1).dst):
+            return false
+        if let dw = self.dw:
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, at + 2)
+        try self.indexed_access(self.f.instrs.get(at + 2), base, scaled_index, shift)
+        return true
+
+    ## `add d, other, x, lsl #shift` for a shift and the add of it after
+    ## (`selection.shifted_add`).
+    mutating func shifted_add(n: ir.Instr, fused: (ir.Ref, ir.Ref, u32)) -> !:
+        let (other, shifted, shift) = fused
+        let o = try self.source(other, n.cls, self.reg(n.cls, 0))
+        let x = try self.source(shifted, n.cls, self.reg(n.cls, 1))
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        try self.writer.line5("add ", d, ", ", o, ", ")
+        try self.writer.put(x)
+        try self.writer.put(", lsl #")
+        try self.writer.put_u64((u64)shift)
+        try self.finish(n.dst, n.cls, d)
+
+    ## Emit instructions `at` and `at + 1` as one register-offset access when they are one
+    ## (`selection.summed_access`); whether they were.
+    mutating func summed_access_at(at: usize, uses: u32[], index: usize) -> bool!:
+        let summed = selection.summed_access(self.f, at, uses) else return false
+        let (base, offset) = summed
+        if self.fr.is_rematerialised(self.f.instrs.get(at).dst):
+            return false
+        if let dw = self.dw:
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, at + 1)
+        try self.indexed_access(self.f.instrs.get(at + 1), base, offset, 0)
+        return true
+
+    ## A load or store through `base + (index << shift)` (`selection.scaled_access`), the
+    ## scaling and the sum done by the addressing: `ldr w0, [x1, x2, lsl #2]`.
+    mutating func indexed_access(n: ir.Instr, base: ir.Ref, index: ir.Ref, shift: u32) -> !:
+        let b = try self.source(base, ir.Class.l, "x10")
+        let x = try self.source(index, ir.Class.l, "x11")
+        if (u8)n.op <= (u8)ir.Op.loadd:
+            let lc = ir.load_class(n.op)
+            let d = self.target(n.dst, lc, load_register(n.op))
+            try self.writer.line4(load_mnemonic(n.op), " ", d, ", [")
+            try self.writer.put(b)
+            try self.writer.put(", ")
+            try self.writer.put(x)
+            if shift != 0:
+                try self.writer.put(", lsl #")
+                try self.writer.put_u64((u64)shift)
+            try self.writer.put("]")
+            try self.finish(n.dst, lc, d)
+            return
+        let cls = ir.store_class(n.op)
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        try self.writer.line4(store_mnemonic(n.op), " ", v, ", [")
+        try self.writer.put(b)
+        try self.writer.put(", ")
+        try self.writer.put(x)
+        if shift != 0:
+            try self.writer.put(", lsl #")
+            try self.writer.put_u64((u64)shift)
+        try self.writer.put("]")
+
+    ## `mnemonic reg` to or from the frame `below` bytes under x29, `width` bytes wide:
+    ## through sp when the scaled offset reaches, else x29 with an unscaled one, else an
+    ## address in x16.
+    mutating func frame_access(mnemonic: str, reg: str, below: u64, width: u32) -> !:
+        if self.frame_fits(below, (u64)width):
+            try self.writer.line4(mnemonic, " ", reg, ", ")
+            try self.frame_operand(below)
+        elif below <= 256:
+            try self.writer.line4(mnemonic, " ", reg, ", [x29, #-")
+            try self.writer.put_u64(below)
+            try self.writer.put("]")
+        else:
+            try self.frame_address("x16", below)
+            try self.writer.line4(mnemonic, " ", reg, ", [x16]")
+
+    ## `reg = x29 - offset`.
+    mutating func frame_address(reg: str, offset: u64) -> !:
+        if offset <= 4095:
+            try self.writer.line("sub ")
+            try self.writer.put(reg)
+            try self.writer.put(", x29, #")
+            try self.writer.put_u64(offset)
+            return
+        try self.load_immediate("x16", (i64)offset)
+        try self.writer.line("sub ")
+        try self.writer.put(reg)
+        try self.writer.put(", x29, x16")
+
+    ## Before the barrier at instruction `at`: each temporary that keeps a caller-saved
+    ## register across it goes to its home (`frame.Frame.crossings`).
+    mutating func save_crossing(at: usize) -> !:
+        while self.crossing < self.fr.crossings.count and (usize)self.fr.crossings.get(self.crossing).at < at:
+            self.crossing += 1
+        var k = self.crossing
+        while k < self.fr.crossings.count and (usize)self.fr.crossings.get(k).at == at:
+            let c = self.fr.crossings.get(k)
+            let code = self.fr.temp_regs.get((usize)c.temp - 1)
+            let cls = self.f.temp_class(c.temp)
+            try self.frame_store(class_name(code, cls), self.temp_home(c.temp))
+            k += 1
+
+    ## After it: each comes back from its home.
+    mutating func restore_crossing(at: usize) -> !:
+        while self.crossing < self.fr.crossings.count and (usize)self.fr.crossings.get(self.crossing).at == at:
+            let c = self.fr.crossings.get(self.crossing)
+            let code = self.fr.temp_regs.get((usize)c.temp - 1)
+            let cls = self.f.temp_class(c.temp)
+            try self.frame_load(class_name(code, cls), self.temp_home(c.temp))
+            self.crossing += 1
+
+    func temp_home(t: u32) -> u64:
+        return self.fr.temp_home(t)
+
+    func slot_home(s: u32) -> u64:
+        return self.fr.slot_home(s)
+
+    ## A homogeneous floating-point aggregate (AAPCS64 §6.4.2): one to four floats of one
+    ## width, one after the other with nothing between; how many, or 0 when the shape is
+    ## not one.
+    func hfa(shape: u32) -> u32:
+        let leaves = self.program_unit.leaves_of(shape)
+        if leaves.length == 0 or leaves.length > 4:
+            return 0
+        let first = leaves[0]
+        if not ir.is_float_class(first.cls):
+            return 0
+        var k: usize = 0
+        while k < leaves.length:
+            let leaf = leaves[k]
+            if leaf.cls != first.cls or leaf.size != first.size or (u64)leaf.offset != (u64)k * (u64)first.size:
+                return 0
+            k += 1
+        return u32(leaves.length)
+
+    ## The register name of class `cls` for scratch number `n` (0, 1, 2).
+    func reg(cls: ir.Class, n: u32) -> str:
+        if cls == ir.Class.w:
+            return "w9" if n == 0 else ("w10" if n == 1 else "w11")
+        if cls == ir.Class.l:
+            return "x9" if n == 0 else ("x10" if n == 1 else "x11")
+        if cls == ir.Class.s:
+            return "s16" if n == 0 else ("s17" if n == 1 else "s18")
+        if cls == ir.Class.h:
+            return "h16" if n == 0 else ("h17" if n == 1 else "h18")
+        return "d16" if n == 0 else ("d17" if n == 1 else "d18")
+
+    ## Load a temporary into `reg`: a register move when it lives in one, else from its home.
+    ## A float register moves with `fmov`, an integer one with `mov`; the width follows `reg`.
+    ## The register holding `r` as class `cls` when `r` is a temporary living in one of the
+    ## right kind, else `scratch` after loading it there. Instructions then read operands
+    ## where they are rather than through a scratch register.
+    mutating func source(r: ir.Ref, cls: ir.Class, scratch: str) -> str!:
+        if r.kind == ir.RefKind.temp:
+            let code = self.fr.temp_regs.get((usize)r.index - 1)
+            if code != 0 and self.fr.float_code(code) == (ir.is_float_class(cls) or cls == ir.Class.v):
+                return class_name(code, cls)
+        try self.operand(scratch, cls, r)
+        return scratch
+
+    ## The register to compute temporary `dst` into: its own when it lives in one of the
+    ## right kind, else `scratch`, which `finish` then stores.
+    func target(dst: u32, cls: ir.Class, scratch: str) -> str:
+        if dst == 0:
+            return scratch
+        let code = self.fr.temp_regs.get((usize)dst - 1)
+        if code != 0 and self.fr.float_code(code) == (ir.is_float_class(cls) or cls == ir.Class.v):
+            return class_name(code, cls)
+        return scratch
+
+    ## After a result landed in `reg`: nothing when that is the temporary's own register.
+    mutating func finish(dst: u32, cls: ir.Class, reg: str) -> !:
+        if dst == 0:
+            return
+        let code = self.fr.temp_regs.get((usize)dst - 1)
+        if code != 0 and class_name(code, cls) == reg:
+            return
+        try self.store_temp(reg, dst)
+
+    mutating func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
+        let code = self.fr.temp_regs.get((usize)t - 1)
+        if code != 0:
+            let home = register_view(reg, code)
+            if home != reg:
+                try self.register_move(reg, home, code)
+            return
+        if let below = self.fr.rematerialised(t):
+            # a frame address, formed here (`remat`)
+            if reg.bytes[0] == 'x' or reg.bytes[0] == 'w':
+                try self.frame_address(self.as_x(reg), below)
+            else:
+                try self.frame_address("x16", below)
+                try self.fmove(reg, "x16")
+            return
+        try self.frame_load(reg, self.temp_home(t))
+
+    mutating func store_temp(reg: str, t: u32) -> !:
+        let code = self.fr.temp_regs.get((usize)t - 1)
+        if code != 0:
+            let home = register_view(reg, code)
+            if home != reg:
+                try self.register_move(home, reg, code)
+            return
+        try self.frame_store(reg, self.temp_home(t))
+
+    ## A half register as this target moves it: itself with FEAT_FP16, else its
+    ## single-precision view, whose low sixteen bits are the half.
+    func hv(reg: str) -> str!:
+        if self.fp16 or reg.length == 0 or reg.bytes[0] != 'h':
+            return reg
+        let room = try alloc u8[reg.length]
+        memory.copy(room, reg.bytes, reg.length)
+        room[0] = 's'
+        return (str)room
+
+    ## The register letter of a float class as this target moves it.
+    func half_letter(cls: ir.Class) -> str:
+        if cls == ir.Class.h and not self.fp16:
+            return "s"
+        return float_letter(cls)
+
+    ## `fmov to, from` between float registers, halves through their single views where
+    ## the target has no half moves.
+    mutating func fmove(target_reg: str, from_reg: str) -> !:
+        try self.writer.line("fmov ")
+        try self.writer.put(try self.hv(target_reg))
+        try self.writer.put(", ")
+        try self.writer.put(try self.hv(from_reg))
+
+    ## `to = from` between registers: `mov` for integers, `fmov` for floats, and the whole
+    ## vector for a `q` view.
+    mutating func register_move(target_reg: str, from_reg: str, code: u8) -> !:
+        if target_reg.bytes[0] == 'q':
+            try self.writer.line("mov ")
+            try self.writer.put(vector_view(target_reg))
+            try self.writer.put(".16b, ")
+            try self.writer.put(vector_view(from_reg))
+            try self.writer.put(".16b")
+            return
+        if self.fr.float_code(code):
+            try self.fmove(target_reg, from_reg)
+            return
+        try self.writer.line("mov ")
+        try self.writer.put(target_reg)
+        try self.writer.put(", ")
+        try self.writer.put(from_reg)
+
+    ## An operand into a scratch register of class `cls`.
+    mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
+        if r.kind == ir.RefKind.temp:
+            let tc = self.f.temp_class(r.index)
+            if tc == cls or (is_int_class(tc) and is_int_class(cls)):
+                try self.load_temp(reg, cls, r.index)
+                return
+            # a float temporary read as an integer word or the reverse: reinterpret the home's bytes
+            try self.load_temp(reg, cls, r.index)
+            return
+        if r.kind == ir.RefKind.constant:
+            if ir.is_float_class(cls):
+                try self.load_immediate("x16", r.value)
+                try self.fmove(reg, "x16" if cls == ir.Class.d else "w16")
+                return
+            try self.load_immediate(self.as_x(reg), r.value)
+            return
+        try self.address_operand(self.as_x(reg), r)
+
+    ## `w9` -> `x9`; a 64-bit immediate load wants the wide name.
+    func as_x(reg: str) -> str:
+        let b = reg.bytes
+        if b[0] == 'w':
+            if reg == "w9":
+                return "x9"
+            if reg == "w10":
+                return "x10"
+            if reg == "w11":
+                return "x11"
+            if reg == "w16":
+                return "x16"
+            if reg == "w0":
+                return "x0"
+            if reg == "w1":
+                return "x1"
+            if reg == "w2":
+                return "x2"
+            if reg == "w3":
+                return "x3"
+            if reg == "w4":
+                return "x4"
+            if reg == "w5":
+                return "x5"
+            if reg == "w6":
+                return "x6"
+            if reg == "w7":
+                return "x7"
+        return reg
+
+    ## The address a slot, global, function, or text refers to, into an x register.
+    mutating func address_operand(reg: str, r: ir.Ref) -> !:
+        if r.kind == ir.RefKind.slot:
+            try self.frame_address(reg, self.slot_home(r.index))
+        elif r.kind == ir.RefKind.global and r.value == 0:
+            try self.object_format.page_address(&self.writer.out, reg, r.name, true)
+        elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
+            # a function's address, or another image's data (`import_ref`), goes through the
+            # GOT, so a symbol defined in a linked shared library resolves
+            try self.object_format.got_address(&self.writer.out, reg, r.name)
+        elif r.kind == ir.RefKind.text:
+            try self.object_format.page_address(&self.writer.out, reg, try self.text_label_name(r.index), false)
+        elif r.kind == ir.RefKind.temp:
+            try self.load_temp(reg, ir.Class.l, r.index)
+        elif r.kind == ir.RefKind.constant:
+            try self.load_immediate(reg, r.value)
+        else:
+            try self.writer.line("mov ")
+            try self.writer.put(reg)
+            try self.writer.put(", #0")

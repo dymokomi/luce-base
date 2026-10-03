@@ -61,7 +61,7 @@ runs it for longer. Every finding becomes a test.
     layout and mode named once and shared by the C emitter and the lowerer (error
     layout, allocator vtable, `lb_fmtbuf`, memory orders, program modes) and the Win32,
     AppKit, Metal, and GDI numbers named in the adapters; `back/c/emit/`,
-    `sema/check.lucb`, `back/ir/lower.lucb`, and the native generators split along the
+    `sema/check/`, `back/ir/lower/`, and the native generators split along the
     seams the audit names, with the tree helpers and type layout written once; the
     header box and `# mark:` sections in every file and `##` on every public
     declaration; the 36 functions over 100 lines split at their named seams; fallback

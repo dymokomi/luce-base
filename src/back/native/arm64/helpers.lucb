@@ -1,0 +1,338 @@
+#==============================================================================================
+#
+#   arm64/helpers - Helpers
+#
+#   DESCRIPTION:
+#       Functions of registers, classes, and operands that need no generator.
+#
+#==============================================================================================
+# mark: Helpers ================================================================================
+
+## The callee-saved registers the allocator hands out: codes 1..10 are x19..x28, codes
+## 11..18 are d8..d15, viewed as w/s where a narrower access asks for it.
+## Register codes: 1–10 the callee-saved x19–x28, 11–18 the callee-saved d8–d15, 19–30 the
+## caller-saved x14, x15, x12, x13 and x7 down to x0 (the argument registers, which a
+## call's parallel move fills last), 31–38 the caller-saved d24–d31, which a vector
+## temporary sees as q24–q31.
+## The register codes of x0, x1, x2 and x3: where a result of up to four words comes back.
+let result_codes: usize[4] = [30, 29, 28, 27]
+let x_names: str[39] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"]
+let w_names: str[39] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"]
+let h_names: str[39] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31"]
+let q_names: str[39] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "q24", "q25", "q26", "q27", "q28", "q29", "q30", "q31"]
+let v_names: str[39] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"]
+
+## The 8-byte name used to spill and reload a register on entry and exit.
+func save_name(code: usize) -> str:
+    return x_names[code]
+
+## The bytes a load or store of register `reg` moves: 4 for `w` and `s` names, 8 otherwise.
+func access_width_of(reg: str) -> u64:
+    let first = reg.bytes[0]
+    if first == 'h':
+        return 2
+    if first == 'q':
+        return 16
+    return 4 if first == 'w' or first == 's' else 8
+
+## The single-precision view of a half scratch or result register, else the register itself.
+func single_view(reg: str) -> str:
+    if reg == "h0":
+        return "s0"
+    if reg == "h16":
+        return "s16"
+    if reg == "h17":
+        return "s17"
+    if reg == "h18":
+        return "s18"
+    return reg
+
+## The register letter of a float class: `h`, `s`, or `d`.
+func float_letter(cls: ir.Class) -> str:
+    if cls == ir.Class.h:
+        return "h"
+    return "s" if cls == ir.Class.s else "d"
+
+## The register letter of a float `size` bytes wide: a homogeneous aggregate's members.
+func float_letter_of(size: u64) -> str:
+    if size == 2:
+        return "h"
+    return "s" if size == 4 else "d"
+
+let argument_names: str[8] = ["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"]
+
+## The integer argument register `n` of the calling convention.
+func arg_register(n: u32) -> str:
+    return argument_names[(usize)n]
+
+## Register code `code` viewed as class `cls`: `w`/`s` names for the narrow classes, `h` for a half.
+## Whether `value`, at `width` bits, is an arm64 logical immediate: a pattern of 2, 4, 8,
+## 16, 32 or 64 bits repeated across the register, each a rotation of one run of ones, and
+## neither no bits nor all of them (`and x0, x1, #0xfff`).
+func bitmask_immediate(value: u64, width: u32) -> bool:
+    var v = value
+    if width == 32:
+        v = (value & 0xFFFFFFFF) | ((value & 0xFFFFFFFF) << 32)
+    if v == 0 or v == 0xFFFFFFFFFFFFFFFF:
+        return false
+    # the smallest element the value repeats
+    var size: u64 = 64
+    while size > 2:
+        let half = size // 2
+        let mask = ((u64)1 << half) - 1
+        if (v & mask) != ((v >> half) & mask):
+            break
+        size = half
+    let element_mask = 0xFFFFFFFFFFFFFFFF if size == 64 else ((u64)1 << size) - 1
+    let element = v & element_mask
+    # one run of ones around the ring: exactly two places where a bit differs from the next
+    let rotated = ((element >> 1) | (element << (size - 1))) & element_mask
+    var changes = element ^ rotated
+    var count: u32 = 0
+    while changes != 0:
+        changes &= changes - 1
+        count += 1
+    return count == 2
+
+func class_name(code: u8, cls: ir.Class) -> str:
+    if cls == ir.Class.h:
+        return h_names[(usize)code]
+    if cls == ir.Class.w or cls == ir.Class.s:
+        return w_names[(usize)code]
+    if cls == ir.Class.v:
+        return q_names[(usize)code]
+    return x_names[(usize)code]
+
+## Register `code` in the form of `reg`: the narrow view for a `w` or `s` register, the half
+## view for an `h` one, else the wide one.
+func register_view(reg: str, code: u8) -> str:
+    let letter = reg.bytes[0]
+    if letter == 'h':
+        return h_names[(usize)code]
+    if letter == 'w' or letter == 's':
+        return w_names[(usize)code]
+    if letter == 'q':
+        return q_names[(usize)code]
+    return x_names[(usize)code]
+
+## `q16` -> `v16`: the vector view of a register given as a `q` name.
+func vector_view(reg: str) -> str:
+    var k: usize = 1
+    while k < q_names.length:
+        if q_names[k] == reg:
+            return v_names[k]
+        k += 1
+    if reg == "q16":
+        return "v16"
+    if reg == "q17":
+        return "v17"
+    return "v18"
+
+## The condition a comparison's `cmp` (`fcmp` when `is_float`) leaves true; after an `fcmp`
+## of a NaN, `mi`, `ls`, `gt`, `ge` and `eq` are false and `ne` true, as `ir.Op` says.
+func condition(op: ir.Op, is_float: bool) -> str:
+    match op:
+        .ceq: return "eq"
+        .cne: return "ne"
+        .cslt: return "mi" if is_float else "lt"
+        .csle: return "ls" if is_float else "le"
+        .csgt: return "gt"
+        .csge: return "ge"
+        .cult: return "lo"
+        .cule: return "ls"
+        .cugt: return "hi"
+        _: return "hs"
+
+## The flags (`nzcv`) a `ccmp` sets when it does not compare, so that `cond` then `holds`
+## or not: every flag clear leaves `ne`, `lo`, `ls`, `pl`, `ge` and `gt` true, and one
+## flag turns each pair (Z for `eq`/`ne` and `gt`/`le`, C for the unsigned, N the rest).
+func settling_flags(cond: str, holds: bool) -> u64:
+    let clear_holds = cond == "ne" or cond == "lo" or cond == "ls" or cond == "pl" or cond == "ge" or cond == "gt"
+    if clear_holds == holds:
+        return 0
+    match cond:
+        "eq", "ne", "gt", "le": return 4
+        "hs", "lo", "hi", "ls": return 2
+        _: return 8
+
+## The condition true exactly when `cond` is false, after a `cmp` or an `fcmp` alike: after
+## an `fcmp` of a NaN, `mi`, `ls`, `gt`, `ge` and `eq` are false and their opposites true.
+func opposite_condition(cond: str) -> str:
+    match cond:
+        "eq": return "ne"
+        "ne": return "eq"
+        "mi": return "pl"
+        "pl": return "mi"
+        "ls": return "hi"
+        "hi": return "ls"
+        "gt": return "le"
+        "le": return "gt"
+        "ge": return "lt"
+        "lt": return "ge"
+        "lo": return "hs"
+        "hs": return "lo"
+        _: return cond
+
+## `x21` -> `w21`, `x9` -> `w9`: the 32-bit view of an integer register.
+func narrow_name(reg: str) -> str:
+    if reg.bytes[0] != 'x':
+        return reg
+    var k: usize = 1
+    while k < x_names.length:
+        if x_names[k] == reg:
+            return w_names[k]
+        k += 1
+    if reg == "x9":
+        return "w9"
+    if reg == "x10":
+        return "w10"
+    if reg == "x11":
+        return "w11"
+    return reg
+
+func store_mnemonic_for(c: ir.Class) -> str:
+    return "str"
+
+func is_int_class(c: ir.Class) -> bool:
+    return c == ir.Class.w or c == ir.Class.l
+
+func load_mnemonic(op: ir.Op) -> str:
+    match op:
+        .loadsb: return "ldrsb"
+        .loadub: return "ldrb"
+        .loadsh: return "ldrsh"
+        .loaduh: return "ldrh"
+        .loadsw: return "ldrsw"
+        _: return "ldr"
+
+func load_register(op: ir.Op) -> str:
+    match op:
+        .loadsb, .loadub, .loadsh, .loaduh, .loaduw: return "w9"
+        .loadsw, .loadl: return "x9"
+        .loads: return "s16"
+        .loadhf: return "h16"
+        _: return "d16"
+
+func store_mnemonic(op: ir.Op) -> str:
+    match op:
+        .storeb: return "strb"
+        .storeh: return "strh"
+        _: return "str"
+
+func width_suffix(width: u32) -> str:
+    if width == 1:
+        return "b"
+    if width == 2:
+        return "h"
+    return ""
+
+## Apple fixed arguments retain their storage width on the stack. The IR's
+## register class alone loses bool/i8/u16 widths; compiler-internal calls may
+## omit the extra metadata when their arguments already have full class width.
+func scalar_stack_width(cls: ir.Class, declared: u32) -> u32:
+    if declared != 0:
+        return declared
+    if cls == ir.Class.h:
+        return 2
+    return 4 if cls == ir.Class.w or cls == ir.Class.s else 8
+
+func scalar_stack_load(width: u32, signed: bool) -> str:
+    if width == 1:
+        return "ldrsb w9," if signed else "ldrb w9,"
+    if width == 2:
+        return "ldrsh w9," if signed else "ldrh w9,"
+    return "ldr w9," if width == 4 else "ldr x9,"
+
+func arm_round_up(value: u64, align: u64) -> u64:
+    if align <= 1:
+        return value
+    return (value + align - 1) // align * align
+
+func log2(value: u64) -> u64:
+    var n: u64 = 0
+    var v = value
+    while v > 1:
+        v = v // 2
+        n += 1
+    return n
+
+test "immediates and frame addresses assemble":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var u = try ir.Unit.create()
+        var g = try Generator.create(&u)
+        try g.load_immediate("x9", 0)
+        try g.load_immediate("x9", 70000)
+        try g.load_immediate("x9", -5)
+        try g.frame_address("x9", 5000)
+        let text = g.text()
+        assert(text.length > 0)
+
+## The NEON arrangement of a lane shape: the lanes' width and count.
+func arrangement(shape: u32) -> str:
+    let bits = ir.lane_bits(shape)
+    let count = ir.lane_count(shape)
+    if bits == 8:
+        return ".16b" if count == 16 else ".8b"
+    if bits == 16:
+        return ".8h" if count == 8 else ".4h"
+    if bits == 32:
+        return ".4s" if count == 4 else ".2s"
+    return ".2d"
+
+## Scratch vector register `k` (v16, v17, v18) spelled for a load or store of `bytes`.
+func vector_scratch(k: u32, bytes: u32) -> str:
+    if bytes == 16:
+        return "q16" if k == 0 else ("q17" if k == 1 else "q18")
+    return "d16" if k == 0 else ("d17" if k == 1 else "d18")
+
+## The three-operand NEON instruction of a vector operation.
+func vector_mnemonic(op: ir.Op, signed: bool) -> str:
+    match op:
+        .vadd: return "fadd"
+        .vsub: return "fsub"
+        .vmul: return "fmul"
+        .vdiv: return "fdiv"
+        .vand: return "and"
+        .vor: return "orr"
+        .vxor: return "eor"
+        .vaddw: return "add"
+        .vsubw: return "sub"
+        .vmulw: return "mul"
+        .vadds: return "sqadd" if signed else "uqadd"
+        .vsubs: return "sqsub" if signed else "uqsub"
+        _: return "add"
+
+## The argument register `x0`..`x7` a name is, as its index, or -1.
+func argument_index(name: str) -> i32:
+    var k: i32 = 0
+    while k < 8:
+        if argument_names[(usize)k] == name:
+            return k
+        k += 1
+    return -1
+
+func is_argument_register(name: str) -> bool:
+    return argument_index(name) >= 0
+
+## k when `value` is 2^k, else 0 (1 is 2^0 and answers 0 too).
+func power_of_two(value: i64) -> i64:
+    if value <= 0 or ((u64)value & ((u64)value - 1)) != 0:
+        return 0
+    var k: i64 = 0
+    var bits = (u64)value
+    while bits > 1:
+        bits >>= 1
+        k += 1
+    return k
+
+## Whether `[base, #offset]` encodes for an access of `width` bytes: the scaled form, or
+## the unscaled one from -256 to 255 (`ldur`, which the assembler picks).
+func offset_reaches(offset: i64, width: u32) -> bool:
+    return (offset >= -256 and offset <= 255) or (offset >= 0 and offset % (i64)width == 0 and offset // (i64)width <= 4095)
+
+## The argument registers' narrow and float views.
+let w_arguments: str[8] = ["w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"]
+let s_arguments: str[8] = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
+let d_arguments: str[8] = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"]

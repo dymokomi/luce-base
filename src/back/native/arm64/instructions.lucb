@@ -1,0 +1,705 @@
+#==============================================================================================
+#
+#   arm64/instructions - Instructions
+#
+#   DESCRIPTION:
+#       One IR instruction at a time: moves, arithmetic, compares, loads and stores, and
+#       the checked operations that trap.
+#
+#==============================================================================================
+extend Generator:
+    # mark: Instructions =======================================================================
+
+    mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
+        if n.dst != 0 and self.fr.is_rematerialised(n.dst):
+            # a frame address is formed where it is used
+            return
+        match n.op:
+            .dbg:
+                discard(0)
+            .label:
+                if (usize)n.extra < self.loop_heads.length and self.loop_heads[(usize)n.extra]:
+                    # a loop starts on a sixteen-byte boundary
+                    try self.writer.put("\n    .p2align 4")
+                try self.writer.put("\n")
+                try self.label_name(n.extra)
+                try self.writer.put(":")
+            .jmp:
+                if n.extra == next_label:
+                    return
+                if (usize)n.extra < self.head_tests.length and self.head_tests[(usize)n.extra] != 0:
+                    # the head's own test, falling through to what follows the jump
+                    try self.fused_branch((usize)self.head_tests[(usize)n.extra] - 1, next_label)
+                    return
+                try self.writer.line("b ")
+                try self.label_name(n.extra)
+            .jnz:
+                let c = try self.source(n.a, n.cls, "x9" if n.cls == ir.Class.l else "w9")
+                # into whichever target comes next, one branch to the other
+                if n.extra == next_label:
+                    try self.writer.line3("cbz ", c, ", ")
+                    try self.label_name(n.extra2)
+                    return
+                try self.writer.line3("cbnz ", c, ", ")
+                try self.label_name(n.extra)
+                if n.extra2 != next_label:
+                    try self.writer.line("b ")
+                    try self.label_name(n.extra2)
+            .switch_:
+                try self.jump_table(n)
+            .ret:
+                if n.extra2 > 0:
+                    try self.return_words(n)
+                try self.return_value(n)
+            .copy:
+                if n.cls == ir.Class.v:
+                    let v = try self.source(n.a, ir.Class.v, "q16")
+                    let d = self.target(n.dst, ir.Class.v, "q16")
+                    if v != d:
+                        try self.writer.line4("mov ", vector_view(d), ".16b, ", vector_view(v))
+                        try self.writer.put(".16b")
+                    try self.finish(n.dst, ir.Class.v, d)
+                    return
+                if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.a.kind == ir.RefKind.constant:
+                    # a constant straight into where the temporary lives
+                    let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                    try self.load_immediate(d, n.a.value if n.cls == ir.Class.l else (i64)((u64)n.a.value & 0xFFFFFFFF))
+                    try self.finish(n.dst, n.cls, d)
+                    return
+                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                if v != d:
+                    if ir.is_float_class(n.cls):
+                        try self.fmove(d, v)
+                    else:
+                        try self.writer.line3("mov ", d, ", ")
+                        try self.writer.put(v)
+                try self.finish(n.dst, n.cls, d)
+            .add, .sub, .mul, .sdiv, .udiv, .srem, .urem, .and_, .or_, .xor, .shl, .lshr, .ashr:
+                if self.role() & (flags.joined | flags.folded) == 0:
+                    try self.arithmetic(n)
+            .neg:
+                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                if n.cls == ir.Class.h and not self.fp16:
+                    try self.writer.line3("fcvt s16, ", v, "")
+                    try self.writer.line("fneg s16, s16")
+                    try self.writer.line3("fcvt ", d, ", s16")
+                else:
+                    try self.writer.line("fneg " if ir.is_float_class(n.cls) else "neg ")
+                    try self.writer.put(d)
+                    try self.writer.put(", ")
+                    try self.writer.put(v)
+                try self.finish(n.dst, n.cls, d)
+            .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
+                if self.role() & (flags.first | flags.either | flags.both) != 0:
+                    try self.chained(n, self.role())
+                else:
+                    try self.comparison(n)
+            .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd, .loadhf:
+                let lc = ir.load_class(n.op)
+                let d = self.target(n.dst, lc, load_register(n.op))
+                let from_slot = self.fr.promoted_slot_of(n.a)
+                if from_slot != 0:
+                    try self.load_promoted(n.op, from_slot, d)
+                elif let below = self.frame_place(n.a, n.op):
+                    try self.frame_access(load_mnemonic(n.op), d, below, frame.access_width(n.op))
+                else:
+                    let address = try self.source(n.a, ir.Class.l, "x9")
+                    try self.writer.line(load_mnemonic(n.op))
+                    try self.writer.put(" ")
+                    try self.writer.put(d)
+                    try self.writer.put(", [")
+                    try self.writer.put(address)
+                    try self.writer.put("]")
+                try self.finish(n.dst, lc, d)
+            .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
+                let cls = ir.store_class(n.op)
+                let v = try self.source(n.a, cls, self.reg(cls, 0))
+                let to_slot = self.fr.promoted_slot_of(n.b)
+                if to_slot != 0:
+                    try self.store_promoted(n.op, to_slot, v)
+                elif let below = self.frame_place(n.b, n.op):
+                    try self.frame_access(store_mnemonic(n.op), v, below, frame.access_width(n.op))
+                else:
+                    let address = try self.source(n.b, ir.Class.l, "x10")
+                    try self.writer.line(store_mnemonic(n.op))
+                    try self.writer.put(" ")
+                    try self.writer.put(v)
+                    try self.writer.put(", [")
+                    try self.writer.put(address)
+                    try self.writer.put("]")
+            .alloca:
+                # frame storage (`memory.frame`): sp down by a multiple of sixteen, at most
+                # 4096, and the new bottom touched, so no guard page is stepped over
+                let bytes = try self.source(n.a, ir.Class.l, "x16")
+                try self.writer.line3("sub sp, sp, ", bytes, "")
+                try self.writer.line("str xzr, [sp]")
+                let d = self.target(n.dst, ir.Class.l, "x9")
+                try self.writer.line3("mov ", d, ", sp")
+                try self.finish(n.dst, ir.Class.l, d)
+            .frame:
+                let d = self.target(n.dst, ir.Class.l, "x9")
+                try self.writer.line("mov ")
+                try self.writer.put(d)
+                try self.writer.put(", x29")
+                try self.finish(n.dst, ir.Class.l, d)
+            .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
+                let v = try self.source(n.a, ir.Class.w, "w9")
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                # a word already zero above, in the result's own register, is extended
+                let extended = n.op == ir.Op.extuw and n.a.kind == ir.RefKind.temp and (usize)n.a.index < self.zero_upper.length and self.zero_upper[(usize)n.a.index] and v == narrow_name(d)
+                if not extended:
+                    try self.extend_from(n.op, v, d)
+                try self.finish(n.dst, n.cls, d)
+            .exth, .exts, .truncs, .truncd:
+                let src_cls = ir.float_source_class(n.op)
+                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.writer.line3("fcvt ", d, ", ")
+                try self.writer.put(v)
+                try self.finish(n.dst, n.cls, d)
+            .stosi, .stoui, .dtosi, .dtoui:
+                let src_cls = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
+                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.writer.line3("fcvtzs " if n.op == ir.Op.stosi or n.op == ir.Op.dtosi else "fcvtzu ", d, ", ")
+                try self.writer.put(v)
+                try self.finish(n.dst, n.cls, d)
+            .swtof, .uwtof, .sltof, .ultof:
+                let src_cls = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
+                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let convert = "scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf "
+                if n.cls == ir.Class.h and not self.fp16:
+                    # exact in single precision for every integer a half can hold
+                    try self.writer.line3(convert, "s16, ", v)
+                    try self.writer.line3("fcvt ", d, ", s16")
+                else:
+                    try self.writer.line3(convert, d, ", ")
+                    try self.writer.put(v)
+                try self.finish(n.dst, n.cls, d)
+            .cast:
+                # bits move between an integer and a float of the same width; a half's
+                # sixteen bits travel through its single view where there is no half move
+                let other = ir.cast_partner(n.cls)
+                let v = try self.source(n.a, other, self.reg(other, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.fmove(d, v)
+                if other == ir.Class.h and not self.fp16:
+                    try self.writer.line3("and ", d, ", ")
+                    try self.writer.put(d)
+                    try self.writer.put(", #0xffff")
+                try self.finish(n.dst, n.cls, d)
+            .addr:
+                if self.fr.promoted_slot(n.dst) == 0:
+                    let d = self.target(n.dst, ir.Class.l, "x9")
+                    try self.address_operand(d, n.a)
+                    try self.finish(n.dst, ir.Class.l, d)
+            .addr_tls:
+                try self.object_format.thread_address(&self.writer.out, n.a.name)
+                try self.store_temp("x0", n.dst)
+            .blit:
+                if n.extra <= regalloc.inline_block:
+                    # a record copy: loads and stores in place of a call, from and to the
+                    # addresses where they live
+                    let origin = try self.source(n.b, ir.Class.l, "x10")
+                    let to = try self.source(n.a, ir.Class.l, "x11")
+                    try self.inline_copy(origin, to, (u64)n.extra)
+                else:
+                    # the origin first, through a scratch no value lives in: the destination's
+                    # address may live in x0, and the origin's in x1
+                    try self.address_operand("x10", n.b)
+                    try self.address_operand("x0", n.a)
+                    try self.writer.line("mov x1, x10")
+                    try self.load_immediate("x2", (i64)n.extra)
+                    try self.writer.line("bl ")
+                    try self.symbol("memcpy")
+            .zero:
+                if n.extra <= regalloc.inline_block:
+                    let to = try self.source(n.a, ir.Class.l, "x11")
+                    try self.inline_zero(to, (u64)n.extra)
+                else:
+                    try self.address_operand("x0", n.a)
+                    try self.writer.line("mov x1, #0")
+                    try self.load_immediate("x2", (i64)n.extra)
+                    try self.writer.line("bl ")
+                    try self.symbol("memset")
+            .fill:
+                try self.address_operand("x0", n.a)
+                try self.load_immediate("x1", n.b.value)
+                try self.load_immediate("x2", (i64)n.extra)
+                try self.writer.line("bl ")
+                try self.symbol("memset")
+            .call:
+                try self.call(n)
+            .word:
+                # moved out by the call before it (`take_words`)
+                discard(0)
+            .reserve:
+                try self.reserve_levels(n.extra)
+            .trap_:
+                if n.b.kind == ir.RefKind.text:
+                    # the position first, then the reason (§11.5)
+                    try self.address_operand("x0", n.b)
+                    try self.address_operand("x1", n.a)
+                    try self.writer.line("bl ")
+                    try self.symbol(self.program_unit.trap_at_function)
+                else:
+                    try self.address_operand("x0", n.a)
+                    try self.call_trap()
+            .bounds:
+                let a = try self.source(n.a, ir.Class.l, "x9")
+                let b = try self.source(n.b, ir.Class.l, "x10")
+                try self.writer.line3("cmp ", a, ", ")
+                try self.writer.put(b)
+                try self.writer.line("b.ls 1f" if n.extra == 1 else "b.lo 1f")
+                try self.trap_text("index out of bounds", n.extra2)
+                try self.writer.put("\n1:")
+            .addo, .subo, .mulo:
+                try self.checked(n)
+            .asm_:
+                try self.inline_asm(n)
+            .set_reg:
+                # move an input operand into the exact register the asm block names
+                let reg = self.program_unit.texts.get((usize)n.b.index).bytes
+                try self.operand(reg, n.cls, n.a)
+            .get_reg:
+                # store the register the asm block left back into the output place; a
+                # discarded output has none
+                if n.a.kind == ir.RefKind.none_:
+                    return
+                let reg = self.program_unit.texts.get((usize)n.b.index).bytes
+                try self.address_operand("x16", n.a)
+                try self.writer.line(store_mnemonic_for(n.cls))
+                try self.writer.put(" ")
+                try self.writer.put(reg)
+                try self.writer.put(", [x16]")
+            .atomic_load:
+                let address = try self.source(n.a, ir.Class.l, "x9")
+                let d = self.target(n.dst, ir.Class.w if n.extra <= 4 else ir.Class.l, self.reg(ir.Class.w if n.extra <= 4 else ir.Class.l, 0))
+                try self.writer.line("ldar" if n.extra2 >= 2 else "ldr")
+                try self.writer.put(width_suffix(n.extra))
+                try self.writer.put(" ")
+                try self.writer.put(d)
+                try self.writer.put(", [")
+                try self.writer.put(address)
+                try self.writer.put("]")
+                try self.finish(n.dst, n.cls, d)
+            .atomic_store:
+                let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+                let v = try self.source(n.a, cls, self.reg(cls, 0))
+                let address = try self.source(n.b, ir.Class.l, "x10")
+                try self.writer.line("stlr" if n.extra2 >= 3 else "str")
+                try self.writer.put(width_suffix(n.extra))
+                try self.writer.put(" ")
+                try self.writer.put(v)
+                try self.writer.put(", [")
+                try self.writer.put(address)
+                try self.writer.put("]")
+            .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min:
+                try self.read_modify_write(n)
+            .atomic_cas:
+                try self.compare_and_swap(n)
+            .fence:
+                try self.writer.line("dmb ish")
+            .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
+                try self.vector(n)
+            .fma:
+                try self.fused(n)
+            .select:
+                try self.selected(n)
+            _:
+                error(failed, "an instruction the arm64 generator does not know")
+
+    mutating func arithmetic(n: ir.Instr) -> !:
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.b.kind == ir.RefKind.constant:
+            let value = n.b.value
+            let width: u32 = 64 if n.cls == ir.Class.l else 32
+            let logical = (n.op == ir.Op.and_ or n.op == ir.Op.or_ or n.op == ir.Op.xor) and bitmask_immediate((u64)value, width)
+            # adding -c is subtracting c, and subtracting -c adding it
+            let negated = (n.op == ir.Op.add or n.op == ir.Op.sub) and value < 0 and value >= -4095
+            let immediate = ((n.op == ir.Op.add or n.op == ir.Op.sub) and value >= 0 and value <= 4095) or negated or ((n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr) and value >= 0 and value < (64 if n.cls == ir.Class.l else 32)) or logical
+            let shift = power_of_two(value) if n.op == ir.Op.mul else 0
+            if n.op == ir.Op.mul and value > 2 and power_of_two(value - 1) > 0 and power_of_two(value - 1) < (i64)width:
+                # times 2^k + 1: x plus x shifted by k, one instruction a multiply's latency
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.writer.line5("add ", d, ", ", a, ", ")
+                try self.writer.put(a)
+                try self.writer.put(", lsl #")
+                try self.writer.put_i64(power_of_two(value - 1))
+                try self.finish(n.dst, n.cls, d)
+                return
+            if immediate or (n.op == ir.Op.mul and shift > 0 and shift < (i64)width):
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                var mnemonic = "add "
+                match n.op:
+                    .add: mnemonic = "sub " if negated else "add "
+                    .sub: mnemonic = "add " if negated else "sub "
+                    .shl, .mul: mnemonic = "lsl "
+                    .lshr: mnemonic = "lsr "
+                    .ashr: mnemonic = "asr "
+                    .and_: mnemonic = "and "
+                    .or_: mnemonic = "orr "
+                    .xor: mnemonic = "eor "
+                    _: discard(0)
+                try self.writer.line4(mnemonic, d, ", ", a)
+                try self.writer.put(", #")
+                if logical:
+                    # the mask as the assembler reads it: the operand's width of it, unsigned
+                    try self.writer.put_u64((u64)value if width == 64 else (u64)value & 0xFFFFFFFF)
+                else:
+                    try self.writer.put_i64(shift if n.op == ir.Op.mul else (0 - value if negated else value))
+                try self.finish(n.dst, n.cls, d)
+                return
+        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        let is_float = ir.is_float_class(n.cls)
+        if n.cls == ir.Class.h and not self.fp16:
+            # single precision holds every half exactly and its result rounds to the
+            # half a half operation would give (§5.1): one rounding, not two
+            var half_op = "fadd"
+            match n.op:
+                .sub: half_op = "fsub"
+                .mul: half_op = "fmul"
+                .sdiv: half_op = "fdiv"
+                _: half_op = "fadd"
+            try self.writer.line3("fcvt s16, ", a, "")
+            try self.writer.line3("fcvt s17, ", b, "")
+            try self.writer.line3(half_op, " s16, s16, s17", "")
+            try self.writer.line3("fcvt ", d, ", s16")
+            try self.finish(n.dst, n.cls, d)
+            return
+        var mnemonic = "add"
+        match n.op:
+            .add: mnemonic = "fadd" if is_float else "add"
+            .sub: mnemonic = "fsub" if is_float else "sub"
+            .mul: mnemonic = "fmul" if is_float else "mul"
+            .sdiv: mnemonic = "fdiv" if is_float else "sdiv"
+            .udiv: mnemonic = "udiv"
+            .and_: mnemonic = "and"
+            .or_: mnemonic = "orr"
+            .xor: mnemonic = "eor"
+            .shl: mnemonic = "lsl"
+            .lshr: mnemonic = "lsr"
+            .ashr: mnemonic = "asr"
+            .srem, .urem:
+                try self.writer.line("sdiv " if n.op == ir.Op.srem else "udiv ")
+                try self.writer.put(self.reg(n.cls, 2))
+                try self.writer.put(", ")
+                try self.writer.put(a)
+                try self.writer.put(", ")
+                try self.writer.put(b)
+                try self.writer.line("msub ")
+                try self.writer.put(d)
+                try self.writer.put(", ")
+                try self.writer.put(self.reg(n.cls, 2))
+                try self.writer.put(", ")
+                try self.writer.put(b)
+                try self.writer.put(", ")
+                try self.writer.put(a)
+                try self.finish(n.dst, n.cls, d)
+                return
+            _: mnemonic = "add"
+        try self.writer.line(mnemonic)
+        try self.writer.put(" ")
+        try self.writer.put(d)
+        try self.writer.put(", ")
+        try self.writer.put(a)
+        try self.writer.put(", ")
+        try self.writer.put(b)
+        try self.finish(n.dst, n.cls, d)
+
+    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0, negate: bool = false) -> !:
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let is_float = ir.is_float_class(n.cls)
+        # an integer constant the instruction can carry: `cmp` up to 4095, `cmn` below 0
+        let immediate = not is_float and n.b.kind == ir.RefKind.constant and n.b.value >= -4095 and n.b.value <= 4095
+        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        if immediate:
+            try self.writer.line3("cmp " if n.b.value >= 0 else "cmn ", a, ", #")
+            try self.writer.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
+        elif n.cls == ir.Class.h and not self.fp16:
+            try self.writer.line3("fcvt s16, ", a, "")
+            try self.writer.line3("fcvt s17, ", b, "")
+            try self.writer.line("fcmp s16, s17")
+        else:
+            try self.writer.line("fcmp " if is_float else "cmp ")
+            try self.writer.put(a)
+            try self.writer.put(", ")
+            try self.writer.put(b)
+        var cond = condition(n.op, is_float)
+        if negate:
+            cond = opposite_condition(cond)
+        if let jump = branch:
+            try self.writer.line("b.")
+            try self.writer.put(cond)
+            try self.writer.put(" ")
+            try self.label_name(jump.extra2 if next_label == jump.extra else jump.extra)
+            if next_label != jump.extra and next_label != jump.extra2:
+                try self.writer.line("b ")
+                try self.label_name(jump.extra2)
+            return
+        let d = self.target(n.dst, ir.Class.w, "w9")
+        try self.writer.line3("cset ", d, ", ")
+        try self.writer.put(cond)
+        try self.finish(n.dst, ir.Class.w, d)
+
+    ## `switch`: the value less the table's first is the entry, when it is below the
+    ## table's count; the entry is its label's distance from the table, which follows the
+    ## branch in the text, so the table needs no relocation. x9 holds the entry, x10 the
+    ## table's address.
+    mutating func jump_table(n: ir.Instr) -> !:
+        let wide = n.cls == ir.Class.l
+        let table = self.f.jump_tables.get((usize)n.extra2)
+        let v = try self.source(n.a, n.cls, "x9" if wide else "w9")
+        let scratch = "x9" if wide else "w9"
+        # the low bits are the whole value at the word's width
+        let low = (u64)table.low if wide else (u64)table.low & 0xFFFFFFFF
+        let modulus = 0 -% low if wide else ((u64)1 << 32) - low
+        var index = v
+        if low == 0:
+            discard(0)
+        elif low <= 4095:
+            try self.writer.line5("sub ", scratch, ", ", v, ", #")
+            try self.writer.put_u64(low)
+            index = scratch
+        elif modulus <= 4095:
+            try self.writer.line5("add ", scratch, ", ", v, ", #")
+            try self.writer.put_u64(modulus)
+            index = scratch
+        else:
+            try self.load_immediate("x10", (i64)low)
+            try self.writer.line5("sub ", scratch, ", ", v, ", ")
+            try self.writer.put("x10" if wide else "w10")
+            index = scratch
+        try self.writer.line3("cmp ", index, ", #")
+        try self.writer.put_u64((u64)table.count)
+        try self.writer.line("b.hs ")
+        try self.label_name(n.extra)
+        try self.writer.line("adr x10, ")
+        try self.table_name(n.extra2)
+        try self.writer.line3("ldrsw x9, [x10, ", index, ", lsl #2]" if wide else ", uxtw #2]")
+        try self.writer.line("add x10, x10, x9")
+        try self.writer.line("br x10")
+        try self.writer.put("\n")
+        try self.table_name(n.extra2)
+        try self.writer.put(":")
+        for label in self.f.table_targets(n.extra2):
+            try self.writer.line(".long ")
+            try self.label_name(label)
+            try self.writer.put(" - ")
+            try self.table_name(n.extra2)
+
+    ## The label of jump table `n` of the function.
+    mutating func table_name(n: u32) -> !:
+        try self.writer.out.put(self.object_format.local_label)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try self.writer.out.put("_jt")
+        try self.writer.out.put_u64((u64)n)
+
+    ## `op` applied to the 32-bit view `v` of a value, into `d`.
+    mutating func extend_from(op: ir.Op, v: str, d: str) -> !:
+        match op:
+            .extsb: try self.writer.line4("sxtb ", d, ", ", v)
+            .extub: try self.writer.line5("and ", d, ", ", v, ", #255")
+            .extsh: try self.writer.line4("sxth ", d, ", ", v)
+            .extuh: try self.writer.line5("and ", d, ", ", v, ", #65535")
+            .extsw: try self.writer.line4("sxtw ", d, ", ", v)
+            _:
+                # zero-extension of a word: writing the 32-bit view clears the upper half,
+                # also when the source is that same register, whose upper half may hold a
+                # sign extension or what a wider write left there
+                try self.writer.line4("mov ", narrow_name(d), ", ", v)
+
+    ## Checked add, subtract, and multiply: trap on overflow of the class width.
+    ## `select`: the condition word against 0, then one `csel` (`fcsel` for a float) of the
+    ## two values; `extra` is 1 when the condition is a whole word, 0 for its low half. The
+    ## flags already hold the condition after its chain (`flags`); a choice between `x` and
+    ## `x + 1` is `cinc`, whose `add` was not selected.
+    mutating func selected(n: ir.Instr) -> !:
+        let role = self.role()
+        let other = self.f.args.get((usize)n.extra2).value
+        var cond = "ne"
+        if role & flags.reads != 0:
+            cond = self.flag_condition
+        else:
+            let wide = ir.Class.l if n.extra == 1 else ir.Class.w
+            let c = try self.source(n.a, wide, "x9" if n.extra == 1 else "w9")
+            try self.writer.line3("cmp ", c, ", #0")
+        if role & (flags.then_increments | flags.else_increments) != 0:
+            # the value that is not the sum, and whether the sum is taken on the condition
+            let then_sum = role & flags.then_increments != 0
+            let v = try self.source(other if then_sum else n.b, n.cls, self.reg(n.cls, 2))
+            let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+            try self.writer.line5("cinc ", d, ", ", v, ", ")
+            try self.writer.put(cond if then_sum else opposite_condition(cond))
+            try self.finish(n.dst, n.cls, d)
+            return
+        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let e = try self.source(other, n.cls, self.reg(n.cls, 2))
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        try self.writer.line4("csel " if n.cls == ir.Class.w or n.cls == ir.Class.l else "fcsel ", d, ", ", t)
+        try self.writer.put(", ")
+        try self.writer.put(e)
+        try self.writer.put(", ")
+        try self.writer.put(cond)
+        try self.finish(n.dst, n.cls, d)
+
+    ## The role in a condition kept in the flags of the instruction being emitted.
+    func role() -> u8:
+        return self.flag_roles[self.at] if self.at < self.flag_roles.length else flags.plain
+
+    ## A comparison of a chain kept in the flags (`flags`): the first `cmp` (`fcmp`), each
+    ## later one `ccmp` (`fccmp`), which compares only while the chain so far leaves the
+    ## answer open (`or`: while it is false; `and`: while it is true) and otherwise sets
+    ## flags that settle it.
+    mutating func chained(n: ir.Instr, role: u8) -> !:
+        let is_float = ir.is_float_class(n.cls)
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let opening = role & flags.first != 0
+        # `cmp` carries 0 to 4095 (`cmn` their negations), `ccmp` 0 to 31, a float none
+        let low: i64 = -4095 if opening else 0
+        let high: i64 = 4095 if opening else 31
+        let immediate = not is_float and n.b.kind == ir.RefKind.constant and n.b.value >= low and n.b.value <= high
+        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let cond = condition(n.op, is_float)
+        if opening:
+            let mnemonic = "fcmp " if is_float else ("cmn " if immediate and n.b.value < 0 else "cmp ")
+            try self.writer.line3(mnemonic, a, ", ")
+        else:
+            try self.writer.line3("fccmp " if is_float else "ccmp ", a, ", ")
+        if immediate:
+            try self.writer.put("#")
+            try self.writer.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
+        else:
+            try self.writer.put(b)
+        if not opening:
+            let either = role & flags.either != 0
+            try self.writer.put(", #")
+            try self.writer.put_u64(settling_flags(cond, either))
+            try self.writer.put(", ")
+            try self.writer.put(opposite_condition(self.flag_condition) if either else self.flag_condition)
+        self.flag_condition = cond
+
+    ## `fma`: `fmadd` for a scalar; for a vector, `fmla`, which accumulates into its
+    ## destination: the result's register takes the addend first, or v18 when that register
+    ## holds a factor.
+    mutating func fused(n: ir.Instr) -> !:
+        let addend = self.f.args.get((usize)n.extra2).value
+        if n.cls != ir.Class.v:
+            let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+            let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+            let c = try self.source(addend, n.cls, self.reg(n.cls, 2))
+            let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+            try self.writer.line4("fmadd ", d, ", ", a)
+            try self.writer.put(", ")
+            try self.writer.put(b)
+            try self.writer.put(", ")
+            try self.writer.put(c)
+            try self.finish(n.dst, n.cls, d)
+            return
+        let arr = arrangement(n.extra)
+        let a = vector_view(try self.source(n.a, ir.Class.v, "q16"))
+        let b = vector_view(try self.source(n.b, ir.Class.v, "q17"))
+        let c = vector_view(try self.source(addend, ir.Class.v, "q18"))
+        # the result's own register takes the addend, unless it holds a factor still to read
+        var d = self.target(n.dst, ir.Class.v, "q18")
+        if vector_view(d) == a or vector_view(d) == b:
+            d = "q18"
+        let accumulator = vector_view(d)
+        if c != accumulator:
+            try self.writer.line5("mov ", accumulator, ".16b, ", c, ".16b")
+        try self.writer.line5("fmla ", accumulator, arr, ", ", a)
+        try self.writer.put(arr)
+        try self.writer.put(", ")
+        try self.writer.put(b)
+        try self.writer.put(arr)
+        if d == "q18" and self.target(n.dst, ir.Class.v, "q18") != "q18":
+            d = self.target(n.dst, ir.Class.v, "q18")
+            try self.writer.line3("mov ", vector_view(d), ".16b, v18.16b")
+        try self.finish(n.dst, ir.Class.v, d)
+
+    ## A checked operation reads its operands where they live and computes into the
+    ## destination's register when it has one; a multiply computes in x9 (its high word
+    ## or widened check in x10 and x11) and moves the product out.
+    mutating func checked(n: ir.Instr) -> !:
+        let signed = n.extra == 1
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        # `adds x1, x2, #8`: an addend or subtrahend of 0..4095 is the instruction's own
+        let immediate = n.op != ir.Op.mulo and n.b.kind == ir.RefKind.constant and n.b.value >= 0 and n.b.value <= 4095
+        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        if n.op == ir.Op.mulo:
+            if n.cls == ir.Class.w:
+                # multiply at 64 bits and check the range
+                if signed:
+                    try self.writer.line3("sxtw x9, ", a, "")
+                    try self.writer.line3("sxtw x10, ", b, "")
+                    try self.writer.line("mul x9, x9, x10")
+                    try self.writer.line("cmp x9, w9, sxtw")
+                else:
+                    try self.writer.line3("mov w9, ", a, "")
+                    try self.writer.line3("mov w10, ", b, "")
+                    try self.writer.line("mul x9, x9, x10")
+                    try self.writer.line("cmp x9, w9, uxtw")
+                try self.writer.line("b.eq 1f")
+            else:
+                if signed:
+                    try self.writer.line3("smulh x11, ", a, ", ")
+                    try self.writer.put(b)
+                    try self.writer.line3("mul x9, ", a, ", ")
+                    try self.writer.put(b)
+                    try self.writer.line("cmp x11, x9, asr #63")
+                    try self.writer.line("b.eq 1f")
+                else:
+                    try self.writer.line3("umulh x11, ", a, ", ")
+                    try self.writer.put(b)
+                    try self.writer.line3("mul x9, ", a, ", ")
+                    try self.writer.put(b)
+                    try self.writer.line("cbz x11, 1f")
+            try self.trap_text("integer overflow", n.extra2)
+            try self.writer.put("\n1:")
+            try self.finish(n.dst, n.cls, self.reg(n.cls, 0))
+            return
+        let add = n.op == ir.Op.addo
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        try self.writer.line("adds " if add else "subs ")
+        try self.writer.put(d)
+        try self.writer.put(", ")
+        try self.writer.put(a)
+        try self.writer.put(", ")
+        if immediate:
+            try self.writer.put("#")
+            try self.writer.put_i64(n.b.value)
+        else:
+            try self.writer.put(b)
+        if signed:
+            try self.writer.line("b.vc 1f")
+        elif add:
+            try self.writer.line("b.cc 1f")
+        else:
+            try self.writer.line("b.cs 1f")
+        try self.trap_text("integer overflow", n.extra2)
+        try self.writer.put("\n1:")
+        try self.finish(n.dst, n.cls, d)
+
+    ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
+    ## position plus one, which the reporter names first (§11.5).
+    mutating func trap_text(reason: str, at: u32) -> !:
+        # the reasons were added before the functions were generated (`trap_reasons`), so
+        # the threads generating them only read the unit's texts
+        let index = self.program_unit.find_text(reason) else error(ir.missing_text, "a trap's reason is not among the unit's texts")
+        if at > 0:
+            try self.address_operand("x0", ir.text_ref(at - 1))
+            try self.address_operand("x1", ir.text_ref(index))
+            try self.writer.line("bl ")
+            try self.symbol(self.program_unit.trap_at_function)
+            return
+        try self.address_operand("x0", ir.text_ref(index))
+        try self.call_trap()
+
+    ## The program's trap reporter, with the reason in x0.
+    mutating func call_trap() -> !:
+        try self.writer.line("bl ")
+        try self.symbol(self.program_unit.trap_function)

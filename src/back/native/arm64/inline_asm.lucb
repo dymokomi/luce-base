@@ -1,0 +1,20 @@
+#==============================================================================================
+#
+#   arm64/inline_asm - Inline assembly
+#
+#   DESCRIPTION:
+#       An `asm` block written for arm64, its text copied into the function; a block for
+#       another architecture writes nothing here (§8.9).
+#
+#==============================================================================================
+extend Generator:
+    # mark: Inline assembly ====================================================================
+
+    ## The block's text, when it is written for arm64.
+    mutating func inline_asm(n: ir.Instr) -> !:
+        let arch = self.program_unit.texts.get((usize)n.a.index).bytes
+        if arch != "arm64":
+            return
+        let body = self.program_unit.texts.get((usize)n.b.index).bytes
+        try self.writer.put("\n")
+        try self.writer.put(body)

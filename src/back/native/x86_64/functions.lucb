@@ -1,0 +1,253 @@
+#==============================================================================================
+#
+#   x86_64/functions - Functions
+#
+#   DESCRIPTION:
+#       Each function's prologue, parameters received under the convention, body, and
+#       epilogue.
+#
+#==============================================================================================
+extend Generator:
+    # mark: Functions ==========================================================================
+
+    ## Copy `size` bytes from (`origin`) to (`to`) with plain loads and stores: 16 at a
+    ## time through an SSE register, then 8, 4, 2, 1. Unaligned access is fine on this target.
+    mutating func inline_copy(origin: str, to: str, size: u64) -> !:
+        var done: u64 = 0
+        # through xmm4 on Windows, where xmm8 is nonvolatile (`reg`)
+        let windows = self.convention.windows
+        while size - done >= 16:
+            try self.based_move("movups ", done, origin, ", %xmm4" if windows else ", %xmm8")
+            try self.based_move("movups %xmm4, " if windows else "movups %xmm8, ", done, to, "")
+            done += 16
+        let widths: u64[4] = [8, 4, 2, 1]
+        let loads: str[4] = ["movq ", "movl ", "movzwl ", "movzbl "]
+        let load_regs: str[4] = [", %rax", ", %eax", ", %eax", ", %eax"]
+        let stores: str[4] = ["movq %rax, ", "movl %eax, ", "movw %ax, ", "movb %al, "]
+        var k: usize = 0
+        while k < 4:
+            if size - done >= widths[k]:
+                try self.based_move(loads[k], done, origin, load_regs[k])
+                try self.based_move(stores[k], done, to, "")
+                done += widths[k]
+            k += 1
+
+    ## Zero `size` bytes at (`to`) the same way.
+    mutating func inline_zero(to: str, size: u64) -> !:
+        var done: u64 = 0
+        let windows = self.convention.windows
+        if size >= 16:
+            try self.writer.line("pxor %xmm4, %xmm4" if windows else "pxor %xmm8, %xmm8")
+        while size - done >= 16:
+            try self.based_move("movups %xmm4, " if windows else "movups %xmm8, ", done, to, "")
+            done += 16
+        let widths: u64[4] = [8, 4, 2, 1]
+        let stores: str[4] = ["movq $0, ", "movl $0, ", "movw $0, ", "movb $0, "]
+        var k: usize = 0
+        while k < 4:
+            if size - done >= widths[k]:
+                try self.based_move(stores[k], done, to, "")
+                done += widths[k]
+            k += 1
+
+    ## `mnemonic offset(base)rest`.
+    mutating func based_move(mnemonic: str, offset: u64, base: str, rest: str) -> !:
+        try self.writer.line(mnemonic)
+        try self.writer.put_u64(offset)
+        try self.writer.put("(")
+        try self.writer.put(base)
+        try self.writer.put(")")
+        try self.writer.put(rest)
+
+    ## `mnemonic` + offset + `rest`: one line of a copy.
+    mutating func offset_move(mnemonic: str, offset: u64, rest: str) -> !:
+        try self.writer.line(mnemonic)
+        try self.writer.put_u64(offset)
+        try self.writer.put(rest)
+
+    ## A load from a promoted slot: the register, extended as the load would extend from
+    ## memory, since a narrow store leaves the register's upper bits as they were.
+    mutating func load_promoted(op: ir.Op, k: u32, d: str) -> !:
+        let code = (usize)self.fr.slot_regs.get((usize)k - 1)
+        let q = q_names[code]
+        let l = l_names[code]
+        match op:
+            .loadl:
+                if d != q:
+                    try self.writer.line4("movq ", q, ", ", d)
+            .loaduw:
+                if d != l:
+                    try self.writer.line4("movl ", l, ", ", d)
+            .loadsw: try self.writer.line4("movslq ", l, ", ", d)
+            .loadub: try self.writer.line4("movzbl ", b_names[code], ", ", d)
+            .loadsb: try self.writer.line4("movsbl ", b_names[code], ", ", d)
+            .loaduh: try self.writer.line4("movzwl ", w_names[code], ", ", d)
+            .loadsh: try self.writer.line4("movswl ", w_names[code], ", ", d)
+            _:
+                error(failed, "a float load from a promoted slot")
+
+    ## A store into a promoted slot: the value's register `v` moves in.
+    mutating func store_promoted(op: ir.Op, k: u32, v: str) -> !:
+        let code = (usize)self.fr.slot_regs.get((usize)k - 1)
+        match op:
+            .storel:
+                if v != q_names[code]:
+                    try self.writer.line4("movq ", v, ", ", q_names[code])
+            .storew:
+                if v != l_names[code]:
+                    try self.writer.line4("movl ", v, ", ", l_names[code])
+            .storeh: try self.writer.line4("movw ", word_name(v), ", ", w_names[code])
+            .storeb: try self.writer.line4("movb ", byte_name(v), ", ", b_names[code])
+            _:
+                error(failed, "a float store into a promoted slot")
+
+    ## The comparison at `i` and the branch on it after, as one conditional jump.
+    mutating func branch_pair(i: usize, index: usize) -> !:
+        if let dw = self.dw:
+            # the fused branch's own line and labels, ahead of the pair
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
+        try self.fused_branch(i, selection.label_at(self.f, i + 2))
+
+    ## The comparison at `i` and the branch on it after, with `next` as the fall-through:
+    ## the pair in place, or a rotated loop's head test at a jump to that head
+    ## (`selection.rotations`).
+    mutating func fused_branch(i: usize, next: u32) -> !:
+        let branch = self.f.instrs.get(i + 1)
+        var comparison = self.f.instrs.get(i)
+        if next == branch.extra:
+            comparison.op = selection.inverse(comparison.op)
+        try self.comparison(comparison, branch, next)
+
+    ## `.weak` for a weak symbol (§9.8); ELF has no directive for `used`, which only matters
+    ## to a linker that discards sections, so it is left to the section's own flags.
+    mutating func function(index: usize) -> !:
+        self.index = index
+        if let dw = self.dw:
+            try dw.entry(&self.writer.out)
+        self.f = &self.program_unit.functions.items[index]
+        let start = self.writer.out.used
+        try self.function_text(index, none)
+        # Windows: the save area holds just the nonvolatile registers the text names; when
+        # the allocator's prediction of them missed, the function is laid out again with
+        # those (its registers do not depend on the area, so the second text names the same)
+        if self.convention.windows and not self.f.naked and self.dw == none and self.windows_used != self.windows_plan:
+            self.writer.out.used = start
+            try self.function_text(index, self.windows_used)
+            if self.windows_used != self.windows_plan:
+                error(failed, "the Windows nonvolatile registers a function names changed when it was laid out again")
+
+    ## Function `index`'s text; on Windows with its save area holding `plan`, or the
+    ## registers the allocator gave it (a debug build's, all of them) when none.
+    mutating func function_text(index: usize, plan: u16?) -> !:
+        # Windows keeps the argument-register codes 6–9 out of the pools (rsi and rdi are
+        # nonvolatile there, and its arguments are staged through the shadow area)
+        self.fr.reserved = 480 if self.convention.windows else 0
+        self.reserve_asm_registers()
+        try selection.canonical_labels(self.f)
+        try self.fr.plan(self.f)
+        self.windows_plan = 0
+        if self.convention.windows:
+            self.windows_plan = plan else (4095 if self.dw != none else self.allocated_saves())
+        self.crossing = 0
+        var entry = try selection.entry_loads(self.f)
+        defer free(entry)
+        let straight = try self.straight_params(entry)
+        defer free(straight)
+        try self.fr.layout(self.f, save_area(self.windows_plan), self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private), straight)
+        let text_start = self.writer.out.used
+        try self.object_format.function_start(&self.writer.out, self.f)
+        if self.f.naked:
+            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
+            var k: usize = 0
+            while k < self.f.instrs.count:
+                self.at = k
+                try self.instruction(self.f.instrs.get(k))
+                k += 1
+            try self.object_format.leave_section(&self.writer.out, self.f)
+            return
+        try self.unwinding.begin(&self.writer.out, self.symbol_prefix, self.f.name)
+        try self.writer.line("pushq %rbp")
+        try self.unwinding.pushed_frame_pointer(&self.writer.out)
+        if not self.convention.windows:
+            try self.writer.line("movq %rsp, %rbp")
+        try self.unwinding.cfa_frame_pointer(&self.writer.out)
+        if self.convention.windows and self.fr.size >= 4096:
+            try self.load_immediate("%rax", (i64)self.fr.size)
+            try self.writer.line("call ___chkstk_ms")
+        if self.fr.size > 0:
+            try self.writer.line("subq $")
+            try self.writer.put_u64(self.fr.size)
+            try self.writer.put(", %rsp")
+            try self.unwinding.allocated_stack(&self.writer.out, self.fr.size)
+        if self.convention.windows:
+            try self.writer.line("movq %rsp, %rbp")
+            try self.unwinding.established_frame(&self.writer.out, self.fr.size)
+        if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private):
+            try self.writer.line("movq %rcx, " if self.convention.windows else "movq %rdi, ")
+            try self.frame_operand(self.fr.indirect_home)
+        try self.save_callee_saved()
+        try self.unwinding.prologue_complete(&self.writer.out)
+        var moves = try list.List[incoming.Move].create(8)
+        defer moves.destroy()
+        try self.receive_params(entry, &moves)
+        var uses = try selection.uses(self.f)
+        defer free(uses)
+        var received = try self.receive_directly(&moves, uses)
+        defer free(received)
+        var dynamic = try levels.over(self.f)
+        defer dynamic.release()
+        var heads = try selection.loop_heads(self.f)
+        defer free(heads)
+        var tests = try selection.rotations(self.f, heads, uses, false)
+        defer free(tests)
+        selection.rotate_heads(self.f, heads, tests)
+        self.loop_heads = heads
+        self.head_tests = tests
+        var i: usize = 0
+        while i < self.f.instrs.count:
+            self.at = i
+            if let dw = self.dw:
+                try dw.mark(&self.writer.out, self.f, &self.fr, index, i)
+            if received[i]:
+                i += 1
+                continue
+            if selection.branch(self.f, i, uses):
+                try self.branch_pair(i, index)
+                i += 2
+                continue
+            if let fused = selection.offset_access(self.f, i, uses):
+                let (base, offset) = fused
+                if not self.fr.is_rematerialised(self.f.instrs.get(i).dst):
+                    if let dw = self.dw:
+                        try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
+                    try self.offset_access(self.f.instrs.get(i + 1), base, offset)
+                    i += 2
+                    continue
+            try self.save_crossing(i)
+            try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
+            try self.restore_crossing(i)
+            if dynamic.settle[i]:
+                # edges bring different levels: %rsp goes below the most of them
+                try self.reserve_levels(dynamic.before[i + 1])
+            i += 1
+        self.loop_heads = heads[0..<0]
+        self.head_tests = tests[0..<0]
+        try self.finish_function(index, i, text_start)
+
+    ## After function `index`'s last instruction (`end`): its debug information, unwinding
+    ## and Windows saves (its text began at `text_start`), then out of its section.
+    mutating func finish_function(index: usize, end: usize, text_start: usize) -> !:
+        if let dw = self.dw:
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, end)
+            if self.f.debug or self.f.symbols:
+                try self.writer.put("\nLdw_end_")
+                try self.writer.put_u64((u64)index)
+                try self.writer.put(":\n")
+            try self.unwinding.cfi_complete(&self.writer.out)
+            try dw.function(self.f, &self.fr, index)
+        try self.unwinding.complete(&self.writer.out)
+        try self.writer.put("\n")
+        try self.settle_windows_saves(text_start)
+        if self.f.debug:
+            try assembly.describe_frame(&self.descriptors, self.symbol_prefix, ".Ltext_", self.program_unit, self.f, &self.fr)
+        try self.object_format.leave_section(&self.writer.out, self.f)

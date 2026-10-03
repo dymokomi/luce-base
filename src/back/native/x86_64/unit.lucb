@@ -1,0 +1,119 @@
+#==============================================================================================
+#
+#   x86_64/unit - The unit
+#
+#   DESCRIPTION:
+#       The whole program's text: sections, data, text literals, and every function.
+#
+#==============================================================================================
+extend Generator:
+    # mark: The unit ===========================================================================
+    pub mutating func generate() -> !:
+        self.unwinding = FrameUnwind(self.convention.windows, self.dw != none)
+        try self.object_format.begin(&self.writer.out, self.program_unit)
+        if let dw = self.dw:
+            try dw.begin(&self.writer.out)
+        try self.writer.put("    .text\n")
+        self.starts = try alloc usize[self.program_unit.functions.count + 1]
+        # the reasons generated checks trap with, in the unit's texts before any function is
+        # generated: the functions only read the texts, whichever thread generates them
+        for reason in trap_reasons:
+            discard(try self.program_unit.text(reason))
+        if self.split:
+            self.function_tags = try stable_names.function_tags(self.program_unit)
+            self.text_tags = try stable_names.text_tags(self.program_unit)
+        var i: usize = 0
+        if self.dw == none:
+            try self.functions_in_parallel()
+        else:
+            # the DWARF emitter gathers every function's lines and frames in order
+            while i < self.program_unit.functions.count:
+                self.starts[i] = self.writer.out.used
+                try self.function(i)
+                i += 1
+        self.starts[self.program_unit.functions.count] = self.writer.out.used
+        # module-level asm blocks, verbatim, in the text section (§8.9)
+        i = 0
+        while i < self.program_unit.module_asm.count:
+            try self.writer.put("\n")
+            try self.writer.put(self.program_unit.module_asm.get(i).bytes)
+            i += 1
+        try self.object_format.initializer(&self.writer.out, self.program_unit.init_function)
+        # text literals, after the sign masks vector negation and unsigned lane checks read
+        try self.writer.put(self.object_format.read_only())
+        try self.writer.put("\n    .p2align 4\n")
+        try self.shared_label(".Lvsign32")
+        try self.writer.put("    .long 2147483648, 2147483648, 2147483648, 2147483648\n")
+        try self.shared_label(".Lvsign64")
+        try self.writer.put("    .quad -9223372036854775808, -9223372036854775808\n")
+        i = 0
+        while i < self.program_unit.texts.count:
+            if self.split:
+                var name = try buffer.Buffer.create(32)
+                try name.put("lb_text_")
+                try stable_names.put_tag(&name, self.text_tags[i])
+                try self.object_format.hidden_global(&self.writer.out, name.view())
+            try self.text_label(u32(i))
+            try self.writer.put(":\n    .asciz ")
+            try self.writer.c_string(self.program_unit.texts.get(i).bytes)
+            try self.writer.put("\n")
+            i += 1
+        # witness tables and frame descriptors hold addresses, which a position-independent
+        # image relocates when it loads
+        try self.writer.put(self.object_format.relocated_read_only())
+        i = 0
+        while i < self.program_unit.tables.count:
+            let t = self.program_unit.tables.get(i)
+            try self.object_format.table_start(&self.writer.out, t.name)
+            # every unit that views the record has the same table; the linker keeps one
+            try self.object_format.global_symbol(&self.writer.out, t.name, true, false)
+            try self.symbol(t.name)
+            try self.writer.put(":\n")
+            var k: usize = 0
+            while k < t.entries.count:
+                let entry = t.entries.get(k)
+                try self.writer.put("    .quad ")
+                if entry.length == 0:
+                    try self.writer.put("0")
+                else:
+                    try self.symbol(entry)
+                try self.writer.put("\n")
+                k += 1
+            i += 1
+        if self.descriptors.used > 0:
+            try self.writer.put(self.descriptors.view())
+        try self.object_format.globals(&self.writer.out, self.program_unit)
+        if self.half_routines:
+            if self.split:
+                # the same routines under the names every piece of the assembly calls
+                try self.object_format.hidden_global(&self.writer.out, "lb_half_to_single")
+                try self.object_format.hidden_global(&self.writer.out, "lb_single_to_half")
+                try self.put_renamed(half_routines_text, ".Llb_", "lb_")
+            else:
+                try self.writer.put(half_routines_text)
+        self.ending = self.writer.out.used
+        try self.object_format.finish(&self.writer.out)
+        if let dw = self.dw:
+            try dw.finish(&self.writer.out)
+
+    ## `label:` for a label functions share, declared hidden first when it is a symbol.
+    mutating func shared_label(label: str) -> !:
+        let name = self.shared(label)
+        if self.split:
+            try self.object_format.hidden_global(&self.writer.out, name)
+        try self.writer.put(name)
+        try self.writer.put(":\n")
+
+    ## `text` with every `old` written as `replacement`.
+    mutating func put_renamed(text: str, old: str, replacement: str) -> !:
+        var at: usize = 0
+        var start: usize = 0
+        while at + old.length <= text.length:
+            if (str)text.bytes[at..<at + old.length] == old:
+                try self.writer.put((str)text.bytes[start..<at])
+                try self.writer.put(replacement)
+                at += old.length
+                start = at
+            else:
+                at += 1
+        try self.writer.put((str)text.bytes[start..])

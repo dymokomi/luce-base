@@ -21,8 +21,8 @@ flowchart TD
 
 - `back/target.lucb` describes target facts, including OS, CPU, C data layout and
   system linkage. Shared checking and optimization consume those facts.
-- `back/native/arm64.lucb` and `back/native/x86_64.lucb` select instructions. The
-  x86 backend delegates calling conventions, object-format policy and unwind
+- `back/native/arm64/` and `back/native/x86_64/` select instructions, each the
+  fragments its `ORDER` lists. The x86 backend delegates calling conventions, object-format policy and unwind
   records to `back/native/x86_64/{abi,object,unwind}.lucb`.
 - `back/native/dwarf.lucb` describes source locations and types for both CPUs.
   Mach-O uses dSYM output, ELF uses a debug sidecar, and PE embeds DWARF alongside

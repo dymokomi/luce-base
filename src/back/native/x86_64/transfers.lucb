@@ -1,0 +1,278 @@
+#==============================================================================================
+#
+#   x86_64/transfers - Eightbyte transfers
+#
+#   DESCRIPTION:
+#       Aggregates moved between memory and registers an eightbyte at a time, as the
+#       System V and Windows conventions classify them.
+#
+#==============================================================================================
+extend Generator:
+    # mark: Eightbyte transfers ================================================================
+
+    ## Exactly `width` bytes (1..8) at `offset(base)` into the 64-bit register `reg`, zero
+    ## above; `%rax` helps with the odd widths, or `%r11` when `reg` is `%rax` itself, so an
+    ## argument's load leaves the callee parked in r11 alone.
+    mutating func load_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
+        let l = narrow_name(reg)
+        if width == 8:
+            try self.offset_move("movq ", offset, "(")
+            try self.writer.put(base)
+            try self.writer.put("), ")
+            try self.writer.put(reg)
+            return
+        if width == 4 or width == 2 or width == 1:
+            try self.offset_move("movl " if width == 4 else ("movzwl " if width == 2 else "movzbl "), offset, "(")
+            try self.writer.put(base)
+            try self.writer.put("), ")
+            try self.writer.put(l)
+            return
+        # 3, 5, 6, 7: the low part, then the rest shifted into place
+        let low: u64 = 4 if width > 4 else 2
+        let helper = "%r11" if reg == "%rax" else "%rax"
+        try self.load_bytes(helper, base, offset + low, width - low)
+        try self.load_bytes(reg, base, offset, low)
+        try self.writer.line("shlq $")
+        try self.writer.put_u64(low * 8)
+        try self.writer.put(", ")
+        try self.writer.put(helper)
+        try self.writer.line3("orq ", helper, ", ")
+        try self.writer.put(reg)
+
+    ## Exactly `width` bytes of the 64-bit register `reg` to `offset(base)`; the register is
+    ## consumed.
+    mutating func store_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
+        if width == 8 or width == 4 or width == 2 or width == 1:
+            try self.writer.line(store_word_mnemonic(width))
+            try self.writer.put(register_of_width(reg, width))
+            try self.writer.put(", ")
+            try self.writer.put_u64(offset)
+            try self.writer.put("(")
+            try self.writer.put(base)
+            try self.writer.put(")")
+            return
+        let low: u64 = 4 if width > 4 else 2
+        try self.store_bytes(reg, base, offset, low)
+        try self.writer.line("shrq $")
+        try self.writer.put_u64(low * 8)
+        try self.writer.put(", ")
+        try self.writer.put(reg)
+        try self.store_bytes(reg, base, offset + low, width - low)
+
+    ## Eightbyte `k` of an aggregate of `size` bytes at (`base`), into `reg`: an integer
+    ## register, or an SSE one through rax.
+    mutating func load_eightbyte(reg: str, base: str, k: u32, size: u32, sse: bool) -> !:
+        let offset = (u64)k * 8
+        let width = (u64)size - offset if (u64)size - offset < 8 else 8
+        if sse:
+            if width == 8 or width == 4:
+                # A preceding INTEGER result may already be in rax. Loading an SSE
+                # eightbyte must not overwrite that other half of a mixed return.
+                try self.based_move("movq " if width == 8 else "movd ", offset, base, ", ")
+                try self.writer.put(reg)
+            else:
+                try self.writer.line("movq %rax, %xmm9")
+                try self.load_bytes("%rax", base, offset, width)
+                try self.writer.line3("movq %rax, ", reg, "")
+                try self.writer.line("movq %xmm9, %rax")
+        else:
+            try self.load_bytes(reg, base, offset, width)
+
+    ## Eightbyte `k` of an aggregate of `size` bytes, from `reg` to (%r10).
+    mutating func store_eightbyte(reg: str, k: u32, size: u32, sse: bool) -> !:
+        let offset = (u64)k * 8
+        let width = (u64)size - offset if (u64)size - offset < 8 else 8
+        if sse:
+            # rax may hold the INTEGER half of a mixed SSE/INTEGER return.
+            # Store common widths directly; use non-ABI scratch for short tails.
+            if width == 8 or width == 4:
+                try self.writer.line3("movq " if width == 8 else "movd ", reg, ", ")
+                try self.writer.put_u64(offset)
+                try self.writer.put("(%r10)")
+            else:
+                try self.writer.line3("movq ", reg, ", %r11")
+                try self.store_bytes("%r11", "%r10", offset, width)
+        else:
+            try self.store_bytes(reg, "%r10", offset, width)
+
+    ## Store the incoming arguments into their slots.
+    ## By slot, the parameters `receive_params` moves straight from their argument registers
+    ## into their entry loads' results (`incoming`, System V only): their slots are never
+    ## written, so they need no home. It walks the registers as `receive_params` does, for a
+    ## function whose parameters are all scalars; otherwise every slot keeps its home.
+    func straight_params(entry: u32[]) -> bool[]!:
+        var straight = try alloc bool[self.f.slots.count + 1]
+        for k in 0..<straight.length:
+            straight[k] = false
+        for p in self.f.params.span():
+            if p.size != 0:
+                # an aggregate is copied into its slot first, by a call past 128 bytes, which
+                # leaves no argument register as it was
+                return straight
+        if self.convention.windows:
+            # by position: the first four arguments, integer or float, in their registers
+            let hidden: usize = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
+            for i in 0..<self.f.params.count:
+                let p = self.f.params.get(i)
+                if i + hidden < 4 and p.size == 0 and p.cls != ir.Class.h and entry[i] != 0 and self.fr.slot_regs.get((usize)p.slot) == 0:
+                    straight[(usize)p.slot] = true
+            return straight
+        var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
+        var next_float: u32 = 0
+        for i in 0..<self.f.params.count:
+            let p = self.f.params.get(i)
+            let moved = self.fr.slot_regs.get((usize)p.slot) == 0 and entry[i] != 0 and p.cls != ir.Class.h
+            if ir.is_float_class(p.cls):
+                if next_float < 8:
+                    straight[(usize)p.slot] = moved
+                    next_float += 1
+            elif next_int < 6:
+                straight[(usize)p.slot] = moved
+                next_int += 1
+        return straight
+
+    mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
+        if self.convention.windows:
+            try self.receive_windows(entry, moves)
+            return
+        var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
+        var next_float: u32 = 0
+        var stack_offset: u64 = 16
+        # a memory argument copied by memcpy (past 128 bytes) would clobber the ones left
+        # in their registers for `receive_directly`
+        var direct = true
+        for p in self.f.params.span():
+            if p.size > 128:
+                direct = false
+        var i: usize = 0
+        while i < self.f.params.count:
+            let p = self.f.params.get(i)
+            let home = self.slot_home(p.slot)
+            if p.size == 0:
+                let code = (usize)self.fr.slot_regs.get((usize)p.slot)
+                let straight = direct and code == 0 and entry[i] != 0 and p.cls != ir.Class.h
+                if ir.is_float_class(p.cls):
+                    if next_float < 8 and straight:
+                        try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_float), float = true))
+                        next_float += 1
+                    elif next_float < 8:
+                        if p.cls == ir.Class.h:
+                            try self.writer.line2("movd ", float_argument_names[(usize)next_float])
+                            try self.writer.put(", %eax")
+                            try self.writer.line("movw %ax, ")
+                            try self.frame_operand(home)
+                        else:
+                            try self.frame_store(float_argument_names[(usize)next_float], p.cls, home)
+                        next_float += 1
+                    else:
+                        try self.stack_param_load("%rax", stack_offset)
+                        try self.writer.line(store_word_mnemonic(2 if p.cls == ir.Class.h else (4 if p.cls == ir.Class.s else 8)))
+                        try self.writer.put(register_of_width("%rax", 2 if p.cls == ir.Class.h else (4 if p.cls == ir.Class.s else 8)))
+                        try self.writer.put(", ")
+                        try self.frame_operand(home)
+                        stack_offset += 8
+                elif next_int < 6 and straight:
+                    try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_int), float = false))
+                    next_int += 1
+                elif next_int < 6:
+                    let source_name = argument_names[(usize)next_int] if p.cls == ir.Class.l else narrow_name(argument_names[(usize)next_int])
+                    if code != 0:
+                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", source_name, ", ", class_name((u8)code, p.cls))
+                    else:
+                        try self.frame_store(source_name, p.cls, home)
+                    next_int += 1
+                else:
+                    try self.stack_param_load("%rax", stack_offset)
+                    if code != 0:
+                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", class_name((u8)code, p.cls))
+                    else:
+                        try self.frame_store("%rax" if p.cls == ir.Class.l else "%eax", p.cls, home)
+                    stack_offset += 8
+            else:
+                let sse = self.convention.sse_of(p.cls, p.size, p.shape)
+                let words: u32 = 2 if p.size > 8 else 1
+                let sse_count = count_bits(sse)
+                let int_count = words - sse_count
+                if not self.convention.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                    try self.frame_address("%r10", home)
+                    var k: u32 = 0
+                    while k < words:
+                        if (sse & (u8)(1 << k)) != 0:
+                            try self.store_eightbyte(float_argument_names[(usize)next_float], k, p.size, true)
+                            next_float += 1
+                        else:
+                            try self.store_eightbyte(argument_names[(usize)next_int], k, p.size, false)
+                            next_int += 1
+                        k += 1
+                else:
+                    # copied from the caller's stack area in a second pass, after every
+                    # register is safely stored
+                    stack_offset += round_up((u64)p.size, 8)
+            i += 1
+        try self.copy_memory_params()
+
+    ## The aggregates passed in the caller's stack area copied into their slots, after
+    ## every register argument is safely stored: the same walk over the arguments.
+    mutating func copy_memory_params() -> !:
+        var stack_offset: u64 = 16
+        var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
+        var next_float: u32 = 0
+        var i: usize = 0
+        while i < self.f.params.count:
+            let p = self.f.params.get(i)
+            if p.size == 0:
+                if ir.is_float_class(p.cls):
+                    if next_float < 8:
+                        next_float += 1
+                    else:
+                        stack_offset += 8
+                elif next_int < 6:
+                    next_int += 1
+                else:
+                    stack_offset += 8
+            else:
+                let sse = self.convention.sse_of(p.cls, p.size, p.shape)
+                let words: u32 = 2 if p.size > 8 else 1
+                let sse_count = count_bits(sse)
+                let int_count = words - sse_count
+                if not self.convention.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                    next_int += int_count
+                    next_float += sse_count
+                else:
+                    try self.writer.line("leaq ")
+                    try self.writer.put_u64(stack_offset)
+                    try self.writer.put("(%rbp), %r10")
+                    try self.frame_address("%r11", self.slot_home(p.slot))
+                    try self.copy_to_r11("%r10", (u64)p.size)
+                    stack_offset += round_up((u64)p.size, 8)
+            i += 1
+
+    mutating func stack_param_load(reg: str, offset: u64) -> !:
+        try self.writer.line("movq ")
+        try self.writer.put_u64(offset + (self.fr.size if self.convention.windows else 0))
+        try self.writer.put("(%rbp), ")
+        try self.writer.put(reg)
+
+    ## `size` bytes from (`origin`) to (%r11): inline up to 128, else `memcpy`.
+    mutating func copy_to_r11(origin: str, size: u64) -> !:
+        if size <= 128:
+            try self.inline_copy(origin, "%r11", size)
+            return
+        try self.writer.line("movq %r11, %rdi")
+        try self.writer.line3("movq ", origin, ", %rsi")
+        try self.load_immediate("%rdx", (i64)size)
+        try self.call_symbol("memcpy")
+
+    mutating func call_symbol(name: str) -> !:
+        if self.convention.windows:
+            # Generator helpers use at most three integer arguments in SysV scratch names.
+            try self.writer.line("movq %rdx, %r8")
+            try self.writer.line("movq %rsi, %rdx")
+            try self.writer.line("movq %rdi, %rcx")
+            try self.writer.line("subq $32, %rsp")
+        try self.writer.line("call ")
+        try self.symbol(name)
+        if self.convention.windows:
+            try self.writer.line("addq $32, %rsp")
+        else:
+            try self.writer.put("@PLT")

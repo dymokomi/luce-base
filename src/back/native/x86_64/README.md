@@ -1,7 +1,10 @@
 # x86-64 backend boundaries
 
-`../x86_64.lucb` selects instructions and materializes values using the shared frame
-planner. Its construction receives the target OS and symbol prefix once.
+The generator selects instructions and materializes values using the shared frame
+planner; its construction receives the target OS and symbol prefix once. It is the
+module `back.native.x86_64`, the fragments `ORDER` lists (generator, registers,
+functions, transfers, instructions, vectors, inline_asm, atomics, calls, unit,
+helpers, parallel). The other files here are modules of their own:
 
 - `abi.lucb` classifies scalar and aggregate arguments/results and assigns System V
   argument locations. Microsoft x64 uses ordinal register slots, indirect aggregate

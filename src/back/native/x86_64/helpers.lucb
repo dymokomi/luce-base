@@ -1,0 +1,417 @@
+#==============================================================================================
+#
+#   x86_64/helpers - Helpers
+#
+#   DESCRIPTION:
+#       Functions of registers, classes, and operands that need no generator.
+#
+#==============================================================================================
+# mark: Helpers ================================================================================
+## The registers a fallible result of up to four words comes back in (private_words).
+let private_result_registers: str[4] = ["%rax", "%rdx", "%rcx", "%r8"]
+let private_result_narrow: str[4] = ["%eax", "%edx", "%ecx", "%r8d"]
+let windows_arguments: str[4] = ["%rcx", "%rdx", "%r8", "%r9"]
+
+## Windows' nonvolatile registers the allocator does not hand out, and the lines that stand
+## for their saves and restores until the function's text shows which it names.
+let windows_nonvolatile: str[12] = ["%rdi", "%rsi", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let windows_save_marker: str = "# lb: windows saves"
+let windows_restore_marker: str = "# lb: windows restores"
+
+## The bytes of a save area holding the registers `plan` marks: rdi and rsi first, eight
+## bytes each, then the xmm registers, sixteen each.
+func save_area(plan: u16) -> u64:
+    let ints = (u64)(plan & 1) + (u64)((plan >> 1) & 1)
+    var floats: u64 = 0
+    for i in 2..<12:
+        floats += (u64)((plan >> (u16)i) & 1)
+    return round_up16(ints * 8) + floats * 16
+
+## Where, below the frame's top, register `i` of `plan` is saved.
+func save_offset(plan: u16, i: i64) -> u64:
+    var before: u64 = 0
+    if i < 2:
+        if i == 1:
+            before = (u64)(plan & 1)
+        return (before + 1) * 8
+    for k in 2..<i:
+        before += (u64)((plan >> (u16)k) & 1)
+    let ints = (u64)(plan & 1) + (u64)((plan >> 1) & 1)
+    return round_up16(ints * 8) + (before + 1) * 16
+
+func round_up16(n: u64) -> u64:
+    return (n + 15) & ~(u64)15
+
+## Whether an assembly line names Windows nonvolatile register `i`, in any width.
+func names_register(line: str, i: usize) -> bool:
+    if i == 0:
+        return has_text(line, "%rdi") or has_text(line, "%edi") or has_text(line, "%di")
+    if i == 1:
+        return has_text(line, "%rsi") or has_text(line, "%esi") or has_text(line, "%si")
+    let name = windows_nonvolatile[i]
+    var position: usize = 0
+    while position + name.length <= line.length:
+        if has_text_at(line, name, position):
+            # %xmm1 is not %xmm10: the name ends where the digits do
+            let next = position + name.length
+            if next >= line.length or line.bytes[next] < '0' or line.bytes[next] > '9':
+                return true
+        position += 1
+    return false
+
+func has_text(line: str, part: str) -> bool:
+    var position: usize = 0
+    while position + part.length <= line.length:
+        if has_text_at(line, part, position):
+            return true
+        position += 1
+    return false
+
+func has_text_at(line: str, part: str, at: usize) -> bool:
+    for k in 0..<part.length:
+        if line.bytes[at + k] != part.bytes[k]:
+            return false
+    return true
+
+## The callee-saved registers the allocator hands out, codes 1..5, in their four widths.
+## Register codes: 1–5 the callee-saved rbx and r12–r15; 6–9 the caller-saved argument
+## registers r8, r9, rsi and rdi, for integers that cross no call, which a call's parallel
+## move fills last (reserved on Windows, where rsi and rdi are nonvolatile and the
+## arguments are staged through the shadow area); 10–13 the caller-saved xmm12–xmm15,
+## which nothing else here touches, for floats and vectors that cross no call.
+let q_names: str[14] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r8", "%r9", "%rsi", "%rdi", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let l_names: str[14] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%r8d", "%r9d", "%esi", "%edi", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let w_names: str[14] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%r8w", "%r9w", "%si", "%di", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let b_names: str[14] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%r8b", "%r9b", "%sil", "%dil", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+
+## Every integer register this generator names, in its four widths, for the views.
+let all_q: str[14] = ["%rax", "%rcx", "%rdx", "%rbx", "%rsi", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"]
+let all_l: str[14] = ["%eax", "%ecx", "%edx", "%ebx", "%esi", "%edi", "%r8d", "%r9d", "%r10d", "%r11d", "%r12d", "%r13d", "%r14d", "%r15d"]
+let all_w: str[14] = ["%ax", "%cx", "%dx", "%bx", "%si", "%di", "%r8w", "%r9w", "%r10w", "%r11w", "%r12w", "%r13w", "%r14w", "%r15w"]
+let all_b: str[14] = ["%al", "%cl", "%dl", "%bl", "%sil", "%dil", "%r8b", "%r9b", "%r10b", "%r11b", "%r12b", "%r13b", "%r14b", "%r15b"]
+
+let argument_names: str[6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"]
+let float_argument_names: str[8] = ["%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7"]
+
+## The index of `reg` among the integer registers, in any width, or 14.
+func register_index(reg: str) -> usize:
+    var k: usize = 0
+    while k < 14:
+        if all_q[k] == reg or all_l[k] == reg or all_w[k] == reg or all_b[k] == reg:
+            return k
+        k += 1
+    return 14
+
+func wide_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_q[k] if k < 14 else reg
+
+func narrow_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_l[k] if k < 14 else reg
+
+func word_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_w[k] if k < 14 else reg
+
+func byte_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_b[k] if k < 14 else reg
+
+## `reg` in the width of `width` bytes.
+func register_of_width(reg: str, width: u64) -> str:
+    if width == 8:
+        return wide_name(reg)
+    if width == 4:
+        return narrow_name(reg)
+    if width == 2:
+        return word_name(reg)
+    return byte_name(reg)
+
+## Whether `reg` is a 32-bit name.
+func is_narrow(reg: str) -> bool:
+    let k = register_index(reg)
+    return k < 14 and all_l[k] == reg
+
+## Register code `code` viewed as class `cls`.
+func class_name(code: u8, cls: ir.Class) -> str:
+    if cls == ir.Class.w:
+        return l_names[(usize)code]
+    return q_names[(usize)code]
+
+func is_int_class(c: ir.Class) -> bool:
+    return c == ir.Class.w or c == ir.Class.l
+
+## The register-to-register move of a class.
+func register_move(cls: ir.Class) -> str:
+    if cls == ir.Class.w:
+        return "movl "
+    if cls == ir.Class.l:
+        return "movq "
+    return "movaps "
+
+func store_word_mnemonic(width: u64) -> str:
+    if width == 8:
+        return "movq "
+    if width == 4:
+        return "movl "
+    if width == 2:
+        return "movw "
+    return "movb "
+
+## The load that zero-extends `width` bytes into a register.
+func zero_extending_load(width: u32) -> str:
+    if width == 8:
+        return "movq "
+    if width == 4:
+        return "movl "
+    if width == 2:
+        return "movzwl "
+    return "movzbl "
+
+func width_suffix(width: u32) -> str:
+    if width == 1:
+        return "b"
+    if width == 2:
+        return "w"
+    if width == 4:
+        return "l"
+    return "q"
+
+func count_bits(v: u8) -> u32:
+    return (u32)(v & 1) + (u32)((v >> 1) & 1)
+
+## A register name with its `%`, whether the source wrote one or not.
+func with_percent(name: str) -> str:
+    if name.length > 0 and name.bytes[0] == '%':
+        return name
+    var room: u8[32]
+    let spelled = format(room, f"%{name}") catch failure:
+        return name
+    let copy = alloc u8[spelled.length] catch failure:
+        return name
+    memory.copy(copy, spelled.bytes, spelled.length)
+    return (str)copy
+
+func load_mnemonic(op: ir.Op) -> str:
+    match op:
+        .loadsb: return "movsbl "
+        .loadub: return "movzbl "
+        .loadsh: return "movswl "
+        .loaduh: return "movzwl "
+        .loadsw: return "movslq "
+        .loaduw: return "movl "
+        .loads: return "movss "
+        .loadd: return "movsd "
+        _: return "movq "
+
+func store_mnemonic(op: ir.Op) -> str:
+    match op:
+        .storew: return "movl "
+        .stores: return "movss "
+        .stored: return "movsd "
+        _: return "movq "
+
+func round_up(value: u64, align: u64) -> u64:
+    if align <= 1:
+        return value
+    return (value + align - 1) // align * align
+
+test "immediates, views, and byte moves assemble":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var u = try ir.Unit.create()
+        var g = try Generator.create(&u)
+        try g.load_immediate("%rax", 0)
+        try g.load_immediate("%eax", -5)
+        try g.load_immediate("%rax", 70000)
+        try g.load_immediate("%rax", 4890909195324358656)
+        try g.frame_address("%rax", 5000)
+        try g.load_bytes("%rax", "%r10", 8, 3)
+        try g.store_bytes("%rax", "%r10", 8, 7)
+        let text = g.text()
+        assert(text.length > 0)
+        assert(narrow_name("%r12") == "%r12d")
+        assert(byte_name("%rsi") == "%sil")
+        assert(word_name("%eax") == "%ax")
+        assert(wide_name("%ecx") == "%rcx")
+        assert(register_of_width("%rdx", 1) == "%dl")
+        assert(count_bits(3) == 2)
+        assert(with_percent("rdi") == "%rdi")
+        assert(with_percent("%xmm8") == "%xmm8")
+
+## The move of a vector of `bytes` between memory and a register: unaligned, a quadword for
+## the eight-byte form.
+func vector_move(bytes: u32) -> str:
+    return "movdqu " if bytes == 16 else "movq "
+
+## `padd` on lanes of `bits`: `paddb`, `paddw`, `paddd`, `paddq`.
+func lane_mnemonic(base: str, bits: u32) -> str:
+    if base == "padd":
+        return "paddb" if bits == 8 else ("paddw" if bits == 16 else ("paddd" if bits == 32 else "paddq"))
+    if base == "psub":
+        return "psubb" if bits == 8 else ("psubw" if bits == 16 else ("psubd" if bits == 32 else "psubq"))
+    if base == "padds":
+        return "paddsb" if bits == 8 else "paddsw"
+    if base == "paddus":
+        return "paddusb" if bits == 8 else "paddusw"
+    if base == "psubs":
+        return "psubsb" if bits == 8 else "psubsw"
+    return "psubusb" if bits == 8 else "psubusw"
+
+## The two-operand SSE2 instruction of a vector operation on lanes of `shape`.
+func vector_mnemonic(op: ir.Op, shape: u32) -> str:
+    let bits = ir.lane_bits(shape)
+    let signed = ir.lanes_signed(shape)
+    let wide = bits == 64
+    match op:
+        .vadd: return "addpd" if wide else "addps"
+        .vsub: return "subpd" if wide else "subps"
+        .vmul: return "mulpd" if wide else "mulps"
+        .vdiv: return "divpd" if wide else "divps"
+        .vand: return "pand"
+        .vor: return "por"
+        .vxor: return "pxor"
+        .vaddw: return lane_mnemonic("padd", bits)
+        .vsubw: return lane_mnemonic("psub", bits)
+        .vmulw: return "pmullw"
+        .vadds: return lane_mnemonic("padds" if signed else "paddus", bits)
+        .vsubs: return lane_mnemonic("psubs" if signed else "psubus", bits)
+        _: return "paddb"
+
+## Half-float conversion without F16C, for levels below x86-64-v3: `eax` in, `eax` out,
+## `ecx`, `edx`, `r10d`, and `r11d` clobbered, nothing on the stack but the return address.
+## The single of a half: sign moved up, a normal half's exponent rebiased from 15 to 127, a
+## subnormal's mantissa normalised by its top bit (`bsr`), infinity kept, NaN with the payload
+## widened and made quiet, as the hardware conversion does. The half of a single, rounding to nearest even as the C compiler's `_Float16`
+## does: NaN kept quiet with its payload narrowed, 65520 and above to infinity, a normal
+## half from the rebiased exponent with the thirteen dropped bits deciding the rounding,
+## a subnormal half from the mantissa with its implicit bit shifted right by the exponent's
+## shortfall, and everything below 2^-25 to zero.
+let half_routines_text: str = """
+    .text
+    .p2align 4
+.Llb_half_to_single:
+    movzwl %ax, %eax
+    movl %eax, %edx
+    andl $32768, %edx
+    shll $16, %edx
+    andl $32767, %eax
+    cmpl $31744, %eax
+    jae 2f
+    testl $31744, %eax
+    je 3f
+    addl $114688, %eax
+    shll $13, %eax
+    orl %edx, %eax
+    ret
+2:
+    andl $1023, %eax
+    je 11f
+    shll $13, %eax
+    orl $2143289344, %eax
+    orl %edx, %eax
+    ret
+11:
+    movl $2139095040, %eax
+    orl %edx, %eax
+    ret
+3:
+    testl %eax, %eax
+    jne 4f
+    movl %edx, %eax
+    ret
+4:
+    movl %eax, %r11d
+    bsrl %eax, %ecx
+    movl %ecx, %eax
+    addl $103, %eax
+    shll $23, %eax
+    orl %edx, %eax
+    negl %ecx
+    addl $23, %ecx
+    shll %cl, %r11d
+    andl $8388607, %r11d
+    orl %r11d, %eax
+    ret
+    .p2align 4
+.Llb_single_to_half:
+    movl %eax, %edx
+    shrl $16, %edx
+    andl $32768, %edx
+    andl $2147483647, %eax
+    cmpl $2139095040, %eax
+    jb 2f
+    movl %eax, %ecx
+    andl $8388607, %ecx
+    je 5f
+    shrl $13, %ecx
+    orl $512, %ecx
+    orl $31744, %ecx
+    movl %ecx, %eax
+    orl %edx, %eax
+    ret
+5:
+    movl $31744, %eax
+    orl %edx, %eax
+    ret
+2:
+    cmpl $1199566848, %eax
+    jb 6f
+    movl $31744, %eax
+    orl %edx, %eax
+    ret
+6:
+    cmpl $947912704, %eax
+    jb 7f
+    subl $939524096, %eax
+    movl %eax, %ecx
+    andl $8191, %ecx
+    shrl $13, %eax
+    cmpl $4096, %ecx
+    jb 8f
+    ja 9f
+    testl $1, %eax
+    je 8f
+9:
+    incl %eax
+8:
+    orl %edx, %eax
+    ret
+7:
+    cmpl $855638016, %eax
+    jb 10f
+    movl %eax, %ecx
+    shrl $23, %ecx
+    andl $8388607, %eax
+    orl $8388608, %eax
+    movl %eax, %r11d
+    negl %ecx
+    addl $126, %ecx
+    shrl %cl, %eax
+    movl %eax, %r10d
+    shll %cl, %r10d
+    subl %r10d, %r11d
+    decl %ecx
+    movl $1, %r10d
+    shll %cl, %r10d
+    cmpl %r10d, %r11d
+    jb 8b
+    ja 9b
+    testl $1, %eax
+    je 8b
+    jmp 9b
+10:
+    movl %edx, %eax
+    ret
+"""
+
+## The argument register `%rdi`..`%r9` a name is, as its index, or -1.
+func argument_index(name: str) -> i32:
+    var k: i32 = 0
+    while k < 6:
+        if argument_names[(usize)k] == name:
+            return k
+        k += 1
+    return -1
