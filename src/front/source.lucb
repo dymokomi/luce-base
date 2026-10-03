@@ -107,7 +107,7 @@ pub struct Source:
         return (self.path, line, column)
 
     ## Which fragment a line of an assembled module belongs to; 0 for one file.
-    pub func segment_of(line: u32) -> usize:
+    func segment_of(line: u32) -> usize:
         var found: usize = 0
         if let starts = self.segment_starts:
             var k: usize = 0

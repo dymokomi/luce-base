@@ -1372,7 +1372,7 @@ pub func main(arguments: str[]) -> i32!:
 
 ### 16.1 Files and modules
 
-One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. A larger module may be a directory of that name instead, whose `ORDER` file lists its source fragments in order; the fragments share the one module scope, a diagnostic or a trap names the fragment file, a type declared in one fragment may take methods in another under `extend` (§9.5), and nothing else about the module changes. A file's imports come before its declarations; each fragment may open with imports of its own, and a module is imported once across the fragments (§16.3). There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
+One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. A larger module may be a directory of that name instead, whose `ORDER` file lists its source fragments in order; the fragments share the one module scope, a diagnostic or a trap names the fragment file, a type declared in one fragment may take methods in another under `extend` (§9.5), and nothing else about the module changes. An import may stand anywhere among a module's top-level declarations, in any of its fragments, beside the declarations that use it; a module is imported once across the module (§16.3). There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
 
 ### 16.2 The three module kinds
 
@@ -1804,7 +1804,7 @@ Absent from Base, each with the reason it is not a loss:
 Repetition is `{...}`, optional syntax is `[...]`, quoted text is a token. `NEWLINE`, `INDENT`, and `DEDENT` come from the layout lexer; `RAW_LINE` is a physical line captured without tokenisation after removal of the suite's indentation baseline. `IDENT` is an identifier that is not a reserved word; `TYPE_IDENT` is a `PascalCase` identifier; `TYPE_PATH` is a `TYPE_IDENT`, or an alias's `IDENT`, optionally qualified by a module path; `CORE_TYPE` is one of the scalar type names, `str`, `fmt`, `unit`, `never`; `COMPARE_OP` is `==`, `!=`, `<`, `<=`, `>`, `>=`; `FORMAT_START`, `FORMAT_TEXT`, `FORMAT_END` are the lexer's pieces of one `f"..."` literal; `constant_expression` is an `expression` meeting §6.4. Semantic restrictions in the earlier chapters remain normative over this shape.
 
 ```ebnf
-module          = { import_decl }, { top_decl }, EOF ;
+module          = { import_decl | top_decl }, EOF ;
 
 import_decl     = "import", module_path, [ "as", IDENT ], NEWLINE
                 | "from", module_path, "import", IDENT, { ",", IDENT }, NEWLINE ;

@@ -1,0 +1,15 @@
+## §16.1: an import may stand anywhere among a module's top-level declarations, beside the
+## ones that use it, as a re-export beside its module.
+import strings
+
+pub type Text = str
+
+import memory
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    let word: Text = "fragment"
+    var copy: u8[8]
+    memory.copy(copy, word.bytes, 8)
+    print(f"{strings.starts_with((str)copy, "frag")}")
+    return 0
