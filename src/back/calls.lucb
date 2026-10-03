@@ -86,7 +86,7 @@ pub func argument_values(e: ast.Node*, out: ast.Node*?[]) -> usize:
     return count
 
 ## An `atomic.Ordering` argument as C11 numbers it, `memory_order_relaxed` 0 to `seq_cst`
-## 5; an ordering not given is `seq_cst`.
+## 5, and 6 for a fence's `signal`; an ordering not given is `seq_cst`.
 pub func ordering(given: ast.Node*?) -> u32:
     let e = given else return 5
     if e.text == "relaxed":
@@ -97,4 +97,6 @@ pub func ordering(given: ast.Node*?) -> u32:
         return 3
     if e.text == "acq_rel":
         return 4
+    if e.text == "signal":
+        return 6
     return 5

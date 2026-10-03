@@ -1,0 +1,7 @@
+# error: this atomic method has no argument of this name
+## §15.1: an `@T` method's arguments are named as the specification spells them.
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    var hits: @u64
+    discard(hits.add(1, ordering = .relaxed))
+    return 0

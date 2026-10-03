@@ -240,7 +240,9 @@ extend Generator:
             .atomic_cas:
                 try self.compare_and_swap(n)
             .fence:
-                try self.writer.line("mfence")
+                # a signal fence (6) orders the compiler alone: no instruction
+                if n.a.value != 6:
+                    try self.writer.line("mfence")
             .fma:
                 try self.fused(n)
             .select:

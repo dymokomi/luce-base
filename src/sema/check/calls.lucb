@@ -108,10 +108,23 @@ extend Checker:
         let ordering = try self.ordering_type()
         callee.flags |= ast.flag_static
         callee.type_id = atomic_id
+        if name == "load":
+            try self.place_atomic_arguments(e, ["order"])
+        elif name == "cas":
+            try self.place_atomic_arguments(e, ["expected", "desired", "success", "failure", "weak"])
+        elif name == "wait":
+            try self.place_atomic_arguments(e, ["expected"])
+        elif name == "wake":
+            try self.place_atomic_arguments(e, ["count"])
+        else:
+            try self.place_atomic_arguments(e, ["value", "order"])
         var args = e.body
         var given: usize = 0
         while let a = args:
             given += 1
+            if let v = a.left:
+                if v.kind == ast.Kind.case_value and v.text == "signal":
+                    return try self.fail(v, "`.signal` orders a fence alone, `atomic.fence(.signal)` (§15.1)")
             args = a.next
         if name == "load":
             if given > 1:
@@ -168,6 +181,57 @@ extend Checker:
             try self.expect_argument(e, 0, types.u32_id)
             return types.unit_id
         return try self.fail(callee, "an atomic has add, sub, set, clear, flip, max, min, swap, load, store, cas, wait, and wake")
+
+    ## An atomic method's arguments in their places (§15.1): the positional ones first, then
+    ## each named one in the place `names` gives its name, an ordering skipped before a
+    ## later one written as `.seq_cst`, as an omitted ordering is. The names are then
+    ## dropped, so the method's check reads every argument by its position.
+    mutating func place_atomic_arguments(e: ast.Node*, names: const str[]) -> !:
+        var slots: ast.Node*?[5]
+        var named = false
+        var position: usize = 0
+        var cursor = e.body
+        while let a = cursor:
+            cursor = a.next
+            if a.text.length == 0:
+                if named:
+                    return try self.fail(a, "a positional argument comes before the named ones")
+                if position >= names.length:
+                    return
+                slots[position] = a
+                position += 1
+                continue
+            named = true
+            var place = names.length
+            for k in 0..<names.length:
+                if names[k] == a.text:
+                    place = k
+            if place == names.length:
+                return try self.fail(a, "this atomic method has no argument of this name")
+            if slots[place] != none:
+                return try self.fail(a, "this argument is given twice")
+            slots[place] = a
+        if not named:
+            return
+        var last: usize = 0
+        for k in 0..<names.length:
+            if slots[k] != none:
+                last = k
+        var first: ast.Node*? = none
+        var tail: ast.Node*? = none
+        for k in 0..<last + 1:
+            var a = slots[k]
+            if a == none:
+                if names[k] != "order" and names[k] != "success" and names[k] != "failure":
+                    return try self.fail(e, "an argument before a named one is missing")
+                let filled = try ast.Node.make(ast.Kind.argument, "", e.start, e.line)
+                filled.left = try ast.Node.make(ast.Kind.case_value, "seq_cst", e.start, e.line)
+                a = filled
+            let placed = a else return
+            placed.text = ""
+            placed.next = none
+            ast.append(&first, &tail, placed)
+        e.body = first
 
     ## The `atomic.Ordering` enum from the prelude.
     mutating func ordering_type() -> u32!:

@@ -302,7 +302,9 @@ extend Generator:
             .atomic_cas:
                 try self.compare_and_swap(n)
             .fence:
-                try self.writer.line("dmb ish")
+                # a signal fence (6) orders the compiler alone: no instruction
+                if n.a.value != 6:
+                    try self.writer.line("dmb ish")
             .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
                 try self.vector(n)
             .fma:
