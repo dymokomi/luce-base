@@ -469,6 +469,10 @@ pub struct Parser:
             while true:
                 let item = try self.node(ast.Kind.name, "")
                 item.text = try self.expect_name()
+                if self.eat_kw("as"):
+                    let alias = try self.node(ast.Kind.name, "")
+                    alias.text = try self.expect_name()
+                    item.left = alias
                 ast.append(&n.body, &tail, item)
                 if not self.eat_op(","):
                     break

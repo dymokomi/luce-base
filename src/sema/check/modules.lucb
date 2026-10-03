@@ -448,7 +448,10 @@ extend Checker:
                         var said1: u8[256]
                         discard(try self.fail(n, said(said1, f"`{n.text}` is not public in `{d.text}`")))
                     n.resolved = member
-                    try self.bind(n, n.text, member.type_id, member, member.kind == ast.Kind.global or member.kind == ast.Kind.extern_var)
+                    var bound = n.text
+                    if let alias = n.left:
+                        bound = alias.text
+                    try self.bind(n, bound, member.type_id, member, member.kind == ast.Kind.global or member.kind == ast.Kind.extern_var)
                     self.set_origin(d)
                     names = n.next
             cursor = d.next
@@ -487,7 +490,7 @@ func packages_as_modules(tree: ast.Node*, importer: str) -> !:
     var cursor = tree.body
     while let d = cursor:
         cursor = d.next
-        if d.kind != ast.Kind.from_import or not try module_paths.names_package(importer, d.text):
+        if d.kind != ast.Kind.from_import or not try module_paths.names_modules(importer, d.text):
             previous = d
             continue
         var first: ast.Node*? = none
@@ -497,8 +500,9 @@ func packages_as_modules(tree: ast.Node*, importer: str) -> !:
             names = n.next
             let module = try strings.join([d.text, ".", n.text], "")
             let one = try ast.Node.make(ast.Kind.import_, module, n.start, n.line)
-            let alias = try ast.Node.make(ast.Kind.name, n.text, n.start, n.line)
-            one.left = alias
+            one.left = n.left
+            if one.left == none:
+                one.left = try ast.Node.make(ast.Kind.name, n.text, n.start, n.line)
             ast.append(&first, &last, one)
         let end = last else return
         end.next = d.next

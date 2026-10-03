@@ -28,14 +28,19 @@ def package "demo" {
 and imports its public modules behind its identifier, as Python spells it:
 
 ```luce
-import luce_ui.ui
 from luce_ui import ui
+from luce_std import files, paths
+from luce_crypto import native as crypto
+from luce_geocore.core import parallel
 from luce_ui.ui import Button
 
 let button = ui.Button("pause")
 ```
 
-`import luce_ui.ui` and `from luce_ui import ui` both bind the module as `ui`. A module the
+`from luce_ui import ui` binds the module as `ui`, and so does `import luce_ui.ui`; the
+`from` form is the usual one, since it names on the import line what the code below uses.
+A `from` import may name a directory of a package's modules (`luce_geocore.core`), and each
+name it brings may take an alias (`native as crypto`). A module the
 package does not list is not importable from outside (`import luce_ui.layout` is an
 error), and neither is the package itself (`import luce_ui`). The standard packages are
 packages like any other, `from luce_std import paths`; only the compiler's built-in modules

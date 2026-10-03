@@ -1093,8 +1093,8 @@ func resolve_module(importer: str, root: str, name: str, base_only: bool, out: i
         if check.is_standard_module(name):
             try out.write(f"luce-base-module-v1\0standard\0{name}\0\0\0")
             return
-        if try module_paths.names_package(importer, name):
-            # `from pkg import module` names modules of the package (§16.3)
+        if try module_paths.names_modules(importer, name):
+            # `from pkg import module`, `from pkg.dir import module`: names modules (§16.3)
             try out.write(f"luce-base-module-v1\0package\0{name}\0{root}\0{root}\0")
             return
         let resolved = try module_paths.resolve(importer, root, name, base_only)
@@ -1118,7 +1118,7 @@ func resolve_modules(importer: str, root: str, requested: c.str[], out: io.Write
             if check.is_standard_module(name):
                 try out.write(f"module\0{name}\0standard\0{name}\0\0\0")
                 continue
-            if try module_paths.names_package(importer, name):
+            if try module_paths.names_modules(importer, name):
                 try out.write(f"module\0{name}\0package\0{name}\0{root}\0{root}\0")
                 continue
             let resolved = module_paths.resolve(importer, root, name, false) catch failure:

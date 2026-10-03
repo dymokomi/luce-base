@@ -358,13 +358,30 @@ pub func package_import(importer: str, name: str, building: str, base_only: bool
     let path = try source_file(root, module, base_only) else error(invalid, "the package has no module of this name")
     return Resolution(try build_name(owner, module, building), path, root)
 
-## Whether `name` in `from name import ...` is a package, the importer's own or one it
-## depends on, so the names it imports are that package's modules (§16.3).
-pub func names_package(importer: str, name: str) -> bool!:
-    if strings.contains(name, "."):
-        return false
+## Whether the names `from name import ...` brings are modules (§16.3): `name` is a package,
+## the importer's own or one it depends on (`from luce_ui import ui`), or a directory of
+## modules in one (`from luce_geocore.core import parallel`) or in the importer's own source
+## (`from core import parallel`), rather than a module whose declarations they would be.
+pub func names_modules(importer: str, name: str) -> bool!:
     let package = try enclosing(try canonical(importer)) else return false
-    return try named_package(package, name) != none
+    let (head, rest) = split_package(name)
+    var owner = package
+    var path = name
+    if let named = try named_package(package, head):
+        if rest.length == 0:
+            return true
+        owner = named
+        path = rest
+    if not try present(owner.source):
+        return false
+    let root = try canonical(owner.source)
+    if try source_file(root, path, false) != none:
+        return false
+    var directory = try alloc u8[root.length + 1 + path.length]
+    let spelled = try format(directory, f"{root}/{path}")
+    for i in root.length + 1..<spelled.length:
+        if spelled.bytes[i] == '.': directory[i] = '/'
+    return try present(spelled)
 
 ## Whether the importer's package has a module of its own named `name`, which a standard
 ## module's name would hide (§16.6).

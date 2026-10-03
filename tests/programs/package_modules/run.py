@@ -20,7 +20,8 @@ def run(*args, expected=0):
 
 with tempfile.TemporaryDirectory(prefix='base-package-modules-') as temporary:
     root = Path(temporary)
-    library_manifest = write(root, 'library/package.prisma', '#prisma 4.0\ndef package "luce-ui" {\n    str[] public = ["ui"]\n}\n')
+    library_manifest = write(root, 'library/package.prisma', '#prisma 4.0\ndef package "luce-ui" {\n    str[] public = ["ui", "widgets.label"]\n}\n')
+    write(root, 'library/src/widgets/label.lucb', 'pub func width(text: str) -> i64:\n    return (i64)text.length * 2\n')
     library = write(root, 'library/src/ui.lucb', 'import internal\npub struct Button:\n    pub let length: i64\n    pub func init(label: str):\n        self.length = internal.length(label)\n')
     write(root, 'library/src/internal.lucb', 'pub func length(text: str) -> i64:\n    return (i64)text.length\n')
     manifest = write(root, 'consumer/package.prisma', '#prisma 4.0\ndef package "consumer" {\n    def dependency "luce-ui" {\n        str path = "../library"\n    }\n}\n')
@@ -35,6 +36,14 @@ with tempfile.TemporaryDirectory(prefix='base-package-modules-') as temporary:
     second = write(root, 'consumer/src/second.lucb', 'from luce_ui import ui\npub func main(arguments: str[]) -> i32:\n    let button = ui.Button("ab")\n    return i32(button.length) - 2\n')
     run(compiler, 'build', second, '-o', root / 'second-bin')
     run(root / 'second-bin')
+    # a `from` import names a directory of modules and aliases what it brings
+    aliases = write(root, 'consumer/src/aliases.lucb', 'from luce_ui import ui as controls\nfrom luce_ui.widgets import label as text_label\nfrom luce_ui.ui import Button as Control\n\npub func main(arguments: str[]) -> i32:\n    let button: controls.Button = Control("abc")\n    return i32(text_label.width("ab") - button.length - 1)\n')
+    for flags in (['--native'], ['--backend=c']):
+        run(compiler, 'build', aliases, *flags, '-o', root / 'aliases-bin')
+        run(root / 'aliases-bin')
+    run(compiler, 'fmt', aliases, '--check')
+    directory = run(compiler, 'resolve', aliases, aliases.parent, 'luce_ui.widgets', '--base').stdout.split(b'\0')
+    assert directory[1] == b'package', directory
     resolved = run(compiler, 'resolve', entry, entry.parent, 'luce_ui.ui', '--base').stdout.split(b'\0')
     assert resolved == [b'luce-base-module-v1', b'base', b'luce_ui.ui', str(library.resolve()).encode(), str(library.parent.resolve()).encode(), b''], resolved
     dependencies = run(compiler, 'dependencies', entry).stdout
@@ -64,4 +73,4 @@ with tempfile.TemporaryDirectory(prefix='base-package-modules-') as temporary:
     library_manifest.write_text('#prisma 4.0\ndef package "luce-ui" {\n    str[] public = ["ui"]\n}\n')
     manifest.write_text(manifest.read_text().replace('def dependency "luce-ui"', 'def dependency "wrong"'))
     assert b'match its package name' in run(compiler, 'check', entry, expected=1).stderr
-print('PASS package modules: bare inside, behind the identifier outside, public only, `from pkg import module`; six modes')
+print('PASS package modules: bare inside, behind the identifier outside, public only, `from pkg import module`, directories and aliases; six modes')
