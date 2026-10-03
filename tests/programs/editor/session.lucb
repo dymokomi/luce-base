@@ -4,7 +4,7 @@
 
 import c
 import editor.buffer
-import files
+import luce_std.files
 import editor.history
 import memory
 import editor.terminal

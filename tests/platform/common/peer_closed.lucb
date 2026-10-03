@@ -2,7 +2,7 @@
 ## not stopped by `SIGPIPE` on either system, whether the connection was made before the
 ## peer left or after.
 import c
-import net
+import luce_std.net
 
 extern func socketpair(domain: i32, kind: i32, protocol: i32, pair: i32*) -> i32
 extern func close(descriptor: i32) -> i32

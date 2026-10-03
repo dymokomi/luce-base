@@ -4,7 +4,7 @@
 ## through `destroy`, whatever allocator was current when each was made.
 import c
 import counting
-import process
+import luce_std.process
 import strings
 
 pub func main(arguments: str[]) -> i32!:

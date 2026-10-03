@@ -12,11 +12,11 @@
 #==============================================================================================
 
 import c
-import files
+import luce_std.files
 import io
 import memory
 import os
-import paths
+import luce_std.paths
 import support.list
 
 ## Reported when the standard library's location cannot be determined.

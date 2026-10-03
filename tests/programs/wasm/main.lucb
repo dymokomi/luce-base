@@ -6,8 +6,8 @@
 ## Run: wasmtime --dir . proof.wasm
 
 import c
-import files
-import math
+import luce_std.files
+import luce_std.math
 import memory
 import os
 import strings

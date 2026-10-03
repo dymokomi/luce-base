@@ -1,9 +1,9 @@
 import allocator
 import c
-import files
+import luce_std.files
 import io
 import memory
-import paths
+import luce_std.paths
 import strings
 
 extern func atomic_fault_arm(kind: i32)

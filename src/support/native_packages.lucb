@@ -10,7 +10,7 @@
 
 import c
 import io
-import paths
+import luce_std.paths
 import strings
 import support.list
 import support.manifest

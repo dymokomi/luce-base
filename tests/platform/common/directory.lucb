@@ -1,9 +1,9 @@
 ## Files and directories through `files` (§16.6): the directory entry is laid out
 ## differently on every operating system, and `files.list` reads the target's.
 import c
-import files
+import luce_std.files
 import os
-import process
+import luce_std.process
 import strings
 from io import path
 from memory import FixedBuffer

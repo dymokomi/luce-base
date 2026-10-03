@@ -1,8 +1,8 @@
 ## §16.6: the `math` module, qualified through `import math` or bare through
 ## `from math import`; the integer floor division `div_floor` and `mod_floor` beside the
 ## truncating `//` and `%` of §7.2.
-import math
-from math import sqrt, floor
+import luce_std.math
+from luce_std.math import sqrt, floor
 
 pub func main(arguments: str[]) -> i32:
     let root = sqrt(16.0)

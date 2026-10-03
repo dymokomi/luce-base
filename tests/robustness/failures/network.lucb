@@ -1,5 +1,5 @@
 import io
-import net
+import luce_std.net
 extern func socketpair(domain: i32, kind: i32, protocol: i32, pair: i32*) -> i32
 extern func fault_arm(kind: i32)
 extern func fault_hits() -> i32

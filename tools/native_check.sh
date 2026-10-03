@@ -17,7 +17,7 @@ for f in $(find "$DIR" -name '*.lucb' -maxdepth 2 | sort); do
     [ -z "$want" ] && continue
     grep -q '^# oracle: none' "$f" && continue
     source=$f
-    if grep -qE '^import (utf8|unicode|paths|math|math32|net|files|crash|process)$' "$f"; then
+    if grep -qE '^(import luce_std\.|from luce_std[ .])' "$f"; then
         # the library lives in the luce-std package: build a copy that declares it
         rm -rf build/nc-package && mkdir -p build/nc-package
         cp "$f" build/nc-package/main.lucb

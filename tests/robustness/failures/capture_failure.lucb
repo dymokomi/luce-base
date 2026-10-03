@@ -3,7 +3,7 @@
 import allocator
 import c
 import memory
-import process
+import luce_std.process
 
 extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
 extern func fcntl(descriptor: i32, command: i32, ...) -> i32

@@ -2,9 +2,9 @@
 # Native OS ownership and Unicode APIs are supplied by Base, not Seed.
 import c
 import os
-import files
+import luce_std.files
 import strings
-import paths
+import luce_std.paths
 
 pub func main(arguments: str[]) -> i32!:
     try os.set_env("LUCE_UNICODE_名字", "café/日本語/😀")

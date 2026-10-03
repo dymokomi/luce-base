@@ -1,7 +1,7 @@
 ## Sweep every allocation in empty, partial, and grown directory listings.
 import allocator
 import c
-import files
+import luce_std.files
 import io
 import memory
 

@@ -8,9 +8,9 @@
 ## `locals`, `backtrace`, `quit`. The program stops before its first statement.
 
 import c
-import files
+import luce_std.files
 import io
-import process
+import luce_std.process
 import strings
 
 extern func setenv(name: c.str, value: c.str, overwrite: i32) -> i32

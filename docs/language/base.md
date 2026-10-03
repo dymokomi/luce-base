@@ -547,7 +547,7 @@ Integers, including `usize` and `isize`, support `&`, `|`, `^`, `~`, `<<`, `>>`.
 
 ### 7.4 Equality and hashing
 
-`==` and `!=` exist for scalars, `char`, `str` (by bytes), tuples, arrays, structs, enums, optionals, and pointers (by address), when every component supports equality. A struct or enum whose components are hashable is hashable, and `hash(value) -> u64` is process-seeded and not stable across runs. Pointers hash by address. Unions and interface views have neither. No user type overloads an operator; a domain with unusual equality exposes a named method.
+`==` and `!=` exist for scalars, `char`, `str` (by bytes), tuples, arrays, structs, enums, optionals, and pointers (by address), when every component supports equality; comparing any optional with `none` asks whether it holds a value, whatever its payload. A struct or enum whose components are hashable is hashable, and `hash(value) -> u64` is process-seeded and not stable across runs. Pointers hash by address. Unions and interface views have neither. No user type overloads an operator; a domain with unusual equality exposes a named method.
 
 ### 7.5 Conversions and casts
 
@@ -735,7 +735,7 @@ rows: for y in 0..<height:
 ### 8.8 `defer` and `errdefer`
 
 ```luce
-import files
+import luce_std.files
 
 let file = try files.open(path)
 defer file.close() catch failure:
@@ -867,7 +867,7 @@ A function value is a C function pointer (§5.6). A non-fallible function conver
 ### 9.5 Methods
 
 ```luce
-import math
+import luce_std.math
 
 struct Point:
     pub let x: f64
@@ -1057,7 +1057,7 @@ let w = create_window() else error(no_window, "no window") # absence becomes fai
 ### 11.2 Fallible functions
 
 ```luce
-import files
+import luce_std.files
 
 func load(path: c.str) -> Config!:
     let data = try files.read(path)
@@ -1085,7 +1085,7 @@ error(not_found, "configuration file does not exist")
 ### 11.4 `catch` and `recover`
 
 ```luce
-import files
+import luce_std.files
 
 let text = files.read(path) catch failure:
     if failure.code == files.missing:
@@ -1396,9 +1396,13 @@ A Base module imports Base modules and C, never a full Luce module. A safe or na
 import image.color
 import data.serialisation as serial
 from image.geometry import Point
+import luce_ui.ui
+from luce_std import paths, files
 ```
 
-`import` keeps a module qualified, with an optional alias; without one the qualifier is the path's last segment, so `import image.color` is used as `color.rgb`. `from ... import` brings named declarations in and nothing else: `from io import Writer` brings `Writer`, `from io import Writer, stdout` brings both, and a program that also writes `io.something` needs `import io` as well. There are no wildcards and no relative imports. An import nothing resolves through is pruned by the checker, so nothing after it sees the import; a duplicate import is an error with an automatic fix.
+A module is named by its path under its package's source root: `src/image/color.lucb` is `image.color`. Inside the package that path is the import; another package names the module behind the package's identifier, `luce_ui.ui` for `src/ui.lucb` of `luce-ui`, and may import it only when that package lists it as public (§16.4). The package's own identifier may also lead its own modules' paths. A package is not a module: `import luce_ui` is an error.
+
+`import` keeps a module qualified, with an optional alias; without one the qualifier is the path's last segment, so `import image.color` is used as `color.rgb` and `import luce_ui.ui` as `ui.Button`. `from pkg import a, b`, where `pkg` is a package, imports its modules `a` and `b` as `import pkg.a` and `import pkg.b` would. `from ... import` of a module brings named declarations in and nothing else: `from io import Writer` brings `Writer`, `from io import Writer, stdout` brings both, and a program that also writes `io.something` needs `import io` as well. There are no wildcards and no relative imports. An import nothing resolves through is pruned by the checker, so nothing after it sees the import; a duplicate import is an error with an automatic fix.
 
 ### 16.4 Packages
 
@@ -1408,10 +1412,13 @@ A package has a `package.prisma` definition and an exact lock. The definition na
 #prisma 4.0
 def package "demo" {
     str source = "src"
+    str[] public = ["api"]
 }
 ```
 
-A dependency is `def dependency "name" { str path = "../name" }`; one without a `path` is a registry package that `luc` has unpacked under `.luc/deps/<name>` at or above the package root. Public modules are `def export "alias" { str module = "demo.module" }` and C inputs are `def native "inputs" { str[] sources = [...] }` with `link_search`, `libraries`, `frameworks` and `pkg_config` alongside. The tool `luc` adds the fields it needs (kind, version, owner, tasks); the compiler reads only what is named here. A file of the package outside its source root, a test program under `tests/` say, imports the package's own modules by their paths under the source root, as a file inside it does.
+Every package has one layout: its sources directly under its source root, `demo/src/api.lucb`, with no directory repeating the package's name, since its identifier already leads every import from outside (§16.3).
+
+A dependency is `def dependency "name" { str path = "../name" }`; one without a `path` is a registry package that `luc` has unpacked under `.luc/deps/<name>` at or above the package root. Its public modules, the ones other packages may import, are `str[] public = ["ui", "widgets.button"]`, by their paths under the source root, and C inputs are `def native "inputs" { str[] sources = [...] }` with `link_search`, `libraries`, `frameworks` and `pkg_config` alongside. The tool `luc` adds the fields it needs (kind, version, owner, tasks); the compiler reads only what is named here. A file of the package outside its source root, a test program under `tests/` say, imports the package's own modules by their paths under the source root, as a file inside it does. The package's modules come first and the modules beside the file next, never the file itself, so `tests/parse.lucb` may `import parse` and a helper under `tests/` is imported by its own name.
 
 ### 16.5 Tests
 
@@ -1426,7 +1433,7 @@ test "cursor advances by one":
 
 ### 16.6 Standard modules
 
-The language depends on these modules by name. Their full surfaces are in the library reference; what the language needs is stated here. A standard module is used like any other: nothing is visible without an import, `import io` makes the module visible as `io`, and `from io import Writer` brings one of its declarations into scope by its bare name. Only the core types (`str`, `ErrorCode`, the scalars) and the core functions of §3.5 need no import.
+The language depends on these modules by name. Their full surfaces are in the library reference; what the language needs is stated here. Their names are reserved: a package module named like one could never be imported, since the standard module's name always names it, so importing that name from a package that has such a module is an error. A standard module is used like any other: nothing is visible without an import, `import io` makes the module visible as `io`, and `from io import Writer` brings one of its declarations into scope by its bare name. Only the core types (`str`, `ErrorCode`, the scalars) and the core functions of §3.5 need no import.
 
 | Module | What the language relies on |
 | --- | --- |
@@ -1611,7 +1618,7 @@ updated together when the format changes.
 `luce-base dependencies module.lucb` checks a module and reports the source files
 resolved for its complete nonstandard import closure. The entry module and embedded
 standard modules are excluded from source records. Output begins with
-`luce-base-dependencies-v3` and a NUL byte, then tagged triples describing sources,
+`luce-base-dependencies-v4` and a NUL byte, then tagged triples describing sources,
 public aliases, original package owners and resolved native inputs. Every field is NUL-terminated, so paths
 retain whitespace. A parse, resolution or semantic failure returns status 1 without
 dependency records. See [public package imports](../PACKAGE-IMPORTS.md) for the
@@ -2178,7 +2185,7 @@ A type that implements `Allocator`, remembers its parent, and is used through `w
 
 ```luce
 import c
-import files
+import luce_std.files
 import memory
 from memory import Allocator
 
@@ -2572,7 +2579,7 @@ A fallible function calling another, one `catch` that recovers, one that adds co
 
 ```luce
 import c
-import files
+import luce_std.files
 
 pub let missing_field: ErrorCode = ErrorCode.package(4)
 

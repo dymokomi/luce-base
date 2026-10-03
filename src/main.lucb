@@ -9,7 +9,7 @@
 #
 #==============================================================================================
 
-import paths
+import luce_std.paths
 import os
 import c
 import back.backend
@@ -21,7 +21,7 @@ import back.names
 import support.native_packages
 import support.manifest
 import support.modules as module_paths
-import files
+import luce_std.files
 import front.ast
 import front.lexer
 import front.layout
@@ -31,7 +31,7 @@ import front.token
 import io
 import memory
 from support.arena import Arena
-import process
+import luce_std.process
 import strings
 import sema.check
 import sema.standard as standard
@@ -47,7 +47,7 @@ import support.host_tools
 import support.pieces
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base describe-closure FILE\n       luce-base describe-closure --modules NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -1093,6 +1093,10 @@ func resolve_module(importer: str, root: str, name: str, base_only: bool, out: i
         if check.is_standard_module(name):
             try out.write(f"luce-base-module-v1\0standard\0{name}\0\0\0")
             return
+        if try module_paths.names_package(importer, name):
+            # `from pkg import module` names modules of the package (§16.3)
+            try out.write(f"luce-base-module-v1\0package\0{name}\0{root}\0{root}\0")
+            return
         let resolved = try module_paths.resolve(importer, root, name, base_only)
         # a Base module is a `.lucb` file or a directory whose `ORDER` lists its fragments
         let order = try alloc u8[resolved.path.length + 8]
@@ -1114,6 +1118,9 @@ func resolve_modules(importer: str, root: str, requested: c.str[], out: io.Write
             if check.is_standard_module(name):
                 try out.write(f"module\0{name}\0standard\0{name}\0\0\0")
                 continue
+            if try module_paths.names_package(importer, name):
+                try out.write(f"module\0{name}\0package\0{name}\0{root}\0{root}\0")
+                continue
             let resolved = module_paths.resolve(importer, root, name, false) catch failure:
                 try out.write(f"error\0{name}\0{failure.message}\0")
                 continue
@@ -1127,29 +1134,35 @@ func resolve_modules(importer: str, root: str, requested: c.str[], out: io.Write
 ## Names and paths are NUL-delimited, so whitespace in a parent path is lossless.
 ## Load through the same resolver as a build; source text is never approximated by
 ## matching import-looking lines. Validate before writing any protocol bytes.
-func dependencies_file(path: c.str, out: io.Writer) -> !:
+func dependencies_file(path: c.str, build_root: str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        var checker = try checked_closure(path)
+        var checker = try checked_closure(path, build_root)
         try write_dependencies(&checker, out)
 
 ## `path` loaded and checked with everything it imports.
-func checked_closure(path: c.str) -> check.Checker!:
+func checked_closure(path: c.str, build_root: str = "") -> check.Checker!:
     var checker = try check.Checker.create(scratch_of())
     checker.build_target = build_target()
+    # a consumer building another package names that build's source root, whose package
+    # names its modules bare (§16.3); otherwise `load` takes the entry's own package
+    if build_root.length > 0:
+        let building = try module_paths.building_package(build_root)
+        if building.length > 0:
+            checker.package_name = building
     try checker.add_prelude()
     try checker.load(path)
     try checker.check_program()
     return checker
 
 ## The dependency report of a checked closure: native inputs, then each module but the
-## entry with its source, the export aliases, and every module's package.
+## entry with its source, then every module's package.
 ## `entry_last`: the last module is the entry, which the caller names itself and the report
 ## leaves out; with several modules loaded by their canonical names, none is left out.
 func write_dependencies(checker: check.Checker*, out: io.Writer, entry_last: bool = true) -> !:
     let inputs = try native_inputs(checker)
-    try out.write("luce-base-dependencies-v3\0")
+    try out.write("luce-base-dependencies-v4\0")
     try inputs.write(out)
     let reported = checker.modules.count - 1 if entry_last and checker.modules.count > 0 else checker.modules.count
     var index: usize = 0
@@ -1162,8 +1175,6 @@ func write_dependencies(checker: check.Checker*, out: io.Writer, entry_last: boo
             try out.write(item.canonical)
             try out.write("\0")
         index += 1
-    for alias in checker.module_aliases.span():
-        try out.write(f"alias\0{alias.name}\0{alias.target}\0")
     for module in checker.modules.span():
         if not module.is_prelude:
             try out.write(f"package\0{module.name}\0{module.package_name}\0")
@@ -1187,17 +1198,22 @@ func describe_closure(path: c.str, out: io.Writer) -> !:
         try out.write("\0")
         try write_dependencies(&checker, out)
 
-## `describe-closure --modules NAME PATH ROOT...`: several modules, each loaded under its
+## `describe-closure --modules BUILD_ROOT NAME PATH ROOT...`: several modules, each loaded under its
 ## canonical name from its package's source root, checked together once, then described as
 ## `describe-closure` describes one closure; the dependency report names every module of
 ## the union, these among them. A consumer that imports many modules with closures in
 ## common (every one of luced-3d's holds luce-prism) checks the shared part once.
-func describe_closures(triples: c.str[], out: io.Writer) -> !:
+func describe_closures(build_root: str, triples: c.str[], out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
         var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
+        # the build's package names its modules bare, every other package's behind its
+        # identifier (§16.3), as each module's own description names them
+        let building = try module_paths.building_package(build_root)
+        if building.length > 0:
+            checker.package_name = building
         try checker.add_prelude()
         var at: usize = 0
         while at + 2 < triples.length:
@@ -1238,7 +1254,7 @@ func native_inputs_files(sources: c.str[], out: io.Writer) -> !:
         var inputs = try native_packages.Inputs.create()
         for path in sources:
             try inputs.collect((str)path)
-        try out.write("luce-base-dependencies-v3\0")
+        try out.write("luce-base-dependencies-v4\0")
         try inputs.write(out)
 
 func parse_file(path: c.str, out: io.Writer) -> !:
@@ -1448,8 +1464,8 @@ func module_question(command: str, positional: usize, arguments: c.str[], out: i
             try report_failure(failure.message)
             return 1
         return 0
-    if command == "describe-closure" and positional >= 6 and (str)arguments[2] == "--modules" and (positional - 3) % 3 == 0:
-        describe_closures(arguments[3..], out) catch failure:
+    if command == "describe-closure" and positional >= 7 and (str)arguments[2] == "--modules" and (positional - 4) % 3 == 0:
+        describe_closures((str)arguments[3], arguments[4..], out) catch failure:
             try report_failure(failure.message)
             return 1
         return 0
@@ -1458,8 +1474,8 @@ func module_question(command: str, positional: usize, arguments: c.str[], out: i
             try report_failure(failure.message)
             return 1
         return 0
-    if command == "dependencies" and positional == 3:
-        dependencies_file(arguments[2], out) catch failure:
+    if command == "dependencies" and (positional == 3 or positional == 4):
+        dependencies_file(arguments[2], (str)arguments[3] if positional == 4 else "", out) catch failure:
             try report_failure(failure.message)
             return 1
         return 0

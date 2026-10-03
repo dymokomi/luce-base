@@ -2,7 +2,7 @@
 ## `release_list` nothing is live, and a listing that runs out of memory leaves nothing
 ## behind either.
 import counting
-import files
+import luce_std.files
 import memory
 
 pub func main(arguments: str[]) -> i32!:

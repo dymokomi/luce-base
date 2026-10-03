@@ -22,9 +22,9 @@ import bind.cparse
 import bind.pre
 import bind.table
 import c
-import files
+import luce_std.files
 import front.token
-import paths
+import luce_std.paths
 import platform
 import strings
 import support.buffer

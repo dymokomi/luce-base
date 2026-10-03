@@ -1,6 +1,6 @@
 # oracle: none -- The seed interpreter has no math32 module.
 # valgrind: skip  (valgrind does not model single-precision `roundf` rounding; the program passes natively)
-import math32
+import luce_std.math32
 
 pub func main(arguments: str[]) -> i32:
     let negative_zero = f32.bits(0x80000000)

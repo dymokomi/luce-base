@@ -1,6 +1,6 @@
 ## `math.mod_floor` with divisor -1 is zero for every dividend, including the minimum,
 ## whose quotient by -1 has no representation.
-import math
+import luce_std.math
 
 pub func main(arguments: str[]) -> i32:
     let lowest: i64 = -9223372036854775807 - (i64)arguments.length

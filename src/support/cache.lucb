@@ -14,11 +14,11 @@
 #==============================================================================================
 
 import c
-import files
+import luce_std.files
 import io
 import memory
 import os
-import paths
+import luce_std.paths
 
 # mark: The cache's settings ==================================================================
 

@@ -1,6 +1,6 @@
 ## Name resolution through the target's `getaddrinfo` (§16.6), whose result record is laid
 ## out differently on macOS and Linux: `localhost` is the loopback address either way.
-import net
+import luce_std.net
 
 pub func main(arguments: str[]) -> i32!:
     let address = try net.resolve("localhost", 8080, net.IpVersion.ipv4)

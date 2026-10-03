@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
         # Base literals use the same escapes needed here; values contain no JSON-only escapes.
         literal = lambda value: json.dumps(value, ensure_ascii=False)
         parent = work / 'parent.lucb'
-        parent.write_bytes(('import c\nimport process\nimport io\n'
+        parent.write_bytes(('import c\nimport luce_std.process\nimport io\n'
                           'pub func main(arguments: str[]) -> i32!:\n'
                           f'    let child: c.str[{len(values)}] = [' + ', '.join(map(literal, values)) + ']\n'
                           f'    let (status, output, errors) = try process.run({literal(str(output))}, child)\n'
@@ -66,7 +66,7 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
     elsewhere = work / 'elsewhere'
     elsewhere.mkdir()
     relative = elsewhere / 'relative.lucb'
-    relative.write_bytes(('import c\nimport process\nimport io\n'
+    relative.write_bytes(('import c\nimport luce_std.process\nimport io\n'
                           'pub func main(arguments: str[]) -> i32!:\n'
                           '    let child: c.str[1] = ["relative program"]\n'
                           f'    let (status, output, errors) = try process.run("nested/child", child, {literal(str(work))})\n'

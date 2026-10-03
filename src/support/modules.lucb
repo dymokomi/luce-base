@@ -1,18 +1,21 @@
 #==============================================================================================
 #
-#   modules - Resolving public package modules
+#   modules - Resolving package modules
 #
 #   DESCRIPTION:
-#       Manifests declare the source root and public exports; both compilers use this resolver,
-#       and builds package its resolved files instead of depending on a staging directory
-#       layout.
+#       A package's modules are the files under its source root, named by their paths there
+#       (§16.3, §16.4). Inside the package a module is imported by that path, `painter`;
+#       another package imports it behind the package's identifier, `luce_ui.painter`, when
+#       the package lists it as public. In a build, the modules of the package being built
+#       keep their bare names and every other package's carry its identifier, so two
+#       packages' `ui` stay two modules. Both compilers resolve through here.
 #
 #==============================================================================================
 
 import c
-import files
+import luce_std.files
 import memory
-import paths
+import luce_std.paths
 import strings
 import support.hashed
 import support.list
@@ -40,8 +43,8 @@ struct Package:
     var root: str
     var source: str
     var dependencies: list.List[Mapping]
-    var exports: list.List[Mapping]
-    var module_packages: list.List[Mapping]
+    ## The modules other packages may import, by their paths under the source root.
+    var public: list.List[str]
 
 ## Paths and manifest text live in the compiler's arena. Canonical file paths
 ## identify one module even if more than one public export names it.
@@ -155,27 +158,25 @@ func parse_package(path: str) -> Package!:
     let root = try canonical(paths.directory(path))
     let contents = (str)try files.read((c.str)try strings.copy(path))
     var package = Package(name = "", root = root, source = "src",
-                          dependencies = try list.List[Mapping].create(4), exports = try list.List[Mapping].create(4), module_packages = try list.List[Mapping].create(4))
+                          dependencies = try list.List[Mapping].create(4), public = try list.List[str].create(4))
     var named = false
     var sourced = false
     for setting in try manifest.settings(contents):
         let section = setting.section
         let key = setting.key
-        if section != "[package]" and section != "[dependencies]" and section != "[exports]" and section != "[module_packages]":
+        if section != "[package]" and section != "[dependencies]":
             continue
-        if section == "[package]" and key != "name" and key != "source":
+        if section == "[package]" and key != "name" and key != "source" and key != "public":
+            continue
+        if section == "[package]" and key == "public":
+            for module in try manifest.strings_of(setting.value):
+                if not identifier(module):
+                    error(invalid, "a public module is a dotted path under the source root")
+                try package.public.push(module)
             continue
         let value = try quoted(setting.value)
         if section == "[dependencies]":
             try mapping(&package.dependencies, key, value)
-        elif section == "[module_packages]":
-            if value.length == 0:
-                error(invalid, "a compiled module needs a package identity")
-            try mapping(&package.module_packages, key, value)
-        elif section == "[exports]":
-            if not identifier(value):
-                error(invalid, "an export must name a module under the package source root")
-            try mapping(&package.exports, key, value)
         elif key == "name":
             if named:
                 error(invalid, "the package name is declared twice")
@@ -232,6 +233,21 @@ pub func package_source_module(directory: str, name: str) -> (str, str)?!:
     let found = try source_file(package.source, name, true) else return none
     return (found, package.source)
 
+## Module `name` of the package the file `importer` belongs to, with the package's source
+## root, when `importer` lies outside that root (a test program under `tests/`) and the
+## package has the module: such a file reaches its package's modules before the ones beside
+## it (§16.4).
+pub func outside_source_module(importer: str, name: str) -> (str, str)?!:
+    let input = try canonical(importer)
+    let package = try enclosing(input) else return none
+    if not try present(package.source):
+        return none
+    let source = try canonical(package.source)
+    if contained(input, source):
+        return none
+    let found = try source_file(source, name, true) else return none
+    return (found, source)
+
 ## The directory of test fragments for the module at `path` (§16.5): under the package's
 ## `tests/`, the module's path below the source root, when a `TESTS` file there lists them;
 ## none otherwise. `luce-base test` adds them to the module under test; a build never reads
@@ -282,62 +298,130 @@ func source_file(root: str, name: str, base_only: bool) -> str?!:
         return try canonical(prefix)
     return none
 
-func exported(package: Package, name: str, base_only: bool) -> Resolution?!:
-    for item in package.exports.span():
-        if item.name == name:
-            let root = try canonical(package.source)
-            let path = try source_file(root, item.value, base_only) else error(invalid, "an exported module does not exist")
-            return Resolution(item.value, path, root)
-    return none
+## The name module `module` (its dotted path under the source root) of `package` has in a
+## build of package `building`: bare in that package, else behind its package's identifier
+## (§16.3).
+func build_name(package: Package, module: str, building: str) -> str!:
+    if package.name == building or package.name.length == 0:
+        return module
+    return try strings.join([package.name, ".", module], "")
+
+## Whether `package` lists `module` among its public modules.
+func is_public(package: Package, module: str) -> bool:
+    for listed in package.public.span():
+        if listed == module:
+            return true
+    return false
+
+## Whether `name` begins with a package's identifier, the importer's own or a dependency's,
+## and what follows it: `luce_ui.painter` is `("luce_ui", "painter")`.
+func split_package(name: str) -> (str, str):
+    let dot = strings.find(name, ".") else return (name, "")
+    return ((str)name.bytes[..<dot], (str)name.bytes[dot + 1..])
+
+## The package `head` names for a file of `package`: the package itself or one it depends on.
+func named_package(package: Package, head: str) -> Package?!:
+    if head == package.name:
+        return package
+    var found: Package? = none
+    for dependency in package.dependencies.span():
+        # every dependency is checked, not only the one named: a misnamed one is an error
+        # wherever it is imported from
+        let other = try read_package(try paths.join(try dependency_directory(package, dependency), "package.prisma"))
+        if other.name != dependency.name:
+            error(invalid, "a dependency key must match its package name")
+        if dependency.name == head:
+            found = other
+    return found
 
 # mark: Resolving imports =====================================================================
 
-## A package export, from the owning package or an explicitly declared dependency.
-## Competing exports are errors, including a dependency colliding with a local file.
-pub func package_import(importer: str, name: str, base_only: bool = true) -> Resolution?!:
+## A module named behind a package's identifier (§16.3): `luce_ui.painter`, module `painter`
+## of `luce_ui`, which the importer's package depends on, or the importer's own package
+## spelled out. Another package's module must be among its `public` ones. None when the
+## first part names no package: the import is the importer's package's own module.
+## `building` is the package being built, which names its modules bare.
+pub func package_import(importer: str, name: str, building: str, base_only: bool = true) -> Resolution?!:
     if not identifier(name):
         error(invalid, "an import must name a dotted module")
     let input = try canonical(importer)
     let package = try enclosing(input) else return none
-    var result = try exported(package, name, base_only)
-    for dependency in package.dependencies.span():
-        let path = try paths.join(try dependency_directory(package, dependency), "package.prisma")
-        let other = try read_package(path)
-        if other.name != dependency.name:
-            error(invalid, "a dependency key must match its package name")
-        if let found = try exported(other, name, base_only):
-            if result != none:
-                error(invalid, "more than one package exports this module name")
-            result = found
-    if result != none:
-        if let local_file = try source_file(package.source, name, base_only):
-            if local_file != (result else return none).path:
-                error(invalid, "a package export conflicts with a local module")
-    return result
+    let (head, module) = split_package(name)
+    let owner = try named_package(package, head) else return none
+    if try source_file(package.source, head, base_only) != none:
+        error(invalid, "a module of this package takes the name of a package it imports from")
+    if module.length == 0:
+        error(invalid, "a package is not a module: import one of its modules, `import pkg.module` or `from pkg import module` (§16.3)")
+    if owner.name != package.name and not is_public(owner, module):
+        error(invalid, "the module is not among the package's `public` ones (§16.4)")
+    let root = try canonical(owner.source)
+    let path = try source_file(root, module, base_only) else error(invalid, "the package has no module of this name")
+    return Resolution(try build_name(owner, module, building), path, root)
 
-## Public resolution for the Luce consumer. Within a package, module names start at
-## its source root; outside one, resolution uses the caller-supplied source root.
+## Whether `name` in `from name import ...` is a package, the importer's own or one it
+## depends on, so the names it imports are that package's modules (§16.3).
+pub func names_package(importer: str, name: str) -> bool!:
+    if strings.contains(name, "."):
+        return false
+    let package = try enclosing(try canonical(importer)) else return false
+    return try named_package(package, name) != none
+
+## Whether the importer's package has a module of its own named `name`, which a standard
+## module's name would hide (§16.6).
+pub func has_local_module(importer: str, name: str) -> bool!:
+    let package = try enclosing(try canonical(importer)) else return false
+    if not try present(package.source):
+        return false
+    return try source_file(try canonical(package.source), name, true) != none
+
+## The name a module the importer reaches by a bare path has in a build of `building`: the
+## path, behind the importer's package identifier when that is another package.
+pub func local_name(importer: str, name: str, building: str) -> str!:
+    let package = try enclosing(try canonical(importer)) else return name
+    return try build_name(package, name, building)
+
+## The identifier of the package a build with source root `source_root` builds, whose
+## modules keep their bare names (§16.3); empty outside a package.
+pub func building_package(source_root: str) -> str!:
+    if not try present(source_root):
+        return ""
+    let built = try enclosing(try paths.join(try canonical(source_root), "x")) else return ""
+    return built.name
+
+## Resolution for the Luce consumer, as a build of the package enclosing `source_root`
+## resolves: a package's module behind its identifier, else one under the importer's
+## source root, else, outside a package, under the caller's root.
 pub func resolve(importer: str, source_root: str, name: str, base_only: bool = false) -> Resolution!:
-    if let external = try package_import(importer, name, base_only):
+    let building = try building_package(source_root)
+    if let external = try package_import(importer, name, building, base_only):
         return external
     let input = try canonical(importer)
     var root = source_root
     var package_root = false
+    var module_name = name
     if let package = try enclosing(input):
         if try present(package.source):
             let candidate = try canonical(package.source)
-            if contained(input, candidate):
-                root = candidate
-                package_root = true
+            if not contained(input, candidate):
+                # a file of the package outside its source root, a test under `tests/`: the
+                # package's modules first, then the helpers beside it, never itself (§16.4)
+                if let path = try source_file(candidate, name, base_only):
+                    return Resolution(try build_name(package, name, building), path, candidate)
+                if let path = try source_file(try canonical(root), name, base_only):
+                    if try canonical(path) != input:
+                        return Resolution(name, path, try canonical(root))
+            root = candidate
+            package_root = true
+            module_name = try build_name(package, name, building)
     root = try canonical(root)
     while true:
         if let path = try source_file(root, name, base_only):
-            return Resolution(name, path, root)
+            return Resolution(module_name, path, root)
         # A standalone Base module may import from an enclosing source directory,
         # as Base's compiler loader does. Package roots are explicit boundaries.
         let parent = paths.directory(root)
         if package_root or not base_only or parent == root or parent.length == 0:
-            error(invalid, "the module is neither local nor a public package export")
+            error(invalid, "the module is neither this package's nor a public module of a package it depends on")
         root = parent
 
 ## The module's canonical dotted name inside its own package source root.
@@ -349,23 +433,40 @@ pub func name_of(path: str) -> str!:
         if try present(package.source):
             let root = try canonical(package.source)
             if contained(input, root) and input.length > root.length:
-                let relative = (str)input.bytes[root.length + 1..]
-                let extension = paths.extension(relative)
-                let size = relative.length - extension.length
-                let name = try alloc u8[size]
-                for index in 0..<size:
-                    name[index] = '.' if relative.bytes[index] == '/' else relative.bytes[index]
-                return (str)name
+                return try dotted((str)input.bytes[root.length + 1..])
     return paths.stem(input)
 
-## Source packaging records a native module's original package identity. Outside
-## a compiled workspace, the nearest real package manifest owns its modules.
-pub func package_of(path: str, module: str, fallback: str) -> str!:
+## The name of the program whose entry is `path`: its module name, except for an entry
+## outside its package's source root named like one of the package's modules, a test
+## `tests/area.lucb` of module `area`, which is named by its path under the package root
+## (`tests.area`), so that it and the module it imports stay two modules.
+pub func entry_name(path: str) -> str!:
+    let name = try name_of(path)
+    if not (try present(path)):
+        return name
     let input = try canonical(path)
-    if let package = try enclosing(input):
-        for entry in package.module_packages.span():
-            if entry.name == module:
-                return entry.value
+    let package = try enclosing(input) else return name
+    if not try present(package.source):
+        return name
+    let source = try canonical(package.source)
+    if contained(input, source) or try source_file(source, name, true) == none:
+        return name
+    let top = try canonical(package.root)
+    return try dotted((str)input.bytes[top.length + 1..])
+
+## `relative`, a file's path below a root, as a dotted module name without its extension.
+func dotted(relative: str) -> str!:
+    let extension = paths.extension(relative)
+    let size = relative.length - extension.length
+    let name = try alloc u8[size]
+    for index in 0..<size:
+        name[index] = '.' if relative.bytes[index] == '/' else relative.bytes[index]
+    return (str)name
+
+## The identifier of the package that owns the file at `path`: the nearest manifest's, or
+## `fallback` outside a package. It is the identity of the module's error codes (§11.3).
+pub func package_of(path: str, fallback: str) -> str!:
+    if let package = try enclosing(try canonical(path)):
         if package.name.length > 0:
             return package.name
     return fallback

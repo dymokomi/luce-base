@@ -9,7 +9,7 @@
 ##     option-arrows: by word
 
 import c
-import files
+import luce_std.files
 import editor.screen
 import editor.session
 import editor.terminal

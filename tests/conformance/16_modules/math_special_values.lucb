@@ -1,5 +1,5 @@
 # oracle: none -- Base's explicit NaN and signed-zero contracts extend the seed's math.
-import math
+import luce_std.math
 
 pub func main(arguments: str[]) -> i32:
     let positive_zero = f64.bits(0)

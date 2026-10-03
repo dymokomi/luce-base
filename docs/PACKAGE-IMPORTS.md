@@ -1,24 +1,20 @@
-# Public package imports
+# Package modules
 
-Both compilers resolve public module names from `package.prisma`. A package name
-may use hyphens, `luce-ui`; the compilers' identifier for it is `luce_ui`, which
-module names use. A package declares its public imports explicitly:
+Every package has one layout: its sources directly under its source root, `luce-ui/src/ui.lucb`,
+with no directory repeating the package's name. A module is named by its path there
+(base.md §16.3). A package name may use hyphens, `luce-ui`; its identifier, `luce_ui`, is
+what other packages write before its module paths. A package lists the modules other packages
+may import:
 
 ```text
 #prisma 4.0
 def package "luce-ui" {
-    str source = "src"
-    def export "ui" {
-        str module = "luce_ui.ui"
-    }
+    str[] public = ["ui", "widgets.button"]
 }
 ```
 
-The implementation is `src/luce_ui/ui.lucb`. Private modules can live beside it
-and use their full names, such as `luce_ui.layout`. Exports name modules, not
-individual declarations; `pub` still determines which declarations are visible.
-
-A consumer declares a local dependency, relative to its own manifest:
+Inside the package a module is imported by its path, `import layout`; any module may import
+any other, public or not. A consumer declares the dependency, relative to its own manifest:
 
 ```text
 #prisma 4.0
@@ -29,26 +25,33 @@ def package "demo" {
 }
 ```
 
-Its Luce code uses ordinary construction and imports:
+and imports its public modules behind its identifier, as Python spells it:
 
 ```luce
-from ui import Button
+import luce_ui.ui
+from luce_ui import ui
+from luce_ui.ui import Button
 
-let button = Button("pause")
+let button = ui.Button("pause")
 ```
 
-Base uses the same import and construction spelling. A dependency's name must match
-the dependency's own package name. A dependency without a `path` is a registry
-package that `luc sync` unpacked under `.luc/deps/<name>` at or above the root. Dependencies can declare dependencies of their
-own; they resolve relative to that package. Builds do not fetch anything from the
-network. Registry installation and version resolution remain separate work.
+`import luce_ui.ui` and `from luce_ui import ui` both bind the module as `ui`. A module the
+package does not list is not importable from outside (`import luce_ui.layout` is an
+error), and neither is the package itself (`import luce_ui`). The standard packages are
+packages like any other, `from luce_std import paths`; only the compiler's built-in modules
+(`io`, `memory`, `strings`, `c`, ...) are imported bare.
 
-An export cannot compete with another dependency export or a different local
-source file. Multiple exports of the same source preserve one nominal identity.
-Standard module names remain reserved. Source paths are canonicalized so aliases
-and symlinks cannot create duplicate declarations for the same file. Canonical
-module names must identify one source throughout a build; packages should keep
-private modules beneath their package namespace.
+Base and Luce use the same spelling. A dependency's key must match the dependency's own
+package name. A dependency without a `path` is a registry package that `luc sync`
+unpacked under `.luc/deps/<name>` at or above the root. Dependencies declare dependencies
+of their own, which resolve relative to that package. Builds fetch nothing from the network.
+
+In a build, the modules of the package being built keep their bare names and every other
+package's modules carry its identifier, `luce_ui.layout`, so two packages' `ui` are two
+modules, and a module reached both ways, `import layout` inside luce-ui and
+`import luce_ui.layout`, is one. A local module may not take the name of a package the
+package imports from. Source paths are canonicalized, so symlinks cannot load one file
+twice.
 
 `import math` and `import net` in Luce use Base's canonical embedded standard
 modules. Types unsupported by the boundary stay unavailable; their absence does
@@ -58,8 +61,7 @@ objects and checked views can expose mutable interface implementations.
 
 Luce uses the compiler selected by `LUCE_BASE` (otherwise `luce-base`) for module
 resolution and public descriptions. Install matching compiler revisions together.
-The resolver protocol is shared by normal imports and source packaging, so a
-consumer needs no generated import aliases or copied source tree.
+The resolver protocol is shared by normal imports and source packaging.
 
 ## Compiler protocols
 
@@ -69,7 +71,9 @@ consumer needs no generated import aliases or copied source tree.
 luce-base-module-v1, kind, canonical-name, absolute-source-path, absolute-source-root
 ```
 
-`kind` is `luce`, `base` or `standard`. Standard paths and roots are empty. Inside
+`kind` is `luce`, `base`, `standard` or `package`. Standard paths and roots are empty. A
+`package` is a name that is a package, the importer's own or a dependency, which
+`from pkg import module` imports modules of; its path and root are the caller's root. Inside
 a package, names start at its declared source root. Outside a package, the caller
 supplies the root; standalone Base imports also search enclosing directories.
 `--base` selects Base source files only. Otherwise a local `.luc` precedes `.lucb`.
@@ -78,13 +82,13 @@ supplies the root; standalone Base imports also search enclosing directories.
 without loading a copy as a user module. It uses the same current description
 format as `describe FILE`.
 
-`luce-base dependencies FILE` starts with `luce-base-dependencies-v3` and a NUL,
+`luce-base dependencies FILE [BUILD_ROOT]` names modules as a build of the package enclosing
+`BUILD_ROOT` does (default: FILE's own package); it starts with `luce-base-dependencies-v4` and a NUL,
 followed by tagged triples, with every field NUL-terminated:
 
 | Tag | Second field | Third field |
 | --- | --- | --- |
 | `source` | Canonical module name | Resolved source path |
-| `alias` | Public export name | Canonical module name |
 | `package` | Canonical module name | Owning package name |
 | `native` | `sources`, `link_search`, `libraries`, `frameworks` or `pkg_config` | Resolved input |
 
@@ -94,12 +98,13 @@ source path and its `describe` text, each NUL-terminated, the list ended by an e
 and then the closure's `dependencies` report as above. Describing each module and asking
 each for its dependencies would check the same closure once per module.
 
-`luce-base describe-closure --modules NAME FILE SOURCE_ROOT...` does the same for several
+`luce-base describe-closure --modules BUILD_ROOT NAME FILE SOURCE_ROOT...` does the same for several
 modules at once, each loaded under its canonical name from its package's source root: the
 union of their closures is checked once and described in the same format, and its report
 names every module of the union, these included (they carry their canonical names, so
-none is left out as an entry). Luce describes every Base module a program imports this
-way, in one run.
+none is left out as an entry). `BUILD_ROOT` is the build's source root: the package enclosing
+it is the one whose modules keep their bare names, as `resolve` derives it. Luce describes
+every Base module a program imports this way, in one run.
 
 `luce-base resolve-all FILE SOURCE_ROOT MODULE...` resolves each of a module's imports as
 `resolve` does, in one run: `luce-base-modules-v1` and a NUL, then for each name either
@@ -111,11 +116,11 @@ Source records exclude the entry and embedded standard modules. Package records
 include the entry. The compiler checks the complete program before writing any
 records. Paths can contain whitespace, including newlines.
 
-Explicit Luce `--emit=base` output contains unchanged native sources and a generated
-`package.prisma` with exports and `module_package` elements. The latter records each bundled
-module's original owner, preserving `ErrorCode.package(n)` after relocation.
-Ordinary source packages derive ownership from their nearest manifest. Normal
-builds remove this generated source package after compilation.
+Explicit Luce `--emit=base` output is a package whose `package.prisma` declares each Base
+package the program reaches as a dependency under `deps/<identifier>/`, a copy of that
+package's modules with a manifest of its own, so every module keeps its package, its name
+and its `ErrorCode.package(n)` identity. Normal builds remove this generated package after
+compilation.
 
 ## Native package inputs
 
@@ -145,5 +150,5 @@ and it is skipped where the variable is unset (luce-gpu searches `$VULKAN_SDK/Li
 Every module a program imports is library code, whichever package it comes from: the
 backends keep only the functions and storage the program reaches, so another target's
 platform code costs nothing and names no library. Only the entry file keeps all it
-declares. A program imports only its direct dependencies' exports; a module a
+declares. A program imports only its direct dependencies' public modules; a module a
 dependency uses internally is not importable through it.

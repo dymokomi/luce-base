@@ -1,6 +1,6 @@
 import allocator
 import c
-import files
+import luce_std.files
 import memory
 import strings
 

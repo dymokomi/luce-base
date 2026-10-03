@@ -1,7 +1,7 @@
 ## A TCP echo over loopback and a UDP round trip, the client on a second thread.
 
 import io
-import net
+import luce_std.net
 import thread
 
 struct Peer:

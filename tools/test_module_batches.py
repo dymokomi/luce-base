@@ -51,11 +51,11 @@ modules = [("support.list", SRC / "support/list.lucb"), ("back.ir.ir", SRC / "ba
 arguments = []
 for name, path in modules:
     arguments += [name, path, SRC]
-together = run("describe-closure", "--modules", *arguments)
+together = run("describe-closure", "--modules", SRC, *arguments)
 
 
 def descriptions(text):
-    body, _, report = text.partition(b"\0\0luce-base-dependencies-v3\0")
+    body, _, report = text.partition(b"\0\0luce-base-dependencies-v4\0")
     parts = body[len(b"luce-base-closure-v1\0"):].split(b"\0")
     described = {}
     while len(parts) >= 3 and parts[0] == b"module":

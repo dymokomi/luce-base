@@ -134,7 +134,7 @@ jobs:
       - name: Build
         run: ./build.sh
       - name: Compile budget
-        run: python3 tools/compile_budget.py --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/luce_browser_engine/web/module.lucb
+        run: python3 tools/compile_budget.py --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/web/module.lucb
       - name: Differential fuzz, every generator, 20 minutes
         run: python3 tools/fuzz.py --seed ${{ github.run_number }} --minutes 20 --mutations 400 --programs 60 --trap-programs 40 --packages 12 --mem-programs 24 --atomic-programs 12 --litmus-programs 8 --width-programs 60
       - name: Retain the findings

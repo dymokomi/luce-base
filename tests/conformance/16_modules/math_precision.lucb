@@ -1,5 +1,5 @@
 # oracle: none -- These Base numerical helpers are not supplied by the seed interpreter.
-import math
+import luce_std.math
 
 pub func main(arguments: str[]) -> i32:
     let tiny = math.scalbn(1.0, -54)

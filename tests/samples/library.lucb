@@ -1,7 +1,7 @@
 ## The standard modules that are Base source: text, paths, numbers, time, and tests.
 
-import math
-import paths
+import luce_std.math
+import luce_std.paths
 import strings
 import thread
 import time

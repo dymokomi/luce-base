@@ -8,7 +8,7 @@
 #
 #==============================================================================================
 
-import files
+import luce_std.files
 import back.target as targets
 import back.native.frame
 import back.ir.ir

@@ -10,7 +10,7 @@
 #==============================================================================================
 
 import c
-import files
+import luce_std.files
 import memory
 import support.cache as cache
 ## The source is not valid UTF-8, or holds a disallowed control or bidi character.

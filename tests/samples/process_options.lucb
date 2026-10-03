@@ -1,8 +1,8 @@
 import c
-import files
+import luce_std.files
 import os
-import paths
-import process
+import luce_std.paths
+import luce_std.process
 import strings
 
 pub func main(arguments: str[]) -> i32!:

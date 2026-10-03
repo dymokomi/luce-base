@@ -25,10 +25,10 @@
 #
 #==============================================================================================
 
-import paths
+import luce_std.paths
 import c
 import platform
-import files
+import luce_std.files
 import back.target as targets
 import front.ast
 import front.parser

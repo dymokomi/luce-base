@@ -2,9 +2,9 @@
 import allocator
 import memory
 import strings
-import paths
+import luce_std.paths
 import io
-import unicode
+import luce_std.unicode
 
 func text_work() -> !:
     let folded = try unicode.case_fold("Straße")

@@ -1,5 +1,5 @@
 # oracle: none -- Base checks ordered clamp bounds; the seed predates that contract.
-import math
+import luce_std.math
 
 pub func main(arguments: str[]) -> i32:
     discard(math.clamp(0.0, 2.0, 1.0))

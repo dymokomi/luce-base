@@ -1,5 +1,5 @@
 # oracle: none -- The utf8 module is supplied by Base.
-import utf8
+import luce_std.utf8
 
 pub func main(arguments: str[]) -> i32!:
     var bytes: u8[32]

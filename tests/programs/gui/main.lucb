@@ -12,7 +12,7 @@ import c
 import editor.buffer
 import editor.session
 import editor.terminal
-import files
+import luce_std.files
 import memory
 import sdl3
 

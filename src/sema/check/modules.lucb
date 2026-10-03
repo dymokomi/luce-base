@@ -64,7 +64,13 @@ extend Checker:
     ## Load `path` and, first, every module it imports from the same directory.
     pub mutating func load(path: c.str) -> !:
         self.root = manifest.directory_of((str)path)
-        try self.load_as(path, try module_paths.name_of((str)path))
+        # the package enclosing the entry is the one being built, whose modules keep their
+        # bare names (§16.3), unless the caller named the build's package already
+        if self.package_name == "app":
+            let building = try module_paths.building_package(self.root)
+            if building.length > 0:
+                self.package_name = building
+        try self.load_as(path, try module_paths.entry_name((str)path))
 
     ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
     pub mutating func load_as(path: c.str, name: str) -> !:
@@ -104,24 +110,32 @@ extend Checker:
             error(unknown_name, message)
         if self.find_module(name) != none:
             error(unknown_name, "different source files use the same canonical module name")
+        try packages_as_modules(tree, text)
         var cursor = tree.body
         while let d = cursor:
             if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
+                if is_standard_module(d.text) and try module_paths.has_local_module(text, d.text):
+                    # the standard module's name always names it: a package module of that
+                    # name could never be imported, so it is an error where it is shadowed
+                    let half = self.scratch.length // 2
+                    let (file, line, column) = src.located(d.start)
+                    let message = try format(self.scratch[half..], f"{file}:{line}:{column}: this package has a module `{d.text}`, which the standard module of that name hides; rename it (§16.6)")
+                    error(unknown_name, message)
                 if not is_standard_module(d.text):
-                    let exported = try module_paths.package_import(text, d.text)
+                    let packaged = try module_paths.package_import(text, d.text, self.package_name)
                     let saved_root = self.root
                     var sibling: str
-                    var canonical_name = d.text
-                    if let public_module = exported:
+                    var canonical_name: str
+                    if let public_module = packaged:
                         sibling = public_module.path
                         canonical_name = public_module.name
-                        try self.module_alias(d.text, canonical_name)
                         self.root = public_module.root
                         if self.root.length > 0 and self.root.bytes[self.root.length - 1] != '/':
                             let room = try alloc u8[self.root.length + 2]
                             self.root = try format(room, f"{self.root}/")
                     else:
-                        sibling = try self.resolve_import(d.text, manifest.directory_of(text))
+                        sibling = try self.resolve_import(d.text, manifest.directory_of(text), canonical)
+                        canonical_name = try module_paths.local_name(text, d.text, self.package_name)
                     # a module that cannot be read is reported at the import that named it;
                     # a message that already names a place stands as it is
                     self.load_as((c.str)sibling, canonical_name) catch failure:
@@ -133,11 +147,15 @@ extend Checker:
                             let located = try format(self.scratch[half..], f"{file}:{line}:{column}: {failure.message}")
                             error(unknown_name, located)
                         error(failure.code, failure.message)
-                    if exported != none:
+                    # the import names the module it loaded: the same text names different
+                    # modules in different packages (`painter` in luce_ui and in the program)
+                    let index = try self.module_at(sibling) else error(unknown_name, "an imported module was not loaded")
+                    d.resolved = self.modules.get(index).tree
+                    if packaged != none:
                         self.root = saved_root
             cursor = d.next
         tree.text = name
-        let owner = try module_paths.package_of(text, name, self.package_name)
+        let owner = try module_paths.package_of(text, self.package_name)
         # a dependency's positions name `<package>/<path in it>`, the same on every machine,
         # as a standard module's name `std/...`; its file stays `canonical`
         var shown = src
@@ -163,15 +181,22 @@ extend Checker:
     ## `import front.lexer` is `front/lexer.lucb` beside the importing file, else under the
     ## root. The root starts as the entry file's directory; when a module under a
     ## subdirectory is the entry (its tests, say), the first import that is missing there
-    ## moves the root up until it resolves.
-    mutating func resolve_import(text: str, here: str) -> str!:
+    ## moves the root up until it resolves. A file outside its package's source root, a test
+    ## under `tests/`, reaches the package's modules first; the importing file, canonical
+    ## `importer`, is never its own import.
+    mutating func resolve_import(text: str, here: str, importer: str) -> str!:
+        if let module = try module_paths.outside_source_module(importer, text):
+            let (found, source_root) = module
+            let room = try alloc u8[source_root.length + 2]
+            self.root = try format(room, f"{source_root}/")
+            return found
         if here != self.root:
             var beside_buffer = try alloc u8[here.length + text.length + 6]
             let beside = try format(beside_buffer, f"{here}{text}.lucb")
             for i in here.length..<beside.length:
                 if beside.bytes[i] == '.' and i + 5 < beside.length:
                     beside_buffer[i] = '/'
-            if file_exists((c.str)beside):
+            if file_exists((c.str)beside) and try module_paths.canonical(beside) != importer:
                 return beside
         var dir = self.root
         while true:
@@ -180,7 +205,7 @@ extend Checker:
             for i in dir.length..<candidate.length:
                 if candidate.bytes[i] == '.' and i + 5 < candidate.length:
                     buffer[i] = '/'
-            if file_exists((c.str)candidate):
+            if file_exists((c.str)candidate) and try module_paths.canonical(candidate) != importer:
                 self.root = dir
                 return candidate
             # a directory whose `ORDER` lists the module's fragments stands for the file; its
@@ -373,6 +398,23 @@ extend Checker:
         try self.bind(at, alias, tree.type_id, tree, false)
         self.set_origin(at)
 
+    ## The module import `d` names: the one the loader resolved for it, or a standard one.
+    func imported(d: ast.Node*) -> ast.Node*!:
+        if let loaded = d.resolved:
+            return loaded
+        let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
+        return self.modules.get(index).tree
+
+    ## The index of the loaded module whose source is at `path`.
+    func module_at(path: str) -> usize?!:
+        let canonical = try module_paths.canonical(path)
+        var i: usize = 0
+        while i < self.modules.count:
+            if self.modules.get(i).canonical == canonical:
+                return i
+            i += 1
+        return none
+
     mutating func bind_imports(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
@@ -388,16 +430,14 @@ extend Checker:
                             return try self.fail_at(again, "this name is already imported (§16.3)", e, "the earlier import")
                     earlier = e.next
             if d.kind == ast.Kind.import_:
-                let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
-                let other = self.modules.get(index).tree
+                let other = try self.imported(d)
                 var alias = last_component(d.text)
                 if let a = d.left:
                     alias = a.text
                 d.resolved = other
                 try self.bind_module(other, alias, d)
             elif d.kind == ast.Kind.from_import:
-                let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
-                let other = self.modules.get(index).tree
+                let other = try self.imported(d)
                 d.resolved = other
                 # `from io import Writer` brings `Writer` alone; `io` itself needs `import io`
                 var names = d.body
@@ -439,3 +479,31 @@ func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: 
         i += 1
     if names.count == before:
         error(unknown_name, try format(try alloc u8[listing.length + 40], f"a `{listing}` names at least one fragment"))
+
+## `from pkg import a, b` where `pkg` is a package, the importer's own or a dependency, imports
+## its modules (§16.3): each becomes `import pkg.a as a`, in place, before anything resolves.
+func packages_as_modules(tree: ast.Node*, importer: str) -> !:
+    var previous: ast.Node*? = none
+    var cursor = tree.body
+    while let d = cursor:
+        cursor = d.next
+        if d.kind != ast.Kind.from_import or not try module_paths.names_package(importer, d.text):
+            previous = d
+            continue
+        var first: ast.Node*? = none
+        var last: ast.Node*? = none
+        var names = d.body
+        while let n = names:
+            names = n.next
+            let module = try strings.join([d.text, ".", n.text], "")
+            let one = try ast.Node.make(ast.Kind.import_, module, n.start, n.line)
+            let alias = try ast.Node.make(ast.Kind.name, n.text, n.start, n.line)
+            one.left = alias
+            ast.append(&first, &last, one)
+        let end = last else return
+        end.next = d.next
+        if let p = previous:
+            p.next = first
+        else:
+            tree.body = first
+        previous = end
