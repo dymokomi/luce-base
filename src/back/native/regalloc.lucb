@@ -55,10 +55,6 @@ pub struct Pools:
         let callee = self.callee_ints + self.callee_floats
         return (code > self.callee_ints and code <= callee) or code > callee + self.scratch_ints
 
-    ## Whether `code` names a register a call preserves.
-    pub func is_callee(code: u8) -> bool:
-        return code <= self.callee_ints + self.callee_floats
-
 # mark: Live ranges ===========================================================================
 
 ## One run of positions a temporary is live at: `from` to `to`, one past the last.

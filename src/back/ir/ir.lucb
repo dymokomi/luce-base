@@ -44,10 +44,6 @@ pub func is_comparison(op: Op) -> bool:
 pub func is_float_class(cls: Class) -> bool:
     return cls == Class.s or cls == Class.d or cls == Class.h
 
-## Whether `cls` is a vector register class.
-pub func is_vector_class(cls: Class) -> bool:
-    return cls == Class.v
-
 ## The lane shape of a vector instruction, in its `extra`: the lanes' width in bits, how
 ## many, and whether they are floats and signed. A vector is `lane_bits * lane_count / 8`
 ## bytes: eight or sixteen.
@@ -916,10 +912,6 @@ pub func argument_range(f: Function*, x: Instr) -> (u32, u32):
     if x.op == Op.ret and x.extra2 > 0:
         return (x.extra, x.extra2)
     return (0, 0)
-
-## The class a scalar of `size` bytes uses; floats are chosen by the caller.
-pub func class_of_size(size: u64) -> Class:
-    return Class.l if size > 4 else Class.w
 
 ## The load op for a scalar of a size and signedness, or a float.
 pub func load_op(size: u64, signed: bool, is_float: bool) -> Op:

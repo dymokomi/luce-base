@@ -82,10 +82,6 @@ pub struct CType:
     ## Why an `unsupported` type has no Base representation.
     pub var reason: str
 
-    ## Whether this is the `void` type.
-    pub func is_void() -> bool:
-        return self.kind == Kind.void_
-
 ## The type a typedef finally names, through every typedef.
 pub func resolved(t: CType*) -> CType*:
     var cursor = t
@@ -300,12 +296,6 @@ pub struct Parser:
             return true
         return false
 
-    mutating func eat_word(text: str) -> bool:
-        if self.at_word(text):
-            self.advance()
-            return true
-        return false
-
     mutating func expect(text: str) -> !:
         if not self.at_punct(text):
             error(failed, try self.place(try format(scratch[0..], f"expected {text}, found {self.tok.text}")))
@@ -478,14 +468,6 @@ pub struct Parser:
         try self.decls.push(made)
 
     # mark: Specifiers =========================================================================
-
-    func is_type_start() -> bool:
-        if self.tok.kind != pre.Kind.ident:
-            return false
-        let w = self.tok.text
-        if is_type_word(w) or is_qualifier(w) or w == "struct" or w == "union" or w == "enum":
-            return true
-        return self.typedefs.has(w)
 
     ## The declaration specifiers: storage words, qualifiers, attributes, and one type.
     mutating func specifiers() -> Specs!:

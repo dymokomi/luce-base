@@ -615,16 +615,6 @@ extend Emitter:
             i -= 1
             try self.unwind(i, failing)
 
-    func any_cleanup() -> bool:
-        if self.defers.count > 0:
-            return true
-        var i: usize = 0
-        while i < self.scopes.count:
-            if self.scopes.get(i).restore_alloc:
-                return true
-            i += 1
-        return false
-
     ## The innermost loop scope, or the one with `label`.
     func loop_scope(label: str) -> usize:
         var i = self.scopes.count

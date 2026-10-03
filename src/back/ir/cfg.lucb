@@ -125,23 +125,6 @@ pub struct Graph:
     pub func strictly_dominates(a: u32, b: u32) -> bool:
         return a != b and self.dominates(a, b)
 
-    ## The least common ancestor of two blocks in the dominator tree.
-    pub func common_dominator(a: u32, b: u32) -> u32:
-        if a == none_block:
-            return b
-        if b == none_block:
-            return a
-        var x = a
-        var y = b
-        while self.blocks.items[(usize)x].depth > self.blocks.items[(usize)y].depth:
-            x = self.blocks.items[(usize)x].idom
-        while self.blocks.items[(usize)y].depth > self.blocks.items[(usize)x].depth:
-            y = self.blocks.items[(usize)y].idom
-        while x != y:
-            x = self.blocks.items[(usize)x].idom
-            y = self.blocks.items[(usize)y].idom
-        return x
-
     # -- construction ---------------------------------------------------------------------
 
     ## Cut the instruction list into blocks.

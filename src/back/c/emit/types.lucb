@@ -344,16 +344,6 @@ extend Emitter:
                 return true
         return false
 
-    ## The C name of the function the emission context is inside.
-    mutating func put_current_name() -> !:
-        let f = self.current_fn else return try self.put("lb_unknown")
-        if f.kind == ast.Kind.test_:
-            try self.put("lb_test_")
-            let index = try self.test_index(f)
-            try self.put_u64((u64)index)
-            return
-        try self.put_func_name(f, self.fn_args, self.owner_decl, self.owner_args)
-
     mutating func test_index(t: ast.Node*) -> usize!:
         var i: usize = 0
         while i < self.tests.count:

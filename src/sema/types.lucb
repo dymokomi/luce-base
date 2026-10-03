@@ -396,10 +396,6 @@ pub struct Table:
         let bytes = self.size_of(t.elem) * t.length
         return bytes == 8 or bytes == 16
 
-    ## Whether `id` is a pointer type.
-    pub func is_pointer(id: u32) -> bool:
-        return self.kind(id) == Kind.pointer
-
     ## `T*?`, `c.str?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5,
     ## §5.6); an interface view's optional is the two-word view with a null data word
     ## (§14.3). None of them carries a flag.

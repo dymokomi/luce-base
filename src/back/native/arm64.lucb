@@ -431,9 +431,6 @@ pub struct Generator:
             return "h16" if n == 0 else ("h17" if n == 1 else "h18")
         return "d16" if n == 0 else ("d17" if n == 1 else "d18")
 
-    func xreg(n: u32) -> str:
-        return "x9" if n == 0 else ("x10" if n == 1 else "x11")
-
     ## Load a temporary into `reg`: a register move when it lives in one, else from its home.
     ## A float register moves with `fmov`, an integer one with `mov`; the width follows `reg`.
     ## The register holding `r` as class `cls` when `r` is a temporary living in one of the
@@ -726,10 +723,6 @@ pub struct Generator:
         try self.put(c)
         try self.put(d)
         try self.put(e)
-
-    ## `.weak_definition` and `.no_dead_strip` for a symbol with those attributes (§9.8).
-    mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
-        try self.object_format.linkage(&self.out, name, weak, used)
 
     ## Back to the text section after a function placed in a named one.
     mutating func leave_section() -> !:

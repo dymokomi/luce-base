@@ -284,17 +284,6 @@ pub struct Emitter:
         elif width == 16:
             try self.put("f16")
 
-    mutating func put_digits(text: str) -> !:
-        let b = text.bytes
-        var start: usize = 0
-        var i: usize = 0
-        while i < b.length:
-            if b[i] == '_':
-                try self.put((str)b[start..<i])
-                start = i + 1
-            i += 1
-        try self.put((str)b[start..])
-
     mutating func put_u64(value: u64) -> !:
         if self.target == to_scratch:
             try self.scratch.put_u64(value)

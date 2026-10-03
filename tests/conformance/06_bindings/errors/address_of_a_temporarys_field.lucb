@@ -1,0 +1,14 @@
+# error: cannot take the address of a temporary; bind it first
+## §6.6: `&` takes the address of an lvalue; a field of a call's result is part of a
+## temporary, gone when the statement ends.
+struct Point:
+    var x: i64
+    var y: i64
+
+func make() -> Point:
+    return Point(x = 1, y = 2)
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    let p = &make().x
+    return i32(*p)

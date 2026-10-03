@@ -1,0 +1,20 @@
+## §6.6: an array is a value (§5.4), so returning a local one copies it out and names
+## nothing of the frame, even when its elements hold views; only a span or `str` of the
+## local array would.
+struct View:
+    var bytes: const u8[]
+
+func view_of(text: str) -> View:
+    return View(bytes = text.bytes)
+
+func build_table() -> View[2]:
+    var table: View[2]
+    table[0] = view_of("ab")
+    table[1] = view_of("rgb")
+    return table
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    let t = build_table()
+    print(f"{t[0].bytes.length + t[1].bytes.length}")
+    return 0

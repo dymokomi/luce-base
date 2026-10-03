@@ -423,9 +423,6 @@ var package: manifest.Manifest
 var link_libraries: c.str[]
 var link_directories: c.str[]
 var link_frameworks: c.str[]
-## `--std-dir`: where the standard library's archives are; empty for the search of
-## `std_directory`.
-
 var scratch_bytes: u8[65536]
 ## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
 var used_mode: u32
@@ -1027,19 +1024,6 @@ func check_target(arguments: c.str[]) -> bool!:
             return true
         i += 1
     return false
-
-## `dir/name.lucb` -> `name`: the module's name for the description.
-func stem_of(path: str) -> str:
-    var start: usize = 0
-    var end = path.length
-    var i: usize = 0
-    while i < path.length:
-        if paths.separator(path.bytes[i]):
-            start = i + 1
-        i += 1
-    if end >= 5 and (str)path.bytes[end - 5..] == ".lucb":
-        end -= 5
-    return (str)path.bytes[start..<end]
 
 ## Check the module and print its public declarations (§17.7).
 func describe_file(path: c.str, out: io.Writer) -> !:

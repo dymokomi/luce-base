@@ -75,10 +75,6 @@ pub struct Parser:
     pub func token_span() -> const token.Token[]:
         return self.tokens[..<self.count]
 
-    ## The length of the parser's scratch buffer.
-    pub func scratch_length() -> usize:
-        return self.scratch.length
-
     ## The source text token `t` spans.
     pub func text_of(t: token.Token) -> str:
         return self.src.text(t.start, t.end)

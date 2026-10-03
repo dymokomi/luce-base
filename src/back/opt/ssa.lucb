@@ -453,10 +453,6 @@ pub struct Liveness:
     pub func live_in_at(b: u32, t: u32) -> bool:
         return (self.live_in[(usize)b * self.words + (usize)t // 64] & ((u64)1 << ((u64)t % 64))) != 0
 
-    ## Whether temporary `t` is live at the exit of block `b`.
-    pub func live_out_at(b: u32, t: u32) -> bool:
-        return (self.live_out[(usize)b * self.words + (usize)t // 64] & ((u64)1 << ((u64)t % 64))) != 0
-
     ## Free the liveness bit sets.
     pub mutating func release():
         free(self.live_in)

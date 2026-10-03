@@ -1135,12 +1135,6 @@ pub struct Checker:
         try self.bind(at, alias, tree.type_id, tree, false)
         self.set_origin(at)
 
-    mutating func bind_public(tree: ast.Node*, name: str) -> !:
-        if self.lookup(name) != none:
-            return
-        let d = find_decl(tree, name) else return
-        try self.bind(d, name, d.type_id, d, d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var)
-
     mutating func bind_imports(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
@@ -2254,10 +2248,19 @@ pub struct Checker:
             wanted_function = self.table.get(target).elem
         if self.table.kind(got) == types.Kind.func_ and self.table.kind(wanted_function) == types.Kind.func_ and self.table.get(got).elem != self.table.get(wanted_function).elem:
             try self.wrap_as_fallible(e, wanted_function)
-        # a local array passed where a span is wanted aliases the frame (§6.6)
-        if self.table.kind(got) == types.Kind.array and self.escapes(target) and self.place_is_local(e):
+        # a local array passed where a span is wanted aliases the frame (§6.6); one copied
+        # out as an array is a value and names nothing, whatever its elements hold
+        if self.table.kind(got) == types.Kind.array and self.views_array(target) and self.place_is_local(e):
             self.mark_local(e)
         return target
+
+    ## Whether `target` is a view an array converts to, a span or `str` or an optional of
+    ## one, so the result names the array's storage.
+    func views_array(target: u32) -> bool:
+        var t = target
+        if self.table.kind(t) == types.Kind.optional:
+            t = self.table.get(t).elem
+        return self.table.kind(t) == types.Kind.span or t == types.str_id
 
     ## An untyped expression takes its type: every literal in `1 << 40` or `-(2 * 3)` must fit
     ## it (§4.2), so the walk reaches each leaf that is still untyped. A parenthesised or
@@ -3119,7 +3122,7 @@ pub struct Checker:
                 return try self.fail(e, "cannot take the address of a literal")
             if inner.has(ast.flag_type_ref):
                 return try self.fail(e, "cannot take the address of a type")
-            if not is_place(inner):
+            if not self.is_place(inner):
                 return try self.fail(e, "cannot take the address of a temporary; bind it first")
             if self.is_packed_field(inner):
                 return try self.fail(e, "a packed field's address is not taken unless its alignment is one (§5.11)")
@@ -6435,20 +6438,6 @@ func is_call_statement(e: ast.Node*) -> bool:
 func is_none_literal(e: ast.Node*) -> bool:
     return e.kind == ast.Kind.literal and e.text == "none"
 
-## A place: something with an address (§6.6): a name, `self`, a member, an element, a
-## dereference, or one of those in parentheses.
-func is_place(e: ast.Node*) -> bool:
-    match e.kind:
-        .name, .self_, .member, .index:
-            return true
-        .group:
-            let inner = e.left else return false
-            return is_place(inner)
-        .unary:
-            return e.text == "*"
-        _:
-            return false
-
 ## Whether a handler's every path ends in `recover`, `return`, `error`, `trap`, `break`, or
 ## `continue` (§11.4).
 func handler_leaves(block: ast.Node*) -> bool:
@@ -6511,9 +6500,7 @@ pub func is_identifier(name: str) -> bool:
         i += 1
     return true
 
-## `dir/name.lucb` -> `dir/`; a bare name yields the empty string.
-## `a/b/` for `a/b/c/`, `` for `c/`.
-
+## A list of one type argument, `id`.
 func one_arg(id: u32) -> u32[]!:
     var one = try alloc u32[1]
     one[0] = id

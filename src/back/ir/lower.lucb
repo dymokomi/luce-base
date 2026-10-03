@@ -331,8 +331,6 @@ pub struct Lowerer:
         let s = self.c.table.size_of(id)
         return s if s > 0 else 8
 
-    ## Is the type a record of floats only (an HFA for the calling convention)?
-
     ## The shape of an aggregate the calling convention will place, 1-based into the
     ## unit's shapes, or 0 for a scalar or anything past 32 bytes, which every convention
     ## passes in memory. The walk is the layout's: every scalar member at its offset, a
@@ -4678,21 +4676,6 @@ pub struct Lowerer:
         try self.f.calls.push(info)
         try self.f.emit(ir.Op.call, ir.Class.l, 0, target, ir.none_ref(), u32(self.f.calls.count - 1))
         return try self.slot_address(slot)
-
-    mutating func allocator_resize(view: ir.Ref, block: ir.Ref, size: ir.Ref) -> ir.Ref!:
-        let data = try self.f.load(ir.Op.loadl, ir.Class.l, view)
-        let table = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(view, 8))
-        let target = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(table, 8))
-        let start = u32(self.f.args.count)
-        try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-        let bytes_type = try self.c.table.span(types.u8_id, false)
-        try self.f.args.push(ir.Arg(value = block, cls = ir.Class.l, size = 16, align = 8, type_id = bytes_type, shape = try self.shape_of(bytes_type)))
-        try self.f.args.push(ir.Arg(value = size, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-        let info = ir.CallInfo(args_start = start, args_count = 3, fixed_count = 3, variadic = false, result_cls = ir.Class.w, has_result = true, result_size = 0, result_align = 8, result_type = types.bool_id, result_slot = 0, result_shape = 0)
-        try self.f.calls.push(info)
-        let t = try self.f.temp(ir.Class.w)
-        try self.f.emit(ir.Op.call, ir.Class.w, t, target, ir.none_ref(), u32(self.f.calls.count - 1))
-        return ir.temp_ref(t)
 
     mutating func allocator_release(view: ir.Ref, block: ir.Ref) -> !:
         let data = try self.f.load(ir.Op.loadl, ir.Class.l, view)

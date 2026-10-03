@@ -132,14 +132,6 @@ pub struct Target:
             return 2
         return none
 
-    ## The level's name, as `--cpu` spells it.
-    pub func level_name() -> str:
-        if self.arch == Arch.wasm32:
-            return "baseline"
-        if self.arch == Arch.x86_64:
-            return "v1" if self.level == 1 else ("v2" if self.level == 2 else ("v3" if self.level == 3 else "v4"))
-        return "neon" if self.level == 1 else "sve"
-
     ## The architecture's name (§8.9).
     pub func arch_name() -> str:
         return arch_name(self.arch)

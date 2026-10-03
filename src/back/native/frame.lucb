@@ -128,10 +128,6 @@ pub struct Frame:
     pub func float_code(code: u8) -> bool:
         return self.registers.pools().is_float(code)
 
-    ## Whether register `code` is callee-saved (preserved across a call).
-    pub func callee_code(code: u8) -> bool:
-        return self.registers.pools().is_callee(code)
-
     ## The offset below the frame pointer where temporary `t` lives, 0 when it is in a register.
     pub func temp_home(t: u32) -> u64:
         return self.temp_homes.get((usize)t - 1)
