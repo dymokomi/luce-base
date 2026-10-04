@@ -97,7 +97,7 @@ in `luc.lock`, unpacks it under `.luc/deps/`, and adds it to the manifest:
 ```text
 def dependency "luce-std" {
     str owner = "dymokomi"
-    str version = "^0.3.1"
+    str version = "^0.3.2"
 }
 ```
 
