@@ -24,8 +24,7 @@ pub struct Reference[T]:
     pub static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!:
         let selected = allocator else memory.allocator
         var reservation = Reservation[T](declaration) catch failure:
-            declaration.dispose(native)
-            free(native) in selected
+            release_native(native, declaration, selected)
             error(failure.code, failure.message)
         return reservation.publish(native, selected)
 
@@ -93,3 +92,8 @@ pub struct Reference[T]:
         # Trial deletion temporarily subtracts internal strong references.
         ownership.check_thread(&self.owner.header)
         visit(&self.owner.header, context)
+
+## Dispose of `native`, a value no reference took, and free it from `allocator`.
+func release_native[T](native: T*, declaration: Type[T], allocator: memory.Allocator):
+    declaration.dispose(native)
+    free(native) in allocator

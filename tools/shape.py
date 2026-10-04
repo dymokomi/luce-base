@@ -1,7 +1,10 @@
 """The shape of the tree, as the audit of 2026-09-14 measures it: every source file under
 src/ has a header box; a file over 150 lines has `# mark:` sections; a function is at most
 100 lines unless it is a dispatch named in `tools/shape.dispatches`; every `pub`
-declaration has a `##` line above it. `--check` exits 1 when a measure rises past the
+declaration has a `##` line above it; every `free` is a deferred one, `defer free(x)` or
+inside a `defer:` block, or an owner's own (`free(self...)`, or within its `destroy`,
+`release`, `grow`, `drop`, `close`, `remove` or `drain`), so a free is paired with what it frees and runs on every way out.
+`--check` exits 1 when a measure rises past the
 limits in `tools/shape.limits`, the ratchet toward the audit's zero; without it the
 numbers and the offenders are printed. `--root DIR` measures another compiler's tree, Luce's,
 against the limits in its own `tools/shape.limits`."""
@@ -36,7 +39,34 @@ def functions(lines):
         out.append((m.group(3), end - i + 1, i + 1))
     return out
 
-no_header, no_marks, long, undocumented, count = [], [], [], [], 0
+strings = re.compile(r'"(?:[^"\\]|\\.)*"')
+owners = re.compile(r"^(destroy|release|grow|drop|close|remove|drain)")
+
+def loose_frees(lines, rel):
+    """Each `free` that is not deferred or an owner's own: freed by hand at the end of a
+    path, it is skipped by every early return and propagated error before it."""
+    out = []
+    block = None  # the indentation of an open `defer:`/`errdefer:` block
+    function = ""
+    for i, line in enumerate(lines):
+        text = strings.sub('""', line.split("#", 1)[0] if not line.lstrip().startswith("#") else "")
+        indent = len(line) - len(line.lstrip(" "))
+        if line.strip() and block is not None and indent <= block:
+            block = None
+        m = declaration.match(line)
+        if m and m.group(2) == "func":
+            function = m.group(3)
+        if re.match(r"\s*(err)?defer:\s*$", text):
+            block = indent
+            continue
+        if not re.search(r"\bfree\(", text):
+            continue
+        if block is not None or re.match(r"\s*(err)?defer\s+free\(", text) or re.search(r"\bfree\(self\.", text) or owners.match(function):
+            continue
+        out.append(f"{rel}:{i + 1} {function}")
+    return out
+
+no_header, no_marks, long, undocumented, frees, count = [], [], [], [], [], 0
 for path in sources:
     rel = path.relative_to(root)
     lines = path.read_text().split("\n")
@@ -55,6 +85,9 @@ for path in sources:
             above = lines[i - 1].strip() if i > 0 else ""
             if not (above.startswith("##") or above.startswith("#")):
                 undocumented.append(f"{rel}:{i + 1} {p.group(2)}")
+    # the runtime's C text is not Base code
+    if rel.as_posix() != "src/support/runtime.lucb":
+        frees += loose_frees(lines, rel)
     for name, size, at in functions(lines):
         if size > 100:
             long.append((size, f"{rel}:{at}", name))
@@ -62,17 +95,19 @@ long.sort(reverse=True)
 allowed_long = [entry for entry in long if entry[2] in allowed or f"{entry[1].split(':')[0]}:{entry[2]}" in allowed]
 excess = [entry for entry in long if entry not in allowed_long]
 print(f"files {count}, without a header box {len(no_header)}, over 150 lines without marks {len(no_marks)}")
-print(f"functions over 100 lines {len(long)} ({len(excess)} not named as dispatches), undocumented pub declarations {len(undocumented)}")
+print(f"functions over 100 lines {len(long)} ({len(excess)} not named as dispatches), undocumented pub declarations {len(undocumented)}, loose frees {len(frees)}")
 if "--check" not in sys.argv:
     for item in no_header: print("no header:", item)
     for item in no_marks: print("no marks:", item)
     for size, where, name in long: print(f"{size:4} {where} {name}{'  (dispatch)' if (size, where, name) in allowed_long else ''}")
+    for item in frees: print("loose free:", item)
     for item in undocumented[:40]: print("undocumented:", item)
     if len(undocumented) > 40: print(f"... {len(undocumented) - 40} more")
     sys.exit(0)
 # the ratchet: what the tree measures today (tools/shape.limits); a measure may fall and
 # the limit with it, never rise, until the audit's gate of zero is reached
-limits = {"no_header": 0, "no_marks": 0, "excess": 0, "undocumented": 0}
+# a tree whose limits do not name `loose_frees` yet is not measured by it
+limits = {"no_header": 0, "no_marks": 0, "excess": 0, "undocumented": 0, "loose_frees": None}
 recorded = root / "tools" / "shape.limits"
 if recorded.exists():
     for line in recorded.read_text().splitlines():
@@ -80,11 +115,14 @@ if recorded.exists():
             key, value = line.split()
             limits[key] = int(value)
 bad = (len(no_header) > limits["no_header"] or len(no_marks) > limits["no_marks"]
-       or len(excess) > limits["excess"] or len(undocumented) > limits["undocumented"])
+       or len(excess) > limits["excess"] or len(undocumented) > limits["undocumented"]
+       or (limits["loose_frees"] is not None and len(frees) > limits["loose_frees"]))
 if bad:
     for item in no_header: print("FAIL shape: no header box:", item)
     for item in no_marks: print("FAIL shape: over 150 lines and no `# mark:` sections:", item)
     for size, where, name in excess: print(f"FAIL shape: {size} lines: {where} {name}")
     for item in undocumented: print("FAIL shape: undocumented pub declaration:", item)
+    if limits["loose_frees"] is not None and len(frees) > limits["loose_frees"]:
+        for item in frees: print("FAIL shape: a free that is not deferred or an owner's own:", item)
     sys.exit(1)
 print("ok shape")

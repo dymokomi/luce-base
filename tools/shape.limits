@@ -1,5 +1,6 @@
 # the shape ratchet (tools/shape.py --check): each count may fall, and its limit with it
 no_header 0
 no_marks 0
-excess 44
+excess 28
 undocumented 0
+loose_frees 0

@@ -29,6 +29,11 @@ pub struct Natural:
     pub static func find(g: cfg.Graph*, header: u32) -> Natural?!:
         let block = g.blocks.get(header)
         var members = try alloc bool[g.count()]
+        # the set goes out with the loop it describes, and is freed on every other way out
+        var handed_out = false
+        defer:
+            if not handed_out:
+                free(members)
         for i in 0..<members.length:
             members[i] = false
         members[header] = true
@@ -38,7 +43,6 @@ pub struct Natural:
             if g.dominates(header, pred):
                 try pending.push(pred)
         if pending.count == 0:
-            free(members)
             return none
         while pending.count > 0:
             pending.count -= 1
@@ -53,17 +57,15 @@ pub struct Natural:
         for pred in block.preds.span():
             if not members[pred]:
                 if preheader != cfg.none_block:
-                    free(members)
                     return none
                 preheader = pred
         if preheader == cfg.none_block:
-            free(members)
             return none
         let entry = g.blocks.get(preheader)
         # the preheader leads to the header alone (a jump table's default is `succ1` too)
         if entry.succ1 != header or entry.succs.count != 1:
-            free(members)
             return none
+        handed_out = true
         return Natural(header = header, preheader = preheader, members = members)
 
     ## Release the members set.

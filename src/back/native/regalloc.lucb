@@ -412,49 +412,17 @@ pub struct Lives:
 
     ## Give each temporary a register code, 0 for the frame: `held` is the mask of codes the
     ## promoted slots keep for the whole function; `regs` receives a code per temporary and
-    ## the mask of every code used comes back.
+    ## the mask of every code used comes back. A linear scan over the intervals by start.
     pub mutating func allocate(f: ir.Function*, pools: Pools, held: u64, regs: u8[]) -> u64!:
         let n = self.count
-        var used: u64 = 0
-        var t: usize = 0
-        while t < n:
+        for t in 0..<n:
             regs[t] = 0
-            t += 1
         if n == 0:
             return 0
-        # the intervals in order of their starts, by counting
-        let m = 2 * f.instrs.count + 2
-        var bucket = try alloc u32[m + 1]
-        defer free(bucket)
-        var k: usize = 0
-        while k <= m:
-            bucket[k] = 0
-            k += 1
-        var alive: usize = 0
-        t = 1
-        while t <= n:
-            if self.start[t] != no_position:
-                bucket[(usize)self.start[t] + 1] += 1
-                alive += 1
-            t += 1
-        k = 1
-        while k <= m:
-            bucket[k] += bucket[k - 1]
-            k += 1
-        var order = try alloc u32[alive + 1]
+        let (order, alive) = try self.by_start(f)
         defer free(order)
-        t = 1
-        while t <= n:
-            if self.start[t] != no_position:
-                order[(usize)bucket[(usize)self.start[t]]] = u32(t)
-                bucket[(usize)self.start[t]] += 1
-            t += 1
-        var active = try alloc u32[alive + 1]
-        defer free(active)
-        var inactive = try alloc u32[alive + 1]
-        defer free(inactive)
-        var active_count: usize = 0
-        var inactive_count: usize = 0
+        var scan = try Scan.create(alive)
+        defer scan.release()
         let codes = (usize)pools.count()
         var free_until = try alloc u32[codes + 1]
         defer free(free_until)
@@ -465,166 +433,218 @@ pub struct Lives:
         defer free(costs)
         for each in 1..<costs.length:
             costs[each] = self.cost(u32(each))
-        var i: usize = 0
-        while i < alive:
+        var used: u64 = 0
+        for i in 0..<alive:
             let cur = order[i]
-            let s = self.start[(usize)cur]
-            # what ended is handled; what has a hole here is inactive, and the reverse
-            var a: usize = 0
-            while a < active_count:
-                let h = active[a]
-                if self.end[(usize)h] <= s:
-                    active[a] = active[active_count - 1]
-                    active_count -= 1
-                elif not self.covers(h, s):
-                    inactive[inactive_count] = h
-                    inactive_count += 1
-                    active[a] = active[active_count - 1]
-                    active_count -= 1
-                else:
-                    a += 1
-            a = 0
-            while a < inactive_count:
-                let h = inactive[a]
-                if self.end[(usize)h] <= s:
-                    inactive[a] = inactive[inactive_count - 1]
-                    inactive_count -= 1
-                elif self.covers(h, s):
-                    active[active_count] = h
-                    active_count += 1
-                    inactive[a] = inactive[inactive_count - 1]
-                    inactive_count -= 1
-                else:
-                    a += 1
+            scan.advance(&self, self.start[(usize)cur])
             let cls = f.temp_class(cur)
             let is_int = cls == ir.Class.w or cls == ir.Class.l
             let is_vector = cls == ir.Class.v
             if not is_int and not is_vector and not ir.is_float_class(cls):
-                i += 1
                 continue
-            # the pools this temporary may draw on, caller-saved first when it may
-            var low_scratch: usize = 0
-            var high_scratch: usize = 0
-            var low_callee: usize = 0
-            var high_callee: usize = 0
-            let callee = (usize)pools.callee_ints + (usize)pools.callee_floats
-            if is_int:
-                if not self.crosses[(usize)cur]:
-                    low_scratch = callee + 1
-                    high_scratch = callee + (usize)pools.scratch_ints
-                low_callee = 1
-                high_callee = (usize)pools.callee_ints
-            else:
-                if not self.crosses[(usize)cur]:
-                    low_scratch = callee + (usize)pools.scratch_ints + 1
-                    high_scratch = codes
-                if not is_vector:
-                    low_callee = (usize)pools.callee_ints + 1
-                    high_callee = callee
-            var c: usize = 1
-            while c <= codes:
-                free_until[c] = no_position
-                c += 1
-            a = 0
-            while a < active_count:
-                let h = active[a]
-                let r = (usize)regs[(usize)h - 1]
-                free_until[r] = 0
-                a += 1
-            a = 0
-            while a < inactive_count:
-                let h = inactive[a]
-                let r = (usize)regs[(usize)h - 1]
-                let meet = self.first_intersection(h, cur)
-                if meet != no_position:
-                    if meet < free_until[r]:
-                        free_until[r] = meet
-                a += 1
+            let ranges = self.ranges_of(cur, is_int, is_vector, pools)
+            self.fill_free_until(&scan, regs, cur, free_until)
             let my_end = self.end[(usize)cur]
             var chosen: usize = 0
             # the hint: a copy's source, when its register is free for the whole life
             let wanted = self.hint[(usize)cur]
             if wanted != 0 and regs[(usize)wanted - 1] != 0:
                 let r = (usize)regs[(usize)wanted - 1]
-                let in_pool = (r >= low_scratch and r <= high_scratch) or (r >= low_callee and r <= high_callee)
+                let in_pool = (r >= ranges.low_scratch and r <= ranges.high_scratch) or (r >= ranges.low_callee and r <= ranges.high_callee)
                 if in_pool and (held & ((u64)1 << (u64)(r - 1))) == 0 and free_until[r] >= my_end:
                     chosen = r
             if chosen == 0:
-                chosen = pick_free(free_until, held, low_scratch, high_scratch, my_end)
+                chosen = pick_free(free_until, held, ranges.low_scratch, ranges.high_scratch, my_end)
             if chosen == 0:
-                chosen = pick_free(free_until, held, low_callee, high_callee, my_end)
-            # a temporary crossing a barrier may still take a caller-saved register, saved
-            # before each barrier it crosses and reloaded after, rather than the frame for its
-            # whole life: the barriers are usually off the hot path (a table's slow lookup, an
-            # error's report), the value's reads are not
-            var low_saved: usize = 0
-            var high_saved: usize = 0
-            if self.crosses[(usize)cur] and not self.asm_bound[(usize)cur]:
-                if is_int:
-                    low_saved = callee + 1
-                    high_saved = callee + (usize)pools.scratch_ints
-                elif not is_vector:
-                    low_saved = callee + (usize)pools.scratch_ints + 1
-                    high_saved = codes
-            if chosen == 0 and low_saved != 0:
-                chosen = pick_free(free_until, held, low_saved, high_saved, my_end)
-            if chosen == 0:
-                # every register is taken: the one whose holders would cost least in the
-                # frame, a read or write in a loop ten times one outside it (`cost`), goes to
-                # this temporary when they cost less than it would; else it lives there
-                let mine = costs[(usize)cur]
-                if mine > 0:
-                    c = 1
-                    while c <= codes:
-                        holders_cost[c] = 0
-                        c += 1
-                    a = 0
-                    while a < active_count:
-                        let h = active[a]
-                        holders_cost[(usize)regs[(usize)h - 1]] += costs[(usize)h]
-                        a += 1
-                    a = 0
-                    while a < inactive_count:
-                        let h = inactive[a]
-                        if self.first_intersection(h, cur) != no_position:
-                            holders_cost[(usize)regs[(usize)h - 1]] += costs[(usize)h]
-                        a += 1
-                    var far: usize = 0
-                    var far_cost: u64 = 0xFFFFFFFFFFFFFFFF
-                    c = 1
-                    while c <= codes:
-                        let in_pool = (c >= low_scratch and c <= high_scratch) or (c >= low_callee and c <= high_callee) or (c >= low_saved and c <= high_saved)
-                        if in_pool and (held & ((u64)1 << (u64)(c - 1))) == 0 and holders_cost[c] < far_cost:
-                            far_cost = holders_cost[c]
-                            far = c
-                        c += 1
-                    if far != 0 and far_cost < mine:
-                        a = 0
-                        while a < active_count:
-                            if (usize)regs[(usize)active[a] - 1] == far:
-                                regs[(usize)active[a] - 1] = 0
-                                active[a] = active[active_count - 1]
-                                active_count -= 1
-                            else:
-                                a += 1
-                        a = 0
-                        while a < inactive_count:
-                            if (usize)regs[(usize)inactive[a] - 1] == far:
-                                regs[(usize)inactive[a] - 1] = 0
-                                inactive[a] = inactive[inactive_count - 1]
-                                inactive_count -= 1
-                            else:
-                                a += 1
-                        chosen = far
+                chosen = pick_free(free_until, held, ranges.low_callee, ranges.high_callee, my_end)
+            if chosen == 0 and ranges.low_saved != 0:
+                chosen = pick_free(free_until, held, ranges.low_saved, ranges.high_saved, my_end)
+            if chosen == 0 and costs[(usize)cur] > 0:
+                chosen = self.evict(&scan, regs, cur, ranges, held, costs, holders_cost)
             if chosen != 0:
-                if low_saved != 0 and chosen >= low_saved and chosen <= high_saved:
+                if ranges.low_saved != 0 and chosen >= ranges.low_saved and chosen <= ranges.high_saved:
                     self.saved[(usize)cur] = true
                 regs[(usize)cur - 1] = (u8)chosen
                 used = used | ((u64)1 << (u64)(chosen - 1))
-                active[active_count] = cur
-                active_count += 1
-            i += 1
+                scan.activate(cur)
         return used
+
+    ## The live temporaries in order of their starts, by counting, and how many there are.
+    func by_start(f: ir.Function*) -> (u32[], usize)!:
+        let n = self.count
+        let m = 2 * f.instrs.count + 2
+        var bucket = try alloc u32[m + 1]
+        defer free(bucket)
+        for k in 0..<m + 1:
+            bucket[k] = 0
+        var alive: usize = 0
+        for t in 1..<n + 1:
+            if self.start[t] != no_position:
+                bucket[(usize)self.start[t] + 1] += 1
+                alive += 1
+        for k in 1..<m + 1:
+            bucket[k] += bucket[k - 1]
+        var order = try alloc u32[alive + 1]
+        for t in 1..<n + 1:
+            if self.start[t] != no_position:
+                order[(usize)bucket[(usize)self.start[t]]] = u32(t)
+                bucket[(usize)self.start[t]] += 1
+        return (order, alive)
+
+    ## The codes temporary `cur` may draw on: caller-saved first when it crosses no
+    ## barrier, then callee-saved, then caller-saved saved around the barriers it crosses.
+    func ranges_of(cur: u32, is_int: bool, is_vector: bool, pools: Pools) -> Ranges:
+        let codes = (usize)pools.count()
+        let callee = (usize)pools.callee_ints + (usize)pools.callee_floats
+        var r = Ranges()
+        let crosses = self.crosses[(usize)cur]
+        if is_int:
+            if not crosses:
+                r.low_scratch = callee + 1
+                r.high_scratch = callee + (usize)pools.scratch_ints
+            r.low_callee = 1
+            r.high_callee = (usize)pools.callee_ints
+        else:
+            if not crosses:
+                r.low_scratch = callee + (usize)pools.scratch_ints + 1
+                r.high_scratch = codes
+            if not is_vector:
+                r.low_callee = (usize)pools.callee_ints + 1
+                r.high_callee = callee
+        # a temporary crossing a barrier may still take a caller-saved register, saved
+        # before each barrier it crosses and reloaded after, rather than the frame for its
+        # whole life: the barriers are usually off the hot path (a table's slow lookup, an
+        # error's report), the value's reads are not
+        if crosses and not self.asm_bound[(usize)cur]:
+            if is_int:
+                r.low_saved = callee + 1
+                r.high_saved = callee + (usize)pools.scratch_ints
+            elif not is_vector:
+                r.low_saved = callee + (usize)pools.scratch_ints + 1
+                r.high_saved = codes
+        return r
+
+    ## Where each register is next needed at or after `cur`'s start: at once for an active
+    ## interval's, at its first meeting with `cur` for an inactive one's, never otherwise.
+    func fill_free_until(scan: Scan*, regs: u8[], cur: u32, free_until: u32[]):
+        for c in 1..<free_until.length:
+            free_until[c] = no_position
+        for a in 0..<scan.active_count:
+            free_until[(usize)regs[(usize)scan.active[a] - 1]] = 0
+        for a in 0..<scan.inactive_count:
+            let h = scan.inactive[a]
+            let r = (usize)regs[(usize)h - 1]
+            let meet = self.first_intersection(h, cur)
+            if meet != no_position and meet < free_until[r]:
+                free_until[r] = meet
+
+    ## Every register is taken: the one whose holders would cost least in the frame (a
+    ## read or write in a loop ten times one outside it, `cost`) goes to `cur` when they
+    ## cost less than it would, its holders moving to the frame; 0 when `cur` should.
+    func evict(scan: Scan*, regs: u8[], cur: u32, ranges: Ranges, held: u64, costs: u64[], holders_cost: u64[]) -> usize:
+        for c in 1..<holders_cost.length:
+            holders_cost[c] = 0
+        for a in 0..<scan.active_count:
+            let h = scan.active[a]
+            holders_cost[(usize)regs[(usize)h - 1]] += costs[(usize)h]
+        for a in 0..<scan.inactive_count:
+            let h = scan.inactive[a]
+            if self.first_intersection(h, cur) != no_position:
+                holders_cost[(usize)regs[(usize)h - 1]] += costs[(usize)h]
+        var far: usize = 0
+        var far_cost: u64 = 0xFFFFFFFFFFFFFFFF
+        for c in 1..<holders_cost.length:
+            if ranges.holds(c) and (held & ((u64)1 << (u64)(c - 1))) == 0 and holders_cost[c] < far_cost:
+                far_cost = holders_cost[c]
+                far = c
+        if far == 0 or far_cost >= costs[(usize)cur]:
+            return 0
+        scan.drop_holders(regs, far)
+        return far
+
+## The codes a temporary may draw on, each pool a range `low..high`; an empty one is 0..0.
+struct Ranges:
+    var low_scratch: usize = 0
+    var high_scratch: usize = 0
+    var low_callee: usize = 0
+    var high_callee: usize = 0
+    var low_saved: usize = 0
+    var high_saved: usize = 0
+
+    ## Whether code `c` is in one of the ranges.
+    func holds(c: usize) -> bool:
+        return (c >= self.low_scratch and c <= self.high_scratch) or (c >= self.low_callee and c <= self.high_callee) or (c >= self.low_saved and c <= self.high_saved)
+
+## The intervals that hold a register at the scan's position: the active ones cover it,
+## the inactive ones have a hole there and resume later.
+struct Scan:
+    var active: u32[]
+    var active_count: usize
+    var inactive: u32[]
+    var inactive_count: usize
+
+    ## Room for `alive` intervals in each set.
+    static func create(alive: usize) -> Scan!:
+        let active = try alloc u32[alive + 1]
+        errdefer free(active)
+        return Scan(active = active, active_count = 0, inactive = try alloc u32[alive + 1], inactive_count = 0)
+
+    mutating func release():
+        free(self.active)
+        free(self.inactive)
+
+    ## Move to position `s`: what ended is dropped, what has a hole here becomes inactive,
+    ## and what resumes here active again.
+    mutating func advance(lives: Lives*, s: u32):
+        var a: usize = 0
+        while a < self.active_count:
+            let h = self.active[a]
+            if lives.end[(usize)h] <= s:
+                self.active[a] = self.active[self.active_count - 1]
+                self.active_count -= 1
+            elif not lives.covers(h, s):
+                self.inactive[self.inactive_count] = h
+                self.inactive_count += 1
+                self.active[a] = self.active[self.active_count - 1]
+                self.active_count -= 1
+            else:
+                a += 1
+        a = 0
+        while a < self.inactive_count:
+            let h = self.inactive[a]
+            if lives.end[(usize)h] <= s:
+                self.inactive[a] = self.inactive[self.inactive_count - 1]
+                self.inactive_count -= 1
+            elif lives.covers(h, s):
+                self.active[self.active_count] = h
+                self.active_count += 1
+                self.inactive[a] = self.inactive[self.inactive_count - 1]
+                self.inactive_count -= 1
+            else:
+                a += 1
+
+    mutating func activate(t: u32):
+        self.active[self.active_count] = t
+        self.active_count += 1
+
+    ## Send every interval holding register `code` to the frame.
+    mutating func drop_holders(regs: u8[], code: usize):
+        var a: usize = 0
+        while a < self.active_count:
+            if (usize)regs[(usize)self.active[a] - 1] == code:
+                regs[(usize)self.active[a] - 1] = 0
+                self.active[a] = self.active[self.active_count - 1]
+                self.active_count -= 1
+            else:
+                a += 1
+        a = 0
+        while a < self.inactive_count:
+            if (usize)regs[(usize)self.inactive[a] - 1] == code:
+                regs[(usize)self.inactive[a] - 1] = 0
+                self.inactive[a] = self.inactive[self.inactive_count - 1]
+                self.inactive_count -= 1
+            else:
+                a += 1
 
 ## The index of the first of the `word`s in a row that the one at `i` belongs to.
 func word_start(f: ir.Function*, i: u32) -> u32:

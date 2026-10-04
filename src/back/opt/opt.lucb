@@ -295,8 +295,11 @@ struct Known:
 ## stored value instead.
 func promote(f: ir.Function*) -> bool!:
     let slot_of = try addressed_slots(f)
+    defer free(slot_of)
     let ok = try promotable_slots(f, slot_of)
+    defer free(ok)
     var known = try alloc Known[f.slots.count + 1]
+    defer free(known)
     clear_known(known)
     var changed = false
     var i: usize = 0
@@ -320,9 +323,6 @@ func promote(f: ir.Function*) -> bool!:
                 x.b = ir.none_ref()
                 changed = true
         i += 1
-    free(known)
-    free(ok)
-    free(slot_of)
     return changed
 
 func clear_known(known: Known[]):
@@ -350,6 +350,7 @@ func matches(store: ir.Op, load: ir.Op) -> bool:
 ## original; the copy is left for `sweep`.
 func propagate(f: ir.Function*) -> bool!:
     var source = try alloc ir.Ref[f.temps.count + 1]
+    defer free(source)
     var defs = try alloc u32[f.temps.count + 1]
     defer free(defs)
     var k: usize = 0
@@ -374,7 +375,6 @@ func propagate(f: ir.Function*) -> bool!:
             any = true
         i += 1
     if not any:
-        free(source)
         return false
     # a chain of copies resolves to its head
     k = 1
@@ -401,7 +401,6 @@ func propagate(f: ir.Function*) -> bool!:
         if replace(&f.args.items[i].value, source):
             changed = true
         i += 1
-    free(source)
     return changed
 
 func replace(r: ir.Ref*, source: ir.Ref[]) -> bool:
@@ -546,6 +545,7 @@ func checked_mul(a: i64, b: i64, wide: bool) -> (i64, bool):
 ## to a promotable slot the function never loads.
 func sweep(f: ir.Function*) -> bool!:
     var used = try alloc bool[f.temps.count + 1]
+    defer free(used)
     clear_flags(used)
     var i: usize = 0
     while i < f.instrs.count:
@@ -559,8 +559,11 @@ func sweep(f: ir.Function*) -> bool!:
         mark(used, f.args.get(i).value)
         i += 1
     let slot_of = try addressed_slots(f)
+    defer free(slot_of)
     let ok = try promotable_slots(f, slot_of)
+    defer free(ok)
     var loaded = try alloc bool[f.slots.count + 1]
+    defer free(loaded)
     clear_flags(loaded)
     i = 0
     while i < f.instrs.count:
@@ -592,10 +595,6 @@ func sweep(f: ir.Function*) -> bool!:
         f.instrs = out
     else:
         out.destroy()
-    free(loaded)
-    free(ok)
-    free(slot_of)
-    free(used)
     return changed
 
 func clear_flags(flags: bool[]):

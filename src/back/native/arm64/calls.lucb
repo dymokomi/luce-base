@@ -173,9 +173,46 @@ extend Generator:
             return
         try self.operand(arg_register(p.first), ir.Class.l, a.value)
 
+    ## A call: its arguments placed as AAPCS64 (and Apple's variadic rule) says, the
+    ## callee called directly or through x17, and its result taken.
     mutating func call(n: ir.Instr) -> !:
         let info = self.f.calls.get((usize)n.extra)
-        # first pass: sizes of the stack area
+        let (placements, stack) = try self.place_arguments(info)
+        let area = (u64)arm_round_up((u64)stack, 16)
+        if area > 0:
+            try self.load_immediate("x16", (i64)area)
+            try self.writer.line("sub sp, sp, x16")
+            self.sp_shift += area
+        # the callee's address first, kept in a slot-free register the arguments do not touch
+        var through_register = false
+        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
+            # SSA can expose a constant callee in a branch that remains unreachable.
+            # It is still an indirect call, never an unnamed external symbol.
+            through_register = true
+            try self.operand("x17", ir.Class.l, n.a)
+            try self.writer.line("str x17, [sp, #-16]!")
+            self.sp_shift += 16
+        try self.stack_arguments(info, placements, through_register)
+        try self.float_arguments(info, placements)
+        try self.integer_arguments(info, placements)
+        # a large aggregate result arrives through x8
+        if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0 and not info.result_private:
+            try self.frame_address("x8", self.slot_home(info.result_slot))
+        if through_register:
+            try self.writer.line("ldr x17, [sp], #16")
+            self.sp_shift -= 16
+            try self.writer.line("blr x17")
+        else:
+            try self.writer.line("bl ")
+            try self.symbol(n.a.name)
+        if area > 0:
+            try self.load_immediate("x16", (i64)area)
+            try self.writer.line("add sp, sp, x16")
+            self.sp_shift -= area
+        try self.take_result(n, info)
+
+    ## Where each argument of `info` goes, and the bytes of stack they take.
+    mutating func place_arguments(info: ir.CallInfo) -> (ArgPlacement[], u32)!:
         var next_int: u32 = 0
         var next_float: u32 = 0
         var stack: u32 = 0
@@ -195,22 +232,12 @@ extend Generator:
             else:
                 placements[i] = self.place(a, &next_int, &next_float, &stack)
             i += 1
-        let area = (u64)arm_round_up((u64)stack, 16)
-        if area > 0:
-            try self.load_immediate("x16", (i64)area)
-            try self.writer.line("sub sp, sp, x16")
-            self.sp_shift += area
-        # the callee's address first, kept in a slot-free register the arguments do not touch
-        var through_register = false
-        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
-            # SSA can expose a constant callee in a branch that remains unreachable.
-            # It is still an indirect call, never an unnamed external symbol.
-            through_register = true
-            try self.operand("x17", ir.Class.l, n.a)
-            try self.writer.line("str x17, [sp, #-16]!")
-            self.sp_shift += 16
-        # stack arguments
-        i = 0
+        return (placements, stack)
+
+    ## The arguments placed on the stack, stored at their offsets from sp (past the parked
+    ## callee address when `through_register`).
+    mutating func stack_arguments(info: ir.CallInfo, placements: ArgPlacement[], through_register: bool) -> !:
+        var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
@@ -258,8 +285,11 @@ extend Generator:
                     try self.writer.put_u64(base_offset)
                     try self.writer.put("]")
             i += 1
-        # register arguments, floats first so integer scratch stays free
-        i = 0
+
+    ## The arguments placed in float registers, floats first so integer scratch stays free:
+    ## a scalar moved in, a homogeneous float aggregate loaded a member a register.
+    mutating func float_arguments(info: ir.CallInfo, placements: ArgPlacement[]) -> !:
+        var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
@@ -286,22 +316,9 @@ extend Generator:
                         try self.writer.put("]")
                         k += 1
             i += 1
-        try self.integer_arguments(info, placements)
-        # a large aggregate result arrives through x8
-        if info.has_result and info.result_size > 16 and self.hfa(info.result_shape) == 0 and not info.result_private:
-            try self.frame_address("x8", self.slot_home(info.result_slot))
-        if through_register:
-            try self.writer.line("ldr x17, [sp], #16")
-            self.sp_shift -= 16
-            try self.writer.line("blr x17")
-        else:
-            try self.writer.line("bl ")
-            try self.symbol(n.a.name)
-        if area > 0:
-            try self.load_immediate("x16", (i64)area)
-            try self.writer.line("add sp, sp, x16")
-            self.sp_shift -= area
-        # the result
+
+    ## The call's result, from the registers AAPCS64 returns it in to its temporary or slot.
+    mutating func take_result(n: ir.Instr, info: ir.CallInfo) -> !:
         if not info.has_result:
             return
         if info.result_size == 0:

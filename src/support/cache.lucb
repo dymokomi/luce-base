@@ -94,15 +94,9 @@ pub func note_absent(path: str):
             if absent_paths[i] == path:
                 return
         if absent_count == absent_paths.length:
-            let size = 64 if absent_paths.length == 0 else absent_paths.length * 2
-            let room = alloc str[size] catch:
-                lost = true
+            grow_absent()
+            if lost:
                 return
-            for i in 0..<absent_count:
-                room[i] = absent_paths[i]
-            if absent_paths.length > 0:
-                free(absent_paths)
-            absent_paths = room
         if let copied = try_copy(path):
             absent_paths[absent_count] = copied
             absent_count += 1
@@ -120,6 +114,17 @@ pub func rename_input(path: str, shown_as: str):
                     lost = true
                     return
                 noted_paths[i] = copied else return
+
+func grow_absent():
+    let size = 64 if absent_paths.length == 0 else absent_paths.length * 2
+    let room = alloc str[size] catch:
+        lost = true
+        return
+    for i in 0..<absent_count:
+        room[i] = absent_paths[i]
+    if absent_paths.length > 0:
+        free(absent_paths)
+    absent_paths = room
 
 func grow_notes():
     let size = 64 if noted_paths.length == 0 else noted_paths.length * 2

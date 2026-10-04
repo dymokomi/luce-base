@@ -72,14 +72,10 @@ pub func expand(program: ir.Unit*) -> !:
 pub func expand_small(program: ir.Unit*, limit: usize) -> bool[]!:
     var index = try Index.over(program)
     defer index.release()
-    var census = try Census.over(program, &index)
+    var census = try Census.over(program, &index, with_leaves = true)
     defer census.release()
     census.small = limit
     census.once = 0
-    free(census.leaves)
-    census.leaves = try alloc bool[program.functions.count]
-    for fi in 0..<program.functions.count:
-        census.leaves[fi] = not calls_the_program(&program.functions.items[fi], &index)
     let changed = try alloc bool[program.functions.count]
     clear_flags(changed)
     let order = try post_order(program, &index)
@@ -623,9 +619,13 @@ struct Census:
     ## first pass.
     var leaves: bool[]
 
-    static func over(program: ir.Unit*, index: Index*) -> Census!:
+    ## The census of `program`; `with_leaves` for the second pass, which expands only
+    ## the functions that were leaves when it began.
+    static func over(program: ir.Unit*, index: Index*, with_leaves: bool = false) -> Census!:
         let n = program.functions.count + 1
-        var c = Census(calls = try alloc u32[n], pinned = try alloc bool[n], expanded = try alloc bool[n], sizes = try alloc u32[n], small = small, once = once, leaves = try alloc bool[0])
+        var c = Census(calls = try alloc u32[n], pinned = try alloc bool[n], expanded = try alloc bool[n], sizes = try alloc u32[n], small = small, once = once, leaves = try alloc bool[program.functions.count if with_leaves else 0])
+        for fi in 0..<c.leaves.length:
+            c.leaves[fi] = not calls_the_program(&program.functions.items[fi], index)
         var z: usize = 0
         while z < n:
             c.calls[z] = 0
@@ -780,6 +780,7 @@ struct Expansion:
                          shares_slots = shared != no_slots, own_slots = no_own_slots(), site = 0, scope_base = 0, locals_base = 0, described = false)
 
     mutating func run(out: Sink*) -> !:
+        defer self.release()
         try self.join_frames()
         try self.describe()
         try self.bind_parameters(out)
@@ -789,8 +790,12 @@ struct Expansion:
             ix += 1
         try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
         try self.take_result(out)
+
+    ## Free the parameters' own slots, when `join_frames` made them.
+    mutating func release():
         if self.own_slots.length > 0:
             free(self.own_slots)
+            self.own_slots = no_own_slots()
 
     ## The callee's slots and temporaries join the caller's; its labels get fresh numbers,
     ## plus one for the exit; a scalar result gets a slot to cross the exit through.

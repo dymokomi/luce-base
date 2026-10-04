@@ -40,56 +40,11 @@ extend Checker:
                 return try self.fail(e, "no such tuple member")
             return ot.args[(usize)index]
         if ot.kind == types.Kind.module:
-            let m = ot.decl else return try self.fail(e, "no module")
-            if self.is_c_module(m) and c_type_id(name) != types.none_id:
-                e.flags |= ast.flag_type_ref
-                return c_type_id(name)
-            var text: u8[256]
-            let d = self.module_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
-            var said9: u8[256]
-            if not d.has(ast.flag_pub):
-                return try self.fail(e, said(said9, f"`{name}` is not public in `{m.text}`"))
-            e.resolved = d
-            if d.kind == ast.Kind.constant and d.type_id == types.none_id:
-                let saved = self.current
-                try self.check_constant_in(m, d)
-                self.current = saved
-            if let f = self.function_alias(d):
-                e.resolved = f
-            if is_type_decl(d) or d.kind == ast.Kind.type_alias:
-                e.flags |= ast.flag_type_ref
-                if d.kind == ast.Kind.type_alias and d.type_id == types.none_id:
-                    let target = d.ty else return try self.fail(e, "an alias needs a type")
-                    d.type_id = try self.resolve_type(target)
-                if let t = e.ty:
-                    let named = try ast.Node.make(ast.Kind.type_, name, e.start, e.line)
-                    named.body = t.body
-                    named.resolved = d
-                    return try self.instantiate_node(named, d)
-            return d.type_id
+            return try self.module_member(e, ot, name)
         let id = self.deref(raw)
         let t = self.table.get(id)
         if t.kind == types.Kind.span or t.kind == types.Kind.array:
-            if name == "length":
-                return types.usize_id
-            if name == "data":
-                if t.kind == types.Kind.array:
-                    # an array is a value; the address of its elements is `&a[0]`, or the
-                    # span it converts to (§5.4)
-                    return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
-                return try self.table.pointer(t.elem, t.is_const, false)
-            if t.kind == types.Kind.array and self.table.is_vector(id) and (name == "sum" or name == "min" or name == "max"):
-                return try self.builtin_method(e, id, name)
-            if t.kind == types.Kind.array and self.table.is_vector(id) and name == "mul_add" and (t.elem == types.f32_id or t.elem == types.f64_id):
-                return try self.builtin_method(e, id, name)
-            if name == "indexed" and not self.is_indexed_iterable(e):
-                return try self.fail(e, "`indexed()` is iterated by `for`: `for (i, x) in items.indexed()` (§8.3)")
-            if name == "first" or name == "last" or name == "indexed":
-                let span = id if t.kind == types.Kind.span else try self.table.span(t.elem, false)
-                return try self.builtin_method(e, span, name)
-            if t.kind == types.Kind.array:
-                return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
-            return try self.fail(e, "spans have `length`, `data`, `first()`, `last()`, and `indexed()`")
+            return try self.sequence_member(e, id, t, name)
         if id == types.str_id:
             if name == "length":
                 return types.usize_id
@@ -109,30 +64,7 @@ extend Checker:
         if (id == types.f32_id or id == types.f64_id) and name == "mul_add":
             return try self.builtin_method(e, id, name)
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.union_ or t.kind == types.Kind.enum_:
-            let d = t.decl else return try self.fail(e, "no declaration")
-            if let f = find_member(d, name, ast.Kind.field):
-                e.resolved = f
-                if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                    var said10: u8[256]
-                    return try self.fail(e, said(said10, f"field `{name}` is not public"))
-                if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
-                    self.mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
-                return try self.substitute(f.type_id, d, t.args)
-            if let m = find_member(d, name, ast.Kind.func_):
-                if m.has(ast.flag_static):
-                    return try self.fail(e, "a static method is called through the type")
-                if not as_callee:
-                    # `value.member` without `()` is always a field (§9.5)
-                    return try self.fail(e, "a method is called; write `name()`")
-                e.resolved = m
-                var said11: u8[256]
-                if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
-                    return try self.fail(e, said(said11, f"method `{name}` is not public"))
-                return try self.substitute(m.type_id, d, t.args)
-            if t.kind == types.Kind.enum_ and find_member(d, name, ast.Kind.enum_case) != none:
-                return try self.fail(e, "a case is named through the type, `Kind.case`")
-            var said12: u8[256]
-            return try self.fail(e, try self.with_type("`", id, said(said12, f"` has no member `{name}`")))
+            return try self.record_member(e, owner, id, t, name, as_callee)
         if t.kind == types.Kind.interface_:
             let d = t.decl else return try self.fail(e, "no declaration")
             let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "the interface has no such method")
@@ -141,24 +73,110 @@ extend Checker:
         if name == "compare" and (self.table.is_numeric(id) or id == types.char_id or id == types.str_id):
             return try self.builtin_method(e, id, name)
         if t.kind == types.Kind.param:
-            let g = self.generic_param_node(id) else return try self.fail(e, "no such member")
-            var bound = g.body
-            while let constraint = bound:
-                let ct = self.table.get(constraint.type_id)
-                if let cd = ct.decl:
-                    if let m = find_member(cd, name, ast.Kind.func_):
-                        e.resolved = m
-                        let fn = try self.substitute(m.type_id, cd, ct.args)
-                        if is_derived_bound(cd):
-                            # `compare(other: void*)` in the prelude is `compare(other: T)` here
-                            return try self.with_self_arguments(fn, id)
-                        return fn
-                bound = constraint.next
-            return try self.fail(e, "no constraint of this parameter has that method")
+            return try self.bound_member(e, id, name)
         if t.kind == types.Kind.pointer and t.elem == types.void_id:
             return try self.fail(e, "`void*` has no members")
         var said13: u8[256]
         return try self.fail(e, try self.with_type("a `", id, said(said13, f"` has no members, so no `{name}`")))
+
+    ## `module.name`: a public declaration of the module, or a C type of the `c` module.
+    mutating func module_member(e: ast.Node*, ot: types.Type, name: str) -> u32!:
+        let m = ot.decl else return try self.fail(e, "no module")
+        if self.is_c_module(m) and c_type_id(name) != types.none_id:
+            e.flags |= ast.flag_type_ref
+            return c_type_id(name)
+        var text: u8[256]
+        let d = self.module_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
+        var said9: u8[256]
+        if not d.has(ast.flag_pub):
+            return try self.fail(e, said(said9, f"`{name}` is not public in `{m.text}`"))
+        e.resolved = d
+        if d.kind == ast.Kind.constant and d.type_id == types.none_id:
+            let saved = self.current
+            try self.check_constant_in(m, d)
+            self.current = saved
+        if let f = self.function_alias(d):
+            e.resolved = f
+        if is_type_decl(d) or d.kind == ast.Kind.type_alias:
+            e.flags |= ast.flag_type_ref
+            if d.kind == ast.Kind.type_alias and d.type_id == types.none_id:
+                let target = d.ty else return try self.fail(e, "an alias needs a type")
+                d.type_id = try self.resolve_type(target)
+            if let t = e.ty:
+                let named = try ast.Node.make(ast.Kind.type_, name, e.start, e.line)
+                named.body = t.body
+                named.resolved = d
+                return try self.instantiate_node(named, d)
+        return d.type_id
+
+    ## `length`, `data`, `first()`, `last()`, `indexed()` of a span or an array, and a
+    ## vector's folds.
+    mutating func sequence_member(e: ast.Node*, id: u32, t: types.Type, name: str) -> u32!:
+        if name == "length":
+            return types.usize_id
+        if name == "data":
+            if t.kind == types.Kind.array:
+                # an array is a value; the address of its elements is `&a[0]`, or the
+                # span it converts to (§5.4)
+                return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
+            return try self.table.pointer(t.elem, t.is_const, false)
+        if t.kind == types.Kind.array and self.table.is_vector(id) and (name == "sum" or name == "min" or name == "max"):
+            return try self.builtin_method(e, id, name)
+        if t.kind == types.Kind.array and self.table.is_vector(id) and name == "mul_add" and (t.elem == types.f32_id or t.elem == types.f64_id):
+            return try self.builtin_method(e, id, name)
+        if name == "indexed" and not self.is_indexed_iterable(e):
+            return try self.fail(e, "`indexed()` is iterated by `for`: `for (i, x) in items.indexed()` (§8.3)")
+        if name == "first" or name == "last" or name == "indexed":
+            let span = id if t.kind == types.Kind.span else try self.table.span(t.elem, false)
+            return try self.builtin_method(e, span, name)
+        if t.kind == types.Kind.array:
+            return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
+        return try self.fail(e, "spans have `length`, `data`, `first()`, `last()`, and `indexed()`")
+
+    ## A field or method of a struct, union or enum, with its visibility checked; `owner`
+    ## is the operand, `as_callee` whether the member is being called.
+    mutating func record_member(e: ast.Node*, owner: ast.Node*, id: u32, t: types.Type, name: str, as_callee: bool) -> u32!:
+        let d = t.decl else return try self.fail(e, "no declaration")
+        if let f = find_member(d, name, ast.Kind.field):
+            e.resolved = f
+            if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
+                var said10: u8[256]
+                return try self.fail(e, said(said10, f"field `{name}` is not public"))
+            if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
+                self.mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
+            return try self.substitute(f.type_id, d, t.args)
+        if let m = find_member(d, name, ast.Kind.func_):
+            if m.has(ast.flag_static):
+                return try self.fail(e, "a static method is called through the type")
+            if not as_callee:
+                # `value.member` without `()` is always a field (§9.5)
+                return try self.fail(e, "a method is called; write `name()`")
+            e.resolved = m
+            var said11: u8[256]
+            if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
+                return try self.fail(e, said(said11, f"method `{name}` is not public"))
+            return try self.substitute(m.type_id, d, t.args)
+        if t.kind == types.Kind.enum_ and find_member(d, name, ast.Kind.enum_case) != none:
+            return try self.fail(e, "a case is named through the type, `Kind.case`")
+        var said12: u8[256]
+        return try self.fail(e, try self.with_type("`", id, said(said12, f"` has no member `{name}`")))
+
+    ## A method of a generic parameter, from the first of its constraints declaring it.
+    mutating func bound_member(e: ast.Node*, id: u32, name: str) -> u32!:
+        let g = self.generic_param_node(id) else return try self.fail(e, "no such member")
+        var bound = g.body
+        while let constraint = bound:
+            let ct = self.table.get(constraint.type_id)
+            if let cd = ct.decl:
+                if let m = find_member(cd, name, ast.Kind.func_):
+                    e.resolved = m
+                    let fn = try self.substitute(m.type_id, cd, ct.args)
+                    if is_derived_bound(cd):
+                        # `compare(other: void*)` in the prelude is `compare(other: T)` here
+                        return try self.with_self_arguments(fn, id)
+                    return fn
+            bound = constraint.next
+        return try self.fail(e, "no constraint of this parameter has that method")
 
     func all_params(ids: u32[]) -> bool:
         for id in ids:

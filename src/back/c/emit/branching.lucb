@@ -214,93 +214,105 @@ extend Emitter:
         try self.put(" __attribute__((unused)) = ")
         try self.value(scrutinee, st)
         try self.put(";")
-        # a guarded arm may repeat a value or a `_`, which C's `switch` cannot: those go to the chain
+        # a guarded arm may repeat a value, a case or a `_`, which C's `switch` cannot: those
+        # go to the chain
         if (self.is_int(st) or self.c.is_backed_enum(st) or st == types.bool_id or st == types.char_id) and not has_guard(m):
-            try self.line("switch ((int64_t)(")
-            try self.put_tmp("m", n)
-            try self.put(")) {")
-            self.indent += 1
-            var arm = m.body
-            while let a = arm:
-                var pattern = a.left
-                while let p = pattern:
-                    if p.has(ast.flag_wildcard):
-                        try self.line("default:")
-                    elif let v = p.left:
-                        if let resolved = v.resolved:
-                            if resolved.kind == ast.Kind.enum_case:
-                                let d = self.decl_of(st) else return
-                                # The switch is on int64_t: a case is its signed value, and
-                                # INT64_MIN has no literal of its own in C.
-                                let signed = (i64)types.case_value(d, resolved)
-                                try self.line("case ")
-                                if signed == -9223372036854775807 - 1:
-                                    try self.put("(-9223372036854775807LL - 1)")
-                                else:
-                                    try self.put_i64(signed)
-                                    try self.put("LL")
-                                try self.put(":")
-                                pattern = p.next
-                                continue
-                        if let hi = p.right:
+            try self.match_switch(m, st, n, dest)
+        elif self.kind(st) == types.Kind.enum_ and not has_guard(m):
+            try self.match_tags(m, st, n, dest)
+        else:
+            try self.match_chain(m, st, n, dest)
+
+    ## A `match` on a value C can switch on: a `case` per value or range, `default` for `_`.
+    mutating func match_switch(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
+        try self.line("switch ((int64_t)(")
+        try self.put_tmp("m", n)
+        try self.put(")) {")
+        self.indent += 1
+        var arm = m.body
+        while let a = arm:
+            var pattern = a.left
+            while let p = pattern:
+                if p.has(ast.flag_wildcard):
+                    try self.line("default:")
+                elif let v = p.left:
+                    if let resolved = v.resolved:
+                        if resolved.kind == ast.Kind.enum_case:
+                            let d = self.decl_of(st) else return
+                            # The switch is on int64_t: a case is its signed value, and
+                            # INT64_MIN has no literal of its own in C.
+                            let signed = (i64)types.case_value(d, resolved)
                             try self.line("case ")
-                            try self.value(v, st)
-                            try self.put(" ... ")
-                            if p.text == "..<":
-                                try self.put("(")
-                                try self.value(hi, st)
-                                try self.put(" - 1)")
+                            if signed == -9223372036854775807 - 1:
+                                try self.put("(-9223372036854775807LL - 1)")
                             else:
-                                try self.value(hi, st)
+                                try self.put_i64(signed)
+                                try self.put("LL")
                             try self.put(":")
+                            pattern = p.next
+                            continue
+                    if let hi = p.right:
+                        try self.line("case ")
+                        try self.value(v, st)
+                        try self.put(" ... ")
+                        if p.text == "..<":
+                            try self.put("(")
+                            try self.value(hi, st)
+                            try self.put(" - 1)")
                         else:
-                            try self.line("case ")
-                            try self.value(v, st)
-                            try self.put(":")
-                    pattern = p.next
-                try self.arm_body(a, dest, n, true)
-                arm = a.next
-            self.indent -= 1
-            try self.line("}")
-            return
-        # a guarded arm may repeat a case, which C's `switch` cannot: those go to the chain
-        if self.kind(st) == types.Kind.enum_ and not has_guard(m):
-            let d = self.decl_of(st) else return
-            try self.line("switch ((int)(")
-            try self.put_tmp("m", n)
-            try self.put(".tag)) {")
+                            try self.value(hi, st)
+                        try self.put(":")
+                    else:
+                        try self.line("case ")
+                        try self.value(v, st)
+                        try self.put(":")
+                pattern = p.next
+            try self.arm_body(a, dest, n, true)
+            arm = a.next
+        self.indent -= 1
+        try self.line("}")
+
+    ## A `match` on an enum with payloads: a `case` per tag, its payload's names bound in
+    ## the arm.
+    mutating func match_tags(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
+        let d = self.decl_of(st) else return
+        try self.line("switch ((int)(")
+        try self.put_tmp("m", n)
+        try self.put(".tag)) {")
+        self.indent += 1
+        var arm = m.body
+        while let a = arm:
+            var pattern = a.left
+            var payload_pattern: ast.Node*? = none
+            while let p = pattern:
+                if p.has(ast.flag_wildcard):
+                    try self.line("default:")
+                elif let v = p.left:
+                    if let resolved = v.resolved:
+                        try self.line("case ")
+                        try self.put_u64((u64)instances.case_tag(d, resolved))
+                        try self.put(":")
+                        if v.body != none:
+                            payload_pattern = p
+                pattern = p.next
+            try self.line("{")
             self.indent += 1
-            var arm = m.body
-            while let a = arm:
-                var pattern = a.left
-                var payload_pattern: ast.Node*? = none
-                while let p = pattern:
-                    if p.has(ast.flag_wildcard):
-                        try self.line("default:")
-                    elif let v = p.left:
-                        if let resolved = v.resolved:
-                            try self.line("case ")
-                            try self.put_u64((u64)instances.case_tag(d, resolved))
-                            try self.put(":")
-                            if v.body != none:
-                                payload_pattern = p
-                    pattern = p.next
-                try self.line("{")
-                self.indent += 1
-                if let p = payload_pattern:
-                    if let v = p.left:
-                        if let resolved = v.resolved:
-                            try self.bind_payload_names(v, resolved, n)
-                try self.arm_body(a, dest, n, false)
-                if a.right == none:
-                    try self.line("break;")
-                self.indent -= 1
-                try self.line("}")
-                arm = a.next
+            if let p = payload_pattern:
+                if let v = p.left:
+                    if let resolved = v.resolved:
+                        try self.bind_payload_names(v, resolved, n)
+            try self.arm_body(a, dest, n, false)
+            if a.right == none:
+                try self.line("break;")
             self.indent -= 1
             try self.line("}")
-            return
-        # text, pointers, and everything else: a chain of tests
+            arm = a.next
+        self.indent -= 1
+        try self.line("}")
+
+    ## A `match` C cannot switch on (text, pointers, optionals, guarded arms): a chain of
+    ## tests, each arm's patterns joined by `||` and its guard by `&&`.
+    mutating func match_chain(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
         var first = true
         var arm = m.body
         while let a = arm:
@@ -318,65 +330,7 @@ extend Emitter:
                 if p.has(ast.flag_wildcard):
                     try self.put("1")
                 elif let v = p.left:
-                    # `!!` keeps clang from seeing an `==` in doubled parentheses
-                    try self.put("(!!(")
-                    if v.kind == ast.Kind.case_value and v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st) or self.is_nullable_view(st)):
-                        # `.some` and `.none` test the optional's presence (§8.4)
-                        if v.text == "none":
-                            try self.put("!")
-                        try self.put_tmp("m", n)
-                        if self.is_tagged_opt(st):
-                            try self.put(".present")
-                        elif self.is_nullable_view(st):
-                            try self.put(".data")
-                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_ and self.c.is_backed_enum(st):
-                        # an integer-backed enum is its representation: compare the value
-                        let d = self.decl_of(st) else return
-                        let resolved = v.resolved else return
-                        try self.put_tmp("m", n)
-                        try self.put(" == (")
-                        try self.put_type(st)
-                        try self.put(")")
-                        try self.put_u64(types.case_value(d, resolved))
-                        try self.put("ull")
-                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_:
-                        let d = self.decl_of(st) else return
-                        let resolved = v.resolved else return
-                        try self.put_tmp("m", n)
-                        try self.put(".tag == ")
-                        try self.put_u64((u64)instances.case_tag(d, resolved))
-                    elif st == types.str_id:
-                        let k = self.tmp()
-                        try self.put("({ lb_str ")
-                        try self.put_tmp("sb", k)
-                        try self.put(" = ")
-                        try self.value(v, st)
-                        try self.put("; ")
-                        try self.put_tmp("m", n)
-                        try self.put(".length == ")
-                        try self.put_tmp("sb", k)
-                        try self.put(".length && (")
-                        try self.put_tmp("m", n)
-                        try self.put(".length == 0 || memcmp(")
-                        try self.put_tmp("m", n)
-                        try self.put(".data, ")
-                        try self.put_tmp("sb", k)
-                        try self.put(".data, ")
-                        try self.put_tmp("m", n)
-                        try self.put(".length) == 0); })")
-                    elif let hi = p.right:
-                        # `lo..<hi` and `lo..=hi` in the chain: both bounds (§8.4)
-                        try self.put_tmp("m", n)
-                        try self.put(" >= ")
-                        try self.value(v, st)
-                        try self.put(" && ")
-                        try self.put_tmp("m", n)
-                        try self.put(" < " if p.text == "..<" else " <= ")
-                        try self.value(hi, st)
-                    else:
-                        try self.put_tmp("m", n)
-                        try self.put(" == ")
-                        try self.value(v, st)
+                    try self.pattern_test(p, v, st, n)
                     try self.put("))")
                 pattern = p.next
             if not any:
@@ -396,6 +350,68 @@ extend Emitter:
             self.indent -= 1
             try self.line("}")
             arm = a.next
+
+    ## The test of one pattern `p` (value `v`) against the subject `m<n>` of type `st`.
+    mutating func pattern_test(p: ast.Node*, v: ast.Node*, st: u32, n: u32) -> !:
+        # `!!` keeps clang from seeing an `==` in doubled parentheses
+        try self.put("(!!(")
+        if v.kind == ast.Kind.case_value and v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st) or self.is_nullable_view(st)):
+            # `.some` and `.none` test the optional's presence (§8.4)
+            if v.text == "none":
+                try self.put("!")
+            try self.put_tmp("m", n)
+            if self.is_tagged_opt(st):
+                try self.put(".present")
+            elif self.is_nullable_view(st):
+                try self.put(".data")
+        elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_ and self.c.is_backed_enum(st):
+            # an integer-backed enum is its representation: compare the value
+            let d = self.decl_of(st) else return
+            let resolved = v.resolved else return
+            try self.put_tmp("m", n)
+            try self.put(" == (")
+            try self.put_type(st)
+            try self.put(")")
+            try self.put_u64(types.case_value(d, resolved))
+            try self.put("ull")
+        elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_:
+            let d = self.decl_of(st) else return
+            let resolved = v.resolved else return
+            try self.put_tmp("m", n)
+            try self.put(".tag == ")
+            try self.put_u64((u64)instances.case_tag(d, resolved))
+        elif st == types.str_id:
+            let k = self.tmp()
+            try self.put("({ lb_str ")
+            try self.put_tmp("sb", k)
+            try self.put(" = ")
+            try self.value(v, st)
+            try self.put("; ")
+            try self.put_tmp("m", n)
+            try self.put(".length == ")
+            try self.put_tmp("sb", k)
+            try self.put(".length && (")
+            try self.put_tmp("m", n)
+            try self.put(".length == 0 || memcmp(")
+            try self.put_tmp("m", n)
+            try self.put(".data, ")
+            try self.put_tmp("sb", k)
+            try self.put(".data, ")
+            try self.put_tmp("m", n)
+            try self.put(".length) == 0); })")
+        elif let hi = p.right:
+            # `lo..<hi` and `lo..=hi` in the chain: both bounds (§8.4)
+            try self.put_tmp("m", n)
+            try self.put(" >= ")
+            try self.value(v, st)
+            try self.put(" && ")
+            try self.put_tmp("m", n)
+            try self.put(" < " if p.text == "..<" else " <= ")
+            try self.value(hi, st)
+        else:
+            try self.put_tmp("m", n)
+            try self.put(" == ")
+            try self.value(v, st)
 
     ## The names an arm's first pattern binds, in the chain form: `.some(name)` over an
     ## optional takes the value; `.case(names)` over an enum takes the payload's fields.

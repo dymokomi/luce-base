@@ -34,29 +34,13 @@ func stressed() -> bool:
 
 func push_root(o: Object*):
     if root_count == roots.length:
-        let grown = alloc Object*[roots.length * 2 if roots.length > 0 else candidate_limit] in memory.heap catch failure:
-            trap("out of memory")
-        var i: usize = 0
-        while i < root_count:
-            grown[i] = roots[i]
-            i += 1
-        if roots.length > 0:
-            free(roots) in memory.heap
-        roots = grown
+        roots = grow(roots, root_count, candidate_limit)
     roots[root_count] = o
     root_count += 1
 
 func push_white(o: Object*):
     if white_count == whites.length:
-        let grown = alloc Object*[whites.length * 2 if whites.length > 0 else 256] in memory.heap catch failure:
-            trap("out of memory")
-        var i: usize = 0
-        while i < white_count:
-            grown[i] = whites[i]
-            i += 1
-        if whites.length > 0:
-            free(whites) in memory.heap
-        whites = grown
+        whites = grow(whites, white_count, 256)
     whites[white_count] = o
     white_count += 1
 

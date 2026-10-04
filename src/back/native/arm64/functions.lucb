@@ -296,163 +296,187 @@ extend Generator:
                 next_int += 1
         return straight
 
+    ## Store each parameter where the body reads it: a scalar into its promoted register or
+    ## its slot (or, `straight`, left in its argument register for `receive_directly`), an
+    ## aggregate into its slot, from registers or the caller's stack as AAPCS64 placed it.
     mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
-        var next_int: u32 = 0
-        var next_float: u32 = 0
-        var stack_offset: u64 = 16
+        var at = Arguments(next_int = 0, next_float = 0, stack_offset = 16)
         # an argument copied by memcpy (past 128 bytes) would clobber the ones left in
         # their registers for `receive_directly`
         var direct = true
         for p in self.f.params.span():
             if p.size > 128 and self.hfa(p.shape) == 0:
                 direct = false
-        var i: usize = 0
-        while i < self.f.params.count:
+        for i in 0..<self.f.params.count:
             let p = self.f.params.get(i)
             let home = self.slot_home(p.slot)
             if p.size == 0:
-                # a scalar; a promoted slot takes the value in its register
-                let code = (usize)self.fr.slot_regs.get((usize)p.slot)
-                let straight = direct and code == 0 and entry[i] != 0 and p.cls != ir.Class.h
-                if ir.is_float_class(p.cls):
-                    if next_float < 8 and straight:
-                        try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_float), float = true))
-                        next_float += 1
-                    elif next_float < 8:
-                        if code != 0:
-                            try self.writer.line("fmov ")
-                            try self.writer.put(try self.hv(class_name((u8)code, p.cls)))
-                            try self.writer.put(", ")
-                            try self.writer.put(self.half_letter(p.cls))
-                        else:
-                            try self.frame_address("x16", home)
-                            try self.writer.line("str ")
-                            try self.writer.put(float_letter(p.cls))
-                        try self.writer.put_u64((u64)next_float)
-                        if code == 0:
-                            try self.writer.put(", [x16]")
-                        next_float += 1
-                    else:
-                        let width = scalar_stack_width(p.cls, p.scalar_width)
-                        let slot = self.stack_slot(width)
-                        stack_offset = arm_round_up(stack_offset, (u64)slot)
-                        try self.writer.line(scalar_stack_load(width, false))
-                        try self.writer.put(" [x29, #")
-                        try self.writer.put_u64(stack_offset)
-                        try self.writer.put("]")
-                        if code != 0:
-                            try self.writer.line3("fmov ", x_names[code], ", x9")
-                        else:
-                            try self.frame_address("x16", home)
-                            try self.writer.line("str x9, [x16]")
-                        stack_offset += (u64)slot
-                elif next_int < 8 and straight:
-                    try moves.push(incoming.Move(at = entry[i] - 1, argument = u8(next_int), float = false))
-                    next_int += 1
-                elif next_int < 8:
-                    if code != 0:
-                        try self.writer.line("mov ")
-                        try self.writer.put(w_names[code] if p.cls == ir.Class.w else x_names[code])
-                        try self.writer.put(", ")
-                        try self.writer.put("w" if p.cls == ir.Class.w else "x")
-                        try self.writer.put_u64((u64)next_int)
-                    else:
-                        try self.frame_address("x16", home)
-                        try self.writer.line("str w" if p.cls == ir.Class.w else "str x")
-                        try self.writer.put_u64((u64)next_int)
-                        try self.writer.put(", [x16]")
-                    next_int += 1
+                try self.receive_scalar(p, home, direct and entry[i] != 0, entry[i], moves, &at)
+            elif self.hfa(p.shape) > 0 and at.next_float + self.hfa(p.shape) <= 8:
+                try self.receive_hfa_registers(p, home, &at)
+            elif self.hfa(p.shape) > 0:
+                try self.receive_hfa_stack(p, home, &at)
+            elif p.size <= 16:
+                try self.receive_small(p, home, &at)
+            else:
+                try self.receive_reference(home, &at)
+        try self.copy_references()
+
+    ## A scalar parameter: into its promoted register, else its slot; `straight` when it
+    ## may stay in its argument register for the parallel copy (`moves`) at its entry load.
+    mutating func receive_scalar(p: ir.Param, home: u64, may_stay: bool, entry_load: u32, moves: list.List[incoming.Move]*, at: Arguments*) -> !:
+        # a scalar; a promoted slot takes the value in its register
+        let code = (usize)self.fr.slot_regs.get((usize)p.slot)
+        let straight = may_stay and code == 0 and p.cls != ir.Class.h
+        if ir.is_float_class(p.cls):
+            if at.next_float < 8 and straight:
+                try moves.push(incoming.Move(at = entry_load - 1, argument = u8(at.next_float), float = true))
+                at.next_float += 1
+            elif at.next_float < 8:
+                if code != 0:
+                    try self.writer.line("fmov ")
+                    try self.writer.put(try self.hv(class_name((u8)code, p.cls)))
+                    try self.writer.put(", ")
+                    try self.writer.put(self.half_letter(p.cls))
                 else:
-                    let width = scalar_stack_width(p.cls, p.scalar_width)
-                    let slot = self.stack_slot(width)
-                    stack_offset = arm_round_up(stack_offset, (u64)slot)
-                    try self.writer.line(scalar_stack_load(width, p.scalar_signed))
-                    try self.writer.put(" [x29, #")
-                    try self.writer.put_u64(stack_offset)
-                    try self.writer.put("]")
-                    if code != 0:
-                        try self.writer.line3("mov ", w_names[code] if p.cls == ir.Class.w else x_names[code], ", w9" if p.cls == ir.Class.w else ", x9")
-                    else:
-                        try self.frame_address("x16", home)
-                        try self.writer.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
-                    stack_offset += (u64)slot
-            elif self.hfa(p.shape) > 0 and next_float + self.hfa(p.shape) <= 8:
-                # a homogeneous float aggregate in d or s registers
-                let each = (u64)p.size // (u64)self.hfa(p.shape)
-                var k: u32 = 0
-                while k < self.hfa(p.shape):
                     try self.frame_address("x16", home)
                     try self.writer.line("str ")
-                    try self.writer.put(float_letter_of(each))
-                    try self.writer.put_u64((u64)(next_float + k))
-                    try self.writer.put(", [x16, #")
-                    try self.writer.put_u64((u64)k * each)
-                    try self.writer.put("]")
-                    k += 1
-                next_float += self.hfa(p.shape)
-            elif self.hfa(p.shape) > 0:
-                # An HFA that cannot fit stays an aggregate on the stack. It
-                # never falls back to integer registers or an indirect pointer,
-                # and later floating arguments must spill as well (AAPCS64 C.3).
-                next_float = 8
-                stack_offset = arm_round_up(stack_offset, self.stack_boundary((u64)p.align))
-                let each = (u64)self.program_unit.leaves_of(p.shape)[0].size
-                var k: u32 = 0
-                while k < self.hfa(p.shape):
-                    try self.writer.line("ldr x9, [x29, #" if each == 8 else ("ldr w9, [x29, #" if each == 4 else "ldrh w9, [x29, #"))
-                    try self.writer.put_u64(stack_offset + (u64)k * each)
-                    try self.writer.put("]")
-                    try self.frame_address("x16", home)
-                    try self.writer.line("str x9, [x16, #" if each == 8 else ("str w9, [x16, #" if each == 4 else "strh w9, [x16, #"))
-                    try self.writer.put_u64((u64)k * each)
-                    try self.writer.put("]")
-                    k += 1
-                stack_offset += (u64)p.size
-            elif p.size <= 16:
-                let words = (p.size + 7) // 8
-                if next_int + words <= 8:
-                    try self.frame_address("x16", home)
-                    try self.writer.line("str x")
-                    try self.writer.put_u64((u64)next_int)
+                    try self.writer.put(float_letter(p.cls))
+                try self.writer.put_u64((u64)at.next_float)
+                if code == 0:
                     try self.writer.put(", [x16]")
-                    if words == 2:
-                        try self.writer.line("str x")
-                        try self.writer.put_u64((u64)next_int + 1)
-                        try self.writer.put(", [x16, #8]")
-                    next_int += words
-                else:
-                    next_int = 8
-                    stack_offset = arm_round_up(stack_offset, 8)
-                    var k: u32 = 0
-                    while k < words:
-                        try self.writer.line("ldr x9, [x29, #")
-                        try self.writer.put_u64(stack_offset)
-                        try self.writer.put("]")
-                        try self.frame_address("x16", home)
-                        try self.writer.line("str x9, [x16, #")
-                        try self.writer.put_u64((u64)k * 8)
-                        try self.writer.put("]")
-                        stack_offset += 8
-                        k += 1
+                at.next_float += 1
             else:
-                # by reference: keep the address in the slot for now; the bytes are
-                # copied in a second pass, after every register is safely stored
-                if next_int < 8:
-                    try self.frame_address("x16", home)
-                    try self.writer.line("str x")
-                    try self.writer.put_u64((u64)next_int)
-                    try self.writer.put(", [x16]")
-                    next_int += 1
+                let width = scalar_stack_width(p.cls, p.scalar_width)
+                let slot = self.stack_slot(width)
+                at.stack_offset = arm_round_up(at.stack_offset, (u64)slot)
+                try self.writer.line(scalar_stack_load(width, false))
+                try self.writer.put(" [x29, #")
+                try self.writer.put_u64(at.stack_offset)
+                try self.writer.put("]")
+                if code != 0:
+                    try self.writer.line3("fmov ", x_names[code], ", x9")
                 else:
-                    stack_offset = arm_round_up(stack_offset, 8)
-                    try self.writer.line("ldr x9, [x29, #")
-                    try self.writer.put_u64(stack_offset)
-                    try self.writer.put("]")
                     try self.frame_address("x16", home)
                     try self.writer.line("str x9, [x16]")
-                    stack_offset += 8
-            i += 1
-        i = 0
+                at.stack_offset += (u64)slot
+        elif at.next_int < 8 and straight:
+            try moves.push(incoming.Move(at = entry_load - 1, argument = u8(at.next_int), float = false))
+            at.next_int += 1
+        elif at.next_int < 8:
+            if code != 0:
+                try self.writer.line("mov ")
+                try self.writer.put(w_names[code] if p.cls == ir.Class.w else x_names[code])
+                try self.writer.put(", ")
+                try self.writer.put("w" if p.cls == ir.Class.w else "x")
+                try self.writer.put_u64((u64)at.next_int)
+            else:
+                try self.frame_address("x16", home)
+                try self.writer.line("str w" if p.cls == ir.Class.w else "str x")
+                try self.writer.put_u64((u64)at.next_int)
+                try self.writer.put(", [x16]")
+            at.next_int += 1
+        else:
+            let width = scalar_stack_width(p.cls, p.scalar_width)
+            let slot = self.stack_slot(width)
+            at.stack_offset = arm_round_up(at.stack_offset, (u64)slot)
+            try self.writer.line(scalar_stack_load(width, p.scalar_signed))
+            try self.writer.put(" [x29, #")
+            try self.writer.put_u64(at.stack_offset)
+            try self.writer.put("]")
+            if code != 0:
+                try self.writer.line3("mov ", w_names[code] if p.cls == ir.Class.w else x_names[code], ", w9" if p.cls == ir.Class.w else ", x9")
+            else:
+                try self.frame_address("x16", home)
+                try self.writer.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
+            at.stack_offset += (u64)slot
+
+    ## A homogeneous float aggregate in d or s registers, into its slot.
+    mutating func receive_hfa_registers(p: ir.Param, home: u64, at: Arguments*) -> !:
+        # a homogeneous float aggregate in d or s registers
+        let each = (u64)p.size // (u64)self.hfa(p.shape)
+        var k: u32 = 0
+        while k < self.hfa(p.shape):
+            try self.frame_address("x16", home)
+            try self.writer.line("str ")
+            try self.writer.put(float_letter_of(each))
+            try self.writer.put_u64((u64)(at.next_float + k))
+            try self.writer.put(", [x16, #")
+            try self.writer.put_u64((u64)k * each)
+            try self.writer.put("]")
+            k += 1
+        at.next_float += self.hfa(p.shape)
+
+    ## A homogeneous float aggregate past the registers, from the caller's stack.
+    mutating func receive_hfa_stack(p: ir.Param, home: u64, at: Arguments*) -> !:
+        # An HFA that cannot fit stays an aggregate on the stack. It
+        # never falls back to integer registers or an indirect pointer,
+        # and later floating arguments must spill as well (AAPCS64 C.3).
+        at.next_float = 8
+        at.stack_offset = arm_round_up(at.stack_offset, self.stack_boundary((u64)p.align))
+        let each = (u64)self.program_unit.leaves_of(p.shape)[0].size
+        var k: u32 = 0
+        while k < self.hfa(p.shape):
+            try self.writer.line("ldr x9, [x29, #" if each == 8 else ("ldr w9, [x29, #" if each == 4 else "ldrh w9, [x29, #"))
+            try self.writer.put_u64(at.stack_offset + (u64)k * each)
+            try self.writer.put("]")
+            try self.frame_address("x16", home)
+            try self.writer.line("str x9, [x16, #" if each == 8 else ("str w9, [x16, #" if each == 4 else "strh w9, [x16, #"))
+            try self.writer.put_u64((u64)k * each)
+            try self.writer.put("]")
+            k += 1
+        at.stack_offset += (u64)p.size
+
+    ## An aggregate of at most 16 bytes, from one or two registers or the caller's stack.
+    mutating func receive_small(p: ir.Param, home: u64, at: Arguments*) -> !:
+        let words = (p.size + 7) // 8
+        if at.next_int + words <= 8:
+            try self.frame_address("x16", home)
+            try self.writer.line("str x")
+            try self.writer.put_u64((u64)at.next_int)
+            try self.writer.put(", [x16]")
+            if words == 2:
+                try self.writer.line("str x")
+                try self.writer.put_u64((u64)at.next_int + 1)
+                try self.writer.put(", [x16, #8]")
+            at.next_int += words
+        else:
+            at.next_int = 8
+            at.stack_offset = arm_round_up(at.stack_offset, 8)
+            var k: u32 = 0
+            while k < words:
+                try self.writer.line("ldr x9, [x29, #")
+                try self.writer.put_u64(at.stack_offset)
+                try self.writer.put("]")
+                try self.frame_address("x16", home)
+                try self.writer.line("str x9, [x16, #")
+                try self.writer.put_u64((u64)k * 8)
+                try self.writer.put("]")
+                at.stack_offset += 8
+                k += 1
+
+    ## A larger aggregate, passed by reference: its address is kept in the slot for now; the
+    ## bytes are copied in by `copy_references`, after every register is safely stored.
+    mutating func receive_reference(home: u64, at: Arguments*) -> !:
+        if at.next_int < 8:
+            try self.frame_address("x16", home)
+            try self.writer.line("str x")
+            try self.writer.put_u64((u64)at.next_int)
+            try self.writer.put(", [x16]")
+            at.next_int += 1
+        else:
+            at.stack_offset = arm_round_up(at.stack_offset, 8)
+            try self.writer.line("ldr x9, [x29, #")
+            try self.writer.put_u64(at.stack_offset)
+            try self.writer.put("]")
+            try self.frame_address("x16", home)
+            try self.writer.line("str x9, [x16]")
+            at.stack_offset += 8
+
+    ## Copy each by-reference aggregate's bytes into its slot, over the address that
+    ## `receive_reference` kept there.
+    mutating func copy_references() -> !:
+        var i: usize = 0
         while i < self.f.params.count:
             let p = self.f.params.get(i)
             if p.size > 16 and self.hfa(p.shape) == 0:
@@ -542,3 +566,10 @@ extend Generator:
                 try self.writer.line4("sxtb ", d, ", ", w)
         if code == 0:
             try self.frame_store(d, self.temp_home(n.dst))
+
+## Where the next incoming argument is: the next integer and float argument registers,
+## and the offset of the next one the caller passed on the stack.
+struct Arguments:
+    var next_int: u32
+    var next_float: u32
+    var stack_offset: u64

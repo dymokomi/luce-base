@@ -18,8 +18,8 @@ pub func wide(text: c.str, invalid: ErrorCode) -> u16[]!:
     if count <= 0:
         error(invalid, "OS text is not valid UTF-8")
     let result = try alloc u16[(usize)count]
+    errdefer free(result)
     if windows_abi.MultiByteToWideChar(windows_abi.utf8_page, windows_abi.reject_invalid_utf8, text, -1, result.data, count) != count:
-        free(result)
         error(invalid, "OS text could not be converted to UTF-16")
     return result
 
@@ -31,8 +31,8 @@ pub func narrow(text: const u16[], invalid: ErrorCode) -> str!:
     if count == 0 and text.length > 0:
         error(invalid, "OS text is not valid UTF-16")
     let result = try alloc u8[(usize)count + 1]
+    errdefer free(result)
     if count > 0 and windows_abi.WideCharToMultiByte(windows_abi.utf8_page, windows_abi.reject_invalid_utf16, text.data, (i32)text.length, result.data, count, none, none) != count:
-        free(result)
         error(invalid, "OS text could not be converted to UTF-8")
     result[(usize)count] = 0
     return (str)result[..<(usize)count]

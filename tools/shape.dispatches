@@ -1,0 +1,11 @@
+# Functions that are one decision over a kind, each arm a call or a few lines: long because
+# the language or the instruction set has that many kinds, not because they do much. Each
+# line is `path:function` (tools/shape.py).
+src/back/native/arm64/instructions.lucb:instruction
+src/back/native/x86_64/instructions.lucb:instruction
+src/front/layout.lucb:expr
+src/front/layout.lucb:declaration
+src/back/c/emit/expressions.lucb:expr
+src/back/c/emit/types.lucb:put_type
+src/sema/check/expressions.lucb:expr_type
+src/back/ir/irtext.lucb:op_name

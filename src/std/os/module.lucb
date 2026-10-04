@@ -153,9 +153,9 @@ pub func cwd() -> str!:
     if platform.windows:
         return try windows_cwd()
     let buffer = try alloc u8[4096]
+    errdefer free(buffer)
     let found = getcwd(buffer.data, buffer.length)
     if found == none:
-        free(buffer)
         error(failed, "the working directory cannot be read")
     let path = found else trap("unreachable")
     return (str)path
@@ -166,18 +166,17 @@ pub func executable() -> str!:
     if platform.windows:
         return try windows_executable()
     let buffer = try alloc u8[4096]
+    errdefer free(buffer)
     var count: usize = 0
     if platform.macos:
         var size: u32 = 4096
         if mac_executable_path(buffer.data, &size) != 0:
-            free(buffer)
             error(failed, "the executable path cannot be read")
         while count < buffer.length and buffer[count] != 0:
             count += 1
     else:
         let read = readlink("/proc/self/exe", buffer.data, buffer.length - 1)
         if read < 0:
-            free(buffer)
             error(failed, "the executable path cannot be read")
         count = (usize)read
     buffer[count] = 0
@@ -215,8 +214,8 @@ pub func hostname() -> str!:
             error(failed, "the host name cannot be read")
         return try windows_text.narrow(host_text[..<(usize)count], failed)
     let buffer = try alloc u8[256]
+    errdefer free(buffer)
     if gethostname(buffer.data, buffer.length) != 0:
-        free(buffer)
         error(failed, "the host name cannot be read")
     var n: usize = 0
     while n < buffer.length and buffer[n] != 0:
