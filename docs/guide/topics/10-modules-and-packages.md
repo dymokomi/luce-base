@@ -120,7 +120,7 @@ def package "shapes-lib" {
 
     def dependency "luce-std" {
         str owner = "dymokomi"
-        str version = "^0.2.1"
+        str version = "^0.3.1"
     }
 }
 ```
@@ -152,7 +152,7 @@ A dependency comes from the registry, or from a directory beside the project:
 ```text
 def dependency "luce-std" {
     str owner = "dymokomi"
-    str version = "^0.2.1"
+    str version = "^0.3.1"
 }
 
 def dependency "shapes-lib" {

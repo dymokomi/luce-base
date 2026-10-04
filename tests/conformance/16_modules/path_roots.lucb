@@ -1,17 +1,16 @@
 # oracle: none -- Path normalization and Windows root semantics belong to Base's library.
 import luce_std.paths
 import os
-import strings
 
 func joined(left: str, right: str, expected: str) -> !:
     let value = try paths.join(left, right)
-    defer strings.release(value)
-    assert(value == expected)
+    defer value.release()
+    assert(value.value == expected)
 
 func normalized(path: str, expected: str) -> !:
     let value = try paths.normalize(path)
-    defer strings.release(value)
-    assert(value == expected)
+    defer value.release()
+    assert(value.value == expected)
 
 pub func main(arguments: str[]) -> i32!:
     try normalized("a/./b/../c", "a/c")

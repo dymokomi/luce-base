@@ -97,7 +97,7 @@ in `luc.lock`, unpacks it under `.luc/deps/`, and adds it to the manifest:
 ```text
 def dependency "luce-std" {
     str owner = "dymokomi"
-    str version = "^0.2.1"
+    str version = "^0.3.1"
 }
 ```
 
@@ -109,8 +109,9 @@ from luce_std import files
 
 pub func main(arguments: str[]) -> i32!:
     try files.write("note.txt", "remember the milk".bytes)
-    let text = try str(try files.read("note.txt"))
-    print(f"read back: {text}")
+    let note = try files.read("note.txt")
+    defer note.release()
+    print(f"read back: {try str(note.value)}")
     return 0
 ```
 

@@ -53,7 +53,8 @@ pub func main(arguments: str[]) -> i32!:
     print(f"joined {text} upper {try strings.to_upper(text)}")
     try files.write("wasm-check.txt", "written from wasm\n".bytes)
     let back = try files.read("wasm-check.txt")
-    print(f"file {(str)back[..<back.length - 1]}")
+    defer back.release()
+    print(f"file {(str)back.value[..<back.value.length - 1]}")
     try files.remove_file("wasm-check.txt")
     let big: i64 = 1 << 40
     print(f"wide {big * 3} {(u64)big >> 3} {(usize)(big >> 20)}")

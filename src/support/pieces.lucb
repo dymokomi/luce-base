@@ -129,10 +129,10 @@ func assemble_piece(job: Assembling*, index: usize) -> !:
     if not job.pending[index]:
         return
     var arguments: c.str[3] = ["-o", (c.str)job.objects[index], (c.str)job.sources[index]]
-    let (status, out, err) = try host_tools.run("as", arguments, job.dir)
-    discard(out.length)
-    if status != 0:
-        try io.stderr().write(err)
+    let assembled = try host_tools.run("as", arguments, job.dir)
+    defer assembled.release()
+    if assembled.value.exit_code != 0:
+        try io.stderr().write(assembled.value.error_output)
         error(rejected, "the assembler rejected the generated code")
 
 ## The assembler rejected a piece, or the pieces could not be joined.
@@ -156,8 +156,8 @@ func join(dir: str, objects: const str[], object: str, macho: bool, arch: str) -
         for piece in objects:
             arguments[n] = (c.str)piece
             n += 1
-        let (status, out, err) = try host_tools.run("ld", arguments[..<n], dir)
-        discard(out.length)
-        if status != 0:
-            try io.stderr().write(err)
+        let linked = try host_tools.run("ld", arguments[..<n], dir)
+        defer linked.release()
+        if linked.value.exit_code != 0:
+            try io.stderr().write(linked.value.error_output)
             error(rejected, "the linker could not join the assembled pieces")

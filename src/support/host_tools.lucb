@@ -10,11 +10,13 @@
 #==============================================================================================
 
 import c
+import interop
 import luce_std.files
 import luce_std.paths
 import platform
 import luce_std.process
 import strings
+import support.in_arena
 import thread
 
 ## A temporary directory a host tool runs in, removed when closed.
@@ -24,8 +26,8 @@ pub struct Workspace:
     ## Create the workspace beside `output`'s directory.
     pub func init(output: str) -> !:
         let parent = try strings.copy(paths.directory(output))
-        let absolute = try files.canonical((c.str)parent)
-        self.directory = try files.create_temporary_directory((c.str)absolute, 448u32)
+        let absolute = try in_arena.canonical((c.str)parent)
+        self.directory = try in_arena.temporary_directory((c.str)absolute)
 
     ## The workspace directory.
     pub func path() -> str:
@@ -66,13 +68,13 @@ func operand(text: str, directory: str) -> str!:
         return try strings.copy((str)text.bytes[directory.length + 1..])
     let terminated = try strings.copy(text)
     if not paths.is_absolute(text) and files.exists((c.str)terminated):
-        return try files.canonical((c.str)terminated)
+        return try in_arena.canonical((c.str)terminated)
     return terminated
 
 ## GCC's Windows temporary-path API expands even "." through the ANSI code page.
 ## Keep its intermediates beside the relative output instead, including collect2's
 ## constructor files. The workspace owner removes all of them after publication.
-pub func run_compiler(program: c.str, arguments: const c.str[], directory: str) -> (i32, str, str)!:
+pub func run_compiler(program: c.str, arguments: const c.str[], directory: str) -> interop.Owned[process.Completed]!:
     if platform.windows:
         let selected = try alloc c.str[arguments.length + 1]
         for index in 0..<arguments.length:
@@ -82,8 +84,9 @@ pub func run_compiler(program: c.str, arguments: const c.str[], directory: str) 
     return try run(program, arguments, directory)
 
 ## Run `program` with `directory` as its working directory, rebasing filesystem operands
-## and confining its temporaries there; the status, standard output and standard error.
-pub func run(program: c.str, arguments: const c.str[], directory: str = "") -> (i32, str, str)!:
+## and confining its temporaries there; what it left behind, which the caller releases
+## (`process.run`).
+pub func run(program: c.str, arguments: const c.str[], directory: str = "") -> interop.Owned[process.Completed]!:
     if directory.length == 0:
         return try process.run(program, arguments)
     let converted = try alloc c.str[arguments.length]

@@ -1,0 +1,59 @@
+#==============================================================================================
+#
+#   in_arena - Standard-library answers in the compiler's arena
+#
+#   DESCRIPTION:
+#       luce-std hands an allocated answer back as an owned result the caller releases. The
+#       compiler keeps what it reads for the whole command in the current allocator, the
+#       command's arena, so these ask in the heap, copy the answer into the current allocator
+#       and release the result.
+#
+#==============================================================================================
+
+import c
+import luce_std.files
+import luce_std.paths
+import memory
+
+## The whole file at `path`, in the current allocator.
+pub func read(path: c.str) -> u8[]!:
+    let caller = memory.allocator
+    with memory.heap:
+        let whole = try files.read(path)
+        defer whole.release()
+        return try copied(whole.value, caller)
+
+## The absolute path of the existing entry at `path`, through symlinks (`files.canonical`),
+## NUL-terminated in the current allocator.
+pub func canonical(path: c.str) -> str!:
+    let caller = memory.allocator
+    with memory.heap:
+        let resolved = try files.canonical(path)
+        defer resolved.release()
+        return try terminated(resolved.value, caller)
+
+## A new private directory under `parent` (`files.create_temporary_directory`), its path
+## NUL-terminated in the current allocator.
+pub func temporary_directory(parent: c.str) -> str!:
+    let caller = memory.allocator
+    with memory.heap:
+        let made = try files.create_temporary_directory(parent)
+        defer made.release()
+        return try terminated(made.value, caller)
+
+## `left` and `right` joined as `paths.join` joins them, NUL-terminated in the current
+## allocator.
+pub func join(left: str, right: str) -> str!:
+    # the separator and the NUL are the most a join adds
+    return paths.join_into(try alloc u8[left.length + right.length + 2], left, right)
+
+func copied(bytes: const u8[], allocator: memory.Allocator) -> u8[]!:
+    let copy = try alloc u8[bytes.length] in allocator
+    memory.copy(copy, bytes, bytes.length)
+    return copy
+
+func terminated(text: str, allocator: memory.Allocator) -> str!:
+    let copy = try alloc u8[text.length + 1] in allocator
+    memory.copy(copy, text.bytes, text.length)
+    copy[text.length] = 0
+    return (str)copy[..<text.length]

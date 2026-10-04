@@ -26,6 +26,7 @@ import memory
 import os
 import luce_std.paths
 import support.buffer
+import support.in_arena
 
 # mark: The cache's settings ==================================================================
 
@@ -236,7 +237,8 @@ func compiler() -> u64!:
         return compiler_hash
     let exe = try os.executable()
     let bytes = try files.read((c.str)exe)
-    compiler_hash = mix(14695981039346656037, bytes)
+    defer bytes.release()
+    compiler_hash = mix(14695981039346656037, bytes.value)
     return compiler_hash
 
 # mark: Objects in the cache ==================================================================
@@ -311,7 +313,9 @@ func keep_object(entry: str, suffix: str, object: str) -> !:
     if lost:
         return
     let dir = try directory() else return
-    try keep_bytes(dir, entry, suffix, try files.read((c.str)object))
+    let bytes = try files.read((c.str)object)
+    defer bytes.release()
+    try keep_bytes(dir, entry, suffix, bytes.value)
 
 # mark: Records ===============================================================================
 
@@ -328,7 +332,9 @@ pub func recall(record: str) -> u8[]?!:
     let dir = try directory() else return none
     let room = try alloc u8[dir.length + record.length + 4]
     let record_path = try format(room, f"{dir}/{record}-r")
-    let text = (str)(files.read((c.str)record_path) catch: return none)
+    let record_bytes = files.read((c.str)record_path) catch: return none
+    defer record_bytes.release()
+    let text = (str)record_bytes.value
     if not starts(text, record_header):
         return none
     var at = record_header.length
@@ -341,7 +347,8 @@ pub func recall(record: str) -> u8[]?!:
         if line.length > 19 and line.bytes[0] == 'f' and line.bytes[18] == ' ':
             let path = (str)line.bytes[19..]
             let bytes = files.read((c.str)try copy_terminated(path)) catch: return none
-            if (str)line.bytes[2..<18] != try digits_of(mix(1469598103934665603, bytes)):
+            defer bytes.release()
+            if (str)line.bytes[2..<18] != try digits_of(mix(1469598103934665603, bytes.value)):
                 return none
         elif line.length > 2 and line.bytes[0] == 'a':
             if files.exists((c.str)try copy_terminated((str)line.bytes[2..])):
@@ -349,7 +356,7 @@ pub func recall(record: str) -> u8[]?!:
         else:
             return none
     let answer_room = try alloc u8[dir.length + record.length + 4]
-    let answer = files.read((c.str)try format(answer_room, f"{dir}/{record}-o")) catch: return none
+    let answer = in_arena.read((c.str)try format(answer_room, f"{dir}/{record}-o")) catch: return none
     if report:
         try io.stderr().write(f"luce-base: record hit {record}\n")
     return answer
@@ -387,10 +394,11 @@ func keep_bytes(dir: str, name: str, suffix: str, bytes: const u8[]) -> !:
     let final = try format(final_room, f"{dir}/{name}{suffix}")
     # a directory of this run's own, so two runs keeping one name never share a file
     let staging = try files.create_temporary_directory((c.str)dir, 448u32)
-    defer files.remove_tree((c.str)staging) catch ignored:
+    defer staging.release()
+    defer files.remove_tree((c.str)staging.value) catch ignored:
         discard(ignored)
-    let temp_room = try alloc u8[staging.length + 8]
-    let temp = try format(temp_room, f"{staging}/object")
+    let temp_room = try alloc u8[staging.value.length + 8]
+    let temp = try format(temp_room, f"{staging.value}/object")
     try files.write((c.str)temp, bytes)
     try files.rename((c.str)temp, (c.str)final, true)
 

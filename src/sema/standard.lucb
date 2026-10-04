@@ -18,6 +18,7 @@ import memory
 import os
 import luce_std.paths
 import support.list
+import support.in_arena
 
 ## Reported when the standard library's location cannot be determined.
 pub let failed: ErrorCode = ErrorCode.package(41)
@@ -40,7 +41,8 @@ pub func directory() -> str!:
         return found
     with memory.heap:
         let exe = try files.canonical((c.str)try os.executable())
-        let above = paths.directory(paths.directory(exe))
+        defer exe.release()
+        let above = paths.directory(paths.directory(exe.value))
         var room = try alloc u8[above.length + 32]
         let shared = try format(room, f"{above}/share/luce-base/std")
         if try holds_order(shared):
@@ -69,7 +71,7 @@ pub func modules() -> str[]!:
     let home = try directory()
     with memory.heap:
         var order_bytes = try alloc u8[home.length + 8]
-        let order = try files.read((c.str)try format(order_bytes, f"{home}/ORDER"))
+        let order = try in_arena.read((c.str)try format(order_bytes, f"{home}/ORDER"))
         var kept = try list.List[str].create(32)
         var start: usize = 0
         var i: usize = 0

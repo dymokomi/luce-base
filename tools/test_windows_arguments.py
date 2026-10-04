@@ -37,9 +37,10 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
         parent.write_bytes(('import c\nimport luce_std.process\nimport io\n'
                           'pub func main(arguments: str[]) -> i32!:\n'
                           f'    let child: c.str[{len(values)}] = [' + ', '.join(map(literal, values)) + ']\n'
-                          f'    let (status, output, errors) = try process.run({literal(str(output))}, child)\n'
-                          '    assert(status == 0 and errors.length == 0)\n'
-                          '    try io.stdout().write(output)\n'
+                          f'    let ran = try process.run({literal(str(output))}, child)\n'
+                          '    defer ran.release()\n'
+                          '    assert(ran.value.exit_code == 0 and ran.value.error_output.length == 0)\n'
+                          '    try io.stdout().write(ran.value.output)\n'
                           '    return 0\n').encode('utf-8'))
         binary = work / '親.exe'
         subprocess.run([compiler, 'build', parent, *flags, '-o', binary], check=True, env=environment)
@@ -69,9 +70,10 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
     relative.write_bytes(('import c\nimport luce_std.process\nimport io\n'
                           'pub func main(arguments: str[]) -> i32!:\n'
                           '    let child: c.str[1] = ["relative program"]\n'
-                          f'    let (status, output, errors) = try process.run("nested/child", child, {literal(str(work))})\n'
-                          '    assert(status == 0 and errors.length == 0)\n'
-                          '    try io.stdout().write(output)\n'
+                          f'    let ran = try process.run("nested/child", child, {literal(str(work))})\n'
+                          '    defer ran.release()\n'
+                          '    assert(ran.value.exit_code == 0 and ran.value.error_output.length == 0)\n'
+                          '    try io.stdout().write(ran.value.output)\n'
                           '    return 0\n').encode('utf-8'))
     for flags in (['--native'], ['--backend=c']):
         binary = elsewhere / 'relative.exe'

@@ -6,6 +6,7 @@ import c
 import editor.buffer
 import luce_std.files
 import editor.history
+import interop
 import memory
 import editor.terminal
 
@@ -31,11 +32,10 @@ pub struct Session:
         let read = files.read((c.str)c_path) catch failure:
             if failure.code != files.missing:
                 error(failure.code, failure.message)
-            recover u8[]((u8*)8, 0)
+            recover interop.Owned[const u8[]](u8[]((u8*)8, 0))
+        defer read.release()
         var s: Session = ---
-        s.text = try buffer.Buffer.create(read)
-        if read.length > 0:
-            free(read)
+        s.text = try buffer.Buffer.create(read.value)
         s.undo = try history.History.create(256)
         s.path = path
         s.note_length = 0

@@ -1063,7 +1063,8 @@ import luce_std.files
 
 func load(path: c.str) -> Config!:
     let data = try files.read(path)
-    return try config.parse(data)
+    defer data.release()
+    return try config.parse(data.value)
 ```
 
 `T!` means "returns `T` or an `Error`". One `try expression` checks all fallible operations evaluated within that expression, including receivers, arguments, constructors, operators, and conversions. For example, `try combine(read(), parse())` needs one marker. The first failure stops the expression and forwards the same error to the nearest enclosing `catch` whose operand contains that operation, or to the current function, which must be fallible. A nonfallible caller must provide a handler. A `try` must cover at least one fallible operation.
@@ -1089,7 +1090,7 @@ error(not_found, "configuration file does not exist")
 ```luce
 import luce_std.files
 
-let text = files.read(path) catch failure:
+let text = settings_text(path) catch failure:
     if failure.code == files.missing:
         recover ""
     error(failure.code, failure.message)
@@ -2240,8 +2241,9 @@ pub func main(arguments: c.str[]) -> i32!:
     var arena = try Arena.over(memory.allocator, 1 << 20)
     defer arena.destroy()
     with arena:
-        let text = try files.read(arguments[1])   # allocated in the arena, freed by destroy
-        print(f"{words(text)}")
+        let text = try files.read(arguments[1])   # the bytes in the arena, freed by destroy
+        defer text.release()
+        print(f"{words(text.value)}")
     return 0
 ```
 
@@ -2635,8 +2637,8 @@ func load(path: c.str, scratch: u8[]) -> Config!:
         if failure.code == files.missing:
             return try parse("name = default\nthreads = 4", scratch)
         error(failure.code, failure.message)
-    defer free(bytes)
-    return try parse(try str(bytes), scratch)
+    defer bytes.release()
+    return try parse(try str(bytes.value), scratch)
 
 pub func main(arguments: c.str[]) -> i32!:
     var scratch: u8[256]

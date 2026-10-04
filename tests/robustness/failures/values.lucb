@@ -8,24 +8,24 @@ import luce_std.unicode
 
 func text_work() -> !:
     let folded = try unicode.case_fold("Straße")
-    defer unicode.release(folded)
-    assert(folded == "strasse")
+    defer folded.release()
+    assert(folded.value == "strasse")
     let unicode_upper = try unicode.to_upper("Straße")
-    defer unicode.release(unicode_upper)
-    assert(unicode_upper == "STRASSE")
+    defer unicode_upper.release()
+    assert(unicode_upper.value == "STRASSE")
     let unicode_lower = try unicode.to_lower("ΟΣ")
-    defer unicode.release(unicode_lower)
-    assert(unicode_lower == "ος")
+    defer unicode_lower.release()
+    assert(unicode_lower.value == "ος")
     let unicode_empty = try unicode.case_fold("")
-    defer unicode.release(unicode_empty)
-    assert(unicode_empty == "")
+    defer unicode_empty.release()
+    assert(unicode_empty.value == "")
     # U+0315 (class 232) precedes U+0300 (class 230): sorting needs scratch storage.
     let normalized = try unicode.normalize("À̕")
-    defer unicode.release(normalized)
-    assert(normalized == "À̕")
+    defer normalized.release()
+    assert(normalized.value == "À̕")
     let normalized_empty = try unicode.normalize("")
-    defer unicode.release(normalized_empty)
-    assert(normalized_empty == "")
+    defer normalized_empty.release()
+    assert(normalized_empty.value == "")
     assert(try strings.parse_f64("12.5") == 12.5)
     assert(try strings.parse_f32("-0.125") == (f32)-0.125)
     let parts = try strings.split("ab,,Cd,", ',')
@@ -61,8 +61,8 @@ func text_work() -> !:
     let expected: str[5] = ["a/b", "a/b", "b", "/b", "/"]
     for i in 0..<left.length:
         let path = try paths.join(left[i], right[i])
-        assert(path == expected[i])
-        strings.release(path)
+        assert(path.value == expected[i])
+        path.release()
 
 func builder_work(other: memory.Allocator) -> !:
     var builder = try strings.Builder.create(4)

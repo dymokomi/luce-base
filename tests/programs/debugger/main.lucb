@@ -40,10 +40,10 @@ pub func main(arguments: c.str[]) -> i32!:
     full[4] = build_args[4]
     full[5] = (c.str)exe
     let built = try process.run(compiler, full)
-    let (status, out, err) = built
-    discard(out.length)
+    defer built.release()
+    let status = built.value.exit_code
     if status != 0:
-        try io.stderr().write(err)
+        try io.stderr().write(built.value.error_output)
         print(f"luce-base-d: `{(str)compiler}` exited with {status}")
         error(failed, "the program did not build")
     discard(setenv("LUCE_DEBUG", "1", 1))

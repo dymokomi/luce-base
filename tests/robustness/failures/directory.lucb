@@ -1,6 +1,7 @@
 ## Sweep every allocation in empty, partial, and grown directory listings.
 import allocator
 import c
+import interop
 import luce_std.files
 import io
 import memory
@@ -24,9 +25,9 @@ func attempt(path: c.str, fail_at: usize) -> usize:
         let names = files.list(path) catch failure:
             assert(failure.code == memory.exhausted)
             rejected = true
-            var empty: str[]
-            recover empty
-        files.release_list(names)
+            var empty: const str[]
+            recover interop.Owned[const str[]](empty)
+        names.release()
     assert(rejected == (fail_at != 0))
     assert(counter.failures == (1 if rejected else 0))
     counter.finish()
@@ -45,9 +46,9 @@ func io_failure(path: c.str, kind: i32):
         let names = files.list(path) catch failure:
             assert(failure.code == files.failed)
             rejected = true
-            var empty: str[]
-            recover empty
-        files.release_list(names)
+            var empty: const str[]
+            recover interop.Owned[const str[]](empty)
+        names.release()
     assert(rejected == (kind != 22 and kind != 35))
     assert(fault_hits() == 1)
     counter.finish()
@@ -59,7 +60,8 @@ pub func main(arguments: c.str[]) -> i32!:
     while i <= steps:
         discard(attempt(arguments[1], i))
         i += 1
-    let names = try files.list(arguments[1])
+    let listed = try files.list(arguments[1])
+    let names = listed.value
     var position: usize = 1
     while position < names.length:
         assert(names[position - 1] < names[position], "directory names must be sorted and distinct")
@@ -91,7 +93,7 @@ pub func main(arguments: c.str[]) -> i32!:
         recover none)
     assert(rejected)
     let nonempty = names.length > 0
-    files.release_list(names)
+    listed.release()
     if nonempty:
         io_failure(arguments[1], 20)
     io_failure(arguments[1], 21)

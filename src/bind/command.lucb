@@ -22,6 +22,7 @@ import os
 import luce_std.paths
 import platform
 import strings
+import support.in_arena
 from support.arena import Arena
 
 ## The `luce-base bind` usage line.
@@ -108,7 +109,7 @@ pub func run(arguments: c.str[], out: io.Writer) -> i32!:
         var recipe = try emit.Recipe.create()
         var recipe_file: u32 = 4294967295
         if request.recipe.length > 0:
-            let text = try files.read((c.str)try strings.copy(request.recipe))
+            let text = try in_arena.read((c.str)try strings.copy(request.recipe))
             try recipe.read((str)text)
             if recipe.prototypes.used > 0:
                 recipe_file = try pp.add_virtual_file(request.recipe)
@@ -117,7 +118,7 @@ pub func run(arguments: c.str[], out: io.Writer) -> i32!:
         var module = paths.stem(request.output) if request.output.length > 0 else try strings.to_lower(paths.stem(header))
         var shims = request.shims
         if shims.length == 0 and request.output.length > 0:
-            shims = try paths.join(paths.directory(request.output), "shims.c")
+            shims = try in_arena.join(paths.directory(request.output), "shims.c")
         # how the shims include the header: by its include name, by its base name when
         # they sit beside it, else by its path
         let canonical = pp.path_of(pp.main_file)
@@ -211,7 +212,7 @@ func same_directory(planned: str, existing: str) -> bool!:
     var dir = paths.directory(planned)
     if dir.length == 0:
         dir = "."
-    let resolved = files.canonical((c.str)try strings.copy(dir)) catch failure:
+    let resolved = in_arena.canonical((c.str)try strings.copy(dir)) catch failure:
         discard(failure)
         recover ""
     return resolved.length > 0 and resolved == paths.directory(existing)

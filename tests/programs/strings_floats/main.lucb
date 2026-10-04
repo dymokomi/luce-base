@@ -71,8 +71,9 @@ func check32(text: str, status: u32, bits: u32) -> !:
 pub func main(arguments: c.str[]) -> i32!:
     discard(float_environment_begin())
     defer float_environment_end()
-    let corpus = try files.read(arguments[1])
-    defer free(corpus)
+    let contents = try files.read(arguments[1])
+    defer contents.release()
+    let corpus = contents.value
     var position: usize = 0
     var count: usize = 0
     while position < corpus.length:

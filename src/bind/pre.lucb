@@ -28,6 +28,7 @@ import luce_std.process
 import strings
 import bind.table
 import support.buffer
+import support.in_arena
 import support.list
 
 ## A preprocessing error.
@@ -162,12 +163,12 @@ pub struct Preprocessor:
     mutating func ask_directories(compiler: c.str) -> !:
         let empty: c.str = "nul" if platform.windows else "/dev/null"
         let arguments: c.str[4] = ["-E", "-Wp,-v", "-xc", empty]
-        let (status, out, err) = try process.run(compiler, arguments)
-        discard(out)
-        if status != 0:
+        let asked = try process.run(compiler, arguments)
+        defer asked.release()
+        if asked.value.exit_code != 0:
             error(failed, "the C compiler does not report its include directories")
         var inside = false
-        for line in try lines(err):
+        for line in try lines(asked.value.error_output):
             let t = strings.trim(line)
             if t == "#include <...> search starts here:":
                 inside = true
@@ -185,12 +186,14 @@ pub struct Preprocessor:
     mutating func ask_macros(compiler: c.str) -> !:
         let empty: c.str = "nul" if platform.windows else "/dev/null"
         let arguments: c.str[4] = ["-dM", "-E", "-xc", empty]
-        let (status, out, err) = try process.run(compiler, arguments)
-        discard(err)
-        if status != 0:
+        let asked = try process.run(compiler, arguments)
+        defer asked.release()
+        if asked.value.exit_code != 0:
             error(failed, "the C compiler does not report its predefined macros")
         try self.files.push(FileEntry(path = "<built-in>", dir = no_dir))
-        let head = try tokenize(out.bytes, u32(self.files.count - 1))
+        # the tokens point into their text, which outlives the answer
+        let macros = try strings.copy(asked.value.output)
+        let head = try tokenize(macros.bytes, u32(self.files.count - 1))
         discard(try self.process(head))
 
     ## A `-I` directory, searched before the system ones.
@@ -223,7 +226,7 @@ pub struct Preprocessor:
     pub mutating func run(path: str) -> Tok*!:
         let file = try self.open(path, no_dir)
         self.main_file = file
-        let bytes = try files.read((c.str)self.files.items[file].path)
+        let bytes = try in_arena.read((c.str)self.files.items[file].path)
         let head = try tokenize(bytes, file)
         let out = try self.process(head)
         if self.conds.count > 0:
@@ -264,7 +267,7 @@ pub struct Preprocessor:
     ## The index of `path` in the file table, canonical, opened once.
     mutating func open(path: str, dir: usize) -> u32!:
         let terminated = try strings.copy(path)
-        let canonical = files.canonical((c.str)terminated) catch failure:
+        let canonical = in_arena.canonical((c.str)terminated) catch failure:
             discard(failure)
             recover terminated
         for i in 0..<self.files.count:
@@ -281,22 +284,22 @@ pub struct Preprocessor:
                 return Found(path = name, dir = no_dir)
             return none
         if not angled and not next:
-            let beside = try paths.join(paths.directory(self.files.items[source].path), name)
+            let beside = try in_arena.join(paths.directory(self.files.items[source].path), name)
             if try exists(beside):
                 return Found(path = beside, dir = no_dir)
         var start: usize = 0
         if next and self.files.items[source].dir != no_dir:
             start = self.files.items[source].dir + 1
         for i in start..<self.dirs.count:
-            let candidate = try paths.join(self.dirs.items[i], name)
+            let candidate = try in_arena.join(self.dirs.items[i], name)
             if try exists(candidate):
                 return Found(path = candidate, dir = i)
         if let pair = split_at(name, '/'):
             let (framework, rest) = pair
             for dir in self.frameworks.span():
-                let root = try paths.join(dir, framework)
-                let headers = try paths.join(root, ".framework/Headers")
-                let candidate = try paths.join(headers, rest)
+                let root = try in_arena.join(dir, framework)
+                let headers = try in_arena.join(root, ".framework/Headers")
+                let candidate = try in_arena.join(headers, rest)
                 if try exists(candidate):
                     return Found(path = candidate, dir = no_dir)
         return none
@@ -454,7 +457,7 @@ pub struct Preprocessor:
         self.depth += 1
         if self.depth >= 100000:
             error(failed, try at(self.path_of(sharp.file), sharp.line, "the header includes without end"))
-        let bytes = try files.read((c.str)path)
+        let bytes = try in_arena.read((c.str)path)
         let head = try tokenize(bytes, file)
         return append(head, rest)
 

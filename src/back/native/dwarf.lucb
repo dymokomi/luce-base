@@ -8,7 +8,6 @@
 #
 #==============================================================================================
 
-import luce_std.files
 import back.target as targets
 import back.native.frame
 import back.ir.ir
@@ -16,6 +15,7 @@ import front.ast
 import sema.check
 import sema.types
 import support.buffer
+import support.in_arena
 import support.list
 
 ## Emits a unit's DWARF: the line table, the function DIEs, and the sections they need.
@@ -73,7 +73,7 @@ pub struct Emitter:
     ## Emit the line-table header, declaring every source file the unit names.
     pub mutating func begin(out: buffer.Buffer*) -> !:
         var format_room: u8[4096]
-        self.cwd = try files.canonical(".")
+        self.cwd = try in_arena.canonical(".")
         try section(out, "line", self.os)
         try out.put("Ldw_line:\n")
         var i: usize = 0

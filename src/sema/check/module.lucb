@@ -47,6 +47,7 @@ import sema.name_index
 import sema.types
 import support.list
 import support.hashed
+import support.in_arena
 import support.manifest
 import support.modules as module_paths
 ## Reported when a name does not resolve (§15).

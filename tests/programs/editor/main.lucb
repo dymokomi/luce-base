@@ -30,10 +30,10 @@ pub func main(arguments: str[]) -> i32!:
         var script_name: u8[1024]
         let script_path = try format(script_name, f"{arguments[3]}")
         let keys = try files.read((c.str)script_path)
-        defer free(keys)
+        defer keys.release()
         var term = terminal.Terminal.headless()
         editor.page_rows = term.rows - 2
-        try editor.replay(try str(keys))
+        try editor.replay(try str(keys.value))
         screen.draw(&term, &editor.text, &view, editor.path, editor.message())
         return 0
     var term = try terminal.Terminal.open()

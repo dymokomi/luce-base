@@ -1,5 +1,5 @@
 ## What the library allocates on a program's behalf comes back exactly: the texts
-## `process.run` answers through `process.release`, the texts `strings` makes through
+## `process.run` answers through the result's `release`, the texts `strings` makes through
 ## `strings.release`, the array `split` answers through `free`, and a builder's bytes
 ## through `destroy`, whatever allocator was current when each was made.
 import c
@@ -11,10 +11,9 @@ pub func main(arguments: str[]) -> i32!:
     var counter = counting.Counting.unlimited()
     with counter:
         let echo_args: c.str[2] = ["-n", "hello there"]
-        let (status, out, err) = try process.run("echo", echo_args)
-        print(f"{status} {out} [{err.length}]")
-        process.release(out)
-        process.release(err)
+        let ran = try process.run("echo", echo_args)
+        print(f"{ran.value.exit_code} {ran.value.output} [{ran.value.error_output.length}]")
+        ran.release()
         let pieces: str[3] = ["a", "b", "c"]
         let joined = try strings.join(pieces, ", ")
         let copied = try strings.copy(joined)

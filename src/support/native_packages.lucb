@@ -10,9 +10,9 @@
 
 import c
 import io
-import luce_std.paths
 import strings
 import support.list
+import support.in_arena
 import support.manifest
 import support.modules
 
@@ -50,7 +50,7 @@ pub struct Inputs:
 
     mutating func add(kind: str, values: c.str[], root: str) -> !:
         for value in values:
-            let resolved = try paths.join(root, (str)value)
+            let resolved = try in_arena.join(root, (str)value)
             var duplicate = false
             for existing in self.entries.span():
                 if existing.kind == kind and (str)existing.value == resolved:

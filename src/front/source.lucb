@@ -10,9 +10,9 @@
 #==============================================================================================
 
 import c
-import luce_std.files
 import memory
 import support.cache as cache
+import support.in_arena
 ## The source is not valid UTF-8, or holds a disallowed control or bidi character.
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
 ## The source file could not be read.
@@ -135,7 +135,7 @@ pub struct Source:
 
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
     pub static func load(path: c.str) -> Source!:
-        let data = try files.read(path)
+        let data = try in_arena.read(path)
         cache.note_input((str)path, data)
         return try Source.over((str)path, data)
 

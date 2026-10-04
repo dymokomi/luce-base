@@ -1,6 +1,7 @@
 ## Fail every allocation in bounded whole-file reading, including final shrinking.
 import allocator
 import c
+import interop
 import luce_std.files
 import memory
 import strings
@@ -14,16 +15,16 @@ func attempt(path: c.str, length: usize, fail_at: usize) -> usize!:
     var owner = allocator.Failing.at(fail_at)
     var rejected = false
     with owner:
-        let bytes = files.read_limit(path, length) catch failure:
+        let bytes = files.read(path, limit = length) catch failure:
             assert(failure.code == memory.exhausted)
             rejected = true
-            var empty: u8[]
-            recover empty
+            var empty: const u8[]
+            recover interop.Owned[const u8[]](empty)
         if not rejected:
-            assert(bytes.length == length)
-            for i in 0..<bytes.length:
-                assert(bytes[i] == (u8)(i % 251))
-            free(bytes)
+            assert(bytes.value.length == length)
+            for i in 0..<bytes.value.length:
+                assert(bytes.value[i] == (u8)(i % 251))
+        bytes.release()
     owner.finish()
     assert(fcntl(descriptor, 1) == -1, "file reading leaked its descriptor")
     # A refused zero-byte allocation still represents a valid empty span; the

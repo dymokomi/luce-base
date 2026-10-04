@@ -19,8 +19,8 @@ import luce_std.paths
 import c
 import os
 import platform
-import luce_std.files
 import support.cache as cache
+import support.in_arena
 import memory
 import strings
 
@@ -181,7 +181,7 @@ pub func load(entry_path: str) -> Manifest!:
 
 ## The bytes of the file at `path`, or `none` when there is no such file.
 func read_if_present(path: c.str) -> u8[]?:
-    let data = files.read(path) catch:
+    let data = in_arena.read(path) catch:
         cache.note_absent((str)path)
         return none
     cache.note_input((str)path, data)

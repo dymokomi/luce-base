@@ -1,5 +1,5 @@
-## A directory listing is a set of allocations the program gives back as one: after
-## `release_list` nothing is live, and a listing that runs out of memory leaves nothing
+## A directory listing is a set of allocations the program gives back as one: after the
+## result's `release` nothing is live, and a listing that runs out of memory leaves nothing
 ## behind either.
 import counting
 import luce_std.files
@@ -11,11 +11,11 @@ pub func main(arguments: str[]) -> i32!:
     var found: usize = 0
     with c:
         let names = try files.list("tests/robustness/memory")
-        found = names.length
-        if let name = names.first():
-            # the names live until `release_list`; compare, do not keep
+        found = names.value.length
+        if let name = names.value.first():
+            # the names live until `release`; compare, do not keep
             sorted = name == "counting.lucb"
-        files.release_list(names)
+        names.release()
     print(f"sorted {sorted} of {"some" if found > 2 else "few"}; {c.live} live, {c.bytes} bytes, balanced {c.allocations == c.frees}")
     var tight = counting.Counting.within(200)
     let outcome = list_under(&tight)
@@ -26,5 +26,5 @@ func list_under(tight: counting.Counting*) -> str:
     with *tight:
         let names = files.list("tests/robustness/memory") catch failure:
             return "exhausted" if failure.code == memory.exhausted else "other"
-        files.release_list(names)
+        names.release()
     return "listed"

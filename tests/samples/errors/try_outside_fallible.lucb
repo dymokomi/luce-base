@@ -3,5 +3,5 @@
 import c
 import luce_std.files
 
-func read_all(path: c.str) -> u8[]:
-    return try files.read(path)
+func write_all(path: c.str, data: const u8[]):
+    try files.write(path, data)

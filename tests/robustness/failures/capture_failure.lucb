@@ -19,15 +19,15 @@ func descriptors() -> usize:
 
 func capture(child: c.str, mode: c.str) -> !:
     let args: c.str[1] = [mode]
-    let (status, out, err) = try process.run(child, args)
-    defer process.release(out)
-    defer process.release(err)
-    assert(status == 0)
-    assert(out.length == (0 if (str)mode == "stderr" else 1048576))
-    assert(err.length == (0 if (str)mode == "stdout" else 1048576))
-    for byte in out.bytes:
+    let ran = try process.run(child, args)
+    defer ran.release()
+    let completed = ran.value
+    assert(completed.exit_code == 0)
+    assert(completed.output.length == (0 if (str)mode == "stderr" else 1048576))
+    assert(completed.error_output.length == (0 if (str)mode == "stdout" else 1048576))
+    for byte in completed.output.bytes:
         assert(byte == 'x')
-    for byte in err.bytes:
+    for byte in completed.error_output.bytes:
         assert(byte == 'x')
 
 func attempt(child: c.str, mode: c.str, fail_at: usize) -> usize:
@@ -56,13 +56,12 @@ pub func main(arguments: c.str[]) -> i32:
             i += 1
     let before = descriptors()
     let args: c.str[1] = ["signal"]
-    let (status, out, err) = process.run(arguments[1], args) catch failure:
+    let ran = process.run(arguments[1], args) catch failure:
         assert(failure.code == process.failed)
         assert(descriptors() == before)
         var child_status: i32
         assert(waitpid(-1, &child_status, 1) == -1)
         print("ok process failures")
         return 0
-    process.release(out)
-    process.release(err)
+    ran.release()
     return 1

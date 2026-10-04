@@ -38,7 +38,7 @@ func attempt(root: c.str, fail_at: usize) -> usize:
     var visitor = Visitor()
     var rejected = false
     with owner:
-        files.walk(root, &visitor, 100) catch failure:
+        files.walk_with(root, &visitor, 100) catch failure:
             assert(failure.code == memory.exhausted)
             rejected = true
     assert(rejected == (fail_at != 0))
@@ -56,7 +56,7 @@ func failure_cases(root: c.str) -> !:
         var rejected = false
         with owner:
             fault_arm(kind)
-            files.walk(root, &visitor, 100) catch failure:
+            files.walk_with(root, &visitor, 100) catch failure:
                 assert(failure.code == (files.directory_cycle if kind == 37 else files.failed))
                 rejected = true
         assert(rejected == (kind != 22) and fault_hits() == 1)
@@ -68,7 +68,7 @@ func failure_cases(root: c.str) -> !:
         var visitor = Visitor(fail_after = 3 if mode == 0 else 0)
         var rejected = false
         with owner:
-            files.walk(root, &visitor, 3 if mode == 1 else 100) catch failure:
+            files.walk_with(root, &visitor, 3 if mode == 1 else 100) catch failure:
                 assert(failure.code == (callback_failure if mode == 0 else files.depth_limit))
                 rejected = true
         assert(rejected)
@@ -87,11 +87,11 @@ pub func main(arguments: c.str[]) -> i32!:
     var owner = allocator.Failing.at(1)
     var pruned = Visitor(prune_root = true)
     with owner:
-        try files.walk(arguments[1], &pruned, 0)
+        try files.walk_with(arguments[1], &pruned, 0)
     assert(pruned.visits == 1 and owner.attempts == 0)
     var leaf = Visitor()
     with owner:
-        try files.walk(arguments[2], &leaf, 0)
+        try files.walk_with(arguments[2], &leaf, 0)
     assert(leaf.visits == 1 and owner.attempts == 0)
     owner.finish()
     print("ok walk failures")

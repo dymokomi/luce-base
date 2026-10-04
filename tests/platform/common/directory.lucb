@@ -15,10 +15,9 @@ pub func main(arguments: str[]) -> i32!:
         var room: u8[1024]
         let base = try format(room[..<256], f"{path.temp()}/luce-platform-{os.pid()}")
         let mkdir_args: c.str[1] = [(c.str)base]
-        let (made, made_out, made_err) = try process.run("mkdir", mkdir_args)
-        discard(made_out.length)
-        discard(made_err.length)
-        if made != 0:
+        let made = try process.run("mkdir", mkdir_args)
+        defer made.release()
+        if made.value.exit_code != 0:
             error(files.failed, "the directory cannot be made")
         let first = try format(room[256..<512], f"{base}/first.txt")
         let second = try format(room[512..<768], f"{base}/second.txt")
@@ -27,15 +26,16 @@ pub func main(arguments: str[]) -> i32!:
         try files.write((c.str)second, "two and more\n".bytes)
         try files.write((c.str)third, "".bytes)
         let names = try files.list((c.str)base)
-        print(f"{names.length} entries")
-        for name in names:
+        defer names.release()
+        print(f"{names.value.length} entries")
+        for name in names.value:
             print(name)
         let back = try files.read((c.str)second)
-        print(f"{back.length} bytes: {strings.trim((str)back)}")
+        defer back.release()
+        print(f"{back.value.length} bytes: {strings.trim((str)back.value)}")
         print(f"exists {files.exists((c.str)first)} {files.exists("/definitely/not/here")}")
         let rm_args: c.str[2] = ["-r", (c.str)base]
-        let (removed, rm_out, rm_err) = try process.run("rm", rm_args)
-        discard(rm_out.length)
-        discard(rm_err.length)
-        print(f"removed {removed == 0} {files.exists((c.str)first)}")
+        let removed = try process.run("rm", rm_args)
+        defer removed.release()
+        print(f"removed {removed.value.exit_code == 0} {files.exists((c.str)first)}")
     return 0

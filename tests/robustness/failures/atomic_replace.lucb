@@ -13,11 +13,11 @@ extern func atomic_descriptors() -> i32
 
 func check_state(path: c.str, directory: c.str, expected: str, descriptors: i32) -> !:
     let data = try files.read(path)
-    defer free(data)
-    assert((str)data == expected)
+    defer data.release()
+    assert((str)data.value == expected)
     let entries = try files.list(directory)
-    defer files.release_list(entries)
-    for entry in entries:
+    defer entries.release()
+    for entry in entries.value:
         assert(not strings.starts_with(entry, ".luce-"), "a temporary entry was left behind")
     assert(atomic_descriptors() == descriptors)
 
@@ -77,8 +77,8 @@ func temporary_cases(directory: c.str) -> !:
     try io.read_exact(&temporary, bytes)
     assert((str)bytes == "kept")
     let contents = try files.read((c.str)temporary.path())
-    defer free(contents)
-    assert((str)contents == "kept")
+    defer contents.release()
+    assert((str)contents.value == "kept")
     atomic_fault_arm(8)
     var rejected = false
     temporary.dispose() catch failure:
@@ -93,8 +93,8 @@ func temporary_cases(directory: c.str) -> !:
 
 func copy_cases(path: c.str, directory: c.str) -> !:
     let source_name = try paths.join((str)directory, "copy-source")
-    defer strings.release(source_name)
-    let source = (c.str)source_name
+    defer source_name.release()
+    let source = (c.str)source_name.value
     try files.write(source, "source".bytes)
     let before = atomic_descriptors()
     var rejected = false
@@ -104,8 +104,9 @@ func copy_cases(path: c.str, directory: c.str) -> !:
         rejected = true
         recover 0)
     assert(rejected and not published)
-    let alias = try paths.join((str)directory, "copy-alias")
-    defer strings.release(alias)
+    let alias_name = try paths.join((str)directory, "copy-alias")
+    defer alias_name.release()
+    let alias = alias_name.value
     try files.create_hard_link(source, (c.str)alias)
     rejected = false
     discard(files.copy_file(source, (c.str)alias, replace = true) catch failure:

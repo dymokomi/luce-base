@@ -197,8 +197,8 @@ pub func main(arguments: str[]) -> i32!:
         var script_name: u8[1024]
         let script_path = try format(script_name, f"{arguments[3]}")
         let keys = try files.read((c.str)script_path)
-        defer free(keys)
-        try editor.replay(try str(keys))
+        defer keys.release()
+        try editor.replay(try str(keys.value))
         window.draw(&editor.text, editor.path, editor.message())
         let copy = try editor.text.copy()
         defer free(copy)

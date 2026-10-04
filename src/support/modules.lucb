@@ -13,7 +13,6 @@
 #==============================================================================================
 
 import c
-import luce_std.files
 import memory
 import luce_std.paths
 import strings
@@ -21,6 +20,7 @@ import support.hashed
 import support.list
 import support.manifest
 import support.cache as cache
+import support.in_arena
 # mark: Resolutions and packages ==============================================================
 
 ## A manifest or dependency layout is malformed.
@@ -52,14 +52,14 @@ struct Package:
 ##
 ## Each path is resolved once a run: on macOS, `realpath` lists every directory on the way to
 ## learn each name's true case, and a program's imports ask about the same paths again and
-## again (luced-3d's took 1.4 s of directory listings). A copy of the kept answer is the
-## caller's, as `files.canonical`'s own is.
+## again (luced-3d's took 1.4 s of directory listings). The answer is in the caller's
+## allocator, a copy of the remembered one.
 pub func canonical(path: str) -> str!:
-    if let kept = resolved_before(path):
-        return try strings.copy(kept)
+    if let known = resolved_before(path):
+        return try strings.copy(known)
     let terminated = try strings.copy(path)
     defer strings.release(terminated)
-    let resolved = try files.canonical((c.str)terminated)
+    let resolved = try in_arena.canonical((c.str)terminated)
     remember(path, resolved)
     return resolved
 
@@ -149,7 +149,7 @@ func read_package(path: str) -> Package!:
 
 func parse_package(path: str) -> Package!:
     let root = try canonical(paths.directory(path))
-    let bytes = try files.read((c.str)try strings.copy(path))
+    let bytes = try in_arena.read((c.str)try strings.copy(path))
     # a dependency's manifest says what it exports, so it is an input of every build
     cache.note_input(path, bytes)
     let contents = (str)bytes
@@ -183,7 +183,7 @@ func parse_package(path: str) -> Package!:
                 error(invalid, "the package source root is declared twice")
             sourced = true
             package.source = value
-    package.source = try paths.join(root, package.source)
+    package.source = try in_arena.join(root, package.source)
     return package
 
 ## Where a dependency lives: its declared checkout path, or `.luc/deps/<name>` at the package
@@ -195,13 +195,13 @@ func parse_package(path: str) -> Package!:
 func dependency_directory(package: Package, dependency: Mapping) -> str!:
     let synced = strings.starts_with(dependency.value, ".luc/deps/") or strings.contains(package.root, "/.luc/deps/")
     if not synced:
-        let declared = try paths.join(package.root, dependency.value)
+        let declared = try in_arena.join(package.root, dependency.value)
         if try present(declared):
             return declared
-    var relative = try paths.join(".luc/deps", dependency.name)
+    var relative = try in_arena.join(".luc/deps", dependency.name)
     var directory = package.root
     while true:
-        let candidate = try paths.join(directory, relative)
+        let candidate = try in_arena.join(directory, relative)
         if try present(candidate):
             return candidate
         let parent = paths.directory(directory)
@@ -232,15 +232,15 @@ pub func test_fragments_of(path: str) -> str?!:
     var relative = (str)module.bytes[source.length + 1..]
     if strings.ends_with(relative, ".lucb"):
         relative = (str)relative.bytes[..<relative.length - 5]
-    let directory = try paths.join(try paths.join(package.root, "tests"), relative)
-    if not try present(try paths.join(directory, "TESTS")):
+    let directory = try in_arena.join(try in_arena.join(package.root, "tests"), relative)
+    if not try present(try in_arena.join(directory, "TESTS")):
         return none
     return directory
 
 func enclosing(path: str) -> Package?!:
     var directory = paths.directory(path)
     while directory.length > 0:
-        let candidate = try paths.join(directory, "package.prisma")
+        let candidate = try in_arena.join(directory, "package.prisma")
         if try present(candidate):
             return try read_package(candidate)
         let parent = paths.directory(directory)
@@ -253,7 +253,7 @@ func source_file(root: str, name: str, base_only: bool) -> str?!:
     let relative = try alloc u8[name.length]
     for index in 0..<name.length:
         relative[index] = '/' if name.bytes[index] == '.' else name.bytes[index]
-    let prefix = try paths.join(root, (str)relative)
+    let prefix = try in_arena.join(root, (str)relative)
     if not base_only:
         let luce = try strings.join([prefix, ".luc"], "")
         if try present(luce):
@@ -296,7 +296,7 @@ func named_package(package: Package, head: str) -> Package?!:
     for dependency in package.dependencies.span():
         # every dependency is checked, not only the one named: a misnamed one is an error
         # wherever it is imported from
-        let other = try read_package(try paths.join(try dependency_directory(package, dependency), "package.prisma"))
+        let other = try read_package(try in_arena.join(try dependency_directory(package, dependency), "package.prisma"))
         if other.name != dependency.name:
             error(invalid, "a dependency key must match its package name")
         if dependency.name == head:
@@ -365,7 +365,7 @@ pub func has_local_module(importer: str, name: str) -> bool!:
 pub func building_package(source_root: str) -> str!:
     if not try present(source_root):
         return ""
-    let built = try enclosing(try paths.join(try canonical(source_root), "x")) else return ""
+    let built = try enclosing(try in_arena.join(try canonical(source_root), "x")) else return ""
     return built.name
 
 ## Where import `name` of the file `importer` leads, for every compiler that resolves
@@ -403,7 +403,7 @@ pub func resolve(importer: str, source_root: str, name: str, base_only: bool = f
     while true:
         if let path = try beside(root, name, base_only, input):
             return Resolution(name, path, root)
-        let manifest_path = try paths.join(root, "package.prisma")
+        let manifest_path = try in_arena.join(root, "package.prisma")
         if try present(manifest_path):
             let package = try read_package(manifest_path)
             if let path = try source_file(package.source, name, base_only):

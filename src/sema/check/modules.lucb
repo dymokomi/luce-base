@@ -38,7 +38,7 @@ extend Checker:
         self.table.word = (u64)self.build_target.pointer_bits // 8
         self.table.configure_c(self.build_target.os == targets.Os.windows, self.build_target.os == targets.Os.windows or self.build_target.arch == targets.Arch.wasm32, self.build_target.arch == targets.Arch.arm64 and self.build_target.os == targets.Os.linux)
         var order_bytes = try alloc u8[directory.length + 8]
-        let order = try files.read((c.str)try format(order_bytes, f"{directory}/ORDER"))
+        let order = try in_arena.read((c.str)try format(order_bytes, f"{directory}/ORDER"))
         var start: usize = 0
         var i: usize = 0
         while i <= order.length:
@@ -194,7 +194,7 @@ extend Checker:
             return try source.Source.load(path)
         else:
             try names.push(text)
-            let bytes = try files.read(path)
+            let bytes = try in_arena.read(path)
             cache.note_input(text, bytes)
             try texts.push(bytes)
         if with_tests:
@@ -424,7 +424,9 @@ extend Checker:
 func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: list.List[u8[]]*) -> !:
     var order_bytes = try alloc u8[directory.length + listing.length + 2]
     let order_path = try format(order_bytes, f"{directory}/{listing}")
-    let order = try files.read((c.str)order_path)
+    let listed = try files.read((c.str)order_path)
+    defer listed.release()
+    let order = listed.value
     cache.note_input(directory, order, order_path)
     let before = names.count
     var start: usize = 0
@@ -436,7 +438,7 @@ func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: 
             var fragment_bytes = try alloc u8[directory.length + part.length + 2]
             let fragment = try format(fragment_bytes, f"{directory}/{part}")
             try names.push(fragment)
-            let bytes = try files.read((c.str)fragment)
+            let bytes = try in_arena.read((c.str)fragment)
             cache.note_input(fragment, bytes)
             try texts.push(bytes)
         if blank:

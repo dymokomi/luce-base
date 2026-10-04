@@ -34,8 +34,9 @@ func check_format(value: i64, unsigned_value: u64, signed: bool, radix: u32, exp
         assert(byte == 85)
 
 pub func main(arguments: c.str[]) -> i32!:
-    let corpus = try files.read(arguments[1])
-    defer free(corpus)
+    let contents = try files.read(arguments[1])
+    defer contents.release()
+    let corpus = contents.value
     var position: usize = 0
     var cases: usize = 0
     var empty: u8[]

@@ -90,7 +90,7 @@ whole expression after it: in `try combine(read(), parse())`, a failure of `read
 **`catch` handles it**, like Python's `except`:
 
 ```luce
-let text = files.read(path) catch failure:
+let text = settings_text(path) catch failure:
     if failure.code == files.missing:
         recover ""
     error(failure.code, failure.message)

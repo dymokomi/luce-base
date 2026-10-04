@@ -1,8 +1,8 @@
 import allocator
 import c
+import interop
 import luce_std.files
 import memory
-import strings
 
 extern func fault_arm(kind: i32)
 extern func fault_hits() -> i32
@@ -14,10 +14,10 @@ func attempt(path: c.str, fail_at: usize) -> usize:
         let target = files.read_symlink(path) catch failure:
             assert(failure.code == memory.exhausted)
             rejected = true
-            recover ""
+            recover interop.Owned[str]("")
         if not rejected:
-            assert(target == "missing-target")
-            strings.release(target)
+            assert(target.value == "missing-target")
+        target.release()
     assert(rejected == (fail_at != 0))
     assert(owner.failures == (1 if rejected else 0))
     owner.finish()
@@ -38,10 +38,10 @@ pub func main(arguments: c.str[]) -> i32:
             let target = files.read_symlink(arguments[1]) catch failure:
                 assert(failure.code == files.failed)
                 rejected = true
-                recover ""
+                recover interop.Owned[str]("")
             if not rejected:
-                assert(target == "missing-target")
-                strings.release(target)
+                assert(target.value == "missing-target")
+            target.release()
         assert(rejected == (kind == 33) and fault_hits() == 1)
         owner.finish()
         kind += 1
@@ -51,7 +51,7 @@ pub func main(arguments: c.str[]) -> i32:
         discard(files.read_symlink(arguments[1], 0) catch failure:
             assert(failure.code == files.too_large)
             rejected = true
-            recover "")
+            recover interop.Owned[str](""))
     assert(rejected)
     owner.finish()
     print("ok symlink failures")
