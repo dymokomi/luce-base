@@ -33,6 +33,10 @@ python3 tools/test_inline_frames.py
 python3 tools/test_small_copies.py
 python3 tools/test_fmt_comments.py
 python3 tools/test_c_prototypes.py
+# the guide: every complete program in docs/guide compiles, runs and prints what the page
+# shows, and the site built from docs/ has no link to a missing page or section
+python3 tools/doc_examples.py
+python3 tools/site.py build/site > /dev/null
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
 python3 tools/embed_runtime.py --check

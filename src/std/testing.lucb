@@ -8,7 +8,9 @@
 #
 #==============================================================================================
 
+import luce
 import memory
+from io import Location
 from memory import Allocator, FixedBuffer
 
 var arena_bytes: u8[1048576]
@@ -40,19 +42,18 @@ pub func random() -> u64:
     current_seed = x
     return x
 
-## Trap with `message` when `condition` is false.
-pub func expect(condition: bool, message: str):
+## Trap with `message` when `condition` is false, naming the line of the test that asked
+## (`at`, filled in where it is called).
+pub func expect(condition: bool, message: str, at: Location = luce.location):
     if not condition:
-        trap(message)
+        trap(f"{at.file}:{at.line}: {message}")
 
-## Trap, naming both values, when `actual` and `expected` differ.
-pub func expect_equal(actual: i64, expected: i64, message: str):
+## Trap, naming both values and the line of the test, when `actual` and `expected` differ.
+pub func expect_equal(actual: i64, expected: i64, message: str, at: Location = luce.location):
     if actual != expected:
-        print(f"expected {expected}, got {actual}: {message}")
-        trap(message)
+        trap(f"{at.file}:{at.line}: {message}: expected {expected}, got {actual}")
 
-## Trap, naming both, when the texts differ.
-pub func expect_text(actual: str, expected: str, message: str):
+## Trap, naming both texts and the line of the test, when they differ.
+pub func expect_text(actual: str, expected: str, message: str, at: Location = luce.location):
     if actual != expected:
-        print(f"expected `{expected}`, got `{actual}`: {message}")
-        trap(message)
+        trap(f"{at.file}:{at.line}: {message}: expected `{expected}`, got `{actual}`")

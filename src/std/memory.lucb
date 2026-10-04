@@ -121,11 +121,18 @@ pub struct CAllocator: Allocator:
             release_heap(block.data)
             return
         # the diagnostic profile (§19.4): the block is filled with a pattern and held back, so
-        # a use after release reads the pattern rather than the next allocation
-        discard(memset(block.data, 221, block.length))
+        # a use after release reads the pattern rather than the next allocation; releasing
+        # it again, or writing it while it is held, is reported
         lock(&records_lock)
+        if already_held(quarantine, block):
+            unlock(&records_lock)
+            trap("double free: a block was released twice")
+        discard(memset(block.data, (i32)released_fill, block.length))
         let slot = quarantine_next % quarantine.length
         if let old = quarantine[slot]:
+            if not still_released(old):
+                unlock(&records_lock)
+                trap("use after free: a released block was written after its release")
             release_heap(old.data)
         quarantine[slot] = block
         quarantine_next += 1
@@ -233,10 +240,16 @@ pub struct PageAllocator: Allocator:
             return
         # the diagnostic profile (§19.4): the mapping is filled and kept for a while, so a
         # use after release reads the pattern rather than faulting or reading a new mapping
-        discard(memset(block.data, 221, block.length))
         lock(&records_lock)
+        if already_held(held_pages, block):
+            unlock(&records_lock)
+            trap("double free: pages were released twice")
+        discard(memset(block.data, (i32)released_fill, block.length))
         let slot = held_next % held_pages.length
         if let old = held_pages[slot]:
+            if not still_released(old):
+                unlock(&records_lock)
+                trap("use after free: released pages were written after their release")
             unmap_pages(old)
         held_pages[slot] = block
         held_next += 1
@@ -336,11 +349,31 @@ pub func allocation_sites() -> const Site[]:
     return sites[..<held]
 
 ## The released blocks the diagnostic profile still holds, oldest freed first.
-var quarantine: (u8[]?)[64]
+var quarantine: (u8[]?)[256]
 var quarantine_next: usize
 ## The released mappings the diagnostic profile still holds, oldest first.
 var held_pages: (u8[]?)[8]
 var held_next: usize
+## The byte a released block is filled with under the diagnostic profile.
+let released_fill: u8 = 221
+
+## Whether `block` is among the released blocks still `held`: releasing it again is a
+## double free.
+func already_held(blocks: const (u8[]?)[], block: u8[]) -> bool:
+    for entry in blocks:
+        if let kept = entry:
+            if kept.data == block.data:
+                return true
+    return false
+
+## Whether every byte of a held block is still the fill it was given at release: a write
+## through a dangling pointer changes one.
+func still_released(block: const u8[]) -> bool:
+    for byte in block:
+        if byte != released_fill:
+            return false
+    return true
+
 ## Allocation failed: out of memory.
 # mark: Diagnostics and heap ==================================================================
 

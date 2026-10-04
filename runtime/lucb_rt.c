@@ -213,7 +213,8 @@ lb_span lb_arguments(int argc, char** argv, bool as_text) {
 }
 
 int lb_entry_failed(lb_error error) {
-    fprintf(stderr, "error %u: %.*s\n", (unsigned)error.code, (int)error.message.length, error.message.data);
+    // as core.main_failed: the message, then the package's own number of the code
+    fprintf(stderr, "error: %.*s (code %u)\n", (int)error.message.length, error.message.data, (unsigned)error.code & 0xFFFFu);
     return 1;
 }
 

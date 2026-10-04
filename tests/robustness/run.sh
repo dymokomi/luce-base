@@ -1,7 +1,8 @@
 #!/bin/sh
 # The robustness suite: programs that measure memory management under defer, errdefer,
 # recursion, nested `with`, exhaustion, growth, misuse under the diagnostic profile, and a
-# deliberate leak. Each program counts what it allocated and freed through a measuring
+# deliberate leak, and the double free and write after free the diagnostic profile traps
+# on (a `.trap` file holds the message). Each program counts what it allocated and freed through a measuring
 # allocator and prints it; the counts are the expectation, through both backends. A
 # `# profile: diagnostic` line builds the program with that profile.
 set -eu
@@ -21,6 +22,19 @@ for f in tests/robustness/*/*.expect; do
     done
     programs=$((programs + 1))
 done
-rm -f build/robust build/robust.out
+# a program with a `.trap` must stop with that trap message, through both backends
+for f in tests/robustness/*/*.trap; do
+    src="${f%.trap}.lucb"
+    echo "== $src (traps)"
+    for flags in "--backend=c" ""; do
+        ./build/luce-base build "$src" $flags --profile diagnostic -o build/robust
+        if ./build/robust > build/robust.out 2> build/robust.err; then
+            echo "FAIL $src: did not trap"; exit 1
+        fi
+        grep -qF "$(cat "$f")" build/robust.err || { echo "FAIL $src: wrong trap"; cat build/robust.err; exit 1; }
+    done
+    programs=$((programs + 1))
+done
+rm -f build/robust build/robust.out build/robust.err
 python3 tests/robustness/failures/run.py
 echo "ok robustness: $programs programs"

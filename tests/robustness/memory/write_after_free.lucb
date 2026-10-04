@@ -1,0 +1,15 @@
+## Under `--profile diagnostic` a released block keeps its fill while it is held back, and
+## a write through a dangling pointer is found when the block leaves the quarantine.
+# sanitize: skip
+# profile: diagnostic
+
+pub func main(arguments: str[]) -> i32!:
+    let stale = try new u8[32]
+    free(stale)
+    stale[0] = 7
+    # every later release moves the quarantine on, until the stale block leaves it
+    for i in 0..<300:
+        let other = try new u8[16]
+        free(other)
+    print("not reached")
+    return 0

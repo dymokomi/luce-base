@@ -1,0 +1,11 @@
+## Under `--profile diagnostic` releasing a block twice is a trap, where the C heap's own
+## check depends on the platform and a quarantined block would hide it.
+# sanitize: skip
+# profile: diagnostic
+
+pub func main(arguments: str[]) -> i32!:
+    let block = try new u8[32]
+    free(block)
+    free(block)
+    print("not reached")
+    return 0
