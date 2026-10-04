@@ -98,6 +98,11 @@ pub struct Module:
     ## The package it belongs to.
     pub var package_name: str = ""
 
+## A top-level declaration's name within its module, the key of `Checker.module_decls`.
+struct DeclName:
+    var tree: usize
+    var name: str
+
 ## A `Writer` over a caller's buffer, for spelling types into diagnostics.
 struct SpanWriter: io.Writer:
     var data: u8[]
@@ -220,6 +225,15 @@ pub struct Checker:
     ## (`owner_of`); and how many of `modules` are indexed, since modules only join the end.
     var owners: hashed.Table[usize]
     var owners_indexed: usize = 0
+    ## Each module's top-level declarations by name (`module_decl`), a module indexed
+    ## when first asked: `module.name` was a walk of the module's declarations each time.
+    var module_decls: hashed.Table[DeclName]
+    var decl_nodes: list.List[ast.Node*]
+    ## The module trees indexed so far, by address.
+    var decls_indexed: hashed.Table[usize]
+    ## The program's modules (not the prelude's) by canonical path: a module imported again
+    ## is found here before its file is read again.
+    var by_canonical: hashed.Table[str]
 
     ## A fresh checker; `scratch` is a buffer for formatting diagnostics.
     pub static func create(scratch: u8[]) -> Checker!:
@@ -229,7 +243,9 @@ pub struct Checker:
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false, in_defer = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", loading = try list.List[str].create(16), module_aliases = try list.List[ModuleAlias].create(8), package_name = "app",
                        package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32), resolving = try list.List[usize].create(8),
-                       owners = try hashed.Table[usize].create(256), build_target = targets.Target.host())
+                       owners = try hashed.Table[usize].create(256), build_target = targets.Target.host(),
+                       module_decls = try hashed.Table[DeclName].create(1024), decl_nodes = try list.List[ast.Node*].create(1024),
+                       decls_indexed = try hashed.Table[usize].create(64), by_canonical = try hashed.Table[str].create(256))
 
     # -- diagnostics ----------------------------------------------------------------------
 

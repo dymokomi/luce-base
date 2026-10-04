@@ -82,6 +82,13 @@ extend Checker:
         try self.loading.push(name)
         defer self.finish_load()
         let text = (str)path
+        # a module imported again is the one loaded, which is not read again; a path that
+        # does not resolve is reported by the read below
+        let known = module_paths.canonical(text) catch:
+            recover ""
+        if let loaded = self.by_canonical.find(known):
+            try self.module_alias(name, self.modules.get(loaded).name)
+            return
         let src = self.load_source(path, self.test_fragments and self.loading.count == 1) catch failure:
             let half = self.scratch.length // 2
             # a located message (`path:line:column: ...`) stands as it is, copied into the
@@ -93,10 +100,6 @@ extend Checker:
             let message = try format(self.scratch[..<half], f"cannot read {text}: {failure.message}")
             error(unknown_name, message)
         let canonical = try module_paths.canonical(text)
-        for loaded in self.modules.span():
-            if not loaded.is_prelude and loaded.canonical == canonical:
-                try self.module_alias(name, loaded.name)
-                return
         var p = try parser.Parser.over(src, self.scratch)
         let tree = try p.parse_module()
         try p.merge_extensions(tree)
@@ -165,6 +168,7 @@ extend Checker:
                     # manifest, each package in its own directory: they name `<that>/...`
                     try shown.rebase(root, "")
         try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner))
+        discard(try self.by_canonical.add(canonical, self.modules.count - 1))
         # Every imported module is library code, kept only where the program reaches it;
         # the entry file alone is the program and keeps all it declares.
         if self.loading.count > 1:
@@ -240,6 +244,26 @@ extend Checker:
                 cursor = d.next
             self.owners_indexed += 1
         return self.owners.find((usize)decl)
+
+    ## The top-level declaration named `name` in module tree `tree`, as `find_decl` finds
+    ## it, from an index of the tree built the first time it is asked. A declaration the
+    ## index has no entry for is looked for in the tree, so one added since is found too.
+    mutating func module_decl(tree: ast.Node*, name: str) -> ast.Node*?:
+        self.index_decls(tree) catch:
+            return find_decl(tree, name)
+        let at = self.module_decls.find(DeclName(tree = (usize)tree, name = name)) else return find_decl(tree, name)
+        return self.decl_nodes.get(at)
+
+    mutating func index_decls(tree: ast.Node*) -> !:
+        if not try self.decls_indexed.add((usize)tree, 0):
+            return
+        var cursor = tree.body
+        while let d = cursor:
+            if d.kind != ast.Kind.import_ and d.kind != ast.Kind.from_import and d.kind != ast.Kind.test_:
+                # the first of a name wins, as in `find_decl`
+                if try self.module_decls.add(DeclName(tree = (usize)tree, name = d.text), self.decl_nodes.count):
+                    try self.decl_nodes.push(d)
+            cursor = d.next
 
     ## Check every module in order: the prelude, then each program module.
     pub mutating func check_program() -> !:
@@ -351,13 +375,7 @@ extend Checker:
 
     ## The index of the loaded module whose source is at `path`.
     func module_at(path: str) -> usize?!:
-        let canonical = try module_paths.canonical(path)
-        var i: usize = 0
-        while i < self.modules.count:
-            if self.modules.get(i).canonical == canonical:
-                return i
-            i += 1
-        return none
+        return self.by_canonical.find(try module_paths.canonical(path))
 
     mutating func bind_imports(tree: ast.Node*) -> !:
         var cursor = tree.body
@@ -387,7 +405,7 @@ extend Checker:
                 var names = d.body
                 while let n = names:
                     var text: u8[256]
-                    let member = find_decl(other, n.text) else return try self.fail(n, try format(text, f"`{d.text}` has no public `{n.text}`"))
+                    let member = self.module_decl(other, n.text) else return try self.fail(n, try format(text, f"`{d.text}` has no public `{n.text}`"))
                     if not member.has(ast.flag_pub):
                         var said1: u8[256]
                         discard(try self.fail(n, said(said1, f"`{n.text}` is not public in `{d.text}`")))
@@ -407,7 +425,7 @@ func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: 
     var order_bytes = try alloc u8[directory.length + listing.length + 2]
     let order_path = try format(order_bytes, f"{directory}/{listing}")
     let order = try files.read((c.str)order_path)
-    cache.note_input(directory, order)
+    cache.note_input(directory, order, order_path)
     let before = names.count
     var start: usize = 0
     var i: usize = 0

@@ -85,15 +85,21 @@ pub let core_names: str[35] = [
 
 ## Whether `word` is one of the core names of §3.5.
 pub func is_core_name(word: str) -> bool:
+    if word.length == 0:
+        return false
     for name in core_names:
-        if name == word:
+        if name.length == word.length and name.bytes[0] == word.bytes[0] and name == word:
             return true
     return false
 
 ## Whether `word` is a reserved keyword.
 pub func is_keyword(word: str) -> bool:
+    # every keyword is two to nine lower-case letters: most names are refused here, and
+    # the rest are compared only with the keywords of their length and first letter
+    if word.length < 2 or word.length > 9 or word.bytes[0] < 'a' or word.bytes[0] > 'z':
+        return false
     for k in keywords:
-        if k == word:
+        if k.length == word.length and k.bytes[0] == word.bytes[0] and k == word:
             return true
     return false
 

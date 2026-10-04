@@ -122,7 +122,7 @@ extend Checker:
             if self.is_c_module(module) and c_type_id(rest) != types.none_id:
                 return c_type_id(rest)
             var said3: u8[256]
-            let d = find_decl(module, rest) else return try self.fail(t, said(said3, f"`{module.text}` has no type `{rest}`"))
+            let d = self.module_decl(module, rest) else return try self.fail(t, said(said3, f"`{module.text}` has no type `{rest}`"))
             if not d.has(ast.flag_pub):
                 var said4: u8[256]
                 return try self.fail(t, said(said4, f"`{rest}` is not public in `{module.text}`"))
@@ -179,7 +179,7 @@ extend Checker:
             let m = mb.decl else return none
             if m.kind != ast.Kind.module:
                 return none
-            decl = find_decl(m, (str)text.bytes[dot + 1..])
+            decl = self.module_decl(m, (str)text.bytes[dot + 1..])
         let d = decl else return none
         if d.kind == ast.Kind.constant or d.kind == ast.Kind.global or d.kind == ast.Kind.let_ or d.kind == ast.Kind.var_ or d.kind == ast.Kind.param:
             return d

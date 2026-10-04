@@ -28,9 +28,11 @@ def run(*args):
 # one batch against single resolutions
 importer = SRC / "main.lucb"
 names = ["support.list", "io", "back.ir.ir", "no.such.module"]
-batch = run("resolve-all", importer, SRC, *names).split(b"\0")
-assert batch[0] == b"luce-base-modules-v1", batch[:2]
+other = SRC / "support/list.lucb"
+batch = run("resolve-all", importer, SRC, *names, "--", other, SRC, "memory").split(b"\0")
+assert batch[0] == b"luce-base-modules-v2", batch[:2]
 fields = batch[1:]
+assert fields.pop(0) == b"importer" and fields.pop(0) == str(importer).encode(), fields[:2]
 for name in names:
     kind = fields.pop(0)
     assert fields.pop(0) == name.encode(), name
@@ -44,7 +46,9 @@ for name in names:
         assert kind == b"error", (name, kind)
         message = fields.pop(0)
         assert single.returncode != 0 and message in single.stderr, (name, message, single.stderr)
-assert fields == [b""], fields
+# the second module's one import, under its own importer record
+assert fields[:4] == [b"importer", str(other).encode(), b"module", b"memory"], fields[:4]
+assert fields[4] == b"standard" and fields[-1] == b"", fields
 
 # several modules described together, against each described alone
 modules = [("support.list", SRC / "support/list.lucb"), ("back.ir.ir", SRC / "back/ir/ir.lucb")]

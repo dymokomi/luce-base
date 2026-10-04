@@ -11,6 +11,12 @@
 #       `--cache-dir DIR`, else `LUCE_CACHE`, else the project-local `build/.cache` beside the
 #       build output (so `rm -rf build` clears it and no two projects share one); `none` off.
 #
+#       A question whose answer is a function of the files it reads (`describe-closure`) is
+#       answered from a record: the answer, each file read with the hash of its bytes, and
+#       each path a lookup found absent. The record answers again while every file hashes
+#       the same and every absent path is still absent, without reading or checking
+#       anything else; a file added where a lookup would now find it makes it stale.
+#
 #==============================================================================================
 
 import c
@@ -19,6 +25,7 @@ import io
 import memory
 import os
 import luce_std.paths
+import support.buffer
 
 # mark: The cache's settings ==================================================================
 
@@ -43,10 +50,18 @@ var compiler_hash: u64 = 0
 var noted_paths: str[]
 var noted_bytes: u64[]
 var noted_count: usize = 0
+## Each noted source's path as it was read, which `rename_input` leaves: what a record
+## reads again.
+var read_paths: str[]
+## The paths a lookup found absent (`note_absent`), each once.
+var absent_paths: str[]
+var absent_count: usize = 0
 
 ## Note a source the build read, in the order it was read: its path and its bytes. A note
-## that cannot be kept (no memory) leaves the build uncached rather than failing it.
-pub func note_input(path: str, bytes: const u8[]):
+## that cannot be kept (no memory) leaves the build uncached rather than failing it. A
+## source named by something other than the file read (a directory module, by its
+## `ORDER`) gives the file as `read_as`, which a record reads again.
+pub func note_input(path: str, bytes: const u8[], read_as: str = ""):
     with memory.heap:
         if noted_count == noted_paths.length:
             grow_notes()
@@ -57,8 +72,42 @@ pub func note_input(path: str, bytes: const u8[]):
             lost = true
             return
         noted_paths[noted_count] = copied else return
+        read_paths[noted_count] = copied else return
+        if read_as.length > 0:
+            read_paths[noted_count] = try_copy(read_as) else return
         noted_bytes[noted_count] = mix(1469598103934665603, bytes)
         noted_count += 1
+
+## Whether a file is at `path`, for a lookup: an absence is noted (`note_absent`).
+pub func exists(path: c.str) -> bool:
+    if files.exists(path):
+        return true
+    note_absent((str)path)
+    return false
+
+## Note that a lookup found nothing at `path` (a module, a manifest, an `ORDER`): a file
+## that appears there later could change what the lookup finds, so a record that saw it
+## absent is stale once it is not.
+pub func note_absent(path: str):
+    with memory.heap:
+        for i in 0..<absent_count:
+            if absent_paths[i] == path:
+                return
+        if absent_count == absent_paths.length:
+            let size = 64 if absent_paths.length == 0 else absent_paths.length * 2
+            let room = alloc str[size] catch:
+                lost = true
+                return
+            for i in 0..<absent_count:
+                room[i] = absent_paths[i]
+            if absent_paths.length > 0:
+                free(absent_paths)
+            absent_paths = room
+        if let copied = try_copy(path):
+            absent_paths[absent_count] = copied
+            absent_count += 1
+        else:
+            lost = true
 
 ## A noted source the object shows by another name: a standard module's `std/...`, a
 ## dependency's `<package>/...` (`Source.rebase`). The key names it so too.
@@ -81,14 +130,22 @@ func grow_notes():
         free(paths_room)
         lost = true
         return
+    let read_room = alloc str[size] catch:
+        free(paths_room)
+        free(bytes_room)
+        lost = true
+        return
     for i in 0..<noted_count:
         paths_room[i] = noted_paths[i]
         bytes_room[i] = noted_bytes[i]
+        read_room[i] = read_paths[i]
     if noted_paths.length > 0:
         free(noted_paths)
         free(noted_bytes)
+        free(read_paths)
     noted_paths = paths_room
     noted_bytes = bytes_room
+    read_paths = read_room
 
 ## Whether a note was lost, so the inputs are not all known and there is no key.
 var lost: bool = false
@@ -123,6 +180,7 @@ func step(h: u64, word: u64) -> u64:
 ## Start a build's digest afresh.
 pub func begin():
     noted_count = 0
+    absent_count = 0
     lost = false
 
 ## The key of a build: the inputs noted so far, `settings` (the target, backend and flags
@@ -178,12 +236,20 @@ func compiler() -> u64!:
 
 # mark: Objects in the cache ==================================================================
 
+## Whether a cache was named, by `--cache-dir` or `LUCE_CACHE`: a record is kept only in a
+## cache the caller chose, never in a project's default `build/.cache`.
+pub func named() -> bool:
+    if override.length > 0:
+        return override != "none"
+    let chosen = os.env("LUCE_CACHE") else return false
+    return chosen.length > 0 and chosen != "none"
+
 ## The cache directory, created when missing; none when the cache is off or nowhere.
 pub func directory() -> str?!:
     var chosen = override
     if chosen.length == 0:
-        if let named = os.env("LUCE_CACHE"):
-            chosen = named
+        if let environment = os.env("LUCE_CACHE"):
+            chosen = environment
     if chosen == "none":
         return none
     if chosen.length == 0:
@@ -240,13 +306,94 @@ func keep_object(entry: str, suffix: str, object: str) -> !:
     if lost:
         return
     let dir = try directory() else return
-    let final_room = try alloc u8[dir.length + entry.length + suffix.length + 2]
-    let final = try format(final_room, f"{dir}/{entry}{suffix}")
-    # a directory of this build's own, so two builds keeping one key never share a file
+    try keep_bytes(dir, entry, suffix, try files.read((c.str)object))
+
+# mark: Records ===============================================================================
+
+let record_header: str = "luce-base-record-v1\n"
+
+## The name of the record that answers `question` (the command and its arguments, as
+## text) from this compiler: sixteen hex digits.
+pub func record_key(question: str) -> str!:
+    return try digits_of(step(mix(1469598103934665603, question.bytes), try compiler()))
+
+## The answer the record `record` keeps, when the cache has it and it is current: every
+## file it lists hashes as it did, and every absent path is still absent.
+pub func recall(record: str) -> u8[]?!:
+    let dir = try directory() else return none
+    let room = try alloc u8[dir.length + record.length + 4]
+    let record_path = try format(room, f"{dir}/{record}-r")
+    let text = (str)(files.read((c.str)record_path) catch: return none)
+    if not starts(text, record_header):
+        return none
+    var at = record_header.length
+    while at < text.length:
+        var end = at
+        while end < text.length and text.bytes[end] != '\n':
+            end += 1
+        let line = (str)text.bytes[at..<end]
+        at = end + 1
+        if line.length > 19 and line.bytes[0] == 'f' and line.bytes[18] == ' ':
+            let path = (str)line.bytes[19..]
+            let bytes = files.read((c.str)try copy_terminated(path)) catch: return none
+            if (str)line.bytes[2..<18] != try digits_of(mix(1469598103934665603, bytes)):
+                return none
+        elif line.length > 2 and line.bytes[0] == 'a':
+            if files.exists((c.str)try copy_terminated((str)line.bytes[2..])):
+                return none
+        else:
+            return none
+    let answer_room = try alloc u8[dir.length + record.length + 4]
+    let answer = files.read((c.str)try format(answer_room, f"{dir}/{record}-o")) catch: return none
+    if report:
+        try io.stderr().write(f"luce-base: record hit {record}\n")
+    return answer
+
+## Keep `answer` under the record `record`, with the files this run read and the paths it
+## found absent. A record that cannot be written, or a run whose notes were lost, is none.
+pub func remember(record: str, answer: const u8[]):
+    remember_answer(record, answer) catch ignored:
+        discard(ignored)
+
+func remember_answer(record: str, answer: const u8[]) -> !:
+    if lost:
+        return
+    let dir = try directory() else return
+    var text = try buffer.Buffer.create(4096)
+    try text.put(record_header)
+    for i in 0..<noted_count:
+        try text.put("f ")
+        try text.put(try digits_of(noted_bytes[i]))
+        try text.put(" ")
+        try text.put(read_paths[i])
+        try text.put("\n")
+    for i in 0..<absent_count:
+        try text.put("a ")
+        try text.put(absent_paths[i])
+        try text.put("\n")
+    # the answer first, so a record is never there without it
+    try keep_bytes(dir, record, "-o", answer)
+    try keep_bytes(dir, record, "-r", text.bytes())
+
+## Write `bytes` as `dir/name+suffix`, beside it first and then renamed into place: a
+## reader never sees a partial file.
+func keep_bytes(dir: str, name: str, suffix: str, bytes: const u8[]) -> !:
+    let final_room = try alloc u8[dir.length + name.length + suffix.length + 2]
+    let final = try format(final_room, f"{dir}/{name}{suffix}")
+    # a directory of this run's own, so two runs keeping one name never share a file
     let staging = try files.create_temporary_directory((c.str)dir, 448u32)
     defer files.remove_tree((c.str)staging) catch ignored:
         discard(ignored)
     let temp_room = try alloc u8[staging.length + 8]
     let temp = try format(temp_room, f"{staging}/object")
-    try files.write((c.str)temp, try files.read((c.str)object))
+    try files.write((c.str)temp, bytes)
     try files.rename((c.str)temp, (c.str)final, true)
+
+func starts(text: str, prefix: str) -> bool:
+    return text.length >= prefix.length and (str)text.bytes[..<prefix.length] == prefix
+
+func copy_terminated(text: str) -> str!:
+    let room = try alloc u8[text.length + 1]
+    memory.copy(room, text.bytes, text.length)
+    room[text.length] = 0
+    return (str)room[..<text.length]

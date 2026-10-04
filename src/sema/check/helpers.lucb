@@ -59,9 +59,9 @@ func duplicate_member(d: ast.Node*) -> ast.Node*?:
 func is_named_member(m: ast.Node*) -> bool:
     return m.kind == ast.Kind.field or m.kind == ast.Kind.enum_case or m.kind == ast.Kind.func_
 
-## Whether a file exists at `path`.
+## Whether a file exists at `path`; an absence is a build input (`cache.exists`).
 func file_exists(path: c.str) -> bool:
-    return files.exists(path)
+    return cache.exists(path)
 
 ## The first name in `later` that `earlier` already lists, if any.
 func repeated_name(earlier: ast.Node*?, later: ast.Node*?) -> ast.Node*?:

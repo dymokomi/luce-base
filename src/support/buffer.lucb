@@ -8,10 +8,12 @@
 #
 #==============================================================================================
 
+import io
 import memory
 
-## A growable byte buffer over a captured allocator, for emitted text.
-pub struct Buffer:
+## A growable byte buffer over a captured allocator, for emitted text; as a `Writer`, it
+## keeps what is written to it.
+pub struct Buffer: io.Writer:
     var data: u8[]
     ## The number of bytes written; `bytes()[..<used]` are them.
     pub var used: usize
@@ -39,6 +41,11 @@ pub struct Buffer:
         try self.reserve(text.length)
         memory.copy(self.data[self.used..], text.bytes, text.length)
         self.used += text.length
+
+    ## Append `bytes`, as a `Writer`: all of them, or none when memory is exhausted.
+    pub mutating func write(bytes: const u8[]) -> usize!:
+        try self.put_bytes(bytes)
+        return bytes.length
 
     ## Append raw `bytes`.
     pub mutating func put_bytes(bytes: const u8[]) -> !:

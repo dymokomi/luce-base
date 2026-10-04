@@ -20,6 +20,7 @@ import strings
 import support.hashed
 import support.list
 import support.manifest
+import support.cache as cache
 # mark: Resolutions and packages ==============================================================
 
 ## A manifest or dependency layout is malformed.
@@ -87,8 +88,9 @@ func keep(path: str, answer: str) -> !:
     resolved_paths = table
     resolved_answers = answers
 
+## Whether a file is at `path`; an absence is a build input (`cache.exists`).
 func present(path: str) -> bool!:
-    return files.exists((c.str)try strings.copy(path))
+    return cache.exists((c.str)try strings.copy(path))
 
 func contained(path: str, root: str) -> bool:
     return path == root or (strings.starts_with(path, root) and path.length > root.length and path.bytes[root.length] == '/')
@@ -156,7 +158,10 @@ func read_package(path: str) -> Package!:
 
 func parse_package(path: str) -> Package!:
     let root = try canonical(paths.directory(path))
-    let contents = (str)try files.read((c.str)try strings.copy(path))
+    let bytes = try files.read((c.str)try strings.copy(path))
+    # a dependency's manifest says what it exports, so it is an input of every build
+    cache.note_input(path, bytes)
+    let contents = (str)bytes
     var package = Package(name = "", root = root, source = "src",
                           dependencies = try list.List[Mapping].create(4), public = try list.List[str].create(4))
     var named = false

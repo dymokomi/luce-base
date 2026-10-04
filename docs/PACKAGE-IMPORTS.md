@@ -111,11 +111,19 @@ none is left out as an entry). `BUILD_ROOT` is the build's source root: the pack
 it is the one whose modules keep their bare names, as `resolve` derives it. Luce describes
 every Base module a program imports this way, in one run.
 
-`luce-base resolve-all FILE SOURCE_ROOT MODULE...` resolves each of a module's imports as
-`resolve` does, in one run: `luce-base-modules-v1` and a NUL, then for each name either
-`module`, the name, its kind (`base`, `luce` or `standard`), canonical name, path and
-source root, or `error`, the name and the message, every field NUL-terminated. Luce
-resolves each of its modules' imports together this way.
+`luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...`
+resolves the imports of one module or more as `resolve` does, in one run:
+`luce-base-modules-v2` and a NUL, then for each module `importer` and its path, followed
+by a record for each name, either `module`, the name, its kind (`base`, `luce` or
+`standard`), canonical name, path and source root, or `error`, the name and the message,
+every field NUL-terminated. Luce resolves the imports of every module at one depth of a
+program's import graph together this way.
+
+With a cache named (`--cache-dir DIR` before `--modules`, or `LUCE_CACHE`),
+`describe-closure --modules` keeps its answer as a record: the answer, each file the run
+read with the hash of its bytes, and each path a lookup found absent. The next run with
+the same arguments answers from the record while every file hashes the same and every
+absent path is still absent, reading and checking nothing else.
 
 Source records exclude the entry and embedded standard modules. Package records
 include the entry. The compiler checks the complete program before writing any

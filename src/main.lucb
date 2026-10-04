@@ -47,7 +47,7 @@ import support.host_tools
 import support.pieces
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -1105,21 +1105,34 @@ func classified(importer: str, root: str, name: str, base_only: bool) -> (str, m
     let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try format(order, f"{resolved.path}/ORDER"))
     return ("base" if base else "luce", resolved)
 
-## `resolve-all IMPORTER ROOT NAME...`: each import of one module resolved as `resolve` does,
-## in one run: a record for each name, `module`, the name, kind, canonical name, path and
-## root, or `error`, the name and the message, each field ended by NUL. A consumer resolving
-## a module's imports one process at a time paid a process for each (luced-3d: 382).
-func resolve_modules(importer: str, root: str, requested: c.str[], out: io.Writer) -> !:
-    try out.write("luce-base-modules-v1\0")
-    for named in requested:
-        let name = (str)named
-        var arena = Arena(memory.heap)
-        defer arena.destroy()
-        with arena:
-            let (kind, resolved) = classified(importer, root, name, false) catch failure:
-                try out.write(f"error\0{name}\0{failure.message}\0")
-                continue
-            try out.write(f"module\0{name}\0{kind}\0{resolved.name}\0{resolved.path}\0{resolved.root}\0")
+## `resolve-all IMPORTER ROOT NAME... [-- IMPORTER ROOT NAME...]...`: the imports of one
+## module or more, each resolved as `resolve` does, in one run. For each module, `importer`
+## and its path; then a record for each name, `module`, the name, kind, canonical name,
+## path and root, or `error`, the name and the message; each field ended by NUL. A
+## consumer resolving imports a process at a time paid a process for each (luced-3d: 382);
+## one module at a time, a process for each module.
+func resolve_modules(groups: c.str[], out: io.Writer) -> !:
+    try out.write("luce-base-modules-v2\0")
+    var at: usize = 0
+    while at < groups.length:
+        var end = at
+        while end < groups.length and (str)groups[end] != "--":
+            end += 1
+        if end - at < 2:
+            error(build_failed, "resolve-all: each module is its path and its source root, then its imports")
+        let importer = (str)groups[at]
+        let root = (str)groups[at + 1]
+        try out.write(f"importer\0{importer}\0")
+        for named in groups[at + 2..<end]:
+            let name = (str)named
+            var arena = Arena(memory.heap)
+            defer arena.destroy()
+            with arena:
+                let (kind, resolved) = classified(importer, root, name, false) catch failure:
+                    try out.write(f"error\0{name}\0{failure.message}\0")
+                    continue
+                try out.write(f"module\0{name}\0{kind}\0{resolved.name}\0{resolved.path}\0{resolved.root}\0")
+        at = end + 1
 
 ## Report the resolved nonstandard import closure for source packaging. The entry
 ## itself is excluded: the caller already knows its source path and import alias.
@@ -1195,34 +1208,58 @@ func write_closure(checker: check.Checker*, out: io.Writer, entry_last: bool) ->
     try out.write("\0")
     try write_dependencies(checker, out, entry_last)
 
-## `describe-closure --modules BUILD_ROOT NAME PATH ROOT...`: several modules, each loaded under its
+## `describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME PATH ROOT...`: several modules, each loaded under its
 ## canonical name from its package's source root, checked together once, then described as
 ## `describe-closure` describes one closure; the dependency report names every module of
 ## the union, these among them. A consumer that imports many modules with closures in
 ## common (every one of luced-3d's holds luce-prism) checks the shared part once.
+##
+## With a cache named, the answer is kept as a record (`support.cache`) under the question
+## and answered from it while nothing it read has changed: a Luce build asks this of the
+## same unchanged libraries every time.
 func describe_closures(build_root: str, triples: c.str[], out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
-        var checker = try check.Checker.create(scratch_of())
-        checker.build_target = build_target()
-        # the build's package names its modules bare, every other package's behind its
-        # identifier (§16.3), as each module's own description names them
-        let building = try module_paths.building_package(build_root)
-        if building.length > 0:
-            checker.package_name = building
-        try checker.add_prelude()
-        var at: usize = 0
-        while at + 2 < triples.length:
-            let root = (str)triples[at + 2]
-            let room = try alloc u8[root.length + 2]
-            # a root is a directory the module paths below it are joined to
-            checker.root = try format(room, f"{root}/") if root.length > 0 and root.bytes[root.length - 1] != '/' else root
-            if checker.find_module((str)triples[at]) == none:
-                try checker.load_as(triples[at + 1], (str)triples[at])
-            at += 3
-        try checker.check_program()
-        try write_closure(&checker, out, false)
+        var record = ""
+        if cache.named():
+            var question = try buffer.Buffer.create(1024)
+            try question.put("describe-closure\0")
+            try question.put(build_root)
+            for argument in triples:
+                try question.put("\0")
+                try question.put((str)argument)
+            record = try cache.record_key(question.view())
+            if let answer = try cache.recall(record):
+                discard(try out.write(answer))
+                return
+        var answer = try buffer.Buffer.create(65536)
+        try closure_of(build_root, triples, &answer)
+        if record.length > 0:
+            cache.remember(record, answer.bytes())
+        discard(try out.write(answer.bytes()))
+
+## The closures `describe_closures` describes, checked and written to `out`.
+func closure_of(build_root: str, triples: c.str[], out: io.Writer) -> !:
+    var checker = try check.Checker.create(scratch_of())
+    checker.build_target = build_target()
+    # the build's package names its modules bare, every other package's behind its
+    # identifier (§16.3), as each module's own description names them
+    let building = try module_paths.building_package(build_root)
+    if building.length > 0:
+        checker.package_name = building
+    try checker.add_prelude()
+    var at: usize = 0
+    while at + 2 < triples.length:
+        let root = (str)triples[at + 2]
+        let room = try alloc u8[root.length + 2]
+        # a root is a directory the module paths below it are joined to
+        checker.root = try format(room, f"{root}/") if root.length > 0 and root.bytes[root.length - 1] != '/' else root
+        if checker.find_module((str)triples[at]) == none:
+            try checker.load_as(triples[at + 1], (str)triples[at])
+        at += 3
+    try checker.check_program()
+    try write_closure(&checker, out, false)
 
 ## Collect the packages actually loaded, including the entry and private imports.
 func native_inputs(checker: check.Checker*) -> native_packages.Inputs!:
@@ -1459,7 +1496,7 @@ func module_question(command: str, positional: usize, arguments: c.str[], out: i
             return 1
         return 0
     if command == "resolve-all" and positional >= 4:
-        resolve_modules((str)arguments[2], (str)arguments[3], arguments[4..], out) catch failure:
+        resolve_modules(arguments[2..], out) catch failure:
             try report_failure(failure.message)
             return 1
         return 0
@@ -1524,6 +1561,16 @@ pub func main(arguments: c.str[]) -> i32!:
             try report_failure(failure.message)
             return 1
         return 1 if warned else 0
+    if command == "describe-closure" and positional >= 5 and (str)arguments[2] == "--cache-dir":
+        # the cache Luce keeps, where the closure's answer is recorded (`describe_closures`)
+        cache.override = (str)arguments[3]
+        var rest = try alloc c.str[positional - 2]
+        rest[0] = arguments[0]
+        rest[1] = arguments[1]
+        for k in 4..<positional:
+            rest[k - 2] = arguments[k]
+        if let code = try module_question(command, positional - 2, rest, out):
+            return code
     if let code = try module_question(command, positional, arguments, out):
         return code
     if command == "describe" and positional == 4 and (str)arguments[2] == "--standard":

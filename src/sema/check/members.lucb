@@ -45,7 +45,7 @@ extend Checker:
                 e.flags |= ast.flag_type_ref
                 return c_type_id(name)
             var text: u8[256]
-            let d = find_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
+            let d = self.module_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
             var said9: u8[256]
             if not d.has(ast.flag_pub):
                 return try self.fail(e, said(said9, f"`{name}` is not public in `{m.text}`"))
@@ -354,8 +354,17 @@ extend Checker:
     func fail_now(what: str) -> never!:
         error(unsupported, what)
 
-    ## Whether `d` was declared in the module being checked.
-    func same_module(d: ast.Node*) -> bool:
+    ## Whether `d` was declared in the module being checked: by the index of each
+    ## declaration's module (`owner_of`), else, for a declaration the index has not seen,
+    ## by a walk of the module, which a large module made the checker's slowest question.
+    mutating func same_module(d: ast.Node*) -> bool:
+        let owner = self.owner_of(d) catch:
+            return self.declared_here(d)
+        if let index = owner:
+            return index == self.current
+        return self.declared_here(d)
+
+    func declared_here(d: ast.Node*) -> bool:
         let m = self.modules.get(self.current)
         var cursor = m.tree.body
         while let x = cursor:

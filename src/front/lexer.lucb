@@ -377,8 +377,10 @@ pub struct Lexer:
             self.offset += 1
 
     mutating func operator(start: usize) -> token.Token!:
+        let first = self.peek()
         for op in token.operators:
-            if self.offset + op.length <= self.src.bytes.length and (str)self.src.bytes[self.offset..<self.offset + op.length] == op:
+            # the first byte rules out all but a few, before any text is compared
+            if op.bytes[0] == first and self.offset + op.length <= self.src.bytes.length and (str)self.src.bytes[self.offset..<self.offset + op.length] == op:
                 self.offset += op.length
                 return self.make(token.Kind.operator, start)
         for op in token.singles:

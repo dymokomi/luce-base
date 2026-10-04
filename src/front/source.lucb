@@ -146,12 +146,6 @@ pub struct Source:
         try refuse_controls(path, body)
         discard(str(body) catch:
             error(bad_encoding, try located(path, body, first_invalid(body), "invalid UTF-8 in source")))
-        let count = count_directives(body)
-        var directives: Directive*? = none
-        if count > 0:
-            let room = try alloc Directive[count]
-            fill_directives(body, room)
-            directives = &room[0]
         var line_count: usize = 1
         for b in body:
             if b == '\n':
@@ -165,6 +159,13 @@ pub struct Source:
                 starts[k] = i + 1
                 k += 1
             i += 1
+        # a directive is a line of its own that begins `#:`, so only the line starts are read
+        let count = count_directives(body, starts)
+        var directives: Directive*? = none
+        if count > 0:
+            let room = try alloc Directive[count]
+            fill_directives(body, starts, room)
+            directives = &room[0]
         return Source(path = path, bytes = body, directives = directives, directive_count = count, lines = &starts[0], line_count = line_count, segment_paths = none, segment_starts = none, segment_count = 0)
 
     ## One-based column of the first non-blank byte of a line: where the statement on it
@@ -381,29 +382,35 @@ func directive_number(body: const u8[], start: usize, end: usize) -> u32?:
         i += 1
     return u32(n)
 
-func count_directives(body: const u8[]) -> usize:
+## How many lines, each starting at one of `starts`, are directives.
+func count_directives(body: const u8[], starts: const usize[]) -> usize:
     var count: usize = 0
-    var at: usize = 0
-    var line: u32 = 1
-    while at < body.length:
+    for line in 0..<starts.length:
         var stop: usize = 0
-        if directive_at(body, at, line, &stop) != none:
+        if opens_directive(body, starts[line]) and directive_at(body, starts[line], u32(line + 1), &stop) != none:
             count += 1
-        at = stop + 1
-        line += 1
     return count
 
-func fill_directives(body: const u8[], room: Directive[]):
+## The directives among the lines starting at `starts`, in order, into `room`.
+func fill_directives(body: const u8[], starts: const usize[], room: Directive[]):
     var k: usize = 0
-    var at: usize = 0
-    var line: u32 = 1
-    while at < body.length and k < room.length:
+    for line in 0..<starts.length:
+        if k == room.length:
+            return
         var stop: usize = 0
-        if let d = directive_at(body, at, line, &stop):
+        if not opens_directive(body, starts[line]):
+            continue
+        if let d = directive_at(body, starts[line], u32(line + 1), &stop):
             room[k] = d
             k += 1
-        at = stop + 1
-        line += 1
+
+## Whether the line at `at` begins, after its indentation, with `#:`: the test that rules
+## out every other line before `directive_at` reads one through.
+func opens_directive(body: const u8[], at: usize) -> bool:
+    var i = at
+    while i < body.length and body[i] == ' ':
+        i += 1
+    return i + 1 < body.length and body[i] == '#' and body[i + 1] == ':'
 
 test "a control character and invalid UTF-8 are refused at their line and column":
     let bidi = Source.over("t.lucb", "ab\n  \u{202e}x".bytes) catch failure:
