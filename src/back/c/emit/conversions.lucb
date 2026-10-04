@@ -15,11 +15,7 @@ extend Emitter:
         let s = self.c.table.get(st)
         if self.folding and (self.is_int(dest) or self.is_float(dest)) and (self.is_int(st) or self.is_float(st) or st == types.untyped_int_id or st == types.untyped_float_id):
             # a constant expression: C's cast
-            try self.put("((")
-            try self.put_type(dest)
-            try self.put(")(")
-            try self.expr(src)
-            try self.put("))")
+            try self.plain_cast(src, dest)
             return
         if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
             try self.str_conversion(src, checked)
@@ -37,51 +33,19 @@ extend Emitter:
             if checked:
                 try self.enum_check(dest, src)
                 return
-            try self.put("((")
-            try self.put_type(dest)
-            try self.put(")(")
-            try self.expr(src)
-            try self.put("))")
+            try self.plain_cast(src, dest)
             return
         if self.c.is_backed_enum(st) and self.is_int(dest):
-            try self.put("((")
-            try self.put_type(dest)
-            try self.put(")(")
-            try self.expr(src)
-            try self.put("))")
+            try self.plain_cast(src, dest)
             return
-        let mode = "0" if checked else "1"
         if self.is_float(st) and self.is_int(dest):
-            try self.put("((")
-            try self.put_type(dest)
-            try self.put(")")
-            try self.put("lb_f_to_s((double)(" if self.is_signed(dest) else "lb_f_to_u((double)(")
-            try self.expr(src)
-            try self.put("), ")
-            try self.put_u64((u64)self.bits(dest))
-            try self.put(", ")
-            try self.put(mode)
-            try self.put("))")
+            try self.float_to_int(src, dest, checked)
             return
         if (self.is_int(st) or st == types.untyped_int_id) and self.is_float(dest):
-            let signed = st == types.untyped_int_id or self.is_signed(st)
-            if dest != types.f64_id:
-                try self.put("(")
-                try self.put_type(dest)
-                try self.put(")")
-            try self.put("lb_to_f(")
-            try self.put("(int64_t)(" if signed else "(uint64_t)(")
-            try self.expr(src)
-            try self.put("), ")
-            try self.put("1" if signed else "0")
-            try self.put(")")
+            try self.int_to_float(src, st, dest)
             return
         if (self.is_float(st) or st == types.untyped_float_id) and self.is_float(dest):
-            try self.put("((")
-            try self.put_type(dest)
-            try self.put(")(")
-            try self.expr(src)
-            try self.put("))")
+            try self.plain_cast(src, dest)
             return
         let s_word = self.is_int(st) or st == types.char_id or st == types.bool_id or st == types.untyped_int_id
         let d_word = self.is_int(dest) or dest == types.char_id
@@ -93,45 +57,81 @@ extend Emitter:
         # a bool is 0 or 1, which every integer holds: a plain cast, which also keeps a
         # constant such as `(i32)platform.macos` a compile-time constant for a global
         if st == types.bool_id and d_word:
-            try self.put("((")
-            try self.put_type(dest)
-            try self.put(")(")
-            try self.expr(src)
-            try self.put("))")
+            try self.plain_cast(src, dest)
             return
         if s_word and d_word:
-            let fb = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else self.bits(st))
-            let tb = 32 if dest == types.char_id else self.bits(dest)
-            let fs = st != types.char_id and st != types.bool_id and (st == types.untyped_int_id or self.is_signed(st))
-            let ts = dest != types.char_id and self.is_signed(dest)
-            try self.put("((")
-            try self.put_type(dest)
-            try self.put(")")
-            if dest == types.char_id:
-                try self.put("lb_to_char(")
-            try self.put("lb_conv_s(" if fs else "lb_conv_u(")
-            try self.put("(int64_t)(" if fs else "(uint64_t)(")
-            try self.expr(src)
-            try self.put("), ")
-            try self.put_u64((u64)fb)
-            try self.put(", ")
-            try self.put("1" if fs else "0")
-            try self.put(", ")
-            try self.put_u64((u64)tb)
-            try self.put(", ")
-            try self.put("1" if ts else "0")
-            try self.put(", ")
-            try self.put(mode)
-            if dest == types.char_id:
-                try self.put("), ")
-                try self.put(mode)
-            try self.put("))")
+            try self.word_conversion(src, st, dest, checked)
             return
         # pointers, spans, and everything else C converts by itself
+        try self.plain_cast(src, dest)
+
+    ## `((T)(x))`: C's own cast.
+    mutating func plain_cast(src: ast.Node*, dest: u32) -> !:
         try self.put("((")
         try self.put_type(dest)
         try self.put(")(")
         try self.expr(src)
+        try self.put("))")
+
+    ## A float to an integer through the runtime's helper, which traps on a value out of
+    ## range when `checked` and otherwise wraps.
+    mutating func float_to_int(src: ast.Node*, dest: u32, checked: bool) -> !:
+        try self.put("((")
+        try self.put_type(dest)
+        try self.put(")")
+        try self.put("lb_f_to_s((double)(" if self.is_signed(dest) else "lb_f_to_u((double)(")
+        try self.expr(src)
+        try self.put("), ")
+        try self.put_u64((u64)self.bits(dest))
+        try self.put(", ")
+        try self.put("0" if checked else "1")
+        try self.put("))")
+
+    ## An integer of type `st` to a float through the runtime's `lb_to_f`, by its
+    ## signedness.
+    mutating func int_to_float(src: ast.Node*, st: u32, dest: u32) -> !:
+        let signed = st == types.untyped_int_id or self.is_signed(st)
+        if dest != types.f64_id:
+            try self.put("(")
+            try self.put_type(dest)
+            try self.put(")")
+        try self.put("lb_to_f(")
+        try self.put("(int64_t)(" if signed else "(uint64_t)(")
+        try self.expr(src)
+        try self.put("), ")
+        try self.put("1" if signed else "0")
+        try self.put(")")
+
+    ## Between integers, `char`, and `bool`: the runtime's `lb_conv_s` or `lb_conv_u` from
+    ## the source's width and signedness to the destination's, trapping on a value out of
+    ## range when `checked`; a `char` is also checked to be a scalar.
+    mutating func word_conversion(src: ast.Node*, st: u32, dest: u32, checked: bool) -> !:
+        let mode = "0" if checked else "1"
+        let fb = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else self.bits(st))
+        let tb = 32 if dest == types.char_id else self.bits(dest)
+        let fs = st != types.char_id and st != types.bool_id and (st == types.untyped_int_id or self.is_signed(st))
+        let ts = dest != types.char_id and self.is_signed(dest)
+        try self.put("((")
+        try self.put_type(dest)
+        try self.put(")")
+        if dest == types.char_id:
+            try self.put("lb_to_char(")
+        try self.put("lb_conv_s(" if fs else "lb_conv_u(")
+        try self.put("(int64_t)(" if fs else "(uint64_t)(")
+        try self.expr(src)
+        try self.put("), ")
+        try self.put_u64((u64)fb)
+        try self.put(", ")
+        try self.put("1" if fs else "0")
+        try self.put(", ")
+        try self.put_u64((u64)tb)
+        try self.put(", ")
+        try self.put("1" if ts else "0")
+        try self.put(", ")
+        try self.put(mode)
+        if dest == types.char_id:
+            try self.put("), ")
+            try self.put(mode)
         try self.put("))")
 
     ## `Kind(n)`: trap unless `n` is a declared case.

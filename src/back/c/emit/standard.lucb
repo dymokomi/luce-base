@@ -106,68 +106,84 @@ extend Emitter:
         if name == "cas":
             let expected = args[0] else return
             let desired = args[1] else return
-            let result = try self.ty(e)
-            try self.put("({ ")
-            try self.put_type(et)
-            try self.put(" ")
-            try self.put_tmp("ce", n)
-            try self.put(" = (")
-            try self.put_type(et)
-            try self.put(")(")
-            try self.value(expected, et)
-            try self.put("); bool ")
-            try self.put_tmp("co", n)
-            try self.put("; if (")
-            if let weak_flag = args[4]:
-                try self.value(weak_flag, types.bool_id)
-            else:
-                try self.put("0")
-            try self.put(") { ")
-            try self.compare_exchange("weak", receiver, through_ptr, n, et, desired, args[2], args[3])
-            try self.put("); } else { ")
-            try self.compare_exchange("strong", receiver, through_ptr, n, et, desired, args[2], args[3])
-            try self.put("); } (")
-            try self.put_type(result)
-            try self.put("){ ")
-            try self.put_tmp("co", n)
-            try self.put(", ")
-            try self.put_tmp("ce", n)
-            try self.put(" }; })")
+            try self.atomic_cas(e, receiver, through_ptr, et, n, expected, desired, args[2], args[3], args[4])
             return
         let v = args[0] else return
         if name == "max" or name == "min":
-            try self.put("({ ")
-            try self.put_type(et)
-            try self.put(" ")
-            try self.put_tmp("mo", n)
-            try self.put(" = atomic_load_explicit(")
-            try self.receiver_address(receiver, through_ptr)
-            try self.put(", memory_order_seq_cst); ")
-            try self.put_type(et)
-            try self.put(" ")
-            try self.put_tmp("mn", n)
-            try self.put(" = (")
-            try self.put_type(et)
-            try self.put(")(")
-            try self.value(v, et)
-            try self.put("); for (;;) { ")
-            try self.put_type(et)
-            try self.put(" _w = (")
-            try self.put_tmp("mo", n)
-            try self.put(" >= " if name == "max" else " <= ")
-            try self.put_tmp("mn", n)
-            try self.put(") ? ")
-            try self.put_tmp("mo", n)
-            try self.put(" : ")
-            try self.put_tmp("mn", n)
-            try self.put("; if (atomic_compare_exchange_weak_explicit(")
-            try self.receiver_address(receiver, through_ptr)
-            try self.put(", &")
-            try self.put_tmp("mo", n)
-            try self.put(", _w, memory_order_seq_cst, memory_order_seq_cst)) break; } ")
-            try self.put_tmp("mo", n)
-            try self.put("; })")
+            try self.atomic_extreme(name == "max", receiver, through_ptr, et, n, v)
             return
+        try self.atomic_update(name, receiver, through_ptr, et, v, args[1])
+
+    ## `x.cas(expected, desired, success, failure, weak)`: a weak or a strong compare and
+    ## exchange, by the flag at run time, into the result's pair of success and the value
+    ## found.
+    mutating func atomic_cas(e: ast.Node*, receiver: ast.Node*, through_ptr: bool, et: u32, n: u32, expected: ast.Node*, desired: ast.Node*, success: ast.Node*?, failure: ast.Node*?, weak: ast.Node*?) -> !:
+        let result = try self.ty(e)
+        try self.put("({ ")
+        try self.put_type(et)
+        try self.put(" ")
+        try self.put_tmp("ce", n)
+        try self.put(" = (")
+        try self.put_type(et)
+        try self.put(")(")
+        try self.value(expected, et)
+        try self.put("); bool ")
+        try self.put_tmp("co", n)
+        try self.put("; if (")
+        if let weak_flag = weak:
+            try self.value(weak_flag, types.bool_id)
+        else:
+            try self.put("0")
+        try self.put(") { ")
+        try self.compare_exchange("weak", receiver, through_ptr, n, et, desired, success, failure)
+        try self.put("); } else { ")
+        try self.compare_exchange("strong", receiver, through_ptr, n, et, desired, success, failure)
+        try self.put("); } (")
+        try self.put_type(result)
+        try self.put("){ ")
+        try self.put_tmp("co", n)
+        try self.put(", ")
+        try self.put_tmp("ce", n)
+        try self.put(" }; })")
+
+    ## `x.max(v)` (`is_max`) or `x.min(v)`: a compare-exchange loop that keeps the larger
+    ## or the smaller, giving the value it found.
+    mutating func atomic_extreme(is_max: bool, receiver: ast.Node*, through_ptr: bool, et: u32, n: u32, v: ast.Node*) -> !:
+        try self.put("({ ")
+        try self.put_type(et)
+        try self.put(" ")
+        try self.put_tmp("mo", n)
+        try self.put(" = atomic_load_explicit(")
+        try self.receiver_address(receiver, through_ptr)
+        try self.put(", memory_order_seq_cst); ")
+        try self.put_type(et)
+        try self.put(" ")
+        try self.put_tmp("mn", n)
+        try self.put(" = (")
+        try self.put_type(et)
+        try self.put(")(")
+        try self.value(v, et)
+        try self.put("); for (;;) { ")
+        try self.put_type(et)
+        try self.put(" _w = (")
+        try self.put_tmp("mo", n)
+        try self.put(" >= " if is_max else " <= ")
+        try self.put_tmp("mn", n)
+        try self.put(") ? ")
+        try self.put_tmp("mo", n)
+        try self.put(" : ")
+        try self.put_tmp("mn", n)
+        try self.put("; if (atomic_compare_exchange_weak_explicit(")
+        try self.receiver_address(receiver, through_ptr)
+        try self.put(", &")
+        try self.put_tmp("mo", n)
+        try self.put(", _w, memory_order_seq_cst, memory_order_seq_cst)) break; } ")
+        try self.put_tmp("mo", n)
+        try self.put("; })")
+
+    ## `x.add(v)`, `sub`, `set`, `clear`, `flip`, and `swap`: one C11 read-modify-write
+    ## at the given order, giving the value before it.
+    mutating func atomic_update(name: str, receiver: ast.Node*, through_ptr: bool, et: u32, v: ast.Node*, order: ast.Node*?) -> !:
         try self.put("((")
         try self.put_type(et)
         try self.put(")")
@@ -194,7 +210,7 @@ extend Emitter:
         else:
             try self.value(v, et)
         try self.put("), ")
-        try self.memory_order(args[1])
+        try self.memory_order(order)
         try self.put("))")
 
     # mark: Memory =============================================================================
@@ -232,6 +248,9 @@ extend Emitter:
         try self.put_u64(check.exhausted_code())
         try self.put(", .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true })")
 
+    ## `new T`, `new T(args)`, `new T.case(...)`, and `new T[count]`: an allocation through
+    ## the allocator in effect, initialised in place, as a statement expression giving the
+    ## fallible pointer.
     mutating func new_expr(e: ast.Node*) -> !:
         let t = e.ty else return
         let (n, result, payload) = try self.open_allocation(e)
@@ -270,45 +289,7 @@ extend Emitter:
         try self.put(".value.data; ")
         var failed_init = false
         if let init = e.initializer():
-            let native_type = self.c.table.get(et)
-            var fn = try self.map(init.type_id)
-            if let declaration = native_type.decl:
-                fn = try self.c.substitute(fn, declaration, native_type.args)
-            discard(try self.add_func(init, try types.no_args(), native_type.decl, native_type.args))
-            try self.put("memset(")
-            try self.put_tmp("p", n)
-            try self.put(", 0, sizeof(")
-            try self.put_type(et)
-            try self.put(")); ")
-            failed_init = init.has(ast.flag_fallible)
-            if failed_init:
-                try self.put("lb_r_unit ")
-                try self.put_tmp("init", n)
-                try self.put(" = ")
-            let hoisted = try self.begin_sequence(e.body, fn, init)
-            try self.put_func_name(init, try types.no_args(), native_type.decl, native_type.args)
-            try self.put("(")
-            try self.put_tmp("p", n)
-            if init.right != none:
-                try self.put(", ")
-                try self.arguments(e.body, fn, init, try types.no_args())
-            try self.put(")")
-            try self.end_sequence(hoisted)
-            try self.put("; ")
-            if failed_init:
-                try self.put("if (")
-                try self.put_tmp("init", n)
-                try self.put(".failed) { ")
-                try self.put_tmp("r", n)
-                try self.put(".failed = true; ")
-                try self.put_tmp("r", n)
-                try self.put(".error = ")
-                try self.put_tmp("init", n)
-                try self.put(".error; lb_release_call(")
-                try self.put_tmp("a", n)
-                try self.put(", ")
-                try self.put_tmp("ao", n)
-                try self.put(".value); } else { ")
+            failed_init = try self.new_init(e, init, et, n)
         elif let body = e.body:
             try self.put("*")
             try self.put_tmp("p", n)
@@ -341,6 +322,51 @@ extend Emitter:
         try self.put("} ")
         try self.put_tmp("r", n)
         try self.put("; })")
+
+    ## The zeroed allocation `p<n>` of a `new T(args)` given to `T`'s `init`; true when the
+    ## init can fail, when what follows runs in the `else` of its success and a failure
+    ## releases the allocation into the result `r<n>`.
+    mutating func new_init(e: ast.Node*, init: ast.Node*, et: u32, n: u32) -> bool!:
+        let native_type = self.c.table.get(et)
+        var fn = try self.map(init.type_id)
+        if let declaration = native_type.decl:
+            fn = try self.c.substitute(fn, declaration, native_type.args)
+        discard(try self.add_func(init, try types.no_args(), native_type.decl, native_type.args))
+        try self.put("memset(")
+        try self.put_tmp("p", n)
+        try self.put(", 0, sizeof(")
+        try self.put_type(et)
+        try self.put(")); ")
+        let failed_init = init.has(ast.flag_fallible)
+        if failed_init:
+            try self.put("lb_r_unit ")
+            try self.put_tmp("init", n)
+            try self.put(" = ")
+        let hoisted = try self.begin_sequence(e.body, fn, init)
+        try self.put_func_name(init, try types.no_args(), native_type.decl, native_type.args)
+        try self.put("(")
+        try self.put_tmp("p", n)
+        if init.right != none:
+            try self.put(", ")
+            try self.arguments(e.body, fn, init, try types.no_args())
+        try self.put(")")
+        try self.end_sequence(hoisted)
+        try self.put("; ")
+        if failed_init:
+            try self.put("if (")
+            try self.put_tmp("init", n)
+            try self.put(".failed) { ")
+            try self.put_tmp("r", n)
+            try self.put(".failed = true; ")
+            try self.put_tmp("r", n)
+            try self.put(".error = ")
+            try self.put_tmp("init", n)
+            try self.put(".error; lb_release_call(")
+            try self.put_tmp("a", n)
+            try self.put(", ")
+            try self.put_tmp("ao", n)
+            try self.put(".value); } else { ")
+        return failed_init
 
     ## `count` elements of a span payload, zeroed when `zero`; closes the statement expression.
     mutating func counted_allocation(n: u32, payload: u32, count: ast.Node*, result: u32, zero: bool) -> !:

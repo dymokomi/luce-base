@@ -1362,6 +1362,20 @@ func lex_file(path: c.str, out: io.Writer) -> !:
 ## `build`'s options from its arguments after the file, or none when one is malformed: the
 ## message is already written.
 func build_options(arguments: c.str[]) -> Options?!:
+    var options = try default_options()
+    # An emission format selects its backend independently of flag order.
+    var emission_backend: u32 = 0
+    var i: usize = 3
+    while i < arguments.length:
+        let last = try build_option(&options, arguments, i, &emission_backend) else return none
+        i = last + 1
+    if emission_backend != 0:
+        options.native = emission_backend == 2
+    return options
+
+## `build`'s options before any argument: the native backend, no output named, nothing
+## linked.
+func default_options() -> Options!:
     var options: Options = ---
     options.libraries = try list.List[c.str].create(4)
     options.library_dirs = try list.List[c.str].create(4)
@@ -1382,94 +1396,94 @@ func build_options(arguments: c.str[]) -> Options?!:
     options.target = ""
     options.cpu = ""
     options.diagnostic = false
-    # An emission format selects its backend independently of flag order.
-    var emission_backend: u32 = 0
-    var i: usize = 3
-    while i < arguments.length:
-        let a = (str)arguments[i]
-        if a == "-o" and i + 1 < arguments.length:
-            options.output = (str)arguments[i + 1]
-            i += 1
-        elif a == "--release":
-            options.release = true
-        elif a == "--emit=c" or a == "--emit=asm":
-            options.emit_c = true
-            dump_ir = false
-            emission_backend = 1 if a == "--emit=c" else 2
-        elif a == "--emit=ir":
-            options.emit_c = true
-            options.native = true
-            dump_ir = true
-            emission_backend = 2
-        elif a == "--opt" and i + 1 < arguments.length:
-            let wanted_level = literals.decode_integer((str)arguments[i + 1]) catch failure:
-                try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
-                return none
-            if wanted_level > 3:
-                try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
-                return none
-            opt_level = u32(wanted_level)
-            i += 1
-        elif a == "--opt-report":
-            opt_report = true
-        elif a == "--opt-count" and i + 1 < arguments.length:
-            let wanted_count = literals.decode_integer((str)arguments[i + 1]) catch failure:
-                try io.stderr().write("luce-base: --opt-count takes a number of rewrites\n")
-                return none
-            opt_count = u32(wanted_count)
-            i += 1
-        elif a == "--native":
-            options.native = true
-            options.backend_chosen = true
-        elif a == "--backend=c":
-            options.native = false
-            options.backend_chosen = true
-        elif a == "--lib":
-            options.library = true
-        elif a == "--freestanding":
-            options.freestanding = true
-        elif a == "--target" and i + 1 < arguments.length and not starts_with((str)arguments[i + 1], "-"):
-            options.target = (str)arguments[i + 1]
-            i += 1
-        elif a == "--target":
-            options.list_targets = true
-        elif a == "--cpu" and i + 1 < arguments.length:
-            options.cpu = (str)arguments[i + 1]
-            i += 1
-        elif a == "--profile" and i + 1 < arguments.length:
-            let profile = (str)arguments[i + 1]
-            if profile == "diagnostic":
-                options.diagnostic = true
-            elif profile != "default":
-                try io.stderr().write(f"luce-base: unknown profile `{profile}`; the profiles are `default` and `diagnostic`\n")
-                return none
-            i += 1
-        elif a == "--debug":
-            options.debug = true
-        elif a == "-W":
-            show_warnings = true
-        elif starts_with(a, "-l") and a.length > 2:
-            try options.libraries.push((c.str)(str)a.bytes[2..])
-        elif starts_with(a, "-L") and a.length > 2:
-            try options.library_dirs.push((c.str)(str)a.bytes[2..])
-        elif a == "-framework" and i + 1 < arguments.length:
-            try options.frameworks.push(arguments[i + 1])
-            i += 1
-        elif a == "--cache-dir" and i + 1 < arguments.length:
-            options.cache_dir = (str)arguments[i + 1]
-            i += 1
-        elif a == "--cache-report":
-            options.cache_report = true
-        elif a == "--std-dir" and i + 1 < arguments.length:
-            options.std_dir = (str)arguments[i + 1]
-            i += 1
-        else:
-            try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
-            return none
-        i += 1
-    if emission_backend != 0:
-        options.native = emission_backend == 2
     return options
+
+## The `build` argument at `i` into `options` (an emission format's backend into
+## `emission_backend`): the index of the last argument it took, the one after it when it
+## takes a value, or none when it is malformed, its message written.
+func build_option(options: Options*, arguments: c.str[], i: usize, emission_backend: u32*) -> usize?!:
+    let a = (str)arguments[i]
+    let has_value = i + 1 < arguments.length
+    let value = (str)arguments[i + 1] if has_value else ""
+    if a == "-o" and has_value:
+        options.output = value
+        return i + 1
+    elif a == "--release":
+        options.release = true
+    elif a == "--emit=c" or a == "--emit=asm":
+        options.emit_c = true
+        dump_ir = false
+        *emission_backend = 1 if a == "--emit=c" else 2
+    elif a == "--emit=ir":
+        options.emit_c = true
+        options.native = true
+        dump_ir = true
+        *emission_backend = 2
+    elif a == "--opt" and has_value:
+        let wanted_level = literals.decode_integer(value) catch failure:
+            try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
+            return none
+        if wanted_level > 3:
+            try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
+            return none
+        opt_level = u32(wanted_level)
+        return i + 1
+    elif a == "--opt-report":
+        opt_report = true
+    elif a == "--opt-count" and has_value:
+        let wanted_count = literals.decode_integer(value) catch failure:
+            try io.stderr().write("luce-base: --opt-count takes a number of rewrites\n")
+            return none
+        opt_count = u32(wanted_count)
+        return i + 1
+    elif a == "--native":
+        options.native = true
+        options.backend_chosen = true
+    elif a == "--backend=c":
+        options.native = false
+        options.backend_chosen = true
+    elif a == "--lib":
+        options.library = true
+    elif a == "--freestanding":
+        options.freestanding = true
+    elif a == "--target" and has_value and not starts_with(value, "-"):
+        options.target = value
+        return i + 1
+    elif a == "--target":
+        options.list_targets = true
+    elif a == "--cpu" and has_value:
+        options.cpu = value
+        return i + 1
+    elif a == "--profile" and has_value:
+        if value == "diagnostic":
+            options.diagnostic = true
+        elif value != "default":
+            try io.stderr().write(f"luce-base: unknown profile `{value}`; the profiles are `default` and `diagnostic`\n")
+            return none
+        return i + 1
+    elif a == "--debug":
+        options.debug = true
+    elif a == "-W":
+        show_warnings = true
+    elif starts_with(a, "-l") and a.length > 2:
+        try options.libraries.push((c.str)(str)a.bytes[2..])
+    elif starts_with(a, "-L") and a.length > 2:
+        try options.library_dirs.push((c.str)(str)a.bytes[2..])
+    elif a == "-framework" and has_value:
+        try options.frameworks.push(arguments[i + 1])
+        return i + 1
+    elif a == "--cache-dir" and has_value:
+        options.cache_dir = value
+        return i + 1
+    elif a == "--cache-report":
+        options.cache_report = true
+    elif a == "--std-dir" and has_value:
+        options.std_dir = value
+        return i + 1
+    else:
+        try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
+        return none
+    return i
 
 ## The questions Luce asks of Base modules (resolve, describe-closure, native-inputs,
 ## dependencies, and their batched forms): the command's exit status, or none when

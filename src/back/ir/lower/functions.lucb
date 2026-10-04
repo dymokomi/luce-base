@@ -86,6 +86,47 @@ extend Lowerer:
                 self_type = try self.c.table.pointer(oid, not (d.has(ast.flag_mutating) or d.text == "init"), false)
                 self_slot = try self.f.slot(8, 8)
                 try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = self_type, slot = self_slot, shape = 0))
+        var length_slots = try self.export_parameters(d)
+        var out_slot: u32 = 0
+        if fallible and payload != types.unit_id:
+            out_slot = try self.f.slot(8, 8)
+            try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, slot = out_slot, shape = 0))
+        if fallible:
+            try self.set_result(types.i32_id)
+        else:
+            try self.set_result(ft.elem)
+        try self.push_scope(false, "", 0, 0)
+        # the arguments of the call: the receiver, then each parameter as the function takes it
+        let start = u32(self.f.args.count)
+        if self_slot != 0:
+            let receiver = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(self_slot))
+            try self.f.args.push(ir.Arg(value = receiver, cls = ir.Class.l, size = 0, align = 8, type_id = self_type, shape = 0))
+        var i: usize = 0
+        var cursor = d.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            let slot = self.find_local(p) else return try self.fail(p, "a parameter without a slot")
+            if self.is_span(pt):
+                try self.export_span_argument(slot, length_slots.get(i), pt)
+            else:
+                try self.f.args.push(try self.arg_of(try self.load_from(try self.slot_address(slot), pt)))
+            i += 1
+            cursor = p.next
+        let count = u32(self.f.args.count) - start
+        let result = try self.export_call(internal, start, count, ft.elem)
+        if fallible:
+            try self.export_status(result, payload, out_slot)
+        elif ft.elem == types.unit_id or ft.elem == types.never_id:
+            try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+        else:
+            try self.f.emit(ir.Op.ret, self.class_of(ft.elem) if not result.in_memory else ir.Class.l, 0, result.ref, ir.none_ref(), 0)
+        self.pop_scope()
+        try self.end_function()
+
+    ## The C-visible parameters of the export `d`, each a local in a slot; a span arrives
+    ## as a pointer and a length in two. The length slot of each parameter, 0 for one that
+    ## is not a span.
+    mutating func export_parameters(d: ast.Node*) -> list.List[u32]!:
         var length_slots = try list.List[u32].create(4)
         var cursor = d.right
         while let p = cursor:
@@ -103,83 +144,60 @@ extend Lowerer:
                 try self.f.params.push(try self.param_of(pt, s))
                 try length_slots.push(0)
             cursor = p.next
-        var out_slot: u32 = 0
-        if fallible and payload != types.unit_id:
-            out_slot = try self.f.slot(8, 8)
-            try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, slot = out_slot, shape = 0))
-        if fallible:
-            try self.set_result(types.i32_id)
-        else:
-            try self.set_result(ft.elem)
-        try self.push_scope(false, "", 0, 0)
-        # the arguments of the call: the receiver, then each parameter as the function takes it
-        let start = u32(self.f.args.count)
-        if self_slot != 0:
-            let receiver = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(self_slot))
-            try self.f.args.push(ir.Arg(value = receiver, cls = ir.Class.l, size = 0, align = 8, type_id = self_type, shape = 0))
-        var i: usize = 0
-        cursor = d.right
-        while let p = cursor:
-            let pt = try self.map(p.type_id)
-            let slot = self.find_local(p) else return try self.fail(p, "a parameter without a slot")
-            if self.is_span(pt):
-                # `(NULL, n)` is the empty span: a data pointer of 8 and no length
-                let data_at = try self.slot_address(slot)
-                let length_at = try self.slot_address(length_slots.get(i))
-                let given = try self.f.load(ir.Op.loadl, ir.Class.l, data_at)
-                let present = self.f.label()
-                let absent = self.f.label()
-                let joined = self.f.label()
-                try self.f.branch(given, present, absent)
-                try self.f.place_label(absent)
-                try self.f.store(ir.Op.storel, ir.const_ref(8), data_at)
-                try self.f.store(ir.Op.storel, ir.const_ref(0), length_at)
-                try self.f.jump(joined)
-                try self.f.place_label(present)
-                try self.f.jump(joined)
-                try self.f.place_label(joined)
-                let data = try self.f.load(ir.Op.loadl, ir.Class.l, data_at)
-                let length = try self.f.load(ir.Op.loadl, ir.Class.l, length_at)
-                try self.f.args.push(try self.arg_of(try self.span_of(data, length, pt)))
-            else:
-                try self.f.args.push(try self.arg_of(try self.load_from(try self.slot_address(slot), pt)))
-            i += 1
-            cursor = p.next
-        let count = u32(self.f.args.count) - start
-        # the call, its result in a slot when it is an aggregate or fallible
-        let result_type = ft.elem
-        var result = LowerValue(ref = ir.none_ref(), type_id = types.unit_id, in_memory = false)
+        return length_slots
+
+    ## A span parameter arriving from C as a pointer in `slot` and a length in
+    ## `length_slot`, as the span argument of type `pt`: `(NULL, n)` is the empty span, a
+    ## data pointer of 8 and no length.
+    mutating func export_span_argument(slot: u32, length_slot: u32, pt: u32) -> !:
+        let data_at = try self.slot_address(slot)
+        let length_at = try self.slot_address(length_slot)
+        let given = try self.f.load(ir.Op.loadl, ir.Class.l, data_at)
+        let present = self.f.label()
+        let absent = self.f.label()
+        let joined = self.f.label()
+        try self.f.branch(given, present, absent)
+        try self.f.place_label(absent)
+        try self.f.store(ir.Op.storel, ir.const_ref(8), data_at)
+        try self.f.store(ir.Op.storel, ir.const_ref(0), length_at)
+        try self.f.jump(joined)
+        try self.f.place_label(present)
+        try self.f.jump(joined)
+        try self.f.place_label(joined)
+        let data = try self.f.load(ir.Op.loadl, ir.Class.l, data_at)
+        let length = try self.f.load(ir.Op.loadl, ir.Class.l, length_at)
+        try self.f.args.push(try self.arg_of(try self.span_of(data, length, pt)))
+
+    ## The call of the exported function by its `internal` name, its result in a slot when
+    ## it is an aggregate or fallible.
+    mutating func export_call(internal: str, start: u32, count: u32, result_type: u32) -> LowerValue!:
         if result_type == types.unit_id or result_type == types.never_id:
             discard(try self.call_named(internal, start, count, ir.Class.w, false, types.unit_id))
-        elif self.is_scalar(result_type):
+            return LowerValue(ref = ir.none_ref(), type_id = types.unit_id, in_memory = false)
+        if self.is_scalar(result_type):
             let cls = self.class_of(result_type)
-            result = LowerValue(ref = try self.call_named(internal, start, count, cls, true, result_type), type_id = result_type, in_memory = false)
-        else:
-            let slot = try self.new_slot(result_type)
-            let info = ir.CallInfo(args_start = start, args_count = count, fixed_count = count, variadic = false, result_cls = ir.Class.l, has_result = true, result_size = self.size(result_type), result_align = self.align(result_type), result_type = result_type, result_slot = slot, result_shape = try self.shape_of(result_type))
-            try self.f.calls.push(info)
-            try self.f.emit(ir.Op.call, ir.Class.l, 0, ir.function_ref(internal), ir.none_ref(), u32(self.f.calls.count - 1))
-            result = LowerValue(ref = try self.slot_address(slot), type_id = result_type, in_memory = true)
-        if fallible:
-            # the status: the error's code when the call failed, else 0 with the value out
-            let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(result.ref, self.failed_offset(result_type)))
-            let bad = self.f.label()
-            let good = self.f.label()
-            try self.f.branch(failed, bad, good)
-            try self.f.place_label(bad)
-            let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.failure_address())
-            try self.f.emit(ir.Op.ret, ir.Class.w, 0, code, ir.none_ref(), 0)
-            try self.f.place_label(good)
-            if payload != types.unit_id:
-                let out = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(out_slot))
-                try self.store_to(out, try self.load_from(result.ref, payload))
-            try self.f.emit(ir.Op.ret, ir.Class.w, 0, ir.const_ref(0), ir.none_ref(), 0)
-        elif result_type == types.unit_id or result_type == types.never_id:
-            try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
-        else:
-            try self.f.emit(ir.Op.ret, self.class_of(result_type) if not result.in_memory else ir.Class.l, 0, result.ref, ir.none_ref(), 0)
-        self.pop_scope()
-        try self.end_function()
+            return LowerValue(ref = try self.call_named(internal, start, count, cls, true, result_type), type_id = result_type, in_memory = false)
+        let slot = try self.new_slot(result_type)
+        let info = ir.CallInfo(args_start = start, args_count = count, fixed_count = count, variadic = false, result_cls = ir.Class.l, has_result = true, result_size = self.size(result_type), result_align = self.align(result_type), result_type = result_type, result_slot = slot, result_shape = try self.shape_of(result_type))
+        try self.f.calls.push(info)
+        try self.f.emit(ir.Op.call, ir.Class.l, 0, ir.function_ref(internal), ir.none_ref(), u32(self.f.calls.count - 1))
+        return LowerValue(ref = try self.slot_address(slot), type_id = result_type, in_memory = true)
+
+    ## A fallible export's return: the error's code when the call failed, else 0 with the
+    ## value of type `payload` written through the out-pointer in `out_slot`.
+    mutating func export_status(result: LowerValue, payload: u32, out_slot: u32) -> !:
+        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(result.ref, self.failed_offset(result.type_id)))
+        let bad = self.f.label()
+        let good = self.f.label()
+        try self.f.branch(failed, bad, good)
+        try self.f.place_label(bad)
+        let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.failure_address())
+        try self.f.emit(ir.Op.ret, ir.Class.w, 0, code, ir.none_ref(), 0)
+        try self.f.place_label(good)
+        if payload != types.unit_id:
+            let out = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(out_slot))
+            try self.store_to(out, try self.load_from(result.ref, payload))
+        try self.f.emit(ir.Op.ret, ir.Class.w, 0, ir.const_ref(0), ir.none_ref(), 0)
 
     ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
     ## traps `null_foreign`: the one boundary check, in this direction (§17.1).

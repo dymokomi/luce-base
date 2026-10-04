@@ -46,73 +46,9 @@ extend Lowerer:
             try pending.push(ir.Arg(value = receiver, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
         var fixed: u32 = 0
         # an extern's `out` parameters: a slot each, passed by address, read after the call
-        var out_slots: u32[8] = ---
-        var out_types: u32[8] = ---
-        var outs: usize = 0
+        var outs: LowerOuts
         if let d = decl:
-            var supplied = try list.List[LowerCallArgument].create(8)
-            var source_position: usize = 0
-            var source = args
-            while let argument = source:
-                var index: usize = 0
-                var parameter = d.right
-                while let p = parameter:
-                    if not p.has(ast.flag_out):
-                        if (argument.text.length > 0 and argument.text == p.text) or (argument.text.length == 0 and index == source_position):
-                            break
-                        index += 1
-                    parameter = p.next
-                let expression = argument.left else return try self.fail(argument, "empty argument")
-                let value = try self.argument_value(expression, f.args[index]) if index < f.args.length else try self.variadic_value(expression)
-                try supplied.push(LowerCallArgument(node = argument, value = try self.arg_of(value, arguments_have_effect(argument.next))))
-                if argument.text.length == 0:
-                    source_position += 1
-                source = argument.next
-            var pi: usize = 0
-            var param = d.right
-            while let p = param:
-                if p.has(ast.flag_out):
-                    if outs >= 8:
-                        return try self.fail(p, "at most eight `out` parameters")
-                    out_slots[outs] = try self.new_slot(p.type_id)
-                    out_types[outs] = p.type_id
-                    try pending.push(ir.Arg(value = try self.slot_address(out_slots[outs]), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-                    outs += 1
-                    param = p.next
-                    continue
-                let given = calls.given_argument(args, p, pi)
-                let want = f.args[pi] if pi < f.args.length else types.none_id
-                if let g = given:
-                    var at: usize = 0
-                    while at < supplied.count:
-                        let evaluated = supplied.get(at)
-                        if evaluated.node == g:
-                            try pending.push(evaluated.value)
-                            break
-                        at += 1
-                elif let default = p.left:
-                    let dv = try self.value(default, want)
-                    try pending.push(try self.arg_of(dv))
-                else:
-                    try pending.push(ir.Arg(value = ir.const_ref(0), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-                pi += 1
-                param = p.next
-            fixed = u32(pending.count)
-            if f.variadic:
-                var position: usize = 0
-                var a = args
-                while let arg = a:
-                    if arg.text.length == 0:
-                        if position >= pi:
-                            var at: usize = 0
-                            while at < supplied.count:
-                                let evaluated = supplied.get(at)
-                                if evaluated.node == arg:
-                                    try pending.push(evaluated.value)
-                                    break
-                                at += 1
-                        position += 1
-                    a = arg.next
+            fixed = try self.declared_arguments(d, f, args, &pending, &outs)
         else:
             var i: usize = 0
             var cursor = args
@@ -129,17 +65,8 @@ extend Lowerer:
             try self.f.args.push(pending.get(k))
             k += 1
         let count = u32(pending.count)
-        let result = self.declared_result(decl, f.elem) if outs > 0 else f.elem
-        var info = ir.CallInfo(args_start = start, args_count = count, fixed_count = fixed, variadic = f.variadic, result_cls = ir.Class.l, has_result = false, result_size = 0, result_align = 8, result_type = result, result_slot = 0, result_shape = 0)
-        if result != types.unit_id and result != types.never_id:
-            info.has_result = true
-            if self.is_scalar(result):
-                info.result_cls = self.class_of(result)
-            else:
-                info.result_size = self.size(result)
-                info.result_align = self.align(result)
-                info.result_slot = try self.new_slot(result)
-                info.result_shape = try self.shape_of(result)
+        let result = self.declared_result(decl, f.elem) if outs.count > 0 else f.elem
+        let info = try self.call_info(start, count, fixed, f.variadic, result)
         try self.f.calls.push(info)
         var dst: u32 = 0
         if info.has_result and info.result_size == 0:
@@ -155,9 +82,89 @@ extend Lowerer:
             answered = LowerValue(ref = ir.temp_ref(dst), type_id = result, in_memory = false)
         elif info.has_result:
             answered = LowerValue(ref = try self.slot_address(info.result_slot), type_id = result, in_memory = true)
-        if outs > 0:
-            return try self.with_out_values(answered, f.elem, out_slots[..<outs], out_types[..<outs])
+        if outs.count > 0:
+            return try self.with_out_values(answered, f.elem, outs.slots[..<outs.count], outs.slot_types[..<outs.count])
         return answered
+
+    ## The arguments of a call of the declared `d` into `pending`, in its parameters'
+    ## order: each supplied one as evaluated in source order, a default for one not given,
+    ## a slot's address for each `out` parameter (recorded in `outs`), and a variadic's
+    ## extra arguments last. The count of fixed arguments.
+    mutating func declared_arguments(d: ast.Node*, f: types.Type, args: ast.Node*?, pending: list.List[ir.Arg]*, outs: LowerOuts*) -> u32!:
+        let supplied = try self.supplied_arguments(d, f, args)
+        var pi: usize = 0
+        var param = d.right
+        while let p = param:
+            if p.has(ast.flag_out):
+                if outs.count >= 8:
+                    return try self.fail(p, "at most eight `out` parameters")
+                outs.slots[outs.count] = try self.new_slot(p.type_id)
+                outs.slot_types[outs.count] = p.type_id
+                try pending.push(ir.Arg(value = try self.slot_address(outs.slots[outs.count]), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+                outs.count += 1
+                param = p.next
+                continue
+            let given = calls.given_argument(args, p, pi)
+            let want = f.args[pi] if pi < f.args.length else types.none_id
+            if let g = given:
+                try push_supplied(pending, &supplied, g)
+            elif let default = p.left:
+                let dv = try self.value(default, want)
+                try pending.push(try self.arg_of(dv))
+            else:
+                try pending.push(ir.Arg(value = ir.const_ref(0), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+            pi += 1
+            param = p.next
+        let fixed = u32(pending.count)
+        if f.variadic:
+            # the positional arguments past the parameters
+            var position: usize = 0
+            var a = args
+            while let arg = a:
+                if arg.text.length == 0:
+                    if position >= pi:
+                        try push_supplied(pending, &supplied, arg)
+                    position += 1
+                a = arg.next
+        return fixed
+
+    ## The supplied arguments of a call of `d`, evaluated in source order against the
+    ## parameters they bind to, positional or named; past the parameters, as variadic ones.
+    mutating func supplied_arguments(d: ast.Node*, f: types.Type, args: ast.Node*?) -> list.List[LowerCallArgument]!:
+        var supplied = try list.List[LowerCallArgument].create(8)
+        var source_position: usize = 0
+        var source = args
+        while let argument = source:
+            var index: usize = 0
+            var parameter = d.right
+            while let p = parameter:
+                if not p.has(ast.flag_out):
+                    if (argument.text.length > 0 and argument.text == p.text) or (argument.text.length == 0 and index == source_position):
+                        break
+                    index += 1
+                parameter = p.next
+            let expression = argument.left else return try self.fail(argument, "empty argument")
+            let value = try self.argument_value(expression, f.args[index]) if index < f.args.length else try self.variadic_value(expression)
+            try supplied.push(LowerCallArgument(node = argument, value = try self.arg_of(value, arguments_have_effect(argument.next))))
+            if argument.text.length == 0:
+                source_position += 1
+            source = argument.next
+        return supplied
+
+    ## A call's description: its arguments, and its result, none for `unit` and `never`, a
+    ## scalar's class, or an aggregate's size, alignment, slot, and shape.
+    mutating func call_info(start: u32, count: u32, fixed: u32, variadic: bool, result: u32) -> ir.CallInfo!:
+        var info = ir.CallInfo(args_start = start, args_count = count, fixed_count = fixed, variadic = variadic, result_cls = ir.Class.l, has_result = false, result_size = 0, result_align = 8, result_type = result, result_slot = 0, result_shape = 0)
+        if result != types.unit_id and result != types.never_id:
+            info.has_result = true
+            if self.is_scalar(result):
+                info.result_cls = self.class_of(result)
+            else:
+                info.result_size = self.size(result)
+                info.result_align = self.align(result)
+                info.result_slot = try self.new_slot(result)
+                info.result_shape = try self.shape_of(result)
+        return info
 
     ## The result C declared, when the function type's result also counts `out` values.
     func declared_result(decl: ast.Node*?, answered: u32) -> u32:
@@ -800,3 +807,13 @@ extend Lowerer:
         let t = try self.f.temp(cls)
         try self.f.instrs.push(ir.Instr(op = op, cls = cls, dst = t, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0, scope = 0, site = 0))
         return LowerValue(ref = ir.temp_ref(t), type_id = et, in_memory = false)
+
+## The argument `node`'s value, evaluated earlier into `supplied`, onto `pending`.
+func push_supplied(pending: list.List[ir.Arg]*, supplied: const list.List[LowerCallArgument]*, node: ast.Node*) -> !:
+    var at: usize = 0
+    while at < supplied.count:
+        let evaluated = supplied.get(at)
+        if evaluated.node == node:
+            try pending.push(evaluated.value)
+            return
+        at += 1

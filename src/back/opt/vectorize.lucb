@@ -244,6 +244,9 @@ pub func run(f: ir.Function*) -> !:
         if not transformed:
             return
 
+## Versions the loop `a` recognised: a guard picks a vector loop of `16 / width` lanes,
+## unrolled for an accumulator, then a reduction of its lanes, before the original scalar
+## loop takes the rest from where the vector loop stopped.
 func rewrite(a: Analysis*) -> !:
     let f = a.f
     let lanes = 16 // a.width
@@ -267,42 +270,12 @@ func rewrite(a: Analysis*) -> !:
     defer builder.pre.destroy()
     defer builder.body.destroy()
     defer free(builder.values)
-    for i in 0..<builder.values.length:
-        builder.values[i] = ir.none_ref()
-    for group in 0..<unroll:
-        accumulators[group] = ir.none_ref()
-        backedges[group] = ir.none_ref()
-        if group > 0:
-            builder.index = try result(f, &builder.body, ir.Op.add, ir.Class.l, index, ir.const_ref((i64)(group * lanes)))
-        if a.accumulator != 0:
-            accumulators[group] = ir.temp_ref(try f.temp(ir.Class.v))
-            builder.values[a.accumulator] = accumulators[group]
-        try builder.translate()
-        if a.accumulator != 0:
-            backedges[group] = builder.values[a.reduction]
+    try translate_groups(a, &builder, accumulators, backedges, lanes)
     var code = try list.List[ir.Instr].create(64)
     defer code.destroy()
     try emit_label(&code, guard_label)
     let end = try result(f, &code, ir.Op.and_, ir.Class.l, a.bound, ir.const_ref(0 - (i64)step))
-    var allowed = try result(f, &code, ir.Op.cuge, ir.Class.l, a.bound, ir.const_ref((i64)step))
-    if a.store_base.kind != ir.RefKind.none_:
-        # Unsigned differences avoid pointer-end overflow. Bound the byte count
-        # before relying on it. Exact aliasing is safe for equal-stride streams;
-        # partial overlap executes the original scalar loop in its original order.
-        let fits = try result(f, &code, ir.Op.cule, ir.Class.l, a.bound, ir.const_ref((i64)(18446744073709551615 // (u64)a.width)))
-        allowed = try result(f, &code, ir.Op.and_, ir.Class.w, allowed, fits)
-        let bytes = try result(f, &code, ir.Op.mul, ir.Class.l, a.bound, ir.const_ref((i64)a.width))
-        for source in a.streams.span():
-            if loops.same(source, a.store_base):
-                continue
-            let forward = try result(f, &code, ir.Op.sub, ir.Class.l, source, a.store_base)
-            let backward = try result(f, &code, ir.Op.sub, ir.Class.l, a.store_base, source)
-            let beyond_a = try result(f, &code, ir.Op.cuge, ir.Class.l, forward, bytes)
-            let beyond_b = try result(f, &code, ir.Op.cuge, ir.Class.l, backward, bytes)
-            let disjoint = try result(f, &code, ir.Op.and_, ir.Class.w, beyond_a, beyond_b)
-            let equal = try result(f, &code, ir.Op.ceq, ir.Class.l, source, a.store_base)
-            let independent = try result(f, &code, ir.Op.or_, ir.Class.w, disjoint, equal)
-            allowed = try result(f, &code, ir.Op.and_, ir.Class.w, allowed, independent)
+    let allowed = try guard_condition(a, &code, step)
     try emit_branch(&code, allowed, pre_label, join_label)
     try emit_label(&code, pre_label)
     for x in builder.pre.span():
@@ -323,17 +296,7 @@ func rewrite(a: Analysis*) -> !:
     try code.push(instruction(ir.Op.add, ir.Class.l, next_index.index, index, ir.const_ref((i64)step)))
     try emit_jump(&code, head_label)
     try emit_label(&code, finish_label)
-    var reduced = a.initial
-    if a.accumulator != 0:
-        let slot = ir.slot_ref(try f.slot(16, 16))
-        var combined = accumulators[0]
-        for group in (u32)1..<unroll:
-            combined = try result(f, &code, ir.Op.vaddw, ir.Class.v, combined, accumulators[group], shape)
-        try code.push(instruction(ir.Op.storev, ir.Class.v, 0, combined, slot, shape))
-        for lane in 0..<lanes:
-            let address = try result(f, &code, ir.Op.add, ir.Class.l, slot, ir.const_ref((i64)(lane * a.width)))
-            let value = try result(f, &code, ir.Op.loadl if a.width == 8 else ir.Op.loaduw, a.cls, address, ir.none_ref())
-            reduced = try result(f, &code, ir.Op.add, a.cls, reduced, value)
+    let reduced = try reduce(a, &code, accumulators, lanes, shape)
     try emit_jump(&code, join_label)
     try emit_label(&code, join_label)
     let scalar_index = ir.temp_ref(try f.temp(ir.Class.l))
@@ -343,6 +306,77 @@ func rewrite(a: Analysis*) -> !:
         scalar_acc = ir.temp_ref(try f.temp(a.cls))
         try emit_phi(f, &code, scalar_acc, a.cls, a.initial, guard_label, reduced, finish_label)
     try emit_jump(&code, a.header.label)
+    resume_scalar(a, join_label, scalar_index, scalar_acc)
+    try splice(a, &code, guard_label)
+
+## The vector loop's body into `builder`: one translation of the scalar body per unrolled
+## group, each at its own index and, with an accumulator, its own vector of partial sums,
+## whose value at the end of the body is that group's back edge.
+func translate_groups(a: Analysis*, builder: Builder*, accumulators: ir.Ref[], backedges: ir.Ref[], lanes: u32) -> !:
+    let f = a.f
+    let index = builder.index
+    for i in 0..<builder.values.length:
+        builder.values[i] = ir.none_ref()
+    for group in 0..<(u32)accumulators.length:
+        accumulators[group] = ir.none_ref()
+        backedges[group] = ir.none_ref()
+        if group > 0:
+            builder.index = try result(f, &builder.body, ir.Op.add, ir.Class.l, index, ir.const_ref((i64)(group * lanes)))
+        if a.accumulator != 0:
+            accumulators[group] = ir.temp_ref(try f.temp(ir.Class.v))
+            builder.values[a.accumulator] = accumulators[group]
+        try builder.translate()
+        if a.accumulator != 0:
+            backedges[group] = builder.values[a.reduction]
+
+## Whether the vector loop may run: at least one `step` of iterations, and, for a loop
+## that stores, every stream it reads either the stored one or wholly apart from it.
+func guard_condition(a: Analysis*, code: list.List[ir.Instr]*, step: u32) -> ir.Ref!:
+    let f = a.f
+    var allowed = try result(f, code, ir.Op.cuge, ir.Class.l, a.bound, ir.const_ref((i64)step))
+    if a.store_base.kind == ir.RefKind.none_:
+        return allowed
+    # Unsigned differences avoid pointer-end overflow. Bound the byte count
+    # before relying on it. Exact aliasing is safe for equal-stride streams;
+    # partial overlap executes the original scalar loop in its original order.
+    let fits = try result(f, code, ir.Op.cule, ir.Class.l, a.bound, ir.const_ref((i64)(18446744073709551615 // (u64)a.width)))
+    allowed = try result(f, code, ir.Op.and_, ir.Class.w, allowed, fits)
+    let bytes = try result(f, code, ir.Op.mul, ir.Class.l, a.bound, ir.const_ref((i64)a.width))
+    for source in a.streams.span():
+        if loops.same(source, a.store_base):
+            continue
+        let forward = try result(f, code, ir.Op.sub, ir.Class.l, source, a.store_base)
+        let backward = try result(f, code, ir.Op.sub, ir.Class.l, a.store_base, source)
+        let beyond_a = try result(f, code, ir.Op.cuge, ir.Class.l, forward, bytes)
+        let beyond_b = try result(f, code, ir.Op.cuge, ir.Class.l, backward, bytes)
+        let disjoint = try result(f, code, ir.Op.and_, ir.Class.w, beyond_a, beyond_b)
+        let equal = try result(f, code, ir.Op.ceq, ir.Class.l, source, a.store_base)
+        let independent = try result(f, code, ir.Op.or_, ir.Class.w, disjoint, equal)
+        allowed = try result(f, code, ir.Op.and_, ir.Class.w, allowed, independent)
+    return allowed
+
+## The accumulator after the vector loop: its partial sums added lane-wise, stored, and
+## each lane added to the initial value; the initial value when there is none.
+func reduce(a: Analysis*, code: list.List[ir.Instr]*, accumulators: ir.Ref[], lanes: u32, shape: u32) -> ir.Ref!:
+    let f = a.f
+    var reduced = a.initial
+    if a.accumulator == 0:
+        return reduced
+    let slot = ir.slot_ref(try f.slot(16, 16))
+    var combined = accumulators[0]
+    for group in (u32)1..<(u32)accumulators.length:
+        combined = try result(f, code, ir.Op.vaddw, ir.Class.v, combined, accumulators[group], shape)
+    try code.push(instruction(ir.Op.storev, ir.Class.v, 0, combined, slot, shape))
+    for lane in 0..<lanes:
+        let address = try result(f, code, ir.Op.add, ir.Class.l, slot, ir.const_ref((i64)(lane * a.width)))
+        let value = try result(f, code, ir.Op.loadl if a.width == 8 else ir.Op.loaduw, a.cls, address, ir.none_ref())
+        reduced = try result(f, code, ir.Op.add, a.cls, reduced, value)
+    return reduced
+
+## The scalar loop's header phis take their entry from `join_label` instead of the
+## preheader: the counter where the vector loop stopped, the accumulator as reduced.
+func resume_scalar(a: Analysis*, join_label: u32, scalar_index: ir.Ref, scalar_acc: ir.Ref):
+    let f = a.f
     let old_label = a.g.blocks.get(a.loop.preheader).label
     for i in a.header.start..<a.header.end:
         let x = f.instrs.get(i)
@@ -354,6 +388,11 @@ func rewrite(a: Analysis*) -> !:
                 arg.pred = join_label
                 arg.value = scalar_index if x.dst == a.counter else scalar_acc
                 f.phi_args.set(x.extra + k, arg)
+
+## `code` into the function at the end of the loop's preheader, entered by a jump to
+## `guard_label` that replaces the preheader's own jump to the header.
+func splice(a: Analysis*, code: list.List[ir.Instr]*, guard_label: u32) -> !:
+    let f = a.f
     let preheader = a.g.blocks.get(a.loop.preheader)
     let replaces_jump = preheader.end > preheader.start and f.instrs.get(preheader.end - 1).op == ir.Op.jmp
     let insertion = preheader.end - 1 if replaces_jump else preheader.end

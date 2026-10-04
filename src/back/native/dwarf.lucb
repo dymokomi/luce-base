@@ -438,6 +438,8 @@ pub struct Emitter:
         try self.reference(id)
         try self.info.put((try format(format_room, f"    .uleb128 {offset}\n")))
 
+    ## The entry `Ldw_type_<id>` for type `id`: a base type, a pointer, an alias, an array,
+    ## a signature, an enumeration, or a record of members.
     mutating func type_info(id: u32) -> !:
         var format_room: u8[4096]
         let checker = self.checker
@@ -481,28 +483,46 @@ pub struct Emitter:
         if t.kind == types.Kind.enum_:
             if let decl = t.decl:
                 if let backing = decl.ty:
-                    try o.put("    .uleb128 17\n")
-                    try text(o, name)
-                    try o.put((try format(format_room, f"    .uleb128 {size}\n")))
-                    try self.reference(backing.type_id)
-                    var cursor = decl.body
-                    while let item = cursor:
-                        if item.kind == ast.Kind.enum_case:
-                            # a signed backing's cases are `sdata` (abbreviation 19)
-                            let signed_backing = self.checker.table.is_signed(backing.type_id)
-                            try o.put("    .uleb128 19\n" if signed_backing else "    .uleb128 18\n")
-                            try text(o, item.text)
-                            let case_bits = types.case_value(decl, item)
-                            if signed_backing:
-                                try o.put((try format(format_room, f"    .sleb128 {(i64)case_bits}\n")))
-                            else:
-                                try o.put((try format(format_room, f"    .uleb128 {case_bits}\n")))
-                        cursor = item.next
-                    try o.put("    .byte 0\n")
+                    try self.backed_enum(decl, backing.type_id, name, size)
                     return
         try o.put("    .uleb128 15\n" if t.kind == types.Kind.union_ else "    .uleb128 8\n")
         try text(o, name)
         try o.put((try format(format_room, f"    .uleb128 {size}\n")))
+        if t.kind == types.Kind.enum_:
+            try self.payload_enum(id)
+            return
+        try self.members(id, t)
+        try o.put("    .byte 0\n")
+
+    ## An enum with a backing type: an enumeration of its cases' names and values over
+    ## the backing.
+    mutating func backed_enum(decl: ast.Node*, backing: u32, name: str, size: u64) -> !:
+        var format_room: u8[4096]
+        let o = &self.info
+        try o.put("    .uleb128 17\n")
+        try text(o, name)
+        try o.put((try format(format_room, f"    .uleb128 {size}\n")))
+        try self.reference(backing)
+        var cursor = decl.body
+        while let item = cursor:
+            if item.kind == ast.Kind.enum_case:
+                # a signed backing's cases are `sdata` (abbreviation 19)
+                let signed_backing = self.checker.table.is_signed(backing)
+                try o.put("    .uleb128 19\n" if signed_backing else "    .uleb128 18\n")
+                try text(o, item.text)
+                let case_bits = types.case_value(decl, item)
+                if signed_backing:
+                    try o.put((try format(format_room, f"    .sleb128 {(i64)case_bits}\n")))
+                else:
+                    try o.put((try format(format_room, f"    .uleb128 {case_bits}\n")))
+            cursor = item.next
+        try o.put("    .byte 0\n")
+
+    ## The members of the record-shaped type `id`: a struct's or a union's fields, and the
+    ## C layout of text, spans, interface views, tuples, optionals, results, and errors.
+    mutating func members(id: u32, t: types.Type) -> !:
+        var format_room: u8[4096]
+        let checker = self.checker
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.union_:
             if let decl = t.decl:
                 var cursor = decl.body
@@ -540,10 +560,6 @@ pub struct Emitter:
         elif t.kind == types.Kind.error_value:
             try self.member("code", types.error_code_id, 0)
             try self.member("message", types.str_id, 8)
-        elif t.kind == types.Kind.enum_:
-            try self.payload_enum(id)
-            return
-        try o.put("    .byte 0\n")
 
     ## A payload enum (§6.1): its `tag`, an enumeration of the case names in case order, and
     ## `payload`, a union of one record per case with a payload, at the offset the lowerer

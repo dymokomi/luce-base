@@ -89,6 +89,18 @@ func same_binding(a: ast.Node*, b: ast.Node*) -> bool:
 ## Links from which a left-leaning chain is emitted as a sequence rather than nested.
 let chain_limit: usize = 16
 
+## The type a binary operator works at, from its operands' types `lt` and `rt`: the typed
+## side, an untyped integer at `i64` and an untyped float at `f64`.
+func operand_type(lt: u32, rt: u32) -> u32:
+    var ot = lt
+    if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
+        ot = rt
+    if ot == types.untyped_int_id or ot == types.none_id:
+        ot = types.i64_id
+    elif ot == types.untyped_float_id:
+        ot = types.f64_id
+    return ot
+
 ## The runtime helper behind an arithmetic operator.
 func helper_name(op: str) -> str:
     if op == "+":

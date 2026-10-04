@@ -257,110 +257,130 @@ extend Lowerer:
         let exit_code = try self.f.slot(4, 4)
         try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(exit_code))
         if mode == 1:
-            let failed_slot = try self.f.slot(4, 4)
-            try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(failed_slot))
-            var i: usize = 0
-            while i < self.tests.count:
-                let t = self.tests.get(i)
-                let s1 = u32(self.f.args.count)
-                try self.f.args.push(ir.Arg(value = ir.const_ref((i64)i), cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, shape = 0))
-                discard(try self.call_named("lb_testing_begin", s1, 1, ir.Class.w, false, types.unit_id))
-                let r = try self.call_aggregate(try self.test_name(u32(i)), u32(self.f.args.count), 0, try self.c.table.fallible(types.unit_id))
-                discard(try self.call_named("lb_testing_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
-                let title = literals.decode_text(t.text)
-                let index = try self.program_unit.text(title)
-                let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
-                let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
-                let message = LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
-                let s2 = u32(self.f.args.count)
-                try self.f.args.push(try self.arg_of(name))
-                try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
-                try self.f.args.push(try self.arg_of(message))
-                discard(try self.call_named("lb_core_11test_report", s2, 3, ir.Class.w, false, types.unit_id))
-                let old = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
-                let sum = try self.f.binary(ir.Op.add, ir.Class.w, old, failed)
-                try self.f.store(ir.Op.storew, sum, try self.slot_address(failed_slot))
-                i += 1
-            let total = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
-            let s3 = u32(self.f.args.count)
-            try self.f.args.push(ir.Arg(value = ir.const_ref((i64)self.tests.count), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-            try self.f.args.push(ir.Arg(value = total, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-            let code = try self.call_named("lb_core_12test_summary", s3, 2, ir.Class.w, true, types.i32_id)
-            try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
+            try self.run_tests(exit_code)
         elif mode == 2:
             let answer = check.find_decl(self.entry, "answer") else return
-            let name = try self.function_name(answer, try types.no_args(), none, try types.no_args())
-            if answer.has(ast.flag_fallible):
-                let r = try self.call_aggregate(name, u32(self.f.args.count), 0, try self.c.table.fallible(types.i64_id))
-                let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
-                let ok = self.f.label()
-                let bad = self.f.label()
-                try self.f.branch(failed, bad, ok)
-                try self.f.place_label(bad)
-                let s4 = u32(self.f.args.count)
-                try self.push_error_pieces(try self.failure_address())
-                let code = try self.call_named("lb_core_11main_failed", s4, 2, ir.Class.w, true, types.i32_id)
-                try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
-                try self.f.jump(self.f.labels + 1)
-                try self.f.place_label(ok)
-                let value = try self.f.load(ir.Op.loadl, ir.Class.l, r.ref)
-                try self.print_answer(value)
-                try self.f.place_label(self.f.label())
-            else:
-                let value = try self.call_named(name, u32(self.f.args.count), 0, ir.Class.l, true, types.i64_id)
-                try self.print_answer(value)
+            try self.answer_call(answer, exit_code)
         else:
             let main_fn = check.find_decl(self.entry, "main") else return
-            let ft = self.c.table.get(main_fn.type_id)
-            var as_text = true
-            if ft.args.length > 0:
-                as_text = self.elem(ft.args[0]) != types.cstr_id
-            let argc = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(argc_slot))
-            let argv = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(argv_slot))
-            let s5 = u32(self.f.args.count)
-            try self.f.args.push(ir.Arg(value = argc, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-            try self.f.args.push(ir.Arg(value = argv, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            let span_type = try self.c.table.span(types.str_id if as_text else types.cstr_id, false)
-            let args = try self.call_aggregate("lb_core_arguments" if as_text else "lb_core_13raw_arguments", s5, 2, span_type)
-            let s6 = u32(self.f.args.count)
-            var main_args: u32 = 0
-            if ft.args.length > 0:
-                try self.f.args.push(try self.arg_of(args))
-                main_args = 1
-            if main_fn.has(ast.flag_fallible):
-                let r = try self.call_aggregate("lb_main", s6, main_args, try self.c.table.fallible(types.i32_id))
-                let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
-                let ok = self.f.label()
-                let bad = self.f.label()
-                let done = self.f.label()
-                try self.f.branch(failed, bad, ok)
-                try self.f.place_label(bad)
-                let s7 = u32(self.f.args.count)
-                try self.push_error_pieces(try self.failure_address())
-                let code = try self.call_named("lb_core_11main_failed", s7, 2, ir.Class.w, true, types.i32_id)
-                try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
-                try self.f.jump(done)
-                try self.f.place_label(ok)
-                let value = try self.f.load(ir.Op.loadsw, ir.Class.w, r.ref)
-                try self.f.store(ir.Op.storew, value, try self.slot_address(exit_code))
-                try self.f.jump(done)
-                try self.f.place_label(done)
-            else:
-                let code = try self.call_named("lb_main", s6, main_args, ir.Class.w, true, types.i32_id)
-                try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
-            if as_text:
-                # Text argument descriptors are owned by this shim. Release
-                # them after reporting errors, which can borrow argument text.
-                let data = try self.f.load(ir.Op.loadl, ir.Class.l, args.ref)
-                let release_start = u32(self.f.args.count)
-                try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-                discard(try self.call_named("free", release_start, 1, ir.Class.w, false, types.unit_id))
+            try self.main_call(main_fn, argc_slot, argv_slot, exit_code)
         self.pop_scope()
         let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(exit_code))
         try self.f.store(ir.Op.storew, code, try self.slot_address(self.result_slot))
         let out = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(self.result_slot))
         try self.f.emit(ir.Op.ret, ir.Class.w, 0, out, ir.none_ref(), 0)
         try self.end_function()
+
+    ## The test runner's body: each test between `testing_begin` and `testing_end`, its
+    ## outcome reported, and the summary's code in `exit_code`.
+    mutating func run_tests(exit_code: u32) -> !:
+        let failed_slot = try self.f.slot(4, 4)
+        try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(failed_slot))
+        var i: usize = 0
+        while i < self.tests.count:
+            try self.run_test(i, failed_slot)
+            i += 1
+        let total = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
+        let s3 = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)self.tests.count), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = total, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        let code = try self.call_named("lb_core_12test_summary", s3, 2, ir.Class.w, true, types.i32_id)
+        try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
+
+    ## Test `i`: run, reported by its title, its failure counted in `failed_slot`.
+    mutating func run_test(i: usize, failed_slot: u32) -> !:
+        let t = self.tests.get(i)
+        let s1 = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)i), cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, shape = 0))
+        discard(try self.call_named("lb_testing_begin", s1, 1, ir.Class.w, false, types.unit_id))
+        let r = try self.call_aggregate(try self.test_name(u32(i)), u32(self.f.args.count), 0, try self.c.table.fallible(types.unit_id))
+        discard(try self.call_named("lb_testing_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        let title = literals.decode_text(t.text)
+        let index = try self.program_unit.text(title)
+        let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
+        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
+        let message = LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
+        let s2 = u32(self.f.args.count)
+        try self.f.args.push(try self.arg_of(name))
+        try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
+        try self.f.args.push(try self.arg_of(message))
+        discard(try self.call_named("lb_core_11test_report", s2, 3, ir.Class.w, false, types.unit_id))
+        let old = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
+        let sum = try self.f.binary(ir.Op.add, ir.Class.w, old, failed)
+        try self.f.store(ir.Op.storew, sum, try self.slot_address(failed_slot))
+
+    ## `answer()` of a program run for its answer: the value printed, or a failure's report
+    ## and code in `exit_code`.
+    mutating func answer_call(answer: ast.Node*, exit_code: u32) -> !:
+        let name = try self.function_name(answer, try types.no_args(), none, try types.no_args())
+        if not answer.has(ast.flag_fallible):
+            let value = try self.call_named(name, u32(self.f.args.count), 0, ir.Class.l, true, types.i64_id)
+            try self.print_answer(value)
+            return
+        let r = try self.call_aggregate(name, u32(self.f.args.count), 0, try self.c.table.fallible(types.i64_id))
+        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
+        let ok = self.f.label()
+        let bad = self.f.label()
+        try self.f.branch(failed, bad, ok)
+        try self.f.place_label(bad)
+        let s4 = u32(self.f.args.count)
+        try self.push_error_pieces(try self.failure_address())
+        let code = try self.call_named("lb_core_11main_failed", s4, 2, ir.Class.w, true, types.i32_id)
+        try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
+        # the label after the answer is printed, the next one made
+        try self.f.jump(self.f.labels + 1)
+        try self.f.place_label(ok)
+        let value = try self.f.load(ir.Op.loadl, ir.Class.l, r.ref)
+        try self.print_answer(value)
+        try self.f.place_label(self.f.label())
+
+    ## The program's `main`, given its arguments as text or as C strings from `argc` and
+    ## `argv`; its code, or a failure's, in `exit_code`.
+    mutating func main_call(main_fn: ast.Node*, argc_slot: u32, argv_slot: u32, exit_code: u32) -> !:
+        let ft = self.c.table.get(main_fn.type_id)
+        var as_text = true
+        if ft.args.length > 0:
+            as_text = self.elem(ft.args[0]) != types.cstr_id
+        let argc = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(argc_slot))
+        let argv = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(argv_slot))
+        let s5 = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = argc, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = argv, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        let span_type = try self.c.table.span(types.str_id if as_text else types.cstr_id, false)
+        let args = try self.call_aggregate("lb_core_arguments" if as_text else "lb_core_13raw_arguments", s5, 2, span_type)
+        let s6 = u32(self.f.args.count)
+        var main_args: u32 = 0
+        if ft.args.length > 0:
+            try self.f.args.push(try self.arg_of(args))
+            main_args = 1
+        if main_fn.has(ast.flag_fallible):
+            let r = try self.call_aggregate("lb_main", s6, main_args, try self.c.table.fallible(types.i32_id))
+            let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
+            let ok = self.f.label()
+            let bad = self.f.label()
+            let done = self.f.label()
+            try self.f.branch(failed, bad, ok)
+            try self.f.place_label(bad)
+            let s7 = u32(self.f.args.count)
+            try self.push_error_pieces(try self.failure_address())
+            let code = try self.call_named("lb_core_11main_failed", s7, 2, ir.Class.w, true, types.i32_id)
+            try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
+            try self.f.jump(done)
+            try self.f.place_label(ok)
+            let value = try self.f.load(ir.Op.loadsw, ir.Class.w, r.ref)
+            try self.f.store(ir.Op.storew, value, try self.slot_address(exit_code))
+            try self.f.jump(done)
+            try self.f.place_label(done)
+        else:
+            let code = try self.call_named("lb_main", s6, main_args, ir.Class.w, true, types.i32_id)
+            try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
+        if as_text:
+            # Text argument descriptors are owned by this shim. Release
+            # them after reporting errors, which can borrow argument text.
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, args.ref)
+            let release_start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+            discard(try self.call_named("free", release_start, 1, ir.Class.w, false, types.unit_id))
 
     ## An error value's code and message as two arguments.
     mutating func push_error_pieces(err: ir.Ref) -> !:

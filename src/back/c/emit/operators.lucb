@@ -94,6 +94,9 @@ extend Emitter:
         try self.put_u64((u64)self.bits(t))
         try self.put("))")
 
+    ## `l op r` for a binary operator: logical, comparison, pointer, float, bitwise,
+    ## optional, or checked integer arithmetic, with its operands sequenced first when
+    ## either has an effect.
     mutating func binary(e: ast.Node*) -> !:
         let l = e.left else return
         let r = e.right else return
@@ -131,54 +134,14 @@ extend Emitter:
         if self.is_vector(t):
             try self.vector_binary(e, l, lt, r, rt, t)
             return
-        # the operand type: the typed side, or the result
-        var ot = lt
-        if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
-            ot = rt
-        if ot == types.untyped_int_id or ot == types.none_id:
-            ot = types.i64_id
-        elif ot == types.untyped_float_id:
-            ot = types.f64_id
+        let ot = operand_type(lt, rt)
         if op == "==" or op == "!=":
             try self.equality(l, lt, r, rt, ot, op == "!=")
-            return
-        if op == "<" or op == "<=" or op == ">" or op == ">=":
-            if ot == types.str_id:
-                try self.put("(lb_str_compare(")
-                try self.expr(l)
-                try self.put(", ")
-                try self.expr(r)
-                try self.put(") ")
-                try self.put(op)
-                try self.put(" 0)")
-                return
-            try self.put("(((")
-            try self.put_type(ot)
-            try self.put(")(")
-            try self.value(l, ot)
-            try self.put(")) ")
-            try self.put(op)
-            try self.put(" ((")
-            try self.put_type(ot)
-            try self.put(")(")
-            try self.value(r, ot)
-            try self.put(")))")
-            return
-        if self.is_ptr(ot):
-            try self.put("(")
-            try self.expr(l)
-            if op == "-" and self.is_ptr(rt):
-                try self.put(" - ")
-                try self.expr(r)
-                try self.put(")")
-                return
-            try self.put(" ")
-            try self.put(op)
-            try self.put(" (ptrdiff_t)(")
-            try self.expr(r)
-            try self.put("))")
-            return
-        if self.is_float(ot):
+        elif op == "<" or op == "<=" or op == ">" or op == ">=":
+            try self.ordering(l, r, op, ot)
+        elif self.is_ptr(ot):
+            try self.pointer_arithmetic(l, r, rt, op)
+        elif self.is_float(ot):
             try self.put("(")
             try self.value(l, ot)
             try self.put(" ")
@@ -186,8 +149,7 @@ extend Emitter:
             try self.put(" ")
             try self.value(r, ot)
             try self.put(")")
-            return
-        if op == "&" or op == "|" or op == "^":
+        elif op == "&" or op == "|" or op == "^":
             try self.put("((")
             try self.put_type(ot)
             try self.put(")(")
@@ -197,40 +159,84 @@ extend Emitter:
             try self.put(" ")
             try self.value(r, ot)
             try self.put("))")
-            return
-        if op == "+?" or op == "-?" or op == "*?":
-            let n = self.tmp()
-            let et = self.elem(t)
-            try self.put("({ ")
-            try self.put("int64_t " if self.signed_of(et) else "uint64_t ")
-            try self.put_tmp("qo", n)
-            try self.put("; ")
-            try self.put_type(t)
-            try self.put(" ")
-            try self.put_tmp("qr", n)
-            try self.put("; ")
-            try self.put_tmp("qr", n)
-            try self.put(".present = lb_")
-            try self.put("qadd" if op == "+?" else ("qsub" if op == "-?" else "qmul"))
-            try self.put("_s(" if self.signed_of(et) else "_u(")
-            try self.word(et, l)
+        elif op == "+?" or op == "-?" or op == "*?":
+            try self.optional_arithmetic(l, r, op, t)
+        else:
+            try self.checked_op(helper_name(op), ot, l, r)
+
+    ## `l < r` and the other orderings at the operand type `ot`; text compares by its
+    ## bytes.
+    mutating func ordering(l: ast.Node*, r: ast.Node*, op: str, ot: u32) -> !:
+        if ot == types.str_id:
+            try self.put("(lb_str_compare(")
+            try self.expr(l)
             try self.put(", ")
-            try self.word(et, r)
-            try self.put(", ")
-            try self.put_u64((u64)self.bits(et))
-            try self.put(", &")
-            try self.put_tmp("qo", n)
-            try self.put("); ")
-            try self.put_tmp("qr", n)
-            try self.put(".value = (")
-            try self.put_type(et)
-            try self.put(")(")
-            try self.put_tmp("qo", n)
-            try self.put("); ")
-            try self.put_tmp("qr", n)
-            try self.put("; })")
+            try self.expr(r)
+            try self.put(") ")
+            try self.put(op)
+            try self.put(" 0)")
             return
-        try self.checked_op(helper_name(op), ot, l, r)
+        try self.put("(((")
+        try self.put_type(ot)
+        try self.put(")(")
+        try self.value(l, ot)
+        try self.put(")) ")
+        try self.put(op)
+        try self.put(" ((")
+        try self.put_type(ot)
+        try self.put(")(")
+        try self.value(r, ot)
+        try self.put(")))")
+
+    ## `p + n`, `p - n`, and `p - q`: C's own pointer arithmetic, the count widened to
+    ## `ptrdiff_t`.
+    mutating func pointer_arithmetic(l: ast.Node*, r: ast.Node*, rt: u32, op: str) -> !:
+        try self.put("(")
+        try self.expr(l)
+        if op == "-" and self.is_ptr(rt):
+            try self.put(" - ")
+            try self.expr(r)
+            try self.put(")")
+            return
+        try self.put(" ")
+        try self.put(op)
+        try self.put(" (ptrdiff_t)(")
+        try self.expr(r)
+        try self.put("))")
+
+    ## `l +? r`, `-?`, `*?`: the overflow helper's flag is the optional's presence and its
+    ## result the value, of the optional type `t`.
+    mutating func optional_arithmetic(l: ast.Node*, r: ast.Node*, op: str, t: u32) -> !:
+        let n = self.tmp()
+        let et = self.elem(t)
+        try self.put("({ ")
+        try self.put("int64_t " if self.signed_of(et) else "uint64_t ")
+        try self.put_tmp("qo", n)
+        try self.put("; ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("qr", n)
+        try self.put("; ")
+        try self.put_tmp("qr", n)
+        try self.put(".present = lb_")
+        try self.put("qadd" if op == "+?" else ("qsub" if op == "-?" else "qmul"))
+        try self.put("_s(" if self.signed_of(et) else "_u(")
+        try self.word(et, l)
+        try self.put(", ")
+        try self.word(et, r)
+        try self.put(", ")
+        try self.put_u64((u64)self.bits(et))
+        try self.put(", &")
+        try self.put_tmp("qo", n)
+        try self.put("); ")
+        try self.put_tmp("qr", n)
+        try self.put(".value = (")
+        try self.put_type(et)
+        try self.put(")(")
+        try self.put_tmp("qo", n)
+        try self.put("); ")
+        try self.put_tmp("qr", n)
+        try self.put("; })")
 
     ## Whether `e` is a link of a chain of type `t`: `a + b + c + ...` leans left, and C
     ## nests a call for every link, which the C compiler bounds (clang stops at 256). A
@@ -518,46 +524,20 @@ extend Emitter:
             try self.put("((")
             try self.expr(r if l_none else l)
             try self.put(").data == ((void*)0))")
-        elif tagged:
+        elif tagged and (l_none or r_none):
             let n = self.tmp()
-            if l_none or r_none:
-                let side = r if l_none else l
-                try self.put("({ ")
-                try self.put_type(rt if l_none else lt)
-                try self.put(" ")
-                try self.put_tmp("on", n)
-                try self.put(" = ")
-                try self.expr(side)
-                try self.put("; !")
-                try self.put_tmp("on", n)
-                try self.put(".present; })")
-            else:
-                let vt = lt if self.is_tagged_opt(lt) else rt
-                try self.put("({ ")
-                try self.put_type(vt)
-                try self.put(" ")
-                try self.put_tmp("oa", n)
-                try self.put(" = ")
-                try self.value(l, vt)
-                try self.put("; ")
-                try self.put_type(vt)
-                try self.put(" ")
-                try self.put_tmp("ob", n)
-                try self.put(" = ")
-                try self.value(r, vt)
-                try self.put("; (")
-                try self.put_tmp("oa", n)
-                try self.put(".present == ")
-                try self.put_tmp("ob", n)
-                try self.put(".present) && (!")
-                try self.put_tmp("oa", n)
-                try self.put(".present || ")
-                let oa = try self.tmp_name("oa", n)
-                let ob = try self.tmp_name("ob", n)
-                var a_bytes = try alloc u8[oa.length + 8]
-                var b_bytes = try alloc u8[ob.length + 8]
-                try self.same_value(self.c.table.get(vt).elem, try format(a_bytes, f"{oa}.value"), try format(b_bytes, f"{ob}.value"))
-                try self.put("); })")
+            let side = r if l_none else l
+            try self.put("({ ")
+            try self.put_type(rt if l_none else lt)
+            try self.put(" ")
+            try self.put_tmp("on", n)
+            try self.put(" = ")
+            try self.expr(side)
+            try self.put("; !")
+            try self.put_tmp("on", n)
+            try self.put(".present; })")
+        elif tagged:
+            try self.optional_equality(l, r, lt if self.is_tagged_opt(lt) else rt)
         elif ot == types.str_id or ot == types.fmt_id:
             let n = self.tmp()
             try self.put("({ lb_str ")
@@ -568,19 +548,9 @@ extend Emitter:
             try self.put_tmp("sb", n)
             try self.put(" = ")
             try self.expr(r)
-            try self.put("; (")
-            try self.put_tmp("sa", n)
-            try self.put(".length == ")
-            try self.put_tmp("sb", n)
-            try self.put(".length && (")
-            try self.put_tmp("sa", n)
-            try self.put(".length == 0 || memcmp(")
-            try self.put_tmp("sa", n)
-            try self.put(".data, ")
-            try self.put_tmp("sb", n)
-            try self.put(".data, ")
-            try self.put_tmp("sa", n)
-            try self.put(".length) == 0)); })")
+            try self.put("; ")
+            try self.same_text(try self.tmp_name("sa", n), try self.tmp_name("sb", n))
+            try self.put("; })")
         elif self.is_record(ot) or self.is_tuple(ot) or self.is_array(ot):
             let n = self.tmp()
             try self.put("({ ")
@@ -612,3 +582,33 @@ extend Emitter:
             try self.put(")")
         if negate:
             try self.put(")")
+
+    ## `a == b` for two values of the tagged optional type `vt`: both computed once, then
+    ## equal when both are absent or both present with equal values.
+    mutating func optional_equality(l: ast.Node*, r: ast.Node*, vt: u32) -> !:
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(vt)
+        try self.put(" ")
+        try self.put_tmp("oa", n)
+        try self.put(" = ")
+        try self.value(l, vt)
+        try self.put("; ")
+        try self.put_type(vt)
+        try self.put(" ")
+        try self.put_tmp("ob", n)
+        try self.put(" = ")
+        try self.value(r, vt)
+        try self.put("; (")
+        try self.put_tmp("oa", n)
+        try self.put(".present == ")
+        try self.put_tmp("ob", n)
+        try self.put(".present) && (!")
+        try self.put_tmp("oa", n)
+        try self.put(".present || ")
+        let oa = try self.tmp_name("oa", n)
+        let ob = try self.tmp_name("ob", n)
+        var a_bytes = try alloc u8[oa.length + 8]
+        var b_bytes = try alloc u8[ob.length + 8]
+        try self.same_value(self.c.table.get(vt).elem, try format(a_bytes, f"{oa}.value"), try format(b_bytes, f"{ob}.value"))
+        try self.put("); })")

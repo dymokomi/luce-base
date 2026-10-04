@@ -422,32 +422,7 @@ pub struct Lexer:
                                 line = self.line - 1, column = u32(start - self.line_start_before(start)) + 1)
             return t
         if self.is_letter(c):
-            # b"...", r"...", f"..." are literals, not names
-            if (c == 'b' or c == 'r' or c == 'f') and self.peek_at(1) == '"':
-                self.offset += 2
-                if c == 'f':
-                    try self.push_mode(1)
-                    return self.make(token.Kind.format_start, start)
-                let triple = self.peek() == '"' and self.peek_at(1) == '"'
-                if triple:
-                    self.offset += 2
-                return try self.quoted(token.Kind.bytes if c == 'b' else token.Kind.raw, start, triple, c == 'r')
-            while self.is_letter(self.peek()) or self.is_digit(self.peek()):
-                self.offset += 1
-            if self.offset - start > longest_name:
-                error(bad_character, "an identifier is at most 128 bytes")
-            let word = self.src.text(start, self.offset)
-            if token.is_keyword(word):
-                # `asm ARCH ... :` at the start of a line opens a raw suite;
-                # `asm = 19` (an enum case) or `.asm` does not.
-                if word == "asm" and start == self.line_start + (usize)self.levels[self.depth]:
-                    var look = self.offset
-                    while look < self.src.bytes.length and self.src.bytes[look] == ' ':
-                        look += 1
-                    if look < self.src.bytes.length and self.is_letter(self.src.bytes[look]):
-                        self.asm_header = true
-                return self.make(token.Kind.keyword, start)
-            return self.make(token.Kind.name, start)
+            return try self.name_or_keyword(start, c)
         if self.is_digit(c):
             return try self.number(start)
         if c == '"':
@@ -457,20 +432,7 @@ pub struct Lexer:
                 return try self.quoted(token.Kind.text, start, true, false)
             return try self.quoted(token.Kind.text, start, false, false)
         if c == '\'':
-            self.offset += 1
-            if self.peek() == '\n' or self.peek() == 0:
-                error(unterminated, "unterminated character literal")
-            if self.peek() == '\\':
-                try self.escape(false)
-            else:
-                self.offset += 1
-                # a multi-byte UTF-8 scalar continues with 10xxxxxx bytes
-                while (self.peek() & 0xC0) == 0x80:
-                    self.offset += 1
-            if self.peek() != '\'':
-                error(unterminated, "unterminated character literal")
-            self.offset += 1
-            return self.make(token.Kind.character, start)
+            return try self.character(start)
         if c == '(' or c == '[' or c == '{':
             # the depth a bracket was opened at is kept for each; more open brackets than
             # the table holds is a diagnostic, never a fault
@@ -495,6 +457,53 @@ pub struct Lexer:
             self.pop_mode()
             return self.make(token.Kind.operator, start)
         return try self.operator(start)
+
+    ## A token starting with the letter `c` at `start`: a name, a keyword, or a `b"..."`,
+    ## `r"..."`, or `f"..."` literal; `asm ARCH` at the start of a line opens a raw suite.
+    mutating func name_or_keyword(start: usize, c: u8) -> token.Token!:
+        # b"...", r"...", f"..." are literals, not names
+        if (c == 'b' or c == 'r' or c == 'f') and self.peek_at(1) == '"':
+            self.offset += 2
+            if c == 'f':
+                try self.push_mode(1)
+                return self.make(token.Kind.format_start, start)
+            let triple = self.peek() == '"' and self.peek_at(1) == '"'
+            if triple:
+                self.offset += 2
+            return try self.quoted(token.Kind.bytes if c == 'b' else token.Kind.raw, start, triple, c == 'r')
+        while self.is_letter(self.peek()) or self.is_digit(self.peek()):
+            self.offset += 1
+        if self.offset - start > longest_name:
+            error(bad_character, "an identifier is at most 128 bytes")
+        let word = self.src.text(start, self.offset)
+        if not token.is_keyword(word):
+            return self.make(token.Kind.name, start)
+        # `asm ARCH ... :` at the start of a line opens a raw suite;
+        # `asm = 19` (an enum case) or `.asm` does not.
+        if word == "asm" and start == self.line_start + (usize)self.levels[self.depth]:
+            var look = self.offset
+            while look < self.src.bytes.length and self.src.bytes[look] == ' ':
+                look += 1
+            if look < self.src.bytes.length and self.is_letter(self.src.bytes[look]):
+                self.asm_header = true
+        return self.make(token.Kind.keyword, start)
+
+    ## A character literal at `start`: one scalar, or an escape, between single quotes.
+    mutating func character(start: usize) -> token.Token!:
+        self.offset += 1
+        if self.peek() == '\n' or self.peek() == 0:
+            error(unterminated, "unterminated character literal")
+        if self.peek() == '\\':
+            try self.escape(false)
+        else:
+            self.offset += 1
+            # a multi-byte UTF-8 scalar continues with 10xxxxxx bytes
+            while (self.peek() & 0xC0) == 0x80:
+                self.offset += 1
+        if self.peek() != '\'':
+            error(unterminated, "unterminated character literal")
+        self.offset += 1
+        return self.make(token.Kind.character, start)
 
     ## Whether the physical line ending at `end` ends with `:` (a suite inside brackets); a
     ## comment ending the line is read past, as the code before it is what ends.

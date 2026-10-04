@@ -47,79 +47,72 @@ extend Emitter:
         # `none`
         if e.kind == ast.Kind.literal and e.text == "none":
             try self.none_of(want)
-            return
-        if w.kind == types.Kind.interface_ and h.kind == types.Kind.pointer:
+        elif w.kind == types.Kind.interface_ and h.kind == types.Kind.pointer:
             try self.iface_view(e, h.elem, want)
-            return
-        if w.kind == types.Kind.interface_ and h.kind == types.Kind.interface_:
+        elif w.kind == types.Kind.interface_ and h.kind == types.Kind.interface_:
             try self.expr(e)
-            return
-        if w.kind == types.Kind.optional:
-            if h.kind == types.Kind.optional:
-                try self.expr(e)
-                return
-            if self.c.table.has_null_niche(w.elem):
-                # `T*`, `c.str`, or a function into its nullable form: the same word (§5.3),
-                # the payload converted as the niche type asks (`"text"` into `c.str?`)
-                try self.value(e, w.elem)
-                return
-            try self.put("((")
-            try self.put_type(want)
-            try self.put("){ .value = ")
+        elif w.kind == types.Kind.optional and h.kind != types.Kind.optional:
+            try self.into_optional(e, want, w.elem)
+        elif w.kind == types.Kind.span:
+            try self.into_span(e, want, have, h)
+        elif (want == types.cstr_id or (self.kind(want) == types.Kind.optional and self.c.table.get(want).elem == types.cstr_id)) and have == types.str_id:
+            try self.text_as_c_string(e)
+        elif w.kind == types.Kind.atomic:
             try self.value(e, w.elem)
-            try self.put(", .present = true })")
-            return
-        if w.kind == types.Kind.span:
-            if h.kind == types.Kind.array:
-                try self.put("((")
-                try self.put_type(want)
-                # Both span kinds store void*. The checker has already enforced
-                # Base constness; explicitly erase the array pointer's C qualifier.
-                try self.put("){(void*)(")
-                try self.array_data(e)
-                try self.put("), ")
-                try self.put_u64(h.length)
-                try self.put("ULL})")
-                return
-            if have == types.str_id or have == types.fmt_id:
-                try self.text_as_bytes(e)
-                return
-            try self.expr(e)
-            return
-        if (want == types.cstr_id or (self.kind(want) == types.Kind.optional and self.c.table.get(want).elem == types.cstr_id)) and have == types.str_id:
-            if e.kind == ast.Kind.literal:
-                try self.put_c_string(literals.decode_text(e.text))
-                return
-            try self.put("((char*)")
-            try self.expr(e)
-            try self.put(".data)")
-            return
-        if want == types.fmt_id and have == types.str_id:
-            try self.expr(e)
-            return
-        if w.kind == types.Kind.atomic:
-            try self.value(e, w.elem)
-            return
-        if h.kind == types.Kind.atomic:
+        elif h.kind == types.Kind.atomic:
             try self.put("atomic_load(&(")
             try self.expr(e)
             try self.put("))")
-            return
-        if self.is_int(want) and (self.is_int(have) or have == types.untyped_int_id):
+        elif (self.is_int(want) and (self.is_int(have) or have == types.untyped_int_id)) or (self.is_float(want) and (have == types.untyped_int_id or have == types.untyped_float_id or self.is_float(have))):
             try self.put("(")
             try self.put_type(want)
             try self.put(")(")
             try self.expr(e)
             try self.put(")")
-            return
-        if self.is_float(want) and (have == types.untyped_int_id or have == types.untyped_float_id or self.is_float(have)):
-            try self.put("(")
-            try self.put_type(want)
-            try self.put(")(")
+        else:
+            # an optional into an optional, `str` as `fmt`, and what C converts by itself
             try self.expr(e)
-            try self.put(")")
+
+    ## A value into the optional type `want` whose element is `elem`: present, or, for a
+    ## type with a null niche (`T*`, `c.str`, a function), the same word (§5.3), the payload
+    ## converted as the niche type asks (`"text"` into `c.str?`).
+    mutating func into_optional(e: ast.Node*, want: u32, elem: u32) -> !:
+        if self.c.table.has_null_niche(elem):
+            try self.value(e, elem)
+            return
+        try self.put("((")
+        try self.put_type(want)
+        try self.put("){ .value = ")
+        try self.value(e, elem)
+        try self.put(", .present = true })")
+
+    ## A value of type `have` (`h`) into the span type `want`: an array's elements, text's
+    ## bytes, or another span as it is.
+    mutating func into_span(e: ast.Node*, want: u32, have: u32, h: types.Type) -> !:
+        if h.kind == types.Kind.array:
+            try self.put("((")
+            try self.put_type(want)
+            # Both span kinds store void*. The checker has already enforced
+            # Base constness; explicitly erase the array pointer's C qualifier.
+            try self.put("){(void*)(")
+            try self.array_data(e)
+            try self.put("), ")
+            try self.put_u64(h.length)
+            try self.put("ULL})")
+            return
+        if have == types.str_id or have == types.fmt_id:
+            try self.text_as_bytes(e)
             return
         try self.expr(e)
+
+    ## Text as a `c.str`: a literal as a C string, other text as its data pointer.
+    mutating func text_as_c_string(e: ast.Node*) -> !:
+        if e.kind == ast.Kind.literal:
+            try self.put_c_string(literals.decode_text(e.text))
+            return
+        try self.put("((char*)")
+        try self.expr(e)
+        try self.put(".data)")
 
     ## The absent value of an optional type.
     mutating func none_of(t: u32) -> !:

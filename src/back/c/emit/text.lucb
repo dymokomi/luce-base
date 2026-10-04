@@ -92,145 +92,168 @@ extend Emitter:
     mutating func same_value(t: u32, a: str, b: str) -> !:
         let k = self.kind(t)
         if t == types.str_id or t == types.fmt_id:
+            try self.same_text(a, b)
+        elif self.is_tagged_opt(t):
+            try self.same_optional(t, a, b)
+        elif k == types.Kind.array:
+            try self.same_array(t, a, b)
+        elif k == types.Kind.tuple:
+            try self.same_tuple(t, a, b)
+        elif k == types.Kind.struct_:
+            try self.same_record(t, a, b)
+        elif k == types.Kind.enum_ and not self.c.is_backed_enum(t):
+            try self.same_payload_enum(t, a, b)
+        else:
             try self.put("(")
             try self.put(a)
-            try self.put(".length == ")
+            try self.put(" == ")
             try self.put(b)
-            try self.put(".length && (")
-            try self.put(a)
-            try self.put(".length == 0 || memcmp(")
-            try self.put(a)
-            try self.put(".data, ")
-            try self.put(b)
-            try self.put(".data, ")
-            try self.put(a)
-            try self.put(".length) == 0))")
-            return
-        if self.is_tagged_opt(t):
-            try self.put("(")
-            try self.put(a)
-            try self.put(".present == ")
-            try self.put(b)
-            try self.put(".present && (!")
-            try self.put(a)
-            try self.put(".present || ")
-            try self.same_value(self.elem(t), try self.path(a, ".value"), try self.path(b, ".value"))
-            try self.put("))")
-            return
-        if k == types.Kind.array:
-            let n = self.tmp()
-            let i = try self.tmp_name("i", n)
-            let eq = try self.tmp_name("eq", n)
-            try self.put("({ bool ")
-            try self.put(eq)
-            try self.put(" = true; for (size_t ")
-            try self.put(i)
-            try self.put(" = 0; ")
-            try self.put(i)
-            try self.put(" < ")
-            try self.put_u64(self.c.table.get(t).length)
-            try self.put("ULL && ")
-            try self.put(eq)
-            try self.put("; ")
-            try self.put(i)
-            try self.put("++) { ")
-            try self.put(eq)
-            try self.put(" = ")
-            var index_bytes = try alloc u8[i.length + 5]
-            let index = try format(index_bytes, f".d[{i}]")
-            try self.same_value(self.elem(t), try self.path(a, index), try self.path(b, index))
-            try self.put("; } ")
-            try self.put(eq)
-            try self.put("; })")
-            return
-        if k == types.Kind.tuple:
-            let members = self.c.table.get(t).args
-            try self.put("(")
-            var j: usize = 0
-            while j < members.length:
-                if j > 0:
-                    try self.put(" && ")
-                var member_bytes = try alloc u8[16]
-                let member = try format(member_bytes, f".a{j}")
-                try self.same_value(members[j], try self.path(a, member), try self.path(b, member))
-                j += 1
-            if members.length == 0:
-                try self.put("true")
             try self.put(")")
-            return
-        if k == types.Kind.struct_:
-            let record = self.c.table.get(t)
-            let d = record.decl else return try self.put("true")
-            try self.put("(")
-            var any = false
-            var cursor = d.body
-            while let m = cursor:
-                if m.kind == ast.Kind.field:
-                    if any:
-                        try self.put(" && ")
-                    any = true
-                    var ft = m.type_id
-                    if record.args.length > 0:
-                        ft = try self.c.substitute(ft, d, record.args)
-                    let member = try self.path(".", try self.field(m.text))
-                    try self.same_value(ft, try self.path(a, member), try self.path(b, member))
-                cursor = m.next
-            if not any:
-                try self.put("true")
-            try self.put(")")
-            return
-        if k == types.Kind.enum_ and not self.c.is_backed_enum(t):
-            let record = self.c.table.get(t)
-            let d = record.decl else return try self.put("true")
-            let n = self.tmp()
-            let eq = try self.tmp_name("eq", n)
-            try self.put("({ bool ")
-            try self.put(eq)
-            try self.put(" = ")
-            try self.put(a)
-            try self.put(".tag == ")
-            try self.put(b)
-            try self.put(".tag; if (")
-            try self.put(eq)
-            try self.put(") switch ((int)")
-            try self.put(a)
-            try self.put(".tag) { ")
-            var cursor = d.body
-            while let case_decl = cursor:
-                if case_decl.kind == ast.Kind.enum_case and case_decl.body != none:
-                    try self.put("case ")
-                    try self.put_u64((u64)instances.case_tag(d, case_decl))
-                    try self.put(": ")
-                    try self.put(eq)
-                    try self.put(" = (")
-                    var first = true
-                    var param = case_decl.body
-                    while let p = param:
-                        if not first:
-                            try self.put(" && ")
-                        first = false
-                        var pt = p.type_id
-                        if record.args.length > 0:
-                            pt = try self.c.substitute(pt, d, record.args)
-                        let case_name = try self.field(case_decl.text)
-                        let payload_name = try self.field(p.text)
-                        var member_bytes = try alloc u8[case_name.length + payload_name.length + 4]
-                        let member = try format(member_bytes, f".u.{case_name}.{payload_name}")
-                        try self.same_value(pt, try self.path(a, member), try self.path(b, member))
-                        param = p.next
-                    try self.put("); break; ")
-                cursor = case_decl.next
-            try self.put("default: break; } ")
-            try self.put(eq)
-            try self.put("; })")
-            return
+
+    ## Equal text: the same length and the same bytes.
+    mutating func same_text(a: str, b: str) -> !:
         try self.put("(")
         try self.put(a)
-        try self.put(" == ")
+        try self.put(".length == ")
         try self.put(b)
+        try self.put(".length && (")
+        try self.put(a)
+        try self.put(".length == 0 || memcmp(")
+        try self.put(a)
+        try self.put(".data, ")
+        try self.put(b)
+        try self.put(".data, ")
+        try self.put(a)
+        try self.put(".length) == 0))")
+
+    ## Equal optionals: both absent, or both present with equal values.
+    mutating func same_optional(t: u32, a: str, b: str) -> !:
+        try self.put("(")
+        try self.put(a)
+        try self.put(".present == ")
+        try self.put(b)
+        try self.put(".present && (!")
+        try self.put(a)
+        try self.put(".present || ")
+        try self.same_value(self.elem(t), try self.path(a, ".value"), try self.path(b, ".value"))
+        try self.put("))")
+
+    ## Equal arrays: a loop over the elements that stops at the first difference.
+    mutating func same_array(t: u32, a: str, b: str) -> !:
+        let n = self.tmp()
+        let i = try self.tmp_name("i", n)
+        let eq = try self.tmp_name("eq", n)
+        try self.put("({ bool ")
+        try self.put(eq)
+        try self.put(" = true; for (size_t ")
+        try self.put(i)
+        try self.put(" = 0; ")
+        try self.put(i)
+        try self.put(" < ")
+        try self.put_u64(self.c.table.get(t).length)
+        try self.put("ULL && ")
+        try self.put(eq)
+        try self.put("; ")
+        try self.put(i)
+        try self.put("++) { ")
+        try self.put(eq)
+        try self.put(" = ")
+        var index_bytes = try alloc u8[i.length + 5]
+        let index = try format(index_bytes, f".d[{i}]")
+        try self.same_value(self.elem(t), try self.path(a, index), try self.path(b, index))
+        try self.put("; } ")
+        try self.put(eq)
+        try self.put("; })")
+
+    ## Equal tuples: every member equal; the empty tuple is always.
+    mutating func same_tuple(t: u32, a: str, b: str) -> !:
+        let members = self.c.table.get(t).args
+        try self.put("(")
+        var j: usize = 0
+        while j < members.length:
+            if j > 0:
+                try self.put(" && ")
+            var member_bytes = try alloc u8[16]
+            let member = try format(member_bytes, f".a{j}")
+            try self.same_value(members[j], try self.path(a, member), try self.path(b, member))
+            j += 1
+        if members.length == 0:
+            try self.put("true")
         try self.put(")")
 
-    ## `a` followed by `suffix`, as one C expression text.
+    ## Equal records: every field equal, at the record's type arguments.
+    mutating func same_record(t: u32, a: str, b: str) -> !:
+        let record = self.c.table.get(t)
+        let d = record.decl else return try self.put("true")
+        try self.put("(")
+        var any = false
+        var cursor = d.body
+        while let m = cursor:
+            if m.kind == ast.Kind.field:
+                if any:
+                    try self.put(" && ")
+                any = true
+                var ft = m.type_id
+                if record.args.length > 0:
+                    ft = try self.c.substitute(ft, d, record.args)
+                let member = try self.path(".", try self.field(m.text))
+                try self.same_value(ft, try self.path(a, member), try self.path(b, member))
+            cursor = m.next
+        if not any:
+            try self.put("true")
+        try self.put(")")
+
+    ## Equal enums with payloads: the same tag, and under it, a switch comparing the active
+    ## case's payload members.
+    mutating func same_payload_enum(t: u32, a: str, b: str) -> !:
+        let record = self.c.table.get(t)
+        let d = record.decl else return try self.put("true")
+        let n = self.tmp()
+        let eq = try self.tmp_name("eq", n)
+        try self.put("({ bool ")
+        try self.put(eq)
+        try self.put(" = ")
+        try self.put(a)
+        try self.put(".tag == ")
+        try self.put(b)
+        try self.put(".tag; if (")
+        try self.put(eq)
+        try self.put(") switch ((int)")
+        try self.put(a)
+        try self.put(".tag) { ")
+        var cursor = d.body
+        while let case_decl = cursor:
+            if case_decl.kind == ast.Kind.enum_case and case_decl.body != none:
+                try self.put("case ")
+                try self.put_u64((u64)instances.case_tag(d, case_decl))
+                try self.put(": ")
+                try self.put(eq)
+                try self.put(" = (")
+                try self.same_payload(record.args, d, case_decl, a, b)
+                try self.put("); break; ")
+            cursor = case_decl.next
+        try self.put("default: break; } ")
+        try self.put(eq)
+        try self.put("; })")
+
+    ## The payload members of `case_decl` in `a` and `b` all equal, joined by `&&`.
+    mutating func same_payload(args: u32[], d: ast.Node*, case_decl: ast.Node*, a: str, b: str) -> !:
+        var first = true
+        var param = case_decl.body
+        while let p = param:
+            if not first:
+                try self.put(" && ")
+            first = false
+            var pt = p.type_id
+            if args.length > 0:
+                pt = try self.c.substitute(pt, d, args)
+            let case_name = try self.field(case_decl.text)
+            let payload_name = try self.field(p.text)
+            var member_bytes = try alloc u8[case_name.length + payload_name.length + 4]
+            let member = try format(member_bytes, f".u.{case_name}.{payload_name}")
+            try self.same_value(pt, try self.path(a, member), try self.path(b, member))
+            param = p.next
+
     ## A field or a payload name as C spells it: the name, unless C reserves it, when an
     ## underscore follows; Base names are free to be `unsigned` or `int`.
     func field(name: str) -> str!:
@@ -239,6 +262,7 @@ extend Emitter:
         let room = try alloc u8[name.length + 1]
         return try format(room, f"{name}_")
 
+    ## `a` followed by `suffix`, as one C expression text.
     func path(a: str, suffix: str) -> str!:
         var bytes = try alloc u8[a.length + suffix.length + 1]
         return try format(bytes, f"{a}{suffix}")

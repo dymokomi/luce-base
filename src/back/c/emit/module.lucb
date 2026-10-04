@@ -70,6 +70,14 @@ struct Hoisted:
     var type_id: u32
     var n: u32
 
+## The operand lists of an `asm` block as C's extended asm spells them, and the numbers of
+## the temporaries its outputs are written back from, each followed by a space.
+struct AsmOperands:
+    var outs: buffer.Buffer
+    var ins: buffer.Buffer
+    var clobbers: buffer.Buffer
+    var stores: buffer.Buffer
+
 ## An argument computed into the temporary `_lb_sq<id>` before its call (§7.1).
 struct Sequenced:
     var node: ast.Node*

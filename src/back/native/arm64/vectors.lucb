@@ -20,37 +20,8 @@ extend Generator:
         let all = ".16b" if bytes == 16 else ".8b"
         # Full-width operations can read and write their allocated registers
         # directly. Narrow and checked vectors keep the specialized sequences.
-        if bytes == 16:
-            if n.op == ir.Op.loadv:
-                let address = try self.source(n.a, ir.Class.l, "x9")
-                let d = self.target(n.dst, ir.Class.v, "q16")
-                try self.writer.line4("ldr ", d, ", [", address)
-                try self.writer.put("]")
-                try self.finish(n.dst, ir.Class.v, d)
-                return
-            if n.op == ir.Op.storev:
-                let value = try self.source(n.a, ir.Class.v, "q16")
-                let address = try self.source(n.b, ir.Class.l, "x9")
-                try self.writer.line4("str ", value, ", [", address)
-                try self.writer.put("]")
-                return
-            if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
-                let a = try self.source(n.a, ir.Class.v, "q16")
-                let b = try self.source(n.b, ir.Class.v, "q17")
-                let d = self.target(n.dst, ir.Class.v, "q16")
-                let form = all if n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor else arr
-                try self.writer.line(vector_mnemonic(n.op, ir.lanes_signed(shape)))
-                try self.writer.put(" ")
-                try self.writer.put(vector_view(d))
-                try self.writer.put(form)
-                try self.writer.put(", ")
-                try self.writer.put(vector_view(a))
-                try self.writer.put(form)
-                try self.writer.put(", ")
-                try self.writer.put(vector_view(b))
-                try self.writer.put(form)
-                try self.finish(n.dst, ir.Class.v, d)
-                return
+        if bytes == 16 and try self.full_vector(n, arr, all):
+            return
         match n.op:
             .loadv:
                 try self.address_operand("x9", n.a)
@@ -72,58 +43,9 @@ extend Generator:
                 try self.writer.put(form)
                 try self.vector_result(n.dst, 0, bytes)
             .vshl, .vshr:
-                # the count, one scalar, spread over the lanes; a right shift is a left
-                # shift by the negated count, arithmetic or logical by the lanes' signedness
-                try self.vector_source(0, n.a, bytes)
-                let wide = ir.lane_bits(shape) == 64
-                let count = try self.source(n.b, ir.Class.l if wide else ir.Class.w, "x9" if wide else "w9")
-                try self.writer.line("dup v17")
-                try self.writer.put(arr)
-                try self.writer.put(", ")
-                try self.writer.put(count)
-                if n.op == ir.Op.vshr:
-                    try self.writer.line("neg v17")
-                    try self.writer.put(arr)
-                    try self.writer.put(", v17")
-                    try self.writer.put(arr)
-                try self.writer.line("sshl v16" if ir.lanes_signed(shape) else "ushl v16")
-                try self.writer.put(arr)
-                try self.writer.put(", v16")
-                try self.writer.put(arr)
-                try self.writer.put(", v17")
-                try self.writer.put(arr)
-                try self.vector_result(n.dst, 0, bytes)
+                try self.vector_shift(n, arr, bytes)
             .vaddo, .vsubo:
-                # the wrapping result beside the saturating one: a lane that differs overflowed
-                try self.vector_source(0, n.a, bytes)
-                try self.vector_source(1, n.b, bytes)
-                let add = n.op == ir.Op.vaddo
-                try self.writer.line("add v18" if add else "sub v18")
-                try self.writer.put(arr)
-                try self.writer.put(", v16")
-                try self.writer.put(arr)
-                try self.writer.put(", v17")
-                try self.writer.put(arr)
-                let signed = ir.lanes_signed(shape)
-                try self.writer.line(("sqadd v16" if signed else "uqadd v16") if add else ("sqsub v16" if signed else "uqsub v16"))
-                try self.writer.put(arr)
-                try self.writer.put(", v16")
-                try self.writer.put(arr)
-                try self.writer.put(", v17")
-                try self.writer.put(arr)
-                try self.writer.line("cmeq v16")
-                try self.writer.put(arr)
-                try self.writer.put(", v16")
-                try self.writer.put(arr)
-                try self.writer.put(", v18")
-                try self.writer.put(arr)
-                try self.writer.line("uminv b16, v16")
-                try self.writer.put(all)
-                try self.writer.line("fmov w9, s16")
-                try self.writer.line("cbnz w9, 1f")
-                try self.trap_text("integer overflow", n.extra2)
-                try self.writer.put("\n1:")
-                try self.vector_result(n.dst, 2, bytes)
+                try self.vector_checked(n, arr, all, bytes)
             _:
                 try self.vector_source(0, n.a, bytes)
                 try self.vector_source(1, n.b, bytes)
@@ -137,6 +59,99 @@ extend Generator:
                 try self.writer.put(", v17")
                 try self.writer.put(form)
                 try self.vector_result(n.dst, 0, bytes)
+
+    ## A sixteen-byte load, store, or lane-wise arithmetic straight between the allocated
+    ## registers; false for an operation that takes the scratch sequences instead.
+    mutating func full_vector(n: ir.Instr, arr: str, all: str) -> bool!:
+        if n.op == ir.Op.loadv:
+            let address = try self.source(n.a, ir.Class.l, "x9")
+            let d = self.target(n.dst, ir.Class.v, "q16")
+            try self.writer.line4("ldr ", d, ", [", address)
+            try self.writer.put("]")
+            try self.finish(n.dst, ir.Class.v, d)
+            return true
+        if n.op == ir.Op.storev:
+            let value = try self.source(n.a, ir.Class.v, "q16")
+            let address = try self.source(n.b, ir.Class.l, "x9")
+            try self.writer.line4("str ", value, ", [", address)
+            try self.writer.put("]")
+            return true
+        if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
+            let a = try self.source(n.a, ir.Class.v, "q16")
+            let b = try self.source(n.b, ir.Class.v, "q17")
+            let d = self.target(n.dst, ir.Class.v, "q16")
+            let form = all if n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor else arr
+            try self.writer.line(vector_mnemonic(n.op, ir.lanes_signed(n.extra)))
+            try self.writer.put(" ")
+            try self.writer.put(vector_view(d))
+            try self.writer.put(form)
+            try self.writer.put(", ")
+            try self.writer.put(vector_view(a))
+            try self.writer.put(form)
+            try self.writer.put(", ")
+            try self.writer.put(vector_view(b))
+            try self.writer.put(form)
+            try self.finish(n.dst, ir.Class.v, d)
+            return true
+        return false
+
+    ## `v << count` and `v >> count`: the count, one scalar, spread over the lanes; a right
+    ## shift is a left shift by the negated count, arithmetic or logical by the lanes'
+    ## signedness.
+    mutating func vector_shift(n: ir.Instr, arr: str, bytes: u32) -> !:
+        let shape = n.extra
+        try self.vector_source(0, n.a, bytes)
+        let wide = ir.lane_bits(shape) == 64
+        let count = try self.source(n.b, ir.Class.l if wide else ir.Class.w, "x9" if wide else "w9")
+        try self.writer.line("dup v17")
+        try self.writer.put(arr)
+        try self.writer.put(", ")
+        try self.writer.put(count)
+        if n.op == ir.Op.vshr:
+            try self.writer.line("neg v17")
+            try self.writer.put(arr)
+            try self.writer.put(", v17")
+            try self.writer.put(arr)
+        try self.writer.line("sshl v16" if ir.lanes_signed(shape) else "ushl v16")
+        try self.writer.put(arr)
+        try self.writer.put(", v16")
+        try self.writer.put(arr)
+        try self.writer.put(", v17")
+        try self.writer.put(arr)
+        try self.vector_result(n.dst, 0, bytes)
+
+    ## Checked `+` and `-` over lanes: the wrapping result beside the saturating one; a lane
+    ## that differs overflowed, and traps.
+    mutating func vector_checked(n: ir.Instr, arr: str, all: str, bytes: u32) -> !:
+        try self.vector_source(0, n.a, bytes)
+        try self.vector_source(1, n.b, bytes)
+        let add = n.op == ir.Op.vaddo
+        try self.writer.line("add v18" if add else "sub v18")
+        try self.writer.put(arr)
+        try self.writer.put(", v16")
+        try self.writer.put(arr)
+        try self.writer.put(", v17")
+        try self.writer.put(arr)
+        let signed = ir.lanes_signed(n.extra)
+        try self.writer.line(("sqadd v16" if signed else "uqadd v16") if add else ("sqsub v16" if signed else "uqsub v16"))
+        try self.writer.put(arr)
+        try self.writer.put(", v16")
+        try self.writer.put(arr)
+        try self.writer.put(", v17")
+        try self.writer.put(arr)
+        try self.writer.line("cmeq v16")
+        try self.writer.put(arr)
+        try self.writer.put(", v16")
+        try self.writer.put(arr)
+        try self.writer.put(", v18")
+        try self.writer.put(arr)
+        try self.writer.line("uminv b16, v16")
+        try self.writer.put(all)
+        try self.writer.line("fmov w9, s16")
+        try self.writer.line("cbnz w9, 1f")
+        try self.trap_text("integer overflow", n.extra2)
+        try self.writer.put("\n1:")
+        try self.vector_result(n.dst, 2, bytes)
 
     ## `T[N](x)`: the scalar into every lane of v16.
     mutating func splat(n: ir.Instr, shape: u32, arr: str) -> !:

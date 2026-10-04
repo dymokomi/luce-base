@@ -261,6 +261,8 @@ extend Lowerer:
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
 
+    ## `for binding in seq`: a counted loop over a range, or a walk over an array, a span,
+    ## or text by index.
     mutating func for_stmt(s: ast.Node*) -> !:
         let binding = s.left else return
         let seq = s.right else return
@@ -268,44 +270,55 @@ extend Lowerer:
         let body_label = self.f.label()
         let step = self.f.label()
         let end_label = self.f.label()
+        let l = LowerLoop(head = head, body = body_label, step = step, exit = end_label)
         try self.push_scope(true, s.text, end_label, step)
         if seq.kind == ast.Kind.binary and (seq.text == "..<" or seq.text == "..="):
             let lo = seq.left else return
             let hi = seq.right else return
-            let t = try self.map(binding.type_id)
-            let slot = try self.bind_local(binding, t)
-            let counter = try self.slot_address(slot)
-            let start = try self.value(lo, t)
-            try self.store_to(counter, start)
-            let limit_slot = try self.new_slot(t)
-            let limit_address = try self.slot_address(limit_slot)
-            let limit = try self.value(hi, t)
-            try self.store_to(limit_address, limit)
-            try self.f.place_label(head)
-            let current = try self.load_from(counter, t)
-            let bound = try self.load_from(limit_address, t)
-            let op = (ir.Op.csle if seq.text == "..=" else ir.Op.cslt) if self.signed_of(t) else (ir.Op.cule if seq.text == "..=" else ir.Op.cult)
-            let go = try self.f.binary(op, self.class_of(t), current.ref, bound.ref)
-            try self.f.branch(go, body_label, end_label)
-            try self.f.place_label(body_label)
-            if let body = s.body:
-                try self.block(body)
-            try self.f.place_label(step)
-            let again = try self.load_from(counter, t)
-            if seq.text == "..=":
-                # the last value is visited before the increment, so `..=T.max` cannot wrap
-                let last = try self.load_from(limit_address, t)
-                let at_last = try self.f.binary(ir.Op.ceq, self.class_of(t), again.ref, last.ref)
-                let more = self.f.label()
-                try self.f.branch(at_last, end_label, more)
-                try self.f.place_label(more)
-            let next = try self.f.binary(ir.Op.add, self.class_of(t), again.ref, ir.const_ref(1))
-            try self.f.store(ir.store_op(self.scalar_size(t), false), next, counter)
-            try self.f.jump(head)
-            try self.f.place_label(end_label)
-            try self.unwind(self.scopes.count - 1, false)
-            self.pop_scope()
-            return
+            try self.range_loop(s, binding, lo, hi, seq.text == "..=", l)
+        else:
+            try self.sequence_loop(s, binding, seq, l)
+        try self.f.place_label(end_label)
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+
+    ## The blocks of `for i in lo..<hi` or `lo..=hi`, up to the jump back to its test: the
+    ## binding counts in its own type up to a limit computed once.
+    mutating func range_loop(s: ast.Node*, binding: ast.Node*, lo: ast.Node*, hi: ast.Node*, closed: bool, l: LowerLoop) -> !:
+        let t = try self.map(binding.type_id)
+        let slot = try self.bind_local(binding, t)
+        let counter = try self.slot_address(slot)
+        let start = try self.value(lo, t)
+        try self.store_to(counter, start)
+        let limit_slot = try self.new_slot(t)
+        let limit_address = try self.slot_address(limit_slot)
+        let limit = try self.value(hi, t)
+        try self.store_to(limit_address, limit)
+        try self.f.place_label(l.head)
+        let current = try self.load_from(counter, t)
+        let bound = try self.load_from(limit_address, t)
+        let op = (ir.Op.csle if closed else ir.Op.cslt) if self.signed_of(t) else (ir.Op.cule if closed else ir.Op.cult)
+        let go = try self.f.binary(op, self.class_of(t), current.ref, bound.ref)
+        try self.f.branch(go, l.body, l.exit)
+        try self.f.place_label(l.body)
+        if let body = s.body:
+            try self.block(body)
+        try self.f.place_label(l.step)
+        let again = try self.load_from(counter, t)
+        if closed:
+            # the last value is visited before the increment, so `..=T.max` cannot wrap
+            let last = try self.load_from(limit_address, t)
+            let at_last = try self.f.binary(ir.Op.ceq, self.class_of(t), again.ref, last.ref)
+            let more = self.f.label()
+            try self.f.branch(at_last, l.exit, more)
+            try self.f.place_label(more)
+        let next = try self.f.binary(ir.Op.add, self.class_of(t), again.ref, ir.const_ref(1))
+        try self.f.store(ir.store_op(self.scalar_size(t), false), next, counter)
+        try self.f.jump(l.head)
+
+    ## The blocks of a loop over an array, a span, or text, up to the jump back to its
+    ## test: the index steps by one element, or by one scalar's width over text.
+    mutating func sequence_loop(s: ast.Node*, binding: ast.Node*, seq: ast.Node*, l: LowerLoop) -> !:
         # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
         let indexed = calls.indexed_receiver(seq)
         var it = try self.ty(seq)
@@ -316,6 +329,33 @@ extend Lowerer:
             sequence = try self.value(receiver, it)
         else:
             sequence = try self.expr(seq)
+        var w = try self.walk(sequence, it)
+        try self.f.store(ir.Op.storel, ir.const_ref(0), try self.slot_address(w.index_slot))
+        try self.f.place_label(l.head)
+        let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(w.index_slot))
+        w.count = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(w.count_slot))
+        let go = try self.f.binary(ir.Op.cult, ir.Class.l, i, w.count)
+        try self.f.branch(go, l.body, l.exit)
+        try self.f.place_label(l.body)
+        w.base = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(w.data_slot))
+        w.index = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(w.index_slot))
+        let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, w.index, ir.const_ref((i64)w.stride))
+        w.address = try self.f.binary(ir.Op.add, ir.Class.l, w.base, scaled)
+        try self.walk_bindings(s, binding, indexed != none, it, w)
+        if let body = s.body:
+            try self.block(body)
+        try self.f.place_label(l.step)
+        let i3 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(w.index_slot))
+        var advance = ir.const_ref(1)
+        if it == types.str_id:
+            advance = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(w.width_slot))
+        let next = try self.f.binary(ir.Op.add, ir.Class.l, i3, advance)
+        try self.f.store(ir.Op.storel, next, try self.slot_address(w.index_slot))
+        try self.f.jump(l.head)
+
+    ## The slots of a walk over `sequence` of type `it`, its data pointer and count stored
+    ## in them, and its elements' type and stride.
+    mutating func walk(sequence: LowerValue, it: u32) -> LowerWalk!:
         # the data pointer and the count, in slots that outlive the loop's blocks
         let data_slot = try self.f.slot(8, 8)
         let count_slot = try self.f.slot(8, 8)
@@ -329,42 +369,32 @@ extend Lowerer:
             stride = self.c.table.size_of(element_type)
             try self.f.store(ir.Op.storel, sequence.ref, try self.slot_address(data_slot))
             try self.f.store(ir.Op.storel, ir.const_ref((i64)self.c.table.get(it).length), try self.slot_address(count_slot))
-        elif it == types.str_id:
-            element_type = types.u8_id
-            let data = try self.f.load(ir.Op.loadl, ir.Class.l, sequence.ref)
-            let count = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(sequence.ref, 8))
-            try self.f.store(ir.Op.storel, data, try self.slot_address(data_slot))
-            try self.f.store(ir.Op.storel, count, try self.slot_address(count_slot))
         else:
-            element_type = self.elem(it)
-            stride = self.c.table.size_of(element_type)
+            if it != types.str_id:
+                element_type = self.elem(it)
+                stride = self.c.table.size_of(element_type)
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, sequence.ref)
             let count = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(sequence.ref, 8))
             try self.f.store(ir.Op.storel, data, try self.slot_address(data_slot))
             try self.f.store(ir.Op.storel, count, try self.slot_address(count_slot))
-        try self.f.store(ir.Op.storel, ir.const_ref(0), try self.slot_address(index_slot))
-        try self.f.place_label(head)
-        let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
-        let n = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(count_slot))
-        let go = try self.f.binary(ir.Op.cult, ir.Class.l, i, n)
-        try self.f.branch(go, body_label, end_label)
-        try self.f.place_label(body_label)
-        let base = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(data_slot))
-        let i2 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
-        let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, i2, ir.const_ref((i64)stride))
-        let element_address = try self.f.binary(ir.Op.add, ir.Class.l, base, scaled)
-        if binding.body != none and indexed != none:
+        let none_ref = ir.none_ref()
+        return LowerWalk(data_slot = data_slot, count_slot = count_slot, index_slot = index_slot, width_slot = width_slot, element_type = element_type, stride = stride, base = none_ref, count = none_ref, index = none_ref, address = none_ref)
+
+    ## The bindings at the top of a walk's body: the element by value or by pointer, the
+    ## members of its tuple, `(index, element)` under `indexed()`, or text's scalar.
+    mutating func walk_bindings(s: ast.Node*, binding: ast.Node*, indexed: bool, it: u32, w: LowerWalk) -> !:
+        if binding.body != none and indexed:
             # `(index, element)`
             let index_name = binding.body else return
             if index_name.text != "_":
                 let slot = try self.bind_local(index_name, types.usize_id)
-                try self.f.store(ir.Op.storel, i2, try self.slot_address(slot))
+                try self.f.store(ir.Op.storel, w.index, try self.slot_address(slot))
             if let element_name = index_name.next:
                 if element_name.text != "_":
-                    let slot = try self.bind_local(element_name, element_type)
-                    try self.store_to(try self.slot_address(slot), try self.load_from(element_address, element_type))
+                    let slot = try self.bind_local(element_name, w.element_type)
+                    try self.store_to(try self.slot_address(slot), try self.load_from(w.address, w.element_type))
         elif binding.body != none:
-            let et = self.c.table.get(element_type)
+            let et = self.c.table.get(w.element_type)
             var offset: u64 = 0
             var k: usize = 0
             var cursor = binding.body
@@ -373,36 +403,23 @@ extend Lowerer:
                 offset = lower_round_up(offset, self.c.table.align_of(mt))
                 if name.text != "_":
                     let slot = try self.bind_local(name, mt)
-                    let member = try self.load_from(try self.offset_address(element_address, offset), mt)
+                    let member = try self.load_from(try self.offset_address(w.address, offset), mt)
                     try self.store_to(try self.slot_address(slot), member)
                 offset += self.c.table.size_of(mt)
                 k += 1
                 cursor = name.next
         elif s.has(ast.flag_by_pointer):
             let slot = try self.bind_local(binding, try self.map(binding.type_id))
-            try self.f.store(ir.Op.storel, element_address, try self.slot_address(slot))
+            try self.f.store(ir.Op.storel, w.address, try self.slot_address(slot))
         elif it == types.str_id:
             let slot = try self.bind_local(binding, types.char_id)
-            let scalar = try self.utf8_scalar(base, n, i2, try self.slot_address(width_slot))
+            let scalar = try self.utf8_scalar(w.base, w.count, w.index, try self.slot_address(w.width_slot))
             try self.f.store(ir.Op.storew, scalar, try self.slot_address(slot))
         else:
             let bt = try self.map(binding.type_id)
             let slot = try self.bind_local(binding, bt)
-            let element = try self.load_from(element_address, element_type)
+            let element = try self.load_from(w.address, w.element_type)
             try self.store_to(try self.slot_address(slot), element)
-        if let body = s.body:
-            try self.block(body)
-        try self.f.place_label(step)
-        let i3 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
-        var advance = ir.const_ref(1)
-        if it == types.str_id:
-            advance = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(width_slot))
-        let next = try self.f.binary(ir.Op.add, ir.Class.l, i3, advance)
-        try self.f.store(ir.Op.storel, next, try self.slot_address(index_slot))
-        try self.f.jump(head)
-        try self.f.place_label(end_label)
-        try self.unwind(self.scopes.count - 1, false)
-        self.pop_scope()
 
     ## `core.utf8_scalar(data, count, index, &width)`: the scalar at a byte of valid UTF-8.
     mutating func utf8_scalar(data: ir.Ref, count: ir.Ref, index: ir.Ref, width: ir.Ref) -> ir.Ref!:

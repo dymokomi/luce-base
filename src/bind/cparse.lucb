@@ -224,6 +224,18 @@ struct Specs:
     ## Whether the specifiers declared a tag body on their own.
     var declares: bool
 
+## The words of a declaration's scalar type as they are read: `base` is 0 for none, 1
+## `void`, 2 `bool`, 3 `char`, 4 `int`, 5 `float`, 6 `double`, 7 a type of another kind
+## already in the specifiers.
+struct TypeWords:
+    var base: u8
+    var longs: u8
+    var is_short: bool
+    var is_unsigned: bool
+    var is_signed: bool
+    var is_const: bool
+    var int128: bool
+
 struct Declarator:
     var name: str
     var ty: CType*
@@ -479,108 +491,116 @@ pub struct Parser:
     mutating func specifiers() -> Specs!:
         var s = Specs(ty = try self.make(Kind.int_), is_typedef = false, is_static = false, is_extern = false,
                       is_inline = false, noreturn = false, record = none, enumeration = none, declares = false)
-        var base: u8 = 0  # 0 none, 1 void, 2 bool, 3 char, 4 int, 5 float, 6 double, 7 other
-        var longs: u8 = 0
-        var is_short = false
-        var is_unsigned = false
-        var is_signed = false
-        var is_const = false
+        var words = TypeWords(base = 0, longs = 0, is_short = false, is_unsigned = false, is_signed = false, is_const = false, int128 = false)
         var seen_type = false
-        var int128 = false
         while self.tok.kind == pre.Kind.ident:
             let w = self.tok.text
-            if w == "typedef":
-                s.is_typedef = true
-            elif w == "static":
-                s.is_static = true
-            elif w == "extern":
-                s.is_extern = true
-            elif w == "inline" or w == "__inline" or w == "__inline__" or w == "__forceinline":
-                s.is_inline = true
-            elif w == "_Noreturn":
-                s.noreturn = true
-            elif w == "const" or w == "__const" or w == "__const__":
-                is_const = true
-            elif w == "_Nonnull" or w == "__nonnull":
-                self.base_nullable = 1
-            elif w == "_Nullable" or w == "__nullable" or w == "_Nullable_result":
-                self.base_nullable = 2
-            elif is_qualifier(w) or w == "auto" or w == "register" or w == "_Thread_local" or w == "__thread" or w == "__extension__":
-                discard(w)
-            elif w == "__attribute__" or w == "__attribute" or w == "__declspec":
+            if try self.specifier_word(w, &s, &words):
                 self.advance()
-                if (try self.attributes()).noreturn:
-                    s.noreturn = true
+            elif try self.specifier_group(w, &s, &words):
                 continue
-            elif w == "_Alignas" or w == "__alignas":
-                self.advance()
-                try self.skip_group()
-                continue
-            elif w == "void":
-                base = 1
-            elif w == "_Bool" or w == "bool":
-                base = 2
-            elif w == "char":
-                base = 3
-            elif w == "int":
-                base = 4
-            elif w == "float":
-                base = 5
-            elif w == "double":
-                base = 6
-            elif w == "short":
-                is_short = true
-            elif w == "long":
-                longs += 1
-            elif w == "signed" or w == "__signed" or w == "__signed__":
-                is_signed = true
-            elif w == "unsigned":
-                is_unsigned = true
-            elif w == "__int128" or w == "__int128_t" or w == "__uint128_t":
-                int128 = true
-                if w == "__uint128_t":
-                    is_unsigned = true
-            elif w == "_Complex" or w == "__complex__" or w == "_Imaginary":
-                base = 7
-                s.ty = try self.unsupported("complex numbers have no Base type")
-            elif w == "__typeof__" or w == "typeof" or w == "__typeof" or w == "_BitInt" or w == "__auto_type":
-                base = 7
-                self.advance()
-                if self.at_punct("("):
-                    try self.skip_group()
-                s.ty = try self.unsupported(try format(scratch[0..], f"{w} has no Base spelling"))
-                continue
-            elif w == "struct" or w == "union":
-                base = 7
-                let (r, declares) = try self.record(w == "union")
-                s.record = r
-                s.declares = declares
-                s.ty = try self.make(Kind.record)
-                s.ty.record = r
-                s.ty.name = r.tag
-                continue
-            elif w == "enum":
-                base = 7
-                let (e, declares) = try self.enumeration()
-                s.enumeration = e
-                s.declares = declares
-                s.ty = try self.make(Kind.enum_)
-                s.ty.enumeration = e
-                s.ty.name = e.tag
-                continue
-            elif not seen_type and base == 0 and longs == 0 and not is_short and not is_signed and not is_unsigned:
+            elif not seen_type and words.base == 0 and words.longs == 0 and not words.is_short and not words.is_signed and not words.is_unsigned:
                 let t = self.typedefs.get(w) else break
                 s.ty = t
-                base = 7
+                words.base = 7
                 seen_type = true
+                self.advance()
             else:
                 break
-            self.advance()
-        if base != 7:
-            s.ty = try self.scalar(base, longs, is_short, is_unsigned, is_signed, int128)
-        if is_const:
+        if words.base != 7:
+            s.ty = try self.scalar(words.base, words.longs, words.is_short, words.is_unsigned, words.is_signed, words.int128)
+        if words.is_const:
             s.ty = try self.with_const(s.ty)
         return s
+
+    ## A specifier of one word, `w`, into `s` or `words`: a storage word, a qualifier, a
+    ## nullability, or a word of a scalar type; false when `w` is none of them.
+    mutating func specifier_word(w: str, s: Specs*, words: TypeWords*) -> bool!:
+        if w == "typedef":
+            s.is_typedef = true
+        elif w == "static":
+            s.is_static = true
+        elif w == "extern":
+            s.is_extern = true
+        elif w == "inline" or w == "__inline" or w == "__inline__" or w == "__forceinline":
+            s.is_inline = true
+        elif w == "_Noreturn":
+            s.noreturn = true
+        elif w == "const" or w == "__const" or w == "__const__":
+            words.is_const = true
+        elif w == "_Nonnull" or w == "__nonnull":
+            self.base_nullable = 1
+        elif w == "_Nullable" or w == "__nullable" or w == "_Nullable_result":
+            self.base_nullable = 2
+        elif is_qualifier(w) or w == "auto" or w == "register" or w == "_Thread_local" or w == "__thread" or w == "__extension__":
+            discard(w)
+        elif w == "void":
+            words.base = 1
+        elif w == "_Bool" or w == "bool":
+            words.base = 2
+        elif w == "char":
+            words.base = 3
+        elif w == "int":
+            words.base = 4
+        elif w == "float":
+            words.base = 5
+        elif w == "double":
+            words.base = 6
+        elif w == "short":
+            words.is_short = true
+        elif w == "long":
+            words.longs += 1
+        elif w == "signed" or w == "__signed" or w == "__signed__":
+            words.is_signed = true
+        elif w == "unsigned":
+            words.is_unsigned = true
+        elif w == "__int128" or w == "__int128_t" or w == "__uint128_t":
+            words.int128 = true
+            if w == "__uint128_t":
+                words.is_unsigned = true
+        elif w == "_Complex" or w == "__complex__" or w == "_Imaginary":
+            words.base = 7
+            s.ty = try self.unsupported("complex numbers have no Base type")
+        else:
+            return false
+        return true
+
+    ## A specifier that reads past its own tokens, from the word `w`: attributes,
+    ## `_Alignas`, `typeof` and the other forms with no Base spelling, and a `struct`,
+    ## `union`, or `enum` with its tag or body; false when `w` begins none of them.
+    mutating func specifier_group(w: str, s: Specs*, words: TypeWords*) -> bool!:
+        if w == "__attribute__" or w == "__attribute" or w == "__declspec":
+            self.advance()
+            if (try self.attributes()).noreturn:
+                s.noreturn = true
+        elif w == "_Alignas" or w == "__alignas":
+            self.advance()
+            try self.skip_group()
+        elif w == "__typeof__" or w == "typeof" or w == "__typeof" or w == "_BitInt" or w == "__auto_type":
+            words.base = 7
+            self.advance()
+            if self.at_punct("("):
+                try self.skip_group()
+            s.ty = try self.unsupported(try format(scratch[0..], f"{w} has no Base spelling"))
+        elif w == "struct" or w == "union":
+            words.base = 7
+            let (r, declares) = try self.record(w == "union")
+            s.record = r
+            s.declares = declares
+            s.ty = try self.make(Kind.record)
+            s.ty.record = r
+            s.ty.name = r.tag
+        elif w == "enum":
+            words.base = 7
+            let (e, declares) = try self.enumeration()
+            s.enumeration = e
+            s.declares = declares
+            s.ty = try self.make(Kind.enum_)
+            s.ty.enumeration = e
+            s.ty.name = e.tag
+        else:
+            return false
+        return true
 
     ## The scalar the words name: `unsigned long`, `short`, `long double` and the rest.
     mutating func scalar(base: u8, longs: u8, is_short: bool, is_unsigned: bool, is_signed: bool, int128: bool) -> CType*!:

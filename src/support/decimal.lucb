@@ -149,154 +149,190 @@ let digit_cap: usize = 800
 ## is not such a literal.
 pub func bits(text: str, width: u32) -> u64?:
     let f = Format.of(width) else return none
-    let b = text.bytes
-    # the significant digits, leading zeros dropped, and the exponent of the last one
-    var digits: u8[800]
-    var count: usize = 0
-    var sticky = false
-    # the decimal exponent of the digit after the last kept one
-    var exponent: i64 = 0
-    var seen_digit = false
-    var seen_point = false
-    var i: usize = 0
-    while i < b.length and b[i] != 'e' and b[i] != 'E':
-        let c = b[i]
-        i += 1
-        if c == '_':
-            continue
-        if c == '.':
-            if seen_point:
-                return none
-            seen_point = true
-            continue
-        if c < '0' or c > '9':
-            return none
-        seen_digit = true
-        if seen_point:
-            exponent -= 1
-        if count == 0 and c == '0':
-            # a leading zero has no weight
-            continue
-        if count < digit_cap:
-            digits[count] = c
-            count += 1
-        else:
-            # beyond the cap the digit's weight moves into the exponent; its value only
-            # matters for a tie
-            exponent += 1
-            if c != '0':
-                sticky = true
-    if not seen_digit:
-        return none
-    if i < b.length:
-        # the `e`
-        i += 1
-        var negative = false
-        if i < b.length and (b[i] == '+' or b[i] == '-'):
-            negative = b[i] == '-'
-            i += 1
-        if i == b.length:
-            return none
-        var given: i64 = 0
-        while i < b.length:
+    let d = Digits.read(text) else return none
+    if d.count == 0:
+        return 0
+    # the value is in [10^(count + exponent - 1), 10^(count + exponent)): past the largest
+    # double it is an infinity, below half the smallest subnormal it is zero
+    if (i64)d.count + d.exponent > 310:
+        return f.infinity()
+    if (i64)d.count + d.exponent < -400:
+        return 0
+    let q = d.quotient(f.precision) else return none
+    return f.round(q)
+
+## A literal's significant digits, leading and trailing zeros dropped, and the decimal
+## exponent of the digit after the last one: the value is `digit * 10^exponent`, and a
+## little more when `sticky`.
+struct Digits:
+    var digit: u8[800]
+    var count: usize
+    ## A digit past the cap that is not zero: only a tie needs it.
+    var sticky: bool
+    var exponent: i64
+
+    ## The digits of `text`; `none` when it is not a literal.
+    static func read(text: str) -> Digits?:
+        let b = text.bytes
+        var d: Digits
+        var seen_digit = false
+        var seen_point = false
+        var i: usize = 0
+        while i < b.length and b[i] != 'e' and b[i] != 'E':
             let c = b[i]
             i += 1
             if c == '_':
                 continue
+            if c == '.':
+                if seen_point:
+                    return none
+                seen_point = true
+                continue
             if c < '0' or c > '9':
                 return none
-            # any larger exponent is already an overflow or a zero
-            if given < 100000:
-                given = given * 10 + (i64)(c - '0')
-        exponent += -given if negative else given
-    if count == 0:
-        return 0
-    # trailing zeros carry no information: fold them into the exponent
-    while count > 0 and digits[count - 1] == '0':
-        count -= 1
-        exponent += 1
-    # the value is in [10^(count + exponent - 1), 10^(count + exponent)): past the largest
-    # double it is an infinity, below half the smallest subnormal it is zero
-    if (i64)count + exponent > 310:
-        return f.infinity()
-    if (i64)count + exponent < -400:
-        return 0
-    var num = Big.of(0)
-    var k: usize = 0
-    while k < count:
-        if not num.mul_add(10, (u32)(digits[k] - '0')):
+            seen_digit = true
+            if seen_point:
+                d.exponent -= 1
+            if d.count == 0 and c == '0':
+                # a leading zero has no weight
+                continue
+            d.keep(c)
+        if not seen_digit:
             return none
-        k += 1
-    var den = Big.of(1)
-    var e = exponent
-    while e > 0:
-        if not num.mul_add(10, 0):
+        if i < b.length:
+            # past the `e`
+            let given = exponent_part(text, i + 1) else return none
+            d.exponent += given
+        # trailing zeros carry no information: fold them into the exponent
+        while d.count > 0 and d.digit[d.count - 1] == '0':
+            d.count -= 1
+            d.exponent += 1
+        return d
+
+    ## Keeps the digit `c`, or past the cap moves its weight into the exponent; its value
+    ## only matters for a tie.
+    mutating func keep(c: u8):
+        if self.count < digit_cap:
+            self.digit[self.count] = c
+            self.count += 1
+        else:
+            self.exponent += 1
+            if c != '0':
+                self.sticky = true
+
+    ## The quotient Num / Den (see the header), scaled to p + 3 or p + 4 bits for a
+    ## precision of p; `none` when a big integer overflows.
+    func quotient(precision: u64) -> Quotient?:
+        var num = Big.of(0)
+        var k: usize = 0
+        while k < self.count:
+            if not num.mul_add(10, (u32)(self.digit[k] - '0')):
+                return none
+            k += 1
+        var den = Big.of(1)
+        var e = self.exponent
+        while e > 0:
+            if not num.mul_add(10, 0):
+                return none
+            e -= 1
+        while e < 0:
+            if not den.mul_add(10, 0):
+                return none
+            e += 1
+        # scale so that the quotient has p + 3 or p + 4 bits
+        let scale = (i64)den.bit_length() - (i64)num.bit_length() + (i64)precision + 3
+        if scale >= 0:
+            if not num.shift_left((usize)scale):
+                return none
+        elif not den.shift_left((usize)(-scale)):
             return none
-        e -= 1
-    while e < 0:
-        if not den.mul_add(10, 0):
+        # restoring division: the quotient bit by bit, from its highest
+        let top = num.bit_length() - den.bit_length()
+        if not den.shift_left(top):
             return none
-        e += 1
-    # scale so that the quotient has p + 3 or p + 4 bits
-    let scale = (i64)den.bit_length() - (i64)num.bit_length() + (i64)f.precision + 3
-    if scale >= 0:
-        if not num.shift_left((usize)scale):
-            return none
-    elif not den.shift_left((usize)(-scale)):
+        var quotient: u64 = 0
+        var j = top + 1
+        while j > 0:
+            j -= 1
+            quotient <<= 1
+            if num.at_least(&den):
+                num.subtract(&den)
+                quotient |= 1
+            den.shift_right_one()
+        return Quotient(value = quotient, scale = scale, sticky = self.sticky or not num.is_zero())
+
+## The exponent after a literal's `e` at `start`, its sign included; `none` when it is
+## malformed. Any exponent past 100000 is already an overflow or a zero, and is kept there.
+func exponent_part(text: str, start: usize) -> i64?:
+    let b = text.bytes
+    var i = start
+    var negative = false
+    if i < b.length and (b[i] == '+' or b[i] == '-'):
+        negative = b[i] == '-'
+        i += 1
+    if i == b.length:
         return none
-    # restoring division: the quotient bit by bit, from its highest
-    let top = num.bit_length() - den.bit_length()
-    if not den.shift_left(top):
-        return none
-    var quotient: u64 = 0
-    var j = top + 1
-    while j > 0:
-        j -= 1
-        quotient <<= 1
-        if num.at_least(&den):
-            num.subtract(&den)
-            quotient |= 1
-        den.shift_right_one()
-    if not num.is_zero():
-        sticky = true
-    # the value is quotient * 2^-scale, and more when sticky
-    var length: u64 = 0
-    var q = quotient
-    while q != 0:
-        length += 1
-        q >>= 1
-    # of the leading bit
-    var exponent2 = (i64)length - 1 - scale
-    if exponent2 > f.max_exponent:
-        return f.infinity()
-    var keep = (i64)f.precision
-    if exponent2 < f.min_exponent:
-        keep = (i64)f.precision - (f.min_exponent - exponent2)
-    let one: u64 = 1
-    if keep <= 0:
-        # at most half the smallest subnormal: exactly half is a tie, and even is zero
-        if keep == 0:
-            let half = one << (length - 1)
-            return 1 if quotient > half or (quotient == half and sticky) else 0
-        return 0
-    let shift = length - (u64)keep
-    var kept = quotient >> shift
-    let dropped = quotient & ((one << shift) - 1)
-    let half = one << (shift - 1)
-    if dropped > half or (dropped == half and (sticky or (kept & 1) != 0)):
-        kept += 1
-    let hidden = one << (f.precision - 1)
-    if kept == hidden << 1:
-        kept = hidden
-        exponent2 += 1
-        if exponent2 > f.max_exponent:
-            return f.infinity()
-    if exponent2 < f.min_exponent:
-        # a subnormal's bits are its mantissa; one that rounded up to the hidden bit is the
-        # smallest normal, whose bits are that same number
-        return kept
-    let bias = (one << (f.exponent_bits - 1)) - 1
-    return (((u64)(exponent2 + (i64)bias)) << (f.precision - 1)) | (kept - hidden)
+    var given: i64 = 0
+    while i < b.length:
+        let c = b[i]
+        i += 1
+        if c == '_':
+            continue
+        if c < '0' or c > '9':
+            return none
+        if given < 100000:
+            given = given * 10 + (i64)(c - '0')
+    return -given if negative else given
+
+# mark: Rounding ==============================================================================
+
+## A literal's value as `value * 2^-scale`, and more when `sticky`.
+struct Quotient:
+    var value: u64
+    var scale: i64
+    var sticky: bool
+
+extend Format:
+    ## `q` rounded once to this width, ties to even: its bits.
+    func round(q: Quotient) -> u64:
+        let quotient = q.value
+        var length: u64 = 0
+        var v = quotient
+        while v != 0:
+            length += 1
+            v >>= 1
+        # of the leading bit
+        var exponent2 = (i64)length - 1 - q.scale
+        if exponent2 > self.max_exponent:
+            return self.infinity()
+        var keep = (i64)self.precision
+        if exponent2 < self.min_exponent:
+            keep = (i64)self.precision - (self.min_exponent - exponent2)
+        let one: u64 = 1
+        if keep <= 0:
+            # at most half the smallest subnormal: exactly half is a tie, and even is zero
+            if keep == 0:
+                let half = one << (length - 1)
+                return 1 if quotient > half or (quotient == half and q.sticky) else 0
+            return 0
+        let shift = length - (u64)keep
+        var kept = quotient >> shift
+        let dropped = quotient & ((one << shift) - 1)
+        let half = one << (shift - 1)
+        if dropped > half or (dropped == half and (q.sticky or (kept & 1) != 0)):
+            kept += 1
+        let hidden = one << (self.precision - 1)
+        if kept == hidden << 1:
+            kept = hidden
+            exponent2 += 1
+            if exponent2 > self.max_exponent:
+                return self.infinity()
+        if exponent2 < self.min_exponent:
+            # a subnormal's bits are its mantissa; one that rounded up to the hidden bit is
+            # the smallest normal, whose bits are that same number
+            return kept
+        let bias = (one << (self.exponent_bits - 1)) - 1
+        return (((u64)(exponent2 + (i64)bias)) << (self.precision - 1)) | (kept - hidden)
 
 ## Whether the literal is beyond the width's largest finite value, so that its rounding
 ## would be an infinity, which is not a literal (§4.3).

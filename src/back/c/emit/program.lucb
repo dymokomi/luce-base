@@ -23,50 +23,9 @@ extend Emitter:
         # storage is declared after the emitted bodies establish its references.
         var deferred_storage = try list.List[NodeRef].create(32)
         self.target = to_globals
-        i = 0
-        while i < self.modules.count:
-            var cursor = self.modules.get(i).body
-            while let d = cursor:
-                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
-                    if self.defer_storage(d):
-                        try deferred_storage.push(d)
-                    else:
-                        try self.global(d)
-                elif d.kind == ast.Kind.asm_ and d.text == "arm64":
-                    try self.module_asm(d)
-                cursor = d.next
-            i += 1
+        try self.module_globals(&deferred_storage)
         self.target = to_body
-        i = 0
-        while i < self.modules.count:
-            # Standard functions are discovered by calls and interface conversions.
-            # Runtime glue also refers to these four modules by their C names.
-            let module_info = self.c.modules.get(i)
-            let runtime_root = module_info.name == "core" or module_info.name == "memory" or module_info.name == "io" or module_info.name == "testing"
-            let eager = not check.is_library_module(module_info.name) or runtime_root
-            var cursor = self.modules.get(i).body
-            while let d = cursor:
-                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none):
-                    discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
-                elif eager and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
-                    var member = d.body
-                    while let m = member:
-                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
-                            discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
-                        member = m.next
-                    # every implemented interface needs its table, except a generic one,
-                    # `Iterator[T]`, which `for` consumes statically and nothing views
-                    var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
-                    while let l = listed:
-                        if let iface = self.decl_of(l.type_id):
-                            if check.generic_params_of(iface) == none:
-                                try self.note_vtable(d.type_id, l.type_id)
-                        listed = l.next
-                elif d.kind == ast.Kind.test_ and mode == 1 and self.modules.get(i) == self.entry:
-                    # the tests of the file under test, never an import's (§16.5)
-                    discard(try self.test_index(d))
-                cursor = d.next
-            i += 1
+        try self.seed_functions(mode)
         # bodies, until the worklist is drained: a body may need new instances
         var next: usize = 0
         var tests_done: usize = 0
@@ -78,24 +37,7 @@ extend Emitter:
                 try self.test_body(self.tests.get(tests_done))
                 tests_done += 1
         self.target = to_globals
-        var initialized_storage = self.globals
-        self.globals = try buffer.Buffer.create(4096)
-        for declaration in deferred_storage.span():
-            var spelling = try buffer.Buffer.create(128)
-            defer spelling.destroy()
-            try spelling.put("lb_")
-            try names.put_piece(&spelling, self.module_name(declaration))
-            try spelling.put("_")
-            try names.put_piece(&spelling, declaration.text)
-            let symbol = spelling.view()
-            # Assembly may name storage directly; conservative text matching also
-            # preserves symbols named by handwritten runtime glue.
-            if self.uses_storage(declaration) or strings.contains(self.body.view(), symbol) or strings.contains(initialized_storage.view(), symbol):
-                try self.global(declaration)
-        # Initializers may take these objects' addresses, so declarations precede
-        # them even though reachability was discovered after their emission.
-        try self.globals.put(initialized_storage.view())
-        initialized_storage.destroy()
+        try self.deferred_globals(&deferred_storage)
         deferred_storage.destroy()
         # the prototypes first, so the types they spell are noted before the typedefs
         self.target = to_protos
@@ -123,6 +65,85 @@ extend Emitter:
         else:
             let main_fn = check.find_decl(self.entry, "main") else return
             try self.main_shim(main_fn)
+
+    ## Every module's globals and constants, and its arm64 module-level assembly; plain
+    ## standard storage is put in `deferred` to be declared only when used.
+    mutating func module_globals(deferred: list.List[NodeRef]*) -> !:
+        var i: usize = 0
+        while i < self.modules.count:
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                    if self.defer_storage(d):
+                        try deferred.push(d)
+                    else:
+                        try self.global(d)
+                elif d.kind == ast.Kind.asm_ and d.text == "arm64":
+                    try self.module_asm(d)
+                cursor = d.next
+            i += 1
+
+    ## The worklist's first entries: every non-generic function and method of a program
+    ## module or a runtime root, the exported and attributed ones of the rest, the tables
+    ## of the interfaces those records implement, and under the test runner (`mode` 1) the
+    ## tests of the file under test.
+    mutating func seed_functions(mode: u32) -> !:
+        var i: usize = 0
+        while i < self.modules.count:
+            # Standard functions are discovered by calls and interface conversions.
+            # Runtime glue also refers to these four modules by their C names.
+            let module_info = self.c.modules.get(i)
+            let runtime_root = module_info.name == "core" or module_info.name == "memory" or module_info.name == "io" or module_info.name == "testing"
+            let eager = not check.is_library_module(module_info.name) or runtime_root
+            var cursor = self.modules.get(i).body
+            while let d = cursor:
+                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none):
+                    discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
+                elif eager and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
+                    try self.seed_record(d)
+                elif d.kind == ast.Kind.test_ and mode == 1 and self.modules.get(i) == self.entry:
+                    # the tests of the file under test, never an import's (§16.5)
+                    discard(try self.test_index(d))
+                cursor = d.next
+            i += 1
+
+    ## The non-generic methods of the record `d`, and the table of every interface it
+    ## implements, except a generic one, `Iterator[T]`, which `for` consumes statically
+    ## and nothing views.
+    mutating func seed_record(d: ast.Node*) -> !:
+        var member = d.body
+        while let m = member:
+            if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
+                discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
+            member = m.next
+        var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
+        while let l = listed:
+            if let iface = self.decl_of(l.type_id):
+                if check.generic_params_of(iface) == none:
+                    try self.note_vtable(d.type_id, l.type_id)
+            listed = l.next
+
+    ## The deferred standard storage that the bodies, the assembly, or the initialised
+    ## globals name, declared ahead of those initialisers in `globals`.
+    mutating func deferred_globals(deferred: list.List[NodeRef]*) -> !:
+        var initialized_storage = self.globals
+        self.globals = try buffer.Buffer.create(4096)
+        for declaration in deferred.span():
+            var spelling = try buffer.Buffer.create(128)
+            defer spelling.destroy()
+            try spelling.put("lb_")
+            try names.put_piece(&spelling, self.module_name(declaration))
+            try spelling.put("_")
+            try names.put_piece(&spelling, declaration.text)
+            let symbol = spelling.view()
+            # Assembly may name storage directly; conservative text matching also
+            # preserves symbols named by handwritten runtime glue.
+            if self.uses_storage(declaration) or strings.contains(self.body.view(), symbol) or strings.contains(initialized_storage.view(), symbol):
+                try self.global(declaration)
+        # Initializers may take these objects' addresses, so declarations precede
+        # them even though reachability was discovered after their emission.
+        try self.globals.put(initialized_storage.view())
+        initialized_storage.destroy()
 
     ## A library starts its runtime when it is loaded, since no `main` of its own will.
     mutating func library_init() -> !:

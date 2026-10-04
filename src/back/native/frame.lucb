@@ -359,54 +359,51 @@ pub struct Frame:
         # every use of such a temporary, or of a slot directly, must be a whole-slot load or store
         ix = 0
         while ix < f.instrs.count:
-            let n = f.instrs.get(ix)
-            if is_load(n.op):
-                self.note_access(f, self.slot_of(n.a), access_width(n.op), is_float_access(n.op), kind, uses)
-            elif is_store(n.op):
-                self.note_access(f, self.slot_of(n.b), access_width(n.op), is_float_access(n.op), kind, uses)
-                let v = self.slot_of(n.a)
-                if v != 0:
-                    kind[(usize)v - 1] = 3
-            elif n.op == ir.Op.addr:
-                let inner = self.slot_of(n.a)
-                if inner != 0 and n.a.kind == ir.RefKind.temp:
-                    kind[(usize)inner - 1] = 3
-            elif n.op == ir.Op.call or n.op == ir.Op.atomic_cas or n.op == ir.Op.fma or n.op == ir.Op.select:
-                if n.op == ir.Op.call:
-                    let info = f.calls.get((usize)n.extra)
-                    # an aggregate result is written into its slot by the call sequence itself
-                    if info.has_result and info.result_size > 0 and not info.result_words and (usize)info.result_slot < ns:
-                        kind[(usize)info.result_slot] = 3
-                else:
-                    let va = self.slot_of(n.a)
-                    if va != 0:
-                        kind[(usize)va - 1] = 3
-                    # an fma's second factor, a select's value when true
-                    let vb = self.slot_of(n.b) if n.op == ir.Op.fma or n.op == ir.Op.select else 0
-                    if vb != 0:
-                        kind[(usize)vb - 1] = 3
-                let (args_start, args_count) = ir.argument_range(f, n)
-                var a: u32 = 0
-                while a < args_count:
-                    let v = self.slot_of(f.args.get((usize)(args_start + a)).value)
-                    if v != 0:
-                        kind[(usize)v - 1] = 3
-                    a += 1
-            else:
-                let va = self.slot_of(n.a)
-                if va != 0:
-                    kind[(usize)va - 1] = 3
-                let vb = self.slot_of(n.b)
-                if vb != 0:
-                    kind[(usize)vb - 1] = 3
+            self.note_slot_uses(f, f.instrs.get(ix), kind, uses)
             ix += 1
-        # the most-used fit slots take the registers, up to the budget of each class
+        self.assign_slot_registers(kind, uses, ints, floats)
+
+    ## The slots instruction `n` reaches: a load or a store through one counts as an access
+    ## (`note_access`); any other use of a slot's address leaves it unfit.
+    func note_slot_uses(f: ir.Function*, n: ir.Instr, kind: u8[], uses: u32[]):
+        if is_load(n.op):
+            self.note_access(f, self.slot_of(n.a), access_width(n.op), is_float_access(n.op), kind, uses)
+        elif is_store(n.op):
+            self.note_access(f, self.slot_of(n.b), access_width(n.op), is_float_access(n.op), kind, uses)
+            unfit(kind, self.slot_of(n.a))
+        elif n.op == ir.Op.addr:
+            let inner = self.slot_of(n.a)
+            if inner != 0 and n.a.kind == ir.RefKind.temp:
+                kind[(usize)inner - 1] = 3
+        elif n.op == ir.Op.call or n.op == ir.Op.atomic_cas or n.op == ir.Op.fma or n.op == ir.Op.select:
+            if n.op == ir.Op.call:
+                let info = f.calls.get((usize)n.extra)
+                # an aggregate result is written into its slot by the call sequence itself
+                if info.has_result and info.result_size > 0 and not info.result_words and (usize)info.result_slot < kind.length:
+                    kind[(usize)info.result_slot] = 3
+            else:
+                unfit(kind, self.slot_of(n.a))
+                # an fma's second factor, a select's value when true
+                unfit(kind, self.slot_of(n.b) if n.op == ir.Op.fma or n.op == ir.Op.select else 0)
+            let (args_start, args_count) = ir.argument_range(f, n)
+            var a: u32 = 0
+            while a < args_count:
+                unfit(kind, self.slot_of(f.args.get((usize)(args_start + a)).value))
+                a += 1
+        else:
+            unfit(kind, self.slot_of(n.a))
+            unfit(kind, self.slot_of(n.b))
+
+    ## The most-used fit slots, used at least twice, take the registers, up to the budget
+    ## of `ints` integer and `floats` float codes; a fit slot left over becomes unfit.
+    mutating func assign_slot_registers(kind: u8[], uses: u32[], ints: u8, floats: u8):
+        let ns = kind.length
         var int_code: u8 = 1
         var float_code: u8 = self.registers.ints + 1
         while true:
             var best: usize = ns
             var best_uses: u32 = 0
-            i = 0
+            var i: usize = 0
             while i < ns:
                 if self.slot_regs.get(i) == 0 and (kind[i] == 1 or kind[i] == 2) and uses[i] >= 2 and uses[i] > best_uses:
                     best = i
@@ -514,6 +511,11 @@ func mark_home(value: ir.Ref, slots: bool[], temps: bool[]):
 func budget(need: u32, pool: u8, keep: u8) -> u8:
     let kept = need if need < (u32)keep else (u32)keep
     return (u8)((u32)pool - kept)
+
+## Marks slot `k` (1-based) unfit for a register; 0 names no slot.
+func unfit(kind: u8[], k: u32):
+    if k != 0:
+        kind[(usize)k - 1] = 3
 
 func is_load(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf

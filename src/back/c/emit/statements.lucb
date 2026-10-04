@@ -393,6 +393,7 @@ extend Emitter:
             try self.put(s.text)
             try self.put(": __attribute__((unused));")
 
+    ## `for binding in seq`: a C `for` over a range or a sequence, then the loop's body.
     mutating func for_stmt(s: ast.Node*) -> !:
         let binding = s.left else return
         let seq = s.right else return
@@ -400,155 +401,168 @@ extend Emitter:
         if seq.kind == ast.Kind.binary and (seq.text == "..<" or seq.text == "..="):
             let lo = seq.left else return
             let hi = seq.right else return
-            let t = try self.map(binding.type_id)
-            let closed = seq.text == "..="
-            let done = self.tmp()
-            if closed:
-                # the last value is visited before the increment, so `..=T.max` cannot wrap
-                try self.line("int ")
-                try self.put_tmp("done", done)
-                try self.put(" = 0;")
-            try self.line("for (")
-            try self.put_type(t)
-            try self.put(" ")
+            try self.range_header(binding, lo, hi, seq.text == "..=")
+        else:
+            try self.sequence_header(s, binding, seq)
+        self.indent += 1
+        try self.loop_body_and_exit(s)
+
+    ## The C `for` header of `for i in lo..<hi` or `lo..=hi`: the binding counts in its own
+    ## type.
+    mutating func range_header(binding: ast.Node*, lo: ast.Node*, hi: ast.Node*, closed: bool) -> !:
+        let t = try self.map(binding.type_id)
+        let done = self.tmp()
+        if closed:
+            # the last value is visited before the increment, so `..=T.max` cannot wrap
+            try self.line("int ")
+            try self.put_tmp("done", done)
+            try self.put(" = 0;")
+        try self.line("for (")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_ident(binding.text)
+        try self.put(" __attribute__((unused)) = (")
+        try self.put_type(t)
+        try self.put(")(")
+        try self.value(lo, t)
+        try self.put("); ")
+        if closed:
+            try self.put("!")
+            try self.put_tmp("done", done)
+            try self.put(" && ")
+        try self.put_ident(binding.text)
+        try self.put(" <= (" if closed else " < (")
+        try self.put_type(t)
+        try self.put(")(")
+        try self.value(hi, t)
+        try self.put("); ")
+        if closed:
+            try self.put_tmp("done", done)
+            try self.put(" = (")
             try self.put_ident(binding.text)
-            try self.put(" __attribute__((unused)) = (")
-            try self.put_type(t)
-            try self.put(")(")
-            try self.value(lo, t)
-            try self.put("); ")
-            if closed:
-                try self.put("!")
-                try self.put_tmp("done", done)
-                try self.put(" && ")
-            try self.put_ident(binding.text)
-            try self.put(" <= (" if closed else " < (")
+            try self.put(" == (")
             try self.put_type(t)
             try self.put(")(")
             try self.value(hi, t)
-            try self.put("); ")
-            if closed:
-                try self.put_tmp("done", done)
-                try self.put(" = (")
-                try self.put_ident(binding.text)
-                try self.put(" == (")
-                try self.put_type(t)
-                try self.put(")(")
-                try self.value(hi, t)
-                try self.put(")), ")
-                try self.put_ident(binding.text)
-                try self.put(" += !")
-                try self.put_tmp("done", done)
-                try self.put(") {")
-            else:
-                try self.put_ident(binding.text)
-                try self.put("++) {")
+            try self.put(")), ")
+            try self.put_ident(binding.text)
+            try self.put(" += !")
+            try self.put_tmp("done", done)
+            try self.put(") {")
         else:
-            # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
-            let indexed = calls.indexed_receiver(seq)
-            var it = try self.ty(seq)
-            var sequence = seq
-            if let receiver = indexed:
-                let rt = try self.ty(receiver)
-                it = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
-                sequence = receiver
-            let n = self.tmp()
-            try self.line("")
-            try self.put_type(it)
-            # `for e in &items` over an array modifies the array itself, not a copy
-            self.seq_in_place = self.is_array(it) and s.has(ast.flag_by_pointer) and self.c.is_place(seq)
-            if self.seq_in_place:
-                try self.put("* ")
-                try self.put_tmp("seq", n)
-                try self.put(" = &(")
-                try self.expr(seq)
-                try self.put(");")
-            else:
-                try self.put(" ")
-                try self.put_tmp("seq", n)
-                try self.put(" = ")
-                try self.value(sequence, it)
-                try self.put(";")
-            # `for character in text` walks the scalars of valid UTF-8 (§5.5): the index
-            # advances by each scalar's width
-            try self.line("for (size_t ")
-            try self.put_tmp("i", n)
+            try self.put_ident(binding.text)
+            try self.put("++) {")
+
+    ## The C `for` header over an array, a span, or text, held in a sequence temporary,
+    ## and the bindings at the top of its body.
+    mutating func sequence_header(s: ast.Node*, binding: ast.Node*, seq: ast.Node*) -> !:
+        # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
+        let indexed = calls.indexed_receiver(seq)
+        var it = try self.ty(seq)
+        var sequence = seq
+        if let receiver = indexed:
+            let rt = try self.ty(receiver)
+            it = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
+            sequence = receiver
+        let n = self.tmp()
+        try self.line("")
+        try self.put_type(it)
+        # `for e in &items` over an array modifies the array itself, not a copy
+        self.seq_in_place = self.is_array(it) and s.has(ast.flag_by_pointer) and self.c.is_place(seq)
+        if self.seq_in_place:
+            try self.put("* ")
+            try self.put_tmp("seq", n)
+            try self.put(" = &(")
+            try self.expr(seq)
+            try self.put(");")
+        else:
+            try self.put(" ")
+            try self.put_tmp("seq", n)
+            try self.put(" = ")
+            try self.value(sequence, it)
+            try self.put(";")
+        # `for character in text` walks the scalars of valid UTF-8 (§5.5): the index
+        # advances by each scalar's width
+        try self.line("for (size_t ")
+        try self.put_tmp("i", n)
+        try self.put(" = 0")
+        if it == types.str_id:
+            try self.put(", ")
+            try self.put_tmp("w", n)
             try self.put(" = 0")
-            if it == types.str_id:
-                try self.put(", ")
-                try self.put_tmp("w", n)
-                try self.put(" = 0")
-            try self.put("; ")
-            try self.put_tmp("i", n)
-            try self.put(" < ")
-            if self.is_array(it):
-                try self.put_u64(self.c.table.get(it).length)
-            else:
-                try self.put_tmp("seq", n)
-                try self.put(".length")
-            try self.put("; ")
-            try self.put_tmp("i", n)
-            if it == types.str_id:
-                try self.put(" += ")
-                try self.put_tmp("w", n)
-                try self.put(") {")
-            else:
-                try self.put("++) {")
-            self.indent += 1
-            # the element, by value or by pointer, or the tuple members
-            if binding.body != none and indexed != none:
-                # `(index, element)`
-                let index_name = binding.body else return
-                if index_name.text != "_":
-                    try self.line("size_t ")
-                    try self.put_ident(index_name.text)
-                    try self.put(" __attribute__((unused)) = ")
-                    try self.put_tmp("i", n)
-                    try self.put(";")
-                if let element_name = index_name.next:
-                    if element_name.text != "_":
-                        try self.line("")
-                        try self.put_type(try self.map(element_name.type_id))
-                        try self.put(" ")
-                        try self.put_ident(element_name.text)
-                        try self.put(" __attribute__((unused)) = ")
-                        try self.element_of(it, n)
-                        try self.put(";")
-            elif binding.body != none:
-                let et = try self.map(binding.type_id) if binding.type_id != 0 else self.elem(it)
-                var i: u64 = 0
-                var cursor = binding.body
-                while let name = cursor:
-                    if name.text != "_":
-                        try self.line("")
-                        try self.put_type(try self.map(name.type_id))
-                        try self.put(" ")
-                        try self.put_ident(name.text)
-                        try self.put(" __attribute__((unused)) = ")
-                        try self.element_of(it, n)
-                        try self.put(".a")
-                        try self.put_u64(i)
-                        try self.put(";")
-                    i += 1
-                    cursor = name.next
-                discard(et)
-            else:
-                try self.line("")
-                try self.put_type(try self.map(binding.type_id))
-                try self.put(" ")
-                try self.put_ident(binding.text)
-                try self.put(" __attribute__((unused)) = ")
-                if s.has(ast.flag_by_pointer):
-                    try self.put("&(")
-                    try self.element_of(it, n)
-                    try self.put(")")
-                else:
-                    try self.element_of(it, n)
-                try self.put(";")
-            self.indent -= 1
-            self.seq_in_place = false
+        try self.put("; ")
+        try self.put_tmp("i", n)
+        try self.put(" < ")
+        if self.is_array(it):
+            try self.put_u64(self.c.table.get(it).length)
+        else:
+            try self.put_tmp("seq", n)
+            try self.put(".length")
+        try self.put("; ")
+        try self.put_tmp("i", n)
+        if it == types.str_id:
+            try self.put(" += ")
+            try self.put_tmp("w", n)
+            try self.put(") {")
+        else:
+            try self.put("++) {")
         self.indent += 1
-        try self.loop_body_and_exit(s)
+        try self.sequence_bindings(s, binding, it, n, indexed != none)
+        self.indent -= 1
+        self.seq_in_place = false
+
+    ## The element of a sequence loop's step, by value or by pointer, or the members of
+    ## its tuple, or `(index, element)` under `indexed()`.
+    mutating func sequence_bindings(s: ast.Node*, binding: ast.Node*, it: u32, n: u32, indexed: bool) -> !:
+        if binding.body != none and indexed:
+            # `(index, element)`
+            let index_name = binding.body else return
+            if index_name.text != "_":
+                try self.line("size_t ")
+                try self.put_ident(index_name.text)
+                try self.put(" __attribute__((unused)) = ")
+                try self.put_tmp("i", n)
+                try self.put(";")
+            if let element_name = index_name.next:
+                if element_name.text != "_":
+                    try self.line("")
+                    try self.put_type(try self.map(element_name.type_id))
+                    try self.put(" ")
+                    try self.put_ident(element_name.text)
+                    try self.put(" __attribute__((unused)) = ")
+                    try self.element_of(it, n)
+                    try self.put(";")
+        elif binding.body != none:
+            let et = try self.map(binding.type_id) if binding.type_id != 0 else self.elem(it)
+            var i: u64 = 0
+            var cursor = binding.body
+            while let name = cursor:
+                if name.text != "_":
+                    try self.line("")
+                    try self.put_type(try self.map(name.type_id))
+                    try self.put(" ")
+                    try self.put_ident(name.text)
+                    try self.put(" __attribute__((unused)) = ")
+                    try self.element_of(it, n)
+                    try self.put(".a")
+                    try self.put_u64(i)
+                    try self.put(";")
+                i += 1
+                cursor = name.next
+            discard(et)
+        else:
+            try self.line("")
+            try self.put_type(try self.map(binding.type_id))
+            try self.put(" ")
+            try self.put_ident(binding.text)
+            try self.put(" __attribute__((unused)) = ")
+            if s.has(ast.flag_by_pointer):
+                try self.put("&(")
+                try self.element_of(it, n)
+                try self.put(")")
+            else:
+                try self.element_of(it, n)
+            try self.put(";")
 
     ## Element `i` of the sequence temporary `n`: an array, a span, or text.
     mutating func element_of(it: u32, n: u32) -> !:
@@ -781,89 +795,26 @@ extend Emitter:
             try self.line("#if 0")
         try self.line("{")
         self.indent += 1
-        var outs = try buffer.Buffer.create(64)
-        var ins = try buffer.Buffer.create(64)
-        var clobbers = try buffer.Buffer.create(64)
-        var stores = try buffer.Buffer.create(64)
-        try clobbers.put("\"memory\"")
+        var ops = AsmOperands(outs = try buffer.Buffer.create(64), ins = try buffer.Buffer.create(64), clobbers = try buffer.Buffer.create(64), stores = try buffer.Buffer.create(64))
+        try ops.clobbers.put("\"memory\"")
         var operand = s.right
         while let o = operand:
-            if o.text == "options":
-                operand = o.next
-                continue
-            var place = ""
-            if let p = o.body:
-                let b = p.text.bytes
-                if b.length >= 2 and b[0] == '"':
-                    place = (str)b[1..<b.length - 1]
-            let is_out = o.text == "out" or o.text == "inout"
-            let is_in = o.text == "in" or o.text == "inout"
-            let v = o.left else return
-            let discarded = is_out and v.kind == ast.Kind.name and v.text == "_"
-            # a discarded output is a clobber, unless the block also reads that register: C
-            # refuses a clobber of an input's register, so it is then a dummy output operand
-            if discarded and not (place.length > 0 and asm_block_reads(s, place)):
-                if place.length > 0:
-                    try clobbers.put(", \"")
-                    try clobbers.put(place)
-                    try clobbers.put("\"")
-                operand = o.next
-                continue
-            let n = self.tmp()
-            var vt = try self.ty(v)
-            if vt == types.unit_id or vt == types.void_id or discarded:
-                vt = types.u64_id
-            try self.line("")
-            if place.length > 0 and place != "reg":
-                try self.put("register ")
-            try self.put_type(vt)
-            try self.put(" ")
-            try self.put_tmp("as", n)
-            if place.length > 0 and place != "reg":
-                try self.put(" asm(\"")
-                try self.put(place)
-                try self.put("\")")
-            if discarded:
-                try self.put(" __attribute__((unused))")
-            if is_in:
-                try self.put(" = ")
-                try self.value(v, vt)
-            try self.put(";")
-            # a `reg` operand whose expression is a name is a named operand, `[name]`, which the
-            # text reaches as `{name}` (§8.9)
-            var label = ""
-            if (place == "reg" or place.length == 0) and v.kind == ast.Kind.name:
-                label = v.text
-            if is_out:
-                if outs.used > 0:
-                    try outs.put(", ")
-                try put_asm_label(&outs, label)
-                try outs.put("\"+r\"(" if is_in else "\"=r\"(")
-                try outs.put("_lb_as")
-                try outs.put_u64((u64)n)
-                try outs.put(")")
-                try stores.put_u64((u64)n)
-                try stores.put(" ")
-            elif is_in:
-                if ins.used > 0:
-                    try ins.put(", ")
-                try put_asm_label(&ins, label)
-                try ins.put("\"r\"(_lb_as")
-                try ins.put_u64((u64)n)
-                try ins.put(")")
+            if o.text != "options":
+                let v = o.left else return
+                try self.asm_operand(s, o, v, &ops)
             operand = o.next
         try self.line("asm volatile(\"")
         try self.asm_lines(s.body, true)
         try self.put("\" : ")
-        try self.put(outs.view())
+        try self.put(ops.outs.view())
         try self.put(" : ")
-        try self.put(ins.view())
+        try self.put(ops.ins.view())
         try self.put(" : ")
-        try self.put(clobbers.view())
+        try self.put(ops.clobbers.view())
         try self.put(");")
         # write the outputs back to their places
         operand = s.right
-        var stored = stores.view().bytes
+        var stored = ops.stores.view().bytes
         var pos: usize = 0
         while let o = operand:
             let is_out = o.text == "out" or o.text == "inout"
@@ -883,3 +834,66 @@ extend Emitter:
         self.indent -= 1
         try self.line("}")
         try self.line("#endif")
+
+    ## One `in`, `out`, or `inout` operand `o` of the `asm` block `s`, its expression `v`:
+    ## a temporary, in its named register when it names one, listed among the outputs or
+    ## the inputs; a discarded output is a clobber instead.
+    mutating func asm_operand(s: ast.Node*, o: ast.Node*, v: ast.Node*, ops: AsmOperands*) -> !:
+        var place = ""
+        if let p = o.body:
+            let b = p.text.bytes
+            if b.length >= 2 and b[0] == '"':
+                place = (str)b[1..<b.length - 1]
+        let is_out = o.text == "out" or o.text == "inout"
+        let is_in = o.text == "in" or o.text == "inout"
+        let discarded = is_out and v.kind == ast.Kind.name and v.text == "_"
+        # a discarded output is a clobber, unless the block also reads that register: C
+        # refuses a clobber of an input's register, so it is then a dummy output operand
+        if discarded and not (place.length > 0 and asm_block_reads(s, place)):
+            if place.length > 0:
+                try ops.clobbers.put(", \"")
+                try ops.clobbers.put(place)
+                try ops.clobbers.put("\"")
+            return
+        let n = self.tmp()
+        var vt = try self.ty(v)
+        if vt == types.unit_id or vt == types.void_id or discarded:
+            vt = types.u64_id
+        try self.line("")
+        if place.length > 0 and place != "reg":
+            try self.put("register ")
+        try self.put_type(vt)
+        try self.put(" ")
+        try self.put_tmp("as", n)
+        if place.length > 0 and place != "reg":
+            try self.put(" asm(\"")
+            try self.put(place)
+            try self.put("\")")
+        if discarded:
+            try self.put(" __attribute__((unused))")
+        if is_in:
+            try self.put(" = ")
+            try self.value(v, vt)
+        try self.put(";")
+        # a `reg` operand whose expression is a name is a named operand, `[name]`, which the
+        # text reaches as `{name}` (§8.9)
+        var label = ""
+        if (place == "reg" or place.length == 0) and v.kind == ast.Kind.name:
+            label = v.text
+        if is_out:
+            if ops.outs.used > 0:
+                try ops.outs.put(", ")
+            try put_asm_label(&ops.outs, label)
+            try ops.outs.put("\"+r\"(" if is_in else "\"=r\"(")
+            try ops.outs.put("_lb_as")
+            try ops.outs.put_u64((u64)n)
+            try ops.outs.put(")")
+            try ops.stores.put_u64((u64)n)
+            try ops.stores.put(" ")
+        elif is_in:
+            if ops.ins.used > 0:
+                try ops.ins.put(", ")
+            try put_asm_label(&ops.ins, label)
+            try ops.ins.put("\"r\"(_lb_as")
+            try ops.ins.put_u64((u64)n)
+            try ops.ins.put(")")

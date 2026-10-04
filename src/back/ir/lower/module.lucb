@@ -65,6 +65,13 @@ struct LowerCallArgument:
     var node: ast.Node*
     var value: ir.Arg
 
+## An extern call's `out` parameters (§17.1): a slot for each, read after the call, and
+## its type; at most eight.
+struct LowerOuts:
+    var slots: u32[8]
+    var slot_types: u32[8]
+    var count: usize
+
 ## A loop `for i in 0..<count` being built (`count_up`, `count_on`): the index's slot, the
 ## labels of its test and its exit, and the index read at the top of the body.
 struct Counting:
@@ -72,6 +79,30 @@ struct Counting:
     var head: u32
     var done: u32
     var index: ir.Ref
+
+## A `for` loop being lowered: the labels of its test, its body, its step (where
+## `continue` goes), and its exit.
+struct LowerLoop:
+    var head: u32
+    var body: u32
+    var step: u32
+    var exit: u32
+
+## A walk of a `for` loop over a sequence: the slots of its data pointer, its count, its
+## index, and the width of text's last scalar, which outlive the loop's blocks; its
+## elements' type and stride; and, in the body, the data pointer, the count, the index, and
+## the element's address read at its top.
+struct LowerWalk:
+    var data_slot: u32
+    var count_slot: u32
+    var index_slot: u32
+    var width_slot: u32
+    var element_type: u32
+    var stride: u64
+    var base: ir.Ref
+    var count: ir.Ref
+    var index: ir.Ref
+    var address: ir.Ref
 
 ## A value: a scalar in `ref`, or the address of its bytes when `in_memory`.
 pub struct LowerValue:
