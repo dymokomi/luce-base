@@ -118,14 +118,10 @@ jobs:
           repository: dymokomi/luce-std
           ref: ${{ steps.pins.outputs.std }}
           path: luce-std
-      # every package of the programs' dependency closure, each beside the others where its
-      # path dependency names it: one missing is looked up in the registry, and fails unsynced
+      # the programs at the commits tools/compile_budget.pins names, and every package
+      # their own bootstrap/PACKAGES pins, beside them where their path dependencies look
       - name: Fetch the packages the budget builds
-        working-directory: .
-        run: |
-          for repo in luce-js luce-regex luce-compress luce-crypto luce-tls luce-xml luce-png luce-jpeg luce-gif luce-bmp luce-ico luce-raster luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-fonts luce-color luce-browser-engine; do
-            git clone -q --depth 1 "https://github.com/dymokomi/$repo" "$repo"
-          done
+        run: python3 tools/budget_packages.py > "$RUNNER_TEMP/budget-entries"
       - name: Build pinned seed
         run: bash tools/ci_dependencies.sh
       - name: Select Clang for generated C
@@ -136,7 +132,7 @@ jobs:
       - name: Build
         run: ./build.sh
       - name: Compile budget
-        run: python3 tools/compile_budget.py --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/web/module.lucb
+        run: python3 tools/compile_budget.py --seconds 240 --megabytes 4096 $(cat "$RUNNER_TEMP/budget-entries")
       - name: Differential fuzz, every generator, 20 minutes
         run: python3 tools/fuzz.py --seed ${{ github.run_number }} --minutes 20 --mutations 400 --programs 60 --trap-programs 40 --packages 12 --mem-programs 24 --atomic-programs 12 --litmus-programs 8 --width-programs 60
       - name: Retain the findings

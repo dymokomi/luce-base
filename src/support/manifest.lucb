@@ -48,28 +48,34 @@ pub struct Setting:
 ##     def native "x" { str[] k = ["a", "b"] }      [native] k = ["a", "b"]
 ##
 ## A package name may be spelled `luce-ui`; the compiler's identifier for it is `luce_ui`.
-## Other elements (tasks, the desktop bundle) and properties are luc's and are skipped.
-pub func settings(text: str) -> Setting[]!:
+## Other elements (tasks, the desktop bundle) and properties are luc's and are skipped, but
+## a key set twice in one element is refused, luc's or not (§16.4). A malformed line is
+## refused at `path:line:column`, `path` naming the file `text` was read from.
+pub func settings(text: str, path: str) -> Setting[]!:
     var out = try new Setting[count_lines(text) + 2] ---
     var count: usize = 0
-    var depth: usize = 0
+    var keys = try Keys.create(count_lines(text) + 1)
     var kind: str = ""
     var element: str = ""
     var saw_path = false
+    var line_number: usize = 0
     var rest = text
     while rest.length > 0:
         let cut = strings.find(rest, "\n") else rest.length
-        let line = trim((str)rest.bytes[..<cut])
+        let raw_line = (str)rest.bytes[..<cut]
+        let line = trim(raw_line)
+        let at = Place(path = path, line = line_number + 1, indent = raw_line.length - trim_start(raw_line).length)
+        line_number += 1
         rest = (str)rest.bytes[cut + 1..] if cut < rest.length else ""
         if line.length == 0 or line.bytes[0] == '#':
             continue
         if line == "}":
-            if depth == 2 and kind == "dependency" and not saw_path:
+            if keys.depth == 2 and kind == "dependency" and not saw_path:
                 out[count] = Setting(section = "[dependencies]", key = element, value = try deps_path(element))
                 count += 1
-            if depth == 0:
-                return error(malformed, "package.prisma closes an element it never opened")
-            depth -= 1
+            if keys.depth == 0:
+                try at.refuse(0, "package.prisma closes an element it never opened")
+            keys.close_element()
             continue
         if line.length > 4 and (str)line.bytes[..<4] == "def ":
             let after = trim((str)line.bytes[4..])
@@ -77,38 +83,42 @@ pub func settings(text: str) -> Setting[]!:
             let word = (str)after.bytes[..<space]
             let named = trim((str)after.bytes[space..])
             if named.length < 3 or named.bytes[named.length - 1] != '{':
-                return error(malformed, "an element is `def kind \"name\" {`")
+                try at.refuse(0, "an element is `def kind \"name\" {`")
             let name = unquote(trim((str)named.bytes[..<named.length - 1]))
-            depth += 1
-            if depth == 1:
+            try keys.open_element()
+            if keys.depth == 1:
                 if word != "package":
-                    return error(malformed, "package.prisma starts with `def package`")
+                    try at.refuse(0, "package.prisma starts with `def package`")
                 out[count] = Setting(section = "[package]", key = "name", value = try identifier_of(name))
                 count += 1
-            elif depth == 2:
+            elif keys.depth == 2:
                 kind = word
                 element = try identifier_of(name) if word == "dependency" else name
                 saw_path = false
             continue
         let eq = strings.find(line, "=") else line.length
         if eq >= line.length:
-            return error(malformed, "a property is `type key = value`")
+            try at.refuse(0, "a property is `type key = value`")
         let left = trim((str)line.bytes[..<eq])
         let type_end = strings.find(left, " ") else left.length
         if type_end >= left.length:
-            return error(malformed, "a property is `type key = value`")
+            try at.refuse(0, "a property is `type key = value`")
         let key = trim((str)left.bytes[type_end..])
+        let column = left.length - trim_start((str)left.bytes[type_end..]).length
+        if let first = try keys.set(key, at.line):
+            var room = try new u8[key.length + 64] ---
+            try at.refuse(column, try strings.format(room, f"`{key}` is set twice in one element; it was set on line {first}"))
         let raw = trim((str)line.bytes[eq + 1..])
-        if depth == 1:
+        if keys.depth == 1:
             out[count] = Setting(section = "[package]", key = key, value = unquote(raw))
             count += 1
-        elif depth == 2:
+        elif keys.depth == 2:
             if kind == "dependency" and key == "path":
                 out[count] = Setting(section = "[dependencies]", key = element, value = unquote(raw))
                 count += 1
                 saw_path = true
             elif kind == "export":
-                return error(malformed, "a package names its public modules in `str[] public = [...]`, under `src/` (§16.4); `def export` is gone")
+                try at.refuse(0, "a package names its public modules in `str[] public = [...]`, under `src/` (§16.4); `def export` is gone")
             elif kind == "native":
                 # The element's name says where it applies; parse keeps the ones for the target.
                 var room = try new u8[element.length + key.length + 1] ---
@@ -116,6 +126,55 @@ pub func settings(text: str) -> Setting[]!:
                 out[count] = Setting(section = "[native]", key = scoped, value = raw)
                 count += 1
     return out[..<count]
+
+## Where in a manifest a line starts: its file, its line, and the blanks before its text.
+struct Place:
+    var path: str
+    var line: usize
+    var indent: usize
+
+    ## Refuse the line as malformed, `what` naming why, at `column` past its indent.
+    func refuse(column: usize, what: str) -> never!:
+        var room = try new u8[self.path.length + what.length + 48] ---
+        error(malformed, try strings.format(room, f"{self.path}:{self.line}:{self.indent + column + 1}: {what}"))
+
+## The keys set in each open element, so one set twice in an element is found; elements
+## are numbered as they open, and each key remembers the element and the line it is in.
+struct Keys:
+    var names: str[]
+    var elements: usize[]
+    var lines: usize[]
+    var count: usize
+    ## The open elements' numbers, outermost first, and how many are open.
+    var open: usize[16]
+    var depth: usize
+    var opened: usize
+
+    static func create(capacity: usize) -> Keys!:
+        return Keys(names = try new str[capacity] ---, elements = try new usize[capacity] ---, lines = try new usize[capacity] ---)
+
+    func open_element() -> !:
+        if self.depth >= self.open.length:
+            error(malformed, "package.prisma nests elements too deeply")
+        self.open[self.depth] = self.opened
+        self.opened += 1
+        self.depth += 1
+
+    func close_element():
+        self.depth -= 1
+
+    ## Note `key` set on `line` in the innermost open element; the line of the setting
+    ## already there, if the element has one.
+    func set(key: str, line: usize) -> usize?!:
+        let current = self.open[self.depth - 1] if self.depth > 0 else self.opened
+        for i in 0..<self.count:
+            if self.elements[i] == current and self.names[i] == key:
+                return self.lines[i]
+        self.names[self.count] = key
+        self.elements[self.count] = current
+        self.lines[self.count] = line
+        self.count += 1
+        return none
 
 ## `luce-ui` as the identifier `luce_ui`.
 pub func identifier_of(name: str) -> str!:
@@ -191,7 +250,8 @@ func read_if_present(path: c.str) -> u8[]?:
 pub func parse(text: str, root: str) -> Manifest!:
     var m = Manifest(name = "app", root = root, symbol_prefix = "", sources = try no_items(), libraries = try no_items(),
                      link_search = try no_items(), frameworks = try no_items(), pkg_config = try no_items())
-    for setting in try settings(text):
+    var room = try new u8[root.length + 16] ---
+    for setting in try settings(text, try strings.format(room, f"{root}package.prisma")):
         let section = setting.section
         let key = setting.key
         let value = setting.value
@@ -353,6 +413,13 @@ pub func unquote(value: str) -> str:
             return (str)b[1..<end]
     return value
 
+## `text` without the blanks at its start.
+func trim_start(text: str) -> str:
+    var start: usize = 0
+    while start < text.length and (text.bytes[start] == ' ' or text.bytes[start] == '\t'):
+        start += 1
+    return (str)text.bytes[start..]
+
 ## `text` without the blanks at either end.
 func trim(text: str) -> str:
     let b = text.bytes
@@ -415,7 +482,7 @@ test "every element becomes settings under its section; luc's own elements are s
     var backing: u8[8192]
     var arena = memory.FixedBuffer.over(backing)
     with arena:
-        let found = try settings("#prisma 4.0\ndef package \"w\" {\n    str kind = \"package\"\n    str source = 'lib'\n    str[] public = [\"ui\", \"widgets.button\"]\n    def dependency \"luce-ui\" {\n        str owner = \"dymokomi\"\n        str path = \"../luce-ui\"\n    }\n    def dependency \"luce-json\" {\n        str version = \"^0.2.0\"\n    }\n    def task \"ci\" {\n        str cmd = \"luc test\"\n    }\n}\n")
+        let found = try settings("#prisma 4.0\ndef package \"w\" {\n    str kind = \"package\"\n    str source = 'lib'\n    str[] public = [\"ui\", \"widgets.button\"]\n    def dependency \"luce-ui\" {\n        str owner = \"dymokomi\"\n        str path = \"../luce-ui\"\n    }\n    def dependency \"luce-json\" {\n        str version = \"^0.2.0\"\n    }\n    def task \"ci\" {\n        str cmd = \"luc test\"\n    }\n}\n", "w/package.prisma")
         assert(found.length == 6)
         assert(found[0].section == "[package]" and found[0].key == "name" and found[0].value == "w")
         assert(found[1].key == "kind" and found[1].value == "package")
@@ -425,12 +492,35 @@ test "every element becomes settings under its section; luc's own elements are s
         assert(public.length == 2 and public[0] == "ui" and public[1] == "widgets.button")
         assert(found[4].section == "[dependencies]" and found[4].key == "luce_ui" and found[4].value == "../luce-ui")
         assert(found[5].section == "[dependencies]" and found[5].key == "luce_json" and found[5].value == ".luc/deps/luce_json")
-        let exported = settings("def package \"w\" {\n    def export \"ui\" {\n        str module = \"ui\"\n    }\n}\n") catch failure:
+        let exported = settings("def package \"w\" {\n    def export \"ui\" {\n        str module = \"ui\"\n    }\n}\n", "w/package.prisma") catch failure:
             recover found[..<0]
         assert(exported.length == 0)
-        let bad = settings("def widget \"x\" {\n}\n") catch failure:
+        let bad = settings("def widget \"x\" {\n}\n", "w/package.prisma") catch failure:
+            assert(failure.message == "w/package.prisma:1:1: package.prisma starts with `def package`")
             recover found[..<0]
         assert(bad.length == 0)
+
+test "a key set twice in one element is refused where it is set again":
+    var backing: u8[8192]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        let empty = try new Setting[1] ---
+        var refused = false
+        _ = settings("#prisma 4.0\ndef package \"w\" {\n    str[] public = [\"a\"]\n    str[] public = [\"a\"]\n}\n", "w/package.prisma") catch failure:
+            assert(failure.code == malformed)
+            assert(failure.message == "w/package.prisma:4:11: `public` is set twice in one element; it was set on line 3")
+            refused = true
+            recover empty[..<0]
+        assert(refused)
+        refused = false
+        _ = settings("def package \"w\" {\n    def task \"ci\" {\n        str cmd = \"a\"\n        str cmd = \"b\"\n    }\n}\n", "p") catch failure:
+            assert(failure.message == "p:4:13: `cmd` is set twice in one element; it was set on line 3")
+            refused = true
+            recover empty[..<0]
+        assert(refused)
+        # the same key in different elements, and in the package around them, is no repeat
+        let fine = try settings("def package \"w\" {\n    str version = \"1\"\n    def dependency \"a\" {\n        str version = \"^1.0.0\"\n    }\n    def dependency \"b\" {\n        str version = \"^1.0.0\"\n    }\n    str owner = \"o\"\n}\n", "p")
+        assert(fine.length == 5)
 
 test "native elements apply by operating system or exact target":
     set_target("arm64-macos")

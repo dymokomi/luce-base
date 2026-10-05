@@ -157,7 +157,7 @@ func parse_package(path: str) -> Package!:
                           dependencies = try list.List[Mapping].create(4), public = try list.List[str].create(4))
     var named = false
     var sourced = false
-    for setting in try manifest.settings(contents):
+    for setting in try manifest.settings(contents, path):
         let section = setting.section
         let key = setting.key
         if section != "[package]" and section != "[dependencies]":

@@ -7,7 +7,10 @@
 - `luce-base test` on a module adds the fragments that `tests/<module path>/TESTS` lists,
   in the module's scope, so their tests may call its private functions; a file module
   and a fragment-directory module alike;
-- a build never reads them: a program naming a declaration only they declare fails.
+- a build never reads them: a program naming a declaration only they declare fails;
+- `luce-base test` on the entry runs the tests of every module of its package that it
+  reaches, fragments included, in module order and then declaration order, and never
+  the tests of a dependency's modules.
 
 Usage: tools/test_package_tests.py [COMPILER]
 """
@@ -21,7 +24,18 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPILER = str(Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base"))
 
 FILES = {
-    "package.prisma": '#prisma 4.0\ndef package "geometry" {\n}\n',
+    "package.prisma": (
+        '#prisma 4.0\ndef package "geometry" {\n'
+        '    def dependency "units" {\n        str path = "vendor/units"\n    }\n}\n'),
+    "src/main.lucb": (
+        "import area\nimport shapes\nfrom units import metres\n\n"
+        "pub func main(arguments: str[]) -> i32:\n    _ = arguments\n"
+        '    print(f"{area.square(metres.of(2))} {shapes.triangle()}")\n    return 0\n\n'
+        'test "the entry\'s own":\n    assert(area.square(metres.of(2)) == 4)\n'),
+    "vendor/units/package.prisma": '#prisma 4.0\ndef package "units" {\n    str[] public = ["metres"]\n}\n',
+    "vendor/units/src/metres.lucb": (
+        "## A length in metres.\npub func of(value: i64) -> i64:\n    return value\n\n"
+        'test "a dependency\'s test":\n    assert(false)\n'),
     "src/area.lucb": (
         "## Areas of shapes.\n"
         "func squared(side: i64) -> i64:\n    return side * side\n\n"
@@ -78,7 +92,13 @@ with tempfile.TemporaryDirectory() as directory:
         for backend in ("--backend=c", "--native"):
             result = run(root, "test", module, backend)
             assert f"{count} passed" in result.stdout, f"FAIL: test {module} {backend}: {result.stdout}{result.stderr}"
+    tested = [
+        "ok    a private helper squares", "ok    a square's area",
+        "ok    a triangle has three sides", "ok    the entry's own", "4 passed"]
+    for backend in ("--backend=c", "--native"):
+        result = run(root, "test", "src/main.lucb", backend)
+        assert result.stdout.splitlines() == tested, f"FAIL: test src/main.lucb {backend}: {result.stdout}{result.stderr}"
     refused = run(root, "check", "tests/names_test_only.lucb", ok=False)
     assert refused.returncode != 0 and "only_in_tests" in refused.stderr, \
         f"FAIL: a build read the test fragments: {refused.returncode} {refused.stderr}"
-print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched")
+print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests")

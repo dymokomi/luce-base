@@ -5,7 +5,10 @@ Build with `luce-base build main.lucb --debug -o program`. Native is the default
 
 Development builds retain named locals (including unused bindings), keep their
 frame slots, and preserve source statement boundaries. They emit DWARF 4 and
-unwind information alongside the existing `luce-base-d` frame descriptors.
+unwind information alongside the existing `luce-base-d` frame descriptors. The C
+sources a manifest names are compiled with `-gdwarf-4` too, so a program's debug file
+holds one DWARF version: a DWARF 5 C unit's string offsets can point into a string GNU ld
+merged into a longer one, which LLVM's verifier rejects.
 The native optimizer continues to optimize standard-library functions; user
 functions under `--debug` keep their development layout.
 

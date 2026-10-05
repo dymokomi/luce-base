@@ -86,7 +86,7 @@ extend Emitter:
     ## The worklist's first entries: every non-generic function and method of a program
     ## module or a runtime root, the exported and attributed ones of the rest, the tables
     ## of the interfaces those records implement, and under the test runner (`mode` 1) the
-    ## tests of the file under test.
+    ## tests of the package under test.
     func seed_functions(mode: u32) -> !:
         var i: usize = 0
         while i < self.modules.count:
@@ -101,8 +101,8 @@ extend Emitter:
                     _ = try self.add_func(d, try types.no_args(), none, try types.no_args())
                 elif eager and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     try self.seed_record(d)
-                elif d.kind == ast.Kind.test_ and mode == 1 and self.modules.get(i) == self.entry:
-                    # the tests of the file under test, never an import's (§16.5)
+                elif d.kind == ast.Kind.test_ and mode == 1 and self.c.modules.get(i).tested:
+                    # the tests of the package under test, never a dependency's (§16.5)
                     _ = try self.test_index(d)
                 cursor = d.next
             i += 1
@@ -453,7 +453,9 @@ extend Emitter:
 
     func test_body(t: ast.Node*) -> !:
         let saved_fn = self.current_fn
+        let saved_file = self.src_file
         self.current_fn = t
+        self.src_file = self.source_of(t)
         self.generic.fn_decl = none
         self.generic.fn_args = try types.no_args()
         self.generic.owner_decl = none
@@ -481,6 +483,7 @@ extend Emitter:
         try self.scratch_declarations()
         try self.body.put(self.scratch.view())
         self.current_fn = saved_fn
+        self.src_file = saved_file
 
     ## `main` for a program with `main(arguments)`: the C strings become `str` or `c.str` items.
     func main_shim(f: ast.Node*) -> !:

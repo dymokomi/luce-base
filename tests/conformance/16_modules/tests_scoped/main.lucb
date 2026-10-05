@@ -1,11 +1,13 @@
 # tests: true
-## §16.5: `luce-base test FILE` runs the `test` blocks of FILE alone; the blocks of the
-## modules it imports belong to those modules' own runs.
+## §16.5: `luce-base test FILE` runs the `test` blocks of FILE's package, module by module,
+## an import before its importer; a dependency's blocks belong to its own package's runs
+## (tools/test_package_tests.py).
 import helper
 
 pub func main(arguments: str[]) -> i32:
     print(f"{helper.value()}")
     return 0
 
-test "main's own test":
+test "main's own test, after the helper's":
+    assert(helper.tested)
     assert(helper.value() == 40)

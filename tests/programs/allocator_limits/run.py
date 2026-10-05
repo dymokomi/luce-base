@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Direct allocator calls preserve size/alignment contracts at numeric limits."""
+"""Direct allocator calls preserve size/alignment contracts at numeric limits, and a refused
+request is the allocator's `none` alone: library code prints nothing."""
 from pathlib import Path
 import subprocess
 import sys
@@ -11,5 +12,6 @@ with tempfile.TemporaryDirectory(prefix='luce-allocator-limits-') as temporary:
     binary = Path(temporary) / 'test'
     for flags in MODES:
         subprocess.run([str(COMPILER), 'build', str(Path(__file__).with_name('main.lucb')), *flags, '-o', str(binary)], check=True, timeout=120)
-        subprocess.run([str(binary)], check=True, timeout=10)
-print('PASS direct allocator rounding, alignment and resize; six modes')
+        ran = subprocess.run([str(binary)], check=True, timeout=10, capture_output=True, text=True)
+        assert ran.stderr == '', f'FAIL {" ".join(flags)}: a refusal wrote to stderr: {ran.stderr!r}'
+print('PASS direct allocator rounding, alignment and resize, refused silently; six modes')

@@ -274,12 +274,20 @@ struct DescriptionWriter:
                     return
         try self.out.write(" = default")
 
+    ## Each public interface `d` conforms to, and before it the methods implementing its
+    ## requirements that are not `pub`: a conformance needs no `pub` (§14.2), and they are
+    ## the public surface through the interface though not callable by name.
     func conformance(d: ast.Node*) -> !:
         var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty
         while let interface_type = cursor:
             let decl = self.checker.table.get(interface_type.type_id).decl
             if let target = decl:
                 if target.has(ast.flag_pub):
+                    var requirement = target.body
+                    while let r = requirement:
+                        if let witness = private_witness(d, r):
+                            try self.signature(witness, "    witness mutating method " if witness.has(ast.flag_mutating) else "    witness method ")
+                        requirement = r.next
                     try self.out.write("    conforms ")
                     try self.type_name(interface_type.type_id, true)
                     try self.out.write("\n")
@@ -293,6 +301,11 @@ struct DescriptionWriter:
             if let target = self.checker.table.get(interface_type.type_id).decl:
                 if target.has(ast.flag_pub):
                     try self.mark(interface_type.type_id)
+                    var requirement = target.body
+                    while let r = requirement:
+                        if let witness = private_witness(d, r):
+                            try self.mark(witness.type_id)
+                        requirement = r.next
             cursor = interface_type.next
 
     func foreign_module(id: u32) -> usize?!:
@@ -413,6 +426,18 @@ struct DescriptionWriter:
 
 func generic(d: ast.Node*) -> bool:
     return d.left != none and (d.kind == ast.Kind.func_ or d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.interface_)
+
+## The method of `d` that implements requirement `r` when it is not `pub`, which the
+## description names as a witness; none when it is `pub`, and so described already.
+func private_witness(d: ast.Node*, r: ast.Node*) -> ast.Node*?:
+    if r.kind != ast.Kind.func_:
+        return none
+    var cursor = d.body
+    while let member = cursor:
+        if member.kind == ast.Kind.func_ and member.text == r.text and not member.has(ast.flag_pub) and not generic(member):
+            return member
+        cursor = member.next
+    return none
 
 func visible_member(owner: ast.Node*, member: ast.Node*) -> bool:
     return (member.kind == ast.Kind.field or member.kind == ast.Kind.func_) and (owner.kind == ast.Kind.interface_ or member.has(ast.flag_pub))

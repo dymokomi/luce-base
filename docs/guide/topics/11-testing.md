@@ -84,12 +84,24 @@ globals, or reset them.
 
 ## Which tests run
 
-`luce-base test file.lucb` runs the tests **in that file only**, not in the modules it
-imports. In a project, `luc test` runs the tests of the project's entry module: `src/main.lucb`
-for a tool or application, or the main library module of a package.
+`luce-base test file.lucb` runs the tests of the file and of every module of the same package
+that it imports, directly or not: module by module, each module's tests in the order they
+are declared, and an imported module before the module importing it. Tests in a dependency,
+another package, do not run; that package runs its own. In a project, `luc test` tests the
+entry module, `src/main.lucb` for a tool or application, so it runs the tests of every
+module of the project that the program imports.
 
-To test other modules, either put their tests in `tests/` (below), or run `luce-base test` on
-each module file.
+For a project whose `src/main.lucb` imports `helper` and declares `test "in main"`, and whose
+`src/helper.lucb` declares `test "in helper"`, `luc test` prints:
+
+```text
+ok    in helper
+ok    in main
+2 passed
+```
+
+A module that nothing imports from the file under test is not tested with it; run
+`luce-base test` on that module.
 
 ## Tests in their own files
 

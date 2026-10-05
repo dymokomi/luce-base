@@ -1,0 +1,13 @@
+import luce
+
+## Four bytes, read by index.
+pub struct Box:
+    pub var data: u8[4]
+
+    ## The file this method was written in, as the program sees it.
+    pub func file() -> str:
+        return luce.file
+
+    ## The byte at `i`; past the end, a trap that names this line.
+    pub func at(i: usize) -> u8:
+        return self.data[i]

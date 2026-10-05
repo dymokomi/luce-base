@@ -57,7 +57,10 @@ jobs:
       - name: Compiler unit tests
         run: |
           set -eo pipefail
-          for f in $(./tools/compiler_modules.sh) tests/programs/*/*.lucb; do
+          # the compiler's tests are its package's, which a test of its entry runs (§16.5)
+          ./build/luce-base.exe test src/main.lucb --backend=c | tail -1
+          ./build/luce-base.exe test src/main.lucb --native | tail -1
+          for f in tests/programs/*/*.lucb; do
             if grep -rq '^test "' "$f"; then
               echo "== test $f"
               ./build/luce-base.exe test "$f" --backend=c | tail -1
@@ -95,13 +98,11 @@ jobs:
           python tools/test_module_batches.py build/luce-base.exe
           python tools/test_package_tests.py build/luce-base.exe
       # real programs, checked out with CRLF line endings as Git for Windows does, built
-      # for every target; every package of their dependency closure is cloned beside them
+      # for every target: tools/compile_budget.pins's programs, and the packages they pin
       - name: Compile budget
         run: |
-          for repo in luce-js luce-regex luce-compress luce-crypto luce-tls luce-xml luce-png luce-jpeg luce-gif luce-bmp luce-ico luce-raster luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-fonts luce-color luce-browser-engine; do
-            git -c core.autocrlf=true clone -q --depth 1 "https://github.com/dymokomi/$repo" "../$repo"
-          done
-          python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/web/module.lucb
+          python tools/budget_packages.py --crlf > "$RUNNER_TEMP/budget-entries"
+          python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 $(cat "$RUNNER_TEMP/budget-entries")
       - name: Retain diagnostics
         if: always()
         uses: actions/upload-artifact@v7

@@ -134,9 +134,16 @@ def package "shapes-lib" {
 | `entry` | for a tool or application, its main module, `src/main.lucb` |
 | `str[] public` | the modules other packages may import, by module name |
 | `str source` | the source directory, if not `src` |
+| `description`, `readme` | one line of at most 256 bytes, and the README file, for the registry |
+| `license` | optional: the package's license as an SPDX expression, `"MIT OR Apache-2.0"` |
 | `def dependency` | a package this one uses (below) |
 | `def native` | C sources and libraries to build with (see [C](13-c.md#c-files-and-libraries)) |
 | `def task` | a named command for `luc run <task>` |
+
+Each field is set once in its element: a second `str[] public = ...` in the same `def` is an
+error at the line that repeats it,
+``package.prisma:5:11: `public` is set twice in one element``,
+from the compiler and from `luc` alike.
 
 A package's own modules import each other by their names, public or not. Other packages may
 import only the `public` ones; anything else is "the module is not among the package's

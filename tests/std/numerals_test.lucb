@@ -1,0 +1,30 @@
+## The `numerals` module's surface beyond laying fields out: why a specification misfits,
+## which numbers name a scalar, and a float's decimal digits rounded exactly.
+import numerals
+
+test "a misfit is named by its kind, and worded in Base's terms":
+    assert(numerals.misfit_of(numerals.read("x").spec, numerals.Category.floating) == numerals.Misfit.float_type)
+    assert(numerals.misfit_of(numerals.read(".2").spec, numerals.Category.integer) == numerals.Misfit.integer_precision)
+    assert(numerals.misfit_of(numerals.read(",x").spec, numerals.Category.integer) == numerals.Misfit.comma_grouping)
+    assert(numerals.misfit_of(numerals.read("_x").spec, numerals.Category.integer) == numerals.Misfit.fits)
+    assert(numerals.misfit_of(numerals.read("=").spec, numerals.Category.text) == numerals.Misfit.text_after_sign)
+    assert(numerals.misfit(numerals.read("+").spec, numerals.Category.text) == "a sign belongs to a number")
+    assert(numerals.misfit(numerals.read("f").spec, numerals.Category.integer) == "its type letter formats a float; convert the integer with `f64(...)` first")
+    assert(numerals.misfit(numerals.read("d").spec, numerals.Category.integer) == "")
+
+test "a `c` field's number names a scalar or is refused before it traps":
+    assert(numerals.is_scalar(false, 0x41) and numerals.is_scalar(false, 0x10FFFF) and numerals.is_scalar(false, 0))
+    assert(not numerals.is_scalar(true, 1) and not numerals.is_scalar(false, 0xD800) and not numerals.is_scalar(false, 0x110000))
+    var buffer: u8[4]
+    assert((str)numerals.encode_scalar(0x1F600, buffer) == "😀")
+
+test "decimal places are the exact value rounded half to even":
+    let a = numerals.decimal_places(2.675, 2)
+    assert(a.count == 3 and a.point == 1 and (str)a.digits[..<a.count] == "267")
+    let b = numerals.decimal_places(0.375, 2)
+    assert((str)b.digits[..<b.count] == "38" and b.point == 0)
+    let c = numerals.decimal_places(1234.5, -2)
+    assert((str)c.digits[..<c.count] == "12" and c.point == 4)
+    let gone = numerals.decimal_places(0.004, 2)
+    assert(gone.count == 0 and gone.point == -2)
+    assert(gone.at(0) == '0')

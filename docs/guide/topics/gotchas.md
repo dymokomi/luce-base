@@ -125,9 +125,9 @@ chapter that explains it.
 
 ## Tools
 
-- **`luc test` runs only the entry module's tests**, and `luce-base test file.lucb` only that
-  file's: tests in imported modules do not run. Put them in `tests/`, or test each module.
-  [Testing](11-testing.md#which-tests-run)
+- **`luce-base test` runs the tests of one package**: the file's and those of the modules of
+  its package it imports, but never a dependency's. A module the file does not import is
+  not tested. [Testing](11-testing.md#which-tests-run)
 - **A test that fails with an error is reported and the run continues; a trap ends the run.**
 - **`--lib -o name` writes `name.a` and `name.h`**: pass `-o libname`, not `-o libname.a`.
   [C](13-c.md#c-calling-base)

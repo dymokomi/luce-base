@@ -102,6 +102,12 @@ if mac:
     run("verify-mixed", ["xcrun", "dwarfdump", "--verify", str(exe) + ".dSYM"])
 else:
     run("verify-mixed", ["llvm-dwarfdump", "--verify", str(exe) + ".debug"])
+# the C unit is DWARF 4 like the program's own, so the debug file holds one version: a DWARF 5
+# unit's string offsets break where GNU ld tail-merges .debug_str
+units = run("versions-mixed", (["xcrun", "dwarfdump"] if mac else ["llvm-dwarfdump"]) + ["--debug-info", str(exe) + (".dSYM" if mac else ".debug")])
+versions = set(re.findall(r"version = (0x[0-9a-f]+)", units))
+if versions != {"0x0004"}:
+    raise SystemExit(f"FAIL DWARF versions-mixed: the units are DWARF {sorted(versions)}, not 4 alone")
 original.rename(moved)
 shutil.move(str(exe), package / exe.name)
 suffix = ".dSYM" if mac else ".debug"

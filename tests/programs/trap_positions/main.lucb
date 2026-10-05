@@ -1,0 +1,7 @@
+import helper
+
+## A trap in an imported module's method names that module's file, in both backends.
+pub func main(arguments: str[]) -> i32:
+    let b = helper.Box()
+    print(b.file())
+    return i32(b.at(3 + arguments.length))

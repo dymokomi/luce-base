@@ -91,7 +91,7 @@ extend Emitter:
             if e.text == "location":
                 try self.location_value(e)
             elif e.text == "file":
-                try self.put_str_literal(self.source_of_current())
+                try self.put_str_literal(self.src_file)
             elif e.text == "line":
                 try self.put_u64((u64)e.line)
                 try self.put("u")
@@ -102,24 +102,24 @@ extend Emitter:
 
     func location_value(e: ast.Node*) -> !:
         try self.put("((lb_io_Location){ .file = ")
-        try self.put_str_literal(self.source_of_current())
+        try self.put_str_literal(self.src_file)
         try self.put(", .line = ")
         try self.put_u64((u64)e.line)
         try self.put("u, .function = ")
         try self.function_name_literal()
         try self.put(" })")
 
-    ## The path of the file the current function came from; the entry's when unknown.
-    func source_of_current() -> str:
-        let f = self.current_fn else return self.src_file
-        let m = f.resolved else return self.src_file
+    ## The path of the file a declaration came from, a method's by its record's; the
+    ## entry's when unknown.
+    func source_of(decl: ast.Node*) -> str:
+        let m = decl.resolved else return self.entry_file
         var i: usize = 0
         while i < self.c.modules.count:
             let module = self.c.modules.get(i)
             if module.tree == m:
                 return module.src.path
             i += 1
-        return self.src_file
+        return self.entry_file
 
     func function_name_literal() -> !:
         let f = self.current_fn else return try self.put_str_literal("")

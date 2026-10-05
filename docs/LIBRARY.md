@@ -42,7 +42,7 @@ The fewest significant digits that read back as the value, of those the closest 
 
 ## `numerals`
 
-What a formatted string's `{value:spec}` field does (base.md §5.5), as Python's `format` does it: the specification read as CPython's parse_internal_render_format_spec reads it, a number laid out as calc_number_widths and fill_number lay it out, and a float's digits made exactly and rounded half to even, as David Gay's dtoa rounds them. The text goes to a `Sink` piece by piece, so nothing is allocated and nothing bounds a field but the sink. The compiler reads a field's specification with `read` and `misfit` and refuses one that does not fit; the program lays the field out with `lay_integer`, `lay_float` or `lay_text`. The port of Luce's numerals (luce src/support/numerals.lucb), whose layout it keeps. It comes after `float_text` and before `core`, and needs nothing else.
+What a formatted string's `{value:spec}` field does (base.md §5.5), as Python's `format` does it: the specification read as CPython's parse_internal_render_format_spec reads it, a number laid out as calc_number_widths and fill_number lay it out, and a float's digits made exactly and rounded half to even, as David Gay's dtoa rounds them. The text goes to a `Sink` piece by piece, so nothing is allocated and nothing bounds a field but the sink. The compiler reads a field's specification with `read` and `misfit` and refuses one that does not fit; the program lays the field out with `lay_integer`, `lay_float` or `lay_text`. It is the one implementation: Luce lays out its fields and rounds `math.round` with it too, wording a misfit in its own terms from `misfit_of` (luce src/support/number_text.lucb), and the seed carries a copy of this file. It comes after `float_text` and before `core`, and needs nothing else.
 
 ### `Spec` (struct)
 
@@ -74,7 +74,13 @@ What a field shows: an integer, a float, or text (a `str`, a `char`, a `bool`).
 
 - `func read(text: str) -> Reading` — Read `text` as CPython's parse_internal_render_format_spec reads a specification.
 
-- `func misfit(spec: Spec, category: Category) -> str` — What is wrong with `spec` for a value of `category`: empty when it fits (§5.5).
+### `Misfit` (enum)
+
+Why a specification does not fit a value of its category, for its caller to word.
+
+- `func misfit_of(spec: Spec, category: Category) -> Misfit` — Why `spec` does not fit a value of `category`, or `fits` (§5.5).
+
+- `func misfit(spec: Spec, category: Category) -> str` — What is wrong with `spec` for a value of `category`, in Base's terms: empty when it fits (§5.5).
 
 ### `Sink` (struct)
 
@@ -83,7 +89,22 @@ Where laid-out text goes: `write` appends `bytes` to `context`, answering false 
 - `var context: void*` — What the text is written into, handed to `write`.
 - `var write: func(void*, const u8[]) -> bool` — Append the bytes; false when they did not all fit.
 
+### `Decimal` (struct)
+
+Digits, a virtual `0` outside `[0, count)`: an integer's in its base, or the exact decimal digits of a float's magnitude, `0.d1d2d3... × 10^point`, at most 767 significant digits for any finite f64 and no trailing zero.
+
+- `var digits: u8[800]` — The digits, as ASCII; the first `count` are meaningful.
+- `var count: usize` — How many digits there are; 0 is zero.
+- `var point: i64` — Where the point stands: before `digits[point]`, a negative `point` that many zeros earlier.
+- `func at(i: i64) -> u8` — The digit at virtual index `i`.
+
+- `func decimal_places(value: f64, places: i64) -> Decimal` — The exact decimal digits of finite |value| rounded half to even to `places` after the point (before it, for a negative `places`), as dtoa's mode 3 makes them for Python's `round(x, places)`: no trailing zero, zero as `0` at point 1, and no digit at all, at point `-places`, when the rounding leaves nothing.
+
 - `func lay_integer(sink: Sink, negative: bool, magnitude: u64, specification: str) -> bool` — An integer field `{value:spec}`, its sign apart from its magnitude, laid out by `specification`. A `c` field of a number that names no Unicode scalar traps.
+
+- `func is_scalar(negative: bool, magnitude: u64) -> bool` — Whether the integer of `negative` and `magnitude` names a Unicode scalar, as a `c` field's number must: from 0 to U+10FFFF, not a surrogate. A caller that must not trap asks before laying a `c` field out.
+
+- `func encode_scalar(value: u32, buffer: u8[]) -> const u8[]` — The UTF-8 of scalar `value` in `buffer`, which holds four bytes.
 
 - `func lay_float(sink: Sink, value: f64, single: bool, specification: str) -> bool` — A float field `{value:spec}` laid out by `specification`; `single` when the value is an `f32` (or an `f16`), whose display is its own shortest digits. With neither a type nor a precision a field shows the value's display, where Python shows its repr.
 

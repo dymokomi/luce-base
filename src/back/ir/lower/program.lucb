@@ -39,8 +39,8 @@ extend Lowerer:
                     while let l = listed:
                         try self.note_vtable(d.type_id, l.type_id)
                         listed = l.next
-                elif d.kind == ast.Kind.test_ and mode == 1 and self.modules.get(i) == self.entry:
-                    # the tests of the file under test, never an import's (§16.5)
+                elif d.kind == ast.Kind.test_ and mode == 1 and self.c.modules.get(i).tested:
+                    # the tests of the package under test, never a dependency's (§16.5)
                     try self.tests.push(d)
                 elif d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
                     try self.declare_global(d)

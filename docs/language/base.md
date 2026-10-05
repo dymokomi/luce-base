@@ -1457,7 +1457,7 @@ def package "demo" {
 
 Every package has one layout: its sources directly under its source root, `demo/src/api.lucb`, with no directory repeating the package's name, since its identifier already leads every import from outside (§16.3).
 
-A dependency is `def dependency "name" { str path = "../name" }`; one without a `path` is a registry package that `luc` has unpacked under `.luc/deps/<name>` at or above the package root. Its public modules, the ones other packages may import, are `str[] public = ["ui", "widgets.button"]`, by their paths under the source root, and C inputs are `def native "inputs" { str[] sources = [...] }` with `link_search`, `libraries`, `frameworks` and `pkg_config` alongside. The tool `luc` adds the fields it needs (kind, version, owner, tasks); the compiler reads only what is named here. A file of the package outside its source root, a test program under `tests/` say, imports the package's own modules by their paths under the source root, as a file inside it does. The package's modules come first and the modules beside the file next, never the file itself, so `tests/parse.lucb` may `import parse` and a helper under `tests/` is imported by its own name.
+A dependency is `def dependency "name" { str path = "../name" }`; one without a `path` is a registry package that `luc` has unpacked under `.luc/deps/<name>` at or above the package root. Its public modules, the ones other packages may import, are `str[] public = ["ui", "widgets.button"]`, by their paths under the source root, and C inputs are `def native "inputs" { str[] sources = [...] }` with `link_search`, `libraries`, `frameworks` and `pkg_config` alongside. The tool `luc` adds the fields it needs (kind, version, owner, license, tasks); the compiler reads only what is named here, but refuses a key set twice in one element, whoever reads it, at the line that sets it again. A file of the package outside its source root, a test program under `tests/` say, imports the package's own modules by their paths under the source root, as a file inside it does. The package's modules come first and the modules beside the file next, never the file itself, so `tests/parse.lucb` may `import parse` and a helper under `tests/` is imported by its own name.
 
 ### 16.5 Tests
 
@@ -1468,7 +1468,7 @@ test "cursor advances by one":
     assert(cursor.offset == 1)
 ```
 
-`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test build compiles what its tests reach, of the file under test as of its imports, so a function no test calls is not compiled, and may name a symbol only another platform links. A test may use its module's private declarations. A package keeps test code out of the source it ships: under `tests/`, the directory that mirrors a module's path below the source root (`tests/mime/parse/` for `src/mime/parse.lucb` or the fragment directory `src/mime/parse/`) holds test fragments that a `TESTS` file lists in order; `luce test` on the module adds them after the module's own source, in its scope, and a build never reads them. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others; the runner is to report which globals it wrote (planned).
+`test` is a declaration, compiled to a hidden `unit!` function and discovered statically; `luce test` runs every test and `luce build` removes them all. A test build runs the tests of the package under test: those of the file under test and of every module of its package that it imports, directly or not, module by module in the order the modules load (an import before its importer) and each module's in declaration order; a dependency's tests do not run. It compiles what its tests reach, of the file under test as of its imports, so a function no test calls is not compiled, and may name a symbol only another platform links. A test may use its module's private declarations. A package keeps test code out of the source it ships: under `tests/`, the directory that mirrors a module's path below the source root (`tests/mime/parse/` for `src/mime/parse.lucb` or the fragment directory `src/mime/parse/`) holds test fragments that a `TESTS` file lists in order; a test build adds them to each tested module after the module's own source, in its scope, and a build never reads them. Inside a full Luce program tests run under the shared harness. In a Base artifact they run under a freestanding runner with a Base `testing` module providing assertions, deterministic seeds, and a fixed-buffer allocator made current for each test; facilities that need an isolated execution domain are absent, and a trap ends the run after naming the test. A test that writes a module global is not isolated from the others; the runner is to report which globals it wrote (planned).
 
 ### 16.6 Standard modules
 
@@ -1484,7 +1484,7 @@ The language depends on these modules by name. Their full surfaces are in the li
 | `atomic` | `fence`, `Ordering` |
 | `luce` | the protocols `Equatable`, `Hashable`, `Comparable` (§13.1), `Iterator`, `Iterable` and `Display` (§14.4); the source facts `location`, `file`, `line`, `function` (§9.1) |
 | `strings` | `format` (§5.5), `copy`, `release`, `join`, `split`, `find`, `trim`, `replace`, the number parsers and formatters, and `write_i64` and its siblings, a value laid out by a specification to a `Writer` |
-| `numerals` | the format specification of a `{value:spec}` field (§5.5): `read`, `misfit`, and `lay_integer`, `lay_float`, `lay_text` into a `Sink` |
+| `numerals` | the format specification of a `{value:spec}` field (§5.5): `read`, `misfit` (and `misfit_of`, the reason as a `Misfit` for another wording), `is_scalar`, and `lay_integer`, `lay_float`, `lay_text` into a `Sink`; `decimal_places`, a float's exact decimal digits rounded half to even |
 | `time` | `now`, `unix`, `since` |
 | `c` | the C types of §5.2, `errno()`, `set_errno(value)`, `stdin()`, `stdout()`, `stderr()` |
 | `testing` | assertions, seeds, and the per-test allocator of §16.5 |
@@ -1653,7 +1653,8 @@ A handle is a pointer-shaped opaque type, as `extern type` declares one, that na
 `luce-base describe module.lucb` describes checked public declarations without
 requiring consumers to parse Base. Its single current format starts with
 `description 9` and reports fields with their mutability, actual constructors,
-instance/static methods, interfaces and conformance, functions, constants, enums,
+instance/static methods, interfaces and conformance (with the methods implementing a public
+interface that are not `pub`, as witnesses), functions, constants, enums,
 handles and aliases. Private fields remain private, and a representation record
 states whether the public fields cover the complete native storage. See
 [the package description protocol](../PACKAGE-DESCRIPTION.md) for records, type

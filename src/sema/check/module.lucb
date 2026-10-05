@@ -99,6 +99,8 @@ pub struct Module:
     pub var canonical: str = ""
     ## The package it belongs to.
     pub var package_name: str = ""
+    ## Whether a test build runs its tests: it belongs to the package under test (§16.5).
+    pub var tested: bool = false
 
 ## A top-level declaration's name within its module, the key of `Checker.module_decls`.
 struct DeclName:
@@ -204,9 +206,11 @@ pub struct Checker:
     var loading: list.List[str]
     ## Package-export aliases from a name to its canonical module.
     pub var module_aliases: list.List[ModuleAlias]
-    ## `luce-base test`: the module under test also takes the fragments its package keeps
-    ## under `tests/` (§16.5).
-    pub var test_fragments: bool = false
+    ## `luce-base test`: every module of the package under test, the entry's, is tested and
+    ## takes the fragments its package keeps under `tests/` (§16.5).
+    pub var test_build: bool = false
+    ## The package of the entry under test, a module of which is tested too.
+    var tested_package: str = ""
     ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
     pub var package_name: str
     ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.

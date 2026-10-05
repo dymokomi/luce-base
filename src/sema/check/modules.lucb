@@ -89,7 +89,7 @@ extend Checker:
         if let loaded = self.by_canonical.find(known):
             try self.module_alias(name, self.modules.get(loaded).name)
             return
-        let src = load_source(path, self.test_fragments and self.loading.count == 1) catch failure:
+        let src = load_source(path, self.test_build and self.under_test(text)) catch failure:
             let half = self.scratch.length // 2
             # a located message (`path:line:column: ...`) stands as it is, copied into the
             # scratch that outlives the build's arena; only a file that cannot be opened is
@@ -167,12 +167,22 @@ extend Checker:
                     # a compiled workspace (luce's) holds every package's modules under one
                     # manifest, each package in its own directory: they name `<that>/...`
                     try shown.rebase(root, "")
-        try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner))
+        try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner, tested = self.test_build and owner == self.tested_package))
         _ = try self.by_canonical.add(canonical, self.modules.count - 1)
         # Every imported module is library code, kept only where the program reaches it;
         # the entry file alone is the program and keeps all it declares.
         if self.loading.count > 1:
             try note_library_module(name)
+
+    ## Whether the module at `path` is under test: the entry, or a module of the entry's
+    ## package that it imports, never a dependency's (§16.5). A path that does not resolve
+    ## is not, and the read that follows reports it.
+    func under_test(path: str) -> bool:
+        let owner = module_paths.package_of(path, self.package_name) catch:
+            return false
+        if self.loading.count == 1:
+            self.tested_package = owner
+        return owner == self.tested_package
 
     ## Leave the active import path on success and on every loading error.
     func finish_load():

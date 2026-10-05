@@ -388,7 +388,10 @@ extend Emitter:
         let saved_args = self.generic.fn_args
         let saved_owner = self.generic.owner_decl
         let saved_owner_args = self.generic.owner_args
+        let saved_file = self.src_file
         self.current_fn = f
+        # a method's positions name its record's file
+        self.src_file = self.source_of(inst.owner else f)
         self.generic.fn_decl = f
         self.generic.fn_args = inst.args
         self.generic.owner_decl = inst.owner
@@ -440,6 +443,7 @@ extend Emitter:
             try self.export_wrapper(f)
         _ = base
         self.current_fn = saved_fn
+        self.src_file = saved_file
         self.generic.fn_decl = saved_decl
         self.generic.fn_args = saved_args
         self.generic.owner_decl = saved_owner

@@ -27,6 +27,13 @@ the emitted C with the compilers a release meets) and a WASI toolchain and wasmt
 (§19.5): `tools/ci_dependencies.sh` installs Homebrew's llvm, lld, wasi-libc, wasi-runtimes
 and wasmtime on macOS, and wasi-sdk with wasmtime on Linux, naming the SDK in `WASI_SDK`.
 
+The compile budget (`tools/compile_budget.py`, on Linux x86-64 and Windows) builds real
+programs for every target within a time and a memory. Which programs, at which commits, is
+`tools/compile_budget.pins`, bumped deliberately; `tools/budget_packages.py` checks each out
+with every package its own `bootstrap/PACKAGES` pins, so the job builds what the program
+itself builds and a dependency it adds needs no change here. luce-std is the compiler's own
+`bootstrap/STD`.
+
 Runner labels follow [GitHub's runner documentation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
 The `Release` workflow runs on a tag `luce-base-VERSION` (the tag must name `VERSION`):

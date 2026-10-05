@@ -27,6 +27,7 @@ python3 tools/test_index_ranges.py
 python3 tools/test_windows_parameters.py
 python3 tools/test_module_batches.py
 python3 tools/test_package_tests.py
+python3 tools/test_numerals_python.py
 python3 tools/test_cached_pieces.py
 python3 tools/test_windows_publish.py
 python3 tools/test_inline_frames.py
@@ -75,8 +76,17 @@ for f in tests/samples/*.expect; do
     cmp build/sample.out "$f"
 done
 rm -f build/sample build/sample.out
-# every module's tests run through both backends: the two executions must agree
-for f in $compiler_modules tests/programs/*/*.lucb; do
+# every module's tests run through both backends: the two executions must agree. The
+# compiler's are its package's, which a test of its entry runs (§16.5); a module the entry
+# does not reach would leave the count short of the tests the sources declare
+declared=$(find src -type f -name '*.lucb' ! -path 'src/std/*' -exec grep -h '^test "' {} + | wc -l | tr -d ' ')
+for backend in --backend=c --native; do
+    echo "== test src/main.lucb $backend"
+    out=$(./build/luce-base test src/main.lucb $backend) || { printf '%s\n' "$out"; exit 1; }
+    echo "$out" | tail -1
+    [ "$(echo "$out" | tail -1)" = "$declared passed" ] || { echo "FAIL: the compiler's sources declare $declared tests"; exit 1; }
+done
+for f in tests/programs/*/*.lucb; do
     if grep -rq '^test "' "$f"; then
         echo "== test $f"
         out=$(./build/luce-base test "$f" --backend=c) || { printf '%s\n' "$out"; exit 1; }
@@ -149,6 +159,8 @@ rm -f build/stage1.c build/stage2.c build/stage2 build/snapshot.c
 # (Only this host's target is compared: the seed emits C for its host alone.)
 if [ -x ../luce-seed/build/lucb ]; then
     echo "== seed $(cat bootstrap/SEED)"
+    # the seed carries `numerals` verbatim, so a field lays out alike in what it builds
+    cmp src/std/numerals.lucb ../luce-seed/std/numerals.lucb || { echo "FAIL ../luce-seed/std/numerals.lucb is not src/std/numerals.lucb"; exit 1; }
     ../luce-seed/build/lucb build src/main.lucb --release -o build/seed-stage0
     ./build/seed-stage0 build src/main.lucb --emit=c -o build/seed1.c
     ./build/luce-base build src/main.lucb --emit=c -o build/stage1.c

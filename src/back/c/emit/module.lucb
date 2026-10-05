@@ -134,7 +134,9 @@ pub struct Emitter:
     var catch_payload: u32
     var match_result: u32
     var in_catch: bool
+    ## The file of the function being emitted, which its positions name, and the entry's.
     var src_file: str
+    var entry_file: str
     var wrote_writer: bool
     ## The format buffer temporary a `Display` field writes into, while emitting its call.
     var sink_prefix: str
@@ -179,7 +181,7 @@ pub struct Emitter:
                        defined_globals = try list.List[NodeRef].create(64),
                        current_fn = none, generic = try instances.Generic.none_yet(), scopes = try list.List[exits.Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
-                       catch_scope = 0, catch_payload = 0, match_result = 0, in_catch = false, src_file = source_path(checker, entry), wrote_writer = false,
+                       catch_scope = 0, catch_payload = 0, match_result = 0, in_catch = false, src_file = source_path(checker, entry), entry_file = source_path(checker, entry), wrote_writer = false,
                        sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0, folding = false, seq_in_place = false)
 
     # -- output ---------------------------------------------------------------------------

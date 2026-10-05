@@ -11,7 +11,6 @@
 from windows_abi import SystemInfo
 from windows_abi import GetSystemInfo
 import platform
-import strings
 extern func malloc(size: usize) -> void*?
 extern func c_free as "free"(block: void*)
 extern func posix_memalign(memptr: void*?*, alignment: usize, size: usize) -> i32
@@ -49,7 +48,6 @@ pub struct FixedBuffer: Allocator:
         let align = alignment if alignment > 0 else 1
         let start = aligned_offset(self.data, self.used, align) else return none
         if start > self.data.length or size > self.data.length - start:
-            note_refusal("fixed buffer", size, align, self.used)
             return none
         self.used = start + size
         return self.data[start..<self.used]
@@ -105,7 +103,6 @@ pub struct CAllocator: Allocator:
         if platform.windows:
             p = aligned_malloc(size, align)
         elif posix_memalign(&p, align, size) != 0:
-            note_refusal("heap", size, align, 0)
             return none
         let block = p else return none
         return u8[]((u8*)block, size)
@@ -165,7 +162,6 @@ pub struct Arena: Allocator:
         let start = aligned_offset(self.block, self.used, align) else return none
         let end = start +? size else return none
         if end > self.block.length:
-            note_refusal("arena", size, align, self.used)
             return none
         self.used = end
         return self.block[start..<end]
@@ -218,13 +214,11 @@ pub struct PageAllocator: Allocator:
             return u8[]((u8*)8, 0)
         let page = page_size()
         if alignment > page or (alignment != 0 and page % alignment != 0):
-            note_refusal("page allocator", size, alignment, 0)
             return none
         let padded = size +? (page - 1) else return none
         let rounded = padded // page * page
         let mapped = map_pages(rounded) else return none
         if (usize)mapped == ~(usize)0:
-            note_refusal("page allocator", size, alignment, 0)
             return none
         return u8[]((u8*)mapped, rounded)
 
@@ -284,17 +278,6 @@ func unmap_pages(block: u8[]):
         _ = VirtualFree(block.data, 0, 32768)
     else:
         _ = munmap(block.data, block.length)
-
-## The heap refusing a request is rare and worth a line on standard error: what was asked,
-## so an exhaustion in the field says more than its error code. A fixed buffer running out
-## is ordinary and says nothing.
-func note_refusal(who: str, size: usize, alignment: usize, used: usize):
-    var text: u8[160]
-    let line = strings.format(text, f"memory: the {who} refused {size} bytes at alignment {alignment} (used {used})\n") catch failure:
-        return
-    _ = write_bytes(2, line.bytes.data, line.length)
-
-extern func write_bytes as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 
 ## `--profile diagnostic`: set by the startup shim before `startup` runs.
 pub var diagnostic: bool
