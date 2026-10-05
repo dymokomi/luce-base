@@ -1,0 +1,24 @@
+# error: `view` changes its receiver, so it needs a `var` here
+# oracle: none
+## §9.5, §14.3: a method whose result is a view of a part of its receiver, of a conformer
+## that changes its receiver, changes its receiver; it is not called on a `let`.
+interface Counter:
+    func bump()
+
+struct Tally: Counter:
+    var n: i64
+
+    func bump():
+        self.n += 1
+
+struct Holder:
+    var tally: Tally
+
+    func view() -> Counter?:
+        return &self.tally
+
+pub func main(arguments: str[]) -> i32:
+    let h = Holder(tally = Tally(n = 0))
+    if let c = h.view():
+        c.bump()
+    return 0

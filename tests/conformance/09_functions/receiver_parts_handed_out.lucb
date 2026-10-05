@@ -1,0 +1,71 @@
+## §9.5, §14.3: a method that hands out the address of its receiver or a part where a
+## mutable pointer, or a view of a conformer that changes its receiver, is wanted changes
+## its receiver: returned as the result, an optional one or a tuple's member, or bound or
+## assigned to a written type. A view of a conformer that only reads stays read-only, and
+## its method is called on a `let`.
+interface Counter:
+    func bump()
+
+    func get() -> i64
+
+interface Reading:
+    func get() -> i64
+
+struct Tally: Counter, Reading:
+    var n: i64
+
+    func bump():
+        self.n += 1
+
+    func get() -> i64:
+        return self.n
+
+struct Holder:
+    var on: bool
+    var tally: Tally
+
+    func view() -> Counter?:
+        if self.on:
+            return &self.tally
+        return none
+
+    func counter() -> Counter:
+        return &self.tally
+
+    func pointer() -> Tally*?:
+        return &self.tally if self.on else none
+
+    func with_count() -> (Counter?, i64):
+        return (&self.tally, self.tally.n)
+
+    func bound_bump():
+        let c: Counter? = &self.tally
+        if let v = c:
+            v.bump()
+
+    func assigned_bump():
+        var c: Counter? = none
+        c = &self.tally
+        if let v = c:
+            v.bump()
+
+    func reading() -> Reading?:
+        return &self.tally
+
+pub func main(arguments: str[]) -> i32:
+    var h = Holder(on = true, tally = Tally(n = 0))
+    if let c = h.view():
+        c.bump()
+    h.counter().bump()
+    if let p = h.pointer():
+        p.n += 10
+    let (c, before) = h.with_count()
+    if let v = c:
+        v.bump()
+    h.bound_bump()
+    h.assigned_bump()
+    print(f"{before} {h.tally.n}")
+    let fixed = Holder(on = false, tally = Tally(n = 5))
+    if let r = fixed.reading():
+        print(f"{r.get()}")
+    return 0

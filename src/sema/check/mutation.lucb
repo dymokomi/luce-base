@@ -340,14 +340,15 @@ extend Checker:
     ## a view whose conformer's methods change their receiver (§6.6, §14.3); `place` is
     ## what the address is taken of.
     func wants_changing_view(hint: u32, pointee: u32, place: ast.Node*) -> bool!:
-        var h = self.table.get(hint)
-        if h.kind == types.Kind.optional:
-            h = self.table.get(h.elem)
+        var wanted = hint
+        if self.table.kind(wanted) == types.Kind.optional:
+            wanted = self.table.get(wanted).elem
+        let h = self.table.get(wanted)
         if h.kind == types.Kind.pointer:
             return not h.is_const
         if h.kind == types.Kind.interface_ and self.rooted_at_self(place):
             # a view of anything else is settled where it is checked against the view
-            return try self.implementation_changes(place, pointee, hint)
+            return try self.implementation_changes(place, pointee, wanted)
         return false
 
     ## Whether `hint` wants a span that may change its elements.
@@ -357,12 +358,15 @@ extend Checker:
             h = self.table.get(h.elem)
         return h.kind == types.Kind.span and not h.is_const
 
-    ## Before `e` of type `got` is checked against `target`: the receiver's array where a
-    ## mutable span is wanted changes the receiver, and a view formed from a read-only
-    ## pointer waits on the conformer's methods while they are not final. (`&self.part`
-    ## settled this where its address was taken.)
+    ## Before `e` of type `got` is checked against `target` or an optional of it: the
+    ## receiver's array where a mutable span is wanted changes the receiver, and a view
+    ## formed from a read-only pointer waits on the conformer's methods while they are not
+    ## final. (`&self.part` settled this where its address was taken.)
     func note_change_of(e: ast.Node*, got: u32, target: u32) -> !:
-        let t = self.table.get(target)
+        var wanted = target
+        if self.table.kind(wanted) == types.Kind.optional and self.table.kind(got) != types.Kind.optional:
+            wanted = self.table.get(wanted).elem
+        let t = self.table.get(wanted)
         let s = self.table.get(got)
         if t.kind == types.Kind.span and not t.is_const and s.kind == types.Kind.array and not self.is_mutable_place(e):
             _ = self.changes_receiver(e)
@@ -371,7 +375,7 @@ extend Checker:
                 if let inner = e.left:
                     if self.rooted_at_self(inner):
                         return
-            _ = try self.implementation_changes(e, s.elem, target)
+            _ = try self.implementation_changes(e, s.elem, wanted)
 
     ## Whether any method of conformer `id` implementing a requirement of `iface` changes its
     ## receiver; one of this module's not yet final is kept to settle at `at` (§14.3).

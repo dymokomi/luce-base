@@ -131,9 +131,12 @@ extend Checker:
         let t = self.table.get(id)
         return t.elem if t.kind == types.Kind.atomic else id
 
-    ## The method that keeps a view of `iface` from forming from a read-only pointer of type
-    ## `have`, empty when none does (§14.3).
-    func changing_view(have: u32, iface: u32) -> str:
+    ## The method that keeps a view of `iface`, or an optional one, from forming from a
+    ## read-only pointer of type `have`, empty when none does (§14.3).
+    func changing_view(have: u32, wanted: u32) -> str:
+        var iface = wanted
+        if self.table.kind(iface) == types.Kind.optional:
+            iface = self.table.get(iface).elem
         let s = self.table.get(have)
         if s.kind != types.Kind.pointer or not s.is_const or self.table.kind(iface) != types.Kind.interface_:
             return ""

@@ -1,0 +1,15 @@
+# oracle: none -- the seed does not convert an array to an optional span.
+## §9.5: a method returning its receiver's array where an optional mutable span is wanted
+## changes its receiver, as where the span itself is wanted.
+struct Cells:
+    var items: i64[3]
+
+    func all() -> i64[]?:
+        return self.items
+
+pub func main(arguments: str[]) -> i32:
+    var c = Cells(items = [1, 2, 3])
+    if let s = c.all():
+        s[0] = 7
+    print(f"{c.items[0]}")
+    return 0

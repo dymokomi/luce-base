@@ -149,7 +149,8 @@ pub func main(arguments: str[]) -> i32:
   `self` as a `const Counter*`, and one that changes the value as a `Counter*`. So calling a
   method on a large struct costs nothing, and a change is visible to the caller.
 - **A method changes its receiver** when its body assigns to `self` or one of its fields,
-  calls a method that does, or passes `&self.field` where a `T*` is wanted; `add` and
+  calls a method that does, or hands out `&self.field` where a `T*` is wanted, as an
+  argument or as its result (or a view of the field that can change it); `add` and
   `reset` above do. Nothing is written for it: the compiler reads the body. Such a method
   can only be called on something changeable, a `var`, a pointer `T*`, or an element of a
   changeable span; calling `add` on a `let` is the error "`add` changes its receiver, so
