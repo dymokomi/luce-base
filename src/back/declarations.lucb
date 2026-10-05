@@ -102,7 +102,7 @@ struct Cutter:
 
     ## A function's doc comment and its signature line, `linked`, without the `:` and body.
     ## A method of `owner` names its receiver, which its body showed (§9.8): `self: T*`
-    ## when it changes it, `self: const T*` when it reads it, none for a function of the type.
+    ## when it changes it, `self: const T*` when it reads it; a `static` function names none.
     func linked_function(d: ast.Node*, start: usize, end: usize, owner: str) -> !:
         let line = line_start(self.text, d.start)
         try self.verbatim(start, line)

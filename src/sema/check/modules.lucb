@@ -256,7 +256,6 @@ extend Checker:
         try self.bind_imports(tree)
         try self.collect(tree)
         try self.resolve_signatures(tree)
-        self.keep_required_methods(tree)
         try self.infer_receiver_changes(tree)
         var decl = tree.body
         while let d = decl:

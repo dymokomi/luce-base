@@ -90,8 +90,9 @@ chapter that explains it.
 - **A method that changes its receiver needs a changeable one**: calling it on a `let` is an
   error, and the message names the method. Nothing marks such a method; its body does.
   [Functions](05-functions.md#methods)
-- **A function in a type that never uses `self` is called through the type**:
-  `Point.origin()`, not `p.origin()`. [Functions](05-functions.md#methods)
+- **A `static func` is called through the type**: `Point.origin()`, not `p.origin()`. A
+  function in a type without `static` is a method, even when it never uses `self`.
+  [Functions](05-functions.md#methods)
 - **Default argument values must be constants.**
 - **Lambdas cannot capture local variables.** Pass state as a parameter or a context pointer.
   [Functions](05-functions.md#function-values)

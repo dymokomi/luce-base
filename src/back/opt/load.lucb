@@ -55,7 +55,7 @@ pub struct Aliases:
     pub var escapes: bool[]
 
     ## Classify every temporary of `f`, and find which slots' addresses escape.
-    pub func over(f: ir.Function*, g: cfg.Graph*) -> Aliases!:
+    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Aliases!:
         let n = f.temps.count + 1
         var a = Aliases(of = try new Alias[n] ---, escapes = try new bool[f.slots.count + 1] ---)
         var t: usize = 0

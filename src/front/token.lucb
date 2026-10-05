@@ -69,12 +69,12 @@ pub struct Token:
 # mark: Reserved words ========================================================================
 
 ## The reserved words of the language (§3.6); no name may be one.
-pub let keywords: str[42] = [
+pub let keywords: str[43] = [
     "and", "as", "asm", "break", "catch", "const", "continue", "defer",
     "elif", "else", "enum", "errdefer", "extern", "false", "for", "free",
     "from", "func", "if", "import", "in", "interface", "let",
     "match", "new", "none", "not", "or", "pub", "recover", "return",
-    "self", "struct", "test", "true", "try", "type",
+    "self", "static", "struct", "test", "true", "try", "type",
     "union", "var", "volatile", "while", "with"]
 
 ## The core names of §3.5: the language's own functions and type names. No declaration that

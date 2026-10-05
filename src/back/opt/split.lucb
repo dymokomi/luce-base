@@ -74,7 +74,7 @@ struct Plan:
     ## Per slot and field: the new slot, from `field_start` of the slot's root.
     var new_slot: u32[]
 
-    func over(f: ir.Function*) -> Plan!:
+    static func over(f: ir.Function*) -> Plan!:
         let ns = f.slots.count
         let nt = f.temps.count + 1
         var plan = Plan(ok = try new bool[ns] ---, group = try new u32[ns] ---, origin = try new u32[nt] ---,

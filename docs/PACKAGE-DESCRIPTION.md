@@ -70,7 +70,7 @@ struct Point
 | `field var name: T` / `field let name: T` | Public mutable/immutable field |
 | `method name(p: T) -> R` | Instance method whose body does not change its receiver; `self` is implicit |
 | `mutating method name(p: T) -> R` | Instance method whose body changes its receiver, found from the body (base.md §9.5): requires mutable native storage |
-| `static method name(p: T) -> R` | Function of the type, whose body never reads `self`: no receiver |
+| `static method name(p: T) -> R` | Function of the type, a `static func` (base.md §9.5): no receiver |
 | `interface Name` | Public interface; every requirement is described without needing a `pub` modifier on the requirement, and as a `method`: a requirement has no mutability of its own, its conformer's implementation has (base.md §14.2, §14.3) |
 | `conforms Interface` | Declared conformance to a public interface; private interfaces are omitted |
 | `enum Name as T` / `case name = N` | Integer-backed enum, its cases and evaluated case values; methods/conformance follow the cases |
@@ -142,7 +142,7 @@ retained function callbacks and workers remain the next gate.
 A public constant `interop.Type[T](name = ..., dispose = ..., trace = ...,
 closeable = ...)` beside a public struct explicitly declares ownership. Recognition
 uses the standard `interop.Type` declaration identity. Exactly one declaration is
-allowed. `closeable` requires a public disposal method that changes its receiver, without parameters;
+allowed. `closeable` requires a public disposal method without parameters;
 otherwise disposal remains private to the owner. `is_closed` is the shared state
 query and cannot also be declared as a package member.
 

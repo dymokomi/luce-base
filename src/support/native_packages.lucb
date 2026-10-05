@@ -30,7 +30,7 @@ pub struct Inputs:
     var roots: list.List[str]
 
     ## An empty set of inputs.
-    pub func create() -> Inputs!:
+    pub static func create() -> Inputs!:
         return Inputs(try list.List[Input].create(8), try list.List[str].create(8))
 
     ## Add the native inputs of the package at `path`, once per package root.

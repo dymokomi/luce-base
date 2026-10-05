@@ -1,17 +1,16 @@
 #==============================================================================================
 #
-#   check/mutation - Which methods change their receiver, and which are the type's
+#   check/mutation - Which methods change their receiver
 #
 #   DESCRIPTION:
-#       Nothing is written on a method (§9.5): one whose body never reads `self` is a
-#       function of the type, and one that changes its receiver is found from its body.
-#       Before any body is checked, a walk of each method finds the changes it spells
-#       out: an assignment to `self` or a part of it, a changing method called on one, and
-#       the same through a local that holds its address; a method calling another of the
-#       module on `self` follows that one, until nothing changes. The checker then finds
-#       the rest where a body takes the receiver's address, or a part's, as mutable. A call
-#       that leaned on a method of this module whose answer was not final yet is kept and
-#       settled when the module's bodies are done.
+#       Nothing is written on a method about its receiver (§9.5): one that changes it is
+#       found from its body. Before any body is checked, a walk of each method finds the
+#       changes it spells out: an assignment to `self` or a part of it, a changing method
+#       called on one, and the same through a local that holds its address; a method calling
+#       another of the module on `self` follows that one, until nothing changes. The checker
+#       then finds the rest where a body takes the receiver's address, or a part's, as
+#       mutable. A call that leaned on a method of this module whose answer was not final yet
+#       is kept and settled when the module's bodies are done.
 #
 #==============================================================================================
 
@@ -53,26 +52,6 @@ struct ReceiverAlias:
     var place: u32
 
 extend Checker:
-    # mark: Functions of the type ==============================================================
-
-    ## A method implementing a requirement of an interface its type declares stays a
-    ## method, though its body never reads `self` (§9.5): the view calls it with one.
-    func keep_required_methods(tree: ast.Node*):
-        var cursor = tree.body
-        while let d = cursor:
-            if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_:
-                var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
-                while let l = listed:
-                    if let iface = self.table.get(l.type_id).decl:
-                        if iface.kind == ast.Kind.interface_:
-                            var requirement = iface.body
-                            while let r = requirement:
-                                if let m = find_member(d, r.text, ast.Kind.func_):
-                                    m.flags &= ~ast.flag_static
-                                requirement = r.next
-                    listed = l.next
-            cursor = d.next
-
     # mark: Changes written out ================================================================
 
     ## Mark every method of `tree`'s types whose body changes its receiver by what it
@@ -124,7 +103,7 @@ extend Checker:
                         return true
                 return try self.body_changes(d, s.body, aliases)
             .call:
-                if try self.changing_call(d, s, aliases):
+                if try self.changing_call(d, s, aliases) or try self.passes_receiver(d, s, aliases):
                     return true
             .with_, .new_, .new_unwritten, .free_:
                 # allocating from an allocator the receiver holds changes it (§12.3)
@@ -161,6 +140,84 @@ extend Checker:
         let owner = t.decl else return false
         let m = find_member(owner, callee.text, ast.Kind.func_) else return false
         return m.has(ast.flag_mutating) and not m.has(ast.flag_static)
+
+    ## `f(p)` where `p` holds the address of the receiver or a part of it, `f(&self.part)`,
+    ## `f(self.cells[..])`: the receiver reaches a parameter that may change it, a mutable
+    ## pointer or span, of a function or method this pass can name.
+    func passes_receiver(d: ast.Node*, call: ast.Node*, aliases: list.List[ReceiverAlias]*) -> bool!:
+        let callee = call.left else return false
+        let target = try self.called_function(d, callee, aliases) else return false
+        let ft = self.table.get(target.type_id)
+        if ft.kind != types.Kind.func_:
+            return false
+        var position: usize = 0
+        var cursor = call.body
+        while let a = cursor:
+            cursor = a.next
+            var index = position
+            if a.text.length > 0:
+                if let named = param_index(target, a.text):
+                    index = named
+                else:
+                    continue
+            else:
+                position += 1
+            let value = a.left else continue
+            if index < ft.args.length and self.wants_change(ft.args[index]) and try self.reaches_receiver(d, value, aliases):
+                return true
+        return false
+
+    ## The function a call's callee names before bodies are checked: one of the module or
+    ## an import, `module.f`, `Type.f`, or a method of the receiver or a part of it.
+    func called_function(d: ast.Node*, callee: ast.Node*, aliases: list.List[ReceiverAlias]*) -> ast.Node*?!:
+        if callee.kind == ast.Kind.name:
+            let b = self.lookup(callee.text) else return none
+            let decl = b.decl else return none
+            return decl if decl.kind == ast.Kind.func_ else none
+        if callee.kind != ast.Kind.member:
+            return none
+        let owner = callee.left else return none
+        var holder: ast.Node*? = none
+        let place = try self.receiver_place(d, owner, aliases)
+        if place != types.none_id:
+            holder = self.table.get(place).decl
+        elif owner.kind == ast.Kind.name:
+            let b = self.lookup(owner.text) else return none
+            if self.table.kind(b.type_id) == types.Kind.module:
+                let tree = self.table.get(b.type_id).decl else return none
+                let decl = self.module_decl(tree, callee.text) else return none
+                return decl if decl.kind == ast.Kind.func_ else none
+            holder = b.decl
+        let h = holder else return none
+        if not is_type_decl(h):
+            return none
+        return find_member(h, callee.text, ast.Kind.func_)
+
+    ## Whether a parameter of type `id` may change what it is given: a mutable pointer or
+    ## span, or an optional one.
+    func wants_change(id: u32) -> bool:
+        var t = self.table.get(id)
+        if t.kind == types.Kind.optional:
+            t = self.table.get(t.elem)
+        return (t.kind == types.Kind.pointer or t.kind == types.Kind.span) and not t.is_const
+
+    ## Whether `value` is the address of the receiver or a part of it, a span of its array,
+    ## or a local holding either.
+    func reaches_receiver(d: ast.Node*, value: ast.Node*, aliases: list.List[ReceiverAlias]*) -> bool!:
+        match value.kind:
+            .name:
+                return try self.receiver_place(d, value, aliases) != types.none_id
+            .group:
+                let inner = value.left else return false
+                return try self.reaches_receiver(d, inner, aliases)
+            .unary:
+                let inner = value.left else return false
+                return value.text == "&" and try self.receiver_place(d, inner, aliases) != types.none_id
+            .slice:
+                let owner = value.left else return false
+                return self.table.kind(try self.receiver_place(d, owner, aliases)) == types.Kind.array
+            _:
+                return false
 
     ## `let p = &self.part`, `let row = self.cells[..]`: a local that reaches the receiver.
     func note_alias(d: ast.Node*, s: ast.Node*, aliases: list.List[ReceiverAlias]*) -> !:

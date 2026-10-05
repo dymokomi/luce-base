@@ -30,7 +30,7 @@ extend Checker:
                     return types.u32_id
         let raw = try self.check_expr(owner, types.none_id)
         if owner.has(ast.flag_type_ref):
-            return try self.static_member(e, owner, raw)
+            return try self.static_member(e, owner, raw, as_callee)
         let ot = self.table.get(raw)
         if ot.kind == types.Kind.tuple and name.length > 0 and name.bytes[0] >= '0' and name.bytes[0] <= '9':
             # `pair.0`: a member by position (§5.3)
@@ -148,7 +148,7 @@ extend Checker:
         if let m = find_member(d, name, ast.Kind.func_):
             if m.has(ast.flag_static):
                 var said_static: u8[256]
-                return try self.fail(e, said(said_static, f"`{name}` does not read `self`: it is a function of the type, called as `{d.text}.{name}()` (§9.5)"))
+                return try self.fail(e, said(said_static, f"`{name}` is `static`, a function of the type: call it as `{d.text}.{name}()` (§9.5)"))
             if not as_callee:
                 # `value.member` without `()` is always a field (§9.5)
                 return try self.fail(e, "a method is called; write `name()`")
@@ -279,8 +279,9 @@ extend Checker:
             i += 1
         return try self.table.function(params, f.elem, f.variadic)
 
-    ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`.
-    func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
+    ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`; a method
+    ## through its type is a function value, never called there (§5.6, §9.5).
+    func static_member(e: ast.Node*, owner: ast.Node*, id: u32, as_callee: bool) -> u32!:
         let name = e.text
         let t = self.table.get(id)
         if id == types.error_code_id and name == "package":
@@ -312,6 +313,9 @@ extend Checker:
             e.flags |= ast.flag_static
             let ft = try self.substitute(m.type_id, d, t.args)
             if not m.has(ast.flag_static):
+                if as_callee:
+                    var said_method: u8[256]
+                    return try self.fail(e, said(said_method, f"`{name}` is a method of `{d.text}`: call it on a value, or declare it `static` (§9.5)"))
                 # `Point.distance` through its type is a function taking the receiver first (§5.6)
                 try self.keep_pending_value(e, m, d)
                 return try self.method_as_function(ft, id, m.has(ast.flag_mutating))

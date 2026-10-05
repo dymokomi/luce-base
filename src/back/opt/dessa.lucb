@@ -37,7 +37,7 @@ struct Moves:
     var start: u32[]
     var owner: u32[]
 
-    func over(f: ir.Function*, g: cfg.Graph*) -> Moves!:
+    static func over(f: ir.Function*, g: cfg.Graph*) -> Moves!:
         let nb = g.count()
         var m = Moves(items = try list.List[Move].create(32), start = try new u32[nb + 2] ---, owner = try new u32[f.temps.count + 1] ---)
         var k: usize = 0

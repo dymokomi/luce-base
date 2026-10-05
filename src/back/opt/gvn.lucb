@@ -45,7 +45,7 @@ struct Table:
     ## several do: what `redundant_extension` reads an operand's range from.
     var defining: u32[]
 
-    func create(f: ir.Function*) -> Table!:
+    static func create(f: ir.Function*) -> Table!:
         let room = f.instrs.count
         var size: usize = 64
         while size < room * 2:

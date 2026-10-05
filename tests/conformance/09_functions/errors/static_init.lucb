@@ -1,0 +1,10 @@
+# error: `init` initialises a value and is never `static`
+# oracle: none
+struct C:
+    var n: i64
+
+    static func init():
+        return
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -41,7 +41,7 @@ pub struct SplitIterator:
 
     ## max_parts=0 has no limit; one returns the entire input as a single field.
     ## No allocation occurs. An empty separator reports invalid_separator.
-    pub func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!:
+    pub static func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!:
         if separator.length == 0:
             error(invalid_separator, "a split iterator requires a nonempty separator")
         return SplitIterator(text = text, separator = separator, remaining = max_parts, active = true)

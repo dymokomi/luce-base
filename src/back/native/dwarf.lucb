@@ -52,7 +52,7 @@ pub struct Emitter:
     var serial: usize
 
     ## A DWARF emitter for `program` on `os` and `arch`, reading types from `checker`.
-    pub func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os, arch: targets.Arch = targets.Arch.arm64) -> Emitter!:
+    pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os, arch: targets.Arch = targets.Arch.arm64) -> Emitter!:
         return Emitter(checker = checker, program = program, os = os, arch = arch, last_line = 0, last_file = 0,
                        last_scope = 0, last_site = 0, changes = try list.List[u32].create(0), change_scopes = try list.List[u32].create(0),
                        change_sites = try list.List[u32].create(0), origins = try list.List[ir.InlineSite].create(0),

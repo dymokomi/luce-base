@@ -22,17 +22,17 @@ pub struct Owner[T]:
     var active: usize
 
     ## Whether the owner has not been closed.
-    pub func is_open(object: ownership.Object*) -> bool:
+    pub static func is_open(object: ownership.Object*) -> bool:
         ownership.check_alive(object)
         return not ((Owner[T]*)object).closed
 
     ## Begin a native call guard, retaining the object.
-    pub func enter(object: ownership.Object*):
+    pub static func enter(object: ownership.Object*):
         _ = ownership.retain(object)
         ((Owner[T]*)object).active += 1
 
     ## End a native call guard, disposing the owner once closed and idle.
-    pub func leave(object: ownership.Object*):
+    pub static func leave(object: ownership.Object*):
         ownership.check_alive(object)
         let owner = (Owner[T]*)object
         if owner.active == 0:
@@ -43,11 +43,11 @@ pub struct Owner[T]:
         ownership.release(object)
 
     ## The collector's finalizer: close the owner.
-    pub func finish_owner(object: ownership.Object*):
+    pub static func finish_owner(object: ownership.Object*):
         close_owner[T]((Owner[T]*)object)
 
     ## Free the owner's native storage.
-    pub func drop_owner(object: ownership.Object*):
+    pub static func drop_owner(object: ownership.Object*):
         let owner = (Owner[T]*)object
         if let native = owner.native:
             let allocator = owner.native_allocator else trap("native storage has no allocator")
@@ -55,7 +55,7 @@ pub struct Owner[T]:
             free(native) in allocator
 
     ## Visit the native value's strong references.
-    pub func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    pub static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         let owner = (Owner[T]*)object
         if owner.disposed:
             return

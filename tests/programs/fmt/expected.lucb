@@ -21,7 +21,7 @@ struct Point:
     func length(self_scale: f64 = 1.0) -> f64:
         return (self.x * self.x + self.y * self.y) * self_scale
 
-    func origin() -> Point: return Point(x = 0.0, y = 0.0)
+    static func origin() -> Point: return Point(x = 0.0, y = 0.0)
 
 enum Kind:
     plain

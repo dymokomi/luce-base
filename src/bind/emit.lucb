@@ -47,7 +47,7 @@ pub struct Recipe:
     pub var prototypes: buffer.Buffer
 
     ## An empty recipe.
-    pub func create() -> Recipe!:
+    pub static func create() -> Recipe!:
         return Recipe(nonnull = try table.Table[bool].create(64), skipped = try table.Table[bool].create(64),
                       prototypes = try buffer.Buffer.create(256))
 
@@ -110,7 +110,7 @@ pub struct Emitter:
 
     ## `header` is the main header's canonical path and `include` how the shims include
     ## it, `<name>` or `"path"`.
-    pub func over(parser: cparse.Parser*, pp: pre.Preprocessor*, recipe: Recipe*, header: str, include: str, module: str, recipe_file: u32) -> Emitter!:
+    pub static func over(parser: cparse.Parser*, pp: pre.Preprocessor*, recipe: Recipe*, header: str, include: str, module: str, recipe_file: u32) -> Emitter!:
         return Emitter(parser = parser, pp = pp, recipe = recipe, target = paths.directory(header), recipe_file = recipe_file,
                        header = header, include = include, module = module, out = try buffer.Buffer.create(65536),
                        shims = try buffer.Buffer.create(4096), report = try buffer.Buffer.create(1024),

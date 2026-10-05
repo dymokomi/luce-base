@@ -214,7 +214,7 @@ pub struct Lowerer:
     var site_line: u32
 
     ## A lowerer for `entry`, checked by `c`.
-    pub func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
+    pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, target = targets.Target.host(),
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try instances.Instances.create(), tests = try list.List[NodeRef].create(32),

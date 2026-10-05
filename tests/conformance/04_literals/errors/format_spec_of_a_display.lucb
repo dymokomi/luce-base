@@ -5,7 +5,7 @@ import io
 struct Celsius:
     var degrees: f64
 
-    pub func display(sink: io.Writer) -> !:
+    pub static func display(sink: io.Writer) -> !:
         _ = try sink.write("C".bytes)
 
 pub func main(arguments: str[]) -> i32:

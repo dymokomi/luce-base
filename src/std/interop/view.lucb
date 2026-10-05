@@ -26,11 +26,11 @@ pub struct ViewOwner[T]:
     var lease: Lease
 
     ## Release the view's lease when the owner is dropped.
-    pub func drop_view(object: ownership.Object*):
+    pub static func drop_view(object: ownership.Object*):
         ((ViewOwner[T]*)object).lease.release()
 
     ## Visit the lease's strong references.
-    pub func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    pub static func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         ((ViewOwner[T]*)object).lease.trace(visit, context)
 
 ## Manual Base carrier for a checked view. The Luce adapter shares this owner and
@@ -45,7 +45,7 @@ pub struct View[T]:
         self.owner = owner
 
     ## A view of `native`, valid while `lease` is.
-    pub func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!:
+    pub static func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!:
         try lease.check()
         var information = ownership.Info(name = declaration.name, size = memory.size_of(ViewOwner[T]),
                                          finish = none, drop = ViewOwner[T].drop_view, trace = ViewOwner[T].trace_view)
@@ -105,15 +105,15 @@ pub struct View[T]:
         ownership.release(&self.owner.header)
 
     ## Validate that `object` is a live view of this type.
-    pub func validate_interface(object: ownership.Object*) -> !:
+    pub static func validate_interface(object: ownership.Object*) -> !:
         _ = try View[T]((ViewOwner[T]*)object).get()
 
     ## Begin a guarded invocation for an interface witness.
-    pub func begin_interface(object: ownership.Object*):
+    pub static func begin_interface(object: ownership.Object*):
         View[T]((ViewOwner[T]*)object).enter() catch failure: trap(failure.message)
 
     ## End a guarded invocation for an interface witness.
-    pub func end_interface(object: ownership.Object*):
+    pub static func end_interface(object: ownership.Object*):
         View[T]((ViewOwner[T]*)object).leave()
 
     ## The witness borrows this view's storage and preserves its validity lease.

@@ -114,7 +114,7 @@ pub struct Lives:
     ## The lives of `f`'s temporaries over its graph `g`, whose loops are found
     ## (`cfg.Graph.loops`). Every allocation is the current allocator's; `release` gives
     ## them back.
-    pub func over(f: ir.Function*, g: cfg.Graph*) -> Lives!:
+    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Lives!:
         let n = f.temps.count
         let m = f.instrs.count
         var l = Lives(count = n, start = try new u32[n + 1] ---, end = try new u32[n + 1] ---, head = try new u32[n + 1] ---, use_head = try new u32[n + 1] ---,
@@ -584,7 +584,7 @@ struct Scan:
     var inactive_count: usize
 
     ## Room for `alive` intervals in each set.
-    func create(alive: usize) -> Scan!:
+    static func create(alive: usize) -> Scan!:
         let active = try new u32[alive + 1] ---
         errdefer free(active)
         return Scan(active = active, active_count = 0, inactive = try new u32[alive + 1] ---, inactive_count = 0)

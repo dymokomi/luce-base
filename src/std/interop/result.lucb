@@ -45,11 +45,11 @@ pub struct Outcome[T]:
     let message: Owned[str]?
 
     ## A successful outcome carrying `value`.
-    pub func success(value: Owned[T]) -> Outcome[T]:
+    pub static func success(value: Owned[T]) -> Outcome[T]:
         return Outcome[T](value, no_error, none)
 
     ## A failed outcome with `code` and `message`.
-    pub func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]:
+    pub static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]:
         return Outcome[T](none, code, message)
 
     ## Whether the outcome succeeded.

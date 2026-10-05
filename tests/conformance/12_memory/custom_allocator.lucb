@@ -26,7 +26,7 @@ struct Stack:
     var count: usize
     var allocator: memory.Allocator
 
-    func create(capacity: usize, allocator: memory.Allocator) -> Stack!:
+    static func create(capacity: usize, allocator: memory.Allocator) -> Stack!:
         let items = try new i64[capacity] in allocator
         return Stack(items = items, count = 0, allocator = allocator)
 

@@ -1,0 +1,7 @@
+# error: `static` declares a function of a type; a top-level function belongs to none
+# oracle: none
+static func f() -> i64:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    return 0

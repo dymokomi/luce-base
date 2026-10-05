@@ -46,7 +46,7 @@ pub struct Uses:
     pub var sites: u32[]
 
     ## Gather every definition and use of `f`'s temporaries in one pass.
-    pub func over(f: ir.Function*) -> Uses!:
+    pub static func over(f: ir.Function*) -> Uses!:
         let n = f.temps.count + 1
         var u = Uses(def_count = try new u32[n] ---, def_at = try new u32[n] ---, use_start = try new u32[n] ---, use_count = try new u32[n] ---, sites = try new u32[1] ---)
         errdefer u.release()
@@ -170,7 +170,7 @@ struct Candidates:
     ## Every slot of `f` of a register's width open, but an aggregate parameter's; a scalar
     ## parameter's stored at the entry, in its class. A scalar parameter's width is its own,
     ## since its slot is a register wide or two and the body reads only the value's bytes.
-    func over(f: ir.Function*) -> Candidates!:
+    static func over(f: ir.Function*) -> Candidates!:
         let ns = f.slots.count
         var c = Candidates(kind = try new u8[ns + 1] ---, cls = try new ir.Class[ns + 1] ---, has_store = try new bool[ns + 1] ---, width = try new u32[ns + 1] ---)
         for s in 0..<ns:
@@ -379,7 +379,7 @@ pub struct Liveness:
     pub var live_out: u64[]
 
     ## Compute per-block liveness for `f` over its control-flow graph `g`.
-    pub func over(f: ir.Function*, g: cfg.Graph*) -> Liveness!:
+    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Liveness!:
         let words = (f.temps.count + 1 + 63) // 64
         let nb = g.count()
         var l = Liveness(words = words, live_in = try new u64[words * nb + 1] ---, live_out = try new u64[words * nb + 1] ---)

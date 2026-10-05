@@ -86,7 +86,7 @@ pub struct Terminal:
     var used: usize
 
     ## No terminal at all: a fixed 80 by 24 screen written to standard output.
-    pub func headless() -> Terminal:
+    pub static func headless() -> Terminal:
         var t: Terminal = ---
         t.raw = false
         t.rows = 24
@@ -94,7 +94,7 @@ pub struct Terminal:
         t.used = 0
         return t
 
-    pub func open() -> Terminal!:
+    pub static func open() -> Terminal!:
         var t = Terminal.headless()
         if isatty(0) == 0:
             return t
@@ -157,13 +157,13 @@ pub struct Terminal:
         self.used = 0
 
     ## The next key, blocking; escape sequences are read as a unit.
-    pub func read_key() -> Key:
+    pub static func read_key() -> Key:
         var byte: u8[1]
         if c_read(0, &byte[0], 1) != 1:
             return Key.control(letter = 'Q')
         return decode(byte[0])
 
-    func read_byte() -> u8?:
+    static func read_byte() -> u8?:
         var byte: u8[1]
         if c_read(0, &byte[0], 1) != 1:
             return none
@@ -234,7 +234,7 @@ pub struct Script:
     var text: str
     var at: usize
 
-    pub func over(text: str) -> Script:
+    pub static func over(text: str) -> Script:
         return Script(text = text, at = 0)
 
     pub func next() -> Key?:

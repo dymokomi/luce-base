@@ -1,10 +1,10 @@
-# error: `origin` does not read `self`: it is a function of the type, called as `Point.origin()`
+# error: `origin` is `static`, a function of the type: call it as `Point.origin()`
 # oracle: none
-## §9.5: a function in a type whose body never reads `self` belongs to the type.
+## §9.5: a `static` function belongs to the type and is called through it.
 struct Point:
     var x: f64
 
-    func origin() -> Point:
+    static func origin() -> Point:
         return Point(x = 0.0)
 
 pub func main(arguments: str[]) -> i32:

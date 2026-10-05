@@ -39,7 +39,7 @@ pub struct FixedBuffer: Allocator:
     var used: usize
 
     ## An allocator handing out `buffer`'s bytes; only the last block resizes.
-    pub func over(buffer: u8[]) -> FixedBuffer:
+    pub static func over(buffer: u8[]) -> FixedBuffer:
         return FixedBuffer(data = buffer, used = 0)
 
     ## Allocate `size` bytes at `alignment`, or none when it cannot.
@@ -153,7 +153,7 @@ pub struct Arena: Allocator:
     var used: usize
 
     ## An arena of `capacity` bytes over `parent`, released all at once.
-    pub func over(parent: Allocator, capacity: usize) -> Arena!:
+    pub static func over(parent: Allocator, capacity: usize) -> Arena!:
         let block = parent.allocate(capacity, 16) else error(exhausted, "memory.exhausted")
         return Arena(parent = parent, block = block, used = 0)
 

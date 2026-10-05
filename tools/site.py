@@ -147,7 +147,7 @@ def resolve(target, page, by_source):
 
 KEYWORDS = set("""and as asm break catch const continue defer elif else enum errdefer extern
 false for free from func if import in interface let match new none not or pub recover return
-self struct test true try type union var volatile while with extend handle local export""".split())
+self static struct test true try type union var volatile while with extend handle local export""".split())
 TYPES = set("bool i8 i16 i32 i64 isize u8 u16 u32 u64 usize f16 f32 f64 char str unit never void fmt Error ErrorCode".split())
 BUILTINS = set("assert discard error trap hash print format sizeof alignof offsetof hex bin pad".split())
 TOKEN = re.compile(r'(?P<c>#.*$)|(?P<s>[fbr]?"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)+\')|(?P<n>\b(?:0x[0-9a-fA-F_]+|0b[01_]+|0o[0-7_]+|\d[\d_]*(?:\.\d[\d_]*)?(?:e[+-]?\d+)?)(?:[iuf](?:8|16|32|64|size))?\b)|(?P<w>[A-Za-z_][A-Za-z0-9_]*)', re.M)

@@ -1,10 +1,18 @@
 # oracle: none -- `linked` names what a library defines; the seed builds whole programs
 ## §9.8: a `linked` function or global is declared here and defined in a library the
-## program links; a program that never reaches one still builds in every execution.
+## program links; a program that never reaches one still builds in every execution. A
+## `linked` method names its receiver; a `linked static` function of a type has none.
 linked func elsewhere(n: i64) -> i64
 linked var shared: i64
 linked let table: u8[4]
 linked let pair: (i64, i64) = (1, 2)
+
+struct Gauge:
+    var level: i64
+
+    linked func read(self: const Gauge*) -> i64
+    linked func raise(self: Gauge*, by: i64)
+    linked static func zero() -> Gauge
 
 pub func main(arguments: str[]) -> i32:
     print("linked declarations check")

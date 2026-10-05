@@ -23,7 +23,7 @@ struct Big:
     ## Limbs in use; the last is not zero, or `used` is zero for zero.
     var used: usize
 
-    func of(value: u64) -> Big:
+    static func of(value: u64) -> Big:
         var b: Big
         var v = value
         while v != 0:
@@ -127,7 +127,7 @@ struct Format:
     var max_exponent: i64
     var exponent_bits: u64
 
-    func of(width: u32) -> Format?:
+    static func of(width: u32) -> Format?:
         if width == 64:
             return Format(precision = 53, min_exponent = -1022, max_exponent = 1023, exponent_bits = 11)
         if width == 32:
@@ -172,7 +172,7 @@ struct Digits:
     var exponent: i64
 
     ## The digits of `text`; `none` when it is not a literal.
-    func read(text: str) -> Digits?:
+    static func read(text: str) -> Digits?:
         let b = text.bytes
         var d: Digits
         var seen_digit = false

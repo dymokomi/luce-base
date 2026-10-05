@@ -129,29 +129,30 @@ module it names (`check/intrinsics`), and its call's callee is rewritten to the 
 name with `flag_builtin`, which is how the backends and the constant folder know it;
 `value.hash()` on a value that hashes by its fields becomes the same kind of call.
 
-Nothing is written on a method (§9.5), so `check/mutation` finds what a body says.
-The parser marks a function in a type whose body never reads `self` `flag_static`;
-the checker clears it again for a method that implements a requirement of an
-interface the type declares. Before any body is checked, a walk of every method of
-the module's types marks `flag_mutating` on one that assigns to a place rooted at
-`self` (fields and array elements reached without a pointer or a span), calls a
-changing method or a storing atomic operation on one, or allocates from an
-allocator it holds, through a local holding such an address as well, repeating
-until nothing changes; the walk resolves field types itself, from the signatures
-already resolved. While checking, `self` is then mutable exactly in the marked
-methods. The rest is found by the checker where it decides: a demand on a
-`self`-rooted place that is not mutable, an assignment, a changing receiver, or
-an address or span taken where the wanted type is mutable, marks the method from
-there on (`changes_receiver`) instead of failing. A use that leaned on a method of
-this module not yet marked, a call on a receiver that cannot change or a view of a
-`const T*`, is kept as a `PendingChange` and settled when the module's bodies are
-done: a method whose own receiver met it changes too, to a fixed point, and every
-other such use of a method that turned out changing is reported. A generic body
-calling a requirement on a value it may not change records a `ReadOnlyUse` of that
-type parameter, and passing the parameter on to another generic a `UseForward`;
-each instantiation of the module is settled against them with its argument's
-methods final. `describe` writes the flags, and a `linked` method, which has no
-body, carries them in its signature.
+Nothing is written on a method about its receiver (§9.5), so `check/mutation` finds
+what a body says. `static func` is the one word: the parser marks it `flag_static`,
+and the checker refuses it at the top level, on `init`, and as a requirement's
+implementation. Before any body is checked, a walk of every method of the module's
+types marks `flag_mutating` on one that assigns to a place rooted at `self` (fields
+and array elements reached without a pointer or a span), calls a changing method or
+a storing atomic operation on one, passes its address or span to a parameter that
+may change it of a function or method the walk can name, or allocates from an
+allocator it holds, through a local holding such an address as well, repeating until
+nothing changes; the walk resolves field types itself, from the signatures already
+resolved. While checking, `self` is then mutable exactly in the marked methods. The
+rest is found by the checker where it decides: a demand on a `self`-rooted place
+that is not mutable, an assignment, a changing receiver, or an address or span taken
+where the wanted type is mutable (a generic parameter's `T*` still to infer
+included), marks the method from there on (`changes_receiver`) instead of failing. A
+use that leaned on a method of this module not yet marked, a call on a receiver that
+cannot change or a view of a `const T*`, is kept as a `PendingChange` and settled
+when the module's bodies are done: a method whose own receiver met it changes too,
+to a fixed point, and every other such use of a method that turned out changing is
+reported. A generic body calling a requirement on a value it may not change records
+a `ReadOnlyUse` of that type parameter, and passing the parameter on to another
+generic a `UseForward`; each instantiation of the module is settled against them
+with its argument's methods final. `describe` writes the flags, and a `linked`
+method, which has no body, carries them in its signature.
 
 `for` over a user type consumes the `Iterable` protocol (§8.3) by rewriting
 the tree: a `for x in source: body` whose source is a struct or enum with an

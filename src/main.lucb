@@ -98,7 +98,7 @@ let generated_c_silences: c.str[5] = ["-Wno-format", "-Wno-self-assign", "-Wno-t
 struct Arguments:
     var items: list.List[c.str]
 
-    func create() -> Arguments!:
+    static func create() -> Arguments!:
         return Arguments(items = try list.List[c.str].create(32))
 
     func add(item: c.str) -> !:

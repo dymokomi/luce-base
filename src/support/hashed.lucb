@@ -27,7 +27,7 @@ pub struct Table[K: Hashable & Equatable]:
     var allocator: memory.Allocator
 
     ## A table with room for `expected` keys before it grows.
-    pub func create(expected: usize) -> Table[K]!:
+    pub static func create(expected: usize) -> Table[K]!:
         var size: usize = 16
         while size < expected * 2 + 2:
             size *= 2

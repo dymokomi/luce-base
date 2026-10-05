@@ -9,7 +9,7 @@ pub struct Failing: memory.Allocator:
     var addresses: void*?[512]
     var sizes: usize[512]
 
-    pub func at(index: usize) -> Failing:
+    pub static func at(index: usize) -> Failing:
         var result = Failing(owner = memory.heap)
         result.fail_at = index
         return result

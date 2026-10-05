@@ -21,12 +21,16 @@ with tempfile.TemporaryDirectory(prefix='base-described-objects-') as temporary:
     original = source.read_text()
     for changed, message in [
         (original + '\npub let duplicate: interop.Type[Counter] = counter_type\n', 'exactly one'),
-        (original.replace('    pub func close', '    func close'), 'public disposal method that changes its receiver'),
+        (original.replace('    pub func close', '    func close'), 'public disposal method without parameters'),
         (original.replace('pub struct Counter', 'struct Counter'), 'public struct'),
         (original.replace('    pub func value()', '    pub func is_closed()'), 'shared native ownership state')]:
         target.write_text(changed)
         result = subprocess.run([compiler, 'describe', target], capture_output=True, text=True)
         assert result.returncode == 1 and message in result.stderr, result.stderr
+    # disposal releases what the value holds; whether it writes the value's fields is its own
+    target.write_text(original.replace('        self.hidden = 0', '        print("closed")'))
+    result = subprocess.run([compiler, 'describe', target], capture_output=True, text=True, check=True)
+    assert 'object Counter descriptor counter_type close close\n' in result.stdout, result.stdout
     target.write_text('''pub struct Type[T]:
     pub let dispose: func(T*) -> unit
 pub struct Counter:

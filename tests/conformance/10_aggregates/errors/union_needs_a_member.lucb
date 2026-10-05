@@ -1,7 +1,7 @@
 # error: 
 ## §10.4: a union has a member, as in C.
 union U:
-    func f() -> i64:
+    static func f() -> i64:
         return 1
 
 pub func main(arguments: str[]) -> i32:

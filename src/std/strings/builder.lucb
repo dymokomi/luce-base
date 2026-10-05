@@ -19,7 +19,7 @@ pub struct Builder: io.Writer:
     ## Reserve this many usable text bytes plus the NUL terminator. Zero chooses
     ## a default of 64 usable bytes. Size overflow reports memory.exhausted before
     ## allocation. The builder retains the allocating context for its lifetime.
-    pub func create(capacity: usize = 0) -> Builder!:
+    pub static func create(capacity: usize = 0) -> Builder!:
         let usable = capacity if capacity > 0 else 64
         let size = usable +? 1 else error(memory.exhausted, "the builder capacity is too large")
         return Builder(data = try new u8[size] ---, used = 0, owner = memory.allocator)

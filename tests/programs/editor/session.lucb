@@ -27,7 +27,7 @@ pub struct Session:
     ## Rows a page-up or page-down moves by; the screen sets it.
     pub var page_rows: usize
 
-    pub func open(path: str) -> Session!:
+    pub static func open(path: str) -> Session!:
         var name: u8[1024]
         let c_path = try strings.format(name, f"{path}")
         let read = files.read((c.str)c_path) catch failure:

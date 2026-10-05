@@ -109,7 +109,7 @@ pub struct Frame:
     pub var indirect_home: u64
 
     ## An empty frame for a target's register set.
-    pub func create(registers: Registers) -> Frame!:
+    pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
                       temp_regs = try list.List[u8].create(256), temp_saved = try list.List[bool].create(256), crossings = try list.List[Crossing].create(16), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)

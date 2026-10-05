@@ -123,7 +123,7 @@ pub struct SliceReader: Reader:
     var position: usize
 
     ## A reader over `data`.
-    pub func over(data: const u8[]) -> SliceReader:
+    pub static func over(data: const u8[]) -> SliceReader:
         return SliceReader(data = data, position = 0)
 
     ## The number of bytes not yet read.
@@ -145,7 +145,7 @@ pub struct SliceWriter: Writer:
     var used: usize
 
     ## A writer into `data`.
-    pub func over(data: u8[]) -> SliceWriter:
+    pub static func over(data: u8[]) -> SliceWriter:
         return SliceWriter(data = data, used = 0)
 
     ## View of confirmed written bytes, borrowed from the caller's storage.
@@ -175,7 +175,7 @@ pub struct BufferedReader: Reader:
     var used: usize
 
     ## A buffered reader over `source`, using `storage`.
-    pub func over(source: Reader, storage: u8[]) -> BufferedReader!:
+    pub static func over(source: Reader, storage: u8[]) -> BufferedReader!:
         if storage.length == 0:
             error(invalid_buffer, "buffered input requires nonempty storage")
         return BufferedReader(source = source, storage = storage, position = 0, used = 0)
@@ -211,7 +211,7 @@ pub struct BufferedWriter: Writer:
     var used: usize
 
     ## A buffered writer over `destination`, using `storage`.
-    pub func over(destination: Writer, storage: u8[]) -> BufferedWriter!:
+    pub static func over(destination: Writer, storage: u8[]) -> BufferedWriter!:
         if storage.length == 0:
             error(invalid_buffer, "buffered output requires nonempty storage")
         return BufferedWriter(destination = destination, storage = storage, used = 0)
@@ -380,16 +380,16 @@ pub struct path:
     var unused: u8
 
     ## The user's home directory: USERPROFILE on Windows, HOME on POSIX.
-    pub func user() -> str!:
+    pub static func user() -> str!:
         let home = os.env("USERPROFILE" if platform.windows else "HOME") else error(io_path_failed, "no home directory")
         return home
 
     ## The current user's home directory.
-    pub func home() -> str!:
+    pub static func home() -> str!:
         return try path.user()
 
     ## Where temporary files go: `$TMPDIR`, else `/tmp`.
-    pub func temp() -> str:
+    pub static func temp() -> str:
         if platform.windows:
             if let dir = os.env("TEMP"):
                 if dir.length > 0: return dir
@@ -400,7 +400,7 @@ pub struct path:
         return dir
 
     ## Where configuration lives: `$XDG_CONFIG_HOME`, else `$HOME/.config`.
-    pub func config() -> str!:
+    pub static func config() -> str!:
         if platform.windows:
             if let set = os.env("APPDATA"):
                 if set.length > 0: return set

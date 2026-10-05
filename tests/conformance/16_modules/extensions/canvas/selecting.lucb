@@ -8,5 +8,5 @@ extend Canvas:
         return self.selected
 
     ## A canvas one pixel wide, built through the type.
-    pub func strip(height: i64) -> Canvas:
+    pub static func strip(height: i64) -> Canvas:
         return Canvas.create(1, height)

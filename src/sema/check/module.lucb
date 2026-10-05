@@ -249,7 +249,7 @@ pub struct Checker:
     var pending_instances: list.List[PendingInstance]
 
     ## A fresh checker; `scratch` is a buffer for formatting diagnostics.
-    pub func create(scratch: u8[]) -> Checker!:
+    pub static func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
                        scope = try list.List[Binding].create(512), names = try name_index.NameIndex.create(), warnings = try list.List[str].create(16), errors = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,

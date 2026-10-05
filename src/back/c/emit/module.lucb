@@ -160,7 +160,7 @@ pub struct Emitter:
     var arrays: list.List[Hoisted]
 
     ## An emitter that writes C for `entry`, checked by `checker`.
-    pub func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
+    pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
                        scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,

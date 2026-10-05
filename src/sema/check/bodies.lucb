@@ -69,6 +69,11 @@ extend Checker:
 
     ## A function or method body, with its parameters and result in place.
     func check_function(f: ast.Node*, owner: ast.Node*?) -> !:
+        if f.has(ast.flag_static):
+            if owner == none:
+                try self.fail(f, "`static` declares a function of a type; a top-level function belongs to none (§9.5)")
+            elif f.text == "init":
+                try self.fail(f, "`init` initialises a value and is never `static` (§10.1)")
         if ast.is_linked(f):
             let owner_generic = generic_params_of(owner else f) != none
             if generic_params_of(f) != none or owner_generic or ast.has_attribute(f, "inline"):
@@ -202,6 +207,8 @@ extend Checker:
             var req = iface.body
             while let r = req:
                 let m = find_member(d, r.text, ast.Kind.func_) else return try self.fail(l, "a required method is missing")
+                if m.has(ast.flag_static):
+                    return try self.fail(m, "a `static` function does not satisfy an interface requirement; a method does (§14.1)")
                 var want = try self.substitute(r.type_id, iface, it.args)
                 if is_derived_bound(iface):
                     # `compare(other: void*)` in the prelude is `compare(other: Self)` here

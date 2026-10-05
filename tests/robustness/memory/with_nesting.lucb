@@ -10,7 +10,7 @@ struct Bag:
     var items: i64[]
     var allocator: memory.Allocator
 
-    func create(count: usize, allocator: memory.Allocator) -> Bag!:
+    static func create(count: usize, allocator: memory.Allocator) -> Bag!:
         return Bag(items = try new i64[count] in allocator, allocator = allocator)
 
     func destroy():

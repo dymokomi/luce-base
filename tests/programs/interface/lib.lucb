@@ -38,7 +38,7 @@ pub struct Counter:
         self.count += by
         return self.count
 
-    func zero() -> Counter:
+    static func zero() -> Counter:
         return Counter(count = 0, secret = 0)
 
     inline func peek() -> i64:

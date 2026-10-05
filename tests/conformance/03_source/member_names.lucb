@@ -1,15 +1,15 @@
 ## §3.5, §3.6: a member takes any name but a reserved word: a field, a method and an enum
 ## case may be named like a core function, and the words that left the language (`local`,
-## `export`, `static`, `mutating`, `alloc`, `goto`) are ordinary names everywhere.
+## `export`, `mutating`, `alloc`, `goto`) are ordinary names everywhere.
 struct Report:
     var print: str
-    var static: bool
+    var shown: bool
 
     func assert() -> str:
-        return self.print if self.static else "plain"
+        return self.print if self.shown else "plain"
 
     func error(code: i64) -> i64:
-        return code * 2 if self.static else code
+        return code * 2 if self.shown else code
 
 enum Kind:
     print
@@ -23,7 +23,7 @@ func describe(k: Kind) -> str:
         .hash => "hash"
 
 pub func main(arguments: str[]) -> i32:
-    let report = Report(print = "shown", static = true)
+    let report = Report(print = "shown", shown = true)
     let local = 1
     let mutating = 2
     let alloc = 3

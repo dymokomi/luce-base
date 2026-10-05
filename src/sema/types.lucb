@@ -204,7 +204,7 @@ pub struct Table:
     var allocator: memory.Allocator
 
     ## An empty table holding only the built-in scalar types.
-    pub func create() -> Table!:
+    pub static func create() -> Table!:
         var t = Table(types = try list.List[Type].create(256), word = 8, index = try new u32[1024] ---, allocator = memory.allocator)
         zero_index(t.index)
         # id 0 is "no type"; the scalars follow in Kind order

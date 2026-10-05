@@ -30,7 +30,7 @@ struct Window:
     var rows: usize
     var top: usize
 
-    func open(headless: bool) -> Window!:
+    static func open(headless: bool) -> Window!:
         if headless:
             _ = sdl3.SDL_SetHint("SDL_VIDEO_DRIVER", "dummy")
         if not sdl3.SDL_Init(sdl3.SDL_INIT_VIDEO):

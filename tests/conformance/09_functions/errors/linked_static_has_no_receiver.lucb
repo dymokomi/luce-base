@@ -1,0 +1,9 @@
+# error: a `static` function has no receiver
+# oracle: none
+struct C:
+    var n: i64
+
+    linked static func make(self: const C*) -> C
+
+pub func main(arguments: str[]) -> i32:
+    return 0

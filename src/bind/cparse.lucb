@@ -268,7 +268,7 @@ pub struct Parser:
     var base_nullable: u8
 
     ## A parser over `tokens`, using `pp` for file names.
-    pub func over(tokens: pre.Tok*, pp: pre.Preprocessor*?) -> Parser!:
+    pub static func over(tokens: pre.Tok*, pp: pre.Preprocessor*?) -> Parser!:
         var p = Parser(tok = tokens, pp = pp, decls = try list.List[Decl*].create(1024),
                        records = try list.List[Record*].create(256), enums = try list.List[Enum*].create(64),
                        typedefs = try table.Table[CType*].create(1024), tags = try table.Table[Record*].create(256),

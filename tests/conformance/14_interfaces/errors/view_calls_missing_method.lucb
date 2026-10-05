@@ -8,7 +8,7 @@ struct Dog: Named:
 
     pub func name() -> str:
         return "dog"
-    pub func bark() -> str:
+    pub static func bark() -> str:
         return "woof"
 
 pub func main(arguments: str[]) -> i32:

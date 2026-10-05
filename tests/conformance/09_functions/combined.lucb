@@ -5,7 +5,7 @@ struct Counter:
     var value: i64
     var steps: u32
 
-    pub func starting(start: i64) -> Counter:
+    pub static func starting(start: i64) -> Counter:
         return Counter(value = start, steps = 0)
 
     pub func add(n: i64) -> Counter*:

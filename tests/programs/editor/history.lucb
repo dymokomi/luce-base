@@ -16,7 +16,7 @@ pub struct History:
     var future_count: usize
     var typing: bool
 
-    pub func create(depth: usize) -> History!:
+    pub static func create(depth: usize) -> History!:
         return History(past = try new Revision[depth] ---, past_count = 0, future = try new Revision[depth] ---, future_count = 0, typing = false)
 
     pub func destroy():

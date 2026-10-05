@@ -2,7 +2,7 @@
 from memory import Arena
 
 extend Arena:
-    func nothing():
+    static func nothing():
         return
 
 pub func main(arguments: str[]) -> i32:

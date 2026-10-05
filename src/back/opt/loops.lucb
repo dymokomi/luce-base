@@ -26,7 +26,7 @@ pub struct Natural:
     pub var members: bool[]
 
     ## The natural loop of a back edge into `header`, or none when there is none.
-    pub func find(g: cfg.Graph*, header: u32) -> Natural?!:
+    pub static func find(g: cfg.Graph*, header: u32) -> Natural?!:
         let block = g.blocks.get(header)
         var members = try new bool[g.count()] ---
         # the set goes out with the loop it describes, and is freed on every other way out

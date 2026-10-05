@@ -14,7 +14,7 @@ struct Stack[T]:
     var items: T[]
     var count: usize
 
-    func over(items: T[]) -> Stack[T]:
+    static func over(items: T[]) -> Stack[T]:
         return Stack[T](items = items, count = 0)
 
     func push(value: T):

@@ -1,0 +1,13 @@
+# error: `label` is a method of `Point`: call it on a value, or declare it `static`
+# oracle: none
+## §9.5: a function in a type without `static` is a method, though its body never reads
+## `self`; it is called on a value, and through the type it is only a function value (§5.6).
+struct Point:
+    var x: f64
+
+    func label() -> str:
+        return "point"
+
+pub func main(arguments: str[]) -> i32:
+    print(Point.label())
+    return 0

@@ -21,7 +21,7 @@ pub struct Reference[T]:
         self.owner = owner
 
     ## Adopt `native` into a new owned reference of `declaration`.
-    pub func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!:
+    pub static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!:
         let selected = allocator else memory.allocator
         var reservation = Reservation[T](declaration) catch failure:
             release_native(native, declaration, selected)
@@ -71,7 +71,7 @@ pub struct Reference[T]:
         return try Lease(&self.owner.header, Owner[T].is_open, Owner[T].enter, Owner[T].leave)
 
     ## Validate that `object` is a live reference of this type.
-    pub func validate_interface(object: ownership.Object*) -> !:
+    pub static func validate_interface(object: ownership.Object*) -> !:
         _ = try Reference[T]((Owner[T]*)object).get()
 
     ## The supplied witness must point into this owner's stable native storage.

@@ -20,7 +20,7 @@ pub struct Buffer: io.Writer:
     var allocator: memory.Allocator
 
     ## An empty buffer with room for `capacity` bytes (at least 256).
-    pub func create(capacity: usize) -> Buffer!:
+    pub static func create(capacity: usize) -> Buffer!:
         let room = capacity if capacity > 0 else 256
         return Buffer(data = try new u8[room] ---, used = 0, allocator = memory.allocator)
 

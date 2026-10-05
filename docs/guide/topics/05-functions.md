@@ -157,9 +157,10 @@ pub func main(arguments: str[]) -> i32:
 - **A method can be called through a pointer** without dereferencing: `counter.add(10)`
   with `counter: Counter*`. On a temporary, `Counter(count = 5).doubled()`, the value is
   materialised for the call.
-- **A function in a type that never uses `self`** has no receiver and is called through
-  the type, `Point.origin()`, like Python's `@staticmethod`. One that implements an
-  interface's requirement stays a method, since a view calls it on a value.
+- **`static func`** has no receiver and is called through the type, `Point.origin()`, like
+  Python's `@staticmethod`. Any other function in a type is a method, called on a value,
+  whether or not its body uses `self`; an interface's requirement is always implemented
+  by a method.
 - **`value.member` without parentheses is always a field.** There are no computed
   properties; a computed value is a method.
 - A method named `init` is the initialiser; see [Structs](06-structs-and-enums.md).

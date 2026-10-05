@@ -4,7 +4,7 @@
 struct Config:
     var width: i32
 
-    pub func standard() -> Config:
+    pub static func standard() -> Config:
         return Config(width = 80)
 
 var current: Config = Config.standard()

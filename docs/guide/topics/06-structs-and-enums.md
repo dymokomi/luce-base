@@ -70,8 +70,8 @@ refused: low is above high
 ```
 
 Another common pattern is a function of the type that builds a value, `Point.origin()` or
-`Image.open(path)`, alongside or instead of `init`: a function in a struct that never uses
-`self` is called through the type.
+`Image.open(path)`, alongside or instead of `init`: a `static func` in the struct, called
+through the type.
 
 ## Enums
 

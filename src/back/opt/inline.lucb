@@ -621,7 +621,7 @@ struct Census:
 
     ## The census of `program`; `with_leaves` for the second pass, which expands only
     ## the functions that were leaves when it began.
-    func over(program: ir.Unit*, index: Index*, with_leaves: bool = false) -> Census!:
+    static func over(program: ir.Unit*, index: Index*, with_leaves: bool = false) -> Census!:
         let n = program.functions.count + 1
         var c = Census(calls = try new u32[n] ---, pinned = try new bool[n] ---, expanded = try new bool[n] ---, sizes = try new u32[n] ---, small = small, once = once, leaves = try new bool[program.functions.count if with_leaves else 0] ---)
         for fi in 0..<c.leaves.length:
@@ -773,7 +773,7 @@ struct Expansion:
     var locals_base: u32
     var described: bool
 
-    func of(program: ir.Unit*, f: ir.Function*, g: ir.Function*, call: ir.Instr, shared: u32) -> Expansion:
+    static func of(program: ir.Unit*, f: ir.Function*, g: ir.Function*, call: ir.Instr, shared: u32) -> Expansion:
         return Expansion(program = program, f = f, g = g, call = call, info = f.calls.get((usize)call.extra),
                          slot_base = u32(f.slots.count) if shared == no_slots else shared,
                          temp_base = u32(f.temps.count), label_base = f.labels, exit_label = 0, result_slot = 0,
@@ -1004,7 +1004,7 @@ struct Expansion:
 struct Index:
     var names: hashed.Table[str]
 
-    func over(program: ir.Unit*) -> Index!:
+    static func over(program: ir.Unit*) -> Index!:
         var index = Index(names = try hashed.Table[str].create(program.functions.count))
         for i in 0..<program.functions.count:
             _ = try index.names.add(program.functions.items[i].name, i)

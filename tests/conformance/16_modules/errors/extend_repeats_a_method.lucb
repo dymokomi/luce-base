@@ -6,7 +6,7 @@ struct Line:
         return self.a
 
 extend Line:
-    func length() -> i64:
+    static func length() -> i64:
         return 0
 
 pub func main(arguments: str[]) -> i32:

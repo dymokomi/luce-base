@@ -1,0 +1,13 @@
+# error: a `static` function does not satisfy an interface requirement
+# oracle: none
+interface Named:
+    func name() -> i64
+
+struct P: Named:
+    var x: i64
+
+    static func name() -> i64:
+        return 1
+
+pub func main(arguments: str[]) -> i32:
+    return 0

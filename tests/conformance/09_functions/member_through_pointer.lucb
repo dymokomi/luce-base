@@ -10,7 +10,7 @@ struct Inner:
 struct Outer:
     var inner: Inner
 
-    func make() -> Outer:
+    static func make() -> Outer:
         return Outer(inner = Inner(count = 10))
 
 pub func main(arguments: str[]) -> i32:

@@ -19,12 +19,12 @@ var waiter_ended: @i64 = 0
 
 struct Tracked:
     var packet: interop.Packet[str]
-    func drop(raw: void*):
+    static func drop(raw: void*):
         let state = (Tracked*)raw
         state.packet.release()
         _ = packets.add(-1, .relaxed)
         free(state) in memory.heap
-    func copy(value: str) -> interop.Packet[str]!:
+    static func copy(value: str) -> interop.Packet[str]!:
         if value == "copy failure":
             error(memory.exhausted, "message copy rejected")
         let packet = try interop.text_transfer.copy(value)

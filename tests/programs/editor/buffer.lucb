@@ -10,7 +10,7 @@ pub struct Buffer:
     pub var cursor: usize
     pub var dirty: bool
 
-    pub func create(text: const u8[]) -> Buffer!:
+    pub static func create(text: const u8[]) -> Buffer!:
         let room = text.length + 256
         var data = try new u8[room] ---
         memory.copy(data, text, text.length)

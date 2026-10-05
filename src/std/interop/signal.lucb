@@ -27,7 +27,7 @@ struct SignalState[A]:
     var count: usize
     var closed: bool
 
-    func contains(object: ownership.Object*, identifier: u64) -> bool:
+    static func contains(object: ownership.Object*, identifier: u64) -> bool:
         let state = (SignalState[A]*)object
         var cursor = state.first
         while let entry = cursor:
@@ -36,7 +36,7 @@ struct SignalState[A]:
             cursor = entry.next
         return false
 
-    func remove(object: ownership.Object*, identifier: u64):
+    static func remove(object: ownership.Object*, identifier: u64):
         let state = (SignalState[A]*)object
         var previous: Subscription[A]*? = none
         var cursor = state.first
@@ -56,7 +56,7 @@ struct SignalState[A]:
             previous = entry
             cursor = entry.next
 
-    func close(object: ownership.Object*):
+    static func close(object: ownership.Object*):
         let state = (SignalState[A]*)object
         state.closed = true
         var cursor = state.first
@@ -68,7 +68,7 @@ struct SignalState[A]:
             entry.callback.release()
             free(entry) in state.allocator
 
-    func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    static func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         var cursor = ((SignalState[A]*)object).first
         while let entry = cursor:
             entry.callback.trace(visit, context)

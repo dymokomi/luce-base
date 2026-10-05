@@ -95,8 +95,8 @@ pub func owned(checker: check.Checker*, id: u32) -> Declaration?!:
                     closeable = checker.constant_bool(option) else error(check.type_error, "interop.Type closeable must be constant")
                 if closeable:
                     let method = dispose else error(check.type_error, "a closeable owner needs its disposal method")
-                    if check.find_decl(type_decl, method.text) != method or not method.has(ast.flag_pub) or not method.has(ast.flag_mutating) or method.right != none:
-                        error(check.type_error, "closeable ownership requires a public disposal method that changes its receiver, without parameters")
+                    if check.find_decl(type_decl, method.text) != method or not method.has(ast.flag_pub) or method.has(ast.flag_static) or method.right != none:
+                        error(check.type_error, "closeable ownership requires a public disposal method without parameters")
             found = Declaration(descriptor = declaration, dispose = dispose, closeable = closeable, view = view, mutable = mutable)
         return found
     return none

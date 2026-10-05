@@ -1,7 +1,7 @@
 #prisma 4.0
 def package "luce-base" {
     str owner = "dymokomi"
-    str version = "0.36.0"
+    str version = "0.37.0"
     str kind = "tool"
     str language = "luce-base"
     str description = "The Luce Base compiler, written in Luce Base. This is the second stage of the bootstrap and the one that stays:"
@@ -10,7 +10,7 @@ def package "luce-base" {
 
     def dependency "luce-std" {
         str owner = "dymokomi"
-        str version = "^0.4.0"
+        str version = "^0.5.0"
         str path = "../luce-std"
     }
 }

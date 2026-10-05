@@ -87,12 +87,12 @@ pub struct Target:
 
     ## The target this compiler runs on and emits natively: the one it was built for, which
     ## its own `platform` module names (§19.5).
-    pub func host() -> Target:
+    pub static func host() -> Target:
         let host = Target.named(platform.name) else trap("the compiler's own target is not one of §19.5")
         return host
 
     ## The target `name` of §19.5 spells, or none.
-    pub func named(name: str) -> Target?:
+    pub static func named(name: str) -> Target?:
         if name == "arm64-macos" or name == "x86_64-macos":
             return Target(name = name, os = Os.macos, arch = Arch.arm64 if name == "arm64-macos" else Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "_",
                           stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", linker = Linker.macho, system_libraries = macos_libraries)

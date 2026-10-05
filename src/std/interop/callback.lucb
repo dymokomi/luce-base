@@ -53,11 +53,11 @@ pub struct Callback[A, R]:
         visit(self.owner, context)
 
     ## Native methods receive stable storage under the source owner's call guard.
-    pub func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!:
+    pub static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!:
         return try BoundCallback[T, A, R].make(source, none, method)
 
     ## A callback bound to a method of a native `source` that changes it.
-    pub func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!:
+    pub static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!:
         return try BoundCallback[T, A, R].make(source, method, none)
 
 struct BoundCallback[T, A, R]:
@@ -67,8 +67,8 @@ struct BoundCallback[T, A, R]:
     var method: (func(T*, A) -> Outcome[R])?
     var read: (func(const T*, A) -> Outcome[R])?
 
-    func make(source: Reference[T], method: (func(T*, A) -> Outcome[R])?,
-              read: (func(const T*, A) -> Outcome[R])?) -> Callback[A, R]!:
+    static func make(source: Reference[T], method: (func(T*, A) -> Outcome[R])?,
+                     read: (func(const T*, A) -> Outcome[R])?) -> Callback[A, R]!:
         _ = try source.get()
         var information = ownership.Info(name = "bound native callback", size = memory.size_of(BoundCallback[T, A, R]),
                                          finish = none, drop = BoundCallback[T, A, R].drop, trace = BoundCallback[T, A, R].trace)
@@ -80,7 +80,7 @@ struct BoundCallback[T, A, R]:
         bound.read = read
         return Callback[A, R](&bound.header, BoundCallback[T, A, R].invoke)
 
-    func invoke(object: ownership.Object*, argument: A) -> Outcome[R]:
+    static func invoke(object: ownership.Object*, argument: A) -> Outcome[R]:
         let bound = (BoundCallback[T, A, R]*)object
         let native = bound.source.get() catch failure:
             return failed_outcome[R](failure.code, failure.message)
@@ -90,10 +90,10 @@ struct BoundCallback[T, A, R]:
             return method(native, argument)
         return (bound.read else trap("a callback binding has no method"))(native, argument)
 
-    func drop(object: ownership.Object*):
+    static func drop(object: ownership.Object*):
         ((BoundCallback[T, A, R]*)object).source.release()
 
-    func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    static func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         ((BoundCallback[T, A, R]*)object).source.trace(visit, context)
 
 ## Error views may borrow a closing source. Copy before releasing that source;

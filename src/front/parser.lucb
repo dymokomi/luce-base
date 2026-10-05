@@ -37,15 +37,12 @@ pub struct Parser:
     var nest: u32
     ## The standard modules declare the core names they define (§3.5).
     pub var allow_core_names: bool
-    ## How many times `self` has been read so far: a function inside a type whose body
-    ## reads it none is a function of the type (§9.5).
-    var self_reads: u32 = 0
     ## The type whose body or extension is being read, whose `linked` methods name their
     ## receiver (§9.8); empty outside one.
     var member_of: str = ""
 
     ## Lex the whole source into the current allocator.
-    pub func over(src: source.Source, scratch: u8[]) -> Parser!:
+    pub static func over(src: source.Source, scratch: u8[]) -> Parser!:
         var lx = lexer.Lexer.over(src)
         # about a token every four bytes, so most sources never grow the list
         var tokens = try lists.List[token.Token].create(src.bytes.length // 4 + 16)
@@ -397,7 +394,7 @@ pub struct Parser:
             n.flags |= flags
             n.attrs = attributes
             return n
-        if attributes != none and not self.at_kw("func"):
+        if attributes != none and not (self.at_kw("func") or self.at_kw("static")):
             return try self.fail("an attribute goes before `func` or a top-level `var` (§9.8)")
         if self.at_kw("type"):
             let n = try self.node(ast.Kind.type_alias, "")
@@ -434,7 +431,7 @@ pub struct Parser:
             let n = try self.parse_interface()
             n.flags |= flags
             return n
-        if self.at_kw("func"):
+        if self.at_kw("func") or self.at_kw("static"):
             let n = try self.parse_func(names_attribute(attributes, "linked"), false)
             n.flags |= flags
             n.attrs = attributes
@@ -506,11 +503,12 @@ pub struct Parser:
         return self.src.text(first.start, last.end)
 
     ## A function: its signature and its suite, or the signature alone when it is `linked`
-    ## (§9.8), whose definition a library supplies. One declared in a type whose body never
-    ## reads `self` is a function of the type, `static` (§9.5); the checker keeps a
-    ## method that implements an interface requirement a method.
+    ## (§9.8), whose definition a library supplies. `static func` declares a function of a
+    ## type, with no receiver (§9.5).
     func parse_func(linked: bool, in_type: bool) -> ast.Node*!:
         let n = try self.node(ast.Kind.func_, "")
+        if self.eat_kw("static"):
+            n.flags |= ast.flag_static
         try self.expect_kw("func")
         # a method is a member: it binds no name, so a core name is open to it (§3.5)
         n.text = try self.expect_unscoped_name() if in_type else try self.expect_name()
@@ -527,18 +525,17 @@ pub struct Parser:
                 try self.linked_receiver(n)
             return n
         try self.expect_op(":")
-        let reads_before = self.self_reads
         n.body = try self.parse_suite()
-        if in_type and self.self_reads == reads_before and n.text != "init":
-            n.flags |= ast.flag_static
         return n
 
     ## A `linked` method has no body to read, so its signature says what one would (§9.8):
     ## a first parameter `self: T*` when it changes its receiver, `self: const T*` when it
-    ## reads it, and none when it is a function of the type `T`.
+    ## reads it. A `static` one is a function of the type `T` and has none.
     func linked_receiver(n: ast.Node*) -> !:
         if let first = n.right:
             if first.text == "self":
+                if n.has(ast.flag_static):
+                    _ = try self.fail_at(first, "a `static` function has no receiver; `self` names a method's (§9.8)")
                 var reads_only = false
                 var spelled_right = false
                 if let t = first.ty:
@@ -551,7 +548,8 @@ pub struct Parser:
                     n.flags |= ast.flag_mutating
                 n.right = first.next
                 return
-        n.flags |= ast.flag_static
+        if not n.has(ast.flag_static):
+            _ = try self.fail_at(n, "a `linked` method names its receiver first, `self: T*` or `self: const T*`; a function of the type is `static` (§9.8)")
 
     ## A function signature line inside an interface.
     func parse_func_sig() -> ast.Node*!:
@@ -713,7 +711,7 @@ pub struct Parser:
         var attributes: ast.Node*? = none
         if self.at_attribute() and not self.peek_op(1, ":") and not self.peek_op(1, "="):
             attributes = try self.parse_attributes()
-        if not fields_only and self.at_kw("func"):
+        if not fields_only and (self.at_kw("func") or self.at_kw("static")):
             let f = try self.parse_func(names_attribute(attributes, "linked"), true)
             f.flags |= flags
             f.attrs = attributes
@@ -759,7 +757,7 @@ pub struct Parser:
         defer self.member_of = outer
         var tail: ast.Node*? = none
         while self.block_continues():
-            let method_ahead = self.at_kw("pub") or (self.at_attribute() and not self.peek_op(1, "=") and not self.peek_op(1, ":")) or (self.at_kw("func") and self.peek(1).kind == token.Kind.name)
+            let method_ahead = self.at_kw("pub") or self.at_kw("static") or (self.at_attribute() and not self.peek_op(1, "=") and not self.peek_op(1, ":")) or (self.at_kw("func") and self.peek(1).kind == token.Kind.name)
             if method_ahead:
                 let m = try self.parse_member(false)
                 ast.append(&n.body, &tail, m)
@@ -786,7 +784,7 @@ pub struct Parser:
         var tail: ast.Node*? = none
         while self.block_continues():
             let pub_member = self.at_kw("pub") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":")
-            if not is_extern and not pub_member and (self.at_kw("pub") or self.at_kw("func")):
+            if not is_extern and not pub_member and (self.at_kw("pub") or self.at_kw("func") or self.at_kw("static")):
                 let m = try self.parse_member(false)
                 ast.append(&n.body, &tail, m)
                 continue
@@ -1715,7 +1713,6 @@ pub struct Parser:
             if w == "self":
                 let n = try self.node(ast.Kind.self_, "self")
                 _ = self.take()
-                self.self_reads += 1
                 return n
             if w == "match":
                 return try self.parse_match(true)

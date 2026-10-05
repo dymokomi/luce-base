@@ -1,17 +1,20 @@
-## §9.5: nothing is written on a method. One whose body never reads `self` is a function of
-## the type, called through the type; one that assigns to its receiver or a part, calls a
-## method that does, stores to one of its atomics, or takes the address of a part where a
-## mutable pointer is wanted, changes its receiver and needs a `var`; any other is called on
-## a `let` as well.
+## §9.5: nothing is written on a method about its receiver. One that assigns to its
+## receiver or a part, calls a method that does, stores to one of its atomics, or takes the
+## address of a part where a mutable pointer is wanted, directly, through a local holding
+## it, or for a generic parameter still to infer, changes its receiver and needs a `var`;
+## any other is called on a `let` as well. A `static func` is the type's, called through it.
 func touch(p: i64*):
     *p += 100
+
+func set_to[T](p: T*, value: T):
+    *p = value
 
 struct Cells:
     var items: i64[4]
     var count: i64
     var total: @i64
 
-    func empty() -> Cells:
+    static func empty() -> Cells:
         return Cells(items = [0, 0, 0, 0], count = 0, total = 0)
 
     func sum() -> i64:
@@ -43,6 +46,13 @@ struct Cells:
     func poke():
         touch(&self.count)
 
+    func poke_through_local():
+        let p = &self.items[1]
+        touch(p)
+
+    func add_generic(v: i64):
+        set_to(&self.count, self.count + v)
+
     func add_total(v: i64):
         _ = self.total.add(v)
 
@@ -54,6 +64,8 @@ pub func main(arguments: str[]) -> i32:
     cells.set_first(5)
     cells.bump_all()
     cells.poke()
+    cells.poke_through_local()
+    cells.add_generic(1000)
     cells.add_total(7)
     print(f"{cells.sum()} {cells.first()} {cells.count} {cells.total.load()}")
     return 0

@@ -12,8 +12,8 @@ import pathlib, re, sys
 
 root = pathlib.Path(sys.argv[sys.argv.index("--root") + 1]).resolve() if "--root" in sys.argv else pathlib.Path(__file__).resolve().parent.parent
 sources = sorted(root.glob("src/**/*.lucb"))
-declaration = re.compile(r"^(\s*)(?:pub\s+)?(?:extern\s+|local\s+)*(func|struct|enum|union|interface|handle)\s+([A-Za-z_][A-Za-z0-9_]*)")
-public = re.compile(r"^\s*pub\s+(?:extern\s+|local\s+|packed\s+|align\([^)]*\)\s+)*(func|struct|enum|union|interface|let|var|type|handle)\s+([A-Za-z_][A-Za-z0-9_]*)")
+declaration = re.compile(r"^(\s*)(?:pub\s+)?(?:static\s+|extern\s+|local\s+)*(func|struct|enum|union|interface|handle)\s+([A-Za-z_][A-Za-z0-9_]*)")
+public = re.compile(r"^\s*pub\s+(?:static\s+|extern\s+|local\s+|packed\s+|align\([^)]*\)\s+)*(func|struct|enum|union|interface|let|var|type|handle)\s+([A-Za-z_][A-Za-z0-9_]*)")
 allowed = set()
 listing = root / "tools" / "shape.dispatches"
 if listing.exists():

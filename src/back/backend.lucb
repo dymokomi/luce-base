@@ -59,7 +59,7 @@ pub struct CBackend: Backend:
     var emitter: emit.Emitter
 
     ## A C backend that emits `entry`, checked by `checker`.
-    pub func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
+    pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
         var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
         return CBackend(emitter = emitter)
@@ -97,7 +97,7 @@ pub struct NativeBackend: Backend:
 
     ## A native backend that lowers `entry` to IR and generates the target's assembly.
     ## Positions name a source under `position_root` relative to it (`lower.Lowerer`).
-    pub func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false, position_root: str = "") -> NativeBackend!:
+    pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false, position_root: str = "") -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
         lowerer.symbols = symbols

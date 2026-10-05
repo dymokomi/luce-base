@@ -1,0 +1,10 @@
+# error: a `linked` method names its receiver first
+# oracle: none
+## §9.8: a `linked` method has no body to read; without `static` it states its receiver.
+struct C:
+    var n: i64
+
+    linked func read() -> i64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

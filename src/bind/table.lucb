@@ -17,7 +17,7 @@ pub struct Table[T]:
     var count: usize
 
     ## An empty table sized for `capacity` entries.
-    pub func create(capacity: usize) -> Table[T]!:
+    pub static func create(capacity: usize) -> Table[T]!:
         var room: usize = 16
         while room < capacity * 2:
             room *= 2

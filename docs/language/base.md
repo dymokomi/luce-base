@@ -193,13 +193,13 @@ The reserved words of §3.6 are excluded the same way, by the lexer. A standard 
 ```text
 and as asm break catch const continue defer elif else enum errdefer
 extern false for free from func if import in interface let
-match new none not or pub recover return self struct test
-true try type union var volatile while with
+match new none not or pub recover return self static struct
+test true try type union var volatile while with
 ```
 
 Contextual words, meaningful only in the positions stated: `void` before `*`; `local` before a module-level `var` (§6.3); `export` before a declaration (§17.6); `packed`, `align`, `naked`, `weak`, `used`, `noinline`, `cold`, `section`, `linked`, and `inline` before a declaration (§9.8); `extend` before a type's name (§9.5); `handle` and `destroy` in a handle declaration (§17.7); `inout` before an `asm` operand (§8.9); `noalias` before a parameter type; `blocking` and `out` in `extern` declarations; `reg` and `options` in an `asm` operand list. Anywhere else each is an ordinary name. `class`, `weak` as a field marker, and `spawn` belong to full Luce and are rejected in Base with a diagnostic that names the tier they belong to. `none` is a literal (§4.1) and is never a case name.
 
-**Why so few.** A reserved word is a name no program may use, so a word earns the place only where the grammar cannot do without it. What a method does to its receiver is in its body (§9.5); an allocation is `new` whatever it leaves in the memory (§12.2); and a word that matters in one position, `local` or `export`, is read in that position and nowhere else.
+**Why so few.** A reserved word is a name no program may use, so a word earns the place only where the grammar cannot do without it. What a method does to its receiver is in its body (§9.5); an allocation is `new` whatever it leaves in the memory (§12.2); and a word that matters in one position, `local` or `export`, is read in that position and nowhere else. `static` stays: whether a function in a type has a receiver at all is the function's contract with its callers, which a reader should see in the declaration rather than work out from the body.
 
 ## 4. Literals
 
@@ -907,7 +907,7 @@ struct Point:
         let dy = self.y - other.y
         return math.sqrt(dx * dx + dy * dy)
 
-    func origin() -> Point:
+    static func origin() -> Point:
         return Point(0.0, 0.0)
 
 struct Cursor:
@@ -918,7 +918,7 @@ struct Cursor:
 ```
 
 - A `func` declared inside a type is a method. `self` is implicit: it names the receiver inside the body, is not written in the parameter list, and cannot be used as a parameter name. `point.distance(other)` passes `point` as `self`.
-- A function inside a type whose body never reads `self` is a function of the type, with no receiver: `origin` above. It is called through the type, `Point.origin()`, as a static method is in C++ or Java; called through a value it is an error that names the type to call it through. An `init` is never one, nor is a function that implements a requirement of an interface the type declares (§14.1), which a view calls with a receiver whatever the body reads.
+- `static func` declares a function of the type, with no receiver: `origin` above. It is called through the type, `Point.origin()`, as a static method is in C++ or Java; called through a value it is an error that names the type to call it through. Any other function in a type is a method, whether or not its body reads `self`, and is called on a value; through its type it is a function value taking the receiver first (§5.6), never called there. `static` is written only in a type, never on `init`, and a `static` function does not implement an interface's requirement (§14.1), which a view calls with a receiver.
 - A method **changes its receiver** when its body assigns to `self` or a part of it (a field or an array element reached without passing through a pointer or a span), calls a method that changes its receiver on `self` or such a part, stores to one of its atomics, allocates through an allocator it holds (`new T in self.arena`), or takes the address of `self` or a part, or a span of one, where a mutable pointer, a mutable span, or a view of a conformer that changes its receiver is wanted: as an argument, as the value of a binding or a field whose type is written, or in an assignment. A local holding such an address counts as the part it reaches, `let cell = &self.cells[i]` and then `cell.value = 0`, and so does a `for p in &self.items` loop's binding. Nothing is written for any of this: the compiler reads it from the bodies, following methods that call each other until nothing changes, before it checks one.
 - A method that does not change its receiver may be called on anything: a `let`, a `const T*`, a temporary. The receiver of one that does must be a `var`, a mutable pointer, or a mutable span element, and the diagnostic names the method and why.
 - A method that does not change its receiver receives `self` as `const Self*`; one that does receives `self` as `Self*`, and so does `init`. In the body `self` names the receiver itself, a place of type `Self`: `self.x` reads a field and `&self` is the receiver's address, which is how a `Self*` is passed on. The address of `self` or a part, taken where no mutable pointer is wanted, `let p = &self.part`, is `const` in a method that changes nothing else; written with its type, `let p: Part* = &self.part`, it is mutable and the method changes its receiver. Because `self` aliases the receiver, a callee that mutates the receiver through another pointer changes what `self.x` reads mid-method. `self = value` stores through the pointer.
@@ -945,7 +945,7 @@ extend Canvas:
 
 **Why implicit `self`.** Full Luce writes `self` as the first parameter, which is Python's convention and is justified in a language where a function inside a type may or may not be a method. In Base, having a receiver is what a function inside a type does by default, and a C programmer reading `func distance(other: Point)` inside a struct knows what it is. The explicit parameter would have been a parameter in every method that carries no information.
 
-**Why nothing is written on a method.** Whether a method changes its receiver, and whether it has one at all, is in its body; a word that repeats it is one more thing to keep true, and the diagnostic about a wrong one is about the word, not the code. Swift asks for `mutating` and Rust for `&mut self`; Base reads the body, as Luce does, and a caller that needs a `var` is told so at the call, with the method's name. The rule is the body's own assignments and calls, not a guess: the compiler never makes a method changing because it might be, and what it found is in the description, so nothing downstream reads a body twice.
+**Why nothing is written about the receiver, and `static` is.** Whether a method changes its receiver is in its body; a word that repeats it is one more thing to keep true, and the diagnostic about a wrong one is about the word, not the code. Swift asks for `mutating` and Rust for `&mut self`; Base reads the body, as Luce does, and a caller that needs a `var` is told so at the call, with the method's name. The rule is the body's own assignments and calls, not a guess: the compiler never makes a method changing because it might be, and what it found is in the description, so nothing downstream reads a body twice. Whether a function has a receiver at all is different: it decides how every caller spells the call, so it is stated where the function is declared, with the one word C++, Java and C# use, rather than left to a reader to infer from whether the body happens to read `self`. A method that does not need its receiver yet is still a method, and its callers do not change when it starts to.
 
 **Why `self` is a pointer.** In full Luce a method that changes nothing receives a copy, which is safe under reference counting and invisible to the caller. In Base a copy of a large struct on every method call is a cost C programmers would notice, and a struct method in C3, Zig, and Odin takes a pointer. Making the convention deterministic, rather than "by value if small", is what lets the generated C header say `const Point*`.
 
@@ -978,7 +978,7 @@ A small closed set of words may precede a `func` or a top-level `var`, each one 
 | `weak func`, `weak var` | a weak symbol that another definition may override |
 | `used func`, `used var` | keep the symbol even if nothing references it |
 | `section("name") func`, `section("name") var` | place the symbol in the named linker section |
-| `linked func`, `linked var`, `linked let` | the definition is in a library the program links: the function has a signature and no body, the global a type and no initialiser, the constant its type and, when the interface carries it, the value the library gives it, which the program neither stores nor folds; a `linked let` names storage, so it is not a constant expression (§6.4). An interface written by `luce-base interface` is made of these; a generic or `inline` function is compiled where it is used and cannot be `linked`. A `linked` method has no body to read (§9.5), so it names its receiver as its first parameter: `self: T*` when it changes it, `self: const T*` when it reads it, and none for a function of the type |
+| `linked func`, `linked var`, `linked let` | the definition is in a library the program links: the function has a signature and no body, the global a type and no initialiser, the constant its type and, when the interface carries it, the value the library gives it, which the program neither stores nor folds; a `linked let` names storage, so it is not a constant expression (§6.4). An interface written by `luce-base interface` is made of these; a generic or `inline` function is compiled where it is used and cannot be `linked`. A `linked` method has no body to read (§9.5), so it names its receiver as its first parameter: `self: T*` when it changes it, `self: const T*` when it reads it; a `linked static func` of a type names none |
 
 They combine, `used section(".isr_vector") var vectors: Handler[64] = ...`. There is no general attribute syntax; this set is the language. A section name is passed to the target as written; a Mach-O target, whose sections live in segments, places a name without a comma in `__DATA` (a variable) or `__TEXT` (a function) under that name with its leading dot dropped, so `.isr_vector` is one spelling for every target.
 
@@ -1288,7 +1288,7 @@ pub struct FileWriter: Writer:
         ...
 ```
 
-An interface is a nominal set of method requirements. Conformance is declared on the type, `struct Name: Interface:`, with several interfaces separated by commas, never retroactively. Every requirement is supplied with the exact signature; an implementation may be non-fallible where the requirement is fallible. Interfaces do not inherit, have no default bodies, no fields, no constructors, and no generic methods.
+An interface is a nominal set of method requirements. Conformance is declared on the type, `struct Name: Interface:`, with several interfaces separated by commas, never retroactively. Every requirement is supplied with the exact signature by a method, never a `static` function (§9.5); an implementation may be non-fallible where the requirement is fallible. Interfaces do not inherit, have no default bodies, no fields, no constructors, and no generic methods.
 
 ### 14.2 Static use
 
@@ -1618,7 +1618,7 @@ export func blend(left: Pixel, right: Pixel) -> Pixel: ...
 struct Cursor:
     pub var offset: usize
 
-    export func advance(count: usize) -> !: ...
+    export static func advance(count: usize) -> !: ...
 ```
 
 Export is opt-in. `export func name(...)` gives a function C linkage under `name`, or under the manifest's `symbol_prefix` followed by `name`. `export` on a method exports it as `Type_method` with `self` first. A `pub` function that is not exported has hidden visibility and a module-qualified symbol and cannot collide with C. An `export` is a compile error when the signature is not C-representable or when two exports share a symbol.
@@ -1882,9 +1882,9 @@ type_alias      = "type", TYPE_IDENT, "=", type, NEWLINE ;
 attribute       = "inline" | "noinline" | "cold" | "naked" | "weak" | "used" | "linked"
                 | "section", "(", STRING_LITERAL, ")" ;
 
-function_decl   = { attribute }, "func", IDENT,
+function_decl   = { attribute }, [ "static" ], "func", IDENT,
                   [ generic_params ], parameter_list, result_clause, ":", suite
-                | { attribute }, "linked", { attribute }, "func", IDENT,
+                | { attribute }, "linked", { attribute }, [ "static" ], "func", IDENT,
                   ( parameter_list | receiver_list ), result_clause, NEWLINE ;
 receiver_list   = "(", "self", ":", [ "const" ], TYPE_IDENT, "*",
                   { ",", parameter }, [ "," ], ")" ;   (* a linked method, §9.8 *)
@@ -2120,7 +2120,7 @@ Base is a profile of Luce, and this document restates every shared rule so that 
 | Zero values | every local initialised | typed `var` of a zeroable type is zero; `---` for any type | C idiom, with never-null types excluded |
 | Globals | none | `var` with a constant initialiser, `local var` | C needs them; no initialisation order |
 | Labels, guards | refused | `break label`, `pattern if condition` | structured jumps and state machines |
-| Methods | explicit `self` parameter; a type function has none | implicit `self`; a function that never reads it belongs to the type | the receiver is what a function in a type has by default |
+| Methods | explicit `self` parameter; a type function has none | implicit `self`; `static func` belongs to the type | the receiver is what a function in a type has by default |
 | `self` of a method that changes nothing | a copy | `const Self*` | no copy per call; deterministic C header |
 | Fallible `unit` result | `-> unit!` | `-> !` | the most common signature in systems code |
 | `Display` | returns owned `str` | writes to a `Writer` | no allocation |
@@ -2177,7 +2177,7 @@ pub struct Percentage:
             error(out_of_range, "percentage must be 0 through 100")
         self.value = value
 
-    pub func half() -> Percentage:
+    pub static func half() -> Percentage:
         return Percentage(value = 50.0) catch failure: trap("50 is in range")
 
 pub func main(arguments: str[]) -> i32!:
@@ -2204,7 +2204,7 @@ pub struct Ring:
     var count: usize
     var allocator: Allocator
 
-    pub func create(capacity: usize) -> Ring!:
+    pub static func create(capacity: usize) -> Ring!:
         return Ring(items = try new u32[capacity], head = 0, count = 0, allocator = memory.allocator)
 
     pub func push(value: u32) -> !:
@@ -2248,7 +2248,7 @@ pub struct Arena: Allocator:
     var block: u8[]
     var used: usize
 
-    pub func over(parent: Allocator, capacity: usize) -> Arena!:
+    pub static func over(parent: Allocator, capacity: usize) -> Arena!:
         with parent:
             return Arena(parent = parent, block = try memory.allocate(capacity, 16), used = 0)
 
@@ -2547,7 +2547,7 @@ pub struct Builder: Writer:
     var length: usize
     var allocator: Allocator
 
-    pub func create(capacity: usize) -> Builder!:
+    pub static func create(capacity: usize) -> Builder!:
         return Builder(bytes = try new u8[capacity] ---, length = 0, allocator = memory.allocator)
 
     pub func write(data: const u8[]) -> usize!:
@@ -2592,7 +2592,7 @@ pub struct Map[K: Hashable & Equatable, V]:
     var count: usize
     var allocator: Allocator
 
-    pub func create(capacity: usize) -> Map[K, V]!:
+    pub static func create(capacity: usize) -> Map[K, V]!:
         return Map(keys = try new K[capacity] ---, values = try new V[capacity] ---,
                    used = try new bool[capacity], count = 0, allocator = memory.allocator)
 

@@ -98,9 +98,9 @@ test "structs construct by name and expose fields":
 test "a method that changes its receiver needs a var receiver, found from its body":
     try expect_error("struct C:\n    var n: i64\n    func bump():\n        self.n += 1\nfunc f():\n    let c = C(n = 0)\n    c.bump()\n", "`bump` changes its receiver, so it needs a `var` here")
     try expect_error("func f() -> i64:\n    let c = C(n = 0)\n    c.bump()\n    return c.n\nstruct C:\n    var n: i64\n    func bump():\n        self.step()\n    func step():\n        self.n += 1\n", "needs a `var` here")
-    try expect_error("func touch(p: i64*):\n    *p = 2\nfunc f() -> i64:\n    let c = C(n = 0)\n    c.poke()\n    return c.n\nstruct C:\n    var n: i64\n    func poke():\n        touch(&self.n)\n", "`poke` changes its receiver, so it needs a `var` or a mutable pointer here")
+    try expect_error("func touch(p: i64*):\n    *p = 2\nfunc f() -> i64:\n    let c = C(n = 0)\n    c.poke()\n    return c.n\nstruct C:\n    var n: i64\n    func poke():\n        touch(&self.n)\n", "`poke` changes its receiver, so it needs a `var` here")
     try expect_ok("struct C:\n    var n: i64\n    func peek() -> i64:\n        let p = &self.n\n        return *p\nfunc f() -> i64:\n    let c = C(n = 1)\n    return c.peek()\n")
-    try expect_error("struct P:\n    var x: i64\n    func origin() -> P:\n        return P(x = 0)\nfunc f() -> P:\n    let p = P(x = 1)\n    return p.origin()\n", "it is a function of the type, called as `P.origin()`")
+    try expect_error("struct P:\n    var x: i64\n    static func origin() -> P:\n        return P(x = 0)\nfunc f() -> P:\n    let p = P(x = 1)\n    return p.origin()\n", "`origin` is `static`, a function of the type: call it as `P.origin()`")
 
 test "enums match by case":
     try expect_ok("enum K as u8:\n    a = 1\n    b = 2\nfunc f(k: K) -> i64:\n    match k:\n        .a:\n            return 1\n        .b:\n            return 2\n        _:\n            return 0\n")

@@ -38,7 +38,7 @@ pub struct Formatter:
     var column: usize
 
     ## A formatter over `src` and its `tokens`, with the source's comments located.
-    pub func over(src: source.Source, tokens: const token.Token[]) -> Formatter!:
+    pub static func over(src: source.Source, tokens: const token.Token[]) -> Formatter!:
         var f = Formatter(src = src, tokens = tokens, out = try buffer.Buffer.create(4096), indent = 0,
                           comments = try new usize[2] ---, comment_count = 0, written = 0, at_line_start = true, column = 0)
         try f.find_comments()
@@ -632,6 +632,8 @@ pub struct Formatter:
     func function(f: ast.Node*, owner: str) -> !:
         try self.visibility(f)
         try self.attributes(f)
+        if f.has(ast.flag_static):
+            try self.put("static ")
         try self.put("func ")
         try self.put(f.text)
         try self.generics(f.left)

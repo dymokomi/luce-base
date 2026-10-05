@@ -144,7 +144,7 @@ pub struct Preprocessor:
     # mark: Setup ==============================================================================
 
     ## A preprocessor with `compiler`'s include directories and predefined macros.
-    pub func create(compiler: c.str) -> Preprocessor!:
+    pub static func create(compiler: c.str) -> Preprocessor!:
         var p = Preprocessor(dirs = try list.List[str].create(16), user_dirs = 0,
                              frameworks = try list.List[str].create(4),
                              files = try list.List[FileEntry].create(64),

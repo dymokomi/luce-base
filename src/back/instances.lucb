@@ -42,7 +42,7 @@ pub struct Instances:
     var slots: u32[]
 
     ## No instances yet.
-    pub func create() -> Instances!:
+    pub static func create() -> Instances!:
         return Instances(items = try list.List[Instance].create(64), slots = try empty_slots(256))
 
     ## Register a function instance; returns its index. An instance whose arguments nest
@@ -136,7 +136,7 @@ pub struct Generic:
     pub var owner_args: u32[]
 
     ## The context before any body: no instance, no arguments.
-    pub func none_yet() -> Generic!:
+    pub static func none_yet() -> Generic!:
         return Generic(fn_decl = none, fn_args = try types.no_args(), owner_decl = none, owner_args = try types.no_args())
 
     ## A type of the body, with the instance's arguments substituted.

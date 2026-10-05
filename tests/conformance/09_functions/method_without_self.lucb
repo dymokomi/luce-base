@@ -1,0 +1,18 @@
+## §9.5: a function in a type is a method unless it is `static`, though its body never reads
+## `self`: it is called on a value, a `let` or a pointer, and through its type it is a
+## function value taking the receiver first (§5.6).
+struct Shape:
+    var sides: i64
+
+    func kind() -> str:
+        return "shape"
+
+    static func square() -> Shape:
+        return Shape(sides = 4)
+
+pub func main(arguments: str[]) -> i32:
+    let s = Shape.square()
+    let p: const Shape* = &s
+    let named: func(const Shape*) -> str = Shape.kind
+    print(f"{s.kind()} {p.kind()} {named(&s)} {s.sides}")
+    return 0

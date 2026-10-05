@@ -18,7 +18,7 @@ struct Point:
         self.x += dx
         self.y += dy
 
-    func origin() -> Point:
+    static func origin() -> Point:
         return Point(x = 0.0, y = 0.0)
 
 pub func main(arguments: str[]) -> i32:
@@ -47,8 +47,8 @@ origin is zero: true
 - **A method that changes the struct** can only be called on a value that may change: a
   `var`, or a pointer to one. Calling `move_by` on a `let` is an error. Nothing marks such
   a method; the compiler sees from its body that it assigns to `self`.
-- **A function that never uses `self`** belongs to the type rather than to a value, like
-  Python's `@staticmethod`, and is called through the type: `Point.origin()`.
+- **`static func`** belongs to the type rather than to a value, like Python's
+  `@staticmethod`, and is called through the type: `Point.origin()`.
 - **`==` compares field by field** when every field can be compared, as a dataclass's
   `__eq__` does.
 
