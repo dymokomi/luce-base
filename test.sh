@@ -110,6 +110,7 @@ for native in "--backend=c" ""; do
     ./build/luce-base build tests/samples/diagnostic.lucb --profile diagnostic $native -o build/sample
     ./build/sample > build/sample.out
     cmp build/sample.out tests/samples/diagnostic.out
+    ./build/luce-base test tests/samples/diagnostic.lucb --profile diagnostic $native > /dev/null
 done
 rm -f build/sample build/sample.out
 # the standard library's unit tests, programs under tests/std that link the archive and

@@ -186,6 +186,7 @@ from the registry needs no account.
 | `luc build [--release]` | build into `build/<name>` |
 | `luc run [--release] [-- args]` | build and run, passing `args` to the program |
 | `luc test` | build and run the tests (see [Testing](11-testing.md)) |
+| `--diagnostic` on `build`, `run`, `test` | the diagnostic profile, into `build/<name>-diagnostic` ([Memory](09-memory.md#finding-memory-bugs)) |
 | `luc check` | type-check without building |
 | `luc fmt [--check]` | format the sources, or check that they are formatted |
 | `luc clean` | remove `build/` |

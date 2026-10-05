@@ -990,7 +990,8 @@ extend Emitter:
     # -- core functions -------------------------------------------------------------------
 
     ## `memory.frame[T](count, most)` (§12.7): `count` elements from `alloca` in the frame of
-    ## the function the call is in, after a trap when `count` is past `most`.
+    ## the function the call is in, after a trap when `count` is past `most`. The diagnostic
+    ## profile fills the elements with its pattern (§19.4).
     func frame_storage(e: ast.Node*) -> !:
         let result = try self.ty(e)
         let first = e.body else return
@@ -1007,13 +1008,28 @@ extend Emitter:
         try self.put_tmp("fn", n)
         try self.put(" > ")
         try self.put_u64(most)
-        try self.put("u) lb_trap(\"memory.frame count is past its most\"); (")
-        try self.put_type(result)
-        try self.put("){ __builtin_alloca(")
+        try self.put("u) lb_trap(\"memory.frame count is past its most\"); size_t ")
+        try self.put_tmp("fb", n)
+        try self.put(" = ")
         try self.put_tmp("fn", n)
         try self.put(" * sizeof(")
         try self.put_type(self.elem(result))
-        try self.put(")), ")
+        try self.put("); void* ")
+        try self.put_tmp("fp", n)
+        try self.put(" = __builtin_alloca(")
+        try self.put_tmp("fb", n)
+        try self.put("); ")
+        if self.diagnostic:
+            try self.put("memset(")
+            try self.put_tmp("fp", n)
+            try self.put(", 0xAA, ")
+            try self.put_tmp("fb", n)
+            try self.put("); ")
+        try self.put("(")
+        try self.put_type(result)
+        try self.put("){ ")
+        try self.put_tmp("fp", n)
+        try self.put(", ")
         try self.put_tmp("fn", n)
         try self.put(" }; })")
 

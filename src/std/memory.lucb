@@ -357,6 +357,9 @@ var held_pages: (u8[]?)[8]
 var held_next: usize
 ## The byte a released block is filled with under the diagnostic profile.
 let released_fill: u8 = 221
+## The byte unwritten storage is filled with under the diagnostic profile: `---` storage,
+## `memory.allocate` and `memory.frame`; the compiler writes the same byte, 0xAA.
+let unwritten_fill: u8 = 170
 
 ## Whether `block` is among the released blocks still `held`: releasing it again is a
 ## double free.
@@ -434,18 +437,27 @@ pub func frame[T](count: usize, most: usize) -> T[]:
     trap("memory.frame is answered where it is called")
 
 ## `size` unwritten bytes aligned to `alignment`, from the current allocator: storage a
-## structure lays out itself (§12.2), given back with `free`. Fails with `memory.exhausted`.
+## structure lays out itself (§12.2), given back with `free`; the diagnostic profile fills
+## them with 0xAA (§19.4). Fails with `memory.exhausted`.
 pub func allocate(size: usize, alignment: usize) -> u8[]!:
-    return allocator.allocate(size, alignment) else error(exhausted, "memory.exhausted")
+    let block = allocator.allocate(size, alignment) else error(exhausted, "memory.exhausted")
+    if diagnostic:
+        _ = memset(block.data, (i32)unwritten_fill, block.length)
+    return block
 
 ## `block` with `size` bytes: in place when the current allocator can, else a
-## new block with the old bytes copied and the old block released.
+## new block with the old bytes copied and the old block released. The bytes past the
+## old ones are unwritten, 0xAA under the diagnostic profile.
 pub func grow(block: u8[], size: usize) -> u8[]!:
+    var grown: u8[] = ---
     if allocator.resize(block, size):
-        return u8[](block.data, size)
-    let fresh = allocator.allocate(size, 8) else error(exhausted, "memory.exhausted")
-    let keep = block.length if block.length < size else size
-    if keep > 0:
-        _ = memcpy(fresh.data, block.data, keep)
-    allocator.release(block)
-    return fresh
+        grown = u8[](block.data, size)
+    else:
+        grown = allocator.allocate(size, 8) else error(exhausted, "memory.exhausted")
+        let keep = block.length if block.length < size else size
+        if keep > 0:
+            _ = memcpy(grown.data, block.data, keep)
+        allocator.release(block)
+    if diagnostic and size > block.length:
+        _ = memset(&grown[block.length], (i32)unwritten_fill, size - block.length)
+    return grown

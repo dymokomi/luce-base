@@ -85,7 +85,8 @@ extend Lowerer:
         try self.f.place_label(skip)
 
     ## `count` elements of `elem` from `view`, into a result of `result_type` (a span!),
-    ## zeroed when asked; the result's address.
+    ## zeroed when asked, else left unwritten, which the diagnostic profile fills with its
+    ## pattern (§19.4); the result's address.
     func counted_allocation(view: ir.Ref, elem: u32, count: ir.Ref, result_type: u32, zero: bool) -> ir.Ref!:
         let slot = try self.new_slot(result_type)
         let a = try self.slot_address(slot)
@@ -118,17 +119,23 @@ extend Lowerer:
         try self.f.place_label(yes)
         let data = try self.f.load(ir.Op.loadl, ir.Class.l, block)
         if zero:
-            let start = u32(self.f.args.count)
-            try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            try self.f.args.push(ir.Arg(value = ir.const_ref(0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-            try self.f.args.push(ir.Arg(value = bytes, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            _ = try self.call_named("memset", start, 3, ir.Class.l, true, types.usize_id)
+            try self.set_bytes(data, 0, bytes)
+        elif self.diagnostic:
+            try self.set_bytes(data, 170, bytes)
         try self.f.store(ir.Op.storel, data, a)
         try self.f.store(ir.Op.storel, count, try self.offset_address(a, 8))
         try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(a, self.failed_offset(result_type)))
         try self.f.jump(done)
         try self.f.place_label(done)
         return a
+
+    ## `memset(data, byte, bytes)`, for a count of bytes known only when the program runs.
+    func set_bytes(data: ir.Ref, byte: i64, bytes: ir.Ref) -> !:
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(byte), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = bytes, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+        _ = try self.call_named("memset", start, 3, ir.Class.l, true, types.usize_id)
 
     func new_expr(e: ast.Node*) -> LowerValue!:
         self.site_line = e.line
@@ -214,7 +221,8 @@ extend Lowerer:
         return false
 
     ## `memory.frame[T](count, most)` (§12.7): `count` elements taken from the frame, after a
-    ## trap when `count` is past `most`; the span is the bytes' address and `count`.
+    ## trap when `count` is past `most`; the span is the bytes' address and `count`. The
+    ## diagnostic profile fills the bytes with its pattern (§19.4).
     func frame_storage(e: ast.Node*) -> LowerValue!:
         let result = try self.ty(e)
         let first = e.body else return try self.fail(e, "no count")
@@ -236,6 +244,9 @@ extend Lowerer:
         let t = try self.temp(ir.Class.l)
         try self.f.emit(ir.Op.alloca, ir.Class.l, t.index, rounded, ir.none_ref(), 0)
         self.f.allocates_frame = true
+        if self.diagnostic:
+            # the diagnostic profile fills unwritten storage with a pattern (§19.4)
+            try self.set_bytes(t, 170, bytes)
         let slot = try self.new_slot(result)
         let a = try self.slot_address(slot)
         try self.f.store(ir.Op.storel, t, a)

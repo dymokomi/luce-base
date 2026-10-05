@@ -1,7 +1,8 @@
 ## The diagnostic profile (§19.4): `luce-base build samples/diagnostic.lucb --profile diagnostic`
 ## fills `---` storage with a pattern, so a read before a write shows 0xAA bytes rather than
 ## whatever the frame held, and the C allocator holds released blocks back, filled with 0xDD,
-## so a use after release reads the pattern rather than the next allocation.
+## so a use after release reads the pattern rather than the next allocation. `luce-base test
+## samples/diagnostic.lucb --profile diagnostic` runs the test below under the same profile.
 import memory
 
 pub func main(arguments: str[]) -> i32!:
@@ -14,3 +15,8 @@ pub func main(arguments: str[]) -> i32!:
     let sites = memory.allocation_sites()
     print(f"{sites.length} {sites[0].size} {sites[0].line}")
     return 0
+
+test "the diagnostic profile fills unwritten storage":
+    let block = try new u64[2] ---
+    assert(block[1] == 0xAAAAAAAAAAAAAAAA)
+    free(block)

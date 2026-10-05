@@ -1,0 +1,48 @@
+## Under `--profile diagnostic` every form of unwritten storage reads as 0xAA until the
+## program writes it (§19.4): a `---` local, the field a half-built struct never set,
+## `new T[n] ---` from the current allocator and from a named one, `memory.allocate`,
+## the bytes `memory.grow` adds, and `memory.frame`. Zeroed allocations stay zero.
+# profile: diagnostic
+import memory
+
+struct Box:
+    var a: u64
+    var b: u64
+
+## A struct whose second field is never written: the half-initialised value a caller sees.
+func half() -> Box:
+    var box: Box = ---
+    box.a = 1
+    return box
+
+## The last of `count` frame bytes, read before any is written.
+func frame_byte(count: usize) -> u8:
+    let bytes = memory.frame[u8](count, 64)
+    return bytes[count - 1]
+
+pub func main(arguments: str[]) -> i32!:
+    var word: u64 = ---
+    let box = half()
+    print(f"local {word:x} {box.a:x} {box.b:x}")
+    let boxes = try new Box[3] ---
+    let raw = try new u8[5] ---
+    print(f"new {boxes[2].b:x} {raw[0]:x} {raw[4]:x}")
+    var storage: u8[64]
+    var buffer = memory.FixedBuffer.over(storage)
+    let named = try new u8[8] --- in buffer
+    print(f"in buffer {named[7]:x} {storage[0]:x}")
+    let bytes = try memory.allocate(24, 8)
+    bytes[0] = 7
+    print(f"allocate {bytes[0]:x} {bytes[23]:x}")
+    let grown = try memory.grow(bytes, 4096)
+    print(f"grow {grown[0]:x} {grown[24]:x} {grown[4095]:x}")
+    print(f"frame {frame_byte(9):x}")
+    let zeroed = try new u8[5]
+    let one = try new Box
+    print(f"zeroed {zeroed[4]:x} {one.b:x}")
+    free(boxes)
+    free(raw)
+    free(grown)
+    free(zeroed)
+    free(one)
+    return 0

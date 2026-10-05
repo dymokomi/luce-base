@@ -368,7 +368,8 @@ extend Emitter:
             try self.put(".value); } else { ")
         return failed_init
 
-    ## `count` elements of a span payload, zeroed when `zero`; closes the statement expression.
+    ## `count` elements of a span payload, zeroed when `zero`, else left unwritten, which the
+    ## diagnostic profile fills with its pattern (§19.4); closes the statement expression.
     func counted_allocation(n: u32, payload: u32, count: ast.Node*, result: u32, zero: bool) -> !:
         let et = self.elem(payload)
         try self.put("size_t ")
@@ -414,12 +415,12 @@ extend Emitter:
         try self.put(" = ")
         try self.exhausted(result)
         try self.put("; } else { ")
-        if zero:
+        if zero or self.diagnostic:
             try self.put("if (")
             try self.put_tmp("ao", n)
             try self.put(".value.data != NULL) memset(")
             try self.put_tmp("ao", n)
-            try self.put(".value.data, 0, ")
+            try self.put(".value.data, 0, " if zero else ".value.data, 0xAA, ")
             try self.put_tmp("bytes", n)
             try self.put("); ")
         try self.note_allocation(n, "bytes")

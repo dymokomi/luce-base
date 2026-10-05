@@ -172,9 +172,9 @@ An allocation the diagnostic profile recorded (§19.4): the block, its size, and
 
 - `func frame[T](count: usize, most: usize) -> T[]` — `count` uninitialised elements of `T` in the frame of the function that calls this, at most `most` (a constant; `most * size_of(T)` at most 4096 bytes), freed when that function returns (§12.7). The compiler takes the storage at the call, so this body never runs.
 
-- `func allocate(size: usize, alignment: usize) -> u8[]!` — `size` unwritten bytes aligned to `alignment`, from the current allocator: storage a structure lays out itself (§12.2), given back with `free`. Fails with `memory.exhausted`.
+- `func allocate(size: usize, alignment: usize) -> u8[]!` — `size` unwritten bytes aligned to `alignment`, from the current allocator: storage a structure lays out itself (§12.2), given back with `free`; the diagnostic profile fills them with 0xAA (§19.4). Fails with `memory.exhausted`.
 
-- `func grow(block: u8[], size: usize) -> u8[]!` — `block` with `size` bytes: in place when the current allocator can, else a new block with the old bytes copied and the old block released.
+- `func grow(block: u8[], size: usize) -> u8[]!` — `block` with `size` bytes: in place when the current allocator can, else a new block with the old bytes copied and the old block released. The bytes past the old ones are unwritten, 0xAA under the diagnostic profile.
 
 ## `os`
 

@@ -269,14 +269,20 @@ There is no ownership syntax. The conventions, which the standard library follow
 ## Finding memory bugs
 
 **The diagnostic profile.** `luce-base build program.lucb --profile diagnostic` builds the
-program with checks in its allocators:
+program with checks in its allocators, and `luce-base test file.lucb --profile diagnostic`
+runs its tests that way; in a project, `luc build --diagnostic`, `luc run --diagnostic` and
+`luc test --diagnostic` do the same, building into `build/<name>-diagnostic` so the normal
+build is left alone:
 
 - A freed block is filled with the byte `0xDD` and held back for a while instead of being
   reused, so reading it after `free` gives the fill rather than someone else's data.
 - Freeing a block twice traps: "double free: a block was released twice".
 - Writing to a block after freeing it is detected when the block is finally returned, and
   traps: "use after free: a released block was written after its release".
-- Uninitialised storage (`= ---`) is filled with `0xAA`.
+- Storage the program has not written yet is filled with `0xAA`: a `var x: T = ---`,
+  the elements of `new T[count] ---`, the bytes of `memory.allocate` and the ones
+  `memory.grow` adds, and the elements of `memory.frame`. A half-initialised struct shows
+  the fields nobody set as `aaaa…`, every run, instead of whatever the memory last held.
 - The most recent 256 allocations are recorded with the function and line that made them,
   readable from `memory.allocation_sites()`.
 

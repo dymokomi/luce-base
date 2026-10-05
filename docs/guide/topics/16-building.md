@@ -14,7 +14,9 @@
 | `luce-base describe file.lucb` | describe a module's public declarations |
 
 In a project, `luc build`, `luc check`, `luc test` and `luc fmt` run these on the project
-([Modules and packages](10-modules-and-packages.md)).
+([Modules and packages](10-modules-and-packages.md)). `luc build --diagnostic`, `luc run
+--diagnostic` and `luc test --diagnostic` add `--profile diagnostic`; the build goes to
+`build/<name>-diagnostic`, beside the normal one.
 
 ### Build options
 
@@ -24,7 +26,7 @@ In a project, `luc build`, `luc check`, `luc test` and `luc fmt` run these on th
 | `--opt 0` to `--opt 3` | choose the optimisation level directly |
 | `--debug` | include debugging information (DWARF; a `.dSYM` on macOS) |
 | `--release --debug` | optimised, with debugging information |
-| `--profile diagnostic` | allocators that catch double frees and writes after free ([Memory](09-memory.md#finding-memory-bugs)) |
+| `--profile diagnostic` | unwritten storage filled with `0xAA`, and allocators that catch double frees and writes after free ([Memory](09-memory.md#finding-memory-bugs)); `test` takes it too |
 | `--target NAME` | compile for another target (below) |
 | `--cpu LEVEL` | the instruction-set level to compile for |
 | `--lib` | build a static library and a C header ([C](13-c.md#c-calling-base)) |
@@ -107,8 +109,8 @@ any x86-64 processor. `os.cpu_level` is the level a program was compiled for, an
 
 ## The build cache
 
-Builds are cached. The key covers every source the build read, the target, the flags and the
-compiler itself, so a build that changed nothing reuses the previous result, and any change
+Builds are cached. The key covers every source the build read, the target, the flags
+(the profile among them) and the compiler itself, so a build that changed nothing reuses the previous result, and any change
 rebuilds. The cache is in `build/.cache` beside the output, or where `--cache-dir` or the
 `LUCE_CACHE` environment variable says (`none` turns it off). `--cache-report` prints whether
 the cache was used. Deleting the cache directory is always safe.
