@@ -8,11 +8,11 @@ var disposed: i64 = 0
 struct Resource:
     var bytes: u8[]
     func init() -> !:
-        self.bytes = try alloc u8[4] in memory.heap
+        self.bytes = try new u8[4] --- in memory.heap
         self.fill()
-    mutating func fill():
+    func fill():
         memory.copy(self.bytes, "view".bytes, 4)
-    mutating func close():
+    func close():
         disposed += 1
         free(self.bytes) in memory.heap
 
@@ -40,10 +40,10 @@ pub func main(arguments: str[]) -> i32!:
     assert(frame.value().read() == "view" and frame.is_valid())
     if mode == 1:
         lease.invalidate()
-        discard(frame.value())
+        _ = frame.value()
         return 1
     if mode == 2:
-        discard(frame.value_mut())
+        _ = frame.value_mut()
         return 1
     let alias = frame.clone()
     try frame.enter()

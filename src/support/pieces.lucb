@@ -23,6 +23,7 @@ import memory
 import support.cache
 import support.host_tools
 import support.list
+import strings
 
 # mark: Cutting and assembling ==============================================================
 
@@ -57,12 +58,12 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
                 since = starts[index]
         try cuts.push(functions)
         let made = cuts.count - 1
-        var job = Assembling(dir = dir, sources = try alloc str[made + 1], objects = try alloc str[made + 1], pending = try alloc bool[made + 1], failures = try parallel.failures(made + 1))
+        var job = Assembling(dir = dir, sources = try new str[made + 1] ---, objects = try new str[made + 1] ---, pending = try new bool[made + 1] ---, failures = try parallel.failures(made + 1))
         defer free(job.sources)
         defer free(job.objects)
         defer free(job.pending)
         defer free(job.failures)
-        let keys = try alloc str[made + 1]
+        let keys = try new str[made + 1] ---
         defer free(keys)
         var reused: usize = 0
         for k in 0..<made + 1:
@@ -83,12 +84,12 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
             # workspace the assembler runs in: an ELF object records the file it was
             # assembled from, and `ld` the name of each object it joins, so the program is
             # the same whichever pieces were assembled and which came from the cache
-            var source_room = try alloc u8[keys[k].length + 8]
-            job.sources[k] = try format(source_room, f"{keys[k]}.s")
-            var object_room = try alloc u8[dir.length + keys[k].length + 8]
-            job.objects[k] = try format(object_room, f"{dir}/{keys[k]}-p.o")
-            var written_room = try alloc u8[dir.length + keys[k].length + 8]
-            try write_piece(try format(written_room, f"{dir}/{keys[k]}.s"), prelude, middle, ends)
+            var source_room = try new u8[keys[k].length + 8] ---
+            job.sources[k] = try strings.format(source_room, f"{keys[k]}.s")
+            var object_room = try new u8[dir.length + keys[k].length + 8] ---
+            job.objects[k] = try strings.format(object_room, f"{dir}/{keys[k]}-p.o")
+            var written_room = try new u8[dir.length + keys[k].length + 8] ---
+            try write_piece(try strings.format(written_room, f"{dir}/{keys[k]}.s"), prelude, middle, ends)
         try parallel.each(made + 1, assemble_task, (void*)&job)
         try parallel.check(job.failures)
         for k in 0..<made + 1:
@@ -101,7 +102,7 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
 ## `prelude`, `middle` and `closing` as one file at `path`.
 func write_piece(path: str, prelude: str, middle: str, closing: str) -> !:
     with memory.heap:
-        var whole = try alloc u8[prelude.length + middle.length + closing.length]
+        var whole = try new u8[prelude.length + middle.length + closing.length] ---
         defer free(whole)
         memory.copy(whole, prelude.bytes, prelude.length)
         memory.copy(whole[prelude.length..], middle.bytes, middle.length)
@@ -141,7 +142,7 @@ pub let rejected: ErrorCode = ErrorCode.package(43)
 ## Join `objects` into the relocatable object `object` with `ld -r`.
 func join(dir: str, objects: const str[], object: str, macho: bool, arch: str) -> !:
     with memory.heap:
-        var arguments = try alloc c.str[objects.length + 5]
+        var arguments = try new c.str[objects.length + 5] ---
         defer free(arguments)
         var n: usize = 0
         arguments[n] = "-r"

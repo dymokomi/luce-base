@@ -4,6 +4,7 @@
 import luce
 import io
 from io import Location
+import strings
 
 struct Scene:
     var objects: i64
@@ -22,7 +23,7 @@ func render(scene: Scene*, samples: u32 = 64, denoise: bool = true) -> i64!:
 
 func log(level: i64, message: fmt, at: Location = luce.location) -> !:
     var buffer: u8[64]
-    let line = try format(buffer, f"{at.line}:{level} {message}")
+    let line = try strings.format(buffer, f"{at.line}:{level} {message}")
     print(line)
     forward(message)
 

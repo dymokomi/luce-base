@@ -6,5 +6,5 @@ union U:
 
 pub func main(arguments: str[]) -> i32:
     var x: U
-    let h = hash(x)
+    let h = x.hash()
     return 0

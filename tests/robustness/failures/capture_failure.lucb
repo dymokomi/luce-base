@@ -52,7 +52,7 @@ pub func main(arguments: c.str[]) -> i32:
         let steps = attempt(arguments[1], mode, 0)
         var i: usize = 1
         while i <= steps:
-            discard(attempt(arguments[1], mode, i))
+            _ = attempt(arguments[1], mode, i)
             i += 1
     let before = descriptors()
     let args: c.str[1] = ["signal"]

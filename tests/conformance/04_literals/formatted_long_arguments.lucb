@@ -2,13 +2,14 @@
 ## the compiler keeps reaches the call whole, as bytes and as `fmt`, however often the call
 ## runs and whether or not a later argument fails.
 from io import Writer
+import strings
 
 let refused: ErrorCode = ErrorCode.package(9)
 
 struct Counter: Writer:
     var bytes: usize
 
-    mutating func write(data: const u8[]) -> usize!:
+    func write(data: const u8[]) -> usize!:
         self.bytes += data.length
         return data.length
 
@@ -19,7 +20,7 @@ func letters(room: u8[], count: usize) -> str:
 
 func measured(text: fmt) -> usize:
     var room: u8[8192] = ---
-    let s = format(room, text) catch:
+    let s = strings.format(room, text) catch:
         recover ""
     return s.length
 
@@ -39,8 +40,8 @@ pub func main(arguments: str[]) -> i32!:
     var counter = Counter(bytes = 0)
     var total: usize = 0
     for i in 0..<100:
-        discard(i)
-        discard(try counter.write(f"[{text}]"))
+        _ = i
+        _ = try counter.write(f"[{text}]")
         total += measured(f"<{text}|{text}>")
         total += try joined(f"{text}", 2)
         total += caught(text)

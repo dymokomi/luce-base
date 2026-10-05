@@ -9,7 +9,7 @@
 extend Checker:
     # mark: Statements =========================================================================
 
-    mutating func check_block(block: ast.Node*) -> !:
+    func check_block(block: ast.Node*) -> !:
         self.push_scope()
         var cursor = block.body
         while let s = cursor:
@@ -27,7 +27,7 @@ extend Checker:
         var r = self.reporter()
         try prune.prune_block(block, &r)
 
-    mutating func check_stmt(s: ast.Node*) -> !:
+    func check_stmt(s: ast.Node*) -> !:
         match s.kind:
             .let_, .var_:
                 try self.check_binding(s)
@@ -55,31 +55,31 @@ extend Checker:
             .for_:
                 try self.check_for(s)
             .match_:
-                discard(try self.match_type(s, types.none_id, false))
+                _ = try self.match_type(s, types.none_id, false)
             .return_:
                 if self.in_defer:
-                    discard(try self.fail(s, "a deferred block cannot `return` (§8.8)"))
+                    try self.fail(s, "a deferred block cannot `return` (§8.8)")
                 try self.check_return(s)
             .break_, .continue_:
                 if self.loop_depth == 0:
-                    discard(try self.fail(s, "not inside a loop"))
+                    try self.fail(s, "not inside a loop")
                 elif s.text.length > 0 and not self.has_label(s.text):
-                    discard(try self.fail(s, "no enclosing loop has this label"))
+                    try self.fail(s, "no enclosing loop has this label")
             .defer_, .errdefer_:
                 if s.kind == ast.Kind.errdefer_ and not self.fallible:
-                    discard(try self.fail(s, "`errdefer` needs a fallible function"))
+                    try self.fail(s, "`errdefer` needs a fallible function")
                 try self.check_deferred(s)
             .recover_:
                 if not self.in_catch:
-                    discard(try self.fail(s, "`recover` belongs in a `catch` handler"))
+                    try self.fail(s, "`recover` belongs in a `catch` handler")
                 let v = s.left else return try self.fail(s, "`recover` needs a value")
-                discard(try self.expect(v, self.catch_result))
+                _ = try self.expect(v, self.catch_result)
             .free_:
                 let v = s.left else return try self.fail(s, "`free` needs a value")
                 let got = try self.check_expr(v, types.none_id)
                 let t = self.table.get(got)
                 if t.kind != types.Kind.pointer and t.kind != types.Kind.span:
-                    discard(try self.fail(v, "`free` takes a pointer or a span"))
+                    try self.fail(v, "`free` takes a pointer or a span")
                 if let alloc_in = s.right:
                     try self.check_allocator(alloc_in)
             .with_:
@@ -91,26 +91,26 @@ extend Checker:
                 let v = s.left else return try self.fail(s, "empty statement")
                 let got = try self.check_expr(v, types.none_id)
                 if self.table.kind(got) == types.Kind.fallible:
-                    discard(try self.fail(v, "a fallible result must be handled: `try`, `catch`, or `else`"))
+                    try self.fail(v, "a fallible result must be handled: `try`, `catch`, or `else`")
                 if not is_call_statement(v):
-                    discard(try self.fail(v, "a statement is a call; an expression whose value is unused is not one (§7.9)"))
+                    try self.fail(v, "a statement is a call; an expression whose value is unused is not one (§7.9)")
             .asm_:
                 var operand = s.right
                 while let o = operand:
                     if let v = o.left:
                         if v.kind != ast.Kind.name or v.text != "_":
-                            discard(try self.check_expr(v, types.none_id))
+                            _ = try self.check_expr(v, types.none_id)
                     operand = o.next
                 try self.check_asm_references(s)
             .block:
                 try self.check_block(s)
             _:
-                discard(try self.fail(s, "unsupported statement"))
+                try self.fail(s, "unsupported statement")
 
     ## A deferred block (§8.8) is checked where it is written and runs as its scope is left,
     ## reading its names then. Nothing leaves it: no `return`, no failure escaping it (`try`,
     ## `error`), no `break` or `continue` to a loop outside it.
-    mutating func check_deferred(s: ast.Node*) -> !:
+    func check_deferred(s: ast.Node*) -> !:
         let block = s.body else return try self.fail(s, "`defer` needs a statement or a block")
         let saved_fallible = self.fallible
         let saved_effect = self.expression_effect
@@ -131,7 +131,7 @@ extend Checker:
 
     ## `{name}` in an asm block's text stands for the register the compiler chose for the
     ## `reg` operand whose expression is the name `name` (§8.9); anything else is an error.
-    mutating func check_asm_references(s: ast.Node*) -> !:
+    func check_asm_references(s: ast.Node*) -> !:
         var lines = s.body
         while let l = lines:
             let b = l.text.bytes
@@ -146,7 +146,7 @@ extend Checker:
                     let name = (str)b[i + 1..<j]
                     if not asm_names_operand(s, name):
                         var clipped: u8[64]
-                        let message = try format(self.scratch[self.scratch.length // 2..<self.scratch.length], f"the assembly text names `{try clip(clipped, name)}`, which is not a `reg` operand")
+                        let message = try strings.format(self.scratch[self.scratch.length // 2..<self.scratch.length], f"the assembly text names `{try clip(clipped, name)}`, which is not a `reg` operand")
                         return try self.fail(l, message)
                     i = j
                 i += 1
@@ -167,21 +167,21 @@ extend Checker:
 
     ## A loop opens: its label, when it has one, may be neither a core name (§3.5) nor one
     ## of the labels already open around it (§8.5).
-    mutating func enter_loop(s: ast.Node*) -> !:
+    func enter_loop(s: ast.Node*) -> !:
         self.loop_depth += 1
         if s.text.length == 0:
             return
         if token.is_core_name(s.text):
-            discard(try self.fail(s, "this name belongs to the language; a label cannot take it (§3.5)"))
+            try self.fail(s, "this name belongs to the language; a label cannot take it (§3.5)")
         elif self.has_label(s.text):
-            discard(try self.fail(s, "this label is already open"))
+            try self.fail(s, "this label is already open")
         if self.label_count == self.labels.length:
             var text: u8[96]
-            return try self.fail(s, try format(text, f"at most {self.labels.length} labeled loops nest"))
+            return try self.fail(s, try strings.format(text, f"at most {self.labels.length} labeled loops nest"))
         self.labels[self.label_count] = s.text
         self.label_count += 1
 
-    mutating func leave_loop(s: ast.Node*):
+    func leave_loop(s: ast.Node*):
         self.loop_depth -= 1
         if s.text.length > 0:
             self.label_count -= 1
@@ -194,7 +194,7 @@ extend Checker:
             i += 1
         return false
 
-    mutating func check_binding(s: ast.Node*) -> !:
+    func check_binding(s: ast.Node*) -> !:
         let mutable = s.kind == ast.Kind.var_
         var declared = types.none_id
         if let t = s.ty:
@@ -223,14 +223,14 @@ extend Checker:
             return try self.fail(s, "a formatted string is not stored; `fmt` is a parameter type only (§9.1)")
         if let init = s.left:
             if declared != types.none_id:
-                discard(try self.expect(init, declared))
+                _ = try self.expect(init, declared)
             else:
                 let got = try self.check_expr(init, declared)
                 id = try self.settle(init, got)
                 if id == types.none_id:
                     return try self.fail(init, "`none` needs a written type")
                 if got == types.untyped_int_id or got == types.untyped_float_id:
-                    discard(try self.coerce(init, got, id))
+                    _ = try self.coerce(init, got, id)
                 if id == types.fmt_id:
                     return try self.fail(init, "a formatted string is not a value: print it, write it, or format it (§4.4)")
                 if id == types.unit_id:
@@ -255,31 +255,33 @@ extend Checker:
         try self.bind(s, s.text, id, s, mutable)
         # `let s = &local` or `let s = local_array[..]`: the name inherits the escape taint
         if let init = s.left:
-            if self.is_local_value(init) and s.text != "_":
+            if is_local_value(init) and s.text != "_":
                 self.set_from_local(s.text, true)
 
-    mutating func check_assign(s: ast.Node*) -> !:
+    func check_assign(s: ast.Node*) -> !:
         let place = s.left else return try self.fail(s, "missing place")
         let value = s.right else return try self.fail(s, "missing value")
+        if place.kind == ast.Kind.name and place.text == "_":
+            return try self.check_drop(s, value)
         let pt = try self.check_expr(place, types.none_id)
-        if not self.is_mutable_place(place):
+        if not self.is_mutable_place(place) and not self.changes_receiver(place):
             if place.kind == ast.Kind.name:
                 return try self.fail(place, "cannot assign to a `let`")
             return try self.fail(place, "this place is not mutable")
         if s.text == "=":
-            discard(try self.expect(value, pt))
-            if self.is_local_value(value) and self.escapes(pt) and self.place_outlives(place):
+            _ = try self.expect(value, pt)
+            if is_local_value(value) and self.escapes(pt) and self.place_outlives(place):
                 # §6.6: a local's address may not be stored in a global or through a pointer
-                discard(try self.fail(value, "this pointer or view names a local and must not be stored where it outlives the function"))
+                try self.fail(value, "this pointer or view names a local and must not be stored where it outlives the function")
             return
         let target = self.table.get(pt).elem if self.table.kind(pt) == types.Kind.atomic else pt
         # `p += n` and `p -= n` move a pointer by elements, as `p = p + n` does (§7.7)
         if self.table.kind(target) == types.Kind.pointer and (s.text == "+=" or s.text == "-="):
             let nt = try self.check_expr(value, types.isize_id)
             if nt == types.untyped_int_id:
-                discard(try self.coerce(value, nt, types.isize_id))
+                _ = try self.coerce(value, nt, types.isize_id)
             elif not (self.table.widens(nt, types.usize_id) or self.table.widens(nt, types.isize_id) or nt == types.usize_id or nt == types.isize_id):
-                discard(try self.fail(value, "a pointer offset is `usize` or `isize`"))
+                try self.fail(value, "a pointer offset is `usize` or `isize`")
             return
         let vt = try self.expect(value, target)
         let op = (str)s.text.bytes[..<s.text.length - 1]
@@ -287,26 +289,26 @@ extend Checker:
             return try self.fail(s, "an atomic compound assignment is `+=` `-=` `|=` `&=` or `^=` (§15.1)")
         if op == "<<" or op == ">>":
             if not self.table.is_integer(target):
-                discard(try self.fail(s, "a shift needs an integer"))
+                try self.fail(s, "a shift needs an integer")
             return
         if op == "&" or op == "|" or op == "^":
             if not (self.table.is_integer(target) or target == types.bool_id or self.is_backed_enum(target)):
-                discard(try self.fail(s, "bit operators need integers"))
+                try self.fail(s, "bit operators need integers")
             return
         if op == "/":
             if not self.table.is_float(target):
-                discard(try self.fail(s, "integer division is `//`"))
+                try self.fail(s, "integer division is `//`")
             return
         if op == "//" or op == "%" or op == "+%" or op == "-%" or op == "*%" or op == "+|" or op == "-|" or op == "*|":
             if not self.table.is_integer(target):
-                discard(try self.fail(s, "this operator needs integers"))
+                try self.fail(s, "this operator needs integers")
             return
         if not self.table.is_numeric(target):
-            discard(try self.fail(s, "arithmetic needs numbers"))
-        discard(vt)
+            try self.fail(s, "arithmetic needs numbers")
+        _ = vt
 
     ## The condition of `if` and `while`: a `bool`, or `let name = optional`.
-    mutating func check_condition(s: ast.Node*) -> !:
+    func check_condition(s: ast.Node*) -> !:
         let condition = s.left else return try self.fail(s, "missing condition")
         if s.has(ast.flag_if_let):
             let init = condition.left else return try self.fail(condition, "`let` needs a value")
@@ -317,9 +319,9 @@ extend Checker:
             condition.type_id = t.elem
             try self.bind(condition, condition.text, t.elem, condition, false)
             return
-        discard(try self.expect(condition, types.bool_id))
+        _ = try self.expect(condition, types.bool_id)
 
-    mutating func check_if(s: ast.Node*) -> !:
+    func check_if(s: ast.Node*) -> !:
         self.push_scope()
         try self.check_condition(s)
         let body = s.body else return try self.fail(s, "`if` needs a body")
@@ -341,9 +343,30 @@ extend Checker:
         let member = self.indexed_iterable else return false
         return member == e
 
+    ## `_ = value` (§7.9): the value is evaluated and dropped, its failure handled first as
+    ## a binding's would be; a `catch` handler of it may end without `recover`. The
+    ## statement becomes the expression alone, which the backends evaluate and drop.
+    func check_drop(s: ast.Node*, value: ast.Node*) -> !:
+        if s.text != "=":
+            return try self.fail(s, "`_` takes a value with `=`")
+        let saved = self.dropped_catch
+        self.dropped_catch = value if value.kind == ast.Kind.catch_ else none
+        let got = self.check_expr(value, types.none_id) catch failure:
+            self.dropped_catch = saved
+            error(failure.code, failure.message)
+        self.dropped_catch = saved
+        if self.table.kind(got) == types.Kind.fallible:
+            return try self.fail(value, "a fallible result must be handled: `try`, `catch`, or `else`")
+        if value.has(ast.flag_type_ref):
+            return try self.fail(value, "a type is not a value")
+        _ = try self.settle(value, got)
+        s.kind = ast.Kind.expr_stmt
+        s.left = value
+        s.right = none
+
     ## `for x in items`, `for (i, x) in items.indexed()`, `for i in a..<b`,
     ## `for c in text`, `for p in &items` (§8.3).
-    mutating func check_for(s: ast.Node*) -> !:
+    func check_for(s: ast.Node*) -> !:
         let binding = s.left else return try self.fail(s, "`for` needs a name")
         let iterable = s.right else return try self.fail(s, "`for` needs something to iterate")
         var declared = types.none_id
@@ -409,16 +432,16 @@ extend Checker:
     ## `var __iterN = source.iterator()` and `while let x = __iterN.next(): body`: the
     ## iterator lives in a hidden local of its concrete type, and the backends see only a
     ## loop they already know.
-    mutating func desugar_iterable_for(s: ast.Node*, binding: ast.Node*, sequence: ast.Node*) -> !:
+    func desugar_iterable_for(s: ast.Node*, binding: ast.Node*, sequence: ast.Node*) -> !:
         if binding.body != none:
             return try self.fail(binding, "an Iterable yields one value per step; bind one name")
         let hidden = try self.hidden_name("__iter")
         let start = try ast.Node.make(ast.Kind.var_, hidden, s.start, s.line)
-        start.left = try self.method_call(sequence, "iterator", s)
+        start.left = try method_call(sequence, "iterator", s)
         let advance = try ast.Node.make(ast.Kind.name, hidden, s.start, s.line)
         var step = try ast.Node.make(ast.Kind.let_, binding.text, binding.start, binding.line)
         step.ty = binding.ty
-        step.left = try self.method_call(advance, "next", s)
+        step.left = try method_call(advance, "next", s)
         let loop = try ast.Node.make(ast.Kind.while_, s.text, s.start, s.line)
         loop.flags |= ast.flag_if_let
         loop.left = step
@@ -430,34 +453,26 @@ extend Checker:
         s.body = start
         try self.check_block(s)
 
-    ## The call `receiver.name()` as a fresh tree at `at`'s position.
-    func method_call(receiver: ast.Node*, name: str, at: ast.Node*) -> ast.Node*!:
-        let member = try ast.Node.make(ast.Kind.member, name, at.start, at.line)
-        member.left = receiver
-        let call = try ast.Node.make(ast.Kind.call, "", at.start, at.line)
-        call.left = member
-        return call
-
-    mutating func check_return(s: ast.Node*) -> !:
+    func check_return(s: ast.Node*) -> !:
         let want = self.result_type
         if s.left == none and want != types.unit_id and want != types.none_id:
-            discard(try self.fail(s, "this function returns a value"))
+            try self.fail(s, "this function returns a value")
         let v = s.left else return
         if want == types.unit_id:
             let got = try self.check_expr(v, types.unit_id)
             if got != types.unit_id and got != types.never_id:
-                discard(try self.fail(v, "this function returns nothing"))
+                try self.fail(v, "this function returns nothing")
             return
-        discard(try self.expect(v, want))
-        if self.is_local_value(v) and self.escapes(want):
-            discard(try self.fail(v, "this pointer or view names a local and must not escape the function"))
+        _ = try self.expect(v, want)
+        if is_local_value(v) and self.escapes(want):
+            try self.fail(v, "this pointer or view names a local and must not escape the function")
 
     ## `match` as a statement (`is_expr` false) or an expression yielding a type.
-    mutating func match_type(m: ast.Node*, hint: u32, is_expr: bool) -> u32!:
+    func match_type(m: ast.Node*, hint: u32, is_expr: bool) -> u32!:
         let scrutinee = m.left else return try self.fail(m, "`match` needs a value")
         var st = try self.check_expr(scrutinee, types.none_id)
         if st == types.untyped_int_id or st == types.untyped_float_id:
-            st = try self.coerce(scrutinee, st, self.concrete(st))
+            st = try self.coerce(scrutinee, st, concrete(st))
         var result = hint
         var coverage = Coverage(wildcard = false, some = false, none_ = false, truth = false, falsity = false, cases = 0)
         var arm = m.body
@@ -473,7 +488,7 @@ extend Checker:
                 first = false
                 pattern = p.next
             if let guard = a.right:
-                discard(try self.expect(guard, types.bool_id))
+                _ = try self.expect(guard, types.bool_id)
             let body = a.body else return try self.fail(a, "an arm needs a body")
             if is_expr:
                 let bt = try self.check_expr(body, result)
@@ -481,7 +496,7 @@ extend Checker:
                     if bt != types.never_id:
                         result = try self.settle(body, bt)
                 else:
-                    discard(try self.coerce(body, bt, result))
+                    _ = try self.coerce(body, bt, result)
             else:
                 try self.check_block(body)
             self.pop_scope()
@@ -493,7 +508,7 @@ extend Checker:
 
     ## What the unguarded arms of a `match` cover so far (§8.4): a guarded arm counts for
     ## nothing, since its guard may fail.
-    mutating func note_pattern(p: ast.Node*, st: u32, unguarded: bool, coverage: Coverage*) -> !:
+    func note_pattern(p: ast.Node*, st: u32, unguarded: bool, coverage: Coverage*) -> !:
         if coverage.wildcard:
             return try self.fail(p, "this pattern is unreachable: an earlier `_` arm takes everything")
         if p.has(ast.flag_wildcard):
@@ -535,13 +550,13 @@ extend Checker:
                 return
 
     ## Every `match` is exhaustive (§8.4): the compiler names what is missing.
-    mutating func check_exhaustive(m: ast.Node*, st: u32, coverage: Coverage) -> !:
+    func check_exhaustive(m: ast.Node*, st: u32, coverage: Coverage) -> !:
         if coverage.wildcard:
             return
         let t = self.table.get(st)
         if t.kind == types.Kind.optional:
             if not (coverage.some and coverage.none_):
-                discard(try self.fail(m, "`match` on an optional needs `.some` and `.none`, or a `_` arm"))
+                try self.fail(m, "`match` on an optional needs `.some` and `.none`, or a `_` arm")
             return
         if t.kind == types.Kind.enum_ and not self.is_backed_enum(st):
             let d = t.decl else return
@@ -552,21 +567,21 @@ extend Checker:
                     return try self.fail(m, "`match` is missing a case; name it or add a `_` arm")
                 index += 1
             if count > 64:
-                discard(try self.fail(m, "`match` on an enum with more than 64 cases needs a `_` arm"))
+                try self.fail(m, "`match` on an enum with more than 64 cases needs a `_` arm")
             return
         if st == types.bool_id:
             if not (coverage.truth and coverage.falsity):
-                discard(try self.fail(m, "`match` on a `bool` needs `true` and `false`, or a `_` arm"))
+                try self.fail(m, "`match` on a `bool` needs `true` and `false`, or a `_` arm")
             return
         if self.is_backed_enum(st):
             return try self.fail(m, "`match` on an integer-backed enum needs a `_` arm: a combination need not be a declared case")
-        discard(try self.fail(m, "`match` on this type needs a `_` arm"))
+        try self.fail(m, "`match` on this type needs a `_` arm")
 
     ## A pattern against the scrutinee type: `_`, `.case(names)`, a literal, a
     ## constant, or a range of literals.
     ## A pattern of an arm; after the first pattern of an arm the names are bound
     ## already and every further pattern must bind the same names to the same types.
-    mutating func check_pattern(p: ast.Node*, st: u32, first: bool) -> !:
+    func check_pattern(p: ast.Node*, st: u32, first: bool) -> !:
         if p.has(ast.flag_wildcard):
             p.type_id = st
             return
@@ -622,7 +637,7 @@ extend Checker:
                 name = n.next
                 param = q.next
             if param != none and v.body != none:
-                discard(try self.fail(v, "this case carries more values"))
+                try self.fail(v, "this case carries more values")
             p.type_id = enum_id
             return
         if v.kind == ast.Kind.name and not v.has(ast.flag_wildcard):
@@ -630,10 +645,18 @@ extend Checker:
             # and a constant to another, and the C backend cannot label a case with it
             return try self.fail(v, "a name is not a pattern; patterns are literals, ranges and cases (§8.4)")
         let vt = try self.check_expr(v, st)
-        discard(try self.coerce(v, vt, st))
+        _ = try self.coerce(v, vt, st)
         if let hi = p.right:
             let ht = try self.check_expr(hi, st)
-            discard(try self.coerce(hi, ht, st))
+            _ = try self.coerce(hi, ht, st)
             if not self.table.is_integer(st) and st != types.char_id:
-                discard(try self.fail(p, "a range pattern needs integers"))
+                try self.fail(p, "a range pattern needs integers")
         p.type_id = st
+
+## The call `receiver.name()` as a fresh tree at `at`'s position.
+func method_call(receiver: ast.Node*, name: str, at: ast.Node*) -> ast.Node*!:
+    let member = try ast.Node.make(ast.Kind.member, name, at.start, at.line)
+    member.left = receiver
+    let call = try ast.Node.make(ast.Kind.call, "", at.start, at.line)
+    call.left = member
+    return call

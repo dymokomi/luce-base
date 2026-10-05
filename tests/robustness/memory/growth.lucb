@@ -7,7 +7,7 @@ struct Ints:
     var items: i64[]
     var count: usize
 
-    mutating func push(value: i64) -> !:
+    func push(value: i64) -> !:
         if self.count == self.items.length:
             let bigger = try new i64[self.items.length * 2 if self.items.length > 0 else 4]
             memory.copy(bigger, self.items, self.count)

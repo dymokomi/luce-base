@@ -36,9 +36,9 @@ func recovers() -> i64:
     return v
 
 func deferred_catch() -> !:
-    defer discard(might(true) catch failure:
+    defer _ = might(true) catch failure:
         note('c')
-        recover 0)
+        recover 0
     note('b')
 
 pub func main(arguments: str[]) -> i32:

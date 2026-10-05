@@ -11,7 +11,7 @@ extend Emitter:
     # mark: Definitions ========================================================================
 
     ## Write a typedef for `id` after everything it holds by value.
-    mutating func define_type(id: u32) -> !:
+    func define_type(id: u32) -> !:
         if contains_id(self.defined.span(), id):
             return
         let t = self.c.table.get(id)
@@ -110,7 +110,7 @@ extend Emitter:
                 try self.defined.push(id)
 
     ## A non-generic record, once, after its by-value members.
-    mutating func define_decl(d: ast.Node*) -> !:
+    func define_decl(d: ast.Node*) -> !:
         var i: usize = 0
         while i < self.decls_done.count:
             if self.decls_done.get(i) == d:
@@ -125,7 +125,7 @@ extend Emitter:
 
     ## ` { fields } name;` of record `id`, a struct's or a union's: each field with its own
     ## alignment, and a placeholder `int` when there is none, which C requires.
-    mutating func record_fields(d: ast.Node*, id: u32) -> !:
+    func record_fields(d: ast.Node*, id: u32) -> !:
         try self.put(" {")
         self.indent += 1
         var any = false
@@ -136,7 +136,7 @@ extend Emitter:
                 try self.line("")
                 try self.put_type(try self.map(m.type_id))
                 try self.put(" ")
-                try self.put(try self.field(m.text))
+                try self.put(try c_field_name(m.text))
                 if let al = m.right:
                     if al.kind == ast.Kind.literal:
                         try self.put(" __attribute__((aligned(")
@@ -152,7 +152,7 @@ extend Emitter:
         try self.put(";")
 
     ## Write the C definition of a record declaration with `args` substituted.
-    mutating func define_record(d: ast.Node*, args: u32[], id: u32) -> !:
+    func define_record(d: ast.Node*, args: u32[], id: u32) -> !:
         let saved_owner = self.generic.owner_decl
         let saved_args = self.generic.owner_args
         self.generic.owner_decl = d
@@ -209,12 +209,12 @@ extend Emitter:
                             try self.line("")
                             try self.put_type(try self.map(q.type_id))
                             try self.put(" ")
-                            try self.put(try self.field(q.text))
+                            try self.put(try c_field_name(q.text))
                             try self.put(";")
                             p = q.next
                         self.indent -= 1
                         try self.line("} ")
-                        try self.put(try self.field(m.text))
+                        try self.put(try c_field_name(m.text))
                         try self.put(";")
                     member = m.next
                 self.indent -= 1
@@ -227,7 +227,7 @@ extend Emitter:
         self.generic.owner_args = saved_args
 
     ## `typedef struct X X;` for every record the program defines.
-    mutating func forward_declarations() -> !:
+    func forward_declarations() -> !:
         var i: usize = 0
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
@@ -251,7 +251,7 @@ extend Emitter:
             try self.forward_one(r.decl, id, "union" if r.decl.kind == ast.Kind.union_ else "struct")
             i += 1
 
-    mutating func forward_one(d: ast.Node*, id: u32, tag: str) -> !:
+    func forward_one(d: ast.Node*, id: u32, tag: str) -> !:
         if d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union:
             return
         try self.line("typedef ")
@@ -263,7 +263,7 @@ extend Emitter:
         try self.put(";")
 
     ## Every typedef the bodies needed, in dependency order.
-    mutating func type_definitions() -> !:
+    func type_definitions() -> !:
         try self.line("LB_RES(size_t, lb_r_usize);")
         let usize_res = try self.c.table.fallible(types.usize_id)
         try self.defined.push(usize_res)
@@ -288,7 +288,7 @@ extend Emitter:
     ## The attributes of §9.8 as one `__attribute__` prefix. `inline` is advice this backend
     ## leaves to the C compiler; a section name is passed as spelled, except that a Mach-O
     ## target places a name without a comma in `__DATA` or `__TEXT` (§9.8).
-    mutating func attribute_prefix(d: ast.Node*, is_func: bool) -> !:
+    func attribute_prefix(d: ast.Node*, is_func: bool) -> !:
         var first = true
         var cursor = d.attrs
         while let a = cursor:
@@ -308,7 +308,7 @@ extend Emitter:
         if not first:
             try self.put(")) ")
 
-    mutating func signature(f: ast.Node*, define: bool) -> !:
+    func signature(f: ast.Node*, define: bool) -> !:
         try self.line("")
         if f.kind == ast.Kind.test_:
             try self.put("lb_r_unit lb_test_")
@@ -346,7 +346,7 @@ extend Emitter:
 
     ## The receiver of method `f` of the record being emitted, `T* self`, `const` unless
     ## the method mutates or initialises; whether there is one (a static method has none).
-    mutating func put_receiver(f: ast.Node*) -> bool!:
+    func put_receiver(f: ast.Node*) -> bool!:
         let o = self.generic.owner_decl else return false
         if f.has(ast.flag_static):
             return false
@@ -358,7 +358,7 @@ extend Emitter:
 
     ## The locals a body written into the scratch asked for, declared at its top: the format
     ## buffers of its formatted texts, and the arrays whose addresses it took.
-    mutating func scratch_declarations() -> !:
+    func scratch_declarations() -> !:
         self.indent += 1
         var k: usize = 0
         while k < self.formats.count:
@@ -381,7 +381,7 @@ extend Emitter:
         self.indent -= 1
 
     ## Emit one function instance into the body buffer.
-    mutating func function(inst: instances.Instance) -> !:
+    func function(inst: instances.Instance) -> !:
         let f = inst.decl
         let saved_fn = self.current_fn
         let saved_decl = self.generic.fn_decl
@@ -423,7 +423,7 @@ extend Emitter:
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
         if naked:
-            discard(0)
+            _ = 0
         elif self.fn_fallible() and (try self.result_payload()) == types.unit_id:
             try self.line("return ((lb_r_unit){ .failed = false });")
         elif (try self.result_payload()) != types.unit_id and (try self.result_payload()) != types.never_id:
@@ -438,7 +438,7 @@ extend Emitter:
         try self.body.put(self.scratch.view())
         if names.export_wrapped(&self.c.table, f):
             try self.export_wrapper(f)
-        discard(base)
+        _ = base
         self.current_fn = saved_fn
         self.generic.fn_decl = saved_decl
         self.generic.fn_args = saved_args
@@ -450,7 +450,7 @@ extend Emitter:
     ## fallible result becomes an `int` status, 0 or the error's code, with the value
     ## written through a final out-pointer. The wrapper calls the function by its internal
     ## name.
-    mutating func export_wrapper(f: ast.Node*) -> !:
+    func export_wrapper(f: ast.Node*) -> !:
         let ft = self.c.table.get(try self.map(f.type_id))
         let fallible = f.has(ast.flag_fallible)
         let payload = self.elem(ft.elem) if fallible else ft.elem
@@ -540,40 +540,40 @@ extend Emitter:
         try self.line("}")
 
     ## Composite types spelled only inside bodies still need their typedefs.
-    mutating func note_if_typedef(id: u32) -> !:
+    func note_if_typedef(id: u32) -> !:
         let k = self.kind(id)
         if k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.func_ or k == types.Kind.optional or k == types.Kind.fallible or k == types.Kind.struct_ or k == types.Kind.enum_ or k == types.Kind.union_:
             try self.note(id)
 
     # -- scopes and cleanup ---------------------------------------------------------------
 
-    mutating func push_scope(loop: bool, label: str) -> !:
+    func push_scope(loop: bool, label: str) -> !:
         let exit = self.tmp() if loop else 0
         try self.scopes.push(exits.Scope(defer_base = self.defers.count, loop = loop, label = label, restore_alloc = false, alloc_saved = 0, exit = exit))
 
     ## The label after a loop that its unlabelled `break`s jump to, when one did.
-    mutating func loop_exit(sc: exits.Scope) -> !:
+    func loop_exit(sc: exits.Scope) -> !:
         if sc.exit_used:
             try self.line("")
             try self.put_tmp("brk", sc.exit)
             try self.put(": __attribute__((unused));")
 
     ## `goto` the exit of the loop at `target`, marking the label as needed.
-    mutating func break_to(target: usize) -> !:
+    func break_to(target: usize) -> !:
         var sc = self.scopes.get(target)
         sc.exit_used = true
         self.scopes.set(target, sc)
         try self.put("goto ")
         try self.put_tmp("brk", sc.exit)
 
-    mutating func pop_scope():
+    func pop_scope():
         let sc = self.scopes.get(self.scopes.count - 1)
         self.defers.count = sc.defer_base
         self.scopes.count -= 1
 
     ## Run the deferred calls of scope `index` (last registered first) and
     ## restore its allocator; `failing` includes the `errdefer` calls.
-    mutating func unwind(index: usize, failing: bool) -> !:
+    func unwind(index: usize, failing: bool) -> !:
         let sc = self.scopes.get(index)
         var at = exits.deferred_end(&self.scopes, self.defers.count, index)
         while let deferred = exits.next_deferred(&self.defers, sc.defer_base, &at, failing):
@@ -584,7 +584,7 @@ extend Emitter:
             try self.put(";")
 
     ## Unwind every scope from the innermost down to `from`, for an exit.
-    mutating func unwind_from(start: usize, failing: bool) -> !:
+    func unwind_from(start: usize, failing: bool) -> !:
         var i = self.scopes.count
         while i > start:
             i -= 1

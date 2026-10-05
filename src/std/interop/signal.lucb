@@ -27,7 +27,7 @@ struct SignalState[A]:
     var count: usize
     var closed: bool
 
-    static func contains(object: ownership.Object*, identifier: u64) -> bool:
+    func contains(object: ownership.Object*, identifier: u64) -> bool:
         let state = (SignalState[A]*)object
         var cursor = state.first
         while let entry = cursor:
@@ -36,7 +36,7 @@ struct SignalState[A]:
             cursor = entry.next
         return false
 
-    static func remove(object: ownership.Object*, identifier: u64):
+    func remove(object: ownership.Object*, identifier: u64):
         let state = (SignalState[A]*)object
         var previous: Subscription[A]*? = none
         var cursor = state.first
@@ -56,7 +56,7 @@ struct SignalState[A]:
             previous = entry
             cursor = entry.next
 
-    static func close(object: ownership.Object*):
+    func close(object: ownership.Object*):
         let state = (SignalState[A]*)object
         state.closed = true
         var cursor = state.first
@@ -68,7 +68,7 @@ struct SignalState[A]:
             entry.callback.release()
             free(entry) in state.allocator
 
-    static func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         var cursor = ((SignalState[A]*)object).first
         while let entry = cursor:
             entry.callback.trace(visit, context)
@@ -85,9 +85,9 @@ pub struct Signal[A]:
     ## A custom allocator must outlive the signal and its connection aliases.
     pub func init(allocator: memory.Allocator? = none) -> !:
         let selected = allocator else memory.heap
-        var information = ownership.Info(name = "signal", size = sizeof(SignalState[A]),
+        var information = ownership.Info(name = "signal", size = memory.size_of(SignalState[A]),
                                          finish = none, drop = SignalState[A].close, trace = SignalState[A].trace)
-        let state = (SignalState[A]*)try ownership.reserve(&information, sizeof(SignalState[A]), selected)
+        let state = (SignalState[A]*)try ownership.reserve(&information, memory.size_of(SignalState[A]), selected)
         state.information = information
         state.header.info = &state.information
         state.allocator = selected
@@ -95,7 +95,7 @@ pub struct Signal[A]:
 
     ## Another strong reference to the same signal.
     pub func clone() -> Signal[A]:
-        discard(ownership.retain(&self.state.header))
+        _ = ownership.retain(&self.state.header)
         return self
 
     ## Drop this signal's edge.
@@ -129,9 +129,7 @@ pub struct Signal[A]:
         let token = reservation.publish(try new Connection(&self.state.header, identifier,
                                                            SignalState[A].remove, SignalState[A].contains) in self.state.allocator, self.state.allocator)
         errdefer token.release()
-        let allocation = try alloc(sizeof(Subscription[A]), alignof(Subscription[A])) in self.state.allocator
-        let entry = (Subscription[A]*)allocation.data
-        *entry = Subscription[A](identifier, callback.clone(), none)
+        let entry = try new Subscription[A](identifier, callback.clone(), none) in self.state.allocator
         self.state.serial = identifier
         self.state.count += 1
         if let last = self.state.last:
@@ -143,13 +141,13 @@ pub struct Signal[A]:
 
     ## Deliver `argument` to every connected callback.
     pub func emit(argument: A) -> Outcome[unit]:
-        discard(ownership.retain(&self.state.header))
+        _ = ownership.retain(&self.state.header)
         defer ownership.release(&self.state.header)
         if self.state.closed:
             return Outcome[unit].failure(invalid, Owned[str]("a signal is closed"))
         if self.state.count == 0:
             return Outcome[unit].success(Owned[unit](()))
-        let snapshot = alloc Delivery[A][self.state.count] in self.state.allocator catch failure:
+        let snapshot = new Delivery[A][self.state.count] --- in self.state.allocator catch failure:
             return failed_outcome[unit](failure.code, failure.message)
         defer free(snapshot) in self.state.allocator
         var cursor = self.state.first

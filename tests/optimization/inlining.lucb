@@ -5,7 +5,7 @@
 struct Counter:
     var total: i64
 
-    mutating func add(n: i64):
+    func add(n: i64):
         self.total += n
 
     func doubled() -> i64:

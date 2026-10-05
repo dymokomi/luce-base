@@ -3,14 +3,14 @@
 #   check/allocation - Allocation
 #
 #   DESCRIPTION:
-#       `new`, `alloc`, and the allocator a call names (§12).
+#       `new`, `new T[count] ---`, and the allocator a call names (§12).
 #
 #==============================================================================================
 extend Checker:
     # mark: Allocation =========================================================================
 
     ## `new T(...)`, `new T`, `new T[n]`, `new Kind.case(...)`, with `in allocator`.
-    mutating func new_type(e: ast.Node*) -> u32!:
+    func new_type(e: ast.Node*) -> u32!:
         let t = e.ty else return try self.fail(e, "`new` needs a type")
         if let alloc_in = e.right:
             try self.check_allocator(alloc_in)
@@ -20,49 +20,42 @@ extend Checker:
             let elem = try self.resolve_type(inner)
             try self.storable(elem, inner)
             if not self.table.zeroable(elem):
-                return try self.fail(t, "`new T[count]` zeroes its elements, so `T` must be zeroable; use `alloc`")
-            discard(try self.expect(count, types.usize_id))
+                return try self.fail(t, "`new T[count]` zeroes its elements, so `T` must be zeroable; `new T[count] ---` leaves them unwritten")
+            _ = try self.expect(count, types.usize_id)
             t.type_id = try self.table.span(elem, false)
             return try self.table.fallible(t.type_id)
         let id = try self.resolve_type(t)
         try self.storable(id, t)
         let pointer = try self.table.pointer(id, false, false)
         if e.text == "()":
-            discard(try self.construct(e, id, e.body))
+            _ = try self.construct(e, id, e.body)
         elif let body = e.body:
             if body.kind == ast.Kind.case_value:
                 body.type_id = try self.case_type(body, id)
             else:
-                discard(try self.construct(e, id, e.body))
+                _ = try self.construct(e, id, e.body)
         elif not self.table.zeroable(id):
             return try self.fail(e, "`new T` needs a zeroable type; give it arguments")
         return try self.table.fallible(pointer)
 
-    ## `alloc T[n]` and `alloc(size, alignment)`.
-    mutating func alloc_type(e: ast.Node*) -> u32!:
+    ## `new T[count] ---`: `count` elements of any `T`, left unwritten (§12.2).
+    func unwritten_type(e: ast.Node*) -> u32!:
         if let alloc_in = e.right:
             try self.check_allocator(alloc_in)
-        if let t = e.ty:
-            if not t.has(ast.flag_array):
-                return try self.fail(t, "`alloc` takes `T[count]`")
-            let inner = t.left else return try self.fail(t, "an array needs an element type")
-            let count = t.right else return try self.fail(t, "`alloc T[n]` needs a count")
-            let elem = try self.resolve_type(inner)
-            discard(try self.expect(count, types.usize_id))
-            t.type_id = try self.table.span(elem, false)
-            return try self.table.fallible(t.type_id)
-        var args = e.body
-        let size = args else return try self.fail(e, "`alloc(size, alignment)` takes two arguments")
-        let sv = size.left else return try self.fail(e, "empty argument")
-        discard(try self.expect(sv, types.usize_id))
-        let align = size.next else return try self.fail(e, "`alloc(size, alignment)` takes two arguments")
-        let av = align.left else return try self.fail(e, "empty argument")
-        discard(try self.expect(av, types.usize_id))
-        return try self.table.fallible(try self.table.span(types.u8_id, false))
+        let t = e.ty else return try self.fail(e, "`new` needs a type")
+        if not t.has(ast.flag_array):
+            return try self.fail(t, "`---` leaves the elements of `new T[count]` unwritten; one value is `new T`")
+        let inner = t.left else return try self.fail(t, "an array needs an element type")
+        let count = t.right else return try self.fail(t, "`new T[count] ---` needs a count")
+        let elem = try self.resolve_type(inner)
+        try self.storable(elem, inner)
+        _ = try self.expect(count, types.usize_id)
+        t.type_id = try self.table.span(elem, false)
+        return try self.table.fallible(t.type_id)
 
     ## `in x` and `with x:` name an allocator: a `var` implementing `Allocator`,
     ## a pointer to one, or an `Allocator` view.
-    mutating func check_allocator(e: ast.Node*) -> !:
+    func check_allocator(e: ast.Node*) -> !:
         let got = try self.check_expr(e, types.none_id)
         let t = self.table.get(got)
         if t.kind == types.Kind.interface_:
@@ -76,10 +69,10 @@ extend Checker:
         if concrete_type.kind == types.Kind.struct_ or concrete_type.kind == types.Kind.param:
             let d = concrete_type.decl else return try self.fail(e, "this is not an allocator")
             if self.implements_named(conc, "Allocator"):
-                if t.kind != types.Kind.pointer and not self.is_mutable_place(e):
-                    discard(try self.fail(e, "an allocator must be a `var`"))
+                if t.kind != types.Kind.pointer and not self.is_mutable_place(e) and not self.changes_receiver(e):
+                    try self.fail(e, "an allocator must be a `var`")
                 return
-        discard(try self.fail(e, "this is not an allocator"))
+        try self.fail(e, "this is not an allocator")
 
     func implements_named(id: u32, name: str) -> bool:
         let t = self.table.get(id)

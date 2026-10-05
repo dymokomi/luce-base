@@ -1,5 +1,5 @@
 # error: 
-## §20: no `alloca`; `alloc` from an allocator, or a fixed local array.
+## §20: no `alloca`; `new` from an allocator, or a fixed local array.
 pub func main(arguments: str[]) -> i32:
     let n: usize = 16
     let p = alloca(n)

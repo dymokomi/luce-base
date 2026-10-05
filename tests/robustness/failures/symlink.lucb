@@ -27,7 +27,7 @@ pub func main(arguments: c.str[]) -> i32:
     let steps = attempt(arguments[1], 0)
     var index: usize = 1
     while index <= steps:
-        discard(attempt(arguments[1], index))
+        _ = attempt(arguments[1], index)
         index += 1
     var kind: i32 = 32
     while kind <= 33:
@@ -48,10 +48,10 @@ pub func main(arguments: c.str[]) -> i32:
     var owner = allocator.Failing.at(0)
     var rejected = false
     with owner:
-        discard(files.read_symlink(arguments[1], 0) catch failure:
+        _ = files.read_symlink(arguments[1], 0) catch failure:
             assert(failure.code == files.too_large)
             rejected = true
-            recover interop.Owned[str](""))
+            recover interop.Owned[str]("")
     assert(rejected)
     owner.finish()
     print("ok symlink failures")

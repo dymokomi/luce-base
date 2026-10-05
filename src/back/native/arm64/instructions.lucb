@@ -10,13 +10,13 @@
 extend Generator:
     # mark: Instructions =======================================================================
 
-    mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
+    func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
         if n.dst != 0 and self.fr.is_rematerialised(n.dst):
             # a frame address is formed where it is used
             return
         match n.op:
             .dbg:
-                discard(0)
+                _ = 0
             .label:
                 if (usize)n.extra < self.loop_heads.length and self.loop_heads[(usize)n.extra]:
                     # a loop starts on a sixteen-byte boundary
@@ -62,12 +62,12 @@ extend Generator:
                     return
                 if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.a.kind == ir.RefKind.constant:
                     # a constant straight into where the temporary lives
-                    let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                    let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                     try self.load_immediate(d, n.a.value if n.cls == ir.Class.l else (i64)((u64)n.a.value & 0xFFFFFFFF))
                     try self.finish(n.dst, n.cls, d)
                     return
-                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let v = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 if v != d:
                     if ir.is_float_class(n.cls):
                         try self.fmove(d, v)
@@ -79,8 +79,8 @@ extend Generator:
                 if self.role() & (flags.joined | flags.folded) == 0:
                     try self.arithmetic(n)
             .neg:
-                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let v = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 if n.cls == ir.Class.h and not self.fp16:
                     try self.writer.line3("fcvt s16, ", v, "")
                     try self.writer.line("fneg s16, s16")
@@ -115,7 +115,7 @@ extend Generator:
                 try self.finish(n.dst, lc, d)
             .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
                 let cls = ir.store_class(n.op)
-                let v = try self.source(n.a, cls, self.reg(cls, 0))
+                let v = try self.source(n.a, cls, scratch_register(cls, 0))
                 let to_slot = self.fr.promoted_slot_of(n.b)
                 if to_slot != 0:
                     try self.store_promoted(n.op, to_slot, v)
@@ -146,7 +146,7 @@ extend Generator:
                 try self.finish(n.dst, ir.Class.l, d)
             .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
                 let v = try self.source(n.a, ir.Class.w, "w9")
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 # a word already zero above, in the result's own register, is extended
                 let extended = n.op == ir.Op.extuw and n.a.kind == ir.RefKind.temp and (usize)n.a.index < self.zero_upper.length and self.zero_upper[(usize)n.a.index] and v == narrow_name(d)
                 if not extended:
@@ -154,22 +154,22 @@ extend Generator:
                 try self.finish(n.dst, n.cls, d)
             .exth, .exts, .truncs, .truncd:
                 let src_cls = ir.float_source_class(n.op)
-                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let v = try self.source(n.a, src_cls, scratch_register(src_cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 try self.writer.line3("fcvt ", d, ", ")
                 try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .stosi, .stoui, .dtosi, .dtoui:
                 let src_cls = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
-                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let v = try self.source(n.a, src_cls, scratch_register(src_cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 try self.writer.line3("fcvtzs " if n.op == ir.Op.stosi or n.op == ir.Op.dtosi else "fcvtzu ", d, ", ")
                 try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .swtof, .uwtof, .sltof, .ultof:
                 let src_cls = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
-                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let v = try self.source(n.a, src_cls, scratch_register(src_cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 let convert = "scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf "
                 if n.cls == ir.Class.h and not self.fp16:
                     # exact in single precision for every integer a half can hold
@@ -183,8 +183,8 @@ extend Generator:
                 # bits move between an integer and a float of the same width; a half's
                 # sixteen bits travel through its single view where there is no half move
                 let other = ir.cast_partner(n.cls)
-                let v = try self.source(n.a, other, self.reg(other, 0))
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let v = try self.source(n.a, other, scratch_register(other, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 try self.fmove(d, v)
                 if other == ir.Class.h and not self.fp16:
                     try self.writer.line3("and ", d, ", ")
@@ -235,7 +235,7 @@ extend Generator:
                 try self.call(n)
             .word:
                 # moved out by the call before it (`take_words`)
-                discard(0)
+                _ = 0
             .reserve:
                 try self.reserve_levels(n.extra)
             .trap_:
@@ -277,7 +277,7 @@ extend Generator:
                 try self.writer.put(", [x16]")
             .atomic_load:
                 let address = try self.source(n.a, ir.Class.l, "x9")
-                let d = self.target(n.dst, ir.Class.w if n.extra <= 4 else ir.Class.l, self.reg(ir.Class.w if n.extra <= 4 else ir.Class.l, 0))
+                let d = self.target(n.dst, ir.Class.w if n.extra <= 4 else ir.Class.l, scratch_register(ir.Class.w if n.extra <= 4 else ir.Class.l, 0))
                 try self.writer.line("ldar" if n.extra2 >= 2 else "ldr")
                 try self.writer.put(width_suffix(n.extra))
                 try self.writer.put(" ")
@@ -288,7 +288,7 @@ extend Generator:
                 try self.finish(n.dst, n.cls, d)
             .atomic_store:
                 let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
-                let v = try self.source(n.a, cls, self.reg(cls, 0))
+                let v = try self.source(n.a, cls, scratch_register(cls, 0))
                 let address = try self.source(n.b, ir.Class.l, "x10")
                 try self.writer.line("stlr" if n.extra2 >= 3 else "str")
                 try self.writer.put(width_suffix(n.extra))
@@ -314,8 +314,8 @@ extend Generator:
             _:
                 error(failed, "an instruction the arm64 generator does not know")
 
-    mutating func arithmetic(n: ir.Instr) -> !:
-        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+    func arithmetic(n: ir.Instr) -> !:
+        let a = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
         if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.b.kind == ir.RefKind.constant:
             let value = n.b.value
             let width: u32 = 64 if n.cls == ir.Class.l else 32
@@ -326,7 +326,7 @@ extend Generator:
             let shift = power_of_two(value) if n.op == ir.Op.mul else 0
             if n.op == ir.Op.mul and value > 2 and power_of_two(value - 1) > 0 and power_of_two(value - 1) < (i64)width:
                 # times 2^k + 1: x plus x shifted by k, one instruction a multiply's latency
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 try self.writer.line5("add ", d, ", ", a, ", ")
                 try self.writer.put(a)
                 try self.writer.put(", lsl #")
@@ -334,7 +334,7 @@ extend Generator:
                 try self.finish(n.dst, n.cls, d)
                 return
             if immediate or (n.op == ir.Op.mul and shift > 0 and shift < (i64)width):
-                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 var mnemonic = "add "
                 match n.op:
                     .add: mnemonic = "sub " if negated else "add "
@@ -345,7 +345,7 @@ extend Generator:
                     .and_: mnemonic = "and "
                     .or_: mnemonic = "orr "
                     .xor: mnemonic = "eor "
-                    _: discard(0)
+                    _: _ = 0
                 try self.writer.line4(mnemonic, d, ", ", a)
                 try self.writer.put(", #")
                 if logical:
@@ -355,8 +355,8 @@ extend Generator:
                     try self.writer.put_i64(shift if n.op == ir.Op.mul else (0 - value if negated else value))
                 try self.finish(n.dst, n.cls, d)
                 return
-        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
-        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        let b = try self.source(n.b, n.cls, scratch_register(n.cls, 1))
+        let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
         let is_float = ir.is_float_class(n.cls)
         if n.cls == ir.Class.h and not self.fp16:
             # single precision holds every half exactly and its result rounds to the
@@ -388,7 +388,7 @@ extend Generator:
             .ashr: mnemonic = "asr"
             .srem, .urem:
                 try self.writer.line("sdiv " if n.op == ir.Op.srem else "udiv ")
-                try self.writer.put(self.reg(n.cls, 2))
+                try self.writer.put(scratch_register(n.cls, 2))
                 try self.writer.put(", ")
                 try self.writer.put(a)
                 try self.writer.put(", ")
@@ -396,7 +396,7 @@ extend Generator:
                 try self.writer.line("msub ")
                 try self.writer.put(d)
                 try self.writer.put(", ")
-                try self.writer.put(self.reg(n.cls, 2))
+                try self.writer.put(scratch_register(n.cls, 2))
                 try self.writer.put(", ")
                 try self.writer.put(b)
                 try self.writer.put(", ")
@@ -413,12 +413,12 @@ extend Generator:
         try self.writer.put(b)
         try self.finish(n.dst, n.cls, d)
 
-    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0, negate: bool = false) -> !:
-        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+    func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0, negate: bool = false) -> !:
+        let a = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
         let is_float = ir.is_float_class(n.cls)
         # an integer constant the instruction can carry: `cmp` up to 4095, `cmn` below 0
         let immediate = not is_float and n.b.kind == ir.RefKind.constant and n.b.value >= -4095 and n.b.value <= 4095
-        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let b = "" if immediate else try self.source(n.b, n.cls, scratch_register(n.cls, 1))
         if immediate:
             try self.writer.line3("cmp " if n.b.value >= 0 else "cmn ", a, ", #")
             try self.writer.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
@@ -452,7 +452,7 @@ extend Generator:
     ## table's count; the entry is its label's distance from the table, which follows the
     ## branch in the text, so the table needs no relocation. x9 holds the entry, x10 the
     ## table's address.
-    mutating func jump_table(n: ir.Instr) -> !:
+    func jump_table(n: ir.Instr) -> !:
         let wide = n.cls == ir.Class.l
         let table = self.f.jump_tables.get((usize)n.extra2)
         let v = try self.source(n.a, n.cls, "x9" if wide else "w9")
@@ -462,7 +462,7 @@ extend Generator:
         let modulus = 0 -% low if wide else ((u64)1 << 32) - low
         var index = v
         if low == 0:
-            discard(0)
+            _ = 0
         elif low <= 4095:
             try self.writer.line5("sub ", scratch, ", ", v, ", #")
             try self.writer.put_u64(low)
@@ -495,14 +495,14 @@ extend Generator:
             try self.table_name(n.extra2)
 
     ## The label of jump table `n` of the function.
-    mutating func table_name(n: u32) -> !:
+    func table_name(n: u32) -> !:
         try self.writer.out.put(self.object_format.local_label)
         try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
         try self.writer.out.put("_jt")
         try self.writer.out.put_u64((u64)n)
 
     ## `op` applied to the 32-bit view `v` of a value, into `d`.
-    mutating func extend_from(op: ir.Op, v: str, d: str) -> !:
+    func extend_from(op: ir.Op, v: str, d: str) -> !:
         match op:
             .extsb: try self.writer.line4("sxtb ", d, ", ", v)
             .extub: try self.writer.line5("and ", d, ", ", v, ", #255")
@@ -520,7 +520,7 @@ extend Generator:
     ## two values; `extra` is 1 when the condition is a whole word, 0 for its low half. The
     ## flags already hold the condition after its chain (`flags`); a choice between `x` and
     ## `x + 1` is `cinc`, whose `add` was not selected.
-    mutating func selected(n: ir.Instr) -> !:
+    func selected(n: ir.Instr) -> !:
         let role = self.role()
         let other = self.f.args.get((usize)n.extra2).value
         var cond = "ne"
@@ -533,15 +533,15 @@ extend Generator:
         if role & (flags.then_increments | flags.else_increments) != 0:
             # the value that is not the sum, and whether the sum is taken on the condition
             let then_sum = role & flags.then_increments != 0
-            let v = try self.source(other if then_sum else n.b, n.cls, self.reg(n.cls, 2))
-            let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+            let v = try self.source(other if then_sum else n.b, n.cls, scratch_register(n.cls, 2))
+            let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
             try self.writer.line5("cinc ", d, ", ", v, ", ")
             try self.writer.put(cond if then_sum else opposite_condition(cond))
             try self.finish(n.dst, n.cls, d)
             return
-        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
-        let e = try self.source(other, n.cls, self.reg(n.cls, 2))
-        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        let t = try self.source(n.b, n.cls, scratch_register(n.cls, 1))
+        let e = try self.source(other, n.cls, scratch_register(n.cls, 2))
+        let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
         try self.writer.line4("csel " if n.cls == ir.Class.w or n.cls == ir.Class.l else "fcsel ", d, ", ", t)
         try self.writer.put(", ")
         try self.writer.put(e)
@@ -557,15 +557,15 @@ extend Generator:
     ## later one `ccmp` (`fccmp`), which compares only while the chain so far leaves the
     ## answer open (`or`: while it is false; `and`: while it is true) and otherwise sets
     ## flags that settle it.
-    mutating func chained(n: ir.Instr, role: u8) -> !:
+    func chained(n: ir.Instr, role: u8) -> !:
         let is_float = ir.is_float_class(n.cls)
-        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let a = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
         let opening = role & flags.first != 0
         # `cmp` carries 0 to 4095 (`cmn` their negations), `ccmp` 0 to 31, a float none
         let low: i64 = -4095 if opening else 0
         let high: i64 = 4095 if opening else 31
         let immediate = not is_float and n.b.kind == ir.RefKind.constant and n.b.value >= low and n.b.value <= high
-        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let b = "" if immediate else try self.source(n.b, n.cls, scratch_register(n.cls, 1))
         let cond = condition(n.op, is_float)
         if opening:
             let mnemonic = "fcmp " if is_float else ("cmn " if immediate and n.b.value < 0 else "cmp ")
@@ -588,13 +588,13 @@ extend Generator:
     ## `fma`: `fmadd` for a scalar; for a vector, `fmla`, which accumulates into its
     ## destination: the result's register takes the addend first, or v18 when that register
     ## holds a factor.
-    mutating func fused(n: ir.Instr) -> !:
+    func fused(n: ir.Instr) -> !:
         let addend = self.f.args.get((usize)n.extra2).value
         if n.cls != ir.Class.v:
-            let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
-            let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
-            let c = try self.source(addend, n.cls, self.reg(n.cls, 2))
-            let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+            let a = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
+            let b = try self.source(n.b, n.cls, scratch_register(n.cls, 1))
+            let c = try self.source(addend, n.cls, scratch_register(n.cls, 2))
+            let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
             try self.writer.line4("fmadd ", d, ", ", a)
             try self.writer.put(", ")
             try self.writer.put(b)
@@ -626,12 +626,12 @@ extend Generator:
     ## A checked operation reads its operands where they live and computes into the
     ## destination's register when it has one; a multiply computes in x9 (its high word
     ## or widened check in x10 and x11) and moves the product out.
-    mutating func checked(n: ir.Instr) -> !:
+    func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
-        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let a = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
         # `adds x1, x2, #8`: an addend or subtrahend of 0..4095 is the instruction's own
         let immediate = n.op != ir.Op.mulo and n.b.kind == ir.RefKind.constant and n.b.value >= 0 and n.b.value <= 4095
-        let b = "" if immediate else try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let b = "" if immediate else try self.source(n.b, n.cls, scratch_register(n.cls, 1))
         if n.op == ir.Op.mulo:
             if n.cls == ir.Class.w:
                 # multiply at 64 bits and check the range
@@ -662,10 +662,10 @@ extend Generator:
                     try self.writer.line("cbz x11, 1f")
             try self.trap_text("integer overflow", n.extra2)
             try self.writer.put("\n1:")
-            try self.finish(n.dst, n.cls, self.reg(n.cls, 0))
+            try self.finish(n.dst, n.cls, scratch_register(n.cls, 0))
             return
         let add = n.op == ir.Op.addo
-        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
         try self.writer.line("adds " if add else "subs ")
         try self.writer.put(d)
         try self.writer.put(", ")
@@ -688,7 +688,7 @@ extend Generator:
 
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
     ## position plus one, which the reporter names first (§11.5).
-    mutating func trap_text(reason: str, at: u32) -> !:
+    func trap_text(reason: str, at: u32) -> !:
         # the reasons were added before the functions were generated (`trap_reasons`), so
         # the threads generating them only read the unit's texts
         let index = self.program_unit.find_text(reason) else error(ir.missing_text, "a trap's reason is not among the unit's texts")
@@ -702,6 +702,6 @@ extend Generator:
         try self.call_trap()
 
     ## The program's trap reporter, with the reason in x0.
-    mutating func call_trap() -> !:
+    func call_trap() -> !:
         try self.writer.line("bl ")
         try self.symbol(self.program_unit.trap_function)

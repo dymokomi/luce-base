@@ -1,0 +1,21 @@
+## §9.5, §14.1: a method implementing a requirement stays a method, though its body never
+## reads `self`, so a view calls it; a view of a conformer whose implementations change
+## nothing forms from a `let`.
+interface Named:
+    func name() -> str
+    func sides() -> i64
+
+struct Square: Named:
+    var side: i64
+
+    func name() -> str:
+        return "square"
+
+    func sides() -> i64:
+        return 4
+
+pub func main(arguments: str[]) -> i32:
+    let square = Square(side = 2)
+    let view: Named = &square
+    print(f"{view.name()} {view.sides()} {square.name()}")
+    return 0

@@ -36,7 +36,7 @@ func label(n: i64) -> str:
         recover "?"
 
 func through(n: i64) -> !:
-    discard(try doubled(n))
+    _ = try doubled(n)
 
 pub func main(arguments: str[]) -> i32:
     print(f"{label(5)} {label(-5)} {label(500)}")

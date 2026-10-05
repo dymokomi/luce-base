@@ -38,9 +38,9 @@ pub struct Formatter:
     var column: usize
 
     ## A formatter over `src` and its `tokens`, with the source's comments located.
-    pub static func over(src: source.Source, tokens: const token.Token[]) -> Formatter!:
+    pub func over(src: source.Source, tokens: const token.Token[]) -> Formatter!:
         var f = Formatter(src = src, tokens = tokens, out = try buffer.Buffer.create(4096), indent = 0,
-                          comments = try alloc usize[2], comment_count = 0, written = 0, at_line_start = true, column = 0)
+                          comments = try new usize[2] ---, comment_count = 0, written = 0, at_line_start = true, column = 0)
         try f.find_comments()
         return f
 
@@ -52,9 +52,9 @@ pub struct Formatter:
 
     ## Every comment of the source: a `##` line, which the lexer made a token, or a `#` outside
     ## every other token, to the end of its line.
-    mutating func find_comments() -> !:
+    func find_comments() -> !:
         var count: usize = 0
-        var room = try alloc usize[64]
+        var room = try new usize[64] ---
         var i: usize = 0
         var t: usize = 0
         let bytes = self.src.bytes
@@ -73,7 +73,7 @@ pub struct Formatter:
                 if end > start and bytes[end - 1] == '\r':
                     end -= 1
                 if count + 2 > room.length:
-                    let grown = try alloc usize[room.length * 2]
+                    let grown = try new usize[room.length * 2] ---
                     var k: usize = 0
                     while k < count:
                         grown[k] = room[k]
@@ -89,7 +89,7 @@ pub struct Formatter:
 
     ## Comments before `offset` on lines of their own, each on its own line; a blank line the
     ## source had before one is kept, as one.
-    mutating func comments_before(offset: usize) -> bool!:
+    func comments_before(offset: usize) -> bool!:
         var wrote = false
         while self.written < self.comment_count:
             let start = self.comments[self.written * 2]
@@ -115,7 +115,7 @@ pub struct Formatter:
     ## Between two items: a blank line the source had, kept as one, or a forced one, before
     ## the comments standing before the item; then those comments; then a blank line the
     ## source kept between the last of them and the item.
-    mutating func separate(previous: ast.Node*?, item: ast.Node*, forced: bool) -> !:
+    func separate(previous: ast.Node*?, item: ast.Node*, forced: bool) -> !:
         let at = statement_start(item)
         if previous != none and (forced or self.blank_before(self.next_break(at))):
             try self.blank()
@@ -124,12 +124,12 @@ pub struct Formatter:
             try self.blank()
 
     ## A comment on the same line after code: written after the line, two spaces before.
-    mutating func trailing_comment(line: u32) -> !:
+    func trailing_comment(line: u32) -> !:
         if self.written < self.comment_count:
             let start = self.comments[self.written * 2]
             let end = self.comments[self.written * 2 + 1]
             let (l, c) = self.src.position(start)
-            discard(c)
+            _ = c
             if l == line and not self.first_on_line(start):
                 self.written += 1
                 try self.out.put("  ")
@@ -161,7 +161,7 @@ pub struct Formatter:
     ## The source's own text of `[start, end)`, as written: an array literal whose rows carry
     ## comments keeps the rows, the comments and the blank lines its author gave it. The
     ## comments inside count as written.
-    mutating func verbatim(start: usize, end: usize) -> !:
+    func verbatim(start: usize, end: usize) -> !:
         let text = (str)self.src.bytes[start..<end]
         try self.put(text)
         var last = text.length
@@ -273,7 +273,7 @@ pub struct Formatter:
 
     # mark: Output =============================================================================
 
-    mutating func put(text: str) -> !:
+    func put(text: str) -> !:
         if self.at_line_start:
             var i: u32 = 0
             while i < self.indent:
@@ -284,12 +284,12 @@ pub struct Formatter:
         try self.out.put(text)
         self.column += text.length
 
-    mutating func newline() -> !:
+    func newline() -> !:
         try self.out.put("\n")
         self.at_line_start = true
         self.column = 0
 
-    mutating func blank() -> !:
+    func blank() -> !:
         if not self.at_line_start:
             try self.newline()
         if not self.ends_blank():
@@ -301,7 +301,7 @@ pub struct Formatter:
         return text.length >= 2 and text.bytes[text.length - 1] == '\n' and text.bytes[text.length - 2] == '\n'
 
     ## A continuation line of a list broken by the source: under the list's first item.
-    mutating func continue_at(column: usize) -> !:
+    func continue_at(column: usize) -> !:
         try self.out.put("\n")
         var i: usize = 0
         while i < column:
@@ -315,22 +315,22 @@ pub struct Formatter:
 
     func line_at(offset: usize) -> u32:
         let (l, c) = self.src.position(offset)
-        discard(c)
+        _ = c
         return l
 
-    mutating func end_line(n: ast.Node*) -> !:
+    func end_line(n: ast.Node*) -> !:
         try self.trailing_comment(self.line_of(n))
         try self.newline()
 
     ## `:` closing a header, the header's trailing comment, and the line's end.
-    mutating func open_suite(n: ast.Node*) -> !:
+    func open_suite(n: ast.Node*) -> !:
         try self.put(":")
         try self.trailing_comment(self.line_of(n))
         try self.newline()
 
     ## `:` and the suite: on the header's line when the source wrote its one simple statement
     ## there (§3.2), else the block beneath.
-    mutating func suite(header: ast.Node*, b: ast.Node*) -> !:
+    func suite(header: ast.Node*, b: ast.Node*) -> !:
         if let only = b.body:
             if only.next == none and self.line_at(statement_start(only)) == self.line_of(header) and not compound(only):
                 try self.put(": ")
@@ -340,27 +340,22 @@ pub struct Formatter:
         try self.block(b)
 
     # mark: Module =============================================================================
-    pub mutating func module(m: ast.Node*) -> !:
+    pub func module(m: ast.Node*) -> !:
         var cursor = m.body
         var previous: ast.Node*? = none
         while let d = cursor:
             var forced = false
             if let p = previous:
-                forced = self.spaced(p, d)
+                forced = spaced(p, d)
             try self.separate(previous, d, forced)
             previous = d
             try self.declaration(d)
             cursor = d.next
         if self.written < self.comment_count and self.blank_before(self.comments[self.written * 2]):
             try self.blank()
-        discard(try self.comments_before(self.src.bytes.length + 1))
+        _ = try self.comments_before(self.src.bytes.length + 1)
 
-    ## Whether a blank line always separates two declarations: when either is one with a
-    ## body. Imports, constants, globals, aliases, and foreign declarations sit together.
-    func spaced(a: ast.Node*, b: ast.Node*) -> bool:
-        return has_body(a) or has_body(b)
-
-    mutating func declaration(d: ast.Node*) -> !:
+    func declaration(d: ast.Node*) -> !:
         match d.kind:
             .import_:
                 try self.put("import ")
@@ -375,12 +370,12 @@ pub struct Formatter:
                 try self.put(" import ")
                 try self.imported_names(d.body)
                 try self.end_line(d)
-            .func_: try self.function(d)
+            .func_: try self.function(d, "")
             .extend_:
                 try self.put("extend ")
                 try self.put(d.text)
                 try self.open_suite(d)
-                try self.members(d.body, true)
+                try self.members(d.body, true, d.text)
             .struct_, .extern_struct:
                 try self.visibility(d)
                 if d.kind == ast.Kind.extern_struct:
@@ -391,7 +386,7 @@ pub struct Formatter:
                 try self.generics(d.left)
                 try self.conformances(d.ty)
                 try self.open_suite(d)
-                try self.members(d.body, d.kind == ast.Kind.struct_)
+                try self.members(d.body, d.kind == ast.Kind.struct_, d.text)
             .enum_:
                 try self.visibility(d)
                 try self.put("enum ")
@@ -402,7 +397,7 @@ pub struct Formatter:
                     try self.type_node(backing)
                 try self.conformances(d.right)
                 try self.open_suite(d)
-                try self.members(d.body, true)
+                try self.members(d.body, true, d.text)
             .union_, .extern_union:
                 try self.visibility(d)
                 if d.kind == ast.Kind.extern_union:
@@ -410,14 +405,14 @@ pub struct Formatter:
                 try self.put("union ")
                 try self.put(d.text)
                 try self.open_suite(d)
-                try self.members(d.body, false)
+                try self.members(d.body, false, d.text)
             .interface_:
                 try self.visibility(d)
                 try self.put("interface ")
                 try self.put(d.text)
                 try self.generics(d.left)
                 try self.open_suite(d)
-                try self.members(d.body, true)
+                try self.members(d.body, true, "")
             .type_alias:
                 try self.visibility(d)
                 try self.put("type ")
@@ -502,16 +497,16 @@ pub struct Formatter:
                 try self.put(")")
                 try self.result(d)
                 try self.end_line(d)
-            _: discard(0)
+            _: _ = 0
 
-    mutating func visibility(d: ast.Node*) -> !:
+    func visibility(d: ast.Node*) -> !:
         if d.has(ast.flag_pub):
             try self.put("pub ")
         if d.has(ast.flag_export):
             try self.put("export ")
 
     ## `packed ` or `align(N) ` before `struct`.
-    mutating func layout_words(d: ast.Node*) -> !:
+    func layout_words(d: ast.Node*) -> !:
         if d.has(ast.flag_packed):
             try self.put("packed ")
         elif let alignment = d.right:
@@ -520,7 +515,7 @@ pub struct Formatter:
             try self.put(") ")
 
     ## The attribute words of §9.8 before a function or a global, `section` with its name.
-    mutating func attributes(d: ast.Node*) -> !:
+    func attributes(d: ast.Node*) -> !:
         var cursor = d.attrs
         while let a = cursor:
             try self.put(a.text)
@@ -532,7 +527,7 @@ pub struct Formatter:
             cursor = a.next
 
     ## `[T, U: A & B]`
-    mutating func generics(g: ast.Node*?) -> !:
+    func generics(g: ast.Node*?) -> !:
         let list = g else return
         try self.put("[")
         var cursor = list.body
@@ -552,7 +547,7 @@ pub struct Formatter:
             cursor = p.next
         try self.put("]")
 
-    mutating func conformances(c: ast.Node*?) -> !:
+    func conformances(c: ast.Node*?) -> !:
         var cursor = c
         var first = true
         while let t = cursor:
@@ -561,7 +556,7 @@ pub struct Formatter:
             try self.type_node(t)
             cursor = t.next
 
-    mutating func names(n: ast.Node*?) -> !:
+    func names(n: ast.Node*?) -> !:
         var cursor = n
         var first = true
         while let name = cursor:
@@ -572,7 +567,7 @@ pub struct Formatter:
             cursor = name.next
 
     ## The names a `from` import brings, each with its `as` alias.
-    mutating func imported_names(n: ast.Node*?) -> !:
+    func imported_names(n: ast.Node*?) -> !:
         var cursor = n
         var first = true
         while let name = cursor:
@@ -588,7 +583,8 @@ pub struct Formatter:
     ## A type's members: a blank line before and after a method, and where the source had
     ## one. A struct's or enum's field is `var` or `let`; a union's or foreign struct's has
     ## no keyword.
-    mutating func members(m: ast.Node*?, keyworded: bool) -> !:
+    ## The members of type `owner`, fields with `var` when `keyworded`.
+    func members(m: ast.Node*?, keyworded: bool, owner: str) -> !:
         self.indent += 1
         var cursor = m
         var previous: ast.Node*? = none
@@ -626,22 +622,24 @@ pub struct Formatter:
                         try self.put(" = ")
                         try self.expr(value)
                     try self.end_line(member)
-                .func_: try self.function(member)
-                _: discard(0)
+                .func_: try self.function(member, owner)
+                _: _ = 0
             cursor = member.next
         self.indent -= 1
 
-    mutating func function(f: ast.Node*) -> !:
+    ## A function; a `linked` method of `owner` names its receiver, which its body would
+    ## otherwise show (§9.8).
+    func function(f: ast.Node*, owner: str) -> !:
         try self.visibility(f)
         try self.attributes(f)
-        if f.has(ast.flag_static):
-            try self.put("static ")
-        if f.has(ast.flag_mutating):
-            try self.put("mutating ")
         try self.put("func ")
         try self.put(f.text)
         try self.generics(f.left)
         try self.put("(")
+        if owner.length > 0 and ast.is_linked(f) and not f.has(ast.flag_static):
+            try self.put("self: const " if not f.has(ast.flag_mutating) else "self: ")
+            try self.put(owner)
+            try self.put("*, " if f.right != none else "*")
         try self.params(f.right, false)
         try self.put(")")
         try self.result(f)
@@ -651,14 +649,14 @@ pub struct Formatter:
             try self.end_line(f)
 
     ## ` -> T` or ` -> !`.
-    mutating func result(f: ast.Node*) -> !:
+    func result(f: ast.Node*) -> !:
         if f.has(ast.flag_fallible):
             try self.put(" -> !")
         elif let r = f.ty:
             try self.put(" -> ")
             try self.type_node(r)
 
-    mutating func params(p: ast.Node*?, variadic: bool) -> !:
+    func params(p: ast.Node*?, variadic: bool) -> !:
         let column = self.column
         var cursor = p
         var first = true
@@ -688,7 +686,7 @@ pub struct Formatter:
             try self.put("...")
 
     ## `asm ARCH(operands):` and its raw lines, indented one level, as written.
-    mutating func asm_block(a: ast.Node*) -> !:
+    func asm_block(a: ast.Node*) -> !:
         try self.put("asm ")
         try self.put(a.text)
         if a.right != none:
@@ -726,7 +724,7 @@ pub struct Formatter:
 
     # mark: Statements =========================================================================
 
-    mutating func block(b: ast.Node*) -> !:
+    func block(b: ast.Node*) -> !:
         self.indent += 1
         var cursor = b.body
         var previous: ast.Node*? = none
@@ -742,12 +740,12 @@ pub struct Formatter:
 
     ## Comments on lines of their own right after a block's last statement, at least as deep
     ## as its statements, end the block: they are written in it, not before what follows.
-    mutating func block_end_comments(last: ast.Node*, depth: usize) -> !:
+    func block_end_comments(last: ast.Node*, depth: usize) -> !:
         while self.written < self.comment_count:
             let start = self.comments[self.written * 2]
             if self.indent_of(start) < depth or not self.only_deeper(statement_start(last), start, depth):
                 return
-            discard(try self.comments_before(start + 1))
+            _ = try self.comments_before(start + 1)
 
     ## Whether a comment ends the block whose last statement is `last` (as
     ## `block_end_comments` would write it there).
@@ -785,7 +783,7 @@ pub struct Formatter:
             i = j
         return true
 
-    mutating func statement(s: ast.Node*) -> !:
+    func statement(s: ast.Node*) -> !:
         match s.kind:
             .let_, .var_:
                 try self.put("let " if s.kind == ast.Kind.let_ else "var ")
@@ -871,7 +869,7 @@ pub struct Formatter:
     ## `defer statement` for one simple statement, however the source wrote it, else `defer:`
     ## and the block beneath (§8.8); `errdefer` alike. A one-statement block stays a block
     ## when its statement spans lines or a comment stands between it and `defer`.
-    mutating func deferred(s: ast.Node*) -> !:
+    func deferred(s: ast.Node*) -> !:
         try self.put("defer" if s.kind == ast.Kind.defer_ else "errdefer")
         let b = s.body else return
         if let only = b.body:
@@ -885,7 +883,7 @@ pub struct Formatter:
         try self.open_suite(s)
         try self.block(b)
 
-    mutating func free_statement(f: ast.Node*, s: ast.Node*) -> !:
+    func free_statement(f: ast.Node*, s: ast.Node*) -> !:
         try self.put("free(")
         try self.expr(f.left else return)
         try self.put(")")
@@ -896,7 +894,7 @@ pub struct Formatter:
             try self.end_line(s)
 
     ## `x` or `(a, b)` of a binding or a `for`.
-    mutating func binding_target(b: ast.Node*) -> !:
+    func binding_target(b: ast.Node*) -> !:
         if b.body != none:
             try self.put("(")
             try self.names(b.body)
@@ -907,7 +905,7 @@ pub struct Formatter:
     ## A statement's expression, which may end in a `catch` suite, then the line's end. The
     ## trailing comment is looked for on the expression's line: an expression statement's
     ## own node comes after its expression, at the line's end.
-    mutating func expr_or_catch(e: ast.Node*, s: ast.Node*) -> !:
+    func expr_or_catch(e: ast.Node*, s: ast.Node*) -> !:
         if e.kind == ast.Kind.catch_:
             try self.expr(e.left else return)
             try self.put(" catch")
@@ -919,7 +917,7 @@ pub struct Formatter:
         try self.expr(e)
         try self.end_line(e if s.kind == ast.Kind.expr_stmt else s)
 
-    mutating func condition(s: ast.Node*) -> !:
+    func condition(s: ast.Node*) -> !:
         let c = s.left else return
         if s.has(ast.flag_if_let):
             try self.put("let ")
@@ -929,19 +927,19 @@ pub struct Formatter:
         else:
             try self.expr(c)
 
-    mutating func if_statement(s: ast.Node*, word: str) -> !:
+    func if_statement(s: ast.Node*, word: str) -> !:
         try self.put(word)
         try self.condition(s)
         try self.suite(s, s.body else return)
         if let rest = s.right:
-            discard(try self.comments_before(rest.start))
+            _ = try self.comments_before(rest.start)
             if rest.kind == ast.Kind.if_:
                 try self.if_statement(rest, "elif ")
             else:
                 try self.put("else")
                 try self.suite(rest, rest)
 
-    mutating func arms(a: ast.Node*?, expression: bool) -> !:
+    func arms(a: ast.Node*?, expression: bool) -> !:
         self.indent += 1
         var cursor = a
         var previous: ast.Node*? = none
@@ -968,7 +966,7 @@ pub struct Formatter:
             cursor = arm.next
         self.indent -= 1
 
-    mutating func pattern(p: ast.Node*) -> !:
+    func pattern(p: ast.Node*) -> !:
         if p.has(ast.flag_wildcard):
             try self.put("_")
             return
@@ -988,7 +986,7 @@ pub struct Formatter:
 
     # mark: Expressions ========================================================================
 
-    mutating func expr(e: ast.Node*) -> !:
+    func expr(e: ast.Node*) -> !:
         match e.kind:
             .literal: try self.put(e.text)
             .name:
@@ -1113,6 +1111,9 @@ pub struct Formatter:
                     else:
                         try self.put("{")
                         try self.expr(part.left else return)
+                        if part.text.length > 0:
+                            try self.put(":")
+                            try self.put(part.text)
                         try self.put("}")
                     cursor = part.next
                 try self.put("\"")
@@ -1136,15 +1137,10 @@ pub struct Formatter:
                 if let allocator = e.right:
                     try self.put(" in ")
                     try self.expr(allocator)
-            .alloc_:
-                try self.put("alloc")
-                if let t = e.ty:
-                    try self.put(" ")
-                    try self.type_node(t)
-                else:
-                    try self.put("(")
-                    try self.arguments(e.body)
-                    try self.put(")")
+            .new_unwritten:
+                try self.put("new ")
+                try self.type_node(e.ty else return)
+                try self.put(" ---")
                 if let allocator = e.right:
                     try self.put(" in ")
                     try self.expr(allocator)
@@ -1160,16 +1156,16 @@ pub struct Formatter:
     ## an item stays, the item aligned under the first. A list the source opened with a line
     ## break is in block form: its items one level in, and when the source closed it on a
     ## line of its own, a comma after the last item and the bracket on its own line.
-    mutating func list(items: ast.Node*?) -> !:
+    func list(items: ast.Node*?) -> !:
         try self.items(items, false)
 
     ## Arguments: `name = value` or the value.
-    mutating func arguments(a: ast.Node*?) -> !:
+    func arguments(a: ast.Node*?) -> !:
         try self.items(a, true)
 
-    mutating func items(list: ast.Node*?, named: bool) -> !:
+    func items(list: ast.Node*?, named: bool) -> !:
         let first = list else return
-        let block_form = self.open_break(self.item_start(first, named))
+        let block_form = self.open_break(start_of_item(first, named))
         if block_form:
             self.indent += 1
             try self.newline()
@@ -1178,7 +1174,7 @@ pub struct Formatter:
         var last = first
         var leading = true
         while let item = cursor:
-            let at = self.item_start(item, named)
+            let at = start_of_item(item, named)
             if not leading:
                 try self.put(",")
                 if not self.break_before(at):
@@ -1196,22 +1192,11 @@ pub struct Formatter:
             cursor = item.next
         if block_form:
             self.indent -= 1
-            if self.newline_before(self.closing_after(self.item_start(last, named))):
+            if self.newline_before(self.closing_after(start_of_item(last, named))):
                 try self.put(",")
                 try self.newline()
 
-    ## Where an item's text begins: the argument's name when it has one, else the first
-    ## byte of its value.
-    func item_start(item: ast.Node*, named: bool) -> usize:
-        if named:
-            if item.text.length > 0:
-                return item.start
-            if let value = item.left:
-                return first_offset(value)
-            return item.start
-        return first_offset(item)
-
-    mutating func type_args(args: ast.Node*) -> !:
+    func type_args(args: ast.Node*) -> !:
         try self.put("[")
         var cursor = args.body
         var first = true
@@ -1226,7 +1211,7 @@ pub struct Formatter:
     # mark: Types ==============================================================================
 
     ## Types separated by commas: a function type's parameters, a tuple's members.
-    mutating func type_list(first: ast.Node*?) -> !:
+    func type_list(first: ast.Node*?) -> !:
         var cursor = first
         while let m = cursor:
             if m != first:
@@ -1234,7 +1219,7 @@ pub struct Formatter:
             try self.type_node(m)
             cursor = m.next
 
-    mutating func type_node(t: ast.Node*) -> !:
+    func type_node(t: ast.Node*) -> !:
         if t.has(ast.flag_atomic):
             try self.put("@")
         if t.has(ast.flag_fallible) and t.text == "!":
@@ -1244,7 +1229,7 @@ pub struct Formatter:
         try self.type_inner(t)
 
     ## A type without its `@`: the suffix chain, then the core with its qualifiers.
-    mutating func type_inner(t: ast.Node*) -> !:
+    func type_inner(t: ast.Node*) -> !:
         if t.has(ast.flag_optional) and t.text == "?":
             try self.type_inner(t.left else return)
             try self.put("?")
@@ -1295,6 +1280,22 @@ pub struct Formatter:
         try self.put(t.text)
         if t.body != none:
             try self.type_args(t)
+
+## Whether a blank line always separates two declarations: when either is one with a
+## body. Imports, constants, globals, aliases, and foreign declarations sit together.
+func spaced(a: ast.Node*, b: ast.Node*) -> bool:
+    return has_body(a) or has_body(b)
+
+## Where an item's text begins: the argument's name when it has one, else the first
+## byte of its value.
+func start_of_item(item: ast.Node*, named: bool) -> usize:
+    if named:
+        if item.text.length > 0:
+            return item.start
+        if let value = item.left:
+            return first_offset(value)
+        return item.start
+    return first_offset(item)
 
 ## The first byte of an expression: an operator's node begins at the operator, a call's at
 ## its bracket, a member's at its name, so the leftmost operand is followed down.

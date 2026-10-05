@@ -9,6 +9,6 @@ pub func main(arguments: str[]) -> i32:
     let failed = counters.open(-1) catch failure:
         print(f"refused: {failure.message}")
         recover c
-    discard(failed)
+    _ = failed
     print(f"{counters.alive()} {counters.limit} {counters.label(counters.Mode.write, "w")}")
     return 0

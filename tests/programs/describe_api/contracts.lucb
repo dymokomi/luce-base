@@ -9,4 +9,4 @@ pub handle Token:
     destroy release
 
 pub func release(token: Token):
-    discard(token)
+    _ = token

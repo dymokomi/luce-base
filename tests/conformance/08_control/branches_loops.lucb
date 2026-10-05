@@ -4,7 +4,7 @@ struct Cursor:
     var at: usize
     var limit: usize
 
-    mutating func next() -> usize?:
+    func next() -> usize?:
         if self.at >= self.limit:
             return none
         self.at += 1

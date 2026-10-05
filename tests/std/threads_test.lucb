@@ -37,7 +37,7 @@ test "threads count under a mutex and an atomic":
 var once_counter: @u32
 
 func mark_once():
-    discard(once_counter.add(1, .acq_rel))
+    _ = once_counter.add(1, .acq_rel)
 
 func run_once(context: void*?):
     let raw = context else trap("no once")
@@ -62,7 +62,7 @@ func wait_then_mark(context: void*?):
     let raw = context else trap("no handoff")
     let handoff = (Handoff*)raw
     handoff.permit.acquire()
-    discard(handoff.done.add(1, .release))
+    _ = handoff.done.add(1, .release)
 
 test "a semaphore hands a permit from one thread to another":
     var handoff: Handoff

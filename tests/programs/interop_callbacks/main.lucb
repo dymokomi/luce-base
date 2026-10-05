@@ -15,11 +15,11 @@ struct Recorder:
     var events: i64[32]
     var count: usize
 
-    mutating func record(value: i64):
+    func record(value: i64):
         self.events[self.count] = value
         self.count += 1
 
-    mutating func on_first(value: i64) -> interop.Outcome[unit]:
+    func on_first(value: i64) -> interop.Outcome[unit]:
         self.record(10 + value)
         if value == 1:
             (self.second else trap("missing second connection")).value().disconnect()
@@ -30,27 +30,27 @@ struct Recorder:
             self.added = self.signal.connect(callback) catch failure: trap(failure.message)
             let nested = self.signal.emit(2)
             defer nested.release()
-            discard(nested.get() catch failure: trap(failure.message))
+            _ = nested.get() catch failure: trap(failure.message)
         elif value == 3:
             (self.first else trap("missing first connection")).value().disconnect()
         return interop.Outcome[unit].success(interop.Owned[unit](()))
 
-    mutating func on_second(value: i64) -> interop.Outcome[unit]:
+    func on_second(value: i64) -> interop.Outcome[unit]:
         self.record(20 + value)
         return interop.Outcome[unit].success(interop.Owned[unit](()))
 
-    mutating func on_added(value: i64) -> interop.Outcome[unit]:
+    func on_added(value: i64) -> interop.Outcome[unit]:
         self.record(30 + value)
         if value == 4:
             self.signal.close()
         return interop.Outcome[unit].success(interop.Owned[unit](()))
 
-    mutating func fail(value: i64) -> interop.Outcome[unit]:
+    func fail(value: i64) -> interop.Outcome[unit]:
         self.record(value)
         let text = interop.copy_text("native callback failure") catch failure: trap(failure.message)
         return interop.Outcome[unit].failure(interop.invalid, text)
 
-    mutating func close():
+    func close():
         disposed += 1
         self.signal.close()
         self.signal.release()
@@ -96,7 +96,7 @@ func connect(owner: interop.Reference[Recorder]) -> !:
 func deliver(signal: interop.Signal[i64], value: i64) -> !:
     let result = signal.emit(value)
     defer result.release()
-    discard(try result.get())
+    _ = try result.get()
 
 func delivery() -> !:
     let owner = try make()
@@ -143,7 +143,7 @@ func allocation_failure() -> !:
     let callback = try interop.Callback[i64, unit].bind_mutating(owner, Recorder.on_second)
     let baseline = allocator.bytes
     # The connection's native allocation succeeds, then its registration fails.
-    allocator.limit = baseline + sizeof(interop.Connection)
+    allocator.limit = baseline + memory.size_of(interop.Connection)
     let rejected: interop.Reference[interop.Connection]? = signal.connect(callback) catch failure:
         assert(failure.code == memory.exhausted and allocator.bytes == baseline)
         recover none

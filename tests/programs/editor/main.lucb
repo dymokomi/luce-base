@@ -13,6 +13,7 @@ import luce_std.files
 import editor.screen
 import editor.session
 import editor.terminal
+import strings
 
 pub func main(arguments: str[]) -> i32!:
     if arguments.length < 2 or (arguments.length == 3) or arguments.length > 4:
@@ -28,7 +29,7 @@ pub func main(arguments: str[]) -> i32!:
             print("usage: editor FILE [--replay SCRIPT]")
             return 2
         var script_name: u8[1024]
-        let script_path = try format(script_name, f"{arguments[3]}")
+        let script_path = try strings.format(script_name, f"{arguments[3]}")
         let keys = try files.read((c.str)script_path)
         defer keys.release()
         var term = terminal.Terminal.headless()
@@ -42,7 +43,7 @@ pub func main(arguments: str[]) -> i32!:
     editor.say("^S save  ^Q quit  ^F find  ^Z undo  ^Y redo  ^K delete line")
     while editor.running:
         screen.draw(&term, &editor.text, &view, editor.path, editor.message())
-        let key = term.read_key()
+        let key = terminal.Terminal.read_key()
         editor.handle(key) catch failure:
             editor.say(failure.message)
     return 0

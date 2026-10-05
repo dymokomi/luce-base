@@ -75,7 +75,7 @@ extend Generator:
         return p
 
     ## The second register of a two-register aggregate argument, from `at` + 8.
-    mutating func second_word(p: ArgPlacement, a: ir.Arg, at: str) -> !:
+    func second_word(p: ArgPlacement, a: ir.Arg, at: str) -> !:
         try self.writer.line("ldr x" if a.size > 12 else "ldr w")
         try self.writer.put_u64((u64)p.first + 1)
         try self.writer.put(", [")
@@ -87,10 +87,10 @@ extend Generator:
     ## still read by a pending one, a cycle breaks through x17 (free until the callee is
     ## reloaded), and the arguments read from the frame or made from constants, which read
     ## no register, come last.
-    mutating func integer_arguments(info: ir.CallInfo, placements: ArgPlacement[]) -> !:
+    func integer_arguments(info: ir.CallInfo, placements: ArgPlacement[]) -> !:
         let count = (usize)info.args_count
-        var pending = try alloc bool[count + 1]
-        var reads = try alloc str[count + 1]
+        var pending = try new bool[count + 1] ---
+        var reads = try new str[count + 1] ---
         var i: usize = 0
         while i < count:
             let a = self.f.args.get((usize)info.args_start + i)
@@ -110,7 +110,7 @@ extend Generator:
             while i < count:
                 if pending[i] and reads[i].length > 0:
                     left = true
-                    if not self.destination_read(placements[i], pending, reads, i, count):
+                    if not destination_read(placements[i], pending, reads, i, count):
                         try self.integer_argument(i, info, placements[i], reads[i])
                         pending[i] = false
                         moved = true
@@ -130,19 +130,8 @@ extend Generator:
                 try self.integer_argument(i, info, placements[i], "")
             i += 1
 
-    ## Whether a pending argument other than `i` reads a register argument `i` writes.
-    func destination_read(p: ArgPlacement, pending: bool[], reads: str[], i: usize, count: usize) -> bool:
-        var k: usize = 0
-        while k < count:
-            if k != i and pending[k] and reads[k].length > 0:
-                let read = argument_index(reads[k])
-                if read >= 0 and (read == (i32)p.first or (p.count == 2 and read == (i32)p.first + 1)):
-                    return true
-            k += 1
-        return false
-
     ## One integer register argument: from `read` when it lives in a register, else loaded.
-    mutating func integer_argument(i: usize, info: ir.CallInfo, p: ArgPlacement, read: str) -> !:
+    func integer_argument(i: usize, info: ir.CallInfo, p: ArgPlacement, read: str) -> !:
         let a = self.f.args.get((usize)info.args_start + i)
         if p.where == 3 or a.size > 0:
             var at = read
@@ -175,7 +164,7 @@ extend Generator:
 
     ## A call: its arguments placed as AAPCS64 (and Apple's variadic rule) says, the
     ## callee called directly or through x17, and its result taken.
-    mutating func call(n: ir.Instr) -> !:
+    func call(n: ir.Instr) -> !:
         let info = self.f.calls.get((usize)n.extra)
         let (placements, stack) = try self.place_arguments(info)
         let area = (u64)arm_round_up((u64)stack, 16)
@@ -212,14 +201,14 @@ extend Generator:
         try self.take_result(n, info)
 
     ## Where each argument of `info` goes, and the bytes of stack they take.
-    mutating func place_arguments(info: ir.CallInfo) -> (ArgPlacement[], u32)!:
+    func place_arguments(info: ir.CallInfo) -> (ArgPlacement[], u32)!:
         var next_int: u32 = 0
         var next_float: u32 = 0
         var stack: u32 = 0
         # one placement per argument, however many: from the build's arena
         var placements: ArgPlacement[]
         if info.args_count > 0:
-            placements = try alloc ArgPlacement[(usize)info.args_count]
+            placements = try new ArgPlacement[(usize)info.args_count] ---
         var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
@@ -236,7 +225,7 @@ extend Generator:
 
     ## The arguments placed on the stack, stored at their offsets from sp (past the parked
     ## callee address when `through_register`).
-    mutating func stack_arguments(info: ir.CallInfo, placements: ArgPlacement[], through_register: bool) -> !:
+    func stack_arguments(info: ir.CallInfo, placements: ArgPlacement[], through_register: bool) -> !:
         var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
@@ -244,17 +233,17 @@ extend Generator:
             if p.where == 2:
                 let base_offset = (u64)p.stack_offset + (16 if through_register else 0)
                 if a.size == 0:
-                    try self.operand(self.reg(a.cls, 0), a.cls, a.value)
+                    try self.operand(scratch_register(a.cls, 0), a.cls, a.value)
                     let width = scalar_stack_width(a.cls, a.scalar_width)
                     if info.variadic and i >= info.fixed_count and self.object_format.apple:
                         try self.writer.line("str ")
-                        try self.writer.put(self.wide(a.cls, 0))
+                        try self.writer.put(stack_store_register(a.cls, 0))
                     elif ir.is_float_class(a.cls):
                         try self.writer.line("str ")
-                        try self.writer.put(self.reg(a.cls, 0))
+                        try self.writer.put(scratch_register(a.cls, 0))
                     else:
                         try self.writer.line("strb " if width == 1 else ("strh " if width == 2 else "str "))
-                        try self.writer.put(self.reg(ir.Class.w if width < 8 else ir.Class.l, 0))
+                        try self.writer.put(scratch_register(ir.Class.w if width < 8 else ir.Class.l, 0))
                     try self.writer.put(", [sp, #")
                     try self.writer.put_u64(base_offset)
                     try self.writer.put("]")
@@ -288,19 +277,19 @@ extend Generator:
 
     ## The arguments placed in float registers, floats first so integer scratch stays free:
     ## a scalar moved in, a homogeneous float aggregate loaded a member a register.
-    mutating func float_arguments(info: ir.CallInfo, placements: ArgPlacement[]) -> !:
+    func float_arguments(info: ir.CallInfo, placements: ArgPlacement[]) -> !:
         var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 1:
                 if a.size == 0:
-                    try self.operand(self.reg(a.cls, 0), a.cls, a.value)
+                    try self.operand(scratch_register(a.cls, 0), a.cls, a.value)
                     try self.writer.line("fmov ")
                     try self.writer.put(self.half_letter(a.cls))
                     try self.writer.put_u64((u64)p.first)
                     try self.writer.put(", ")
-                    try self.writer.put(try self.hv(self.reg(a.cls, 0)))
+                    try self.writer.put(try self.hv(scratch_register(a.cls, 0)))
                 else:
                     let at = try self.source(a.value, ir.Class.l, "x9")
                     let each = (u64)a.size // (u64)self.hfa(a.shape)
@@ -318,7 +307,7 @@ extend Generator:
             i += 1
 
     ## The call's result, from the registers AAPCS64 returns it in to its temporary or slot.
-    mutating func take_result(n: ir.Instr, info: ir.CallInfo) -> !:
+    func take_result(n: ir.Instr, info: ir.CallInfo) -> !:
         if not info.has_result:
             return
         if info.result_size == 0:
@@ -364,7 +353,7 @@ extend Generator:
 
     ## Exactly `width` bytes (1 to 8) of the register `x` (`w` its narrow view) to
     ## `[x16, #offset]`, nothing past them; the odd widths go in two pieces through x17.
-    mutating func store_low(x: str, w: str, offset: u64, width: u64) -> !:
+    func store_low(x: str, w: str, offset: u64, width: u64) -> !:
         if width == 8 or width == 4 or width == 2 or width == 1:
             try self.writer.line("str " if width >= 4 else ("strh " if width == 2 else "strb "))
             try self.writer.put(x if width == 8 else w)
@@ -379,7 +368,7 @@ extend Generator:
         try self.store_low("x17", "w17", offset + low, width - low)
 
     ## Exactly `width` bytes from `[x16, #offset]` into `x`, zero above them.
-    mutating func load_low(x: str, w: str, offset: u64, width: u64) -> !:
+    func load_low(x: str, w: str, offset: u64, width: u64) -> !:
         if width == 8 or width == 4 or width == 2 or width == 1:
             try self.writer.line("ldr " if width >= 4 else ("ldrh " if width == 2 else "ldrb "))
             try self.writer.put(x if width == 8 else w)
@@ -396,17 +385,9 @@ extend Generator:
         try self.writer.put(x)
         try self.writer.put(", x17")
 
-    ## The wide name of a class's first scratch register for a stack store.
-    func wide(cls: ir.Class, n: u32) -> str:
-        if cls == ir.Class.w:
-            return "x9" if n == 0 else "x10"
-        if cls == ir.Class.s or cls == ir.Class.h:
-            return "d16" if n == 0 else "d17"
-        return self.reg(cls, n)
-
     ## sp below `count` levels of the dynamic area under the fixed frame (`ir.Op.reserve`),
     ## set from x29 whatever it was.
-    mutating func reserve_levels(count: u32) -> !:
+    func reserve_levels(count: u32) -> !:
         let below = self.fr.size + (u64)count * (u64)ir.level_bytes
         if below <= 4095:
             try self.writer.line("sub sp, x29, #")
@@ -419,7 +400,7 @@ extend Generator:
     ## `self.at`: those kept in the frame stored first, then the rest as one parallel copy
     ## (`incoming`), since a word may live in another's register; x16 parks one to break
     ## a cycle.
-    mutating func take_words() -> !:
+    func take_words() -> !:
         var sources: u8[4] = [0, 0, 0, 0]
         var destinations: u8[4] = [0, 0, 0, 0]
         var targets: u8[4] = [0, 0, 0, 0]
@@ -460,7 +441,7 @@ extend Generator:
     ## A `ret` of a private result's words, arrived its arguments into x0-x3: those living in
     ## registers as one parallel copy, x17 parking one to break a cycle; then the rest,
     ## loaded or formed straight into theirs.
-    mutating func return_words(n: ir.Instr) -> !:
+    func return_words(n: ir.Instr) -> !:
         let count = (usize)n.extra2 if n.extra2 <= 4 else 4
         var reads: str[4] = ["", "", "", ""]
         var pending: bool[4] = [false, false, false, false]
@@ -499,7 +480,7 @@ extend Generator:
             if reads[k].length == 0:
                 try self.operand(x_names[result_codes[k]], ir.Class.l, self.f.args.get((usize)n.extra + k).value)
 
-    mutating func return_value(n: ir.Instr) -> !:
+    func return_value(n: ir.Instr) -> !:
         if self.f.has_result and n.extra2 == 0:
             if self.f.result_size == 0:
                 # straight into the result register, from wherever the value lives
@@ -564,7 +545,7 @@ extend Generator:
 
     ## The callee-saved registers the function's asm blocks name as operands, `x19`-`x28` and
     ## `d8`-`d15` in any view: reserved, so they are saved and restored like the allocator's.
-    mutating func reserve_asm_registers():
+    func reserve_asm_registers():
         for n in self.f.instrs.span():
             if n.op != ir.Op.set_reg and n.op != ir.Op.get_reg:
                 continue
@@ -576,7 +557,7 @@ extend Generator:
                 c += 1
 
     ## Save every callee-saved register the allocator used, on entry.
-    mutating func save_callee_saved() -> !:
+    func save_callee_saved() -> !:
         var c: usize = 1
         while c <= 18:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
@@ -589,9 +570,28 @@ extend Generator:
             c += 1
 
     ## Restore them before returning; the result already sits in x0/x1/d0.
-    mutating func restore_callee_saved() -> !:
+    func restore_callee_saved() -> !:
         var c: usize = 1
         while c <= 18:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
                 try self.frame_load(save_name(c), self.fr.save_offset[c])
             c += 1
+
+## The wide name of a class's first scratch register for a stack store.
+func stack_store_register(cls: ir.Class, n: u32) -> str:
+    if cls == ir.Class.w:
+        return "x9" if n == 0 else "x10"
+    if cls == ir.Class.s or cls == ir.Class.h:
+        return "d16" if n == 0 else "d17"
+    return scratch_register(cls, n)
+
+## Whether a pending argument other than `i` reads a register argument `i` writes.
+func destination_read(p: ArgPlacement, pending: bool[], reads: str[], i: usize, count: usize) -> bool:
+    var k: usize = 0
+    while k < count:
+        if k != i and pending[k] and reads[k].length > 0:
+            let read = argument_index(reads[k])
+            if read >= 0 and (read == (i32)p.first or (p.count == 2 and read == (i32)p.first + 1)):
+                return true
+        k += 1
+    return false

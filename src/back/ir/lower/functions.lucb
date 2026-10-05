@@ -10,7 +10,7 @@ extend Lowerer:
     # mark: Functions ==========================================================================
 
     ## Lower one function instance into the unit.
-    mutating func function(inst: instances.Instance) -> !:
+    func function(inst: instances.Instance) -> !:
         let d = inst.decl
         if ast.is_linked(d):
             return  # another object defines it; calls name the symbol
@@ -63,7 +63,7 @@ extend Lowerer:
     ## n)` being the empty span) into a call of the function by its internal name; a
     ## fallible result becomes an `int` status, 0 or the error's code, with the value
     ## written through a final out-pointer.
-    mutating func export_wrapper(inst: instances.Instance) -> !:
+    func export_wrapper(inst: instances.Instance) -> !:
         let d = inst.decl
         let internal = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         self.scratch.clear()
@@ -126,7 +126,7 @@ extend Lowerer:
     ## The C-visible parameters of the export `d`, each a local in a slot; a span arrives
     ## as a pointer and a length in two. The length slot of each parameter, 0 for one that
     ## is not a span.
-    mutating func export_parameters(d: ast.Node*) -> list.List[u32]!:
+    func export_parameters(d: ast.Node*) -> list.List[u32]!:
         var length_slots = try list.List[u32].create(4)
         var cursor = d.right
         while let p = cursor:
@@ -149,7 +149,7 @@ extend Lowerer:
     ## A span parameter arriving from C as a pointer in `slot` and a length in
     ## `length_slot`, as the span argument of type `pt`: `(NULL, n)` is the empty span, a
     ## data pointer of 8 and no length.
-    mutating func export_span_argument(slot: u32, length_slot: u32, pt: u32) -> !:
+    func export_span_argument(slot: u32, length_slot: u32, pt: u32) -> !:
         let data_at = try self.slot_address(slot)
         let length_at = try self.slot_address(length_slot)
         let given = try self.f.load(ir.Op.loadl, ir.Class.l, data_at)
@@ -170,9 +170,9 @@ extend Lowerer:
 
     ## The call of the exported function by its `internal` name, its result in a slot when
     ## it is an aggregate or fallible.
-    mutating func export_call(internal: str, start: u32, count: u32, result_type: u32) -> LowerValue!:
+    func export_call(internal: str, start: u32, count: u32, result_type: u32) -> LowerValue!:
         if result_type == types.unit_id or result_type == types.never_id:
-            discard(try self.call_named(internal, start, count, ir.Class.w, false, types.unit_id))
+            _ = try self.call_named(internal, start, count, ir.Class.w, false, types.unit_id)
             return LowerValue(ref = ir.none_ref(), type_id = types.unit_id, in_memory = false)
         if self.is_scalar(result_type):
             let cls = self.class_of(result_type)
@@ -185,7 +185,7 @@ extend Lowerer:
 
     ## A fallible export's return: the error's code when the call failed, else 0 with the
     ## value of type `payload` written through the out-pointer in `out_slot`.
-    mutating func export_status(result: LowerValue, payload: u32, out_slot: u32) -> !:
+    func export_status(result: LowerValue, payload: u32, out_slot: u32) -> !:
         let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(result.ref, self.failed_offset(result.type_id)))
         let bad = self.f.label()
         let good = self.f.label()
@@ -201,7 +201,7 @@ extend Lowerer:
 
     ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
     ## traps `null_foreign`: the one boundary check, in this direction (§17.1).
-    mutating func check_foreign_parameters(d: ast.Node*) -> !:
+    func check_foreign_parameters(d: ast.Node*) -> !:
         var cursor = d.right
         while let p = cursor:
             let pt = try self.map(p.type_id)
@@ -217,13 +217,13 @@ extend Lowerer:
             cursor = p.next
 
     ## A parameter description from its type and slot.
-    mutating func param_of(id: u32, slot: u32) -> ir.Param!:
+    func param_of(id: u32, slot: u32) -> ir.Param!:
         if self.is_scalar(id):
             return ir.Param(cls = self.class_of(id), size = 0, align = 8, type_id = id, slot = slot, shape = 0, scalar_width = (u32)self.scalar_size(id), scalar_signed = self.signed_of(id))
         return ir.Param(cls = ir.Class.l, size = self.size(id), align = self.align(id), type_id = id, slot = slot, shape = try self.shape_of(id))
 
     ## Open a function: its result shape and the slot the result is built in.
-    mutating func begin_function(name: str, d: ast.Node*?, inst: instances.Instance) -> !:
+    func begin_function(name: str, d: ast.Node*?, inst: instances.Instance) -> !:
         self.f = try ir.Function.create(name)
         self.pool_count = 0
         self.pool_used = 0
@@ -263,7 +263,7 @@ extend Lowerer:
         let result = try self.result_type_of(d)
         try self.set_result(result)
 
-    mutating func set_result(result: u32) -> !:
+    func set_result(result: u32) -> !:
         self.f.has_result = result != types.unit_id and result != types.never_id
         self.f.result_type = result
         if self.f.has_result:
@@ -281,7 +281,7 @@ extend Lowerer:
             self.result_slot = 0
 
     ## The C-visible result type of a declaration: `T`, `T!` as one aggregate, or none.
-    mutating func result_type_of(d: ast.Node*?) -> u32!:
+    func result_type_of(d: ast.Node*?) -> u32!:
         let f = d else return types.unit_id
         if f.kind == ast.Kind.test_:
             return try self.c.table.fallible(types.unit_id)
@@ -289,7 +289,7 @@ extend Lowerer:
         return ft.elem
 
     ## The unwrapped result the body's `return` values have.
-    mutating func result_payload() -> u32:
+    func result_payload() -> u32:
         let r = self.f.result_type
         if self.is_fail(r):
             return self.elem(r)
@@ -299,7 +299,7 @@ extend Lowerer:
         return self.is_fail(self.f.result_type)
 
     ## Reaching the end: a unit function returns; a fallible unit function returns success.
-    mutating func fall_off_end() -> !:
+    func fall_off_end() -> !:
         if self.fn_fallible() and self.result_payload() == types.unit_id:
             let r = try self.slot_address(self.result_slot)
             try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(r, self.failed_offset(self.f.result_type)))
@@ -312,7 +312,7 @@ extend Lowerer:
             return
         try self.trap_with("unreachable")
 
-    mutating func end_function() -> !:
+    func end_function() -> !:
         if self.f.debug or self.f.symbols:
             self.f.debug_scopes.items[0].end = self.f.instrs.count
         # a fallible result of up to four words comes back in registers, both ways
@@ -332,7 +332,7 @@ extend Lowerer:
     ## then leaves the function, so the optimiser takes them apart into temporaries
     ## (`split`, `promote`) and a failure's flag is tested in the register it arrives in.
     ## A build with symbols keeps the slots: its scopes count instructions this would move.
-    mutating func result_words() -> !:
+    func result_words() -> !:
         let returned = self.register_words(self.f.has_result, self.f.result_type, self.f.result_size, self.f.result_shape, self.f.result_private)
         var any = returned > 0
         for info in self.f.calls.span():
@@ -348,7 +348,7 @@ extend Lowerer:
                 let words = returned
                 for k in 0..<words:
                     let (cls, store, load) = self.word_access(self.f.result_type, k)
-                    discard(store)
+                    _ = store
                     let v = try self.f.temp(cls)
                     var read = stamped(x, load, v, try self.word_address(x, x.a, k), ir.none_ref())
                     read.cls = cls
@@ -372,8 +372,8 @@ extend Lowerer:
             var got: u32[4] = [0, 0, 0, 0]
             for k in 0..<words:
                 let (cls, store, load) = self.word_access(info.result_type, k)
-                discard(store)
-                discard(load)
+                _ = store
+                _ = load
                 got[k] = try self.f.temp(cls)
                 var w = stamped(x, ir.Op.word, got[k], ir.none_ref(), ir.none_ref())
                 w.cls = cls
@@ -385,8 +385,8 @@ extend Lowerer:
             try self.f.instrs.push(stamped(x, ir.Op.addr, base, ir.slot_ref(info.result_slot), ir.none_ref()))
             for k in 0..<words:
                 let (cls, store, load) = self.word_access(info.result_type, k)
-                discard(cls)
-                discard(load)
+                _ = cls
+                _ = load
                 try self.f.instrs.push(stamped(x, store, 0, ir.temp_ref(got[k]), try self.word_address(x, ir.temp_ref(base), k)))
 
     ## How word `k` of a private result of type `result` is moved to and from its slot: as
@@ -432,7 +432,7 @@ extend Lowerer:
         return words if covered == ((u32)1 << words) - 1 else 0
 
     ## The address of word `k` of the result at `base`, for `result_words`.
-    mutating func word_address(x: ir.Instr, base: ir.Ref, k: u32) -> ir.Ref!:
+    func word_address(x: ir.Instr, base: ir.Ref, k: u32) -> ir.Ref!:
         if k == 0:
             return base
         let p = try self.f.temp(ir.Class.l)
@@ -451,12 +451,12 @@ extend Lowerer:
         return round_up8(self.c.table.size_of(payload))
 
     ## The address of `core.failure`, the thread's error of the call that failed last.
-    mutating func failure_address() -> ir.Ref!:
+    func failure_address() -> ir.Ref!:
         let t = try self.temp(ir.Class.l)
         try self.f.emit(ir.Op.addr_tls, ir.Class.l, t.index, ir.global_ref("lb_core_failure"), ir.none_ref(), 0)
         return t
 
-    mutating func trap_with(reason: str) -> !:
+    func trap_with(reason: str) -> !:
         let t = try self.program_unit.text(reason)
         let p = try self.position_ref()
         try self.f.emit(ir.Op.trap_, ir.Class.l, 0, ir.text_ref(t), p, 0)

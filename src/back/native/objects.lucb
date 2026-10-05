@@ -255,12 +255,6 @@ pub struct Format:
                     try self.symbol(&writer.out, entry)
                 try writer.put("\n")
 
-    ## The unit's module-level asm blocks, verbatim, in the text section (§8.9).
-    pub func module_asm(writer: assembly.Text*, program_unit: ir.Unit*) -> !:
-        for block in program_unit.module_asm.span():
-            try writer.put("\n")
-            try writer.put(block.bytes)
-
     # mark: Globals ===========================================================================
 
     ## Every global of the unit that the unit defines: thread-locals, named sections, weak
@@ -361,3 +355,9 @@ pub struct Format:
         try out.put(", ")
         try out.put(kind)
         try out.put("\n")
+
+## The unit's module-level asm blocks, verbatim, in the text section (§8.9).
+pub func module_asm(writer: assembly.Text*, program_unit: ir.Unit*) -> !:
+    for block in program_unit.module_asm.span():
+        try writer.put("\n")
+        try writer.put(block.bytes)

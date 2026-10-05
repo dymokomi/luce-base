@@ -373,7 +373,7 @@ struct Decimal:
     var truncated: bool = false
 
     ## The finite number `text` spells, which scan has read already.
-    mutating func read(text: const u8[]):
+    func read(text: const u8[]):
         var at: usize = 0
         if at < text.length and (text[at] == '-' or text[at] == '+'):
             at += 1
@@ -415,7 +415,7 @@ struct Decimal:
     ## The value's bits in a format of `mantissa_bits` stored mantissa bits, `exponent_bits`
     ## exponent bits and exponent bias `-bias`, rounded to nearest, ties to even; and
     ## whether it overflowed to infinity (then the bits are infinity's).
-    mutating func float_bits(mantissa_bits: u32, exponent_bits: u32, bias: i64) -> (u64, bool):
+    func float_bits(mantissa_bits: u32, exponent_bits: u32, bias: i64) -> (u64, bool):
         let largest = ((i64)1 << (i64)exponent_bits) - 1
         var exponent: i64 = 0
         var mantissa: u64 = 0
@@ -462,7 +462,7 @@ struct Decimal:
         return (bits, overflow)
 
     ## Multiply by 2^k, or divide by 2^-k when k is negative.
-    mutating func shift(k: i64):
+    func shift(k: i64):
         if self.count == 0:
             return
         var left = k
@@ -478,7 +478,7 @@ struct Decimal:
             self.shift_right((u32)(-left))
 
     ## Multiply by 2^k, k at most largest_shift: the digits times 2^k written right to left.
-    mutating func shift_left(k: u32):
+    func shift_left(k: u32):
         var scratch: u8[820] = ---
         let end = self.count + 20
         var write = end
@@ -510,7 +510,7 @@ struct Decimal:
         self.trim()
 
     ## Divide by 2^k, k at most largest_shift.
-    mutating func shift_right(k: u32):
+    func shift_right(k: u32):
         var read: usize = 0
         var write: usize = 0
         var n: u64 = 0
@@ -573,7 +573,7 @@ struct Decimal:
             return at > 0 and self.digits[(usize)(at - 1)] % 2 == 1
         return digit >= 5
 
-    mutating func trim():
+    func trim():
         while self.count > 0 and self.digits[self.count - 1] == 0:
             self.count -= 1
         if self.count == 0:

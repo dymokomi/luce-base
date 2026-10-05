@@ -19,7 +19,7 @@ pub struct Owned[T]:
     ## Another edge to the value's owner, when it has one.
     pub func clone() -> Owned[T]:
         if let owner = self.owner:
-            discard(ownership.retain(owner))
+            _ = ownership.retain(owner)
         return self
 
     ## End this value's obligation to its owner.
@@ -45,11 +45,11 @@ pub struct Outcome[T]:
     let message: Owned[str]?
 
     ## A successful outcome carrying `value`.
-    pub static func success(value: Owned[T]) -> Outcome[T]:
+    pub func success(value: Owned[T]) -> Outcome[T]:
         return Outcome[T](value, no_error, none)
 
     ## A failed outcome with `code` and `message`.
-    pub static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]:
+    pub func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]:
         return Outcome[T](none, code, message)
 
     ## Whether the outcome succeeded.
@@ -83,19 +83,19 @@ pub struct Outcome[T]:
             message.trace(visit, context)
 
 func drop_text(object: ownership.Object*):
-    discard(object)
+    _ = object
 
 func trace_text(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
-    discard(object)
+    _ = object
 
 var text_info: ownership.Info = ownership.Info(name = "native owned text", size = 0,
                                                finish = none, drop = drop_text, trace = trace_text)
 
 ## Own a copy of text from a temporary buffer or a native error before it expires.
 pub func copy_text(value: str) -> Owned[str]!:
-    let size = sizeof(ownership.Object) +? value.length else error(memory.exhausted, "owned text is too large")
+    let size = memory.size_of(ownership.Object) +? value.length else error(memory.exhausted, "owned text is too large")
     let owner = try ownership.reserve(&text_info, size)
-    let bytes = u8[]((u8*)owner + sizeof(ownership.Object), value.length)
+    let bytes = u8[]((u8*)owner + memory.size_of(ownership.Object), value.length)
     memory.copy(bytes, value.bytes, value.length)
     return Owned[str]((str)bytes, owner)
 
@@ -111,7 +111,7 @@ pub func success_unit() -> Outcome[unit]:
 ## managed text.
 pub func failure_unit(code: ErrorCode, message: str) -> Outcome[unit]:
     let text = copy_text(message) catch exhausted:
-        discard(exhausted)
+        _ = exhausted
         return Outcome[unit].failure(memory.exhausted, Owned[str]("out of memory copying an error message"))
     return Outcome[unit].failure(code, text)
 

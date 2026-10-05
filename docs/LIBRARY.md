@@ -40,6 +40,55 @@ The fewest significant digits that read back as the value, of those the closest 
 
 - `func display_f32(value: f32, text: u8[]) -> usize` — display_f64 for an f32: its own shortest digits.
 
+## `numerals`
+
+What a formatted string's `{value:spec}` field does (base.md §5.5), as Python's `format` does it: the specification read as CPython's parse_internal_render_format_spec reads it, a number laid out as calc_number_widths and fill_number lay it out, and a float's digits made exactly and rounded half to even, as David Gay's dtoa rounds them. The text goes to a `Sink` piece by piece, so nothing is allocated and nothing bounds a field but the sink. The compiler reads a field's specification with `read` and `misfit` and refuses one that does not fit; the program lays the field out with `lay_integer`, `lay_float` or `lay_text`. The port of Luce's numerals (luce src/support/numerals.lucb), whose layout it keeps. It comes after `float_text` and before `core`, and needs nothing else.
+
+### `Spec` (struct)
+
+A specification read: `[[fill]align][sign][z][#][0][width][grouping][.precision][type]` (§5.5). A part not written is `0`, `-1` or empty, so a default can still be told apart.
+
+- `var fill: str` — The fill scalar, as written; empty when none was.
+- `var align: u8` — `<`, `>`, `^` or `=`; 0 when none was written.
+- `var sign: u8` — `+`, `-` or a space; 0 when none was written.
+- `var no_negative_zero: bool` — `z`: a negative zero, after rounding, shows as zero.
+- `var alternate: bool` — `#`: the alternate form, a base's prefix or a point always kept.
+- `var zero: bool` — `0` before the width: zeros fill a number after its sign.
+- `var width: i64` — The least width in scalars; -1 when none was written.
+- `var grouping: u8` — `,` or `_` between groups of digits; 0 when none was written.
+- `var precision: i64` — The digits after the point, or the scalars a text keeps; -1 when none was written.
+- `var kind: u8` — The type letter; 0 when none was written.
+
+### `Reading` (struct)
+
+A specification read from its text, and what is wrong with it: empty when nothing is.
+
+- `var spec: Spec` — The specification, meaningful when `problem` is empty.
+- `var problem: str` — Why the text is not a specification; empty when it is one.
+
+### `Category` (enum)
+
+What a field shows: an integer, a float, or text (a `str`, a `char`, a `bool`).
+
+- `func scalar_count(text: const u8[]) -> i64` — The scalars of UTF-8 `text`.
+
+- `func read(text: str) -> Reading` — Read `text` as CPython's parse_internal_render_format_spec reads a specification.
+
+- `func misfit(spec: Spec, category: Category) -> str` — What is wrong with `spec` for a value of `category`: empty when it fits (§5.5).
+
+### `Sink` (struct)
+
+Where laid-out text goes: `write` appends `bytes` to `context`, answering false when they did not all fit, which ends the layout.
+
+- `var context: void*` — What the text is written into, handed to `write`.
+- `var write: func(void*, const u8[]) -> bool` — Append the bytes; false when they did not all fit.
+
+- `func lay_integer(sink: Sink, negative: bool, magnitude: u64, specification: str) -> bool` — An integer field `{value:spec}`, its sign apart from its magnitude, laid out by `specification`. A `c` field of a number that names no Unicode scalar traps.
+
+- `func lay_float(sink: Sink, value: f64, single: bool, specification: str) -> bool` — A float field `{value:spec}` laid out by `specification`; `single` when the value is an `f32` (or an `f16`), whose display is its own shortest digits. With neither a type nor a precision a field shows the value's display, where Python shows its repr.
+
+- `func lay_text(sink: Sink, shown: str, specification: str) -> bool` — A text field `{value:spec}`, `shown` being its display, laid out by `specification`: precision keeps that many scalars, and the width pads it (CPython's format_string_internal).
+
 ## `memory`
 
 The allocators of §12, the thread's current-allocator convention, the diagnostic records of an allocation failure, and the byte copy, move, set, read and write helpers.
@@ -52,39 +101,39 @@ What every allocator offers: blocks of bytes at an alignment, optionally resized
 
 A bump allocator over a caller's bytes. Only the last block can be resized or released; everything goes away together when the buffer does.
 
-- `static func over(buffer: u8[]) -> FixedBuffer` — An allocator handing out `buffer`'s bytes; only the last block resizes.
-- `mutating func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
-- `mutating func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
-- `mutating func release(block: u8[])` — Free `block`.
+- `FixedBuffer.over(buffer: u8[]) -> FixedBuffer` — An allocator handing out `buffer`'s bytes; only the last block resizes.
+- `func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
+- `func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
+- `func release(block: u8[])` — Free `block`.
 
 ### `CAllocator` (struct : Allocator)
 
 The C library's heap.
 
-- `mutating func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
-- `mutating func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
-- `mutating func release(block: u8[])` — Free `block`.
+- `func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
+- `func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
+- `func release(block: u8[])` — Free `block`.
 
 ### `Arena` (struct : Allocator)
 
 Bump allocation over a parent allocator, released all at once by `reset` or `destroy` (§12.4, §24.3). One thread at a time.
 
-- `static func over(parent: Allocator, capacity: usize) -> Arena!` — An arena of `capacity` bytes over `parent`, released all at once.
-- `mutating func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
-- `mutating func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
-- `mutating func release(block: u8[])` — Free `block`.
+- `Arena.over(parent: Allocator, capacity: usize) -> Arena!` — An arena of `capacity` bytes over `parent`, released all at once.
+- `func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
+- `func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
+- `func release(block: u8[])` — Free `block`.
 - `func in_use() -> usize` — What has been handed out since the last reset, and what the arena holds in all.
 - `func capacity() -> usize` — The arena's total capacity in bytes.
-- `mutating func reset()` — Forget every allocation; the storage is reused from its start.
-- `mutating func destroy()` — Give the storage back to the parent; the arena is empty afterwards.
+- `func reset()` — Forget every allocation; the storage is reused from its start.
+- `func destroy()` — Give the storage back to the parent; the arena is empty afterwards.
 
 ### `PageAllocator` (struct : Allocator)
 
 Whole pages from the host, each block its own mapping (§12.4). Safe from several threads.
 
-- `mutating func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
-- `mutating func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
-- `mutating func release(block: u8[])` — Free `block`.
+- `func allocate(size: usize, alignment: usize) -> u8[]?` — Allocate `size` bytes at `alignment`, or none when it cannot.
+- `func resize(block: u8[], size: usize) -> bool` — Try to resize `block` to `size` in place; whether it worked.
+- `func release(block: u8[])` — Free `block`.
 
 - `func page_size() -> usize` — The host's memory page size in bytes: the one query `os.page_size` and the threads' stack sizes use too.
 
@@ -121,7 +170,9 @@ An allocation the diagnostic profile recorded (§19.4): the block, its size, and
 
 - `func write[T](address: void*, value: T)` — Write `value` to `address`, which may be unaligned.
 
-- `func frame[T](count: usize, most: usize) -> T[]` — `count` uninitialised elements of `T` in the frame of the function that calls this, at most `most` (a constant; `most * sizeof(T)` at most 4096 bytes), freed when that function returns (§12.7). The compiler takes the storage at the call, so this body never runs.
+- `func frame[T](count: usize, most: usize) -> T[]` — `count` uninitialised elements of `T` in the frame of the function that calls this, at most `most` (a constant; `most * size_of(T)` at most 4096 bytes), freed when that function returns (§12.7). The compiler takes the storage at the call, so this body never runs.
+
+- `func allocate(size: usize, alignment: usize) -> u8[]!` — `size` unwritten bytes aligned to `alignment`, from the current allocator: storage a structure lays out itself (§12.2), given back with `free`. Fails with `memory.exhausted`.
 
 - `func grow(block: u8[], size: usize) -> u8[]!` — `block` with `size` bytes: in place when the current allocator can, else a new block with the old bytes copied and the old block released.
 
@@ -209,34 +260,34 @@ A borrowed byte sink (§14.4). A write may accept fewer bytes than supplied; cal
 
 A cursor over borrowed bytes. Copying the reader copies its position, not its data. The backing storage must outlive the reader and every read using it.
 
-- `static func over(data: const u8[]) -> SliceReader` — A reader over `data`.
+- `SliceReader.over(data: const u8[]) -> SliceReader` — A reader over `data`.
 - `func remaining() -> usize` — The number of bytes not yet read.
-- `mutating func read(buffer: u8[]) -> usize!` — Copy up to the buffer length; zero means no bytes remain (or an empty read).
+- `func read(buffer: u8[]) -> usize!` — Copy up to the buffer length; zero means no bytes remain (or an empty read).
 
 ### `SliceWriter` (struct : Writer)
 
 A writer into fixed borrowed storage. Copying it copies the cursor and aliases storage. Writes may be short; once full, a nonempty write fails with `full`.
 
-- `static func over(data: u8[]) -> SliceWriter` — A writer into `data`.
+- `SliceWriter.over(data: u8[]) -> SliceWriter` — A writer into `data`.
 - `func written() -> const u8[]` — View of confirmed written bytes, borrowed from the caller's storage.
-- `mutating func write(data: const u8[]) -> usize!` — Write `data`; the number of bytes written.
+- `func write(data: const u8[]) -> usize!` — Write `data`; the number of bytes written.
 
 ### `BufferedReader` (struct : Reader)
 
 Buffered input over a borrowed source and nonempty caller-owned storage. Both must outlive this adapter. Storage must not overlap source state or read buffers. Construct with `over`; serialize access and do not use copied adapters together. Reads may prefetch beyond the requested bytes. The adapter never closes its source.
 
-- `static func over(source: Reader, storage: u8[]) -> BufferedReader!` — A buffered reader over `source`, using `storage`.
+- `BufferedReader.over(source: Reader, storage: u8[]) -> BufferedReader!` — A buffered reader over `source`, using `storage`.
 - `func buffered() -> usize` — Unread bytes already fetched. No source operation occurs.
-- `mutating func read(buffer: u8[]) -> usize!` — Return buffered bytes first, otherwise perform one source read. Empty reads do not call the source. EOF is not cached, allowing a growing source to resume.
+- `func read(buffer: u8[]) -> usize!` — Return buffered bytes first, otherwise perform one source read. Empty reads do not call the source. EOF is not cached, allowing a growing source to resume.
 
 ### `BufferedWriter` (struct : Writer)
 
 Buffered output over a borrowed sink and nonempty caller-owned storage. Both must outlive this adapter; storage must not overlap sink state or write input. Construct with `over`; serialize access and do not use copied adapters together. Explicitly flush before discarding the adapter. There is no implicit flush/close.
 
-- `static func over(destination: Writer, storage: u8[]) -> BufferedWriter!` — A buffered writer over `destination`, using `storage`.
+- `BufferedWriter.over(destination: Writer, storage: u8[]) -> BufferedWriter!` — A buffered writer over `destination`, using `storage`.
 - `func buffered() -> usize` — Bytes accepted by this adapter but not yet confirmed by the destination.
-- `mutating func flush() -> !` — Drain this buffer, preserving the unconfirmed suffix if the sink fails. Retrying does not resend bytes confirmed by earlier successful sink writes. This neither flushes downstream buffers nor requests filesystem durability.
-- `mutating func write(data: const u8[]) -> usize!` — Accept up to the remaining capacity. A full buffer is drained before any new input is accepted; a failure accepts none of this call's input. Empty writes do not drain the buffer. Use write_all to accept an entire payload.
+- `func flush() -> !` — Drain this buffer, preserving the unconfirmed suffix if the sink fails. Retrying does not resend bytes confirmed by earlier successful sink writes. This neither flushes downstream buffers nor requests filesystem durability.
+- `func write(data: const u8[]) -> usize!` — Accept up to the remaining capacity. A full buffer is drained before any new input is accepted; a failure accepts none of this call's input. Empty writes do not drain the buffer. Use write_all to accept an entire payload.
 
 ### `Location` (struct)
 
@@ -256,8 +307,8 @@ A compile-time source position, the value of `luce.location`.
 
 Borrowed standard output stream. Each nonempty write uses the existing libc stream and flushes only that stream, making completed output visible before a following print. The libc stream lock serializes each write with other libc users; concurrent direct descriptor writes may interleave. No stream is created or owned here. A write/flush failure can follow partial output.
 
-- `mutating func flush() -> !` — Flush this C stream, without closing it or requesting filesystem durability.
-- `mutating func write(data: const u8[]) -> usize!` — Write `data`; the number of bytes written.
+- `func flush() -> !` — Flush this C stream, without closing it or requesting filesystem durability.
+- `func write(data: const u8[]) -> usize!` — Write `data`; the number of bytes written.
 
 - `func stdin() -> Reader` — Borrowed unbuffered standard input. Reads may block; concurrent readers compete for bytes. Do not mix with buffered C stdin reads, which may have prefetched data.
 
@@ -275,16 +326,16 @@ Borrowed standard output stream. Each nonempty write uses the existing libc stre
 
 The sink a formatted string offers a `Display` value (§14.4): it appends to the buffer the compiler is filling, and fails once that buffer is full, as `format` then does.
 
-- `mutating func write(data: const u8[]) -> usize!` — Write `data`; the number of bytes written.
+- `func write(data: const u8[]) -> usize!` — Write `data`; the number of bytes written.
 
 ### `path` (struct)
 
 The process's directories (§16.6): `from io import path`, then `path.user()`. Each is a `str` view of environment storage the system owns, or fresh storage from the current allocator where one has to be built.
 
-- `static func user() -> str!` — The user's home directory: USERPROFILE on Windows, HOME on POSIX.
-- `static func home() -> str!` — The current user's home directory.
-- `static func temp() -> str` — Where temporary files go: `$TMPDIR`, else `/tmp`.
-- `static func config() -> str!` — Where configuration lives: `$XDG_CONFIG_HOME`, else `$HOME/.config`.
+- `path.user() -> str!` — The user's home directory: USERPROFILE on Windows, HOME on POSIX.
+- `path.home() -> str!` — The current user's home directory.
+- `path.temp() -> str` — Where temporary files go: `$TMPDIR`, else `/tmp`.
+- `path.config() -> str!` — Where configuration lives: `$XDG_CONFIG_HOME`, else `$HOME/.config`.
 
 - `let io_path_failed: ErrorCode = ErrorCode.package(13)` — The home directory could not be determined.
 
@@ -345,36 +396,36 @@ Blocking synchronisation over the host's futex-like wait and wake: a mutex, a co
 
 A lock whose waiters sleep: zero is unlocked, so `var lock: Mutex` is ready to use; one is locked; two is locked with someone asleep on it. A mutual-exclusion lock; a waiter sleeps until it is free.
 
-- `mutating func lock()` — Acquire the lock, blocking until it is free.
-- `mutating func unlock()` — Release the lock and wake one waiter.
-- `mutating func try_lock() -> bool` — Acquire the lock without blocking; whether it was taken.
+- `func lock()` — Acquire the lock, blocking until it is free.
+- `func unlock()` — Release the lock and wake one waiter.
+- `func try_lock() -> bool` — Acquire the lock without blocking; whether it was taken.
 
 ### `Condition` (struct)
 
 A sequence number waiters watch; every signal advances it and wakes. A condition variable: waiters sleep until signalled.
 
-- `mutating func wait(mutex: Mutex*)` — Release `mutex`, sleep until signalled, then reacquire it.
-- `mutating func signal()` — Wake one waiter.
-- `mutating func broadcast()` — Wake every waiter.
+- `func wait(mutex: Mutex*)` — Release `mutex`, sleep until signalled, then reacquire it.
+- `func signal()` — Wake one waiter.
+- `func broadcast()` — Wake every waiter.
 
 ### `Once` (struct)
 
 Runs its function exactly once; later callers wait for the first to finish. Runs a function exactly once; later callers wait for the first.
 
-- `mutating func run(function: func() -> unit)` — Run `function` on the first call; later calls wait for it to finish.
+- `func run(function: func() -> unit)` — Run `function` on the first call; later calls wait for it to finish.
 
 ### `Semaphore` (struct)
 
 A counting semaphore whose waiters sleep. A counting semaphore whose waiters sleep.
 
-- `mutating func acquire()` — Take one permit, blocking until one is available.
-- `mutating func release()` — Return one permit and wake one waiter.
+- `func acquire()` — Take one permit, blocking until one is available.
+- `func release()` — Return one permit and wake one waiter.
 
 ### `Cancellation` (struct)
 
 A one-way cancellation signal shared by reference. Zero is not requested. Keep this object alive until every waiting thread returns; do not copy or reset it while shared. Requests use release/acquire synchronization.
 
-- `mutating func request()` — Request cancellation.
+- `func request()` — Request cancellation.
 - `func is_requested() -> bool` — Whether cancellation was requested.
 
 ## `ownership`
@@ -504,8 +555,8 @@ Text operations over `str` views; what allocates says so and uses the current al
 
 Split a borrowed text at a nonempty byte substring. Empty fields, including the final one after a trailing separator, are preserved. Zero is an exhausted iterator. Keep text and separator storage alive and unchanged while iterating.
 
-- `static func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!` — max_parts=0 has no limit; one returns the entire input as a single field. No allocation occurs. An empty separator reports invalid_separator.
-- `mutating func next() -> str?` — The next borrowed field. An empty field is present; none means exhausted.
+- `SplitIterator.over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!` — max_parts=0 has no limit; one returns the entire input as a single field. No allocation occurs. An empty separator reports invalid_separator.
+- `func next() -> str?` — The next borrowed field. An empty field is present; none means exhausted.
 
 - `func split_by(text: str, separator: str, max_parts: usize = 0) -> str[]!` — An allocated array of borrowed fields with SplitIterator semantics. Free the array through the allocator current on entry; its field bytes still borrow text. max_parts=0 has no limit. An empty separator reports invalid_separator.
 
@@ -551,16 +602,32 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 
 Text built piece by piece. The builder keeps the allocator that was current when it was created and grows in it, so it may cross `with` blocks and outlive them; `destroy` gives its bytes back to that allocator.
 
-- `static func create(capacity: usize = 0) -> Builder!` — Reserve this many usable text bytes plus the NUL terminator. Zero chooses a default of 64 usable bytes. Size overflow reports memory.exhausted before allocation. The builder retains the allocating context for its lifetime.
+- `Builder.create(capacity: usize = 0) -> Builder!` — Reserve this many usable text bytes plus the NUL terminator. Zero chooses a default of 64 usable bytes. Size overflow reports memory.exhausted before allocation. The builder retains the allocating context for its lifetime.
 - `func capacity() -> usize` — Usable text bytes before growth, excluding the terminator. Zero after destroy.
 - `func length() -> usize` — The initialized text length in bytes; querying it does not create a view.
-- `mutating func reserve(additional: usize) -> !` — Ensure room for this many additional bytes and the NUL terminator. Growth uses the original allocator and preserves the old text if allocation fails. Growth invalidates borrowed views; a destroyed builder reports io.closed.
-- `mutating func write(data: const u8[]) -> usize!` — Append bytes, including a view into this builder's current text. Preserve a self-view's offset before growth, then rebase it if the allocation moves. Aliased input must be wholly inside the initialized text, not spare capacity.
-- `mutating func put(text: str) -> !` — Append `text` to the builder.
-- `mutating func view() -> str` — The text so far, NUL-terminated in the buffer: a borrowed view, invalid after write, clear, growing reserve, or destroy. A destroyed builder has an empty view.
-- `mutating func clear()` — Discard the contents, keeping the storage.
-- `mutating func truncate(length: usize) -> !` — Shorten to a byte length without allocation. Reject lengths past the initialized text, preserving it on failure. This does not validate a UTF-8 boundary. Previously borrowed views expire; a destroyed builder is closed.
-- `mutating func destroy()` — Give the bytes back; the builder is empty and holds nothing.
+- `func reserve(additional: usize) -> !` — Ensure room for this many additional bytes and the NUL terminator. Growth uses the original allocator and preserves the old text if allocation fails. Growth invalidates borrowed views; a destroyed builder reports io.closed.
+- `func write(data: const u8[]) -> usize!` — Append bytes, including a view into this builder's current text. Preserve a self-view's offset before growth, then rebase it if the allocation moves. Aliased input must be wholly inside the initialized text, not spare capacity.
+- `func put(text: str) -> !` — Append `text` to the builder.
+- `func view() -> str` — The text so far, NUL-terminated in the buffer: a borrowed view, invalid after write, clear, growing reserve, or destroy. A destroyed builder has an empty view.
+- `func clear()` — Discard the contents, keeping the storage.
+- `func truncate(length: usize) -> !` — Shorten to a byte length without allocation. Reject lengths past the initialized text, preserving it on failure. This does not validate a UTF-8 boundary. Previously borrowed views expire; a destroyed builder is closed.
+- `func destroy()` — Give the bytes back; the builder is empty and holds nothing.
+
+- `func format(buffer: u8[], text: fmt) -> str!` — `text` written into `buffer`: the `str` over the bytes written (§5.5). Fails with `memory.exhausted` when the text does not fit, the bytes that fit written. The compiler writes the text where the call is, so this body never runs.
+
+- `func write_i64(sink: io.Writer, value: i64, spec: str) -> !` — `value` laid out by format specification `spec` (§5.5), written to `sink`: what a formatted string's `{value:spec}` field writes. A `spec` that does not read traps.
+
+- `func write_u64(sink: io.Writer, value: u64, spec: str) -> !` — `value` laid out by format specification `spec` (§5.5), written to `sink`.
+
+- `func write_f64(sink: io.Writer, value: f64, spec: str) -> !` — `value` laid out by format specification `spec` (§5.5), written to `sink`.
+
+- `func write_f32(sink: io.Writer, value: f32, spec: str) -> !` — `value` laid out by format specification `spec` (§5.5), written to `sink`: with neither a type nor a precision, the `f32`'s own shortest digits.
+
+- `func write_text(sink: io.Writer, text: str, spec: str) -> !` — `text` laid out by format specification `spec` (§5.5), written to `sink`.
+
+- `func write_char(sink: io.Writer, value: char, spec: str) -> !` — `value`, its UTF-8, laid out by format specification `spec` (§5.5), written to `sink`.
+
+- `func write_bool(sink: io.Writer, value: bool, spec: str) -> !` — `true` or `false` laid out by format specification `spec` (§5.5), written to `sink`.
 
 ## `interop`
 
@@ -587,20 +654,20 @@ A package's constant declaration of native ownership. Dispose releases native re
 Stable shell shared by every native reference and managed alias. Its header participates directly in the shared collector; no second reference count exists.
 
 - `var header: ownership.Object` — The shared collector header.
-- `static func is_open(object: ownership.Object*) -> bool` — Whether the owner has not been closed.
-- `static func enter(object: ownership.Object*)` — Begin a native call guard, retaining the object.
-- `static func leave(object: ownership.Object*)` — End a native call guard, disposing the owner once closed and idle.
-- `static func finish_owner(object: ownership.Object*)` — The collector's finalizer: close the owner.
-- `static func drop_owner(object: ownership.Object*)` — Free the owner's native storage.
-- `static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the native value's strong references.
+- `Owner.is_open(object: ownership.Object*) -> bool` — Whether the owner has not been closed.
+- `Owner.enter(object: ownership.Object*)` — Begin a native call guard, retaining the object.
+- `Owner.leave(object: ownership.Object*)` — End a native call guard, disposing the owner once closed and idle.
+- `Owner.finish_owner(object: ownership.Object*)` — The collector's finalizer: close the owner.
+- `Owner.drop_owner(object: ownership.Object*)` — Free the owner's native storage.
+- `Owner.trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the native value's strong references.
 
 ### `Reservation` (struct [T])
 
 Unpublished ownership storage. Reserve before running a native initializer; publish only after success, or cancel without running a successful finalizer.
 
 - `func init(declaration: Type[T]) -> !` — Reserve unpublished storage for `declaration`.
-- `mutating func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]` — Publish the native value, yielding a reference and consuming the reservation.
-- `mutating func cancel()` — Discard the reservation without publishing.
+- `func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]` — Publish the native value, yielding a reference and consuming the reservation.
+- `func cancel()` — Discard the reservation without publishing.
 
 ### `Reference` (struct [T])
 
@@ -608,7 +675,7 @@ A typed reference carrier. Parameters borrow the carrier; clone acquires an addi
 
 - `let owner: Owner[T]*` — The owner shell this reference keeps alive.
 - `func init(owner: Owner[T]*)` — A reference over `owner`, which is already alive.
-- `static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!` — Adopt `native` into a new owned reference of `declaration`.
+- `Reference.adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!` — Adopt `native` into a new owned reference of `declaration`.
 - `func clone() -> Reference[T]` — Another strong reference to the same value.
 - `func release()` — Drop this reference's edge.
 - `func get() -> T*!` — The native value, or a closed/uninitialized error.
@@ -617,7 +684,7 @@ A typed reference carrier. Parameters borrow the carrier; clone acquires an addi
 - `func is_closed() -> bool` — Whether the value has been closed.
 - `func close()` — Close the value, if its type is closeable.
 - `func lease() -> Lease!` — A validity lease over the value.
-- `static func validate_interface(object: ownership.Object*) -> !` — Validate that `object` is a live reference of this type.
+- `Reference.validate_interface(object: ownership.Object*) -> !` — Validate that `object` is a live reference of this type.
 - `func as_interface[I](native: I) -> Interface[I]` — The supplied witness must point into this owner's stable native storage.
 - `func enter()` — Guards are balanced by generated Luce calls or explicitly by Base callers.
 - `func leave()` — End a native call guard on the value.
@@ -657,8 +724,8 @@ An explicit export of a borrowed native struct. Its complete native data is a vi
 The owner shell backing a checked view.
 
 - `var header: ownership.Object` — The shared collector header.
-- `static func drop_view(object: ownership.Object*)` — Release the view's lease when the owner is dropped.
-- `static func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the lease's strong references.
+- `ViewOwner.drop_view(object: ownership.Object*)` — Release the view's lease when the owner is dropped.
+- `ViewOwner.trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the lease's strong references.
 
 ### `View` (struct [T])
 
@@ -666,7 +733,7 @@ Manual Base carrier for a checked view. The Luce adapter shares this owner and r
 
 - `let owner: ViewOwner[T]*` — The owner shell this view shares.
 - `func init(owner: ViewOwner[T]*)` — A view over `owner`, which is already alive.
-- `static func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!` — A view of `native`, valid while `lease` is.
+- `View.make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!` — A view of `native`, valid while `lease` is.
 - `func clone() -> View[T]` — Another strong reference to the same view.
 - `func release()` — Drop this view's edge.
 - `func get() -> const T*!` — A read-only pointer to the value, after checking the lease.
@@ -676,9 +743,9 @@ Manual Base carrier for a checked view. The Luce adapter shares this owner and r
 - `func is_valid() -> bool` — Whether the view's lease is still valid.
 - `func enter() -> !` — Begin a guarded invocation, retaining the owner.
 - `func leave()` — End a guarded invocation.
-- `static func validate_interface(object: ownership.Object*) -> !` — Validate that `object` is a live view of this type.
-- `static func begin_interface(object: ownership.Object*)` — Begin a guarded invocation for an interface witness.
-- `static func end_interface(object: ownership.Object*)` — End a guarded invocation for an interface witness.
+- `View.validate_interface(object: ownership.Object*) -> !` — Validate that `object` is a live view of this type.
+- `View.begin_interface(object: ownership.Object*)` — Begin a guarded invocation for an interface witness.
+- `View.end_interface(object: ownership.Object*)` — End a guarded invocation for an interface witness.
 - `func as_interface[I](native: I) -> Interface[I]` — The witness borrows this view's storage and preserves its validity lease.
 - `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the owner as a strong reference.
 
@@ -711,8 +778,8 @@ A native value with explicit backing storage. The value may borrow that storage;
 A callback's success value or failure text, each with an explicit owner. A Base caller can consume a failure without leaving managed error text pending anywhere. get borrows until release; it never transfers ownership of the contained value.
 
 - `let code: ErrorCode` — The failure code, or `package(0)` on success.
-- `static func success(value: Owned[T]) -> Outcome[T]` — A successful outcome carrying `value`.
-- `static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]` — A failed outcome with `code` and `message`.
+- `Outcome.success(value: Owned[T]) -> Outcome[T]` — A successful outcome carrying `value`.
+- `Outcome.failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]` — A failed outcome with `code` and `message`.
 - `func is_success() -> bool` — Whether the outcome succeeded.
 - `func get() -> T!` — The success value, or the failure as an error.
 - `func clone() -> Outcome[T]` — A copy of the outcome, retaining its owned value or message.
@@ -736,14 +803,14 @@ A retained callable. Copying this carrier borrows; cloning acquires an edge. Man
 - `func release()` — Drop this callback's edge to the owner.
 - `func invoke(argument: A) -> Outcome[R]` — Call the callable with `argument`, retaining the owner across the call.
 - `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Visit the owner as a strong reference.
-- `static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!` — Native methods receive stable storage under the source owner's call guard.
-- `static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!` — A callback bound to a mutating method of a native `source`.
+- `Callback.bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!` — Native methods receive stable storage under the source owner's call guard.
+- `Callback.bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!` — A callback bound to a method of a native `source` that changes it.
 
 ### `Connection` (struct)
 
 Owning registration token. Dropping its last reference disconnects; explicit disconnection remains queryable and releases its signal-state edge immediately.
 
-- `mutating func disconnect()` — Remove the registration; idempotent.
+- `func disconnect()` — Remove the registration; idempotent.
 - `func is_connected() -> bool` — Whether the registration is still present.
 
 - `let connection_type: Type[Connection] = Type[Connection](name = "Connection",` — The interop type describing a `Connection`.
@@ -774,7 +841,7 @@ A uniquely owned message outside either thread's ARC graph. Copies borrow; passi
 Deep-copy policy supplied by the native library for a wire value. All borrowed members must point into the returned packet or immutable process-lifetime data. A policy must never smuggle an ARC owner, checked view or callback across threads.
 
 - `let copy: func(T) -> Packet[T]!` — The library's deep-copy of a wire value into a packet.
-- `static func plain() -> Transfer[T]` — For pointer-free scalar/record values only. Text/spans need a deep copy.
+- `Transfer.plain() -> Transfer[T]` — For pointer-free scalar/record values only. Text/spans need a deep copy.
 
 - `let text_transfer: Transfer[str] = Transfer[str](PacketBytes.text)` — The deep-copy policy for `str`.
 
@@ -785,8 +852,8 @@ Deep-copy policy supplied by the native library for a wire value. All borrowed m
 A reply owns its successful packet or its copied failure text. get borrows; release is required whether the caller handles success or failure.
 
 - `let code: ErrorCode` — The failure code, or `package(0)` on success.
-- `static func success(value: Packet[T]) -> Reply[T]` — A successful reply carrying `value`.
-- `static func failure(code: ErrorCode, message: str) -> Reply[T]` — A failed reply with `code` and a copied `message`.
+- `Reply.success(value: Packet[T]) -> Reply[T]` — A successful reply carrying `value`.
+- `Reply.failure(code: ErrorCode, message: str) -> Reply[T]` — A failed reply with `code` and a copied `message`.
 - `func is_success() -> bool` — Whether the reply succeeded.
 - `func get() -> T!` — The success value, or the failure as an error.
 - `func release()` — Release the reply's owned value or message.
@@ -799,7 +866,7 @@ A named factory and its runtime hooks, with no retained source-thread state. The
 - `let open: func(void*?, C) -> Outcome[Callback[M, R]]` — Runs the factory on the new thread, yielding its handler or a failure.
 - `let enter: func() -> unit` — The runtime hook run as the worker starts.
 - `let leave: func() -> unit` — The runtime hook run as the worker ends.
-- `static func native(factory: func(C) -> Outcome[Callback[M, R]]) -> WorkerEntry[C, M, R]` — A worker entry from a plain Base factory.
+- `WorkerEntry.native(factory: func(C) -> Outcome[Callback[M, R]]) -> WorkerEntry[C, M, R]` — A worker entry from a plain Base factory.
 
 - `func worker_cancellation() -> sync.Cancellation*` — Native operations called by a worker use this signal for interruptible socket waits. The pointer is borrowed on this worker until its factory/handler returns; it must not be retained outside the worker's lifetime or reset by application code.
 
@@ -816,7 +883,7 @@ A bounded persistent worker: a uniquely-owned handle over a thread, its queues a
 - `func try_send(message: M) -> !` — Nonblocking backpressure: a full input queue returns worker_busy.
 - `func receive() -> Reply[R]!` — Replies preserve accepted-message order. Cancellation is terminal: queued replies are discarded by close, and blocked receivers wake with worker_closed.
 - `func cancel()` — Ask the worker to stop; cancellation is terminal and wakes blocked callers.
-- `mutating func close()` — Cancel the worker, join its thread, drain its queues, and free it.
+- `func close()` — Cancel the worker, join its thread, drain its queues, and free it.
 
 ## `c`
 

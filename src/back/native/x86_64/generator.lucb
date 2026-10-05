@@ -101,32 +101,32 @@ pub struct Generator:
 
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
-    pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
+    pub func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 4), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
                          fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
-    mutating func symbol(name: str) -> !:
+    func symbol(name: str) -> !:
         try self.writer.out.put(self.symbol_prefix)
         try self.writer.out.put(name)
 
     ## `.L<function>_<label>`: local to the object, as the assembler treats `.L` names.
-    mutating func label_name(n: u32) -> !:
+    func label_name(n: u32) -> !:
         try self.writer.out.put(".L")
         try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
         try self.writer.out.put("_")
         try self.writer.out.put_u64((u64)n)
 
     ## The label of jump table `n` of the function.
-    mutating func table_name(n: u32) -> !:
+    func table_name(n: u32) -> !:
         try self.writer.out.put(".L")
         try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
         try self.writer.out.put("_jt")
         try self.writer.out.put_u64((u64)n)
 
-    mutating func text_label(n: u32) -> !:
+    func text_label(n: u32) -> !:
         try self.object_format.text_name(&self.writer.out, self.split, self.text_tags, n)
 
     ## A label functions share, as this assembly spells it: local to the file (`.Lname`), or
@@ -148,10 +148,10 @@ pub struct Generator:
     ## its own, in an arena of its own, and written here in order. A function's text depends
     ## on that function alone (its labels carry its index), so it is the text one function
     ## after another would give.
-    mutating func functions_in_parallel() -> !:
+    func functions_in_parallel() -> !:
         let n = self.program_unit.functions.count
         with memory.heap:
-            var job = Generating(model = &self, texts = try alloc str[n], halves = try alloc bool[n], failures = try parallel.failures(n))
+            var job = Generating(model = &self, texts = try new str[n] ---, halves = try new bool[n] ---, failures = try parallel.failures(n))
             defer free(job.texts)
             defer free(job.halves)
             defer free(job.failures)
@@ -172,7 +172,7 @@ pub struct Generator:
 
     ## A generator for one function like `model`: the same target and settings, its own
     ## frame and output, from the current allocator.
-    static func like(model: Generator*) -> Generator!:
+    func like(model: Generator*) -> Generator!:
         var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, convention = model.convention, unwinding = model.unwinding, level = model.level, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
                              at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
                              fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(256))

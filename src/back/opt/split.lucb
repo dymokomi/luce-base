@@ -74,13 +74,13 @@ struct Plan:
     ## Per slot and field: the new slot, from `field_start` of the slot's root.
     var new_slot: u32[]
 
-    static func over(f: ir.Function*) -> Plan!:
+    func over(f: ir.Function*) -> Plan!:
         let ns = f.slots.count
         let nt = f.temps.count + 1
-        var plan = Plan(ok = try alloc bool[ns], group = try alloc u32[ns], origin = try alloc u32[nt],
-                        offset_of = try alloc u32[nt], defs = try alloc u32[nt], accesses = try alloc Field[f.instrs.count + 1],
-                        access_slot = try alloc u32[f.instrs.count + 1], access_count = 0, fields = try alloc Field[0],
-                        field_start = try alloc u32[ns], field_count = try alloc u32[ns], new_slot = try alloc u32[0])
+        var plan = Plan(ok = try new bool[ns] ---, group = try new u32[ns] ---, origin = try new u32[nt] ---,
+                        offset_of = try new u32[nt] ---, defs = try new u32[nt] ---, accesses = try new Field[f.instrs.count + 1] ---,
+                        access_slot = try new u32[f.instrs.count + 1] ---, access_count = 0, fields = try new Field[0] ---,
+                        field_start = try new u32[ns] ---, field_count = try new u32[ns] ---, new_slot = try new u32[0] ---)
         for s in 0..<ns:
             let size = f.slots.get(s).size
             plan.ok[s] = size > 0 and size <= largest
@@ -101,7 +101,7 @@ struct Plan:
             plan.defs[t] = 0
         return plan
 
-    mutating func release():
+    func release():
         free(self.ok)
         free(self.group)
         free(self.origin)
@@ -116,7 +116,7 @@ struct Plan:
 
     ## Which temporaries hold a slot's address, and at what offset: `addr`, then `add` of a
     ## constant and `copy`, each the temporary's only assignment.
-    mutating func find_origins(f: ir.Function*) -> !:
+    func find_origins(f: ir.Function*) -> !:
         for x in f.instrs.span():
             if x.dst != 0 and (usize)x.dst < self.defs.length:
                 self.defs[(usize)x.dst] += 1
@@ -161,7 +161,7 @@ struct Plan:
     ## Every use of a slot's address: a load or store of a scalar at an offset is an access;
     ## a zero or copy of the whole slot is kept for the rewrite; an address derived by
     ## `add` or `copy` is followed; anything else leaves the slot whole.
-    mutating func check_uses(f: ir.Function*) -> !:
+    func check_uses(f: ir.Function*) -> !:
         for x in f.instrs.span():
             if x.dst != 0 and (usize)x.dst < self.origin.length and self.origin[(usize)x.dst] != 0:
                 # an address derived from another: its uses are what count
@@ -199,11 +199,11 @@ struct Plan:
         for phi in f.phi_args.span():
             self.escape(phi.value)
 
-    mutating func escape(r: ir.Ref):
+    func escape(r: ir.Ref):
         if let found = self.address(r):
             self.ok[(usize)found.0] = false
 
-    mutating func access(f: ir.Function*, r: ir.Ref, width: u32, cls: ir.Class):
+    func access(f: ir.Function*, r: ir.Ref, width: u32, cls: ir.Class):
         let found = self.address(r) else return
         let (s, offset) = found
         if width == 0 or offset + width > f.slots.get((usize)s).size:
@@ -213,7 +213,7 @@ struct Plan:
         self.access_slot[self.access_count] = s
         self.access_count += 1
 
-    mutating func whole(f: ir.Function*, r: ir.Ref, bytes: u32):
+    func whole(f: ir.Function*, r: ir.Ref, bytes: u32):
         let found = self.address(r) else return
         let (s, offset) = found
         if offset != 0 or bytes != f.slots.get((usize)s).size:
@@ -230,7 +230,7 @@ struct Plan:
     ## the one and leaves the other whole: the copy becomes a load and a store a field, at the
     ## field's offset in the whole one (a span parameter's copy that an expansion made).
     ## A copy between slots of different sizes leaves both whole.
-    mutating func join_copies(f: ir.Function*):
+    func join_copies(f: ir.Function*):
         var changed = true
         while changed:
             changed = false
@@ -258,7 +258,7 @@ struct Plan:
     ## Each group's fields: every access of every member, sorted by offset, no two
     ## overlapping unless alike, and the bytes between them filled; a group that cannot be
     ## laid out stays whole. Whether any group splits.
-    mutating func lay_out(f: ir.Function*) -> bool!:
+    func lay_out(f: ir.Function*) -> bool!:
         let ns = f.slots.count
         # a member that may not split keeps its whole group whole
         for s in 0..<ns:
@@ -267,10 +267,10 @@ struct Plan:
         for s in 0..<ns:
             if not self.ok[(usize)self.root((u32)s)]:
                 self.ok[s] = false
-        var all = try alloc Field[self.access_count + ns * most_fields + 1]
+        var all = try new Field[self.access_count + ns * most_fields + 1] ---
         var used: usize = 0
         var splits = false
-        var scratch = try alloc Field[self.access_count + 1]
+        var scratch = try new Field[self.access_count + 1] ---
         defer free(scratch)
         for r in 0..<ns:
             if self.root((u32)r) != (u32)r or not self.ok[r]:
@@ -339,10 +339,10 @@ struct Plan:
         return splits
 
     ## Give every member of a split group a slot per field, then rebuild the instructions.
-    mutating func rewrite(f: ir.Function*) -> !:
+    func rewrite(f: ir.Function*) -> !:
         let ns = f.slots.count
         free(self.new_slot)
-        self.new_slot = try alloc u32[ns * most_fields + 1]
+        self.new_slot = try new u32[ns * most_fields + 1] ---
         for s in 0..<ns:
             if not self.ok[s]:
                 continue
@@ -371,13 +371,13 @@ struct Plan:
             return none
         return found
 
-    mutating func emit_rewritten(f: ir.Function*, x: ir.Instr) -> !:
+    func emit_rewritten(f: ir.Function*, x: ir.Instr) -> !:
         if is_load(x.op):
             if let found = self.split_address(x.a):
                 let field = self.field_at(found.0, found.1) else trap("split: a load between fields")
                 let slot = field.0
                 var y = x
-                y.a = try self.slot_address(f, x, slot)
+                y.a = try slot_address(f, x, slot)
                 try f.instrs.push(y)
                 return
         elif is_store(x.op):
@@ -385,7 +385,7 @@ struct Plan:
                 let field = self.field_at(found.0, found.1) else trap("split: a store between fields")
                 let slot = field.0
                 var y = x
-                y.b = try self.slot_address(f, x, slot)
+                y.b = try slot_address(f, x, slot)
                 try f.instrs.push(y)
                 return
         elif x.op == ir.Op.zero:
@@ -394,8 +394,8 @@ struct Plan:
                 let r = (usize)self.root(s)
                 for k in 0..<(usize)self.field_count[r]:
                     let field = self.fields[(usize)self.field_start[r] + k]
-                    let value = try self.zero_of(f, x, field.cls)
-                    let target = try self.slot_address(f, x, self.new_slot[(usize)s * most_fields + k])
+                    let value = try zero_of(f, x, field.cls)
+                    let target = try slot_address(f, x, self.new_slot[(usize)s * most_fields + k])
                     try push(f, x, ir.store_op((u64)field.width, ir.is_float_class(field.cls)), ir.Class.l, 0, value, target, 0)
                 return
         elif x.op == ir.Op.blit:
@@ -412,12 +412,12 @@ struct Plan:
                     let field = self.fields[(usize)self.field_start[r] + k]
                     var source = x.b
                     if let known = source_of:
-                        source = try self.slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
+                        source = try slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
                     else:
                         source = try offset_address(f, x, x.b, field.offset)
                     var target = x.a
                     if let known = target_of:
-                        target = try self.slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
+                        target = try slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
                     else:
                         target = try offset_address(f, x, x.a, field.offset)
                     let value = try f.temp(field.cls)
@@ -426,19 +426,19 @@ struct Plan:
                 return
         try f.instrs.push(x)
 
-    ## A fresh temporary holding the address of `slot`, for an access to it.
-    mutating func slot_address(f: ir.Function*, at: ir.Instr, slot: u32) -> ir.Ref!:
-        let t = try f.temp(ir.Class.l)
-        try push(f, at, ir.Op.addr, ir.Class.l, t, ir.slot_ref(slot), ir.none_ref(), 0)
-        return ir.temp_ref(t)
+## A fresh temporary holding the address of `slot`, for an access to it.
+func slot_address(f: ir.Function*, at: ir.Instr, slot: u32) -> ir.Ref!:
+    let t = try f.temp(ir.Class.l)
+    try push(f, at, ir.Op.addr, ir.Class.l, t, ir.slot_ref(slot), ir.none_ref(), 0)
+    return ir.temp_ref(t)
 
-    ## Zero in a field's class: a float's through its bits.
-    mutating func zero_of(f: ir.Function*, at: ir.Instr, cls: ir.Class) -> ir.Ref!:
-        if cls == ir.Class.w or cls == ir.Class.l:
-            return ir.const_ref(0)
-        let t = try f.temp(cls)
-        try push(f, at, ir.Op.cast, cls, t, ir.const_ref(0), ir.none_ref(), 0)
-        return ir.temp_ref(t)
+## Zero in a field's class: a float's through its bits.
+func zero_of(f: ir.Function*, at: ir.Instr, cls: ir.Class) -> ir.Ref!:
+    if cls == ir.Class.w or cls == ir.Class.l:
+        return ir.const_ref(0)
+    let t = try f.temp(cls)
+    try push(f, at, ir.Op.cast, cls, t, ir.const_ref(0), ir.none_ref(), 0)
+    return ir.temp_ref(t)
 
 # mark: Helpers ================================================================================
 

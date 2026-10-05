@@ -21,7 +21,7 @@ description 9
 module example
 interface CounterView
     method value() -> i64
-    mutating method increase(amount: i64) -> !
+    method increase(amount: i64) -> !
 struct Counter
     representation private
     constructor init(start: i64) -> !
@@ -68,10 +68,10 @@ struct Point
 | `storage value` | Complete storage can cross as a copied value; hidden fields contain no untracked borrows, and public text/data can be rebased |
 | `storage unavailable` | The native representation needs an explicit ownership contract before it can cross |
 | `field var name: T` / `field let name: T` | Public mutable/immutable field |
-| `method name(p: T) -> R` | Nonmutating instance method; `self` is implicit |
-| `mutating method name(p: T) -> R` | Instance method requiring mutable native storage |
-| `static method name(p: T) -> R` | Type method with no receiver |
-| `interface Name` | Public interface; every requirement is described without needing a `pub` modifier on the requirement |
+| `method name(p: T) -> R` | Instance method whose body does not change its receiver; `self` is implicit |
+| `mutating method name(p: T) -> R` | Instance method whose body changes its receiver, found from the body (base.md §9.5): requires mutable native storage |
+| `static method name(p: T) -> R` | Function of the type, whose body never reads `self`: no receiver |
+| `interface Name` | Public interface; every requirement is described without needing a `pub` modifier on the requirement, and as a `method`: a requirement has no mutability of its own, its conformer's implementation has (base.md §14.2, §14.3) |
 | `conforms Interface` | Declared conformance to a public interface; private interfaces are omitted |
 | `enum Name as T` / `case name = N` | Integer-backed enum, its cases and evaluated case values; methods/conformance follow the cases |
 | `handle Name destroy function` | Base's existing opaque-handle declaration and its checked finalizer |
@@ -92,8 +92,8 @@ Aliases identify the declaration rather than creating a second native type.
 
 The reader restores field mutability, implicit receivers, method mutation,
 constructor effects and interface conformance. Luce constructs the real Base value,
-retains complete native storage, and owns copies of public text/data. Static,
-nonmutating and mutating methods use typed adapters; mutation is written back even
+retains complete native storage, and owns copies of public text/data. Static
+methods and methods that read or change their receiver use typed adapters; mutation is written back even
 when the method fails. Error text is owned before cleanup can invalidate it.
 Aliases, bound methods and worker copies retain complete value state. Equality
 compares rebased native values, including private fields.
@@ -142,7 +142,7 @@ retained function callbacks and workers remain the next gate.
 A public constant `interop.Type[T](name = ..., dispose = ..., trace = ...,
 closeable = ...)` beside a public struct explicitly declares ownership. Recognition
 uses the standard `interop.Type` declaration identity. Exactly one declaration is
-allowed. `closeable` requires a public mutating disposal method without parameters;
+allowed. `closeable` requires a public disposal method that changes its receiver, without parameters;
 otherwise disposal remains private to the owner. `is_closed` is the shared state
 query and cannot also be declared as a package member.
 
@@ -170,7 +170,7 @@ owner. The view keeps the owner and validity state alive; it does not extend the
 resource's valid period. Explicit invalidation is permanent, and closing the
 resource invalidates its leases. All aliases, captured values and bound methods
 check the same lease before accessing native storage. Read-only declarations
-cannot expose mutating methods. `is_valid` remains callable after expiry.
+cannot expose methods that change their receiver. `is_valid` remains callable after expiry.
 
 A generated native method holds an invocation guard through argument conversion,
 the native call and result/error conversion. Close becomes visible immediately;

@@ -86,7 +86,7 @@ pub struct Terminal:
     var used: usize
 
     ## No terminal at all: a fixed 80 by 24 screen written to standard output.
-    pub static func headless() -> Terminal:
+    pub func headless() -> Terminal:
         var t: Terminal = ---
         t.raw = false
         t.rows = 24
@@ -94,7 +94,7 @@ pub struct Terminal:
         t.used = 0
         return t
 
-    pub static func open() -> Terminal!:
+    pub func open() -> Terminal!:
         var t = Terminal.headless()
         if isatty(0) == 0:
             return t
@@ -121,24 +121,24 @@ pub struct Terminal:
         t.measure()
         return t
 
-    pub mutating func close():
+    pub func close():
         if self.raw:
             self.put("\u{1b}[2J\u{1b}[H")
             self.flush()
-            discard(tcsetattr(0, flush_then_set, (const void*)&self.saved[0]))
+            _ = tcsetattr(0, flush_then_set, (const void*)&self.saved[0])
             self.raw = false
 
-    pub mutating func measure():
+    pub func measure():
         var size = WindowSize(rows = 0, columns = 0, x_pixels = 0, y_pixels = 0)
         if ioctl(1, window_size_request, &size) == 0 and size.rows > 0 and size.columns > 0:
             self.rows = (usize)size.rows
             self.columns = (usize)size.columns
 
     ## Buffered output; `flush` writes it in one go so the screen never tears.
-    pub mutating func put(text: str):
+    pub func put(text: str):
         self.put_bytes(text.bytes)
 
-    pub mutating func put_bytes(data: const u8[]):
+    pub func put_bytes(data: const u8[]):
         var i: usize = 0
         while i < data.length:
             if self.used == self.out.length:
@@ -147,7 +147,7 @@ pub struct Terminal:
             self.used += 1
             i += 1
 
-    pub mutating func flush():
+    pub func flush():
         var sent: usize = 0
         while sent < self.used:
             let n = c_write(1, &self.out[sent], self.used - sent)
@@ -161,7 +161,7 @@ pub struct Terminal:
         var byte: u8[1]
         if c_read(0, &byte[0], 1) != 1:
             return Key.control(letter = 'Q')
-        return decode(byte[0], &self)
+        return decode(byte[0])
 
     func read_byte() -> u8?:
         var byte: u8[1]
@@ -169,16 +169,16 @@ pub struct Terminal:
             return none
         return byte[0]
 
-## A key from its first byte, pulling the rest of an escape sequence from `source`.
-func decode(first: u8, source: const Terminal*) -> Key:
+## A key from its first byte, reading the rest of an escape sequence from standard input.
+func decode(first: u8) -> Key:
     if first == 13 or first == 10:
         return Key.enter
     if first == 127 or first == 8:
         return Key.backspace
     if first == 27:
-        let second = source.read_byte() else return Key.escape
+        let second = Terminal.read_byte() else return Key.escape
         if second == '[':
-            let third = source.read_byte() else return Key.escape
+            let third = Terminal.read_byte() else return Key.escape
             match third:
                 'A': return Key.up
                 'B': return Key.down
@@ -188,32 +188,32 @@ func decode(first: u8, source: const Terminal*) -> Key:
                 'F': return Key.end_
                 '1':
                     # `ESC [ 1 ; 5 C` is control-right, `ESC [ 1 ~` is home
-                    let fourth = source.read_byte() else return Key.escape
+                    let fourth = Terminal.read_byte() else return Key.escape
                     if fourth == '~':
                         return Key.home
                     if fourth == ';':
-                        discard(source.read_byte())
-                        let last = source.read_byte() else return Key.escape
+                        _ = Terminal.read_byte()
+                        let last = Terminal.read_byte() else return Key.escape
                         if last == 'C':
                             return Key.word_right
                         if last == 'D':
                             return Key.word_left
                     return Key.escape
                 '3':
-                    discard(source.read_byte())
+                    _ = Terminal.read_byte()
                     return Key.delete
                 '4':
-                    discard(source.read_byte())
+                    _ = Terminal.read_byte()
                     return Key.end_
                 '5':
-                    discard(source.read_byte())
+                    _ = Terminal.read_byte()
                     return Key.page_up
                 '6':
-                    discard(source.read_byte())
+                    _ = Terminal.read_byte()
                     return Key.page_down
                 _: return Key.escape
         if second == 'O':
-            let third = source.read_byte() else return Key.escape
+            let third = Terminal.read_byte() else return Key.escape
             if third == 'H':
                 return Key.home
             if third == 'F':
@@ -234,10 +234,10 @@ pub struct Script:
     var text: str
     var at: usize
 
-    pub static func over(text: str) -> Script:
+    pub func over(text: str) -> Script:
         return Script(text = text, at = 0)
 
-    pub mutating func next() -> Key?:
+    pub func next() -> Key?:
         let b = self.text.bytes
         if self.at >= b.length:
             return none

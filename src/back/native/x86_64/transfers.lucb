@@ -13,7 +13,7 @@ extend Generator:
     ## Exactly `width` bytes (1..8) at `offset(base)` into the 64-bit register `reg`, zero
     ## above; `%rax` helps with the odd widths, or `%r11` when `reg` is `%rax` itself, so an
     ## argument's load leaves the callee parked in r11 alone.
-    mutating func load_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
+    func load_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
         let l = narrow_name(reg)
         if width == 8:
             try self.offset_move("movq ", offset, "(")
@@ -41,7 +41,7 @@ extend Generator:
 
     ## Exactly `width` bytes of the 64-bit register `reg` to `offset(base)`; the register is
     ## consumed.
-    mutating func store_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
+    func store_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
         if width == 8 or width == 4 or width == 2 or width == 1:
             try self.writer.line(store_word_mnemonic(width))
             try self.writer.put(register_of_width(reg, width))
@@ -61,7 +61,7 @@ extend Generator:
 
     ## Eightbyte `k` of an aggregate of `size` bytes at (`base`), into `reg`: an integer
     ## register, or an SSE one through rax.
-    mutating func load_eightbyte(reg: str, base: str, k: u32, size: u32, sse: bool) -> !:
+    func load_eightbyte(reg: str, base: str, k: u32, size: u32, sse: bool) -> !:
         let offset = (u64)k * 8
         let width = (u64)size - offset if (u64)size - offset < 8 else 8
         if sse:
@@ -79,7 +79,7 @@ extend Generator:
             try self.load_bytes(reg, base, offset, width)
 
     ## Eightbyte `k` of an aggregate of `size` bytes, from `reg` to (%r10).
-    mutating func store_eightbyte(reg: str, k: u32, size: u32, sse: bool) -> !:
+    func store_eightbyte(reg: str, k: u32, size: u32, sse: bool) -> !:
         let offset = (u64)k * 8
         let width = (u64)size - offset if (u64)size - offset < 8 else 8
         if sse:
@@ -101,7 +101,7 @@ extend Generator:
     ## written, so they need no home. It walks the registers as `receive_params` does, for a
     ## function whose parameters are all scalars; otherwise every slot keeps its home.
     func straight_params(entry: u32[]) -> bool[]!:
-        var straight = try alloc bool[self.f.slots.count + 1]
+        var straight = try new bool[self.f.slots.count + 1] ---
         for k in 0..<straight.length:
             straight[k] = false
         for p in self.f.params.span():
@@ -131,7 +131,7 @@ extend Generator:
                 next_int += 1
         return straight
 
-    mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
+    func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         if self.convention.windows:
             try self.receive_windows(entry, moves)
             return
@@ -213,7 +213,7 @@ extend Generator:
 
     ## The aggregates passed in the caller's stack area copied into their slots, after
     ## every register argument is safely stored: the same walk over the arguments.
-    mutating func copy_memory_params() -> !:
+    func copy_memory_params() -> !:
         var stack_offset: u64 = 16
         var next_int: u32 = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
         var next_float: u32 = 0
@@ -247,14 +247,14 @@ extend Generator:
                     stack_offset += round_up((u64)p.size, 8)
             i += 1
 
-    mutating func stack_param_load(reg: str, offset: u64) -> !:
+    func stack_param_load(reg: str, offset: u64) -> !:
         try self.writer.line("movq ")
         try self.writer.put_u64(offset + (self.fr.size if self.convention.windows else 0))
         try self.writer.put("(%rbp), ")
         try self.writer.put(reg)
 
     ## `size` bytes from (`origin`) to (%r11): inline up to 128, else `memcpy`.
-    mutating func copy_to_r11(origin: str, size: u64) -> !:
+    func copy_to_r11(origin: str, size: u64) -> !:
         if size <= 128:
             try self.inline_copy(origin, "%r11", size)
             return
@@ -263,7 +263,7 @@ extend Generator:
         try self.load_immediate("%rdx", (i64)size)
         try self.call_symbol("memcpy")
 
-    mutating func call_symbol(name: str) -> !:
+    func call_symbol(name: str) -> !:
         if self.convention.windows:
             # Generator helpers use at most three integer arguments in SysV scratch names.
             try self.writer.line("movq %rdx, %r8")

@@ -77,8 +77,8 @@ Hello from Base, 2026.
 There are 1 arguments; the first is ./program.
 ```
 
-The braces hold any expression. Unlike Python, there is no format specification after a
-colon: for hexadecimal write `{hex(value)}`, and for padding to a width `{pad(value, 8)}`.
+The braces hold any expression, and after a colon a format specification as in Python:
+`{value:x}` for hexadecimal, `{value:>8}` to pad to a width, `{price:.2f}` for two decimals.
 
 ## A project
 

@@ -19,6 +19,6 @@ pub func main(arguments: str[]) -> i32:
         1 => "one"
         2, 3 => "few"
         _ => "many"
-    discard(bump(1))
+    _ = bump(1)
     print(f"{label} {fallback} {sized} {kind} {classify('7')} {classify('Q')} {classify(' ')}")
     return 0

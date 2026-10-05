@@ -23,7 +23,7 @@ struct Big:
     ## Limbs in use; the last is not zero, or `used` is zero for zero.
     var used: usize
 
-    static func of(value: u64) -> Big:
+    func of(value: u64) -> Big:
         var b: Big
         var v = value
         while v != 0:
@@ -36,7 +36,7 @@ struct Big:
         return self.used == 0
 
     ## `self * m + a`; false when the capacity is exceeded.
-    mutating func mul_add(m: u32, a: u32) -> bool:
+    func mul_add(m: u32, a: u32) -> bool:
         var carry: u64 = (u64)a
         var i: usize = 0
         while i < self.used:
@@ -61,11 +61,11 @@ struct Big:
             top >>= 1
         return (self.used - 1) * 32 + n
 
-    mutating func trim():
+    func trim():
         while self.used > 0 and self.limb[self.used - 1] == 0:
             self.used -= 1
 
-    mutating func shift_left(count: usize) -> bool:
+    func shift_left(count: usize) -> bool:
         if count == 0 or self.used == 0:
             return true
         let words = count // 32
@@ -86,7 +86,7 @@ struct Big:
         self.trim()
         return true
 
-    mutating func shift_right_one():
+    func shift_right_one():
         var i: usize = 0
         while i < self.used:
             let low: u32 = self.limb[i + 1] & 1 if i + 1 < self.used else 0
@@ -106,7 +106,7 @@ struct Big:
         return true
 
     ## `self -= other`, with `self >= other`.
-    mutating func subtract(other: const Big*):
+    func subtract(other: const Big*):
         var borrow: u64 = 0
         var i: usize = 0
         while i < self.used:
@@ -127,7 +127,7 @@ struct Format:
     var max_exponent: i64
     var exponent_bits: u64
 
-    static func of(width: u32) -> Format?:
+    func of(width: u32) -> Format?:
         if width == 64:
             return Format(precision = 53, min_exponent = -1022, max_exponent = 1023, exponent_bits = 11)
         if width == 32:
@@ -172,7 +172,7 @@ struct Digits:
     var exponent: i64
 
     ## The digits of `text`; `none` when it is not a literal.
-    static func read(text: str) -> Digits?:
+    func read(text: str) -> Digits?:
         let b = text.bytes
         var d: Digits
         var seen_digit = false
@@ -211,7 +211,7 @@ struct Digits:
 
     ## Keeps the digit `c`, or past the cap moves its weight into the exponent; its value
     ## only matters for a tie.
-    mutating func keep(c: u8):
+    func keep(c: u8):
         if self.count < digit_cap:
             self.digit[self.count] = c
             self.count += 1

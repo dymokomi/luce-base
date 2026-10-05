@@ -1,15 +1,17 @@
+import memory
+
 ## §14.1, §14.3: conformance is declared on the type; a view is two words formed from `T*`
 ## (or `const T*` when nothing mutates), dispatching through a table; a view is copied, stored
 ## in arrays and optionals (`Shape?` uses the null niche), and reaches the object it borrows.
 interface Shape:
     func area() -> f64
-    mutating func scale(factor: f64)
+    func scale(factor: f64)
 
 interface Named:
     func name() -> str
 
 interface Sink:
-    mutating func put(value: i64) -> !
+    func put(value: i64) -> !
 
 struct Circle: Shape, Named:
     var radius: f64
@@ -17,7 +19,7 @@ struct Circle: Shape, Named:
     func area() -> f64:
         return 3.0 * self.radius * self.radius
 
-    mutating func scale(factor: f64):
+    func scale(factor: f64):
         self.radius = self.radius * factor
 
     func name() -> str:
@@ -29,13 +31,13 @@ struct Square: Shape:
     func area() -> f64:
         return self.side * self.side
 
-    mutating func scale(factor: f64):
+    func scale(factor: f64):
         self.side = self.side * factor
 
 struct Total: Sink:
     var sum: i64
 
-    mutating func put(value: i64):
+    func put(value: i64):
         self.sum += value
 
 func total_area(shapes: const Shape[]) -> f64:
@@ -78,7 +80,7 @@ pub func main(arguments: str[]) -> i32!:
     let some = pick(shapes, 1)
     let missing = pick(shapes, 9)
     if let s = some:
-        print(f"{s.area()} {missing == none} {sizeof(Shape) == 2 * sizeof(void*)}")
+        print(f"{s.area()} {missing == none} {memory.size_of(Shape) == 2 * memory.size_of(void*)}")
 
     var t = Total(sum = 0)
     let sink: Sink = &t

@@ -9,7 +9,7 @@
 extend Checker:
     # mark: Operators ==========================================================================
 
-    mutating func unary_type(e: ast.Node*, hint: u32) -> u32!:
+    func unary_type(e: ast.Node*, hint: u32) -> u32!:
         let inner = e.left else return try self.fail(e, "missing operand")
         if e.text == "try":
             if self.in_defer and not self.fallible and not self.expression_effect:
@@ -23,13 +23,13 @@ extend Checker:
             self.expression_effect = saved
             if self.effect_count == before:
                 return try self.fail(e, "`try` needs a fallible expression")
-            if self.is_local_value(inner):
-                self.mark_local(e)  # the value still views the local it came from (§6.6)
+            if is_local_value(inner):
+                mark_local(e)  # the value still views the local it came from (§6.6)
             e.kind = ast.Kind.group
             e.text = ""
             return it
         if e.text == "not":
-            discard(try self.expect(inner, types.bool_id))
+            _ = try self.expect(inner, types.bool_id)
             return types.bool_id
         if e.text == "&":
             let it = try self.check_expr(inner, types.none_id)
@@ -42,8 +42,11 @@ extend Checker:
             if self.is_packed_field(inner):
                 return try self.fail(e, "a packed field's address is not taken unless its alignment is one (§5.11)")
             if self.place_is_local(inner):
-                self.mark_local(e)
-            return try self.table.pointer(it, self.address_is_const(inner), false)
+                mark_local(e)
+            var read_only = self.address_is_const(inner)
+            if read_only and try self.wants_changing_view(hint, it, inner) and self.changes_receiver(inner):
+                read_only = false
+            return try self.table.pointer(it, read_only, false)
         if e.text == "*":
             let it = try self.check_expr(inner, types.none_id)
             let t = self.table.get(it)
@@ -82,13 +85,13 @@ extend Checker:
         return try self.fail(e, "unknown operator")
 
     ## The type of `l op r`, its operands checked and coerced to the type it computes in.
-    mutating func binary_type(e: ast.Node*, hint: u32) -> u32!:
+    func binary_type(e: ast.Node*, hint: u32) -> u32!:
         let l = e.left else return try self.fail(e, "missing operand")
         let r = e.right else return try self.fail(e, "missing operand")
         let op = e.text
         if op == "and" or op == "or":
-            discard(try self.expect(l, types.bool_id))
-            discard(try self.expect(r, types.bool_id))
+            _ = try self.expect(l, types.bool_id)
+            _ = try self.expect(r, types.bool_id)
             return types.bool_id
         if op == "..<" or op == "..=":
             return try self.range_type(e, l, r, hint)
@@ -115,12 +118,12 @@ extend Checker:
         var t = try self.unify(l, lt, r, rt)
         # two untyped literals under a typed context compute in that type: `3 -| 7` as `u8`
         if is_arithmetic(op) and t == types.untyped_int_id and self.table.is_integer(context):
-            discard(try self.coerce(l, lt, context))
-            discard(try self.coerce(r, rt, context))
+            _ = try self.coerce(l, lt, context)
+            _ = try self.coerce(r, rt, context)
             t = context
         elif is_arithmetic(op) and t == types.untyped_float_id and self.table.is_float(context):
-            discard(try self.coerce(l, lt, context))
-            discard(try self.coerce(r, rt, context))
+            _ = try self.coerce(l, lt, context)
+            _ = try self.coerce(r, rt, context)
             t = context
         if op == "==" or op == "!=":
             # `x == none` asks whether an optional holds a value, whatever the payload (§11.1)
@@ -141,22 +144,22 @@ extend Checker:
 
     ## `lo..<hi` and `lo..=hi`: integer bounds of one type, the hint's for two literals; a
     ## read-only span of it.
-    mutating func range_type(e: ast.Node*, l: ast.Node*, r: ast.Node*, hint: u32) -> u32!:
+    func range_type(e: ast.Node*, l: ast.Node*, r: ast.Node*, hint: u32) -> u32!:
         let lt = try self.check_expr(l, hint)
         let rt = try self.check_expr(r, hint if hint != types.none_id else lt)
         let joined = try self.unify(l, lt, r, rt)
-        var t = self.concrete(joined)
+        var t = concrete(joined)
         if joined == types.untyped_int_id and hint != types.none_id and self.table.is_integer(hint):
             t = hint
         if not self.table.is_integer(t):
             return try self.fail(e, "a range needs integer bounds")
-        discard(try self.coerce(l, lt, t))
-        discard(try self.coerce(r, rt, t))
+        _ = try self.coerce(l, lt, t)
+        _ = try self.coerce(r, rt, t)
         return try self.table.span(t, true)
 
     ## `x << n` and `x >> n`: the left operand's type, an integer or a vector of integer
     ## lanes shifted by one count; the count is any integer.
-    mutating func shift_type(e: ast.Node*, l: ast.Node*, r: ast.Node*, hint: u32) -> u32!:
+    func shift_type(e: ast.Node*, l: ast.Node*, r: ast.Node*, hint: u32) -> u32!:
         let lt = try self.check_expr(l, hint)
         let rt = try self.check_expr(r, types.none_id)
         if self.table.is_vector(lt):
@@ -166,26 +169,26 @@ extend Checker:
                 return try self.fail(e, "a vector shift needs integer lanes (§5.12)")
             if not (rt == types.untyped_int_id or self.table.is_integer(rt)):
                 return try self.fail(e, "a shift count is an integer")
-            discard(try self.coerce(r, rt, lane if rt == types.untyped_int_id else rt))
+            _ = try self.coerce(r, rt, lane if rt == types.untyped_int_id else rt)
             return lt
         if not (lt == types.untyped_int_id or self.table.is_integer(lt)):
             return try self.fail(e, "a shift needs an integer")
         if not (rt == types.untyped_int_id or self.table.is_integer(rt)):
             return try self.fail(e, "a shift count is an integer")
         if rt != types.untyped_int_id:
-            discard(try self.coerce(r, rt, rt))
+            _ = try self.coerce(r, rt, rt)
         return lt
 
     ## `p + n`, `p - n`, and `p - q` (§6.5) for a pointer `p` of type `lt`: element-scaled
     ## and unchecked; an offset is `usize` or `isize`, a difference `isize`.
-    mutating func pointer_offset_type(e: ast.Node*, r: ast.Node*, lt: u32) -> u32!:
+    func pointer_offset_type(e: ast.Node*, r: ast.Node*, lt: u32) -> u32!:
         let rt = try self.check_expr(r, types.usize_id)
         if e.text == "-" and self.table.kind(rt) == types.Kind.pointer:
             if self.table.get(lt).elem != self.table.get(rt).elem:
                 return try self.fail(e, "pointer difference needs one pointee type")
             return types.isize_id
         if rt == types.untyped_int_id:
-            discard(try self.coerce(r, rt, types.usize_id))
+            _ = try self.coerce(r, rt, types.usize_id)
             return lt
         if rt != types.usize_id and rt != types.isize_id and not self.table.widens(rt, types.usize_id) and not self.table.widens(rt, types.isize_id):
             return try self.fail(e, "a pointer offset is `usize` or `isize`")
@@ -193,19 +196,19 @@ extend Checker:
 
     ## `a +? b`, `-?`, `*?` at the operands' type `t`: an optional of the integer, two
     ## literals computing in the context's integer.
-    mutating func checked_arithmetic_type(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, t: u32, context: u32) -> u32!:
+    func checked_arithmetic_type(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, t: u32, context: u32) -> u32!:
         if not (t == types.untyped_int_id or self.table.is_integer(t)):
             return try self.fail(e, "checked arithmetic needs integers")
-        var base = self.concrete(t)
+        var base = concrete(t)
         if t == types.untyped_int_id and self.table.is_integer(context):
             base = context
-            discard(try self.coerce(l, lt, base))
-            discard(try self.coerce(r, rt, base))
+            _ = try self.coerce(l, lt, base)
+            _ = try self.coerce(r, rt, base)
         return try self.table.optional(base)
 
     ## The bitwise, dividing, and plain, wrapping, or saturating arithmetic operators at
     ## the operands' type `t`, which each keeps.
-    mutating func arithmetic_type(e: ast.Node*, op: str, t: u32) -> u32!:
+    func arithmetic_type(e: ast.Node*, op: str, t: u32) -> u32!:
         if op == "&" or op == "|" or op == "^":
             if t == types.untyped_int_id or self.table.is_integer(t) or t == types.bool_id or self.is_backed_enum(t):
                 return t
@@ -233,7 +236,7 @@ extend Checker:
     ## Lane-wise arithmetic (§5.12): two vectors of one type, or a vector and a scalar of its
     ## element type, under the operators of §7.2 and §7.3 that keep the type. Comparisons
     ## were answered before this: `==` compares the arrays, and `<` is refused.
-    mutating func vector_binary_type(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32!:
+    func vector_binary_type(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32!:
         let op = e.text
         let vt = lt if self.table.is_vector(lt) else rt
         let et = self.table.get(vt).elem
@@ -255,19 +258,19 @@ extend Checker:
 
     ## An operand of vector arithmetic: the vector itself, or a scalar of its element type,
     ## which an untyped literal becomes.
-    mutating func vector_operand(side: ast.Node*, st: u32, vt: u32) -> bool!:
+    func vector_operand(side: ast.Node*, st: u32, vt: u32) -> bool!:
         let et = self.table.get(vt).elem
         if st == vt:
             return true
         if self.table.kind(st) == types.Kind.array:
             return false
         if (st == types.untyped_int_id and self.table.is_integer(et)) or (st == types.untyped_float_id and self.table.is_float(et)):
-            discard(try self.coerce(side, st, et))
+            _ = try self.coerce(side, st, et)
             return true
         return st == et
 
     ## `T[N](x)`: the vector whose every lane is `x` (§5.12); the callee is read as the type.
-    mutating func splat_type(e: ast.Node*, callee: ast.Node*, base: ast.Node*) -> u32!:
+    func splat_type(e: ast.Node*, callee: ast.Node*, base: ast.Node*) -> u32!:
         let length = callee.body else return try self.fail(callee, "missing index")
         let elem_node = try ast.Node.make(ast.Kind.type_, base.text, base.start, base.line)
         let array_node = try ast.Node.make(ast.Kind.type_, "[", callee.start, callee.line)
@@ -282,7 +285,7 @@ extend Checker:
         let arg = try self.single_argument(e)
         let et = self.table.get(vt).elem
         let got = try self.check_expr(arg, et)
-        discard(try self.coerce(arg, got, et))
+        _ = try self.coerce(arg, got, et)
         e.resolved = none
         return vt
 

@@ -55,7 +55,7 @@ pub func main(arguments: str[]) -> i32:
 ```
 
 - **A top-level `let` is a constant**, computed by the compiler. Constants can use literals,
-  arithmetic, `sizeof`, other constants, array and struct literals of constants, and enum
+  arithmetic, `memory.size_of`, other constants, array and struct literals of constants, and enum
   cases.
 - **A top-level `var` is a global variable.** It starts at its type's zero, or at a
   constant. It is never initialised by running code, so there is no question of which
@@ -198,8 +198,8 @@ to reinterpret one number type as another, except a `union`.
 addresses), optionals, tuples, arrays, and structs and enums whose parts all support it.
 Comparing any optional with `none` asks whether it is empty.
 
-`hash(value)` gives a `u64` for any value that supports `==`. It is seeded per process, so
-it differs between runs; do not store it.
+`value.hash()` gives a `u64` for any value that supports `==`, as `hash(value)` does in
+Python. It is seeded per process, so it differs between runs; do not store it.
 
 ```luce
 struct Pair:
@@ -207,7 +207,7 @@ struct Pair:
     var b: i32
 
 pub func main(arguments: str[]) -> i32:
-    print(f"{hash(42) == hash(42)} {Pair(a = 1, b = 2) == Pair(a = 1, b = 2)} {"abc" < "abd"}")
+    print(f"{42.hash() == 42.hash()} {Pair(a = 1, b = 2) == Pair(a = 1, b = 2)} {"abc" < "abd"}")
     return 0
 ```
 
@@ -220,6 +220,8 @@ needs another notion of equality provides a method with a name, such as `same_as
 
 ## Discarding a result
 
-A call whose result is not used can stand as a statement. `discard(call())` says the
-result is ignored on purpose. A call that can fail cannot be discarded until its failure is
-handled: `discard(parse(text) else 0)`.
+A call whose result is not used can stand as a statement. `_ = call()` says the result is
+ignored on purpose, as in Python, and works for any value. A call that can fail cannot be
+dropped until its failure is handled: `_ = parse(text) else 0`, or `_ = try parse(text)`. A
+`catch` on a dropped value needs no `recover`, since nothing is kept:
+`_ = save(document) catch failure: print(failure.message)`.

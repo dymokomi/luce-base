@@ -1,7 +1,7 @@
 # error: `_` is the wildcard; it binds nothing to read
 ## §3.4: `_` binds nothing, so there is no value to read.
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     for _ in 0..<3:
         print(f"{_}")
     return 0

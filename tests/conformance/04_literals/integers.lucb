@@ -1,3 +1,5 @@
+import memory
+
 ## §4.2: every integer form, context choosing the type, `i64` when there is none, a
 ## suffix naming an exact type, and the most negative `i64` written as a literal.
 pub func main(arguments: str[]) -> i32:
@@ -14,7 +16,7 @@ pub func main(arguments: str[]) -> i32:
     let short: i16 = -32768
     print(f"{plain} {big} {hexed} {octal} {binary} {byte} {narrow}")
     print(f"{wide} {lowest} {byte_from_context} {short}")
-    print(f"{sizeof(plain)} {sizeof(byte)} {sizeof(narrow)} {sizeof(short)}")
+    print(f"{memory.size_of(plain)} {memory.size_of(byte)} {memory.size_of(narrow)} {memory.size_of(short)}")
     var steps = 0
     for i in 0..<4:
         steps += 1

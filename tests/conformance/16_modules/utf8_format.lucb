@@ -1,12 +1,13 @@
 # oracle: none -- The utf8 module is supplied by Base.
 import luce_std.utf8
+import strings
 
 pub func main(arguments: str[]) -> i32!:
     var bytes: u8[32]
     let letter: char = 'é'
     let ideograph: char = '水'
     let symbol: char = '😀'
-    let text = try format(bytes, f"A {letter} {ideograph} {symbol}")
+    let text = try strings.format(bytes, f"A {letter} {ideograph} {symbol}")
     assert(text == "A é 水 😀")
     var encoded: u8[4]
     assert(utf8.encode((u32)symbol, encoded) == 4)

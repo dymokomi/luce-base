@@ -1,0 +1,22 @@
+# oracle: none
+## §5.5: a field `{value:spec}` lays its value out by Python's format specification:
+## fill, alignment, sign, `#`, zero padding, width, grouping, precision and a type letter, for
+## integers, floats, and text; digits round half to even on the exact value.
+import strings
+
+pub func main(arguments: str[]) -> i32!:
+    let n: i32 = -1234
+    let byte: u8 = 255
+    print(f"[{n:d}] [{n:+d}] [{n:#x}] [{n:#X}] [{n:08b}] [{n:_b}] [{n:,}] [{n:010,}] [{n:^9}] [{n:*<6}] [{n:=+8}]")
+    print(f"[{byte:x}] [{byte:#06x}] [{65:c}] [{65:>4c}] [{1234567:_}] [{18446744073709551615u64:,}]")
+    print(f"[{3.14159:.2f}] [{12345.678:e}] [{0.000012345:.3g}] [{1e20:g}] [{0.25:%}] [{-2.25:10.1f}]")
+    print(f"[{-2.25:010.2f}] [{1234567.891:,.2f}] [{2.5:.0f}] [{2.5:#.0f}] [{1234.5:.3}] [{1e-300:+.1E}]")
+    print(f"[{-0.04:z.1f}] [{2.675:.2f}] [{1.5:>8}] [{0.1f32:>6}] [{"hello":>8}] [{"hello":.2}] [{"hé":*^6}]")
+    print(f"[{'x':3}] [{true:>6}] [{-7:+05}] [{255:#x}] [{"total":*^11}]")
+    var buffer: u8[8]
+    let fits = try strings.format(buffer, f"{7:>4}")
+    print(f"{fits}|")
+    let refused = strings.format(buffer, f"{7:>40}") catch failure:
+        recover "too narrow"
+    print(refused)
+    return 0

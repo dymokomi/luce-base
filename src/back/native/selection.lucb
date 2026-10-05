@@ -15,7 +15,7 @@ import back.ir.ir
 
 ## The number of times each temporary is used, by index; a comparison used once may fuse.
 pub func uses(f: ir.Function*) -> u32[]!:
-    var counts = try alloc u32[f.temps.count + 1]
+    var counts = try new u32[f.temps.count + 1] ---
     for i in 0..<counts.length:
         counts[i] = 0
     for x in f.instrs.span():
@@ -37,12 +37,12 @@ func mark(counts: u32[], value: ir.Ref):
 ## that slot: the generator then moves the argument from where it arrives straight into
 ## the load's result, and neither stores it nor loads it back. 0 for every other.
 pub func entry_loads(f: ir.Function*) -> u32[]!:
-    var entry = try alloc u32[f.params.count + 1]
+    var entry = try new u32[f.params.count + 1] ---
     for p in 0..<entry.length:
         entry[p] = 0
     if f.debug or f.symbols:
         return entry
-    var named = try alloc u32[f.slots.count + 1]
+    var named = try new u32[f.slots.count + 1] ---
     defer free(named)
     for s in 0..<named.length:
         named[s] = 0
@@ -55,7 +55,7 @@ pub func entry_loads(f: ir.Function*) -> u32[]!:
     # the leading loads, each of a slot or through an address of one taken just before
     let counts = try uses(f)
     defer free(counts)
-    var slot_of = try alloc u32[f.temps.count + 1]
+    var slot_of = try new u32[f.temps.count + 1] ---
     defer free(slot_of)
     for t in 0..<slot_of.length:
         slot_of[t] = 0
@@ -98,16 +98,16 @@ func note_slot(named: u32[], value: ir.Ref):
 ## its result's register.
 pub func zero_extended(f: ir.Function*, entry: u32[]) -> bool[]!:
     let n = f.temps.count
-    var clean = try alloc bool[n + 1]
-    var defined = try alloc bool[n + 1]
+    var clean = try new bool[n + 1] ---
+    var defined = try new bool[n + 1] ---
     defer free(defined)
-    var of_slot = try alloc bool[n + 1]
+    var of_slot = try new bool[n + 1] ---
     defer free(of_slot)
     for t in 0..<clean.length:
         clean[t] = t != 0 and f.temp_class(u32(t)) == ir.Class.w
         defined[t] = false
         of_slot[t] = false
-    var at_entry = try alloc bool[f.instrs.count + 1]
+    var at_entry = try new bool[f.instrs.count + 1] ---
     defer free(at_entry)
     for i in 0..<at_entry.length:
         at_entry[i] = false
@@ -163,7 +163,7 @@ pub func zero_extended(f: ir.Function*, entry: u32[]) -> bool[]!:
 pub func canonical_labels(f: ir.Function*) -> !:
     if f.labels == 0:
         return
-    var first = try alloc u32[(usize)f.labels + 1]
+    var first = try new u32[(usize)f.labels + 1] ---
     defer free(first)
     for k in 0..<first.length:
         first[k] = u32(k)
@@ -198,10 +198,10 @@ pub func canonical_labels(f: ir.Function*) -> !:
 ## By label, whether a jump after it goes back to it: a loop's head, which a generator
 ## aligns so the loop's body does not straddle more fetch blocks than it must.
 pub func loop_heads(f: ir.Function*) -> bool[]!:
-    var heads = try alloc bool[(usize)f.labels + 1]
+    var heads = try new bool[(usize)f.labels + 1] ---
     for k in 0..<heads.length:
         heads[k] = false
-    var placed = try alloc bool[(usize)f.labels + 1]
+    var placed = try new bool[(usize)f.labels + 1] ---
     defer free(placed)
     for k in 0..<placed.length:
         placed[k] = false
@@ -224,7 +224,7 @@ pub func loop_heads(f: ir.Function*) -> bool[]!:
 ## comparison reads the same values at the jump; a head where the dynamic area settles, or
 ## a build a debugger reads, keeps its jumps.
 pub func rotations(f: ir.Function*, heads: bool[], counts: u32[], floats: bool) -> u32[]!:
-    var tests = try alloc u32[heads.length]
+    var tests = try new u32[heads.length] ---
     for k in 0..<tests.length:
         tests[k] = 0
     if f.debug or f.symbols or f.dynamic_levels != 0:

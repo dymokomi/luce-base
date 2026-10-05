@@ -10,9 +10,9 @@ func recovering() -> i32!:
     let result = fail() catch outer:
         defer record(3)
         errdefer record(9)
-        discard(fail() catch inner:
+        _ = fail() catch inner:
             defer record(1)
-            recover 0)
+            recover 0
         assert(log == 1)
         if true:
             defer record(2)

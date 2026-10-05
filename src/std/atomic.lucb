@@ -20,4 +20,4 @@ pub enum Ordering as u8:
 
 ## A standalone fence; the backend supplies the instruction.
 pub func fence(order: Ordering):
-    discard(order)
+    _ = order

@@ -4,4 +4,4 @@ pub handle Counter:
     destroy release
 
 pub func release(counter: Counter) -> !:
-    discard(counter)
+    _ = counter

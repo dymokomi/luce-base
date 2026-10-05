@@ -160,7 +160,7 @@ pub struct Emitter:
     var arrays: list.List[Hoisted]
 
     ## An emitter that writes C for `entry`, checked by `checker`.
-    pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
+    pub func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
                        scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
@@ -177,7 +177,7 @@ pub struct Emitter:
 
     # -- output ---------------------------------------------------------------------------
 
-    mutating func put(text: str) -> !:
+    func put(text: str) -> !:
         if self.target == to_scratch:
             try self.scratch.put(text)
         elif self.target == to_body:
@@ -190,7 +190,7 @@ pub struct Emitter:
             try self.globals.put(text)
 
     ## The buffer `put` writes to now, for the names `names` spells straight into it.
-    mutating func sink() -> buffer.Buffer*:
+    func sink() -> buffer.Buffer*:
         if self.target == to_scratch:
             return &self.scratch
         if self.target == to_body:
@@ -203,13 +203,13 @@ pub struct Emitter:
 
     ## `assert failed: condition` (§11.6) as adjacent C string literals, which C joins, so
     ## the condition's source may be any length; the position is the trap's (§11.5).
-    mutating func put_assert_text(e: ast.Node*) -> !:
+    func put_assert_text(e: ast.Node*) -> !:
         try self.put("\"assert failed: \" ")
         try self.put_c_string(e.text)
 
     ## `lb_pos = "file:line:column";` before a statement: what a trap in it names (§11.5),
     ## through the source's position directives (§3.3).
-    mutating func put_position(n: ast.Node*) -> !:
+    func put_position(n: ast.Node*) -> !:
         var file = self.src_file
         var line = n.line
         var column: u32 = 1
@@ -220,13 +220,13 @@ pub struct Emitter:
                 line = ml
                 column = mc
         try self.line("lb_pos = ")
-        let room = try alloc u8[file.length + 24]
-        try self.put_c_string(try format(room, f"{file}:{line}:{column}"))
+        let room = try new u8[file.length + 24] ---
+        try self.put_c_string(try strings.format(room, f"{file}:{line}:{column}"))
         try self.put(";")
 
     ## A float's bits as a hexadecimal float literal, `0x1.8p+1f`: exact in C, whatever the
     ## value, a subnormal included; `f` and `f16` name the narrower widths.
-    mutating func put_hex_float(bits: u64, width: u32) -> !:
+    func put_hex_float(bits: u64, width: u32) -> !:
         let exponent_bits: u64 = 11 if width == 64 else 8 if width == 32 else 5
         let fraction_bits: u64 = 52 if width == 64 else 23 if width == 32 else 10
         # the fraction padded to whole hex digits: 13, 6, or 3 of them
@@ -255,7 +255,7 @@ pub struct Emitter:
         elif width == 16:
             try self.put("f16")
 
-    mutating func put_u64(value: u64) -> !:
+    func put_u64(value: u64) -> !:
         if self.target == to_scratch:
             try self.scratch.put_u64(value)
         elif self.target == to_body:
@@ -267,7 +267,7 @@ pub struct Emitter:
         else:
             try self.globals.put_u64(value)
 
-    mutating func put_i64(value: i64) -> !:
+    func put_i64(value: i64) -> !:
         if self.target == to_scratch:
             try self.scratch.put_i64(value)
         elif self.target == to_body:
@@ -279,7 +279,7 @@ pub struct Emitter:
         else:
             try self.globals.put_i64(value)
 
-    mutating func put_byte(byte: u8) -> !:
+    func put_byte(byte: u8) -> !:
         if self.target == to_scratch:
             try self.scratch.put_byte(byte)
         elif self.target == to_body:
@@ -291,31 +291,31 @@ pub struct Emitter:
         else:
             try self.globals.put_byte(byte)
 
-    mutating func pad_to_column() -> !:
+    func pad_to_column() -> !:
         var i: u32 = 0
         while i < self.indent:
             try self.put("    ")
             i += 1
 
     ## Start a new line at the current indentation and write `text`.
-    mutating func line(text: str) -> !:
+    func line(text: str) -> !:
         try self.put("\n")
         try self.pad_to_column()
         try self.put(text)
 
     ## A fresh number for a temporary.
-    mutating func tmp() -> u32:
+    func tmp() -> u32:
         self.counter += 1
         return self.counter
 
     ## `_lb_<prefix><n>`.
-    mutating func put_tmp(prefix: str, n: u32) -> !:
+    func put_tmp(prefix: str, n: u32) -> !:
         try self.put("_lb_")
         try self.put(prefix)
         try self.put_u64((u64)n)
 
     ## A C string literal for `text`: a `?` is escaped so `??)` is never a trigraph.
-    mutating func put_c_string(text: str) -> !:
+    func put_c_string(text: str) -> !:
         try self.put_byte('"')
         for b in text.bytes:
             if b == '\\' or b == '"' or b == '?':
@@ -340,7 +340,7 @@ pub struct Emitter:
 
     ## `((lb_str){"...", n})`; in a static initialiser the braces alone, since a compound
     ## literal is not a constant expression to every C compiler.
-    mutating func put_str_literal(text: str) -> !:
+    func put_str_literal(text: str) -> !:
         try self.put("{" if self.folding else "((lb_str){")
         try self.put_c_string(text)
         try self.put(", ")

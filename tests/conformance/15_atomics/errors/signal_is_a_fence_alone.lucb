@@ -1,7 +1,7 @@
 # error: `.signal` orders a fence alone
 ## §15.1: `.signal` is a fence's ordering alone.
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     var hits: @u64
-    discard(hits.load(.signal))
+    _ = hits.load(.signal)
     return 0

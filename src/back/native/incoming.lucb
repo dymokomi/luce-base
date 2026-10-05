@@ -45,9 +45,9 @@ pub struct Step:
 pub func sequence(sources: const u8[], destinations: const u8[]) -> list.List[Step]!:
     let n = sources.length
     var steps = try list.List[Step].create(n + 2)
-    var pending = try alloc bool[n + 1]
+    var pending = try new bool[n + 1] ---
     defer free(pending)
-    var parked = try alloc bool[n + 1]
+    var parked = try new bool[n + 1] ---
     defer free(parked)
     for k in 0..<n:
         pending[k] = true

@@ -10,6 +10,7 @@ import c
 import objc
 import objc_runtime
 import strings
+import memory
 
 ## Metal's one C entry point; Metal's own headers are Objective-C and stay out of reach.
 extern func MTLCreateSystemDefaultDevice() -> void*?
@@ -72,26 +73,26 @@ pub func main(arguments: str[]) -> i32!:
             count = (usize)n if n > 0 and n <= 4096 else 8
     let device = MTLCreateSystemDefaultDevice() else return no_metal()
     # the input: 1.0, 2.0, ... count
-    var input = try alloc f32[count]
+    var input = try new f32[count] ---
     defer free(input)
     for i in 0..<count:
         input[i] = (f32)(i + 1)
-    let bytes = count * sizeof(f32)
+    let bytes = count * memory.size_of(f32)
     let in_buffer = try buffer_with(device, input.data, (u64)bytes)
     let out_buffer = try buffer_of(device, (u64)bytes)
     let (pipeline, library) = try square_on(device)
-    discard(library)
+    _ = library
     # the command: bind the pipeline and the buffers, dispatch one thread per element
     let queue = objc.send(device, "newCommandQueue") else error(failed, "no queue")
     let command = objc.send(queue, "commandBuffer") else error(failed, "no command buffer")
     let encoder = objc.send(command, "computeCommandEncoder") else error(failed, "no encoder")
-    discard(objc.send_p(encoder, "setComputePipelineState:", pipeline))
+    _ = objc.send_p(encoder, "setComputePipelineState:", pipeline)
     set_buffer(encoder, in_buffer, 0)
     set_buffer(encoder, out_buffer, 1)
     dispatch(encoder, count)
-    discard(objc.send(encoder, "endEncoding"))
-    discard(objc.send(command, "commit"))
-    discard(objc.send(command, "waitUntilCompleted"))
+    _ = objc.send(encoder, "endEncoding")
+    _ = objc.send(command, "commit")
+    _ = objc.send(command, "waitUntilCompleted")
     # read the squares back from the shared output buffer
     let results = (const f32*)contents(out_buffer)
     var line: u8[512]
@@ -100,15 +101,15 @@ pub func main(arguments: str[]) -> i32!:
         if i > 0:
             try writer.put(" ")
         var one: u8[32]
-        try writer.put((str)(try format(one, f"{results[i]}")))
-    discard(line.length)
+        try writer.put((str)(try strings.format(one, f"{results[i]}")))
+    _ = line.length
     print(f"squared on the GPU: {writer.view()}")
     return 0
 
 ## `[encoder setBuffer: b offset: 0 atIndex: i]`.
 func set_buffer(encoder: void*, buffer: void*, index: u64):
     let f = (func(void*, void*, void*?, u64, u64) -> void*?)(void*)objc_runtime.objc_msgSend
-    discard(f(encoder, objc.selector("setBuffer:offset:atIndex:"), buffer, 0, index))
+    _ = f(encoder, objc.selector("setBuffer:offset:atIndex:"), buffer, 0, index)
 
 ## `[encoder dispatchThreadgroups: groups threadsPerThreadgroup: per]`, one thread per element.
 func dispatch(encoder: void*, count: usize):
@@ -117,4 +118,4 @@ func dispatch(encoder: void*, count: usize):
     var grid = Size(width = (u64)groups, height = 1, depth = 1)
     var block = Size(width = (u64)per, height = 1, depth = 1)
     let f = (func(void*, void*, Size, Size) -> void*?)(void*)objc_runtime.objc_msgSend
-    discard(f(encoder, objc.selector("dispatchThreadgroups:threadsPerThreadgroup:"), grid, block))
+    _ = f(encoder, objc.selector("dispatchThreadgroups:threadsPerThreadgroup:"), grid, block)

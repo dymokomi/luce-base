@@ -3,7 +3,7 @@ extern func memset(destination: void*, value: i32, count: usize) -> void*
 
 noinline func walk(depth: u32) -> u32:
     var storage: u8[8192]
-    discard(memset(&storage[0], (i32)depth, storage.length))
+    _ = memset(&storage[0], (i32)depth, storage.length)
     if depth > 0:
         let nested = walk(depth - 1)
         assert(storage[0] == (u8)depth and storage[8191] == (u8)depth)

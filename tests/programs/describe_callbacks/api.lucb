@@ -6,7 +6,7 @@ pub func echo(handler: Handler) -> Handler:
     return handler.clone()
 
 pub func answer(callback: interop.Callback[(str, i64?), str]) -> str:
-    discard(callback)
+    _ = callback
     return ""
 
 pub func ready(callback: interop.Callback[unit, unit]):

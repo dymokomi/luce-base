@@ -4,11 +4,11 @@ struct Reader:
     var calls: i64
     var bytes: u8[4]
 
-    mutating func take() -> const u8[]!:
+    func take() -> const u8[]!:
         self.calls += 1
         return self.bytes[..<2]
 
-    mutating func first() -> u8!:
+    func first() -> u8!:
         return (try self.take())[0]
 
 pub func main(arguments: str[]) -> i32!:

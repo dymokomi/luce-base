@@ -4,7 +4,7 @@ pub let invalid: ErrorCode = ErrorCode.package(1)
 
 pub interface Gauge:
     func value() -> i64
-    mutating func increase(amount: i64) -> !
+    func increase(amount: i64) -> !
 
 interface Internal:
     func secret_method() -> i64
@@ -20,12 +20,12 @@ pub struct Counter: Gauge, Internal:
     pub func value() -> i64:
         return self.secret_method()
 
-    pub mutating func increase(amount: i64) -> !:
+    pub func increase(amount: i64) -> !:
         if amount < 0:
             error(invalid, "negative increase")
         self.secret_count += amount
 
-    pub static func zero() -> Counter!:
+    pub func zero() -> Counter!:
         return try Counter(0)
 
     func secret_method() -> i64:

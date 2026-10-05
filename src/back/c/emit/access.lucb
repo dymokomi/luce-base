@@ -9,7 +9,7 @@
 extend Emitter:
     # mark: Members, indexes, and slices =======================================================
 
-    mutating func member(e: ast.Node*) -> !:
+    func member(e: ast.Node*) -> !:
         let owner = e.left else return
         if let d = e.resolved:
             if d.kind == ast.Kind.enum_case:
@@ -60,32 +60,32 @@ extend Emitter:
             try self.put("(")
             try self.expr(owner)
             try self.put("->" if through_ptr else ".")
-            try self.put(try self.field(e.text))
+            try self.put(try c_field_name(e.text))
             try self.put(")")
             return
         if self.is_tuple(raw):
             try self.put("(")
             try self.expr(owner)
             try self.put("->a" if through_ptr else ".a")
-            try self.put(try self.field(e.text))
+            try self.put(try c_field_name(e.text))
             try self.put(")")
             return
         if owner.kind == ast.Kind.self_:
             try self.put("self->")
-            try self.put(try self.field(e.text))
+            try self.put(try c_field_name(e.text))
             return
         if through_ptr:
             try self.put("(")
             try self.expr(owner)
             try self.put(")->")
-            try self.put(try self.field(e.text))
+            try self.put(try c_field_name(e.text))
             return
         try self.expr(owner)
         try self.put(".")
-        try self.put(try self.field(e.text))
+        try self.put(try c_field_name(e.text))
 
     ## `luce.file`, `luce.line`, `luce.function`, `luce.location`, and a module's constants.
-    mutating func module_member(e: ast.Node*, module_type: u32) -> !:
+    func module_member(e: ast.Node*, module_type: u32) -> !:
         let m = self.decl_of(module_type) else return try self.put("0")
         if m.text == "luce":
             if e.text == "location":
@@ -100,7 +100,7 @@ extend Emitter:
             return
         try self.put_ident(e.text)
 
-    mutating func location_value(e: ast.Node*) -> !:
+    func location_value(e: ast.Node*) -> !:
         try self.put("((lb_io_Location){ .file = ")
         try self.put_str_literal(self.source_of_current())
         try self.put(", .line = ")
@@ -121,15 +121,15 @@ extend Emitter:
             i += 1
         return self.src_file
 
-    mutating func function_name_literal() -> !:
+    func function_name_literal() -> !:
         let f = self.current_fn else return try self.put_str_literal("")
         try self.put_str_literal(f.text)
 
-    mutating func index(e: ast.Node*) -> !:
+    func index(e: ast.Node*) -> !:
         try self.index_at(e, false)
 
     ## `owner[i]`; under `&` the index may equal the length, C's one past the end (§7.7).
-    mutating func index_at(e: ast.Node*, one_past: bool) -> !:
+    func index_at(e: ast.Node*, one_past: bool) -> !:
         let owner = e.left else return
         let i = e.body else return
         let ot = try self.ty(owner)
@@ -182,7 +182,7 @@ extend Emitter:
             return
         try self.put("0")
 
-    mutating func slice(e: ast.Node*) -> !:
+    func slice(e: ast.Node*) -> !:
         let owner = e.left else return
         let ot = try self.ty(owner)
         let n = self.tmp()

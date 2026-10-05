@@ -63,7 +63,7 @@ struct AsmRegisters:
     var places: str[16]
     var count: usize
 
-    static func choose(s: ast.Node*, arch: targets.Arch) -> AsmRegisters!:
+    func choose(s: ast.Node*, arch: targets.Arch) -> AsmRegisters!:
         var chosen = AsmRegisters(operands = [none, none, none, none, none, none, none, none, none, none, none, none, none, none, none, none],
                                   places = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], count = 0)
         let ints = isa.scratch_ints(arch)

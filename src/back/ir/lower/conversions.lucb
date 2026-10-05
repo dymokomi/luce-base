@@ -10,7 +10,7 @@ extend Lowerer:
     # mark: Conversions ========================================================================
 
     ## `(T)x` (C cast, `checked` false) and `T(x)` (checked, `checked` true).
-    mutating func conversion(src: ast.Node*, dest: u32, checked: bool) -> LowerValue!:
+    func conversion(src: ast.Node*, dest: u32, checked: bool) -> LowerValue!:
         let st = try self.ty(src)
         let s = self.c.table.get(st)
         if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
@@ -75,7 +75,7 @@ extend Lowerer:
     ## marked saturating (`extra` 1: NaN is 0, the rest clamps to the range), which the
     ## target does in an instruction or a few. None for a saturating conversion into an
     ## unsigned or narrower integer, which the helper does.
-    mutating func float_to_int(wide: ir.Ref, dest: u32, checked: bool) -> ir.Ref?!:
+    func float_to_int(wide: ir.Ref, dest: u32, checked: bool) -> ir.Ref?!:
         let bits = self.scalar_size(dest) * 8
         let signed = self.is_signed(dest)
         if not checked:
@@ -107,12 +107,12 @@ extend Lowerer:
 
     ## The current statement's position, `file:line:column`, as the last argument of a
     ## core helper that may trap, so the trap names the statement (§11.5).
-    mutating func push_position_arg() -> !:
+    func push_position_arg() -> !:
         let position = try self.f.address_of(try self.position_ref())
         try self.f.args.push(ir.Arg(value = position, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
 
     ## `char(n)`: the runtime refuses a surrogate or a value past U+10FFFF (§7.5).
-    mutating func scalar_check(value: ir.Ref) -> ir.Ref!:
+    func scalar_check(value: ir.Ref) -> ir.Ref!:
         let word = try self.to_word(value, types.char_id)
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = word, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, shape = 0))
@@ -122,7 +122,7 @@ extend Lowerer:
         return try self.from_word(r, types.char_id)
 
     ## An integer converted between widths, checked through the runtime when asked.
-    mutating func convert_int(r: ir.Ref, st: u32, dest: u32, checked: bool) -> ir.Ref!:
+    func convert_int(r: ir.Ref, st: u32, dest: u32, checked: bool) -> ir.Ref!:
         let from_bits = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else (self.scalar_size(st) * 8))
         let to_bits = 32 if dest == types.char_id else self.scalar_size(dest) * 8
         let from_signed = st != types.char_id and st != types.bool_id and (st == types.untyped_int_id or self.signed_of(st))
@@ -146,7 +146,7 @@ extend Lowerer:
         let out = try self.call_named("lb_core_6conv_s" if from_signed else "lb_core_6conv_u", start, 7, ir.Class.l, true, types.i64_id)
         return try self.from_word(out, dest)
 
-    mutating func enum_check(dest: u32, v: ir.Ref) -> !:
+    func enum_check(dest: u32, v: ir.Ref) -> !:
         let d = self.decl_of(dest) else return
         let ok = self.f.label()
         let bad = self.f.label()
@@ -168,10 +168,10 @@ extend Lowerer:
         try self.f.place_label(bad)
         try self.trap_with("invalid enum value")
         try self.f.place_label(ok)
-        discard(next)
+        _ = next
 
     ## `(str)bytes` and `str(bytes)`: a view, checked for UTF-8 when `checked`.
-    mutating func str_conversion(src: ast.Node*, checked: bool) -> LowerValue!:
+    func str_conversion(src: ast.Node*, checked: bool) -> LowerValue!:
         let st = try self.ty(src)
         let v = try self.expr(src)
         var data = ir.none_ref()
@@ -212,7 +212,7 @@ extend Lowerer:
         return LowerValue(ref = a, type_id = result, in_memory = true)
 
     ## Fail a result at `a` with a code and a message: its flag, and `core.failure`.
-    mutating func store_error(a: ir.Ref, result: u32, code: i64, message: str) -> !:
+    func store_error(a: ir.Ref, result: u32, code: i64, message: str) -> !:
         let err = try self.failure_address()
         try self.f.store(ir.Op.storew, ir.const_ref(code), err)
         let index = try self.program_unit.text(message)

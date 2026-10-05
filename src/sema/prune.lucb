@@ -17,6 +17,7 @@ import front.source
 import support.list
 import memory
 import sema.types
+import strings
 
 # mark: Reachability and pruning =============================================================
 
@@ -34,14 +35,14 @@ pub struct Reporter:
     pub var keep_locals: bool
 
     ## Record a warning at `node` saying `what`, unless this module is silent.
-    pub mutating func warn(node: ast.Node*, what: str) -> !:
+    pub func warn(node: ast.Node*, what: str) -> !:
         if self.silent:
             return
         var buffer: u8[512]
         # a directory module's warning names its fragment and the fragment's line, as an error does
         let (name, line, column) = self.src.located(node.start)
-        let text = try format(buffer, f"{name}:{line}:{column}: warning: {what}")
-        var kept = try alloc u8[text.length if text.length > 0 else 1]
+        let text = try strings.format(buffer, f"{name}:{line}:{column}: warning: {what}")
+        var kept = try new u8[text.length if text.length > 0 else 1] ---
         memory.copy(kept, text.bytes, text.length)
         try self.warnings.push((str)kept[..<text.length])
 
@@ -236,7 +237,7 @@ pub func prune_block(block: ast.Node*, reporter: Reporter*) -> !:
         let binding = s.kind == ast.Kind.let_ or s.kind == ast.Kind.var_
         if binding and s.has(ast.flag_unused):
             var text: u8[512]
-            try reporter.warn(s, try format(text, f"unused local `{s.text}`"))
+            try reporter.warn(s, try strings.format(text, f"unused local `{s.text}`"))
             if reporter.keep_locals:
                 previous = s
                 cursor = s.next
@@ -300,7 +301,7 @@ pub func prune_unused_functions(tree: ast.Node*, reporter: Reporter*, is_prelude
         let candidate = d.kind == ast.Kind.func_ and not d.has(ast.flag_referenced) and not d.has(ast.flag_pub) and not d.has(ast.flag_export) and not d.has(ast.flag_lambda) and d.attrs == none and d.text != "main" and d.text != "answer"
         if candidate:
             var text: u8[512]
-            try reporter.warn(d, try format(text, f"unused function `{d.text}`"))
+            try reporter.warn(d, try strings.format(text, f"unused function `{d.text}`"))
             if let p = previous:
                 p.next = d.next
             else:
@@ -319,7 +320,7 @@ pub func prune_unused_imports(tree: ast.Node*, reporter: Reporter*) -> !:
         let unused = (d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import) and not d.has(ast.flag_referenced)
         if unused:
             var text: u8[512]
-            try reporter.warn(d, try format(text, f"unused import `{d.text}`"))
+            try reporter.warn(d, try strings.format(text, f"unused import `{d.text}`"))
             if let p = previous:
                 p.next = d.next
             else:

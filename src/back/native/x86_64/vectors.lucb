@@ -13,7 +13,7 @@ extend Generator:
     ## the result computes into xmm8 (xmm10 for a checked form) and goes to its home. An
     ## eight-byte vector is the low half of the register, moved as a quadword; the upper
     ## lanes then hold zeros, which no instruction here reads.
-    mutating func vector(n: ir.Instr) -> !:
+    func vector(n: ir.Instr) -> !:
         let shape = n.extra
         let bytes = ir.vector_bytes(shape)
         let bits = ir.lane_bits(shape)
@@ -97,7 +97,7 @@ extend Generator:
     ## and halfwords compare the wrapping result with the saturating one; doublewords read
     ## the sign of the overflow test, `(a ^ r) & (b ^ r)` for an add, `(a ^ b) & (a ^ r)`
     ## for a subtract, or the unsigned order of the operands through a sign flip.
-    mutating func checked_lanes(n: ir.Instr, shape: u32) -> !:
+    func checked_lanes(n: ir.Instr, shape: u32) -> !:
         let bytes = ir.vector_bytes(shape)
         let bits = ir.lane_bits(shape)
         let signed = ir.lanes_signed(shape)
@@ -150,7 +150,7 @@ extend Generator:
         try self.vector_result(n.dst, "%xmm10", bytes)
 
     ## `T[N](x)`: the scalar into every lane of xmm8.
-    mutating func splat(n: ir.Instr, shape: u32) -> !:
+    func splat(n: ir.Instr, shape: u32) -> !:
         let bits = ir.lane_bits(shape)
         if ir.lanes_float(shape):
             if bits == 64:
@@ -174,7 +174,7 @@ extend Generator:
         try self.writer.line("pshufd $0, %xmm8, %xmm8")
 
     ## A vector temporary into `reg`: from the register it lives in, else from its home.
-    mutating func vector_source(r: ir.Ref, reg: str, bytes: u32) -> !:
+    func vector_source(r: ir.Ref, reg: str, bytes: u32) -> !:
         let code = self.fr.temp_regs.get((usize)r.index - 1)
         if code != 0:
             try self.writer.line4("movdqa ", class_name(code, ir.Class.v), ", ", reg)
@@ -185,7 +185,7 @@ extend Generator:
         try self.writer.put(reg)
 
     ## `reg` into vector temporary `dst`, where it lives.
-    mutating func vector_result(dst: u32, reg: str, bytes: u32) -> !:
+    func vector_result(dst: u32, reg: str, bytes: u32) -> !:
         if dst == 0:
             return
         let code = self.fr.temp_regs.get((usize)dst - 1)

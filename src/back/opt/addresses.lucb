@@ -30,9 +30,9 @@ struct Anchor:
 
 ## The rewrite over `f`, in single-assignment form; whether anything changed.
 pub func run(f: ir.Function*) -> bool!:
-    var counts = try alloc u32[f.temps.count + 1]
+    var counts = try new u32[f.temps.count + 1] ---
     defer free(counts)
-    var defs = try alloc u32[f.temps.count + 1]
+    var defs = try new u32[f.temps.count + 1] ---
     defer free(defs)
     for k in 0..<counts.length:
         counts[k] = 0

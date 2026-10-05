@@ -115,7 +115,7 @@ pub func context_id() -> u64:
 ## Application runtime entry is separate from ordinary manual Base ownership.
 ## Generated callbacks require entry; native worker adapters establish it internally.
 pub func enter():
-    discard(context_id())
+    _ = context_id()
     runtime_depth += 1
 
 ## Trap when no owning context has been entered.
@@ -137,10 +137,10 @@ pub func check_alive(o: Object*):
 ## Reserve unpublished storage. The caller supplies a stable descriptor before
 ## publishing the object and abandons the storage if native initialization fails.
 pub func reserve(info: Info*, size: usize, allocator: memory.Allocator? = none) -> Object*!:
-    if size < sizeof(Object):
+    if size < memory.size_of(Object):
         stop("an object allocation is smaller than its header")
     let selected = allocator else memory.heap
-    let block = try alloc(size, 16) in selected
+    let block = selected.allocate(size, 16) else error(memory.exhausted, "memory.exhausted")
     memory.set(block, 0)
     let o = (Object*)block.data
     o.strong = 1

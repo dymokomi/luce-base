@@ -7,7 +7,7 @@ pub type Text = str
 import memory
 
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     let word: Text = "fragment"
     var copy: u8[8]
     memory.copy(copy, word.bytes, 8)

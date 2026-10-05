@@ -8,15 +8,15 @@
 #==============================================================================================
 extend Generator:
     # mark: The unit ===========================================================================
-    pub mutating func generate() -> !:
+    pub func generate() -> !:
         if let dw = self.dw:
             try dw.begin(&self.writer.out)
         try self.object_format.text_section(&self.writer.out)
-        self.starts = try alloc usize[self.program_unit.functions.count + 1]
+        self.starts = try new usize[self.program_unit.functions.count + 1] ---
         # the reasons generated checks trap with, in the unit's texts before any function is
         # generated: the functions only read the texts, whichever thread generates them
         for reason in trap_reasons:
-            discard(try self.program_unit.text(reason))
+            _ = try self.program_unit.text(reason)
         if self.split:
             self.function_tags = try stable_names.function_tags(self.program_unit)
             self.text_tags = try stable_names.text_tags(self.program_unit)
@@ -30,7 +30,7 @@ extend Generator:
                 try self.function(i)
                 i += 1
         self.starts[self.program_unit.functions.count] = self.writer.out.used
-        try self.object_format.module_asm(&self.writer, self.program_unit)
+        try objects.module_asm(&self.writer, self.program_unit)
         try self.object_format.initializer(&self.writer.out, self.program_unit.init_function)
         # text literals
         try self.object_format.read_only(&self.writer.out)
@@ -50,10 +50,10 @@ extend Generator:
     ## its own, in an arena of its own, and written here in order. A function's text depends
     ## on that function alone (its labels carry its index), so it is the text one function
     ## after another would give.
-    mutating func functions_in_parallel() -> !:
+    func functions_in_parallel() -> !:
         let n = self.program_unit.functions.count
         with memory.heap:
-            var job = Generating(model = &self, texts = try alloc str[n], failures = try parallel.failures(n))
+            var job = Generating(model = &self, texts = try new str[n] ---, failures = try parallel.failures(n))
             defer free(job.texts)
             defer free(job.failures)
             for k in 0..<n:
@@ -70,7 +70,7 @@ extend Generator:
 
     ## A generator for one function like `model`: the same target and settings, its own
     ## frame and output, from the current allocator.
-    static func like(model: Generator*) -> Generator!:
+    func like(model: Generator*) -> Generator!:
         var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, fp16 = model.fp16, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
                              fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(256))
         made.dw = none

@@ -16,7 +16,7 @@ struct Counter:
         self.count = count
         self.next = none
 
-    mutating func dispose():
+    func dispose():
         disposed += 1
         if let next = self.next:
             self.next = none
@@ -41,7 +41,7 @@ pub func main(arguments: str[]) -> i32!:
     if mode == 1:
         let closed = try make()
         closed.close()
-        discard(closed.value())
+        _ = closed.value()
         return 1
     let first = try make()
     let weak = interop.WeakReference[Counter](first)
@@ -80,5 +80,5 @@ pub func main(arguments: str[]) -> i32!:
         assert(failure.code == invalid and failure.message == "invalid counter")
         assert(disposed == 4)
         return ownership.finish_run(0)
-    discard(failed)
+    _ = failed
     return 1

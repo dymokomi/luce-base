@@ -38,7 +38,7 @@ pub func main(arguments: str[]) -> i32!:
         while let node = cursor:
             sum += node.value
             cursor = node.next
-    var bytes = try alloc u8[2]
+    var bytes = try new u8[2] ---
     bytes[0] = 5
     bytes[1] = 6
     let grown = try memory.grow(bytes, 16)

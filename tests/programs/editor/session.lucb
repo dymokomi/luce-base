@@ -9,6 +9,7 @@ import editor.history
 import interop
 import memory
 import editor.terminal
+import strings
 
 pub struct Session:
     pub var text: buffer.Buffer
@@ -26,9 +27,9 @@ pub struct Session:
     ## Rows a page-up or page-down moves by; the screen sets it.
     pub var page_rows: usize
 
-    pub static func open(path: str) -> Session!:
+    pub func open(path: str) -> Session!:
         var name: u8[1024]
-        let c_path = try format(name, f"{path}")
+        let c_path = try strings.format(name, f"{path}")
         let read = files.read((c.str)c_path) catch failure:
             if failure.code != files.missing:
                 error(failure.code, failure.message)
@@ -48,20 +49,20 @@ pub struct Session:
         s.page_rows = 20
         return s
 
-    pub mutating func close():
+    pub func close():
         self.text.destroy()
         self.undo.destroy()
 
     pub func message() -> str:
         return (str)self.note[..<self.note_length]
 
-    pub mutating func say(text: str):
+    pub func say(text: str):
         let n = text.length if text.length < self.note.length else self.note.length
         memory.copy(self.note, text.bytes, n)
         self.note_length = n
 
     ## One key: the find prompt first, then editing.
-    pub mutating func handle(key: terminal.Key) -> !:
+    pub func handle(key: terminal.Key) -> !:
         if self.searching:
             try self.search_key(key)
             return
@@ -122,13 +123,13 @@ pub struct Session:
             .escape:
                 self.say("")
             .none_:
-                discard(0)
+                _ = 0
         if not keep_goal:
             self.has_goal = false
         if not is_typing(key):
             self.undo.settle()
 
-    mutating func command(letter: u8) -> !:
+    func command(letter: u8) -> !:
         if letter == 'S':
             try self.save()
         elif letter == 'Q':
@@ -161,7 +162,7 @@ pub struct Session:
             self.text.cursor = self.text.line_end(self.text.cursor)
 
     ## Keys while the find prompt is open.
-    mutating func search_key(key: terminal.Key) -> !:
+    func search_key(key: terminal.Key) -> !:
         match key:
             .character(byte):
                 if self.needle_length < self.needle.length:
@@ -188,18 +189,18 @@ pub struct Session:
                 self.say("")
                 try self.handle(key)
 
-    mutating func find_from(start: usize) -> !:
+    func find_from(start: usize) -> !:
         var prompt: u8[160]
         let needle = self.needle[..<self.needle_length]
         if let at = self.text.find(needle, start):
             self.text.cursor = at
             let line = self.text.line_of(at) + 1
-            self.say(try format(prompt, f"find: {(str)needle}   (line {line}; enter for the next, escape to stop)"))
+            self.say(try strings.format(prompt, f"find: {(str)needle}   (line {line}; enter for the next, escape to stop)"))
         else:
-            self.say(try format(prompt, f"find: {(str)needle}   (not found)"))
+            self.say(try strings.format(prompt, f"find: {(str)needle}   (not found)"))
 
     ## Up or down by `delta` lines, keeping the column the user was aiming for.
-    mutating func vertical(delta: i64):
+    func vertical(delta: i64):
         let line = (i64)self.text.line_of(self.text.cursor)
         if not self.has_goal:
             self.goal_column = self.text.column_of(self.text.cursor)
@@ -213,18 +214,18 @@ pub struct Session:
         let start = self.text.line_at((usize)target)
         self.text.cursor = self.text.at_column(start, self.goal_column)
 
-    pub mutating func save() -> !:
+    pub func save() -> !:
         let data = try self.text.copy()
         defer free(data)
         var name: u8[1024]
-        let path = try format(name, f"{self.path}")
+        let path = try strings.format(name, f"{self.path}")
         try files.write((c.str)path, data)
         self.text.dirty = false
         var prompt: u8[160]
-        self.say(try format(prompt, f"saved {data.length} bytes to {self.path}"))
+        self.say(try strings.format(prompt, f"saved {data.length} bytes to {self.path}"))
 
     ## Apply every key of a replay script.
-    pub mutating func replay(keys: str) -> !:
+    pub func replay(keys: str) -> !:
         var script = terminal.Script.over(keys)
         while let key = script.next():
             if not self.running:
@@ -234,7 +235,7 @@ pub struct Session:
 func is_typing(key: terminal.Key) -> bool:
     match key:
         .character(byte):
-            discard(byte)
+            _ = byte
             return true
         .backspace: return true
         _: return false

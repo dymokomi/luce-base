@@ -11,11 +11,11 @@ extend Emitter:
     # mark: Types ==============================================================================
 
     ## A type of the body being emitted, with the instance's arguments substituted.
-    mutating func map(id: u32) -> u32!:
+    func map(id: u32) -> u32!:
         return try self.generic.map(self.c, id)
 
     ## The mapped type of an expression node.
-    mutating func ty(e: ast.Node*) -> u32!:
+    func ty(e: ast.Node*) -> u32!:
         return try self.map(e.type_id)
 
     func kind(id: u32) -> types.Kind:
@@ -70,7 +70,7 @@ extend Emitter:
 
     ## `T*` to a span's elements: `const T*` for a `const T[]`, and `T* const*` when the
     ## elements are pointers themselves, since C puts the qualifier after their star (§5.3).
-    mutating func put_element_pointer(span: u32) -> !:
+    func put_element_pointer(span: u32) -> !:
         let elem = self.elem(span)
         let constant = self.c.table.get(span).is_const
         let pointer_elements = self.has_pointer_spelling(elem)
@@ -119,7 +119,7 @@ extend Emitter:
     # -- spelling -------------------------------------------------------------------------
 
     ## The C type of `id`, which must be concrete.
-    mutating func put_type(id: u32) -> !:
+    func put_type(id: u32) -> !:
         if types.is_distinct_c(id):
             return try self.put(c_spelling(id))
         let t = self.c.table.get(id)
@@ -228,12 +228,8 @@ extend Emitter:
             _:
                 try self.put("void")
 
-    ## The module a top-level declaration belongs to, by name.
-    func module_name(d: ast.Node*) -> str:
-        return names.module_of(d)
-
     ## The C name of a record type: an extern's own, otherwise what `names` says.
-    mutating func put_record_name(id: u32) -> !:
+    func put_record_name(id: u32) -> !:
         let t = self.c.table.get(id)
         let d = t.decl else return try self.put("void")
         if d.kind == ast.Kind.extern_type:
@@ -250,7 +246,7 @@ extend Emitter:
         try names.mangled(self.sink(), &self.c.table, id)
 
     ## The typedef name of an array, tuple, function, optional, or result type.
-    mutating func put_mangled_name(id: u32) -> !:
+    func put_mangled_name(id: u32) -> !:
         let k = self.kind(id)
         if k == types.Kind.array:
             try self.put("lb_a_")
@@ -265,11 +261,11 @@ extend Emitter:
         try self.put_mangled(self.elem(id) if k == types.Kind.optional or k == types.Kind.fallible else id)
 
     ## A spelling of a type made of identifier characters only, unique per type.
-    mutating func put_mangled(id: u32) -> !:
+    func put_mangled(id: u32) -> !:
         try names.mangled(self.sink(), &self.c.table, id)
 
     ## Remember that `id` needs a typedef, and register record instances.
-    mutating func note(id: u32) -> !:
+    func note(id: u32) -> !:
         if contains_id(self.needed.span(), id):
             return
         try self.needed.push(id)
@@ -279,7 +275,7 @@ extend Emitter:
             try self.add_record(d, t.args)
 
     ## Register a generic record instance and the instances of its methods.
-    mutating func add_record(d: ast.Node*, args: u32[]) -> !:
+    func add_record(d: ast.Node*, args: u32[]) -> !:
         var i: usize = 0
         while i < self.records.count:
             let r = self.records.get(i)
@@ -296,28 +292,28 @@ extend Emitter:
             member = m.next
 
     ## Register a function instance; returns its index.
-    mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
+    func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
         return self.funcs.add(&self.c.table, f, args, owner, owner_args) catch failure:
             error(backend, failure.message)
 
     # mark: Names ==============================================================================
 
     ## `lb_name`, with a trailing underscore when the name is one the runtime uses.
-    mutating func put_ident(name: str) -> !:
+    func put_ident(name: str) -> !:
         try self.put("lb_")
         try self.put(name)
         if names.is_runtime_name(name):
             try self.put("_")
 
     ## The C name of a function or method instance: an extern's binding, else what `names` says.
-    mutating func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
+    func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
         if f.kind == ast.Kind.extern_func:
             try self.put_extern_callee(f)
             return
         try names.function_name(self.sink(), &self.c.table, f, args, owner, owner_args, self.entry)
 
     ## `lb_module_name` for a top-level `let` or `var`, noted as storage the program uses.
-    mutating func put_global_name(d: ast.Node*) -> !:
+    func put_global_name(d: ast.Node*) -> !:
         if not self.uses_storage(d):
             try self.referenced_storage.push(d)
         try names.global_name(self.sink(), d)
@@ -328,7 +324,7 @@ extend Emitter:
                 return true
         return false
 
-    mutating func test_index(t: ast.Node*) -> usize!:
+    func test_index(t: ast.Node*) -> usize!:
         var i: usize = 0
         while i < self.tests.count:
             if self.tests.get(i) == t:
@@ -338,7 +334,7 @@ extend Emitter:
         return self.tests.count - 1
 
     ## The C result type of a function declaration (or test) in the current context.
-    mutating func put_result_type(f: ast.Node*) -> !:
+    func put_result_type(f: ast.Node*) -> !:
         if f.kind == ast.Kind.test_:
             try self.put("lb_r_unit")
             return
@@ -352,7 +348,7 @@ extend Emitter:
         try self.put_type(ft.elem)
 
     ## The unwrapped result type of the current function.
-    mutating func result_payload() -> u32!:
+    func result_payload() -> u32!:
         let f = self.current_fn else return types.unit_id
         if f.kind == ast.Kind.test_:
             return types.unit_id
@@ -364,3 +360,7 @@ extend Emitter:
     func fn_fallible() -> bool:
         let f = self.current_fn else return false
         return f.kind == ast.Kind.test_ or f.has(ast.flag_fallible)
+
+## The module a top-level declaration belongs to, by name.
+func module_name(d: ast.Node*) -> str:
+    return names.module_of(d)

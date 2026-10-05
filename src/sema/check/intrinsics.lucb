@@ -1,0 +1,203 @@
+#==============================================================================================
+#
+#   check/intrinsics - What the compiler answers where it is written
+#
+#   DESCRIPTION:
+#       The core functions (§3.5), `print`, `assert`, `trap`, and `error`; the standard
+#       functions answered at the call, `strings.format` (§5.5) and `memory.size_of`,
+#       `align_of`, and `offset_of` (§5.11); and `value.hash()` (§7.4). A call of one has
+#       its callee rewritten to the bare name the backends know it by.
+#
+#==============================================================================================
+extend Checker:
+    # mark: Intrinsics ===========================================================================
+
+    ## The standard function `callee` names when the compiler answers it where it is written:
+    ## `strings.format`, `memory.size_of`, `memory.align_of`, or `memory.offset_of`, by
+    ## their module or imported by name; empty for anything else.
+    func standard_intrinsic(callee: ast.Node*) -> str:
+        if callee.kind == ast.Kind.member:
+            let owner = callee.left else return ""
+            if owner.kind != ast.Kind.name:
+                return ""
+            let b = self.lookup(owner.text) else return ""
+            let tree = b.decl else return ""
+            if tree.kind != ast.Kind.module:
+                return ""
+            let named = intrinsic_of(self.standard_module_name(tree), callee.text)
+            if named.length > 0:
+                note_origin(b)
+            return named
+        if callee.kind != ast.Kind.name:
+            return ""
+        # inside `memory` itself its own measures are named bare
+        let b = self.lookup(callee.text) else return intrinsic_of(self.current_standard_module(), callee.text)
+        let item = b.decl else return ""
+        # `from memory import size_of` binds the import's own item, `from strings import
+        # format` the declaration
+        if item.kind == ast.Kind.name:
+            let tree = item.resolved else return ""
+            note_origin(b)
+            return intrinsic_of(self.standard_module_name(tree), item.text)
+        if item.kind == ast.Kind.func_ and item.text == "format" and self.standard_decl("strings", "format") == item:
+            note_origin(b)
+            return "format"
+        return ""
+
+    ## The name of the standard module being checked; empty for a program's module.
+    func current_standard_module() -> str:
+        let m = self.modules.get(self.current)
+        return m.name if m.is_prelude else ""
+
+    ## The name of the standard module whose tree is `tree`; empty for any other module.
+    func standard_module_name(tree: ast.Node*) -> str:
+        for m in self.modules.span():
+            if m.tree == tree:
+                return m.name if m.is_prelude else ""
+        return ""
+
+    ## The declaration `name` of standard module `module`; none when absent.
+    func standard_decl(module: str, name: str) -> ast.Node*?:
+        let index = self.find_module(module) else return none
+        return find_decl(self.modules.get(index).tree, name)
+
+    ## A call of a core function, or of a standard one the compiler answers, typed here.
+    ## The callee becomes the bare name the backends know the call by (`size_of`, `format`).
+    func intrinsic_type(e: ast.Node*, name: str) -> u32!:
+        let callee = e.left else return try self.fail(e, "missing callee")
+        callee.kind = ast.Kind.name
+        callee.text = name
+        callee.left = none
+        callee.resolved = none
+        callee.flags |= ast.flag_builtin
+        if name == "print":
+            let arg = try self.single_argument(e)
+            let got = try self.check_expr(arg, types.none_id)
+            if got != types.str_id and got != types.fmt_id:
+                return try self.fail(arg, "`print` takes text or a formatted string")
+            return types.unit_id
+        if name == "format":
+            return try self.format_type(e)
+        if name == "assert":
+            let first = e.body else return try self.fail(e, "`assert` needs a condition")
+            let cv = first.left else return try self.fail(e, "empty argument")
+            _ = try self.expect(cv, types.bool_id)
+            if let second = first.next:
+                let mv = second.left else return try self.fail(e, "empty argument")
+                _ = try self.expect(mv, types.str_id)
+            return types.unit_id
+        if name == "trap":
+            if let first = e.body:
+                let mv = first.left else return try self.fail(e, "empty argument")
+                let got = try self.check_expr(mv, types.none_id)
+                if got != types.str_id and got != types.fmt_id:
+                    return try self.fail(mv, "`trap` takes text")
+            return types.never_id
+        if name == "error":
+            return try self.error_type(e)
+        if name == "hash":
+            return try self.hash_type(e)
+        if name == "size_of" or name == "align_of":
+            let arg = try self.single_argument(e)
+            let id = try self.type_of_argument(arg)
+            if name == "align_of" and not arg.has(ast.flag_type_ref):
+                return try self.fail(arg, "`memory.align_of` takes a type")
+            e.resolved = arg
+            _ = id
+            return types.usize_id
+        if name == "offset_of":
+            return try self.offset_of_type(e)
+        return try self.fail(e, "unknown core function")
+
+    ## `value.hash()` (§7.4): the hash of a value whose type hashes by its fields; the call
+    ## becomes `hash(value)` for the backends.
+    func hash_type(e: ast.Node*) -> u32!:
+        let arg = try self.single_argument(e)
+        let got = try self.check_expr(arg, types.none_id)
+        if self.table.kind(got) == types.Kind.param:
+            if not self.has_written_constraint(got, self.standard_type("luce", "Hashable")):
+                return try self.fail(arg, "a type parameter hashes only under `Hashable`")
+        elif not self.comparable(got):
+            return try self.fail(arg, "this value is not hashable")
+        _ = try self.coerce(arg, got, concrete(got))
+        return types.u64_id
+
+    ## `value.hash()` where `value` hashes by its fields and its type declares no `hash`
+    ## of its own: true, with the call rewritten to `hash(value)` and typed (§7.4).
+    func derived_hash_call(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, receiver_type: u32) -> bool!:
+        if callee.text != "hash" or e.body != none or e.ty != none:
+            return false
+        # a pointer hashes its address; a pointee's own `hash` method is called through it
+        let t = self.table.get(receiver_type)
+        let record = self.table.get(t.elem) if t.kind == types.Kind.pointer else t
+        if record.kind == types.Kind.struct_ or record.kind == types.Kind.enum_ or record.kind == types.Kind.union_:
+            if let d = record.decl:
+                if find_member(d, "hash", ast.Kind.func_) != none:
+                    return false
+        if t.kind == types.Kind.module or t.kind == types.Kind.interface_:
+            return false
+        if t.kind != types.Kind.param and not self.comparable(receiver_type):
+            return try self.fail(receiver, "this value is not hashable (§7.4)")
+        let argument = try ast.Node.make(ast.Kind.argument, "", receiver.start, receiver.line)
+        argument.left = receiver
+        e.body = argument
+        return true
+
+    ## `strings.format(buffer, text)`: text viewing the bytes it was formatted into, or a
+    ## failure when they are too few.
+    func format_type(e: ast.Node*) -> u32!:
+        let first = e.body else return try self.fail(e, "`strings.format(buffer, text)` takes two arguments")
+        let bv = first.left else return try self.fail(e, "empty argument")
+        _ = try self.expect(bv, try self.table.span(types.u8_id, false))
+        let second = first.next else return try self.fail(e, "`strings.format(buffer, text)` takes two arguments")
+        let tv = second.left else return try self.fail(e, "empty argument")
+        let got = try self.check_expr(tv, types.none_id)
+        if got != types.str_id and got != types.fmt_id:
+            return try self.fail(tv, "`strings.format` takes text or a formatted string")
+        # the returned text views the buffer: a local array, or a span derived from one, makes
+        # the result local (§6.6); a span variable or parameter views memory elsewhere
+        if is_local_value(bv) or (self.table.kind(bv.type_id) == types.Kind.array and self.place_is_local(bv)):
+            mark_local(e)
+        return try self.table.fallible(types.str_id)
+
+    ## `error(code, message)`: leaves a fallible function or a handler with that failure;
+    ## the message must outlive the function.
+    func error_type(e: ast.Node*) -> u32!:
+        if self.in_defer and not self.fallible and not self.expression_effect:
+            return try self.fail(e, "a failure cannot escape a deferred block (§8.8)")
+        if not self.fallible and not self.expression_effect:
+            return try self.fail(e, "`error` is only valid in a fallible function, in a handler or not")
+        let first = e.body else return try self.fail(e, "`error(code, message)` takes two arguments")
+        let cv = first.left else return try self.fail(e, "empty argument")
+        _ = try self.expect(cv, types.error_code_id)
+        let second = first.next else return try self.fail(e, "`error(code, message)` takes two arguments")
+        let mv = second.left else return try self.fail(e, "empty argument")
+        _ = try self.expect(mv, types.str_id)
+        if is_local_value(mv):
+            try self.fail(mv, "an error message must not name a local; format into a buffer that outlives the function")
+        return types.never_id
+
+    ## `memory.offset_of(T, field)`: a struct's field, resolved on the name, at a `usize`
+    ## offset.
+    func offset_of_type(e: ast.Node*) -> u32!:
+        let first = e.body else return try self.fail(e, "`memory.offset_of(T, field)` takes two arguments")
+        let tv = first.left else return try self.fail(e, "empty argument")
+        let id = try self.type_of_argument(tv)
+        let second = first.next else return try self.fail(e, "`memory.offset_of(T, field)` takes two arguments")
+        let fv = second.left else return try self.fail(e, "empty argument")
+        if fv.kind != ast.Kind.name:
+            return try self.fail(fv, "`memory.offset_of` names a field")
+        let d = self.table.get(id).decl else return try self.fail(tv, "`memory.offset_of` takes a struct")
+        var said20: u8[256]
+        let f = find_member(d, fv.text, ast.Kind.field) else return try self.fail(fv, said(said20, f"`{d.text}` has no field `{fv.text}`"))
+        fv.resolved = f
+        return types.usize_id
+
+## The intrinsic standard function `name` of standard module `module` is, as the backends
+## know it; empty when it is none.
+func intrinsic_of(module: str, name: str) -> str:
+    if module == "memory" and (name == "size_of" or name == "align_of" or name == "offset_of"):
+        return name
+    if module == "strings" and name == "format":
+        return name
+    return ""

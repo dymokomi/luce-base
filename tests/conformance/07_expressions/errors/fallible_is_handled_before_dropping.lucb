@@ -1,0 +1,8 @@
+# error: a fallible result must be handled: `try`, `catch`, or `else`
+## §7.9: `_ = value` drops a value, never a failure.
+pub let broken: ErrorCode = ErrorCode.package(1)
+func might() -> i64!:
+    return 1
+pub func main(arguments: str[]) -> i32:
+    _ = might()
+    return 0

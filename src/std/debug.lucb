@@ -195,9 +195,9 @@ func show_named(top: usize, name: str):
         i += 1
     print(f"no local named `{name}`")
 
-## The locals follow the shape, each `sizeof(Local)` bytes.
+## The locals follow the shape, each `memory.size_of(Local)` bytes.
 func local_of(s: Shape*, index: u64) -> Local*:
-    let base = (usize)s + sizeof(Shape) + (usize)index * sizeof(Local)
+    let base = (usize)s + memory.size_of(Shape) + (usize)index * memory.size_of(Local)
     return (Local*)base
 
 ## A local's value read from the frame and shown by its type's spelling.
@@ -234,7 +234,7 @@ func show(described: Local*, frame: void*?):
         let text = memory.read[c.str](address)
         print(f"{described.name}: {kind} = \"{(str)text}\"")
     elif ends_with(kind, "*") or ends_with(kind, "*?"):
-        print(f"{described.name}: {kind} = 0x{hex(memory.read[usize](address))}")
+        print(f"{described.name}: {kind} = 0x{memory.read[usize](address):x}")
     else:
         var shown: usize = (usize)described.size
         if shown > 32:

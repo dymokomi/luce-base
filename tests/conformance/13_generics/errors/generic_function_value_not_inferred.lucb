@@ -1,7 +1,9 @@
 # error: a type argument of this generic function is not in the expected function type
 # oracle: none
+import memory
+
 func make[T]() -> i64:
-    return (i64)sizeof(T)
+    return (i64)memory.size_of(T)
 
 pub func main(arguments: str[]) -> i32:
     let f: func() -> i64 = make

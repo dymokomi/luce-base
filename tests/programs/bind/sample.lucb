@@ -14,7 +14,7 @@ pub extern struct sample_buffer:
 
 ## The `bytes` that follows a `sample_buffer` in memory: C's flexible array member.
 pub func sample_buffer_bytes(record: sample_buffer*) -> u8*:
-    return (u8*)((usize)record + sizeof(sample_buffer))
+    return (u8*)(record + 1)
 
 pub extern union sample_value:
     pub integer: i64

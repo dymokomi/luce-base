@@ -1,6 +1,8 @@
 # error: 
+import memory
+
 ## §11.6: a false module-level `assert` is a compile error.
-assert(sizeof(i64) == 4, "a word is four bytes")
+assert(memory.size_of(i64) == 4, "a word is four bytes")
 
 pub func main(arguments: str[]) -> i32:
     return 0

@@ -11,7 +11,7 @@ func sum(t: const Tree*) -> i64:
 
 func release(t: Tree*):
     match *t:
-        .leaf(value): discard(value)
+        .leaf(value): _ = value
         .pair(left, right):
             release(left)
             release(right)

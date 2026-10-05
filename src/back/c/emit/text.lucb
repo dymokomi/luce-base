@@ -10,7 +10,7 @@ extend Emitter:
     # mark: Text ===============================================================================
 
     ## Append one value to the format buffer temporary `prefix n`.
-    mutating func display(n: u32, prefix: str, v: ast.Node*) -> !:
+    func display(n: u32, prefix: str, v: ast.Node*) -> !:
         if v.has(ast.flag_format_sink):
             # `value.display(__sink)` at a scalar or text: a `Display` parameter instantiated
             # at a type the compiler displays itself (§14.4)
@@ -89,7 +89,7 @@ extend Emitter:
 
     ## `a == b` for two C expressions of type `t`, member by member (§7.4): padding bytes
     ## and the bytes of an inactive payload never take part, as they would in a `memcmp`.
-    mutating func same_value(t: u32, a: str, b: str) -> !:
+    func same_value(t: u32, a: str, b: str) -> !:
         let k = self.kind(t)
         if t == types.str_id or t == types.fmt_id:
             try self.same_text(a, b)
@@ -111,7 +111,7 @@ extend Emitter:
             try self.put(")")
 
     ## Equal text: the same length and the same bytes.
-    mutating func same_text(a: str, b: str) -> !:
+    func same_text(a: str, b: str) -> !:
         try self.put("(")
         try self.put(a)
         try self.put(".length == ")
@@ -127,7 +127,7 @@ extend Emitter:
         try self.put(".length) == 0))")
 
     ## Equal optionals: both absent, or both present with equal values.
-    mutating func same_optional(t: u32, a: str, b: str) -> !:
+    func same_optional(t: u32, a: str, b: str) -> !:
         try self.put("(")
         try self.put(a)
         try self.put(".present == ")
@@ -135,14 +135,14 @@ extend Emitter:
         try self.put(".present && (!")
         try self.put(a)
         try self.put(".present || ")
-        try self.same_value(self.elem(t), try self.path(a, ".value"), try self.path(b, ".value"))
+        try self.same_value(self.elem(t), try c_path(a, ".value"), try c_path(b, ".value"))
         try self.put("))")
 
     ## Equal arrays: a loop over the elements that stops at the first difference.
-    mutating func same_array(t: u32, a: str, b: str) -> !:
+    func same_array(t: u32, a: str, b: str) -> !:
         let n = self.tmp()
-        let i = try self.tmp_name("i", n)
-        let eq = try self.tmp_name("eq", n)
+        let i = try tmp_name("i", n)
+        let eq = try tmp_name("eq", n)
         try self.put("({ bool ")
         try self.put(eq)
         try self.put(" = true; for (size_t ")
@@ -158,31 +158,31 @@ extend Emitter:
         try self.put("++) { ")
         try self.put(eq)
         try self.put(" = ")
-        var index_bytes = try alloc u8[i.length + 5]
-        let index = try format(index_bytes, f".d[{i}]")
-        try self.same_value(self.elem(t), try self.path(a, index), try self.path(b, index))
+        var index_bytes = try new u8[i.length + 5] ---
+        let index = try strings.format(index_bytes, f".d[{i}]")
+        try self.same_value(self.elem(t), try c_path(a, index), try c_path(b, index))
         try self.put("; } ")
         try self.put(eq)
         try self.put("; })")
 
     ## Equal tuples: every member equal; the empty tuple is always.
-    mutating func same_tuple(t: u32, a: str, b: str) -> !:
+    func same_tuple(t: u32, a: str, b: str) -> !:
         let members = self.c.table.get(t).args
         try self.put("(")
         var j: usize = 0
         while j < members.length:
             if j > 0:
                 try self.put(" && ")
-            var member_bytes = try alloc u8[16]
-            let member = try format(member_bytes, f".a{j}")
-            try self.same_value(members[j], try self.path(a, member), try self.path(b, member))
+            var member_bytes = try new u8[16] ---
+            let member = try strings.format(member_bytes, f".a{j}")
+            try self.same_value(members[j], try c_path(a, member), try c_path(b, member))
             j += 1
         if members.length == 0:
             try self.put("true")
         try self.put(")")
 
     ## Equal records: every field equal, at the record's type arguments.
-    mutating func same_record(t: u32, a: str, b: str) -> !:
+    func same_record(t: u32, a: str, b: str) -> !:
         let record = self.c.table.get(t)
         let d = record.decl else return try self.put("true")
         try self.put("(")
@@ -196,8 +196,8 @@ extend Emitter:
                 var ft = m.type_id
                 if record.args.length > 0:
                     ft = try self.c.substitute(ft, d, record.args)
-                let member = try self.path(".", try self.field(m.text))
-                try self.same_value(ft, try self.path(a, member), try self.path(b, member))
+                let member = try c_path(".", try c_field_name(m.text))
+                try self.same_value(ft, try c_path(a, member), try c_path(b, member))
             cursor = m.next
         if not any:
             try self.put("true")
@@ -205,11 +205,11 @@ extend Emitter:
 
     ## Equal enums with payloads: the same tag, and under it, a switch comparing the active
     ## case's payload members.
-    mutating func same_payload_enum(t: u32, a: str, b: str) -> !:
+    func same_payload_enum(t: u32, a: str, b: str) -> !:
         let record = self.c.table.get(t)
         let d = record.decl else return try self.put("true")
         let n = self.tmp()
-        let eq = try self.tmp_name("eq", n)
+        let eq = try tmp_name("eq", n)
         try self.put("({ bool ")
         try self.put(eq)
         try self.put(" = ")
@@ -237,7 +237,7 @@ extend Emitter:
         try self.put("; })")
 
     ## The payload members of `case_decl` in `a` and `b` all equal, joined by `&&`.
-    mutating func same_payload(args: u32[], d: ast.Node*, case_decl: ast.Node*, a: str, b: str) -> !:
+    func same_payload(args: u32[], d: ast.Node*, case_decl: ast.Node*, a: str, b: str) -> !:
         var first = true
         var param = case_decl.body
         while let p = param:
@@ -247,33 +247,15 @@ extend Emitter:
             var pt = p.type_id
             if args.length > 0:
                 pt = try self.c.substitute(pt, d, args)
-            let case_name = try self.field(case_decl.text)
-            let payload_name = try self.field(p.text)
-            var member_bytes = try alloc u8[case_name.length + payload_name.length + 4]
-            let member = try format(member_bytes, f".u.{case_name}.{payload_name}")
-            try self.same_value(pt, try self.path(a, member), try self.path(b, member))
+            let case_name = try c_field_name(case_decl.text)
+            let payload_name = try c_field_name(p.text)
+            var member_bytes = try new u8[case_name.length + payload_name.length + 4] ---
+            let member = try strings.format(member_bytes, f".u.{case_name}.{payload_name}")
+            try self.same_value(pt, try c_path(a, member), try c_path(b, member))
             param = p.next
 
-    ## A field or a payload name as C spells it: the name, unless C reserves it, when an
-    ## underscore follows; Base names are free to be `unsigned` or `int`.
-    func field(name: str) -> str!:
-        if not is_c_keyword(name):
-            return name
-        let room = try alloc u8[name.length + 1]
-        return try format(room, f"{name}_")
-
-    ## `a` followed by `suffix`, as one C expression text.
-    func path(a: str, suffix: str) -> str!:
-        var bytes = try alloc u8[a.length + suffix.length + 1]
-        return try format(bytes, f"{a}{suffix}")
-
-    ## The text `put_tmp(prefix, n)` writes.
-    func tmp_name(prefix: str, n: u32) -> str!:
-        var bytes = try alloc u8[prefix.length + 16]
-        return try format(bytes, f"_lb_{prefix}{n}")
-
     ## The pieces of a formatted string appended to buffer `prefix n`.
-    mutating func pieces(n: u32, prefix: str, f: ast.Node*) -> !:
+    func pieces(n: u32, prefix: str, f: ast.Node*) -> !:
         var part = f.body
         while let p = part:
             if p.kind == ast.Kind.format_text:
@@ -297,7 +279,7 @@ extend Emitter:
     ## expression, as the value it is passed to may read it after the expression ends.
     ## The buffer grows onto the heap past its 1024 bytes; what it took is freed when the
     ## expression is written again or the function returns.
-    mutating func formatted_value(f: ast.Node*) -> !:
+    func formatted_value(f: ast.Node*) -> !:
         let n = try self.growing_format_buffer(f)
         try self.pieces(n, "ff", f)
         try self.put("lb_fmtbuf_finish(&")
@@ -306,10 +288,10 @@ extend Emitter:
 
     ## A fresh format buffer of the function being written; its declaration is the
     ## function's, not the expression's.
-    mutating func format_buffer(at: ast.Node*) -> u32!:
+    func format_buffer(at: ast.Node*) -> u32!:
         if self.target != to_scratch:
             var room: u8[96] = ---
-            let message = try format(room, f"line {at.line}: a formatted text outside a function body")
+            let message = try strings.format(room, f"line {at.line}: a formatted text outside a function body")
             return error(check.unsupported, try strings.copy(message))
         let n = self.tmp()
         try self.formats.push(n)
@@ -317,7 +299,7 @@ extend Emitter:
 
     ## A formatted string as `lb_cspan` for a `Writer`, in a format buffer of the function
     ## that grows as `formatted_value`'s.
-    mutating func formatted_bytes(f: ast.Node*) -> !:
+    func formatted_bytes(f: ast.Node*) -> !:
         let n = try self.growing_format_buffer(f)
         try self.pieces(n, "ff", f)
         try self.put("(lb_cspan){ (void*)(")
@@ -328,7 +310,7 @@ extend Emitter:
 
     ## Open a statement expression that starts a growing format buffer of the function;
     ## the buffer's number.
-    mutating func growing_format_buffer(f: ast.Node*) -> u32!:
+    func growing_format_buffer(f: ast.Node*) -> u32!:
         let n = try self.format_buffer(f)
         try self.put("({ lb_fmtbuf_begin(&")
         try self.put_tmp("ff", n)
@@ -343,7 +325,7 @@ extend Emitter:
     ## The pieces of `f` written to `stream` through a buffer of their own that goes out
     ## as it passes half full and at the end (`lb_stream_put`), as a native build streams
     ## them: a field that prints writes before the line it is part of.
-    mutating func stream_formatted(f: ast.Node*, stream: str) -> !:
+    func stream_formatted(f: ast.Node*, stream: str) -> !:
         let line = self.tmp()
         try self.put("({ char ")
         try self.put_tmp("sb", line)
@@ -407,8 +389,8 @@ extend Emitter:
         try self.put(stream)
         try self.put("); (void)0; })")
 
-    ## `format(buffer, text)` into the caller's bytes, yielding `str!`.
-    mutating func format_call(buf: ast.Node*, msg: ast.Node*) -> !:
+    ## `strings.format(buffer, text)` into the caller's bytes, yielding `str!`.
+    func format_call(buf: ast.Node*, msg: ast.Node*) -> !:
         let n = self.tmp()
         let res = try self.c.table.fallible(types.str_id)
         try self.note(res)
@@ -447,13 +429,13 @@ extend Emitter:
         try self.put_tmp("out", n)
         try self.put("; })")
 
-    ## `hash(value)` (§7.4) over the runtime's mixer.
-    ## `hash(v)` (§14.4): equal values hash the same, so a record, tuple, array, or optional
+    ## `value.hash()` (§7.4) over the runtime's mixer.
+    ## `v.hash()` (§14.4): equal values hash the same, so a record, tuple, array, or optional
     ## hashes its members in the order `==` compares them, text hashes its bytes, a float its
     ## bits with both zeros as one, and a pointer its address.
-    mutating func hash_of(t: u32, v: ast.Node*) -> !:
+    func hash_of(t: u32, v: ast.Node*) -> !:
         let n = self.tmp()
-        let value = try self.tmp_name("hv", n)
+        let value = try tmp_name("hv", n)
         try self.put("({ ")
         try self.put_type(t)
         try self.put(" ")
@@ -465,7 +447,7 @@ extend Emitter:
         try self.put("; })")
 
     ## The hash of the C value `a` of type `t` folded onto the hash `seed`, as one expression.
-    mutating func hash_value(t: u32, a: str, seed: str) -> !:
+    func hash_value(t: u32, a: str, seed: str) -> !:
         let k = self.kind(t)
         if t == types.str_id or t == types.fmt_id:
             try self.put_all("lb_hash_bytes(", seed, ", ")
@@ -475,7 +457,7 @@ extend Emitter:
             try self.put_all("lb_hash_mix(", seed, ", (uint64_t)(")
             try self.put_all(a, " ? 1 : 0))", "")
         elif self.is_float(t):
-            let bits = try self.tmp_name("hb", self.tmp())
+            let bits = try tmp_name("hb", self.tmp())
             try self.put_all("({ uint64_t ", bits, " = 0; if (")
             try self.put_all(a, " != 0) memcpy(&", bits)
             try self.put_all(", &", a, ", sizeof(")
@@ -485,10 +467,10 @@ extend Emitter:
             try self.put_all("lb_hash_mix(", seed, ", (uint64_t)(uintptr_t)(")
             try self.put_all(a, "))", "")
         elif self.is_tagged_opt(t):
-            let present = try self.path(a, ".present")
+            let present = try c_path(a, ".present")
             try self.put_all("(", present, " ? ")
-            var inner = try alloc u8[seed.length + 20]
-            try self.hash_value(self.elem(t), try self.path(a, ".value"), try format(inner, f"lb_hash_mix({seed}, 1)"))
+            var inner = try new u8[seed.length + 20] ---
+            try self.hash_value(self.elem(t), try c_path(a, ".value"), try strings.format(inner, f"lb_hash_mix({seed}, 1)"))
             try self.put_all(" : lb_hash_mix(", seed, ", 0))")
         elif k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.struct_ or (k == types.Kind.enum_ and not self.c.is_backed_enum(t)):
             try self.hash_members(t, a, seed)
@@ -498,28 +480,28 @@ extend Emitter:
 
     ## An aggregate's hash: `seed` folded through every member in order, in a running
     ## variable, so the members' hashes nest no deeper than the members do.
-    mutating func hash_members(t: u32, a: str, seed: str) -> !:
+    func hash_members(t: u32, a: str, seed: str) -> !:
         let k = self.kind(t)
         let n = self.tmp()
-        let h = try self.tmp_name("h", n)
+        let h = try tmp_name("h", n)
         try self.put_all("({ uint64_t ", h, " = ")
         if k == types.Kind.array:
-            let i = try self.tmp_name("i", n)
+            let i = try tmp_name("i", n)
             try self.put_all(seed, "; for (size_t ", i)
             try self.put_all(" = 0; ", i, " < ")
             try self.put_u64(self.c.table.get(t).length)
             try self.put_all("ULL; ", i, "++) ")
             try self.put_all(h, " = ", "")
-            var index_bytes = try alloc u8[i.length + 5]
-            try self.hash_value(self.elem(t), try self.path(a, try format(index_bytes, f".d[{i}]")), h)
+            var index_bytes = try new u8[i.length + 5] ---
+            try self.hash_value(self.elem(t), try c_path(a, try strings.format(index_bytes, f".d[{i}]")), h)
             try self.put(";")
         elif k == types.Kind.tuple:
             try self.put_all(seed, ";", "")
             let members = self.c.table.get(t).args
             var j: usize = 0
             while j < members.length:
-                var member_bytes = try alloc u8[16]
-                try self.hash_member(members[j], try self.path(a, try format(member_bytes, f".a{j}")), h)
+                var member_bytes = try new u8[16] ---
+                try self.hash_member(members[j], try c_path(a, try strings.format(member_bytes, f".a{j}")), h)
                 j += 1
         elif k == types.Kind.struct_:
             try self.put_all(seed, ";", "")
@@ -531,7 +513,7 @@ extend Emitter:
                         var ft = m.type_id
                         if record.args.length > 0:
                             ft = try self.c.substitute(ft, d, record.args)
-                        try self.hash_member(ft, try self.path(a, try self.path(".", try self.field(m.text))), h)
+                        try self.hash_member(ft, try c_path(a, try c_path(".", try c_field_name(m.text))), h)
                     cursor = m.next
         else:
             # a payload enum: the tag, then the payload of the case it carries
@@ -551,10 +533,10 @@ extend Emitter:
                             var pt = p.type_id
                             if record.args.length > 0:
                                 pt = try self.c.substitute(pt, d, record.args)
-                            let case_name = try self.field(case_decl.text)
-                            let payload_name = try self.field(p.text)
-                            var member_bytes = try alloc u8[case_name.length + payload_name.length + 4]
-                            try self.hash_member(pt, try self.path(a, try format(member_bytes, f".u.{case_name}.{payload_name}")), h)
+                            let case_name = try c_field_name(case_decl.text)
+                            let payload_name = try c_field_name(p.text)
+                            var member_bytes = try new u8[case_name.length + payload_name.length + 4] ---
+                            try self.hash_member(pt, try c_path(a, try strings.format(member_bytes, f".u.{case_name}.{payload_name}")), h)
                             param = p.next
                         try self.put("break; ")
                     cursor = case_decl.next
@@ -562,13 +544,13 @@ extend Emitter:
         try self.put_all(" ", h, "; })")
 
     ## `h = hash of member;` folding one member onto the running hash `h`.
-    mutating func hash_member(t: u32, member: str, h: str) -> !:
+    func hash_member(t: u32, member: str, h: str) -> !:
         try self.put_all(" ", h, " = ")
         try self.hash_value(t, member, h)
         try self.put(";")
 
     ## Three pieces of text in a row.
-    mutating func put_all(a: str, b: str, c: str) -> !:
+    func put_all(a: str, b: str, c: str) -> !:
         try self.put(a)
         try self.put(b)
         try self.put(c)
@@ -576,7 +558,7 @@ extend Emitter:
     # mark: Interfaces =========================================================================
 
     ## Remember that a witness table for `record` as `iface` is needed.
-    mutating func note_vtable(record: u32, iface: u32) -> !:
+    func note_vtable(record: u32, iface: u32) -> !:
         var i: usize = 0
         while i < self.vtables.count:
             let v = self.vtables.get(i)
@@ -590,10 +572,10 @@ extend Emitter:
         let t = self.c.table.get(record)
         let i_decl = self.decl_of(iface) else return
         for m in (try instances.witnessed(d, i_decl)).span():
-            discard(try self.add_func(m, try types.no_args(), d, t.args))
+            _ = try self.add_func(m, try types.no_args(), d, t.args)
 
     ## `typedef struct lb_vt_Name { ... } lb_vt_Name;` for a user interface.
-    mutating func interface_typedef(d: ast.Node*) -> !:
+    func interface_typedef(d: ast.Node*) -> !:
         try self.line("typedef struct lb_vt_")
         try self.put(d.text)
         try self.put(" {")
@@ -621,7 +603,7 @@ extend Emitter:
     ## A type-correct erased-receiver adapter. Calling a concrete `Record*` method
     ## through a `void*` function-pointer cast is ABI-compatible on common hosts but
     ## undefined C and is correctly rejected by Clang's function sanitizer.
-    mutating func witness_wrapper(w: Witness, requirement: ast.Node*, implementation: ast.Node*) -> !:
+    func witness_wrapper(w: Witness, requirement: ast.Node*, implementation: ast.Node*) -> !:
         let record = self.decl_of(w.record) else return
         let instance = self.c.table.get(w.record)
         try self.line("static ")
@@ -671,7 +653,7 @@ extend Emitter:
         try self.line("}")
 
     ## The witness table of one record for one interface.
-    mutating func vtable(w: Witness) -> !:
+    func vtable(w: Witness) -> !:
         let d = self.decl_of(w.record) else return
         let i = self.decl_of(w.iface) else return
         var adapter = i.body
@@ -695,7 +677,7 @@ extend Emitter:
                 try self.put(r.text)
                 try self.put(" = ")
                 if let m = check.witness_member(d, r.text):
-                    discard(m)
+                    _ = m
                     try self.put("lb_witness_")
                     try self.put_mangled(w.record)
                     try self.put("_")
@@ -710,15 +692,33 @@ extend Emitter:
         try self.line("};")
 
     ## The type an allocator answers: `u8[]?`.
-    mutating func put_block_type() -> !:
+    func put_block_type() -> !:
         let block = try self.c.table.optional(try self.c.table.span(types.u8_id, false))
         try self.put_type(block)
 
     ## The calls `new`, `alloc`, `free`, and `grow` make on an allocator view.
-    mutating func allocator_glue() -> !:
+    func allocator_glue() -> !:
         let block = try self.c.table.optional(try self.c.table.span(types.u8_id, false))
         try self.line("static inline __attribute__((unused)) ")
         try self.put_type(block)
         try self.put(" lb_alloc_call(lb_iface a, size_t size, size_t alignment) { if (a.vtable == NULL) lb_trap(\"memory.unset\"); return ((const lb_vt_Allocator*)a.vtable)->allocate(a.data, size, alignment); }")
         try self.line("static inline bool __attribute__((unused)) lb_resize_call(lb_iface a, lb_span block, size_t size) { if (a.vtable == NULL) lb_trap(\"memory.unset\"); return ((const lb_vt_Allocator*)a.vtable)->resize(a.data, block, size); }")
         try self.line("static inline void __attribute__((unused)) lb_release_call(lb_iface a, lb_span block) { if (a.vtable == NULL) return; ((const lb_vt_Allocator*)a.vtable)->release(a.data, block); }")
+
+## A field or a payload name as C spells it: the name, unless C reserves it, when an
+## underscore follows; Base names are free to be `unsigned` or `int`.
+func c_field_name(name: str) -> str!:
+    if not is_c_keyword(name):
+        return name
+    let room = try new u8[name.length + 1] ---
+    return try strings.format(room, f"{name}_")
+
+## `a` followed by `suffix`, as one C expression text.
+func c_path(a: str, suffix: str) -> str!:
+    var bytes = try new u8[a.length + suffix.length + 1] ---
+    return try strings.format(bytes, f"{a}{suffix}")
+
+## The text `put_tmp(prefix, n)` writes.
+func tmp_name(prefix: str, n: u32) -> str!:
+    var bytes = try new u8[prefix.length + 16] ---
+    return try strings.format(bytes, f"_lb_{prefix}{n}")

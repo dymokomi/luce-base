@@ -1,0 +1,20 @@
+# error: `poke` changes its receiver, so it needs a `var` or a mutable pointer here
+# oracle: none
+## §9.5: a method passing a part of its receiver where a mutable pointer is wanted changes
+## its receiver, found when its body is checked, after a use above it.
+func reader() -> i64:
+    let c = Counter(n = 0)
+    c.poke()
+    return c.n
+
+func touch(p: i64*):
+    *p += 1
+
+struct Counter:
+    var n: i64
+
+    func poke():
+        touch(&self.n)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

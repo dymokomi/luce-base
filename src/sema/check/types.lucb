@@ -11,7 +11,7 @@ extend Checker:
     # mark: Types ==============================================================================
 
     ## Resolve a written type (§5, §21) to its id, recording it on the node.
-    pub mutating func resolve_type(t: ast.Node*) -> u32!:
+    pub func resolve_type(t: ast.Node*) -> u32!:
         # a type node resolved once keeps its type; the checker re-reads calls it rewrites
         if t.type_id != types.none_id and t.kind == ast.Kind.type_:
             return t.type_id
@@ -20,7 +20,7 @@ extend Checker:
             let n = ast.count(t.body)
             var params = try types.no_args()
             if n > 0:
-                params = try alloc u32[n]
+                params = try new u32[n] ---
             var i: usize = 0
             var cursor = t.body
             while let p = cursor:
@@ -33,7 +33,7 @@ extend Checker:
             id = types.void_id
         elif t.has(ast.flag_tuple_type):
             let n = ast.count(t.body)
-            var members = try alloc u32[n]
+            var members = try new u32[n] ---
             var i: usize = 0
             var cursor = t.body
             while let m = cursor:
@@ -94,7 +94,7 @@ extend Checker:
 
     ## A named type: a scalar, a declaration in scope, `module.Type`, or an
     ## instance `Name[args]` of a generic declaration.
-    mutating func resolve_named(t: ast.Node*) -> u32!:
+    func resolve_named(t: ast.Node*) -> u32!:
         if let arr = try self.array_reading(t):
             return try self.resolve_type(arr)
         let scalar = scalar_id(t.text)
@@ -104,7 +104,7 @@ extend Checker:
             return scalar
         var decl: ast.Node*? = none
         if let b = self.lookup(t.text):
-            self.note_origin(b)
+            note_origin(b)
             var said2: u8[256]
             let d = b.decl else return try self.fail(t, said(said2, f"`{t.text}` is not a type"))
             decl = d
@@ -115,7 +115,7 @@ extend Checker:
             let head = (str)t.text.bytes[..<dot]
             let rest = (str)t.text.bytes[dot + 1..]
             let mb = self.lookup(head) else return try self.unknown_type(t)
-            self.note_origin(mb)
+            note_origin(mb)
             let module = mb.decl else return try self.unknown_type(t)
             if module.kind != ast.Kind.module:
                 return try self.fail(t, "that is not a module")
@@ -152,7 +152,7 @@ extend Checker:
             let n = ast.count(t.body)
             if arity != n:
                 return try self.fail(t, "wrong number of type arguments")
-            var args = try alloc u32[n]
+            var args = try new u32[n] ---
             var i: usize = 0
             var cursor = t.body
             while let a = cursor:
@@ -168,7 +168,7 @@ extend Checker:
 
     ## The declaration a bare or `module.`-qualified name refers to when it is a value rather
     ## than a type: a constant, a global, or a local.
-    mutating func bracket_value_decl(text: str) -> ast.Node*?:
+    func bracket_value_decl(text: str) -> ast.Node*?:
         let dot = strings.find(text, ".") else text.length
         var decl: ast.Node*? = none
         if dot >= text.length:
@@ -185,18 +185,9 @@ extend Checker:
             return d
         return none
 
-    ## The expression a bracketed name spells: `NAME` or `module.NAME`.
-    func bracket_name_expr(arg: ast.Node*) -> ast.Node*!:
-        let dot = strings.find(arg.text, ".") else arg.text.length
-        if dot >= arg.text.length:
-            return try ast.Node.make(ast.Kind.name, arg.text, arg.start, arg.line)
-        let m = try ast.Node.make(ast.Kind.member, (str)arg.text.bytes[dot + 1..], arg.start, arg.line)
-        m.left = try ast.Node.make(ast.Kind.name, (str)arg.text.bytes[..<dot], arg.start, arg.line)
-        return m
-
     ## `T[NAME]` where NAME is a value, not a type: the parser read a type argument, the
     ## program means an array of NAME elements (§5.4). That array type, or none.
-    mutating func array_reading(t: ast.Node*) -> ast.Node*?!:
+    func array_reading(t: ast.Node*) -> ast.Node*?!:
         let arg = t.body else return none
         if arg.next != none or arg.kind != ast.Kind.type_ or arg.flags != 0 or arg.left != none or arg.body != none or arg.text.length == 0:
             return none
@@ -206,12 +197,12 @@ extend Checker:
         let arr = try ast.Node.make(ast.Kind.type_, "[", t.start, t.line)
         arr.flags |= ast.flag_array
         arr.left = base
-        arr.right = try self.bracket_name_expr(arg)
+        arr.right = try bracket_name_expr(arg)
         return arr
 
     ## `table[NAME].f` read as a generic instance of a value: an index (§7.6). Rewrites `e`
     ## in place and says whether it did.
-    mutating func index_reading(e: ast.Node*) -> bool!:
+    func index_reading(e: ast.Node*) -> bool!:
         let holder = e.ty else return false
         let arg = holder.body else return false
         if arg.next != none or arg.kind != ast.Kind.type_ or arg.flags != 0 or arg.left != none or arg.body != none:
@@ -223,7 +214,7 @@ extend Checker:
         e.text = ""
         e.ty = none
         e.left = owner
-        e.body = try self.bracket_name_expr(arg)
+        e.body = try bracket_name_expr(arg)
         return true
 
     ## The type declaration whose members are being checked, if any.
@@ -234,7 +225,7 @@ extend Checker:
 
     ## An array length (§5.4): a constant integer expression (§6.4), the same ones a top-level
     ## `let` may hold, checked as a `usize` and folded by the evaluator every constant uses.
-    mutating func constant_length(e: ast.Node*) -> u64!:
+    func constant_length(e: ast.Node*) -> u64!:
         let t = try self.check_expr(e, types.usize_id)
         if t != types.untyped_int_id and not self.table.is_integer(t):
             return try self.fail(e, "an array length is an integer")
@@ -244,7 +235,7 @@ extend Checker:
 
     ## Every `+ - * // %` in a length computes inside `u64` (§5.4): where a constant wraps, a
     ## length that overflows or divides by zero is refused.
-    mutating func length_arithmetic_fits(e: ast.Node*) -> !:
+    func length_arithmetic_fits(e: ast.Node*) -> !:
         if let l = e.left:
             try self.length_arithmetic_fits(l)
         if let r = e.right:
@@ -256,13 +247,13 @@ extend Checker:
         let a = self.constant_u64(l) else return
         let b = self.constant_u64(r) else return
         if length_arith(e.text, a, b) == none:
-            discard(try self.fail(e, "an array length is a constant that neither overflows nor divides by zero"))
+            try self.fail(e, "an array length is a constant that neither overflows nor divides by zero")
 
     ## Check the value of every constant `e` reaches whose initialiser is not checked yet, and
     ## of the constants those reach. A constant with a written type has its type from the
     ## declarations pass and its value from the bodies pass, which comes after the types that
     ## need its value as a length; `name_type` checks only a constant without a type.
-    mutating func settle_values(e: ast.Node*) -> !:
+    func settle_values(e: ast.Node*) -> !:
         if e.kind == ast.Kind.name or e.kind == ast.Kind.member:
             if let d = e.resolved:
                 if d.kind == ast.Kind.constant and not ast.is_linked(d):
@@ -281,7 +272,7 @@ extend Checker:
             cursor = item.next
 
     ## The type an argument of `sizeof`/`alignof` names, or the type of the expression.
-    mutating func type_of_argument(e: ast.Node*) -> u32!:
+    func type_of_argument(e: ast.Node*) -> u32!:
         if e.kind == ast.Kind.type_:
             e.type_id = try self.resolve_type(e)
             e.flags |= ast.flag_type_ref
@@ -294,7 +285,7 @@ extend Checker:
                 e.flags |= ast.flag_type_ref
                 return scalar
             if let b = self.lookup(e.text):
-                self.note_origin(b)
+                note_origin(b)
                 if let d = b.decl:
                     if is_type_decl(d) or d.kind == ast.Kind.type_alias or d.kind == ast.Kind.generic_param:
                         if d.kind == ast.Kind.type_alias and d.type_id == types.none_id:
@@ -315,7 +306,7 @@ extend Checker:
     # mark: Substitution =======================================================================
 
     ## Replace the generic parameters of `decl` inside `id` with `args`.
-    pub mutating func substitute(id: u32, decl: ast.Node*, args: u32[]) -> u32!:
+    pub func substitute(id: u32, decl: ast.Node*, args: u32[]) -> u32!:
         if args.length == 0:
             return id
         let t = self.table.get(id)
@@ -342,7 +333,7 @@ extend Checker:
             .atomic:
                 return try self.table.atomic(try self.substitute(t.elem, decl, args))
             .tuple:
-                var members = try alloc u32[t.args.length]
+                var members = try new u32[t.args.length] ---
                 var i: usize = 0
                 while i < t.args.length:
                     members[i] = try self.substitute(t.args[i], decl, args)
@@ -351,7 +342,7 @@ extend Checker:
             .func_:
                 var params = try types.no_args()
                 if t.args.length > 0:
-                    params = try alloc u32[t.args.length]
+                    params = try new u32[t.args.length] ---
                 var i: usize = 0
                 while i < t.args.length:
                     params[i] = try self.substitute(t.args[i], decl, args)
@@ -364,7 +355,7 @@ extend Checker:
                     if d == decl and ast.count(generic_params_of(d)) == args.length:
                         return try self.table.nominal(t.kind, d, args)
                     return id
-                var inner = try alloc u32[t.args.length]
+                var inner = try new u32[t.args.length] ---
                 var i: usize = 0
                 while i < t.args.length:
                     inner[i] = try self.substitute(t.args[i], decl, args)
@@ -375,7 +366,7 @@ extend Checker:
 
     ## Learn the generic arguments of `decl` by matching a parameter type against
     ## an argument type; `out` holds one slot per generic parameter.
-    mutating func infer(param: u32, arg: u32, decl: ast.Node*, out: u32[]) -> !:
+    func infer(param: u32, arg: u32, decl: ast.Node*, out: u32[]) -> !:
         let p = self.table.get(param)
         let a = self.table.get(arg)
         if p.kind == types.Kind.param:
@@ -383,7 +374,7 @@ extend Checker:
             var cursor = generic_params_of(decl)
             while let g = cursor:
                 if g.type_id == param and i < out.length and out[i] == types.none_id:
-                    out[i] = self.concrete(arg)
+                    out[i] = concrete(arg)
                 i += 1
                 cursor = g.next
             return
@@ -415,10 +406,19 @@ extend Checker:
         if p.kind == types.Kind.interface_ and a.kind == types.Kind.pointer:
             try self.infer(param, a.elem, decl, out)
 
-    ## An untyped literal type made concrete for inference and bindings.
-    func concrete(id: u32) -> u32:
-        if id == types.untyped_int_id:
-            return types.i64_id
-        if id == types.untyped_float_id:
-            return types.f64_id
-        return id
+## The expression a bracketed name spells: `NAME` or `module.NAME`.
+func bracket_name_expr(arg: ast.Node*) -> ast.Node*!:
+    let dot = strings.find(arg.text, ".") else arg.text.length
+    if dot >= arg.text.length:
+        return try ast.Node.make(ast.Kind.name, arg.text, arg.start, arg.line)
+    let m = try ast.Node.make(ast.Kind.member, (str)arg.text.bytes[dot + 1..], arg.start, arg.line)
+    m.left = try ast.Node.make(ast.Kind.name, (str)arg.text.bytes[..<dot], arg.start, arg.line)
+    return m
+
+## An untyped literal type made concrete for inference and bindings.
+func concrete(id: u32) -> u32:
+    if id == types.untyped_int_id:
+        return types.i64_id
+    if id == types.untyped_float_id:
+        return types.f64_id
+    return id

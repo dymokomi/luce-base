@@ -32,10 +32,10 @@ func check64(text: str, status: u32, bits: u64) -> !:
         assert(memory.read[u64](&restored) == bits)
     memory.set(output, 85)
     failed = false
-    discard(strings.format_f64(value, output[..<rendered.length - 1]) catch failure:
+    _ = strings.format_f64(value, output[..<rendered.length - 1]) catch failure:
         assert(failure.code == io.full)
         failed = true
-        recover "")
+        recover ""
     assert(failed)
     for byte in output:
         assert(byte == 85)
@@ -60,16 +60,16 @@ func check32(text: str, status: u32, bits: u32) -> !:
         assert(memory.read[u32](&restored) == bits)
     memory.set(output, 85)
     failed = false
-    discard(strings.format_f32(value, output[..<rendered.length - 1]) catch failure:
+    _ = strings.format_f32(value, output[..<rendered.length - 1]) catch failure:
         assert(failure.code == io.full)
         failed = true
-        recover "")
+        recover ""
     assert(failed)
     for byte in output:
         assert(byte == 85)
 
 pub func main(arguments: c.str[]) -> i32!:
-    discard(float_environment_begin())
+    _ = float_environment_begin()
     defer float_environment_end()
     let contents = try files.read(arguments[1])
     defer contents.release()
@@ -98,21 +98,21 @@ pub func main(arguments: c.str[]) -> i32!:
         let narrow = try strings.parse_f32("1.000000059604644775390625")
         assert(memory.read[u32](&narrow) == 1065353216)
         var failed = false
-        discard(strings.parse_f64("1e1000") catch failure:
+        _ = strings.parse_f64("1e1000") catch failure:
             assert(failure.code == strings.number_out_of_range)
             failed = true
-            recover 0.0)
+            recover 0.0
         assert(failed)
         failed = false
-        discard(strings.parse_f32("-1e1000") catch failure:
+        _ = strings.parse_f32("-1e1000") catch failure:
             assert(failure.code == strings.number_out_of_range)
             failed = true
-            recover (f32)0)
+            recover (f32)0
         assert(failed)
         float_environment_check()
         var output: u8[32]
-        discard(try strings.format_f64(value, output))
-        discard(try strings.format_f32(narrow, output))
+        _ = try strings.format_f64(value, output)
+        _ = try strings.format_f32(narrow, output)
         float_environment_check()
     float_rounding(0)
     print("ok floating-point text conversion")

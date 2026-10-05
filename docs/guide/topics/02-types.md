@@ -33,8 +33,8 @@ describes the two conversion forms.
 | `isize`, `usize` | a pointer's size | 8 bytes on 64-bit targets, 4 on WebAssembly |
 | `f16`, `f32`, `f64` | 2, 4, 8 bytes | IEEE 754 floats |
 
-`usize` is the type of lengths, indices and sizes: `array.length`, `sizeof(T)` and array
-indices are all `usize`.
+`usize` is the type of lengths, indices and sizes: `array.length`, `memory.size_of(T)` and
+array indices are all `usize`.
 
 Integer literals take their type from where they are used. With nothing to decide, an
 integer literal is an `i64` and a float literal an `f64`. A suffix fixes the type: `255u8`,
@@ -61,7 +61,7 @@ contents, or an allocation that some other code owns and frees.
 - `for character in text` gives each Unicode character as a `char`.
 - `==`, `!=` and the ordering operators compare bytes.
 - There is no `text[i]`, because a byte position is not a character position.
-- There is no `+`. Text is built by `format` into a buffer you own, or with a
+- There is no `+`. Text is built by `strings.format` into a buffer you own, or with a
   `strings.Builder`, which allocates.
 
 Converting bytes to text uses the two conversion forms of the language. `str(bytes)` checks
@@ -103,16 +103,33 @@ exists only in byte literals.
 
 ### Formatted strings
 
-`f"..."` works like a Python f-string, with three differences:
+`f"..."` works like a Python f-string, with two differences:
 
-- The braces hold an expression and nothing else. There is no `:` format specification.
-  `hex(n)` and `bin(n)` give digits in base 16 or 2, and `pad(value, width)` right-aligns
-  in a field of that width.
 - Inside the braces, strings are written with plain quotes:
   `f"{name if name != "" else "anonymous"}"`.
-- A formatted string is not a value. It goes directly to `print`, to `format(buffer, ...)`,
-  to a `Writer`, or to a function parameter of type `fmt`. You cannot store it in a
-  variable, because there is nowhere to keep the text unless you provide a buffer.
+- A formatted string is not a value. It goes directly to `print`, to
+  `strings.format(buffer, ...)`, to a `Writer`, or to a function parameter of type `fmt`.
+  You cannot store it in a variable, because there is nowhere to keep the text unless you
+  provide a buffer.
+
+A field takes Python's format specification after a colon, for numbers and text:
+
+```luce
+pub func main(arguments: str[]) -> i32:
+    let price = 1234.5
+    print(f"[{price:,.2f}] [{255:#x}] [{42:>6}] [{"left":<6}] [{0.25:.0%}] [{7:03}]")
+    return 0
+```
+
+```output
+[1,234.50] [0xff] [    42] [left  ] [25%] [007]
+```
+
+The fill, alignment, sign, `#`, zero padding, width, grouping, precision and type letter
+mean what they mean in Python, and digits round the way Python's do. A specification that
+does not fit the value, `{name:x}` on a string or `{n:.2f}` on an integer, is a compile
+error; convert first, `{f64(n):.2f}`. A value that shows itself through `display` takes no
+specification.
 
 ## Arrays
 
@@ -292,6 +309,8 @@ on the target: fields in order, with the platform's alignment and padding. This 
 Base share data structures with C.
 
 ```luce
+import memory
+
 packed struct Header:
     var tag: u8
     var length: u32
@@ -301,8 +320,8 @@ struct Aligned:
     var length: u32
 
 pub func main(arguments: str[]) -> i32:
-    print(f"packed {sizeof(Header)}, normal {sizeof(Aligned)}, aligned to {alignof(Aligned)}")
-    print(f"length starts at byte {offsetof(Aligned, length)}")
+    print(f"packed {memory.size_of(Header)}, normal {memory.size_of(Aligned)}, aligned to {memory.align_of(Aligned)}")
+    print(f"length starts at byte {memory.offset_of(Aligned, length)}")
     return 0
 ```
 
@@ -311,8 +330,8 @@ packed 5, normal 8, aligned to 4
 length starts at byte 4
 ```
 
-- `sizeof(T)`, `alignof(T)` and `offsetof(T, field)` are compile-time constants of type
-  `usize`.
+- `memory.size_of(T)`, `memory.align_of(T)` and `memory.offset_of(T, field)` are C's
+  `sizeof`, `alignof` and `offsetof`: compile-time constants of type `usize`.
 - `packed struct` removes padding. Taking the address of a packed field that would be
   misaligned is an error.
 - `align(N) struct` raises a struct's alignment, and `align(N)` before a field raises that

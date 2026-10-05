@@ -9,12 +9,12 @@
 extend Lowerer:
     # mark: Memory =============================================================================
 
-    mutating func allocator_of(e: ast.Node*?) -> ir.Ref!:
+    func allocator_of(e: ast.Node*?) -> ir.Ref!:
         let a = e else return try self.allocator_global()
         return try self.allocator_view(a)
 
     ## The address of a two-word `Allocator` view for `in x` and `with x`.
-    mutating func allocator_view(e: ast.Node*) -> ir.Ref!:
+    func allocator_view(e: ast.Node*) -> ir.Ref!:
         let t = try self.ty(e)
         if self.is_iface(t):
             let v = try self.expr(e)
@@ -30,7 +30,7 @@ extend Lowerer:
 
     ## `view.allocate(size, alignment)`: the optional span answered, in memory; under the
     ## diagnostic profile the block is also recorded with the function and line asking (§19.4).
-    mutating func allocate_bytes(view: ir.Ref, size: ir.Ref, alignment: ir.Ref) -> ir.Ref!:
+    func allocate_bytes(view: ir.Ref, size: ir.Ref, alignment: ir.Ref) -> ir.Ref!:
         let block = try self.allocate_bytes_raw(view, size, alignment)
         if self.diagnostic:
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, block)
@@ -42,10 +42,10 @@ extend Lowerer:
             try self.f.args.push(ir.Arg(value = size, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
             try self.f.args.push(ir.Arg(value = function.ref, cls = ir.Class.l, size = 16, align = 8, type_id = types.str_id, shape = try self.shape_of(types.str_id)))
             try self.f.args.push(ir.Arg(value = ir.const_ref((i64)self.site_line), cls = ir.Class.w, size = 0, align = 4, type_id = types.u32_id, shape = 0))
-            discard(try self.call_named("lb_memory_9note_site", start, 4, ir.Class.w, false, types.unit_id))
+            _ = try self.call_named("lb_memory_9note_site", start, 4, ir.Class.w, false, types.unit_id)
         return block
 
-    mutating func allocate_bytes_raw(view: ir.Ref, size: ir.Ref, alignment: ir.Ref) -> ir.Ref!:
+    func allocate_bytes_raw(view: ir.Ref, size: ir.Ref, alignment: ir.Ref) -> ir.Ref!:
         let data = try self.f.load(ir.Op.loadl, ir.Class.l, view)
         let table = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(view, 8))
         let ok = self.f.label()
@@ -66,7 +66,7 @@ extend Lowerer:
         try self.f.emit(ir.Op.call, ir.Class.l, 0, target, ir.none_ref(), u32(self.f.calls.count - 1))
         return try self.slot_address(slot)
 
-    mutating func allocator_release(view: ir.Ref, block: ir.Ref) -> !:
+    func allocator_release(view: ir.Ref, block: ir.Ref) -> !:
         let data = try self.f.load(ir.Op.loadl, ir.Class.l, view)
         let table = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(view, 8))
         let skip = self.f.label()
@@ -86,7 +86,7 @@ extend Lowerer:
 
     ## `count` elements of `elem` from `view`, into a result of `result_type` (a span!),
     ## zeroed when asked; the result's address.
-    mutating func counted_allocation(view: ir.Ref, elem: u32, count: ir.Ref, result_type: u32, zero: bool) -> ir.Ref!:
+    func counted_allocation(view: ir.Ref, elem: u32, count: ir.Ref, result_type: u32, zero: bool) -> ir.Ref!:
         let slot = try self.new_slot(result_type)
         let a = try self.slot_address(slot)
         let stride = self.c.table.size_of(elem)
@@ -122,7 +122,7 @@ extend Lowerer:
             try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
             try self.f.args.push(ir.Arg(value = ir.const_ref(0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
             try self.f.args.push(ir.Arg(value = bytes, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            discard(try self.call_named("memset", start, 3, ir.Class.l, true, types.usize_id))
+            _ = try self.call_named("memset", start, 3, ir.Class.l, true, types.usize_id)
         try self.f.store(ir.Op.storel, data, a)
         try self.f.store(ir.Op.storel, count, try self.offset_address(a, 8))
         try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(a, self.failed_offset(result_type)))
@@ -130,7 +130,7 @@ extend Lowerer:
         try self.f.place_label(done)
         return a
 
-    mutating func new_expr(e: ast.Node*) -> LowerValue!:
+    func new_expr(e: ast.Node*) -> LowerValue!:
         self.site_line = e.line
         let t = e.ty else return try self.fail(e, "no type")
         let result = try self.ty(e)
@@ -188,41 +188,16 @@ extend Lowerer:
         try self.f.place_label(done)
         return LowerValue(ref = a, type_id = result, in_memory = true)
 
-    mutating func alloc_expr(e: ast.Node*) -> LowerValue!:
+    ## `new T[count] ---`: `count` elements through the allocator, left unwritten (§12.2).
+    func unwritten_expr(e: ast.Node*) -> LowerValue!:
         self.site_line = e.line
         let result = try self.ty(e)
         let payload = self.elem(result)
         let view = try self.allocator_of(e.right)
-        if let t = e.ty:
-            let count = t.right else return try self.fail(e, "no count")
-            let cv = try self.value(count, types.usize_id)
-            let a = try self.counted_allocation(view, self.elem(payload), cv.ref, result, false)
-            return LowerValue(ref = a, type_id = result, in_memory = true)
-        let first = e.body else return try self.fail(e, "no size")
-        let size = first.left else return try self.fail(e, "no size")
-        let second = first.next else return try self.fail(e, "no alignment")
-        let align = second.left else return try self.fail(e, "no alignment")
-        let sv = try self.value(size, types.usize_id)
-        let av = try self.value(align, types.usize_id)
-        let slot = try self.new_slot(result)
-        let a = try self.slot_address(slot)
-        let block = try self.allocate_bytes(view, sv.ref, av.ref)
-        let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(block, 16))
-        let nonzero = try self.f.binary(ir.Op.cne, ir.Class.l, sv.ref, ir.const_ref(0))
-        let missing = try self.f.binary(ir.Op.ceq, ir.Class.w, present, ir.const_ref(0))
-        let failed = try self.f.binary(ir.Op.and_, ir.Class.w, nonzero, missing)
-        let no = self.f.label()
-        let yes = self.f.label()
-        let done = self.f.label()
-        try self.f.branch(failed, no, yes)
-        try self.f.place_label(no)
-        try self.store_error(a, result, (i64)check.exhausted_code(), "memory.exhausted")
-        try self.f.jump(done)
-        try self.f.place_label(yes)
-        try self.f.copy_bytes(a, block, 16)
-        try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(a, self.failed_offset(result)))
-        try self.f.jump(done)
-        try self.f.place_label(done)
+        let t = e.ty else return try self.fail(e, "no type")
+        let count = t.right else return try self.fail(e, "no count")
+        let cv = try self.value(count, types.usize_id)
+        let a = try self.counted_allocation(view, self.elem(payload), cv.ref, result, false)
         return LowerValue(ref = a, type_id = result, in_memory = true)
 
     ## Whether the tree at `n` calls `memory.frame` (§12.7).
@@ -240,7 +215,7 @@ extend Lowerer:
 
     ## `memory.frame[T](count, most)` (§12.7): `count` elements taken from the frame, after a
     ## trap when `count` is past `most`; the span is the bytes' address and `count`.
-    mutating func frame_storage(e: ast.Node*) -> LowerValue!:
+    func frame_storage(e: ast.Node*) -> LowerValue!:
         let result = try self.ty(e)
         let first = e.body else return try self.fail(e, "no count")
         let second = first.next else return try self.fail(e, "no most")

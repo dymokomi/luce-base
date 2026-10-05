@@ -31,7 +31,7 @@ pub struct Callback[A, R]:
     ## Another edge to the same callable.
     pub func clone() -> Callback[A, R]:
         self.require_thread()
-        discard(ownership.retain(self.owner))
+        _ = ownership.retain(self.owner)
         return self
 
     ## Drop this callback's edge to the owner.
@@ -42,7 +42,7 @@ pub struct Callback[A, R]:
     ## Call the callable with `argument`, retaining the owner across the call.
     pub func invoke(argument: A) -> Outcome[R]:
         self.require_thread()
-        discard(ownership.retain(self.owner))
+        _ = ownership.retain(self.owner)
         defer ownership.release(self.owner)
         return self.entry(self.owner, argument)
 
@@ -53,11 +53,11 @@ pub struct Callback[A, R]:
         visit(self.owner, context)
 
     ## Native methods receive stable storage under the source owner's call guard.
-    pub static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!:
+    pub func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!:
         return try BoundCallback[T, A, R].make(source, none, method)
 
-    ## A callback bound to a mutating method of a native `source`.
-    pub static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!:
+    ## A callback bound to a method of a native `source` that changes it.
+    pub func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!:
         return try BoundCallback[T, A, R].make(source, method, none)
 
 struct BoundCallback[T, A, R]:
@@ -67,12 +67,12 @@ struct BoundCallback[T, A, R]:
     var method: (func(T*, A) -> Outcome[R])?
     var read: (func(const T*, A) -> Outcome[R])?
 
-    static func make(source: Reference[T], method: (func(T*, A) -> Outcome[R])?,
-                     read: (func(const T*, A) -> Outcome[R])?) -> Callback[A, R]!:
-        discard(try source.get())
-        var information = ownership.Info(name = "bound native callback", size = sizeof(BoundCallback[T, A, R]),
+    func make(source: Reference[T], method: (func(T*, A) -> Outcome[R])?,
+              read: (func(const T*, A) -> Outcome[R])?) -> Callback[A, R]!:
+        _ = try source.get()
+        var information = ownership.Info(name = "bound native callback", size = memory.size_of(BoundCallback[T, A, R]),
                                          finish = none, drop = BoundCallback[T, A, R].drop, trace = BoundCallback[T, A, R].trace)
-        let bound = (BoundCallback[T, A, R]*)try ownership.reserve(&information, sizeof(BoundCallback[T, A, R]))
+        let bound = (BoundCallback[T, A, R]*)try ownership.reserve(&information, memory.size_of(BoundCallback[T, A, R]))
         bound.information = information
         bound.header.info = &bound.information
         bound.source = source.clone()
@@ -80,7 +80,7 @@ struct BoundCallback[T, A, R]:
         bound.read = read
         return Callback[A, R](&bound.header, BoundCallback[T, A, R].invoke)
 
-    static func invoke(object: ownership.Object*, argument: A) -> Outcome[R]:
+    func invoke(object: ownership.Object*, argument: A) -> Outcome[R]:
         let bound = (BoundCallback[T, A, R]*)object
         let native = bound.source.get() catch failure:
             return failed_outcome[R](failure.code, failure.message)
@@ -90,10 +90,10 @@ struct BoundCallback[T, A, R]:
             return method(native, argument)
         return (bound.read else trap("a callback binding has no method"))(native, argument)
 
-    static func drop(object: ownership.Object*):
+    func drop(object: ownership.Object*):
         ((BoundCallback[T, A, R]*)object).source.release()
 
-    static func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         ((BoundCallback[T, A, R]*)object).source.trace(visit, context)
 
 ## Error views may borrow a closing source. Copy before releasing that source;

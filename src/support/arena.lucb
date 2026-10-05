@@ -31,7 +31,7 @@ pub struct Arena: memory.Allocator:
         self.chunk_size = chunk_size if chunk_size > 0 else 65536
 
     ## A block of `size` bytes at `alignment`, from the active chunk or a fresh one.
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)(usize)8, 0)
         let align = alignment if alignment > 0 else 1
@@ -47,10 +47,10 @@ pub struct Arena: memory.Allocator:
                     return chunk.bytes[start..<chunk.used]
             cursor = chunk.next
         let capacity = minimum if minimum > self.chunk_size else self.chunk_size
-        let total = capacity +? sizeof(ArenaChunk) else return none
-        let backing = self.parent.allocate(total, alignof(ArenaChunk)) else return none
+        let total = capacity +? memory.size_of(ArenaChunk) else return none
+        let backing = self.parent.allocate(total, memory.align_of(ArenaChunk)) else return none
         let chunk = (ArenaChunk*)backing.data
-        *chunk = ArenaChunk(backing = backing, bytes = backing[sizeof(ArenaChunk)..])
+        *chunk = ArenaChunk(backing = backing, bytes = backing[memory.size_of(ArenaChunk)..])
         let start = aligned_offset(chunk.bytes, 0, align) else trap("arena chunk alignment")
         chunk.used = start + size
         if let previous = self.last:
@@ -62,7 +62,7 @@ pub struct Arena: memory.Allocator:
         return chunk.bytes[start..<chunk.used]
 
     ## Only the most recent allocation in the active chunk can change in place.
-    pub mutating func resize(block: u8[], size: usize) -> bool:
+    pub func resize(block: u8[], size: usize) -> bool:
         if size == block.length:
             return true
         if block.length == 0:
@@ -77,14 +77,14 @@ pub struct Arena: memory.Allocator:
         return true
 
     ## Reclaim `block` when it is the last allocation in the active chunk; else keep it.
-    pub mutating func release(block: u8[]):
+    pub func release(block: u8[]):
         let chunk = self.active else return
         let start = (usize)block.data -? (usize)chunk.bytes.data else return
         if start <= chunk.used and block.length == chunk.used - start:
             chunk.used = start
 
     ## Reuse every chunk for fresh allocations, releasing none.
-    pub mutating func reset():
+    pub func reset():
         var cursor = self.first
         while let chunk = cursor:
             chunk.used = 0
@@ -92,7 +92,7 @@ pub struct Arena: memory.Allocator:
         self.active = self.first
 
     ## Release every chunk back to the parent.
-    pub mutating func destroy():
+    pub func destroy():
         var cursor = self.first
         self.first = none
         self.last = none
@@ -130,7 +130,7 @@ struct Budget: memory.Allocator:
     var remaining: usize = 2
     var outstanding: usize
 
-    mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    func allocate(size: usize, alignment: usize) -> u8[]?:
         if self.remaining == 0:
             return none
         let block = memory.heap.allocate(size, alignment) else return none
@@ -138,10 +138,10 @@ struct Budget: memory.Allocator:
         self.outstanding += 1
         return block
 
-    mutating func resize(block: u8[], size: usize) -> bool:
+    func resize(block: u8[], size: usize) -> bool:
         return false
 
-    mutating func release(block: u8[]):
+    func release(block: u8[]):
         memory.heap.release(block)
         self.outstanding -= 1
 

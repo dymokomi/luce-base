@@ -15,7 +15,7 @@ pub func split(text: str, separator: u8) -> str[]!:
     for b in text.bytes:
         if b == separator:
             count = count +? 1 else error(memory.exhausted, "the split result is too large")
-    let parts = try alloc str[count]
+    let parts = try new str[count] ---
     var n: usize = 0
     var start: usize = 0
     var i: usize = 0
@@ -41,13 +41,13 @@ pub struct SplitIterator:
 
     ## max_parts=0 has no limit; one returns the entire input as a single field.
     ## No allocation occurs. An empty separator reports invalid_separator.
-    pub static func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!:
+    pub func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!:
         if separator.length == 0:
             error(invalid_separator, "a split iterator requires a nonempty separator")
         return SplitIterator(text = text, separator = separator, remaining = max_parts, active = true)
 
     ## The next borrowed field. An empty field is present; none means exhausted.
-    pub mutating func next() -> str?:
+    pub func next() -> str?:
         if not self.active:
             return none
         if self.remaining == 1:
@@ -72,7 +72,7 @@ pub func split_by(text: str, separator: str, max_parts: usize = 0) -> str[]!:
     var count: usize = 0
     while counter.next() != none:
         count = count +? 1 else error(memory.exhausted, "the split result is too large")
-    let fields = try alloc str[count]
+    let fields = try new str[count] ---
     var iterator = initial
     var index: usize = 0
     while let field = iterator.next():

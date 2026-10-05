@@ -2,6 +2,6 @@
 extern func tables_wave(step: i32) -> f64
 
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     print(f"{tables_wave(12)} {tables_wave(0)}")
     return 0

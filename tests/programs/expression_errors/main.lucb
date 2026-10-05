@@ -1,6 +1,7 @@
 ## Each failing subexpression is checked in source order; handlers own only the
 ## operand they protect. Surrounding errdefers run only when their scope fails.
 import memory
+import strings
 
 let bad = ErrorCode.package(811)
 var trace: i64 = 0
@@ -54,7 +55,7 @@ func allocator_failure() -> i64!:
         return try add(step(1, 2), step(2, 2))
 
 func borrowed_failure(buffer: u8[]) -> i64!:
-    error(bad, try format(buffer, f"failure {step(7, 0)}"))
+    error(bad, try strings.format(buffer, f"failure {step(7, 0)}"))
 
 func locally_handled() -> i64:
     return add(step(1, 2), step(2, 2)) catch failure:
@@ -75,13 +76,13 @@ pub func main(arguments: str[]) -> i32!:
     assert((try expression(0)) == 9)
     assert(trace == 12365)
     trace = 0
-    discard(expression(1) catch failure: recover -1)
+    _ = expression(1) catch failure: recover -1
     assert(trace == 145)
     trace = 0
-    discard(expression(2) catch failure: recover -1)
+    _ = expression(2) catch failure: recover -1
     assert(trace == 1245)
     trace = 0
-    discard(expression(6) catch failure: recover -1)
+    _ = expression(6) catch failure: recover -1
     assert(trace == 123645)
     trace = 0
     assert(locally_handled() == 7)

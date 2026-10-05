@@ -9,7 +9,7 @@
 extend Lowerer:
     # mark: Statements =========================================================================
 
-    mutating func block(b: ast.Node*) -> !:
+    func block(b: ast.Node*) -> !:
         try self.push_scope(false, "", 0, 0)
         var cursor = b.body
         while let s = cursor:
@@ -18,7 +18,7 @@ extend Lowerer:
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
 
-    mutating func stmt(s: ast.Node*) -> !:
+    func stmt(s: ast.Node*) -> !:
         # the format buffers this statement takes are free again when it is lowered, and
         # their levels of the dynamic area once it has run
         let pooled = self.pool_used
@@ -30,10 +30,10 @@ extend Lowerer:
                 try self.reserve_levels()
 
     ## `reserve`: the dynamic area holds the levels of the format buffers taken so far.
-    mutating func reserve_levels() -> !:
+    func reserve_levels() -> !:
         try self.f.emit(ir.Op.reserve, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), u32(self.pool_used))
 
-    mutating func statement(s: ast.Node*) -> !:
+    func statement(s: ast.Node*) -> !:
         if s.kind != ast.Kind.block:
             self.set_position(s)
         if self.f.debug and s.kind != ast.Kind.block and s.line > 0:
@@ -77,13 +77,13 @@ extend Lowerer:
                 if calls.is_error_call(e):
                     try self.error_return(e)
                 else:
-                    discard(try self.expr(e))
+                    _ = try self.expr(e)
             .asm_:
                 try self.asm_stmt(s)
             _:
                 return try self.fail(s, "native_unsupported statement in the native backend")
 
-    mutating func binding(s: ast.Node*) -> !:
+    func binding(s: ast.Node*) -> !:
         if s.body != none:
             let init = s.left else return
             let v = try self.expr(init)
@@ -117,7 +117,7 @@ extend Lowerer:
         else:
             try self.f.zero_bytes(address, self.size(t))
 
-    mutating func assign(s: ast.Node*) -> !:
+    func assign(s: ast.Node*) -> !:
         let place = s.left else return
         let value = s.right else return
         if place.kind == ast.Kind.member and place.text == "allocator":
@@ -151,7 +151,7 @@ extend Lowerer:
 
     ## `=` on an `@T` is the sequentially consistent store; `+=` `-=` `|=` `&=` `^=` are the
     ## read-modify-write instructions and wrap (§15.1). `&=` is `and-not` of the complement.
-    mutating func atomic_assign(s: ast.Node*, address: ir.Ref, et: u32, value: ast.Node*) -> !:
+    func atomic_assign(s: ast.Node*, address: ir.Ref, et: u32, value: ast.Node*) -> !:
         let cls = self.class_of(et)
         let width = u32(self.scalar_size(et))
         let vv = try self.value(value, et)
@@ -173,7 +173,7 @@ extend Lowerer:
         let t = try self.f.temp(cls)
         try self.f.instrs.push(ir.Instr(op = instr, cls = cls, dst = t, a = operand, b = address, extra = width, extra2 = 5, line = 0, file = 0, scope = 0, site = 0))
 
-    mutating func if_stmt(s: ast.Node*) -> !:
+    func if_stmt(s: ast.Node*) -> !:
         let then_label = self.f.label()
         let else_label = self.f.label()
         let end_label = self.f.label()
@@ -195,7 +195,7 @@ extend Lowerer:
         try self.f.place_label(end_label)
 
     ## Branch on a condition, binding an `if let` name in the then scope.
-    mutating func condition(s: ast.Node*, then_label: u32, else_label: u32) -> !:
+    func condition(s: ast.Node*, then_label: u32, else_label: u32) -> !:
         let c = s.left else return
         if s.has(ast.flag_if_let):
             let init = c.left else return
@@ -223,7 +223,7 @@ extend Lowerer:
     ## Branch to `then_label` when `e` holds, else to `else_label`: `and`, `or` and `not` as
     ## jumps, so that `while a < b and c <= d:` branches on each comparison as it is made
     ## rather than on a byte the two leave in a slot, the value `and` has in an expression.
-    mutating func branch_on(e: ast.Node*, then_label: u32, else_label: u32) -> !:
+    func branch_on(e: ast.Node*, then_label: u32, else_label: u32) -> !:
         if e.kind == ast.Kind.group:
             let inner = e.left else return try self.fail(e, "empty group")
             try self.branch_on(inner, then_label, else_label)
@@ -246,7 +246,7 @@ extend Lowerer:
         let v = try self.value(e, types.bool_id)
         try self.f.branch(v.ref, then_label, else_label)
 
-    mutating func while_stmt(s: ast.Node*) -> !:
+    func while_stmt(s: ast.Node*) -> !:
         let head = self.f.label()
         let body_label = self.f.label()
         let end_label = self.f.label()
@@ -263,7 +263,7 @@ extend Lowerer:
 
     ## `for binding in seq`: a counted loop over a range, or a walk over an array, a span,
     ## or text by index.
-    mutating func for_stmt(s: ast.Node*) -> !:
+    func for_stmt(s: ast.Node*) -> !:
         let binding = s.left else return
         let seq = s.right else return
         let head = self.f.label()
@@ -284,7 +284,7 @@ extend Lowerer:
 
     ## The blocks of `for i in lo..<hi` or `lo..=hi`, up to the jump back to its test: the
     ## binding counts in its own type up to a limit computed once.
-    mutating func range_loop(s: ast.Node*, binding: ast.Node*, lo: ast.Node*, hi: ast.Node*, closed: bool, l: LowerLoop) -> !:
+    func range_loop(s: ast.Node*, binding: ast.Node*, lo: ast.Node*, hi: ast.Node*, closed: bool, l: LowerLoop) -> !:
         let t = try self.map(binding.type_id)
         let slot = try self.bind_local(binding, t)
         let counter = try self.slot_address(slot)
@@ -318,7 +318,7 @@ extend Lowerer:
 
     ## The blocks of a loop over an array, a span, or text, up to the jump back to its
     ## test: the index steps by one element, or by one scalar's width over text.
-    mutating func sequence_loop(s: ast.Node*, binding: ast.Node*, seq: ast.Node*, l: LowerLoop) -> !:
+    func sequence_loop(s: ast.Node*, binding: ast.Node*, seq: ast.Node*, l: LowerLoop) -> !:
         # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
         let indexed = calls.indexed_receiver(seq)
         var it = try self.ty(seq)
@@ -355,7 +355,7 @@ extend Lowerer:
 
     ## The slots of a walk over `sequence` of type `it`, its data pointer and count stored
     ## in them, and its elements' type and stride.
-    mutating func walk(sequence: LowerValue, it: u32) -> LowerWalk!:
+    func walk(sequence: LowerValue, it: u32) -> LowerWalk!:
         # the data pointer and the count, in slots that outlive the loop's blocks
         let data_slot = try self.f.slot(8, 8)
         let count_slot = try self.f.slot(8, 8)
@@ -382,7 +382,7 @@ extend Lowerer:
 
     ## The bindings at the top of a walk's body: the element by value or by pointer, the
     ## members of its tuple, `(index, element)` under `indexed()`, or text's scalar.
-    mutating func walk_bindings(s: ast.Node*, binding: ast.Node*, indexed: bool, it: u32, w: LowerWalk) -> !:
+    func walk_bindings(s: ast.Node*, binding: ast.Node*, indexed: bool, it: u32, w: LowerWalk) -> !:
         if binding.body != none and indexed:
             # `(index, element)`
             let index_name = binding.body else return
@@ -422,7 +422,7 @@ extend Lowerer:
             try self.store_to(try self.slot_address(slot), element)
 
     ## `core.utf8_scalar(data, count, index, &width)`: the scalar at a byte of valid UTF-8.
-    mutating func utf8_scalar(data: ir.Ref, count: ir.Ref, index: ir.Ref, width: ir.Ref) -> ir.Ref!:
+    func utf8_scalar(data: ir.Ref, count: ir.Ref, index: ir.Ref, width: ir.Ref) -> ir.Ref!:
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
         try self.f.args.push(ir.Arg(value = count, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
@@ -430,7 +430,7 @@ extend Lowerer:
         try self.f.args.push(ir.Arg(value = width, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
         return try self.call_named("lb_core_11utf8_scalar", start, 4, ir.Class.w, true, types.char_id)
 
-    mutating func jump(s: ast.Node*) -> !:
+    func jump(s: ast.Node*) -> !:
         let target = exits.innermost_loop(&self.scopes, s.text)
         try self.unwind_from(target + 1, false)
         let sc = self.scopes.get(target)
@@ -440,28 +440,28 @@ extend Lowerer:
 
     # -- returns and failure --------------------------------------------------------------
 
-    mutating func return_stmt(s: ast.Node*) -> !:
+    func return_stmt(s: ast.Node*) -> !:
         if let v = s.left:
             if calls.is_trap_call(v):
-                discard(try self.expr(v))
+                _ = try self.expr(v)
                 return
             if calls.is_error_call(v):
                 try self.error_return(v)
                 return
             if lower_never_valued(v):
-                discard(try self.expr(v))
+                _ = try self.expr(v)
                 try self.trap_with("unreachable")
                 return
             let want = self.result_payload()
             if want == types.unit_id or want == types.never_id:
-                discard(try self.expr(v))
+                _ = try self.expr(v)
             else:
                 let value = try self.value(v, want)
                 try self.store_to(try self.slot_address(self.result_slot), value)
         try self.leave(false)
 
     ## Leave the function: mark success when fallible, run cleanup, return the result slot.
-    mutating func leave(failing: bool) -> !:
+    func leave(failing: bool) -> !:
         try self.release_grown(0)
         if self.f.has_result:
             let r = try self.slot_address(self.result_slot)
@@ -483,7 +483,7 @@ extend Lowerer:
 
     ## Run the cleanup of a failing exit with the error kept: deferred code may fail and
     ## recover inside itself, which writes `core.failure` over the error on its way out.
-    mutating func unwind_keeping_failure() -> !:
+    func unwind_keeping_failure() -> !:
         if self.defers.count == 0:
             try self.unwind_from(0, true)
             return
@@ -492,12 +492,12 @@ extend Lowerer:
         try self.unwind_from(0, true)
         try self.f.copy_bytes(try self.failure_address(), try self.slot_address(kept), 24)
 
-    mutating func debug_leave() -> !:
+    func debug_leave() -> !:
         if self.f.debug:
             try self.debug_call("lb_debug_leave", u32(self.f.args.count), 0)
 
     ## `error(code, message)`: the failing result leaves the function.
-    mutating func error_return(e: ast.Node*) -> !:
+    func error_return(e: ast.Node*) -> !:
         let first = e.body else return
         let code = first.left else return
         let second = first.next else return
@@ -518,9 +518,9 @@ extend Lowerer:
 
     ## Pass on the failure of a result at `source`: to the enclosing handler, which takes
     ## the error from `core.failure`, or out of the function with the error left there.
-    mutating func propagate(source: ir.Ref, source_type: u32) -> !:
-        discard(source)
-        discard(source_type)
+    func propagate(source: ir.Ref, source_type: u32) -> !:
+        _ = source
+        _ = source_type
         if self.failure_target != 0:
             try self.f.copy_bytes(try self.slot_address(self.failure_slot), try self.failure_address(), 24)
             try self.release_grown(self.failure_grown)
@@ -529,18 +529,18 @@ extend Lowerer:
             return
         try self.leave(true)
 
-    mutating func recover_stmt(s: ast.Node*) -> !:
+    func recover_stmt(s: ast.Node*) -> !:
         let v = s.left else return
         if self.catch_payload != types.unit_id and self.catch_payload != types.never_id:
             let value = try self.value(v, self.catch_payload)
             try self.store_to(try self.slot_address(self.catch_slot), value)
         else:
-            discard(try self.expr(v))
+            _ = try self.expr(v)
         try self.unwind_from(self.catch_scope, false)
         try self.f.jump(self.catch_done)
         try self.f.place_label(self.f.label())
 
-    mutating func free_stmt(s: ast.Node*) -> !:
+    func free_stmt(s: ast.Node*) -> !:
         let v = s.left else return
         let t = try self.ty(v)
         let block = try self.expr(v)
@@ -560,7 +560,7 @@ extend Lowerer:
             try self.f.store(ir.Op.storel, bytes, try self.offset_address(span, 8))
         try self.allocator_release(view, span)
 
-    mutating func with_stmt(s: ast.Node*) -> !:
+    func with_stmt(s: ast.Node*) -> !:
         let a = s.left else return
         let saved = try self.f.slot(16, 8)
         try self.f.copy_bytes(try self.slot_address(saved), try self.allocator_global(), 16)
@@ -579,7 +579,7 @@ extend Lowerer:
     ## Inline assembly (§16.7): each `in`/`inout` operand is moved into its named register
     ## before the block, each `out`/`inout` register stored back after it. The raw lines name
     ## the registers directly, so a specific register (`x0`, `d1`) is required, not `reg`.
-    mutating func asm_stmt(s: ast.Node*) -> !:
+    func asm_stmt(s: ast.Node*) -> !:
         # the block for another architecture is not this build's (§8.9)
         if s.text != self.arch_name():
             return

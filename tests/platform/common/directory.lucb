@@ -13,15 +13,15 @@ pub func main(arguments: str[]) -> i32!:
     var arena = FixedBuffer.over(backing)
     with arena:
         var room: u8[1024]
-        let base = try format(room[..<256], f"{path.temp()}/luce-platform-{os.pid()}")
+        let base = try strings.format(room[..<256], f"{path.temp()}/luce-platform-{os.pid()}")
         let mkdir_args: c.str[1] = [(c.str)base]
         let made = try process.run("mkdir", mkdir_args)
         defer made.release()
         if made.value.exit_code != 0:
             error(files.failed, "the directory cannot be made")
-        let first = try format(room[256..<512], f"{base}/first.txt")
-        let second = try format(room[512..<768], f"{base}/second.txt")
-        let third = try format(room[768..], f"{base}/.hidden")
+        let first = try strings.format(room[256..<512], f"{base}/first.txt")
+        let second = try strings.format(room[512..<768], f"{base}/second.txt")
+        let third = try strings.format(room[768..], f"{base}/.hidden")
         try files.write((c.str)first, "one\n".bytes)
         try files.write((c.str)second, "two and more\n".bytes)
         try files.write((c.str)third, "".bytes)

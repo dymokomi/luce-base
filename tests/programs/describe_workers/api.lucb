@@ -2,6 +2,6 @@ import interop
 pub type Handler = interop.Callback[str, str]
 pub type Factory = interop.WorkerEntry[(str, i64?), str, str]
 pub func start(factory: Factory):
-    discard(factory)
+    _ = factory
 pub func ready(factory: interop.WorkerEntry[unit, unit, unit]):
-    discard(factory)
+    _ = factory

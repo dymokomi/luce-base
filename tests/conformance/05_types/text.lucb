@@ -2,6 +2,7 @@
 ## does not; text crosses to `c.str` and back; a formatted string reaches `print`, `format`,
 ## and an `fmt` parameter.
 import c
+import strings
 
 func shout(message: fmt):
     print(message)
@@ -26,7 +27,7 @@ pub func main(arguments: str[]) -> i32:
     let back = str(cs) catch:
         recover "bad"
     var buffer: u8[32]
-    let made = format(buffer, f"{word}:{bytes}") catch:
+    let made = strings.format(buffer, f"{word}:{bytes}") catch:
         recover ""
     let nul_after = buffer[made.length] == 0
     shout(f"{made} {nul_after}")

@@ -91,7 +91,7 @@ pub func run(arguments: c.str[], out: io.Writer) -> i32!:
         var header = request.header
         var include_name = ""
         if not files.exists((c.str)try strings.copy(header)):
-            let located = try pp.locate(header) else error(pre.failed, try strings.copy(try format(scratch[0..], f"{header} is neither a file nor in an include directory")))
+            let located = try pp.locate(header) else error(pre.failed, try strings.copy(try strings.format(scratch[0..], f"{header} is neither a file nor in an include directory")))
             include_name = header
             header = located
         let tokens = try pp.run(header)
@@ -122,11 +122,11 @@ pub func run(arguments: c.str[], out: io.Writer) -> i32!:
         # how the shims include the header: by its include name, by its base name when
         # they sit beside it, else by its path
         let canonical = pp.path_of(pp.main_file)
-        var include = try strings.copy(try format(scratch[0..], f"\"{canonical}\""))
+        var include = try strings.copy(try strings.format(scratch[0..], f"\"{canonical}\""))
         if include_name.length > 0:
-            include = try strings.copy(try format(scratch[0..], f"<{include_name}>"))
+            include = try strings.copy(try strings.format(scratch[0..], f"<{include_name}>"))
         elif shims.length > 0 and try same_directory(shims, canonical):
-            include = try strings.copy(try format(scratch[0..], f"\"{paths.base(canonical)}\""))
+            include = try strings.copy(try strings.format(scratch[0..], f"\"{paths.base(canonical)}\""))
         var e = try emit.Emitter.over(&parser, &pp, &recipe, canonical, include, module, recipe_file)
         try e.write()
         try io.stderr().write(pp.report.view())
@@ -144,7 +144,7 @@ pub func run(arguments: c.str[], out: io.Writer) -> i32!:
         if e.unmapped_count() == 1:
             try io.stderr().write("luce-base: one declaration was not mapped; see above\n")
         elif e.unmapped_count() > 1:
-            try io.stderr().write(try format(scratch[0..], f"luce-base: {e.unmapped_count()} declarations were not mapped; see above\n"))
+            try io.stderr().write(try strings.format(scratch[0..], f"luce-base: {e.unmapped_count()} declarations were not mapped; see above\n"))
         return 0
 
 ## The tokens as text: each first-of-line token on a new line, spacing kept, with a
@@ -213,6 +213,6 @@ func same_directory(planned: str, existing: str) -> bool!:
     if dir.length == 0:
         dir = "."
     let resolved = in_arena.canonical((c.str)try strings.copy(dir)) catch failure:
-        discard(failure)
+        _ = failure
         recover ""
     return resolved.length > 0 and resolved == paths.directory(existing)

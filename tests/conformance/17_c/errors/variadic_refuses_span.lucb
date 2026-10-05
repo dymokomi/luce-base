@@ -6,5 +6,5 @@ extern func printf(format: c.str, ...) -> i32
 pub func main(arguments: str[]) -> i32:
     let bytes: u8[2] = [1, 2]
     let view: const u8[] = bytes
-    discard(printf("%p", view))
+    _ = printf("%p", view)
     return 0

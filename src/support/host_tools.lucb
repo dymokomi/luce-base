@@ -33,23 +33,6 @@ pub struct Workspace:
     pub func path() -> str:
         return self.directory
 
-    ## Move a produced file out of the workspace to `destination`. On Windows a file that
-    ## was just written or run is often held open for a moment by another process (a virus
-    ## scan, the indexer, the previous program still closing), and replacing it fails until
-    ## that handle closes: the move is tried again every 25 ms for two and a half seconds
-    ## before its failure stands.
-    pub func publish(source: str, destination: str) -> !:
-        let target = try strings.copy(destination)
-        var tries = 0
-        while true:
-            files.rename((c.str)source, (c.str)target, true) catch failure:
-                if platform.windows and tries < 100:
-                    tries += 1
-                    thread.sleep(25)
-                    continue
-                error(failure.code, failure.message)
-            return
-
     ## Remove the workspace and everything in it.
     pub func close() -> !:
         try files.remove_tree((c.str)self.directory)
@@ -57,7 +40,24 @@ pub struct Workspace:
     ## Remove the workspace, ignoring failure.
     pub func destroy():
         self.close() catch failure:
-            discard(failure)
+            _ = failure
+
+## Move a produced file out of the workspace to `destination`. On Windows a file that
+## was just written or run is often held open for a moment by another process (a virus
+## scan, the indexer, the previous program still closing), and replacing it fails until
+## that handle closes: the move is tried again every 25 ms for two and a half seconds
+## before its failure stands.
+pub func publish(source: str, destination: str) -> !:
+    let target = try strings.copy(destination)
+    var tries = 0
+    while true:
+        files.rename((c.str)source, (c.str)target, true) catch failure:
+            if platform.windows and tries < 100:
+                tries += 1
+                thread.sleep(25)
+                continue
+            error(failure.code, failure.message)
+        return
 
 ## Rebase only filesystem operands. Flags, library names and framework names are
 ## preserved. Existing external inputs become absolute before changing child cwd.
@@ -76,7 +76,7 @@ func operand(text: str, directory: str) -> str!:
 ## constructor files. The workspace owner removes all of them after publication.
 pub func run_compiler(program: c.str, arguments: const c.str[], directory: str) -> interop.Owned[process.Completed]!:
     if platform.windows:
-        let selected = try alloc c.str[arguments.length + 1]
+        let selected = try new c.str[arguments.length + 1] ---
         for index in 0..<arguments.length:
             selected[index] = arguments[index]
         selected[arguments.length] = "-save-temps=obj"
@@ -89,13 +89,13 @@ pub func run_compiler(program: c.str, arguments: const c.str[], directory: str) 
 pub func run(program: c.str, arguments: const c.str[], directory: str = "") -> interop.Owned[process.Completed]!:
     if directory.length == 0:
         return try process.run(program, arguments)
-    let converted = try alloc c.str[arguments.length]
+    let converted = try new c.str[arguments.length] ---
     for index in 0..<arguments.length:
         let text = (str)arguments[index]
         if strings.starts_with(text, "-I") or strings.starts_with(text, "-L"):
             let path = try operand((str)text.bytes[2..], directory)
-            let buffer = try alloc u8[path.length + 3]
-            converted[index] = (c.str)try format(buffer, f"{(str)text.bytes[..<2]}{path}")
+            let buffer = try new u8[path.length + 3] ---
+            converted[index] = (c.str)try strings.format(buffer, f"{(str)text.bytes[..<2]}{path}")
         elif text.length > 0 and text.bytes[0] == '-':
             converted[index] = arguments[index]
         else:

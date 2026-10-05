@@ -4,6 +4,7 @@
 ## function takes the promoted arguments of §17.2.
 # oracle: none
 import c
+import memory
 
 extern struct Parts:
     quot: c.long
@@ -30,7 +31,7 @@ pub func main(arguments: str[]) -> i32:
     let counter = counter_new()
     counter_bump(counter)
     counter_bump(counter)
-    print(f"{(i64)counter_value(counter)} {counter_none() == none} {sizeof(Counter) == sizeof(void*)}")
+    print(f"{(i64)counter_value(counter)} {counter_none() == none} {memory.size_of(Counter) == memory.size_of(void*)}")
     counter_free(counter)
     let small: u8 = 4
     print(f"{shim_sum(3, 1, 2, small)} {shim_sum(0)}")

@@ -55,9 +55,9 @@ pub struct Aliases:
     pub var escapes: bool[]
 
     ## Classify every temporary of `f`, and find which slots' addresses escape.
-    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Aliases!:
+    pub func over(f: ir.Function*, g: cfg.Graph*) -> Aliases!:
         let n = f.temps.count + 1
-        var a = Aliases(of = try alloc Alias[n], escapes = try alloc bool[f.slots.count + 1])
+        var a = Aliases(of = try new Alias[n] ---, escapes = try new bool[f.slots.count + 1] ---)
         var t: usize = 0
         while t < n:
             a.of[t] = Alias(kind = Kind.unknown, base = u32(t), name = "", offset = 0)
@@ -183,7 +183,7 @@ pub struct Aliases:
         return a
 
     ## Free the alias tables.
-    pub mutating func release():
+    pub func release():
         free(self.of)
         free(self.escapes)
 
@@ -243,11 +243,11 @@ struct Search:
     ## linear on a long block of loads.
     var budget: u32
 
-    mutating func find(address: ir.Ref, width: i64, op: ir.Op, cls: ir.Class, b: u32, at: u32) -> ir.Ref?!:
+    func find(address: ir.Ref, width: i64, op: ir.Op, cls: ir.Class, b: u32, at: u32) -> ir.Ref?!:
         return try find_value(&self, self.aliases.at(address, 0), width, op, cls, b, at)
 
     ## The joins that succeeded become phis at their blocks' heads.
-    mutating func place() -> !:
+    func place() -> !:
         var out = try list.List[ir.Instr].create(self.f.instrs.count + self.joins.count)
         var b: usize = 0
         while b < self.g.blocks.count:
@@ -295,7 +295,7 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
     var search = Search(f = f, g = g, aliases = &aliases, joins = try list.List[Join].create(16), join_args = try list.List[ir.PhiArg].create(32), budget = 0)
     defer search.joins.destroy()
     defer search.join_args.destroy()
-    var block_at = try alloc u32[f.instrs.count + 1]
+    var block_at = try new u32[f.instrs.count + 1] ---
     defer free(block_at)
     var b: usize = 0
     while b < g.blocks.count:
@@ -307,7 +307,7 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
         b += 1
     # the answers are recorded and applied after: a load answered stays a load while the
     # later loads search, so that they may find it
-    var answers = try alloc ir.Ref[f.instrs.count + 1]
+    var answers = try new ir.Ref[f.instrs.count + 1] ---
     defer free(answers)
     var changed = false
     var i: usize = 0

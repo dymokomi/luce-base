@@ -64,15 +64,15 @@ func temporary_cases(directory: c.str) -> !:
         temporary = try files.TemporaryFile.create(directory)
         try io.write_all(&temporary, "kept".bytes)
         var rejected = false
-        discard(files.TemporaryFile.create(directory) catch failure:
+        _ = files.TemporaryFile.create(directory) catch failure:
             assert(failure.code == files.already_exists)
             rejected = true
             var empty: files.TemporaryFile
-            recover empty)
+            recover empty
         assert(rejected and atomic_fault_hits() == 129)
         atomic_fault_clear()
     # The object retains its pathname allocator across with blocks.
-    discard(try temporary.seek(0))
+    _ = try temporary.seek(0)
     var bytes: u8[4]
     try io.read_exact(&temporary, bytes)
     assert((str)bytes == "kept")
@@ -99,20 +99,20 @@ func copy_cases(path: c.str, directory: c.str) -> !:
     let before = atomic_descriptors()
     var rejected = false
     var published = true
-    discard(files.copy_file(source, source, replace = true, published = &published) catch failure:
+    _ = files.copy_file(source, source, replace = true, published = &published) catch failure:
         assert(failure.code == files.invalid_options)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected and not published)
     let alias_name = try paths.join((str)directory, "copy-alias")
     defer alias_name.release()
     let alias = alias_name.value
     try files.create_hard_link(source, (c.str)alias)
     rejected = false
-    discard(files.copy_file(source, (c.str)alias, replace = true) catch failure:
+    _ = files.copy_file(source, (c.str)alias, replace = true) catch failure:
         assert(failure.code == files.invalid_options)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected)
     try files.remove_file((c.str)alias)
     var allocation_index: usize = 0
@@ -123,10 +123,10 @@ func copy_cases(path: c.str, directory: c.str) -> !:
         rejected = false
         published = false
         with owner:
-            discard(files.copy_file(source, path, replace = true, synchronize = true, published = &published) catch failure:
+            _ = files.copy_file(source, path, replace = true, synchronize = true, published = &published) catch failure:
                 assert(failure.code == memory.exhausted)
                 rejected = true
-                recover 0)
+                recover 0
         if allocation_index == 0:
             allocation_steps = owner.attempts
         assert(rejected == (allocation_index != 0) and published == (allocation_index == 0))
@@ -136,16 +136,16 @@ func copy_cases(path: c.str, directory: c.str) -> !:
         allocation_index += 1
     try files.write(path, "old".bytes)
     rejected = false
-    discard(files.copy_file(source, path) catch failure:
+    _ = files.copy_file(source, path) catch failure:
         assert(failure.code == files.already_exists)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected)
     rejected = false
-    discard(files.copy_file(source, path, limit = 5, replace = true, published = &published) catch failure:
+    _ = files.copy_file(source, path, limit = 5, replace = true, published = &published) catch failure:
         assert(failure.code == files.too_large)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected and not published)
     try check_state(path, directory, "old", before)
     var kind: i32 = 10
@@ -185,7 +185,7 @@ pub func main(arguments: c.str[]) -> i32!:
     let steps = try allocation_case(path, directory, 0)
     var fail_at: usize = 1
     while fail_at <= steps:
-        discard(try allocation_case(path, directory, fail_at))
+        _ = try allocation_case(path, directory, fail_at)
         fail_at += 1
     try syscall_cases(path, directory)
     try temporary_cases(directory)

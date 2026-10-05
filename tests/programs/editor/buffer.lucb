@@ -10,13 +10,13 @@ pub struct Buffer:
     pub var cursor: usize
     pub var dirty: bool
 
-    pub static func create(text: const u8[]) -> Buffer!:
+    pub func create(text: const u8[]) -> Buffer!:
         let room = text.length + 256
-        var data = try alloc u8[room]
+        var data = try new u8[room] ---
         memory.copy(data, text, text.length)
         return Buffer(data = data, gap_start = text.length, gap_end = room, cursor = 0, dirty = false)
 
-    pub mutating func destroy():
+    pub func destroy():
         free(self.data)
 
     pub func length() -> usize:
@@ -30,7 +30,7 @@ pub struct Buffer:
     ## The whole text, contiguous, in a block the caller frees.
     pub func copy() -> u8[]!:
         let n = self.length()
-        var out = try alloc u8[n if n > 0 else 1]
+        var out = try new u8[n if n > 0 else 1] ---
         memory.copy(out, self.data[..<self.gap_start], self.gap_start)
         memory.copy(out[self.gap_start..], self.data[self.gap_end..], self.data.length - self.gap_end)
         return out[..<n]
@@ -45,7 +45,7 @@ pub struct Buffer:
             n += 1
         return out[..<n]
 
-    mutating func move_gap(to: usize) -> !:
+    func move_gap(to: usize) -> !:
         if to == self.gap_start:
             return
         let width = self.gap_end - self.gap_start
@@ -58,11 +58,11 @@ pub struct Buffer:
         self.gap_start = to
         self.gap_end = to + width
 
-    mutating func reserve(extra: usize) -> !:
+    func reserve(extra: usize) -> !:
         if self.gap_end - self.gap_start >= extra:
             return
         let needed = self.length() + extra + 1024
-        var grown = try alloc u8[needed]
+        var grown = try new u8[needed] ---
         memory.copy(grown, self.data[..<self.gap_start], self.gap_start)
         let tail = self.data.length - self.gap_end
         memory.copy(grown[needed - tail..], self.data[self.gap_end..], tail)
@@ -70,7 +70,7 @@ pub struct Buffer:
         self.data = grown
         self.gap_end = needed - tail
 
-    pub mutating func insert(at: usize, text: const u8[]) -> !:
+    pub func insert(at: usize, text: const u8[]) -> !:
         try self.reserve(text.length)
         try self.move_gap(at)
         memory.copy(self.data[self.gap_start..], text, text.length)
@@ -79,7 +79,7 @@ pub struct Buffer:
             self.cursor += text.length
         self.dirty = true
 
-    pub mutating func remove(start: usize, end: usize) -> !:
+    pub func remove(start: usize, end: usize) -> !:
         if end <= start:
             return
         try self.move_gap(start)
@@ -91,7 +91,7 @@ pub struct Buffer:
         self.dirty = true
 
     ## Replace everything, for undo.
-    pub mutating func reset(text: const u8[], cursor: usize) -> !:
+    pub func reset(text: const u8[], cursor: usize) -> !:
         try self.remove(0, self.length())
         try self.insert(0, text)
         self.cursor = cursor if cursor <= text.length else text.length

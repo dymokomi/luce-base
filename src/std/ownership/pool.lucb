@@ -36,10 +36,9 @@ pub func pool_object(o: Object*) -> Object*:
 
 ## An owned value of any type handed on as a temporary; `drop` releases what it holds.
 pub func pool_value[T](v: T, drop: func(void*) -> unit) -> T:
-    let block = alloc(sizeof(T), alignof(T)) in memory.heap catch failure:
-        trap("out of memory")
+    let block = memory.heap.allocate(memory.size_of(T), memory.align_of(T)) else trap("out of memory")
     memory.write[T](block.data, v)
-    push_pending(Pending(object = none, cell = block.data, drop = drop, size = sizeof(T)))
+    push_pending(Pending(object = none, cell = block.data, drop = drop, size = memory.size_of(T)))
     return v
 
 ## Releases every temporary pooled since `mark`, in the order they were pooled.
@@ -68,7 +67,7 @@ func release_cell(cell: void*, size: usize):
 ## first `count` kept and its old storage freed: the growth of the runtime's own lists.
 ## Out of memory traps, as the bookkeeping has no failure to report into.
 func grow[T](items: T[], count: usize, least: usize) -> T[]:
-    let grown = alloc T[items.length * 2 if items.length > 0 else least] in memory.heap catch failure:
+    let grown = new T[items.length * 2 if items.length > 0 else least] --- in memory.heap catch failure:
         trap("out of memory")
     for i in 0..<count:
         grown[i] = items[i]

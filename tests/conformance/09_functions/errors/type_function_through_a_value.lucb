@@ -1,0 +1,13 @@
+# error: `origin` does not read `self`: it is a function of the type, called as `Point.origin()`
+# oracle: none
+## §9.5: a function in a type whose body never reads `self` belongs to the type.
+struct Point:
+    var x: f64
+
+    func origin() -> Point:
+        return Point(x = 0.0)
+
+pub func main(arguments: str[]) -> i32:
+    let p = Point(x = 1.0)
+    let q = p.origin()
+    return 0

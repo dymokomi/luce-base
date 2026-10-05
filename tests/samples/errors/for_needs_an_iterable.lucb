@@ -4,5 +4,5 @@ struct Plain:
 
 pub func main(arguments: str[]) -> i32:
     for x in Plain(n = 1):
-        discard(x)
+        _ = x
     return 0

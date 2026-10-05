@@ -1,0 +1,5 @@
+# error: this format specification does not fit the value: a float is formatted with
+## §5.5: a type letter belongs to its kind of value: `x` to an integer.
+pub func main(arguments: str[]) -> i32:
+    print(f"{1.5:x}")
+    return 0

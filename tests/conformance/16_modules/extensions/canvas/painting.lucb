@@ -3,7 +3,7 @@
 import strings
 
 extend Canvas:
-    pub mutating func paint(tool: Tool) -> !:
+    pub func paint(tool: Tool) -> !:
         if tool.erases() and self.strokes == 0:
             error(nothing_to_erase, "nothing to erase")
         self.strokes += 1 if not tool.erases() else -1

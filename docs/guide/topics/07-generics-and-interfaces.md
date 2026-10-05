@@ -11,6 +11,7 @@ Type parameters are written in square brackets, as in Python 3.12's `def first[T
 
 ```luce
 from luce import Comparable
+import memory
 
 struct Pair[A, B]:
     pub var first: A
@@ -26,7 +27,7 @@ func largest[T: Comparable](values: const T[]) -> T?:
     return best
 
 func size_of[T]() -> usize:
-    return sizeof(T)
+    return memory.size_of(T)
 
 pub func main(arguments: str[]) -> i32:
     let p = Pair(first = 1, second = "one")
@@ -115,8 +116,9 @@ Calls go through the table. A view is made from a pointer to an object of a conf
 `let s: Shape = &square`, and the array above holds two of them.
 
 A view does not own or copy the object. The object must outlive the view, as with any
-pointer. If the interface has `mutating` methods, the view must be made from a pointer to
-something changeable, a `var`. `Shape?` is a view that may be empty. Views have no `==`, and
+pointer. If the type's methods for the interface change the object, `write` assigning to
+a field, the view must be made from a pointer to something changeable, a `var`; a type
+whose methods only read can be viewed through a `let`. `Shape?` is a view that may be empty. Views have no `==`, and
 a view cannot be turned back into its concrete type: when that is needed, use an enum.
 
 ## The standard interfaces
@@ -125,11 +127,11 @@ These are imported from the `luce` and `io` modules.
 
 | Interface | Methods | Used by |
 | --- | --- | --- |
-| `Equatable`, `Hashable` | none you write | `==`, `hash`; provided automatically, cannot be implemented by hand |
+| `Equatable`, `Hashable` | none you write | `==`, `value.hash()`; provided automatically, cannot be implemented by hand |
 | `Comparable` | `compare(other) -> i64` | sorting and ordering; negative, zero or positive |
 | `Display` | `display(sink: Writer) -> !` | formatted strings: how `{value}` prints |
-| `Writer` (in `io`) | `mutating write(bytes: const u8[]) -> usize!` | anything that accepts output |
-| `Iterable[T, I]`, `Iterator[T]` | `iterator() -> I`, `mutating next() -> T?` | `for` loops |
+| `Writer` (in `io`) | `write(bytes: const u8[]) -> usize!` | anything that accepts output |
+| `Iterable[T, I]`, `Iterator[T]` | `iterator() -> I`, `next() -> T?` | `for` loops |
 
 Numbers, `char` and `str` are `Comparable` already. Floats compare in IEEE order, and
 `compare` traps on NaN.
@@ -154,7 +156,7 @@ struct Version: Comparable, Display:
         return (i64)self.minor - (i64)other.minor
 
     func display(sink: Writer) -> !:
-        discard(try sink.write(f"v{self.major}.{self.minor}"))
+        _ = try sink.write(f"v{self.major}.{self.minor}")
 
 func newest(versions: const Version[]) -> Version?:
     var best = versions.first() else return none
@@ -165,7 +167,7 @@ func newest(versions: const Version[]) -> Version?:
 pub func main(arguments: str[]) -> i32!:
     let versions = [Version(major = 1, minor = 2), Version(major = 1, minor = 10), Version(major = 0, minor = 9)]
     if let latest = newest(versions): print(f"newest {latest}")
-    discard(try io.stdout().write(f"{Version(major = 2, minor = 0)} through stdout\n"))
+    _ = try io.stdout().write(f"{Version(major = 2, minor = 0)} through stdout\n")
     return 0
 ```
 
@@ -184,14 +186,14 @@ from io import Writer
 struct Tally: Writer:
     var bytes: usize
 
-    mutating func write(data: const u8[]) -> usize!:
+    func write(data: const u8[]) -> usize!:
         self.bytes += data.length
         return data.length
 
 pub func main(arguments: str[]) -> i32!:
     var tally = Tally(bytes = 0)
     let sink: Writer = &tally
-    discard(try sink.write(f"{3} apples and {12} pears"))
+    _ = try sink.write(f"{3} apples and {12} pears")
     print(f"{tally.bytes} bytes written")
     return 0
 ```

@@ -103,7 +103,7 @@ pub struct Lives:
         return self.start[(usize)t]
 
     ## Temporary `t` needs no register nor home (`remat`): it has no life to allocate.
-    pub mutating func forget(t: u32):
+    pub func forget(t: u32):
         self.start[(usize)t] = no_position
         self.head[(usize)t] = no_position
 
@@ -114,11 +114,11 @@ pub struct Lives:
     ## The lives of `f`'s temporaries over its graph `g`, whose loops are found
     ## (`cfg.Graph.loops`). Every allocation is the current allocator's; `release` gives
     ## them back.
-    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Lives!:
+    pub func over(f: ir.Function*, g: cfg.Graph*) -> Lives!:
         let n = f.temps.count
         let m = f.instrs.count
-        var l = Lives(count = n, start = try alloc u32[n + 1], end = try alloc u32[n + 1], head = try alloc u32[n + 1], use_head = try alloc u32[n + 1],
-                      crosses = try alloc bool[n + 1], asm_bound = try alloc bool[n + 1], saved = try alloc bool[n + 1], hint = try alloc u32[n + 1], weights = try alloc u32[m + 1], writes = try alloc u64[n + 1], ranges = try list.List[Range].create(2 * m + n + 2),
+        var l = Lives(count = n, start = try new u32[n + 1] ---, end = try new u32[n + 1] ---, head = try new u32[n + 1] ---, use_head = try new u32[n + 1] ---,
+                      crosses = try new bool[n + 1] ---, asm_bound = try new bool[n + 1] ---, saved = try new bool[n + 1] ---, hint = try new u32[n + 1] ---, weights = try new u32[m + 1] ---, writes = try new u64[n + 1] ---, ranges = try list.List[Range].create(2 * m + n + 2),
                       uses = try list.List[Use].create(3 * m + 2))
         var t: usize = 0
         while t <= n:
@@ -212,7 +212,7 @@ pub struct Lives:
         return l
 
     ## The temporary `r` names, when it is one, must survive an asm block.
-    mutating func mark_at(r: ir.Ref, n: usize):
+    func mark_at(r: ir.Ref, n: usize):
         if r.kind == ir.RefKind.temp and (usize)r.index <= n:
             self.crosses[(usize)r.index] = true
             self.asm_bound[(usize)r.index] = true
@@ -239,7 +239,7 @@ pub struct Lives:
         return false
 
     ## Free the lives' backing storage.
-    pub mutating func release():
+    pub func release():
         free(self.start)
         free(self.end)
         free(self.head)
@@ -255,7 +255,7 @@ pub struct Lives:
 
     ## Each instruction's weight, its block's loop weight, and what the writes of each
     ## temporary weigh.
-    mutating func weigh(f: ir.Function*, g: cfg.Graph*):
+    func weigh(f: ir.Function*, g: cfg.Graph*):
         for i in 0..<self.weights.length:
             self.weights[i] = 1
         for block in g.blocks.span():
@@ -270,7 +270,7 @@ pub struct Lives:
                 self.writes[(usize)x.dst] += (u64)self.weights[i]
 
     ## Add `[low, high)` to temporary `t`: merged into the head range when they touch.
-    mutating func add_range(t: u32, low: u32, high: u32) -> !:
+    func add_range(t: u32, low: u32, high: u32) -> !:
         let h = self.head[(usize)t]
         let k = (usize)h
         if h != no_position and self.ranges.items[k].low <= high:
@@ -288,7 +288,7 @@ pub struct Lives:
 
     ## Temporary `t` is defined at `at`: its head range begins there; a value nothing reads
     ## still occupies its register at the instruction that writes it.
-    mutating func define_at(t: u32, at: u32) -> !:
+    func define_at(t: u32, at: u32) -> !:
         let h = self.head[(usize)t]
         let k = (usize)h
         if h != no_position and self.ranges.items[k].low <= at and at < self.ranges.items[k].high:
@@ -302,7 +302,7 @@ pub struct Lives:
         try self.add_range(t, at, at + 1)
 
     ## `r`, when a temporary, is read at `at` inside a block beginning at `block_start`.
-    mutating func use_at(r: ir.Ref, block_start: u32, at: u32) -> !:
+    func use_at(r: ir.Ref, block_start: u32, at: u32) -> !:
         if r.kind != ir.RefKind.temp or (usize)r.index > self.count:
             return
         try self.add_range(r.index, block_start, at + 1)
@@ -370,9 +370,9 @@ pub struct Lives:
     ## The most temporaries of each class live at one position: integers, then floats.
     pub func pressure(f: ir.Function*) -> (u32, u32)!:
         let m = 2 * f.instrs.count + 3
-        var delta_int = try alloc i32[m]
+        var delta_int = try new i32[m] ---
         defer free(delta_int)
-        var delta_float = try alloc i32[m]
+        var delta_float = try new i32[m] ---
         defer free(delta_float)
         var k: usize = 0
         while k < m:
@@ -413,7 +413,7 @@ pub struct Lives:
     ## Give each temporary a register code, 0 for the frame: `held` is the mask of codes the
     ## promoted slots keep for the whole function; `regs` receives a code per temporary and
     ## the mask of every code used comes back. A linear scan over the intervals by start.
-    pub mutating func allocate(f: ir.Function*, pools: Pools, held: u64, regs: u8[]) -> u64!:
+    pub func allocate(f: ir.Function*, pools: Pools, held: u64, regs: u8[]) -> u64!:
         let n = self.count
         for t in 0..<n:
             regs[t] = 0
@@ -424,12 +424,12 @@ pub struct Lives:
         var scan = try Scan.create(alive)
         defer scan.release()
         let codes = (usize)pools.count()
-        var free_until = try alloc u32[codes + 1]
+        var free_until = try new u32[codes + 1] ---
         defer free(free_until)
-        var holders_cost = try alloc u64[codes + 1]
+        var holders_cost = try new u64[codes + 1] ---
         defer free(holders_cost)
         # what each temporary would cost in the frame, once: eviction asks it of every holder
-        var costs = try alloc u64[n + 1]
+        var costs = try new u64[n + 1] ---
         defer free(costs)
         for each in 1..<costs.length:
             costs[each] = self.cost(u32(each))
@@ -473,7 +473,7 @@ pub struct Lives:
     func by_start(f: ir.Function*) -> (u32[], usize)!:
         let n = self.count
         let m = 2 * f.instrs.count + 2
-        var bucket = try alloc u32[m + 1]
+        var bucket = try new u32[m + 1] ---
         defer free(bucket)
         for k in 0..<m + 1:
             bucket[k] = 0
@@ -484,7 +484,7 @@ pub struct Lives:
                 alive += 1
         for k in 1..<m + 1:
             bucket[k] += bucket[k - 1]
-        var order = try alloc u32[alive + 1]
+        var order = try new u32[alive + 1] ---
         for t in 1..<n + 1:
             if self.start[t] != no_position:
                 order[(usize)bucket[(usize)self.start[t]]] = u32(t)
@@ -584,18 +584,18 @@ struct Scan:
     var inactive_count: usize
 
     ## Room for `alive` intervals in each set.
-    static func create(alive: usize) -> Scan!:
-        let active = try alloc u32[alive + 1]
+    func create(alive: usize) -> Scan!:
+        let active = try new u32[alive + 1] ---
         errdefer free(active)
-        return Scan(active = active, active_count = 0, inactive = try alloc u32[alive + 1], inactive_count = 0)
+        return Scan(active = active, active_count = 0, inactive = try new u32[alive + 1] ---, inactive_count = 0)
 
-    mutating func release():
+    func release():
         free(self.active)
         free(self.inactive)
 
     ## Move to position `s`: what ended is dropped, what has a hole here becomes inactive,
     ## and what resumes here active again.
-    mutating func advance(lives: Lives*, s: u32):
+    func advance(lives: Lives*, s: u32):
         var a: usize = 0
         while a < self.active_count:
             let h = self.active[a]
@@ -623,12 +623,12 @@ struct Scan:
             else:
                 a += 1
 
-    mutating func activate(t: u32):
+    func activate(t: u32):
         self.active[self.active_count] = t
         self.active_count += 1
 
     ## Send every interval holding register `code` to the frame.
-    mutating func drop_holders(regs: u8[], code: usize):
+    func drop_holders(regs: u8[], code: usize):
         var a: usize = 0
         while a < self.active_count:
             if (usize)regs[(usize)self.active[a] - 1] == code:
@@ -755,7 +755,7 @@ test "intervals have holes: two values alive in different arms share one registe
         assert(not lives.covers(a, lives.start[(usize)b]))
         var regs: u8[8]
         let pools = Pools(callee_ints = 1, callee_floats = 0, scratch_ints = 0, scratch_floats = 0)
-        discard(try lives.allocate(&f, pools, 0, regs[..<5]))
+        _ = try lives.allocate(&f, pools, 0, regs[..<5])
         # one callee-saved register serves both arms: a and b never meet
         assert(regs[(usize)a - 1] == 1 and regs[(usize)b - 1] == 1)
         lives.release()
@@ -782,7 +782,7 @@ test "a call's words take their own registers even when one is never read":
         assert(lives.start[(usize)w0] == lives.start[(usize)w1])
         var regs: u8[8]
         let pools = Pools(callee_ints = 1, callee_floats = 0, scratch_ints = 2, scratch_floats = 0)
-        discard(try lives.allocate(&f, pools, 0, regs[..<3]))
+        _ = try lives.allocate(&f, pools, 0, regs[..<3])
         assert(regs[(usize)w0 - 1] != regs[(usize)w1 - 1])
         lives.release()
         g.release()

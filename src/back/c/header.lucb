@@ -60,7 +60,7 @@ struct Header:
     # -- records ---------------------------------------------------------------------------
 
     ## The records every export of `tree` mentions, defined before the prototypes.
-    mutating func records_of(tree: ast.Node*) -> !:
+    func records_of(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
             if d.kind == ast.Kind.func_ and d.has(ast.flag_export):
@@ -76,7 +76,7 @@ struct Header:
 
     ## The package's error codes (§11.3), each as the `int` a fallible export's status
     ## carries: `#define prefix_name ((int)CODEu)`, the identity in the high half.
-    mutating func error_codes_of(tree: ast.Node*) -> !:
+    func error_codes_of(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
             if d.kind == ast.Kind.constant and d.has(ast.flag_pub) and d.type_id == types.error_code_id:
@@ -94,7 +94,7 @@ struct Header:
             cursor = d.next
 
     ## The records a signature mentions.
-    mutating func records_in(f: ast.Node*) -> !:
+    func records_in(f: ast.Node*) -> !:
         let ft = self.c.table.get(f.type_id)
         var i: usize = 0
         while i < ft.args.length:
@@ -104,7 +104,7 @@ struct Header:
 
     ## Define the record behind `id`, its fields' records first; a pointer's pointee and a
     ## span's element count, and a function type becomes a typedef of a pointer to it.
-    mutating func define(id: u32) -> !:
+    func define(id: u32) -> !:
         let t = self.c.table.get(id)
         if t.kind == types.Kind.pointer or t.kind == types.Kind.optional or t.kind == types.Kind.span or t.kind == types.Kind.array or t.kind == types.Kind.fallible:
             return try self.define(t.elem)
@@ -153,7 +153,7 @@ struct Header:
         try self.out.put("};\n\n")
 
     ## `typedef R (*luce_fn_N)(A, B);` for a function type, its own records defined first.
-    mutating func define_function(id: u32) -> !:
+    func define_function(id: u32) -> !:
         if self.function_index(id) != 0:
             return
         let t = self.c.table.get(id)
@@ -188,7 +188,7 @@ struct Header:
 
     ## One field: its type and name, an array's length after the name as C wants it, and
     ## `align(N)` as the attribute C needs to lay the record out as Base does (§5.11).
-    mutating func field(m: ast.Node*) -> !:
+    func field(m: ast.Node*) -> !:
         let t = self.c.table.get(m.type_id)
         if t.kind == types.Kind.array:
             try self.spell(t.elem)
@@ -208,7 +208,7 @@ struct Header:
                 try self.out.put(")))")
 
     ## `typedef uint32_t Flags;` and one constant per case (§17.6).
-    mutating func enum_definition(d: ast.Node*, id: u32) -> !:
+    func enum_definition(d: ast.Node*, id: u32) -> !:
         if not self.c.is_backed_enum(id):
             return error(not_representable, "an enum with payloads cannot be exported")
         let backing = check.enum_backing(&self.c.table, id)
@@ -241,7 +241,7 @@ struct Header:
     # -- prototypes ------------------------------------------------------------------------
 
     ## Every `export` function and method of `tree`.
-    mutating func prototypes_of(tree: ast.Node*) -> !:
+    func prototypes_of(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
             if d.kind == ast.Kind.func_ and d.has(ast.flag_export):
@@ -258,7 +258,7 @@ struct Header:
     ## parameter is a pointer and a `size_t` length. A fallible function is in its status
     ## form: `int` is 0 or the error's code, and the value is written through a final
     ## out-pointer.
-    mutating func prototype(f: ast.Node*, owner: ast.Node*?) -> !:
+    func prototype(f: ast.Node*, owner: ast.Node*?) -> !:
         let ft = self.c.table.get(f.type_id)
         let fallible = self.c.table.kind(ft.elem) == types.Kind.fallible
         let payload = self.c.table.get(ft.elem).elem if fallible else ft.elem
@@ -317,7 +317,7 @@ struct Header:
     # -- types -----------------------------------------------------------------------------
 
     ## The C spelling of a C-representable type (§17.6); anything else is refused.
-    mutating func spell(id: u32) -> !:
+    func spell(id: u32) -> !:
         let t = self.c.table.get(id)
         match t.kind:
             .unit_, .void_: try self.out.put("void")

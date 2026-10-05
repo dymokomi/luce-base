@@ -20,7 +20,7 @@ extern func narrow_byte(key: i32) -> i8
 extern func narrow_flag(key: i32) -> bool
 
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     var total: i32 = 0
     if narrow_signed(1) < 0:
         total += 1

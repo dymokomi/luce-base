@@ -26,9 +26,9 @@ pub struct Natural:
     pub var members: bool[]
 
     ## The natural loop of a back edge into `header`, or none when there is none.
-    pub static func find(g: cfg.Graph*, header: u32) -> Natural?!:
+    pub func find(g: cfg.Graph*, header: u32) -> Natural?!:
         let block = g.blocks.get(header)
-        var members = try alloc bool[g.count()]
+        var members = try new bool[g.count()] ---
         # the set goes out with the loop it describes, and is freed on every other way out
         var handed_out = false
         defer:
@@ -69,7 +69,7 @@ pub struct Natural:
         return Natural(header = header, preheader = preheader, members = members)
 
     ## Release the members set.
-    pub mutating func release():
+    pub func release():
         free(self.members)
 
 # mark: Simplifying phis ======================================================================
@@ -78,13 +78,13 @@ pub struct Natural:
 ## Follow only phis, require exactly one external value, and require that value
 ## to dominate the root. A bounded search leaves larger components unchanged.
 pub func simplify_phis(f: ir.Function*, g: cfg.Graph*) -> bool!:
-    var definitions = try alloc u32[f.temps.count + 1]
+    var definitions = try new u32[f.temps.count + 1] ---
     defer free(definitions)
     var blocks = try definition_blocks(f, g)
     defer free(blocks)
-    var replacements = try alloc ir.Ref[f.temps.count + 1]
+    var replacements = try new ir.Ref[f.temps.count + 1] ---
     defer free(replacements)
-    var visited = try alloc u32[f.temps.count + 1]
+    var visited = try new u32[f.temps.count + 1] ---
     defer free(visited)
     for i in 0..<definitions.length:
         definitions[i] = 0
@@ -144,7 +144,7 @@ pub func simplify_phis(f: ir.Function*, g: cfg.Graph*) -> bool!:
 
 ## The block that defines each temporary, by index.
 pub func definition_blocks(f: ir.Function*, g: cfg.Graph*) -> u32[]!:
-    var definitions = try alloc u32[f.temps.count + 1]
+    var definitions = try new u32[f.temps.count + 1] ---
     for i in 0..<definitions.length:
         definitions[i] = cfg.none_block
     for b in 0..<g.count():
@@ -185,7 +185,7 @@ func hoist(f: ir.Function*, g: cfg.Graph*, loop: Natural*) -> bool!:
     defer free(definitions)
     var aliases = try load.Aliases.over(f, g)
     defer aliases.release()
-    var moved = try alloc bool[f.instrs.count]
+    var moved = try new bool[f.instrs.count] ---
     defer free(moved)
     for i in 0..<moved.length:
         moved[i] = false

@@ -67,9 +67,9 @@ from strings import Builder
 pub func main(arguments: str[]) -> i32!:
     var text = try Builder.create()
     defer text.destroy()
-    discard(try text.write("built "))
-    discard(try text.write(f"in {2} steps"))
-    discard(try io.stdout().write(text.view().bytes))
+    _ = try text.write("built ")
+    _ = try text.write(f"in {2} steps")
+    _ = try io.stdout().write(text.view().bytes)
     print("")
     return 0
 ```

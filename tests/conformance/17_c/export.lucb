@@ -11,7 +11,7 @@ export func blend(left: Pixel, right: Pixel) -> Pixel:
 struct Cursor:
     pub var offset: usize
 
-    export mutating func advance(count: usize):
+    export func advance(count: usize):
         self.offset += count
 
 export func count_bytes(data: const u8[]) -> usize:

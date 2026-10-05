@@ -49,15 +49,15 @@ let most_nodes: usize = 16
 ## By instruction, its role: a sum of the values above. `counts` is every temporary's uses
 ## (`selection.uses`). A build a debugger reads keeps every value where it can see it.
 pub func plan(f: ir.Function*, counts: u32[]) -> u8[]!:
-    var roles = try alloc u8[f.instrs.count + 1]
+    var roles = try new u8[f.instrs.count + 1] ---
     for k in 0..<roles.length:
         roles[k] = plain
     if f.debug or f.symbols:
         return roles
     # 1 + the index of each temporary's one definition; 0 when it has none or several
-    var defs = try alloc u32[f.temps.count + 1]
+    var defs = try new u32[f.temps.count + 1] ---
     defer free(defs)
-    var several = try alloc bool[f.temps.count + 1]
+    var several = try new bool[f.temps.count + 1] ---
     defer free(several)
     for k in 0..<defs.length:
         defs[k] = 0

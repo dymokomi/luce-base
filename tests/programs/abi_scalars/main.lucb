@@ -14,7 +14,7 @@ export func base_floats(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6
     return flag and small == 60001 and x == 1.25 and y == -2.5 and z == 19.75
 
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     assert(abi_scalars(1, 2, 3, 4, 5, 6, 7, 8, true, -7, 60001, -1234, 4000000001, -1234567, 9000000001))
     assert(abi_floats(1, 2, 3, 4, 5, 6, 7, 8, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, true, 60001, 1.25, -2.5, 19.75))
     assert(abi_variadic(1, 2, 3, 4, 5, 6, 7, 8, 1, i32(53), i32(-7), f64(1.25)))

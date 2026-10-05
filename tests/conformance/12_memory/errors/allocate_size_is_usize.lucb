@@ -1,0 +1,7 @@
+# error: 
+import memory
+
+## §12.2: `memory.allocate(size, alignment)` takes two `usize` values.
+pub func main(arguments: str[]) -> i32!:
+    let raw = try memory.allocate("many", 8)
+    return 0

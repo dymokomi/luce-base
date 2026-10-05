@@ -78,13 +78,13 @@ func resolved_before(path: str) -> str?:
 func remember(path: str, answer: str):
     with memory.heap:
         keep(path, answer) catch ignored:
-            discard(ignored)
+            _ = ignored
 
 func keep(path: str, answer: str) -> !:
     var table = resolved_paths else try hashed.Table[str].create(256)
     var answers = resolved_answers else try list.List[str].create(256)
     try answers.push(try strings.copy(answer))
-    discard(try table.add(try strings.copy(path), answers.count - 1))
+    _ = try table.add(try strings.copy(path), answers.count - 1)
     resolved_paths = table
     resolved_answers = answers
 
@@ -142,7 +142,7 @@ func read_package(path: str) -> Package!:
         var table = read_paths else try hashed.Table[str].create(16)
         var packages = read_packages else try list.List[Package].create(16)
         try packages.push(package)
-        discard(try table.add(try strings.copy(path), packages.count - 1))
+        _ = try table.add(try strings.copy(path), packages.count - 1)
         read_paths = table
         read_packages = packages
         return package
@@ -250,7 +250,7 @@ func enclosing(path: str) -> Package?!:
     return none
 
 func source_file(root: str, name: str, base_only: bool) -> str?!:
-    let relative = try alloc u8[name.length]
+    let relative = try new u8[name.length] ---
     for index in 0..<name.length:
         relative[index] = '/' if name.bytes[index] == '.' else name.bytes[index]
     let prefix = try in_arena.join(root, (str)relative)
@@ -346,8 +346,8 @@ pub func names_modules(importer: str, name: str) -> bool!:
     let root = try canonical(owner.source)
     if try source_file(root, path, false) != none:
         return false
-    var directory = try alloc u8[root.length + 1 + path.length]
-    let spelled = try format(directory, f"{root}/{path}")
+    var directory = try new u8[root.length + 1 + path.length] ---
+    let spelled = try strings.format(directory, f"{root}/{path}")
     for i in root.length + 1..<spelled.length:
         if spelled.bytes[i] == '.': directory[i] = '/'
     return try present(spelled)
@@ -470,7 +470,7 @@ pub func entry_name(path: str) -> str!:
 func dotted(relative: str) -> str!:
     let extension = paths.extension(relative)
     let size = relative.length - extension.length
-    let name = try alloc u8[size]
+    let name = try new u8[size] ---
     for index in 0..<size:
         name[index] = '.' if relative.bytes[index] == '/' else relative.bytes[index]
     return (str)name

@@ -10,10 +10,10 @@
 extend Lowerer:
     # mark: Types ==============================================================================
 
-    mutating func map(id: u32) -> u32!:
+    func map(id: u32) -> u32!:
         return try self.generic.map(self.c, id)
 
-    mutating func ty(e: ast.Node*) -> u32!:
+    func ty(e: ast.Node*) -> u32!:
         return try self.map(e.type_id)
 
     func kind(id: u32) -> types.Kind:
@@ -131,7 +131,7 @@ extend Lowerer:
     ## unit's shapes, or 0 for a scalar or anything past 32 bytes, which every convention
     ## passes in memory. The walk is the layout's: every scalar member at its offset, a
     ## union's members overlapping, padding absent. Cached per type.
-    mutating func shape_of(id: u32) -> u32!:
+    func shape_of(id: u32) -> u32!:
         if self.is_scalar(id) or self.size(id) > 32:
             return 0
         while self.shape_cache.count <= (usize)id:
@@ -145,7 +145,7 @@ extend Lowerer:
         self.shape_cache.set((usize)id, shape)
         return shape
 
-    mutating func push_leaves(id: u32, base: u64) -> !:
+    func push_leaves(id: u32, base: u64) -> !:
         let size = self.c.table.size_of(id)
         if self.is_scalar(id):
             try self.program_unit.leaves.push(ir.Leaf(offset = u32(base), size = (u8)(size if size > 0 else 8), cls = self.class_of(id)))
@@ -225,32 +225,32 @@ extend Lowerer:
 
     # mark: Names ==============================================================================
 
-    mutating func function_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> str!:
+    func function_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> str!:
         self.scratch.clear()
         try names.function_name(&self.scratch, &self.c.table, f, args, owner, owner_args, self.entry)
         return try names.keep(&self.scratch)
 
-    mutating func global_name(d: ast.Node*) -> str!:
+    func global_name(d: ast.Node*) -> str!:
         self.scratch.clear()
         try names.global_name(&self.scratch, d)
         return try names.keep(&self.scratch)
 
-    mutating func vtable_name(record: u32, iface: ast.Node*) -> str!:
+    func vtable_name(record: u32, iface: ast.Node*) -> str!:
         self.scratch.clear()
         try names.vtable_name(&self.scratch, &self.c.table, record, iface)
         return try names.keep(&self.scratch)
 
-    mutating func test_name(index: u32) -> str!:
+    func test_name(index: u32) -> str!:
         self.scratch.clear()
         try names.test_name(&self.scratch, index)
         return try names.keep(&self.scratch)
 
     ## Register a function instance; returns its index.
-    mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
+    func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
         return self.funcs.add(&self.c.table, f, args, owner, owner_args) catch failure:
             return try self.fail(f, failure.message)
 
-    mutating func note_vtable(record: u32, iface: u32) -> !:
+    func note_vtable(record: u32, iface: u32) -> !:
         var i: usize = 0
         while i < self.vtables.count:
             let v = self.vtables.get(i)
@@ -262,7 +262,7 @@ extend Lowerer:
         let t = self.c.table.get(record)
         let i_decl = self.decl_of(iface) else return
         for m in (try instances.witnessed(d, i_decl)).span():
-            discard(try self.add_func(m, try types.no_args(), d, t.args))
+            _ = try self.add_func(m, try types.no_args(), d, t.args)
 
-    mutating func type_args(holder: ast.Node*) -> u32[]!:
+    func type_args(holder: ast.Node*) -> u32[]!:
         return try self.generic.type_args(self.c, holder)

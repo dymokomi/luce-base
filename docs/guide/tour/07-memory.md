@@ -104,8 +104,8 @@ head 3
 ```
 
 - `new Node(...)` allocates one value, constructs it, and gives a `Node*`. `new i64[5]`
-  allocates five elements set to zero and gives a span. `alloc T[count]` allocates without
-  setting them.
+  allocates five elements set to zero and gives a span. `new T[count] ---` allocates them
+  without setting them, for memory you are about to fill.
 - **Allocation can fail**, so `new` is used with `try` (or `catch`, or `else`). Running out
   of memory is an error your program can handle, not a crash.
 - **`free(x)` returns the memory.** Using memory after freeing it, or freeing it twice, is
@@ -152,7 +152,7 @@ an allocator too, by implementing the `Allocator` interface.
 
 ## Where memory is allocated
 
-Only `new` and `alloc` allocate. Nothing else in the language does: not string operations,
+Only `new` allocates. Nothing else in the language does: not string operations,
 not passing arguments, not `for` loops. That is why Base has no `+` on strings and no
 built-in growable list. Those come from library types such as `strings.Builder`, which take
 memory from an allocator and must be destroyed when you are done with them.

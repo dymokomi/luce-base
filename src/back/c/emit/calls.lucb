@@ -10,7 +10,7 @@
 extend Emitter:
     # mark: Calls ==============================================================================
 
-    mutating func call(e: ast.Node*) -> !:
+    func call(e: ast.Node*) -> !:
         let callee = e.left else return
         if let d = e.resolved:
             if self.c.is_memory_frame(d):
@@ -34,7 +34,7 @@ extend Emitter:
         try self.value_call(e, callee)
 
     ## `f(args)` where `f` is a function value: a local, a field, or a module's global.
-    mutating func value_call(e: ast.Node*, callee: ast.Node*) -> !:
+    func value_call(e: ast.Node*, callee: ast.Node*) -> !:
         let ordered = try self.receiver_first(callee, try self.ty(callee), e.body, false)
         let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
         try self.put("(")
@@ -53,7 +53,7 @@ extend Emitter:
     ## computed into a temporary first, in order, inside a statement expression the call
     ## then closes (`end_sequence`), and the call reads the temporaries. Answers how many
     ## were hoisted, 0 when the call is emitted as it is.
-    mutating func begin_sequence(args: ast.Node*?, fn: u32, decl: ast.Node*?) -> usize!:
+    func begin_sequence(args: ast.Node*?, fn: u32, decl: ast.Node*?) -> usize!:
         var given: usize = 0
         var effects = false
         var cursor = args
@@ -108,7 +108,7 @@ extend Emitter:
     ## promises no order between them, so when both may have an effect the receiver goes
     ## into a temporary first (its pointer, or the address of its place); answers the
     ## temporary's number, 0 when the receiver is read where it stands.
-    mutating func receiver_first(target: ast.Node*, t: u32, args: ast.Node*?, as_address: bool) -> u32!:
+    func receiver_first(target: ast.Node*, t: u32, args: ast.Node*?, as_address: bool) -> u32!:
         if not may_have_effect(target) or not arguments_have_effect(args):
             return 0
         let n = self.tmp()
@@ -124,12 +124,12 @@ extend Emitter:
         try self.put("; ")
         return n
 
-    mutating func receiver_done(n: u32) -> !:
+    func receiver_done(n: u32) -> !:
         if n != 0:
             try self.put("; })")
 
     ## `T _lb_sqN = value;` for one argument, remembered for `argument_value`.
-    mutating func hoist(v: ast.Node*, want: u32) -> usize!:
+    func hoist(v: ast.Node*, want: u32) -> usize!:
         let n = self.tmp()
         try self.put_type(want)
         try self.put(" ")
@@ -140,7 +140,7 @@ extend Emitter:
         try self.sequenced.push(Sequenced(node = v, id = n))
         return 1
 
-    mutating func end_sequence(hoisted: usize) -> !:
+    func end_sequence(hoisted: usize) -> !:
         if hoisted == 0:
             return
         try self.put("; })")
@@ -157,7 +157,7 @@ extend Emitter:
         return none
 
     ## The arguments of a call, each converted to its parameter type.
-    mutating func arguments(args: ast.Node*?, fn: u32, decl: ast.Node*?, decl_args: u32[]) -> !:
+    func arguments(args: ast.Node*?, fn: u32, decl: ast.Node*?, decl_args: u32[]) -> !:
         let f = self.c.table.get(fn)
         var i: usize = 0
         var cursor = args
@@ -193,7 +193,7 @@ extend Emitter:
                             try self.variadic_value(v)
                         position += 1
                     a = arg.next
-            discard(decl_args)
+            _ = decl_args
             return
         while let a = cursor:
             if not first:
@@ -205,7 +205,7 @@ extend Emitter:
             cursor = a.next
 
     ## An argument: its parameter's type, with text passed as bytes where wanted.
-    mutating func argument_value(v: ast.Node*, want: u32) -> !:
+    func argument_value(v: ast.Node*, want: u32) -> !:
         if let id = self.sequenced_id(v):
             try self.put_tmp("sq", id)
             return
@@ -222,7 +222,7 @@ extend Emitter:
         try self.value(v, want)
 
     ## A variadic C argument: text becomes a C string, integers promote as C does.
-    mutating func variadic_value(v: ast.Node*) -> !:
+    func variadic_value(v: ast.Node*) -> !:
         let have = try self.ty(v)
         if have == types.str_id and v.kind == ast.Kind.literal:
             try self.put_c_string(literals.decode_text(v.text))
@@ -235,7 +235,7 @@ extend Emitter:
         try self.expr(v)
 
     ## A call of a known function or method instance.
-    mutating func direct_call(e: ast.Node*, d: ast.Node*, owner: ast.Node*?, owner_args: u32[]) -> !:
+    func direct_call(e: ast.Node*, d: ast.Node*, owner: ast.Node*?, owner_args: u32[]) -> !:
         var args = try types.no_args()
         if let t = e.ty:
             args = try self.type_args(t)
@@ -245,7 +245,7 @@ extend Emitter:
         if args.length > 0:
             fn = try self.c.substitute(fn, d, args)
         if d.kind == ast.Kind.func_:
-            discard(try self.add_func(d, args, owner, owner_args))
+            _ = try self.add_func(d, args, owner, owner_args)
         if d.kind == ast.Kind.extern_func and has_out_params(d):
             try self.extern_out_call(e, d, fn)
             return
@@ -267,7 +267,7 @@ extend Emitter:
 
     ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
     ## traps `null_foreign`: the one boundary check, in this direction (§17.1).
-    mutating func check_foreign_parameters(f: ast.Node*) -> !:
+    func check_foreign_parameters(f: ast.Node*) -> !:
         var cursor = f.right
         while let p = cursor:
             let pt = try self.map(p.type_id)
@@ -279,7 +279,7 @@ extend Emitter:
 
     ## `({ int32_t o0; double r = frexp(x, &o0); (tuple){ r, o0 }; })`: an extern's `out`
     ## parameters are locals passed by address and answered after the declared result (§17.1).
-    mutating func extern_out_call(e: ast.Node*, d: ast.Node*, fn: u32) -> !:
+    func extern_out_call(e: ast.Node*, d: ast.Node*, fn: u32) -> !:
         let n = self.tmp()
         let declared = declared_result(d)
         try self.put("({ ")
@@ -327,13 +327,13 @@ extend Emitter:
             try self.put("; })")
 
     ## `_lb_oN_k`: the local an `out` parameter is written through.
-    mutating func put_out_local(n: u32, k: u32) -> !:
+    func put_out_local(n: u32, k: u32) -> !:
         try self.put_tmp("o", n)
         try self.put("_")
         try self.put_u64((u64)k)
 
     ## The arguments of an extern call whose `out` parameters take the address of a local.
-    mutating func arguments_with_outs(args: ast.Node*?, fn: u32, d: ast.Node*, n: u32) -> !:
+    func arguments_with_outs(args: ast.Node*?, fn: u32, d: ast.Node*, n: u32) -> !:
         let f = self.c.table.get(fn)
         var first = true
         var pi: usize = 0
@@ -358,7 +358,7 @@ extend Emitter:
 
     ## `x.method(args)`, `Type.static(args)`, `module.func(args)`, and the builtin
     ## methods of the standard records.
-    mutating func member_call(e: ast.Node*, callee: ast.Node*) -> !:
+    func member_call(e: ast.Node*, callee: ast.Node*) -> !:
         let receiver = callee.left else return
         let rt_raw = try self.ty(receiver)
         if self.kind(rt_raw) == types.Kind.module:
@@ -394,7 +394,7 @@ extend Emitter:
 
     ## `module.func(args)`: a module's function or construction, or a global of function
     ## type the module declares or re-exports, called through its value.
-    mutating func module_call(e: ast.Node*, callee: ast.Node*, rt_raw: u32) -> !:
+    func module_call(e: ast.Node*, callee: ast.Node*, rt_raw: u32) -> !:
         let m = self.decl_of(rt_raw) else return
         if let d = e.resolved:
             if d.has(ast.flag_builtin) and (m.text == "atomic" or m.text == "c"):
@@ -406,7 +406,7 @@ extend Emitter:
 
     ## `Type.static(args)`: a static method or a payload case through the type, an error
     ## code's number, or a float's `bits`.
-    mutating func static_call(e: ast.Node*, callee: ast.Node*, rt_raw: u32) -> !:
+    func static_call(e: ast.Node*, callee: ast.Node*, rt_raw: u32) -> !:
         if let resolved = callee.resolved:
             if resolved.kind == ast.Kind.enum_case:
                 try self.enum_value(e)
@@ -430,7 +430,7 @@ extend Emitter:
     ## `f64.bits(x)`: constant bits are spelled as a float constant, so `f64.bits(...)` can
     ## initialise a global (§6.4) under GCC, which has no bit cast in C; other bits are
     ## copied at the float's width.
-    mutating func float_from_bits(e: ast.Node*, rt_raw: u32) -> !:
+    func float_from_bits(e: ast.Node*, rt_raw: u32) -> !:
         let first = e.body else return
         let v = first.left else return
         if let bits = self.c.constant_u64(v):
@@ -449,7 +449,7 @@ extend Emitter:
     ## A method of an interface view, dispatched through its table; `view.method()` on a
     ## `Writer*` auto-dereferences (§7.3), so the fat pointer is copied out of the pointee
     ## first.
-    mutating func interface_call(e: ast.Node*, receiver: ast.Node*, method: ast.Node*, rt: u32, rt_raw: u32) -> !:
+    func interface_call(e: ast.Node*, receiver: ast.Node*, method: ast.Node*, rt: u32, rt_raw: u32) -> !:
         let n = self.tmp()
         let fn = try self.map(method.type_id)
         let i = self.decl_of(rt) else return
@@ -482,7 +482,7 @@ extend Emitter:
 
     ## `x.method(args)` on a record, enum, or generic parameter: the concrete method,
     ## instantiated for the owner's and the call's type arguments, with its receiver.
-    mutating func method_call(e: ast.Node*, receiver: ast.Node*, method: ast.Node*, rt: u32, rt_raw: u32) -> !:
+    func method_call(e: ast.Node*, receiver: ast.Node*, method: ast.Node*, rt: u32, rt_raw: u32) -> !:
         let t = self.c.table.get(rt)
         var owner = t.decl
         var owner_args = t.args
@@ -498,7 +498,7 @@ extend Emitter:
             args = try self.type_args(ta)
         if args.length > 0:
             fn = try self.c.substitute(fn, impl, args)
-        discard(try self.add_func(impl, args, owner, owner_args))
+        _ = try self.add_func(impl, args, owner, owner_args)
         # a value receiver, `Flags.a.name()` or a call's result, is held in a temporary
         let by_value = not impl.has(ast.flag_static) and not self.is_ptr(rt_raw) and not self.c.is_place(receiver)
         if by_value:
@@ -538,18 +538,18 @@ extend Emitter:
             try self.put("; })")
 
     ## A method named without a call: a function value of the instance.
-    mutating func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> !:
+    func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> !:
         let ot = try self.ty(owner)
         if self.kind(ot) == types.Kind.module or d.kind == ast.Kind.extern_func:
             try self.func_value(e, d)
             return
         let t = self.c.table.get(self.elem(ot) if self.is_ptr(ot) else ot)
-        discard(try self.add_func(d, try types.no_args(), t.decl, t.args))
+        _ = try self.add_func(d, try types.no_args(), t.decl, t.args)
         try self.put_func_name(d, try types.no_args(), t.decl, t.args)
 
     ## `first()` and `last()` on spans; `bits()` on floats.
     ## `a.compare(b)` on a number, `char`, or `str`: negative, zero, or positive (§14.4).
-    mutating func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+    func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
         let first = e.body else return
         let other = first.left else return
         if rt == types.str_id:
@@ -570,7 +570,7 @@ extend Emitter:
         try self.put("; (_lb_ca < _lb_cb) ? (int64_t)-1 : ((_lb_ca > _lb_cb) ? (int64_t)1 : (int64_t)0); })")
 
     ## The raw lines of an `asm` block as C string text; extended asm doubles `%`.
-    mutating func asm_lines(lines: ast.Node*?, extended: bool) -> !:
+    func asm_lines(lines: ast.Node*?, extended: bool) -> !:
         var cursor = lines
         while let l = cursor:
             var in_name = false
@@ -596,7 +596,7 @@ extend Emitter:
             cursor = l.next
 
     ## A module-level `asm arm64:` block (§8.9): the lines verbatim at file scope.
-    mutating func module_asm(d: ast.Node*) -> !:
+    func module_asm(d: ast.Node*) -> !:
         try self.line("#if defined(__aarch64__)")
         try self.line("__asm__(\"")
         try self.asm_lines(d.body, false)
@@ -605,7 +605,7 @@ extend Emitter:
 
     ## A `naked func` body: its asm blocks and nothing else, since C admits no other
     ## statement in a naked function (§9.8).
-    mutating func naked_body(f: ast.Node*) -> !:
+    func naked_body(f: ast.Node*) -> !:
         let body = f.body else return
         var cursor = body.body
         while let s = cursor:
@@ -617,7 +617,7 @@ extend Emitter:
 
     ## The receiver of a method the compiler supplies, as a value of type `rt`: a pointer
     ## receiver (`key.bits()` with `key: const f32*`) is read through.
-    mutating func receiver_value(receiver: ast.Node*, rt: u32) -> !:
+    func receiver_value(receiver: ast.Node*, rt: u32) -> !:
         let have = try self.ty(receiver)
         if self.is_ptr(have) and not self.is_ptr(rt):
             try self.put("(*(")
@@ -628,7 +628,7 @@ extend Emitter:
 
     ## `a.mul_add(b, c)` (§7.2): the C library's `fma`, rounded once, on a scalar or on each
     ## lane of a vector.
-    mutating func mul_add(e: ast.Node*, receiver: ast.Node*, rt: u32, n: u32) -> !:
+    func mul_add(e: ast.Node*, receiver: ast.Node*, rt: u32, n: u32) -> !:
         let first = e.body else return
         let second = first.next else return
         let b = first.left else return
@@ -673,7 +673,7 @@ extend Emitter:
         try self.put_tmp("mr", n)
         try self.put("; })")
 
-    mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+    func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
         if callee.text == "compare":
             try self.compare_call(e, receiver, rt)
             return
@@ -753,7 +753,7 @@ extend Emitter:
     # -- constructions and conversions ----------------------------------------------------
 
     ## `Name(...)`: a struct value, an `init` call, or a checked scalar conversion.
-    mutating func construct_or_convert(e: ast.Node*, callee: ast.Node*) -> !:
+    func construct_or_convert(e: ast.Node*, callee: ast.Node*) -> !:
         let target = try self.ty(e)
         if self.is_vector(target):
             try self.splat(e, target)
@@ -774,10 +774,10 @@ extend Emitter:
         let first = e.body else return
         let v = first.left else return
         try self.conversion(v, target, true)
-        discard(callee)
+        _ = callee
 
     ## `(lb_Name){ .field = value, ... }` with defaults for what was omitted.
-    mutating func constructor(e: ast.Node*, id: u32) -> !:
+    func constructor(e: ast.Node*, id: u32) -> !:
         let d = self.decl_of(id) else return try self.put("{}")
         let t = self.c.table.get(id)
         var effects = arguments_have_effect(e.body)
@@ -841,7 +841,7 @@ extend Emitter:
                     try self.put(", ")
                 first = false
                 try self.put(".")
-                try self.put(try self.field(f.text))
+                try self.put(try c_field_name(f.text))
                 try self.put(" = ")
                 try self.argument_value(v, try self.map(want))
             elif let default = f.left:
@@ -849,7 +849,7 @@ extend Emitter:
                     try self.put(", ")
                 first = false
                 try self.put(".")
-                try self.put(try self.field(f.text))
+                try self.put(try c_field_name(f.text))
                 try self.put(" = ")
                 try self.argument_value(default, try self.map(want))
             position += 1
@@ -858,13 +858,13 @@ extend Emitter:
         try self.end_sequence(hoisted)
 
     ## A struct with its own `init`: zero the value, run `init`, yield the value or its failure.
-    mutating func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> !:
+    func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> !:
         let t = self.c.table.get(id)
         let n = self.tmp()
         var fn = try self.map(init.type_id)
         if let o = t.decl:
             fn = try self.c.substitute(fn, o, t.args)
-        discard(try self.add_func(init, try types.no_args(), t.decl, t.args))
+        _ = try self.add_func(init, try types.no_args(), t.decl, t.args)
         try self.put("({ ")
         try self.put_type(id)
         try self.put(" ")
@@ -916,7 +916,7 @@ extend Emitter:
 
     ## `memory.frame[T](count, most)` (§12.7): `count` elements from `alloca` in the frame of
     ## the function the call is in, after a trap when `count` is past `most`.
-    mutating func frame_storage(e: ast.Node*) -> !:
+    func frame_storage(e: ast.Node*) -> !:
         let result = try self.ty(e)
         let first = e.body else return
         let second = first.next else return
@@ -942,9 +942,9 @@ extend Emitter:
         try self.put_tmp("fn", n)
         try self.put(" }; })")
 
-    ## A call of a core function: `print`, `format`, `assert`, `trap`, `error`,
-    ## `discard`, `hash`, `hex`, `bin`, `pad`, `sizeof`, `alignof`, and `offsetof`.
-    mutating func intrinsic(e: ast.Node*, name: str) -> !:
+    ## A call the compiler answers: the core `print`, `assert`, `trap`, and `error`,
+    ## `strings.format`, `value.hash()`, and `memory.size_of`, `align_of`, and `offset_of`.
+    func intrinsic(e: ast.Node*, name: str) -> !:
         let first = e.body
         var arg: ast.Node*? = none
         var second: ast.Node*? = none
@@ -976,48 +976,30 @@ extend Emitter:
             self.indent -= 1
             try self.line("}")
             return
-        if name == "discard":
-            let v = arg else return
-            try self.put("((void)(")
-            try self.expr(v)
-            try self.put("))")
-            return
         if name == "hash":
             let v = arg else return
             try self.hash_of(try self.ty(v), v)
             return
-        if name == "hex" or name == "bin":
-            let v = arg else return
-            try self.put("lb_show_hex(" if name == "hex" else "lb_show_bin(")
-            try self.put("(uint64_t)(")
-            try self.expr(v)
-            try self.put("))")
-            return
-        if name == "pad":
-            let v = arg else return
-            let w = second else return
-            try self.pad_call(v, w)
-            return
-        if name == "sizeof" or name == "alignof":
+        if name == "size_of" or name == "align_of":
             let v = arg else return
             let t = try self.map(v.type_id)
-            try self.put("((size_t)sizeof(" if name == "sizeof" else "((size_t)_Alignof(")
+            try self.put("((size_t)sizeof(" if name == "size_of" else "((size_t)_Alignof(")
             try self.put_type(t)
             try self.put("))")
             return
-        if name == "offsetof":
+        if name == "offset_of":
             let tv = arg else return
             let fv = second else return
             try self.put("((size_t)offsetof(")
             try self.put_type(try self.map(tv.type_id))
             try self.put(", ")
-            try self.put(try self.field(fv.text))
+            try self.put(try c_field_name(fv.text))
             try self.put("))")
             return
         try self.put("0")
 
     ## `print(v)`: a formatted text streamed to stdout, or a text and a newline.
-    mutating func print_call(v: ast.Node*) -> !:
+    func print_call(v: ast.Node*) -> !:
         if v.kind == ast.Kind.formatted:
             try self.put("(")
             try self.stream_formatted(v, "stdout")
@@ -1029,7 +1011,7 @@ extend Emitter:
 
     ## `assert(cond)` and `assert(cond, msg)`: a trap naming the condition, and the
     ## message when one is given, unless it holds.
-    mutating func assert_call(e: ast.Node*, cond: ast.Node*, message: ast.Node*?) -> !:
+    func assert_call(e: ast.Node*, cond: ast.Node*, message: ast.Node*?) -> !:
         try self.put("((void)((")
         try self.value(cond, types.bool_id)
         if let msg = message:
@@ -1043,7 +1025,7 @@ extend Emitter:
         try self.put("), 0)))")
 
     ## `trap()`, `trap(text)`, and `trap(f"...")`, the last streamed to stderr.
-    mutating func trap_call(message: ast.Node*?) -> !:
+    func trap_call(message: ast.Node*?) -> !:
         let msg = message else return try self.put("lb_trap(\"trap\")")
         if msg.kind == ast.Kind.formatted:
             try self.put("(lb_trap_begin(), ")
@@ -1053,20 +1035,3 @@ extend Emitter:
         try self.put("lb_trap_text(")
         try self.expr(msg)
         try self.put(")")
-
-    ## `pad(v, width)`: `v` shown into a buffer of its own, then padded to `width`.
-    mutating func pad_call(v: ast.Node*, w: ast.Node*) -> !:
-        let n = self.tmp()
-        try self.put("({ char ")
-        try self.put_tmp("pbuf", n)
-        try self.put("[256]; lb_fmtbuf ")
-        try self.put_tmp("pb", n)
-        try self.put(" = { ")
-        try self.put_tmp("pbuf", n)
-        try self.put(", 256, 0 }; (void)")
-        try self.display(n, "pb", v)
-        try self.put("; lb_show_pad(lb_fmtbuf_finish(&")
-        try self.put_tmp("pb", n)
-        try self.put("), (size_t)(")
-        try self.value(w, types.usize_id)
-        try self.put(")); })")

@@ -19,12 +19,12 @@ import back.ir.ir
 ## For each temporary (1-based), what it rematerialises as: 0 when it does not, else the
 ## slot's index plus one in the high word and the byte offset within the slot in the low.
 pub func find(f: ir.Function*) -> u64[]!:
-    var remat = try alloc u64[f.temps.count + 1]
+    var remat = try new u64[f.temps.count + 1] ---
     for t in 0..<remat.length:
         remat[t] = 0
     if f.debug or f.naked:
         return remat
-    var defs = try alloc u8[f.temps.count + 1]
+    var defs = try new u8[f.temps.count + 1] ---
     defer free(defs)
     for t in 0..<defs.length:
         defs[t] = 0

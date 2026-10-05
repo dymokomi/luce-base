@@ -11,7 +11,9 @@ lambdas.lucb
 allocation.lucb
 members.lucb
 calls.lucb
+intrinsics.lucb
 statements.lucb
 bodies.lucb
+mutation.lucb
 helpers.lucb
 tests.lucb

@@ -22,7 +22,7 @@ func descend(remaining: i64) -> i64:
 func worker(context: void*?):
     let raw = context else return
     let report = (Report*)raw
-    discard(pthread_getname_np(pthread_self(), &report.name[0], 16))
+    _ = pthread_getname_np(pthread_self(), &report.name[0], 16)
     report.depth = descend(12288)
 
 pub func main(arguments: str[]) -> i32:

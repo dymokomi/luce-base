@@ -1,9 +1,11 @@
-# error: a mutating method needs a `var` receiver
-## §9.5: a mutating method cannot run on a `let` reached through a field chain.
+# error: `bump` changes its receiver, so it needs a `var` here
+# oracle: none
+## §9.5: a method that changes its receiver cannot run on a `let` reached through a field
+## chain.
 struct Counter:
     var n: i32
 
-    pub mutating func bump():
+    pub func bump():
         self.n += 1
 
 struct Holder:

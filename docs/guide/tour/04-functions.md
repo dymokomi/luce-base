@@ -130,9 +130,9 @@ pub func main(arguments: str[]) -> i32:
 
 ## Results you don't use
 
-A function's result can be ignored. Writing `discard(compute())` makes it clear to a reader
-that you meant to. A function that can *fail* is different: the
-failure must be dealt with before the result can be dropped.
+A function's result can be ignored. Writing `_ = compute()` makes it clear to a reader
+that you meant to, as `_ = ...` does in Python. A function that can *fail* is different:
+the failure must be dealt with before the result can be dropped.
 [Chapter 6](06-absence-and-failure.md) covers that.
 
 ## Where next

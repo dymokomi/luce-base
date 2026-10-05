@@ -3,12 +3,13 @@
 ## `if let`, `match`, and `== none` all read that word.
 import io
 from io import Writer
+import memory
 
 struct Logger:
     var sink: Writer?
     var lines: i32
 
-    pub mutating func say(text: str) -> !:
+    pub func say(text: str) -> !:
         let out = self.sink else return
         try out.write(text)
         try out.write("\n")
@@ -27,5 +28,5 @@ pub func main(arguments: str[]) -> i32!:
     match picked:
         .some(w): try w.write("matched\n")
         .none: print("no writer")
-    print(f"{sizeof(Writer?)} {quiet.sink == none} {loud.sink != none} {quiet.lines} {loud.lines}")
+    print(f"{memory.size_of(Writer?)} {quiet.sink == none} {loud.sink != none} {quiet.lines} {loud.lines}")
     return 0

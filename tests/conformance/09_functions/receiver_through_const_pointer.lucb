@@ -1,7 +1,7 @@
 ## §7.1, §10: a method is called on a place reached through a `const T*` while an argument
 ## has an effect of its own. The receiver is computed first, into a temporary that is a
 ## pointer to const as the method's `self` is (the C backend once typed it `T*` and the C
-## compiler refused the discarded qualifier). A mutating method on a writable place keeps a
+## compiler refused the discarded qualifier). A method that changes its receiver, on a writable place, keeps a
 ## writable temporary.
 struct Inner:
     var value: u32
@@ -9,7 +9,7 @@ struct Inner:
     func get(extra: u32) -> u32!:
         return self.value + extra
 
-    mutating func bump(by: u32) -> u32:
+    func bump(by: u32) -> u32:
         self.value += by
         return self.value
 
@@ -22,7 +22,7 @@ struct Graph:
     func node(at: usize) -> const Node*:
         return &self.nodes[at]
 
-    mutating func slot(at: usize) -> Node*:
+    func slot(at: usize) -> Node*:
         return &self.nodes[at]
 
 struct Holder:

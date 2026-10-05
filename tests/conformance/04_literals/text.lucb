@@ -19,5 +19,5 @@ pub func main(arguments: str[]) -> i32:
     print(f"{bytes.length} {bytes[0]} {bytes[4]} {raw} {raw.length}")
     print(block)
     print(escaped)
-    print(f"frame {{{frame}}}: {hex(frame + 248)} {bin(5)} {pad(frame, 3)}|")
+    print(f"frame {{{frame}}}: {frame + 248}|")
     return 0

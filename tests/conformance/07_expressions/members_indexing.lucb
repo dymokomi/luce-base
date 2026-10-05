@@ -10,7 +10,7 @@ struct Image:
     func area() -> i64:
         return self.width * self.height
 
-    mutating func resize(scale: i64, keep_height: bool):
+    func resize(scale: i64, keep_height: bool):
         self.width = self.width * scale
         if not keep_height:
             self.height = self.height * scale

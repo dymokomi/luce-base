@@ -12,7 +12,7 @@ func attempt(connection: net.Connection*) -> str:
     while attempts < 4:
         let written = connection.write("x".bytes) catch failure:
             return "closed" if failure.code == net.closed else "other"
-        discard(written)
+        _ = written
         attempts += 1
     return "wrote"
 
@@ -22,13 +22,13 @@ pub func main(arguments: str[]) -> i32!:
         print("no socketpair")
         return 1
     var before = try net.Connection.over(pair[0])
-    discard(close(pair[1]))
+    _ = close(pair[1])
     let first = attempt(&before)
     var late: i32[2]
     if socketpair(1, 1, 0, &late[0]) != 0:
         print("no socketpair")
         return 1
-    discard(close(late[1]))
+    _ = close(late[1])
     var after = try net.Connection.over(late[0])
     let second = attempt(&after)
     print(f"{first} {second}")

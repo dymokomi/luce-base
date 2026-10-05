@@ -1,3 +1,5 @@
+import memory
+
 ## §5.4: an array is a value and a span a pointer with a length; slicing is half-open;
 ## nested arrays read inside-out; `first`, `last`, and `indexed` on a span.
 struct Grid:
@@ -33,8 +35,8 @@ pub func main(arguments: str[]) -> i32:
         if v == 9:
             count += i64(i)
     let empty = all[0..<0]
-    print(f"{sum(all)} {buffer[0]} {copy[0]} {head.length} {tail.length} {view.length} {inner[2]} {sizeof(grid)}")
-    print(f"{count} {empty.length} {frozen.length} {sizeof(all)} {sizeof(buffer)} {sum(frozen[2..<4])}")
+    print(f"{sum(all)} {buffer[0]} {copy[0]} {head.length} {tail.length} {view.length} {inner[2]} {memory.size_of(grid)}")
+    print(f"{count} {empty.length} {frozen.length} {memory.size_of(all)} {memory.size_of(buffer)} {sum(frozen[2..<4])}")
     if let first = all.first():
         if let last = all.last():
             print(f"{first} {last} {all[7]}")

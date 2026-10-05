@@ -1,6 +1,6 @@
 ## A fallible result of up to four words comes back in registers (§11.2): its value, its
 ## flag, and the words of an aggregate value each in their own. A caller that reads only
-## the flag (`discard(try ...)`) or only some of the words still sees each word as the
+## the flag (`_ = try ...`) or only some of the words still sees each word as the
 ## callee left it, and an error set before a deferred call that fails and recovers inside
 ## itself is the one passed up.
 
@@ -56,9 +56,9 @@ noinline func pairs(x: i32) -> Pair:
     return Pair(a = (i64)x << 40, b = x)
 
 noinline func only_flags(x: i32) -> i32!:
-    discard(try number(x))
-    discard(try flag(x))
-    discard(try pair(x))
+    _ = try number(x)
+    _ = try flag(x)
+    _ = try pair(x)
     try nothing(x)
     return x
 
@@ -66,7 +66,7 @@ noinline func recovered(x: i32) -> i32!:
     defer:
         let inner = number(-1) catch failure:
             recover 0
-        discard(inner)
+        _ = inner
     return (i32)(try number(x))
 
 pub func main(arguments: str[]) -> i32:

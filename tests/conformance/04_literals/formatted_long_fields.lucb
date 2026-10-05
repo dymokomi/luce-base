@@ -1,3 +1,5 @@
+import strings
+
 ## §4 formatted strings: a field longer than any format buffer the compiler keeps is still
 ## written whole by `print`, with the text around it, and `format` into a buffer too small
 ## for it reports the overflow instead of answering a shorter text.
@@ -11,7 +13,7 @@ pub func main(arguments: str[]) -> i32:
     let text = letters(room, 2600)
     print(f"[{text.length}] {text} [{true} {1.5} {text.length}]")
     var small: u8[16] = ---
-    let fitted = format(small, f"{text}") catch:
+    let fitted = strings.format(small, f"{text}") catch:
         print("format: the text does not fit")
         return 0
     print(f"format answered {fitted.length} bytes")

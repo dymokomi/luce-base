@@ -67,7 +67,7 @@ pub extern struct SDL_IOStreamInterface:
 pub extern type SDL_IOStream
 
 pub extern struct SDL_AudioSpec:
-    pub format_: SDL_AudioFormat
+    pub format: SDL_AudioFormat
     pub channels: i32
     pub freq: i32
 
@@ -92,7 +92,7 @@ pub extern struct SDL_Palette:
     pub refcount: i32
 
 pub extern struct SDL_PixelFormatDetails:
-    pub format_: SDL_PixelFormat
+    pub format: SDL_PixelFormat
     pub bits_per_pixel: Uint8
     pub bytes_per_pixel: Uint8
     pub padding: Uint8[2]
@@ -131,7 +131,7 @@ pub extern struct SDL_FRect:
 
 pub extern struct SDL_Surface:
     pub flags: SDL_SurfaceFlags
-    pub format_: SDL_PixelFormat
+    pub format: SDL_PixelFormat
     pub w: i32
     pub h: i32
     pub pitch: i32
@@ -142,7 +142,7 @@ pub extern struct SDL_Surface:
 pub extern type SDL_Camera
 
 pub extern struct SDL_CameraSpec:
-    pub format_: SDL_PixelFormat
+    pub format: SDL_PixelFormat
     pub colorspace: SDL_Colorspace
     pub width: i32
     pub height: i32
@@ -153,7 +153,7 @@ pub extern type SDL_DisplayModeData
 
 pub extern struct SDL_DisplayMode:
     pub displayID: SDL_DisplayID
-    pub format_: SDL_PixelFormat
+    pub format: SDL_PixelFormat
     pub w: i32
     pub h: i32
     pub pixel_density: f32
@@ -787,7 +787,7 @@ pub extern struct SDL_GPUVertexBufferDescription:
 pub extern struct SDL_GPUVertexAttribute:
     pub location: Uint32
     pub buffer_slot: Uint32
-    pub format_: SDL_GPUVertexElementFormat
+    pub format: SDL_GPUVertexElementFormat
     pub offset: Uint32
 
 pub extern struct SDL_GPUVertexInputState:
@@ -819,7 +819,7 @@ pub extern struct SDL_GPUShaderCreateInfo:
     pub code_size: usize
     pub code: const Uint8*?
     pub entrypoint: c.str?
-    pub format_: SDL_GPUShaderFormat
+    pub format: SDL_GPUShaderFormat
     pub stage: SDL_GPUShaderStage
     pub num_samplers: Uint32
     pub num_storage_textures: Uint32
@@ -829,7 +829,7 @@ pub extern struct SDL_GPUShaderCreateInfo:
 
 pub extern struct SDL_GPUTextureCreateInfo:
     pub type_: SDL_GPUTextureType
-    pub format_: SDL_GPUTextureFormat
+    pub format: SDL_GPUTextureFormat
     pub usage: SDL_GPUTextureUsageFlags
     pub width: Uint32
     pub height: Uint32
@@ -882,7 +882,7 @@ pub extern struct SDL_GPUDepthStencilState:
     pub padding3: Uint8
 
 pub extern struct SDL_GPUColorTargetDescription:
-    pub format_: SDL_GPUTextureFormat
+    pub format: SDL_GPUTextureFormat
     pub blend_state: SDL_GPUColorTargetBlendState
 
 pub extern struct SDL_GPUGraphicsPipelineTargetInfo:
@@ -909,7 +909,7 @@ pub extern struct SDL_GPUComputePipelineCreateInfo:
     pub code_size: usize
     pub code: const Uint8*?
     pub entrypoint: c.str?
-    pub format_: SDL_GPUShaderFormat
+    pub format: SDL_GPUShaderFormat
     pub num_samplers: Uint32
     pub num_readonly_storage_textures: Uint32
     pub num_readonly_storage_buffers: Uint32
@@ -1144,7 +1144,7 @@ pub extern struct SDL_Vertex:
 pub extern type SDL_Renderer
 
 pub extern struct SDL_Texture:
-    pub format_: SDL_PixelFormat
+    pub format: SDL_PixelFormat
     pub w: i32
     pub h: i32
     pub refcount: i32
@@ -3486,13 +3486,13 @@ pub extern func SDL_LoadWAV_IO(src: SDL_IOStream?, closeio: bool, spec: SDL_Audi
 
 pub extern func SDL_LoadWAV(path: c.str?, spec: SDL_AudioSpec*?, audio_buf: Uint8**?, audio_len: Uint32*?) -> bool
 
-pub extern func SDL_MixAudio(dst: Uint8*?, src: const Uint8*?, format_: SDL_AudioFormat, len: Uint32, volume: f32) -> bool
+pub extern func SDL_MixAudio(dst: Uint8*?, src: const Uint8*?, format: SDL_AudioFormat, len: Uint32, volume: f32) -> bool
 
 pub extern func SDL_ConvertAudioSamples(src_spec: const SDL_AudioSpec*?, src_data: const Uint8*?, src_len: i32, dst_spec: const SDL_AudioSpec*?, dst_data: Uint8**?, dst_len: i32*?) -> bool
 
-pub extern func SDL_GetAudioFormatName(format_: SDL_AudioFormat) -> c.str?
+pub extern func SDL_GetAudioFormatName(format: SDL_AudioFormat) -> c.str?
 
-pub extern func SDL_GetSilenceValueForFormat(format_: SDL_AudioFormat) -> i32
+pub extern func SDL_GetSilenceValueForFormat(format: SDL_AudioFormat) -> i32
 
 pub extern func SDL_MostSignificantBitIndex32 as "luce_SDL_MostSignificantBitIndex32"(x: Uint32) -> i32
 
@@ -3500,13 +3500,13 @@ pub extern func SDL_HasExactlyOneBitSet32 as "luce_SDL_HasExactlyOneBitSet32"(x:
 
 pub extern func SDL_ComposeCustomBlendMode(srcColorFactor: SDL_BlendFactor, dstColorFactor: SDL_BlendFactor, colorOperation: SDL_BlendOperation, srcAlphaFactor: SDL_BlendFactor, dstAlphaFactor: SDL_BlendFactor, alphaOperation: SDL_BlendOperation) -> SDL_BlendMode
 
-pub extern func SDL_GetPixelFormatName(format_: SDL_PixelFormat) -> c.str?
+pub extern func SDL_GetPixelFormatName(format: SDL_PixelFormat) -> c.str?
 
-pub extern func SDL_GetMasksForPixelFormat(format_: SDL_PixelFormat, bpp: i32*?, Rmask: Uint32*?, Gmask: Uint32*?, Bmask: Uint32*?, Amask: Uint32*?) -> bool
+pub extern func SDL_GetMasksForPixelFormat(format: SDL_PixelFormat, bpp: i32*?, Rmask: Uint32*?, Gmask: Uint32*?, Bmask: Uint32*?, Amask: Uint32*?) -> bool
 
 pub extern func SDL_GetPixelFormatForMasks(bpp: i32, Rmask: Uint32, Gmask: Uint32, Bmask: Uint32, Amask: Uint32) -> SDL_PixelFormat
 
-pub extern func SDL_GetPixelFormatDetails(format_: SDL_PixelFormat) -> const SDL_PixelFormatDetails*?
+pub extern func SDL_GetPixelFormatDetails(format: SDL_PixelFormat) -> const SDL_PixelFormatDetails*?
 
 pub extern func SDL_CreatePalette(ncolors: i32) -> SDL_Palette*?
 
@@ -3514,13 +3514,13 @@ pub extern func SDL_SetPaletteColors(palette: SDL_Palette*?, colors: const SDL_C
 
 pub extern func SDL_DestroyPalette(palette: SDL_Palette*?)
 
-pub extern func SDL_MapRGB(format_: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8, g: Uint8, b: Uint8) -> Uint32
+pub extern func SDL_MapRGB(format: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8, g: Uint8, b: Uint8) -> Uint32
 
-pub extern func SDL_MapRGBA(format_: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8, g: Uint8, b: Uint8, a: Uint8) -> Uint32
+pub extern func SDL_MapRGBA(format: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8, g: Uint8, b: Uint8, a: Uint8) -> Uint32
 
-pub extern func SDL_GetRGB(pixelvalue: Uint32, format_: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8*?, g: Uint8*?, b: Uint8*?)
+pub extern func SDL_GetRGB(pixelvalue: Uint32, format: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8*?, g: Uint8*?, b: Uint8*?)
 
-pub extern func SDL_GetRGBA(pixelvalue: Uint32, format_: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8*?, g: Uint8*?, b: Uint8*?, a: Uint8*?)
+pub extern func SDL_GetRGBA(pixelvalue: Uint32, format: const SDL_PixelFormatDetails*?, palette: const SDL_Palette*?, r: Uint8*?, g: Uint8*?, b: Uint8*?, a: Uint8*?)
 
 pub extern func SDL_RectToFRect as "luce_SDL_RectToFRect"(rect: const SDL_Rect*?, frect: SDL_FRect*?)
 
@@ -3558,9 +3558,9 @@ pub extern func SDL_GetRectEnclosingPointsFloat(points: const SDL_FPoint*?, coun
 
 pub extern func SDL_GetRectAndLineIntersectionFloat(rect: const SDL_FRect*?, X1: f32*?, Y1: f32*?, X2: f32*?, Y2: f32*?) -> bool
 
-pub extern func SDL_CreateSurface(width: i32, height: i32, format_: SDL_PixelFormat) -> SDL_Surface*?
+pub extern func SDL_CreateSurface(width: i32, height: i32, format: SDL_PixelFormat) -> SDL_Surface*?
 
-pub extern func SDL_CreateSurfaceFrom(width: i32, height: i32, format_: SDL_PixelFormat, pixels: void*?, pitch: i32) -> SDL_Surface*?
+pub extern func SDL_CreateSurfaceFrom(width: i32, height: i32, format: SDL_PixelFormat, pixels: void*?, pitch: i32) -> SDL_Surface*?
 
 pub extern func SDL_DestroySurface(surface: SDL_Surface*?)
 
@@ -3642,9 +3642,9 @@ pub extern func SDL_DuplicateSurface(surface: SDL_Surface*?) -> SDL_Surface*?
 
 pub extern func SDL_ScaleSurface(surface: SDL_Surface*?, width: i32, height: i32, scaleMode: SDL_ScaleMode) -> SDL_Surface*?
 
-pub extern func SDL_ConvertSurface(surface: SDL_Surface*?, format_: SDL_PixelFormat) -> SDL_Surface*?
+pub extern func SDL_ConvertSurface(surface: SDL_Surface*?, format: SDL_PixelFormat) -> SDL_Surface*?
 
-pub extern func SDL_ConvertSurfaceAndColorspace(surface: SDL_Surface*?, format_: SDL_PixelFormat, palette: SDL_Palette*?, colorspace: SDL_Colorspace, props: SDL_PropertiesID) -> SDL_Surface*?
+pub extern func SDL_ConvertSurfaceAndColorspace(surface: SDL_Surface*?, format: SDL_PixelFormat, palette: SDL_Palette*?, colorspace: SDL_Colorspace, props: SDL_PropertiesID) -> SDL_Surface*?
 
 pub extern func SDL_ConvertPixels(width: i32, height: i32, src_format: SDL_PixelFormat, src: const void*?, src_pitch: i32, dst_format: SDL_PixelFormat, dst: void*?, dst_pitch: i32) -> bool
 
@@ -4656,17 +4656,17 @@ pub extern func SDL_QueryGPUFence(device: SDL_GPUDevice?, fence: SDL_GPUFence?) 
 
 pub extern func SDL_ReleaseGPUFence(device: SDL_GPUDevice?, fence: SDL_GPUFence?)
 
-pub extern func SDL_GPUTextureFormatTexelBlockSize(format_: SDL_GPUTextureFormat) -> Uint32
+pub extern func SDL_GPUTextureFormatTexelBlockSize(format: SDL_GPUTextureFormat) -> Uint32
 
-pub extern func SDL_GPUTextureSupportsFormat(device: SDL_GPUDevice?, format_: SDL_GPUTextureFormat, type_: SDL_GPUTextureType, usage: SDL_GPUTextureUsageFlags) -> bool
+pub extern func SDL_GPUTextureSupportsFormat(device: SDL_GPUDevice?, format: SDL_GPUTextureFormat, type_: SDL_GPUTextureType, usage: SDL_GPUTextureUsageFlags) -> bool
 
-pub extern func SDL_GPUTextureSupportsSampleCount(device: SDL_GPUDevice?, format_: SDL_GPUTextureFormat, sample_count: SDL_GPUSampleCount) -> bool
+pub extern func SDL_GPUTextureSupportsSampleCount(device: SDL_GPUDevice?, format: SDL_GPUTextureFormat, sample_count: SDL_GPUSampleCount) -> bool
 
-pub extern func SDL_CalculateGPUTextureFormatSize(format_: SDL_GPUTextureFormat, width: Uint32, height: Uint32, depth_or_layer_count: Uint32) -> Uint32
+pub extern func SDL_CalculateGPUTextureFormatSize(format: SDL_GPUTextureFormat, width: Uint32, height: Uint32, depth_or_layer_count: Uint32) -> Uint32
 
-pub extern func SDL_GetPixelFormatFromGPUTextureFormat(format_: SDL_GPUTextureFormat) -> SDL_PixelFormat
+pub extern func SDL_GetPixelFormatFromGPUTextureFormat(format: SDL_GPUTextureFormat) -> SDL_PixelFormat
 
-pub extern func SDL_GetGPUTextureFormatFromPixelFormat(format_: SDL_PixelFormat) -> SDL_GPUTextureFormat
+pub extern func SDL_GetGPUTextureFormatFromPixelFormat(format: SDL_PixelFormat) -> SDL_GPUTextureFormat
 
 pub extern func SDL_GetHaptics(count: i32*?) -> SDL_HapticID*?
 
@@ -4916,7 +4916,7 @@ pub extern func SDL_GetRenderOutputSize(renderer: SDL_Renderer?, w: i32*?, h: i3
 
 pub extern func SDL_GetCurrentRenderOutputSize(renderer: SDL_Renderer?, w: i32*?, h: i32*?) -> bool
 
-pub extern func SDL_CreateTexture(renderer: SDL_Renderer?, format_: SDL_PixelFormat, access: SDL_TextureAccess, w: i32, h: i32) -> SDL_Texture*?
+pub extern func SDL_CreateTexture(renderer: SDL_Renderer?, format: SDL_PixelFormat, access: SDL_TextureAccess, w: i32, h: i32) -> SDL_Texture*?
 
 pub extern func SDL_CreateTextureFromSurface(renderer: SDL_Renderer?, surface: SDL_Surface*?) -> SDL_Texture*?
 

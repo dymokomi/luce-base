@@ -5,11 +5,11 @@ import memory
 
 pub func main(arguments: str[]) -> i32!:
     var word: u64 = ---
-    print(f"{hex(word)}")
-    let block = try alloc u8[16]
+    print(f"{word:x}")
+    let block = try new u8[16] ---
     let data = block.data
     free(block)
-    print(f"{hex(data[0])} {hex(data[15])}")
+    print(f"{data[0]:x} {data[15]:x}")
     let sites = memory.allocation_sites()
     print(f"{sites.length} {sites[0].size} {sites[0].line}")
     return 0

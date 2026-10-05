@@ -72,8 +72,8 @@ extend Checker:
             return false
         if t.kind == types.Kind.interface_:
             if s.kind == types.Kind.pointer:
-                # a `mutating` requirement needs the conformer addressable as `var` (§14.3)
-                if s.is_const and self.interface_mutates(want):
+                # a view of what cannot change calls nothing that changes it (§14.3)
+                if s.is_const and self.changing_implementation(s.elem, want):
                     return false
                 return self.conforms(s.elem, want)
             return false
@@ -97,7 +97,9 @@ extend Checker:
             return s.elem == t.elem and s.length == t.length
         return false
 
-    ## A function type converts when parameters agree and the result may gain `!`.
+    ## A function type converts when parameters agree and the result may gain `!`; a
+    ## function that only reads through a `const T*` stands where one taking a `T*` is
+    ## wanted, as a method that changes nothing stands for one that may (§5.6, §9.5).
     func function_converts(have: u32, want: u32) -> bool:
         let s = self.table.get(have)
         let t = self.table.get(want)
@@ -111,7 +113,8 @@ extend Checker:
                 let tp = self.table.get(t.args[i])
                 let s_opt = sp.kind == types.Kind.optional and sp.elem == t.args[i] and self.table.kind(sp.elem) == types.Kind.pointer
                 let t_opt = tp.kind == types.Kind.optional and tp.elem == s.args[i] and self.table.kind(tp.elem) == types.Kind.pointer
-                if not (s_opt or t_opt):
+                let reads = sp.kind == types.Kind.pointer and tp.kind == types.Kind.pointer and sp.is_const and not tp.is_const and sp.elem == tp.elem
+                if not (s_opt or t_opt or reads):
                     return false
             i += 1
         if s.elem == t.elem:
@@ -121,21 +124,40 @@ extend Checker:
 
     func unknown_type(t: ast.Node*) -> never!:
         var text: u8[256]
-        return try self.fail(t, try format(text, f"unknown type `{t.text}`"))
+        return try self.fail(t, try strings.format(text, f"unknown type `{t.text}`"))
 
     ## The type a plain read of `id` yields: an `@T` reads as its `T`.
     func plain_read(id: u32) -> u32:
         let t = self.table.get(id)
         return t.elem if t.kind == types.Kind.atomic else id
 
-    ## Whether any requirement of interface `iface` is `mutating`.
-    func interface_mutates(iface: u32) -> bool:
-        let d = self.table.get(iface).decl else return false
-        var cursor = d.body
-        while let m = cursor:
-            if m.kind == ast.Kind.func_ and m.has(ast.flag_mutating):
-                return true
-            cursor = m.next
+    ## The method that keeps a view of `iface` from forming from a read-only pointer of type
+    ## `have`, empty when none does (§14.3).
+    func changing_view(have: u32, iface: u32) -> str:
+        let s = self.table.get(have)
+        if s.kind != types.Kind.pointer or not s.is_const or self.table.kind(iface) != types.Kind.interface_:
+            return ""
+        let d = self.table.get(s.elem).decl else return ""
+        let i = self.table.get(iface).decl else return ""
+        var requirement = i.body
+        while let r = requirement:
+            if let m = find_member(d, r.text, ast.Kind.func_):
+                if m.has(ast.flag_mutating):
+                    return m.text
+            requirement = r.next
+        return ""
+
+    ## Whether a method of conformer `id` that implements a requirement of `iface` changes
+    ## its receiver, as far as is known now (§14.3).
+    func changing_implementation(id: u32, iface: u32) -> bool:
+        let d = self.table.get(id).decl else return false
+        let i = self.table.get(iface).decl else return false
+        var requirement = i.body
+        while let r = requirement:
+            if let m = find_member(d, r.text, ast.Kind.func_):
+                if m.has(ast.flag_mutating):
+                    return true
+            requirement = r.next
         return false
 
     ## Does struct or enum `id` declare conformance to interface `iface`?
@@ -158,12 +180,13 @@ extend Checker:
         return false
 
     ## Every type argument satisfies the constraints of its parameter (§13.1).
-    mutating func check_constraints(d: ast.Node*, args: u32[], at: ast.Node*) -> !:
+    func check_constraints(d: ast.Node*, args: u32[], at: ast.Node*) -> !:
         var i: usize = 0
         var cursor = generic_params_of(d)
         while let g = cursor:
             if i >= args.length:
                 return
+            try self.note_instance(g, args[i], at)
             var bound = g.body
             while let constraint = bound:
                 if not self.satisfies(args[i], constraint.type_id):
@@ -171,7 +194,7 @@ extend Checker:
                     var name: str = "the constraint"
                     if let iface = self.table.get(constraint.type_id).decl:
                         name = iface.text
-                    return try self.fail(at, try format(text, f"the type argument for `{g.text}` does not satisfy `{name}`"))
+                    return try self.fail(at, try strings.format(text, f"the type argument for `{g.text}` does not satisfy `{name}`"))
                 bound = constraint.next
             i += 1
             cursor = g.next
@@ -231,7 +254,7 @@ extend Checker:
 
     ## Check `e` against `target`, then require assignability. Untyped literals
     ## take the target type. Returns the type the expression has afterwards.
-    mutating func expect(e: ast.Node*, target: u32) -> u32!:
+    func expect(e: ast.Node*, target: u32) -> u32!:
         # an `@T` is initialised from a `T`: the initial value is the first store (§15.1)
         let t = self.table.get(target)
         if t.kind == types.Kind.atomic:
@@ -242,12 +265,17 @@ extend Checker:
         let got = try self.check_expr(e, target)
         return try self.coerce(e, got, target)
 
-    mutating func coerce(e: ast.Node*, got: u32, target: u32) -> u32!:
+    func coerce(e: ast.Node*, got: u32, target: u32) -> u32!:
         if target == types.none_id:
             return got
+        try self.note_change_of(e, got, target)
         if not self.assignable(e, got, target):
             if got == types.none_id:
                 return try self.fail(e, "`none` needs an optional type here")
+            let changing = self.changing_view(got, target)
+            if changing.length > 0:
+                var text: u8[256]
+                return try self.fail(e, said(text, f"`{changing}` changes its receiver, so a view of it needs a mutable pointer (§14.3)"))
             return try self.mismatch(e, target, got)
         if got == types.untyped_int_id or got == types.untyped_float_id:
             try self.settle_untyped(e, got, target, false)
@@ -263,7 +291,7 @@ extend Checker:
         # a local array passed where a span is wanted aliases the frame (§6.6); one copied
         # out as an array is a value and names nothing, whatever its elements hold
         if self.table.kind(got) == types.Kind.array and self.views_array(target) and self.place_is_local(e):
-            self.mark_local(e)
+            mark_local(e)
         return target
 
     ## Whether `target` is a view an array converts to, a span or `str` or an optional of
@@ -277,7 +305,7 @@ extend Checker:
     ## An untyped expression takes its type: every literal in `1 << 40` or `-(2 * 3)` must fit
     ## it (§4.2), so the walk reaches each leaf that is still untyped. A parenthesised or
     ## computed operand of unary `-` is not a negative literal: only `-128` is `i8`.
-    mutating func settle_untyped(e: ast.Node*, got: u32, target: u32, negated: bool) -> !:
+    func settle_untyped(e: ast.Node*, got: u32, target: u32, negated: bool) -> !:
         e.type_id = self.table.get(target).elem if self.table.kind(target) == types.Kind.optional else target
         match e.kind:
             .literal:
@@ -288,7 +316,7 @@ extend Checker:
             .unary, .group:
                 let inner = e.left else return
                 if e.kind == ast.Kind.unary and e.text == "-" and got == types.untyped_int_id and self.table.is_integer(e.type_id) and not self.table.is_signed(e.type_id):
-                    discard(try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`"))
+                    try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`")
                 if inner.type_id == got:
                     let negative = e.kind == ast.Kind.unary and e.text == "-" and inner.kind == ast.Kind.literal
                     try self.settle_untyped(inner, got, target, negative)
@@ -303,9 +331,9 @@ extend Checker:
                 return
 
     ## An untyped expression with no context takes its default, `i64` or `f64` (§4.2).
-    mutating func settle(e: ast.Node*, got: u32) -> u32!:
+    func settle(e: ast.Node*, got: u32) -> u32!:
         if got == types.untyped_int_id or got == types.untyped_float_id:
-            return try self.coerce(e, got, self.concrete(got))
+            return try self.coerce(e, got, concrete(got))
         return got
 
     ## An integer literal must fit its type (§7.5); under unary `-` its negation must.
@@ -318,7 +346,7 @@ extend Checker:
         if not self.table.is_float(dest):
             return
         if decimal.overflows(literals.literal_body(e.text), self.table.bits(dest)):
-            discard(try self.fail(e, "the float literal is beyond its type; the infinities are constants of `math`"))
+            try self.fail(e, "the float literal is beyond its type; the infinities are constants of `math`")
 
     func check_fits(e: ast.Node*, target: u32, negated: bool) -> !:
         var dest = target
@@ -329,7 +357,7 @@ extend Checker:
         let value = literals.decode_integer(e.text) catch failure:
             return try self.fail(e, "integer literal does not fit")
         if negated and value != 0 and not self.table.is_signed(dest):
-            discard(try self.fail(e, "a negative literal does not fit an unsigned type"))
+            try self.fail(e, "a negative literal does not fit an unsigned type")
             return
         let bits = self.table.bits(dest)
         # a signed type holds one more below zero than above: `-128` is `i8`, `128` is not
@@ -339,10 +367,10 @@ extend Checker:
         if not self.table.is_signed(dest) and bits >= 64:
             return
         if value > limit or (value == limit and not negated):
-            discard(try self.fail(e, "integer literal does not fit"))
+            try self.fail(e, "integer literal does not fit")
 
     ## Two operand types made one: untyped literals follow the typed side.
-    mutating func unify(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32!:
+    func unify(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32!:
         if lt == rt:
             return lt
         # an integer literal and a float literal do not mix: `1.5 * 2` wants `2.0`
@@ -353,16 +381,16 @@ extend Checker:
         # an untyped side takes the typed side's type, which is the whole: `3` under `i64?`
         # is the optional, not its payload
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
-            discard(try self.coerce(l, lt, rt))
+            _ = try self.coerce(l, lt, rt)
             return rt
         if rt == types.untyped_int_id or rt == types.untyped_float_id or rt == types.none_id:
-            discard(try self.coerce(r, rt, lt))
+            _ = try self.coerce(r, rt, lt)
             return lt
         if self.assignable(r, rt, lt):
             return lt
         if self.assignable(l, lt, rt):
             return rt
-        # two integers of one width and signedness compute together, `hash(key) % length`,
+        # two integers of one width and signedness compute together, `key.hash() % length`,
         # in the pointer-sized type when one is (§7.2); storing the result is still strict
         if self.table.is_integer(lt) and self.table.is_integer(rt) and self.table.is_signed(lt) == self.table.is_signed(rt) and self.table.bits(lt) == self.table.bits(rt) and not types.is_distinct_c(lt) and not types.is_distinct_c(rt):
             if rt == types.usize_id or rt == types.isize_id:
@@ -371,13 +399,13 @@ extend Checker:
         return try self.mismatch(r, lt, rt)
 
     ## `(T)x`: C's cast, with every case defined (§7.5).
-    mutating func cast_type(e: ast.Node*) -> u32!:
+    func cast_type(e: ast.Node*) -> u32!:
         let t = e.ty else return try self.fail(e, "a cast needs a type")
         let inner = e.left else return try self.fail(e, "a cast needs an operand")
         if t.body == none and t.left == none and t.flags == 0 and scalar_id(t.text) == types.none_id and self.bracket_value_decl(t.text) != none:
             # `(NPtr) * n`: the parenthesised name is a value, the operator a binary one (§7.5)
             if inner.kind == ast.Kind.unary and (inner.text == "*" or inner.text == "-"):
-                let l = try self.bracket_name_expr(t)
+                let l = try bracket_name_expr(t)
                 e.kind = ast.Kind.binary
                 e.text = inner.text
                 e.ty = none
@@ -390,9 +418,9 @@ extend Checker:
         let got = try self.check_expr(inner, types.none_id)
         # a reinterpreting cast of a local address keeps it local: `(str)local_bytes` (§6.6)
         let local_array = self.table.kind(got) == types.Kind.array and self.place_is_local(inner)
-        if (self.is_local_value(inner) or local_array) and self.escapes(want):
-            self.mark_local(e)
-        var have = self.concrete(got)
+        if (is_local_value(inner) or local_array) and self.escapes(want):
+            mark_local(e)
+        var have = concrete(got)
         if got == types.untyped_int_id and inner.kind == ast.Kind.literal:
             # a bare literal past `i64` is `u64` under a cast: `(u64)18446744073709551615`
             let magnitude = literals.decode_integer(inner.text) catch failure:
@@ -400,7 +428,7 @@ extend Checker:
             if magnitude > 9223372036854775807:
                 have = types.u64_id
         if got == types.untyped_int_id or got == types.untyped_float_id:
-            discard(try self.coerce(inner, got, have))
+            _ = try self.coerce(inner, got, have)
         if have == want:
             return want
         let s = self.table.get(have)

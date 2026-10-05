@@ -11,7 +11,7 @@ struct RetryWriter: io.Writer:
     var failed: bool
     var calls: usize
 
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         self.calls += 1
         if self.used == self.stop and not self.failed:
             self.failed = true
@@ -26,7 +26,7 @@ struct RetryReader: io.Reader:
     var fail: bool
     var calls: usize
 
-    pub mutating func read(buffer: u8[]) -> usize!:
+    pub func read(buffer: u8[]) -> usize!:
         self.calls += 1
         if self.fail:
             self.fail = false
@@ -40,10 +40,10 @@ func input_cases() -> !:
     var reader = try io.BufferedReader.over(&source, storage)
     assert(try reader.read(output[..<0]) == 0 and source.calls == 0)
     var rejected = false
-    discard(reader.read(output) catch failure:
+    _ = reader.read(output) catch failure:
         assert(failure.code == io.closed)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected and reader.buffered() == 0)
     assert(try reader.read(output[..<1]) == 1)
     assert(source.calls == 2 and reader.buffered() == 3)
@@ -55,10 +55,10 @@ func input_cases() -> !:
     assert(try reader.read(output) == 2)
     assert((str)output[..<2] == "xy")
     rejected = false
-    discard(io.BufferedReader.over(&source, storage[..<0]) catch failure:
+    _ = io.BufferedReader.over(&source, storage[..<0]) catch failure:
         assert(failure.code == io.invalid_buffer)
         rejected = true
-        recover reader)
+        recover reader
     assert(rejected)
 
 func output_cases() -> !:
@@ -72,10 +72,10 @@ func output_cases() -> !:
     var rejected = false
     # A full buffer drains before accepting new input. Two bytes succeed, then
     # the fault fires: only cd remains buffered and ef has not been accepted.
-    discard(writer.write("ef".bytes) catch failure:
+    _ = writer.write("ef".bytes) catch failure:
         assert(failure.code == io.closed)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected and sink.used == 2 and writer.buffered() == 2)
     assert((str)output[..<2] == "ab")
     try io.write_all(&writer, "efghij".bytes)
@@ -86,21 +86,21 @@ func output_cases() -> !:
     try writer.flush()
     assert(sink.calls == calls)
     rejected = false
-    discard(io.BufferedWriter.over(&sink, storage[..<0]) catch failure:
+    _ = io.BufferedWriter.over(&sink, storage[..<0]) catch failure:
         assert(failure.code == io.invalid_buffer)
         rejected = true
-        recover writer)
+        recover writer
     assert(rejected)
 
 ## Invalid endpoints must fail promptly and preserve buffered output for retry.
 struct InvalidSink: io.Writer:
     var oversized: bool
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         return data.length + 1 if self.oversized else 0
 
 struct InvalidSource: io.Reader:
     var unused: u8
-    pub mutating func read(buffer: u8[]) -> usize!:
+    pub func read(buffer: u8[]) -> usize!:
         return buffer.length + 1
 
 func invalid_sink_cases() -> !:
@@ -127,10 +127,10 @@ func invalid_source_cases() -> !:
     var source = InvalidSource()
     var reader = try io.BufferedReader.over(&source, storage)
     var rejected = false
-    discard(reader.read(output) catch failure:
+    _ = reader.read(output) catch failure:
         assert(failure.code == io.invalid_count)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected and reader.buffered() == 0)
 
 pub func main(arguments: str[]) -> i32!:

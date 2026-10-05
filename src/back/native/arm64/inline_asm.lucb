@@ -11,7 +11,7 @@ extend Generator:
     # mark: Inline assembly ====================================================================
 
     ## The block's text, when it is written for arm64.
-    mutating func inline_asm(n: ir.Instr) -> !:
+    func inline_asm(n: ir.Instr) -> !:
         let arch = self.program_unit.texts.get((usize)n.a.index).bytes
         if arch != "arm64":
             return

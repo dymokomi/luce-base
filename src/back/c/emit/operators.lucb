@@ -11,7 +11,7 @@
 extend Emitter:
     # mark: Operators ==========================================================================
 
-    mutating func unary(e: ast.Node*) -> !:
+    func unary(e: ast.Node*) -> !:
         let inner = e.left else return
         if e.text == "try":
             try self.try_expr(e)
@@ -97,7 +97,7 @@ extend Emitter:
     ## `l op r` for a binary operator: logical, comparison, pointer, float, bitwise,
     ## optional, or checked integer arithmetic, with its operands sequenced first when
     ## either has an effect.
-    mutating func binary(e: ast.Node*) -> !:
+    func binary(e: ast.Node*) -> !:
         let l = e.left else return
         let r = e.right else return
         let op = e.text
@@ -166,7 +166,7 @@ extend Emitter:
 
     ## `l < r` and the other orderings at the operand type `ot`; text compares by its
     ## bytes.
-    mutating func ordering(l: ast.Node*, r: ast.Node*, op: str, ot: u32) -> !:
+    func ordering(l: ast.Node*, r: ast.Node*, op: str, ot: u32) -> !:
         if ot == types.str_id:
             try self.put("(lb_str_compare(")
             try self.expr(l)
@@ -190,7 +190,7 @@ extend Emitter:
 
     ## `p + n`, `p - n`, and `p - q`: C's own pointer arithmetic, the count widened to
     ## `ptrdiff_t`.
-    mutating func pointer_arithmetic(l: ast.Node*, r: ast.Node*, rt: u32, op: str) -> !:
+    func pointer_arithmetic(l: ast.Node*, r: ast.Node*, rt: u32, op: str) -> !:
         try self.put("(")
         try self.expr(l)
         if op == "-" and self.is_ptr(rt):
@@ -206,7 +206,7 @@ extend Emitter:
 
     ## `l +? r`, `-?`, `*?`: the overflow helper's flag is the optional's presence and its
     ## result the value, of the optional type `t`.
-    mutating func optional_arithmetic(l: ast.Node*, r: ast.Node*, op: str, t: u32) -> !:
+    func optional_arithmetic(l: ast.Node*, r: ast.Node*, op: str, t: u32) -> !:
         let n = self.tmp()
         let et = self.elem(t)
         try self.put("({ ")
@@ -241,7 +241,7 @@ extend Emitter:
     ## Whether `e` is a link of a chain of type `t`: `a + b + c + ...` leans left, and C
     ## nests a call for every link, which the C compiler bounds (clang stops at 256). A
     ## link is one of the operators whose result has its left operand's type.
-    mutating func is_link(e: ast.Node*, t: u32) -> bool!:
+    func is_link(e: ast.Node*, t: u32) -> bool!:
         if e.kind != ast.Kind.binary:
             return false
         let op = e.text
@@ -251,7 +251,7 @@ extend Emitter:
 
     ## The links from `e` down its left side: the run of the same type, exactly, so an
     ## untyped literal chain is one run and the typed node above it another.
-    mutating func chain_length(e: ast.Node*) -> usize!:
+    func chain_length(e: ast.Node*) -> usize!:
         let t = try self.ty(e)
         if self.is_vector(t) or self.is_ptr(t):
             return 0
@@ -266,7 +266,7 @@ extend Emitter:
 
     ## A long chain as a sequence: the leaf into a temporary, then each link applied to it
     ## in order, so the C nests no deeper for a chain of any length.
-    mutating func chain(e: ast.Node*) -> !:
+    func chain(e: ast.Node*) -> !:
         let t = try self.ty(e)
         # an untyped chain computes in the word the nested form would, `int64_t` or `double`
         let held = types.i64_id if t == types.untyped_int_id else types.f64_id if t == types.untyped_float_id else t
@@ -280,7 +280,7 @@ extend Emitter:
         try self.put_tmp("ch", n)
         try self.put("; })")
 
-    mutating func chain_links(node: ast.Node*, t: u32, held: u32, n: u32) -> !:
+    func chain_links(node: ast.Node*, t: u32, held: u32, n: u32) -> !:
         let l = node.left else return
         if try self.is_link(l, t):
             try self.chain_links(l, t, held, n)
@@ -299,7 +299,7 @@ extend Emitter:
 
     ## Lane-wise arithmetic (§5.12): the operands bound once, each lane of the result the
     ## scalar operation on the operands' lanes; a scalar operand stands for every lane.
-    mutating func vector_binary(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, t: u32) -> !:
+    func vector_binary(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, t: u32) -> !:
         let et = self.elem(t)
         let n = self.tmp()
         let lv = self.kind(lt) == types.Kind.array
@@ -335,7 +335,7 @@ extend Emitter:
         try self.put("; })")
 
     ## Every lane of a vector under `~`, `-`, or `-%` (§5.12).
-    mutating func vector_unary(e: ast.Node*, inner: ast.Node*, t: u32) -> !:
+    func vector_unary(e: ast.Node*, inner: ast.Node*, t: u32) -> !:
         let et = self.elem(t)
         let n = self.tmp()
         try self.put("({ ")
@@ -364,7 +364,7 @@ extend Emitter:
 
     ## `T[N](x)`: every lane is `x`, computed once (§5.12); in a global's initialiser `x` is
     ## a constant and the lanes are a compound literal.
-    mutating func splat(e: ast.Node*, t: u32) -> !:
+    func splat(e: ast.Node*, t: u32) -> !:
         let first = e.body else return
         let v = first.left else return
         let et = self.elem(t)
@@ -406,7 +406,7 @@ extend Emitter:
 
     ## `v.sum()`, `v.min()`, `v.max()`: the lanes folded in order (§5.12); a float `min` or
     ## `max` skips a NaN lane when another lane compares.
-    mutating func vector_fold(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+    func vector_fold(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
         let et = self.elem(rt)
         let n = self.tmp()
         try self.put("({ ")
@@ -450,7 +450,7 @@ extend Emitter:
         try self.put("; })")
 
     ## Temporary `name<n>`, or its lane `i` when it is a vector.
-    mutating func lane(name: str, n: u32, i: u64) -> !:
+    func lane(name: str, n: u32, i: u64) -> !:
         try self.put_tmp(name, n)
         if i != no_lane:
             try self.put(".d[")
@@ -459,7 +459,7 @@ extend Emitter:
 
     ## One scalar operation of §7.2 or §7.3 on two temporaries' lanes, of type `t`: C's
     ## operator for floats and bits, the runtime's helper for the integer forms.
-    mutating func lane_op(op: str, t: u32, a: str, an: u32, ai: u64, b: str, bn: u32, bi: u64) -> !:
+    func lane_op(op: str, t: u32, a: str, an: u32, ai: u64, b: str, bn: u32, bi: u64) -> !:
         if self.is_float(t) or op == "&" or op == "|" or op == "^":
             try self.put("((")
             try self.put_type(t)
@@ -486,7 +486,7 @@ extend Emitter:
         try self.put("))")
 
     ## `~`, `-`, or `-%` on one temporary's lane, of type `t`.
-    mutating func lane_unary(op: str, t: u32, a: str, an: u32, ai: u64) -> !:
+    func lane_unary(op: str, t: u32, a: str, an: u32, ai: u64) -> !:
         if self.is_float(t):
             try self.put("(-(")
             try self.lane(a, an, ai)
@@ -512,7 +512,7 @@ extend Emitter:
         try self.put("))")
 
     ## `==` and `!=` over scalars, text, pointers, and tagged optionals.
-    mutating func equality(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, ot: u32, negate: bool) -> !:
+    func equality(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, ot: u32, negate: bool) -> !:
         let l_none = l.kind == ast.Kind.literal and l.text == "none"
         let r_none = r.kind == ast.Kind.literal and r.text == "none"
         let tagged = self.is_tagged_opt(lt) or self.is_tagged_opt(rt)
@@ -549,7 +549,7 @@ extend Emitter:
             try self.put(" = ")
             try self.expr(r)
             try self.put("; ")
-            try self.same_text(try self.tmp_name("sa", n), try self.tmp_name("sb", n))
+            try self.same_text(try tmp_name("sa", n), try tmp_name("sb", n))
             try self.put("; })")
         elif self.is_record(ot) or self.is_tuple(ot) or self.is_array(ot):
             let n = self.tmp()
@@ -566,7 +566,7 @@ extend Emitter:
             try self.put(" = ")
             try self.value(r, ot)
             try self.put("; ")
-            try self.same_value(ot, try self.tmp_name("ea", n), try self.tmp_name("eb", n))
+            try self.same_value(ot, try tmp_name("ea", n), try tmp_name("eb", n))
             try self.put("; })")
         else:
             try self.put("(")
@@ -585,7 +585,7 @@ extend Emitter:
 
     ## `a == b` for two values of the tagged optional type `vt`: both computed once, then
     ## equal when both are absent or both present with equal values.
-    mutating func optional_equality(l: ast.Node*, r: ast.Node*, vt: u32) -> !:
+    func optional_equality(l: ast.Node*, r: ast.Node*, vt: u32) -> !:
         let n = self.tmp()
         try self.put("({ ")
         try self.put_type(vt)
@@ -606,9 +606,9 @@ extend Emitter:
         try self.put(".present) && (!")
         try self.put_tmp("oa", n)
         try self.put(".present || ")
-        let oa = try self.tmp_name("oa", n)
-        let ob = try self.tmp_name("ob", n)
-        var a_bytes = try alloc u8[oa.length + 8]
-        var b_bytes = try alloc u8[ob.length + 8]
-        try self.same_value(self.c.table.get(vt).elem, try format(a_bytes, f"{oa}.value"), try format(b_bytes, f"{ob}.value"))
+        let oa = try tmp_name("oa", n)
+        let ob = try tmp_name("ob", n)
+        var a_bytes = try new u8[oa.length + 8] ---
+        var b_bytes = try new u8[ob.length + 8] ---
+        try self.same_value(self.c.table.get(vt).elem, try strings.format(a_bytes, f"{oa}.value"), try strings.format(b_bytes, f"{ob}.value"))
         try self.put("); })")

@@ -72,7 +72,7 @@ over a wide slice of the language (integers of six widths under every arithmetic
 cast, bounded floats, structs by value as arguments, results, elements and through
 pointers, spans and `for`, fallible calls, optionals, a backed enum under `match`,
 generics, an interface, lambdas, `defer`, text, payload enums, unions,
-generic structs, vectors, nullable functions, tuples, methods, and memory: `new`, `alloc`,
+generic structs, vectors, nullable functions, tuples, methods, and memory: `new`, `new T[n] ---`,
 raw bytes, `free`, `defer free`, linked lists, a `FixedBuffer` arena under `in` and `with`,
 heap trees under `errdefer`) and requires the C, C `-O2`, native, and seed executions to
 agree. The gate runs a short

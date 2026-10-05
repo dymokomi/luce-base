@@ -1,5 +1,5 @@
-## §1.2: the program the specification opens with, run as written: a struct with a mutating
-## method and a fallible one, `while let` over `first()`, `catch` with `recover ()`, and a
+## §1.2: the program the specification opens with, run as written: a struct with a method
+## that changes it and a fallible one, `while let` over `first()`, `catch` with `recover ()`, and a
 ## cast that reinterprets bytes as text. Nothing allocates.
 let past_end = ErrorCode.package(1)
 
@@ -7,7 +7,7 @@ struct Cursor:
     var data: const u8[]
     var offset: usize
 
-    mutating func advance(count: usize) -> !:
+    func advance(count: usize) -> !:
         if self.offset + count > self.data.length:
             error(past_end, "advance past the end of the input")
         self.offset += count

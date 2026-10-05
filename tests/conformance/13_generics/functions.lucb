@@ -1,3 +1,5 @@
+import memory
+
 ## §13.1: type parameters in brackets, inferred from arguments or written at the call; generic
 ## structs with methods; nested instantiations; generics over pointers, spans, and function
 ## types; every instantiation is its own type.
@@ -12,14 +14,14 @@ struct Stack[T]:
     var items: T[]
     var count: usize
 
-    static func over(items: T[]) -> Stack[T]:
+    func over(items: T[]) -> Stack[T]:
         return Stack[T](items = items, count = 0)
 
-    mutating func push(value: T):
+    func push(value: T):
         self.items[self.count] = value
         self.count += 1
 
-    mutating func pop() -> T?:
+    func pop() -> T?:
         if self.count == 0:
             return none
         self.count -= 1
@@ -79,7 +81,7 @@ pub func main(arguments: str[]) -> i32:
     let p = Pair[i64, str](first = 1, second = "one")
     let q = p.swapped()
     let nested = Pair[Pair[i64, str], bool](first = p, second = true)
-    print(f"{q.first} {q.second} {nested.first.second} {nested.second} {sizeof(Pair[u8, u8])} {sizeof(Pair[i64, i64])}")
+    print(f"{q.first} {q.second} {nested.first.second} {nested.second} {memory.size_of(Pair[u8, u8])} {memory.size_of(Pair[i64, i64])}")
 
     var int_slots: i64[4]
     var ints = Stack[i64].over(int_slots)

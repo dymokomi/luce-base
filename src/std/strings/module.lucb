@@ -12,6 +12,7 @@
 import float_text
 import io
 import memory
+import numerals
 ## An empty separator or needle where one is required.
 pub let invalid_separator: ErrorCode = ErrorCode.package(48)
 ## A result exceeds the caller's byte limit.

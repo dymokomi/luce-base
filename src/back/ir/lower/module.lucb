@@ -121,10 +121,10 @@ func assert_text(condition: str, message: str) -> str!:
     var length = 32 + condition.length
     if message.length > 0:
         length += 2 + message.length
-    let room = try alloc u8[length]
+    let room = try new u8[length] ---
     if message.length > 0:
-        return try format(room, f"assert failed: {condition}: {message}")
-    return try format(room, f"assert failed: {condition}")
+        return try strings.format(room, f"assert failed: {condition}: {message}")
+    return try strings.format(room, f"assert failed: {condition}")
 
 ## The native backend's front half: it lowers each function instance to an `ir.Function`.
 pub struct Lowerer:
@@ -214,7 +214,7 @@ pub struct Lowerer:
     var site_line: u32
 
     ## A lowerer for `entry`, checked by `c`.
-    pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
+    pub func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, target = targets.Target.host(),
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try instances.Instances.create(), tests = try list.List[NodeRef].create(32),
@@ -233,5 +233,5 @@ pub struct Lowerer:
         let half = self.c.scratch.length // 2
         let file = self.source_of_current()
         if node.text.length == 0:
-            error(native_unsupported, try format(self.c.scratch[..<half], f"{file}:{node.line}: {what}"))
-        error(native_unsupported, try format(self.c.scratch[..<half], f"{file}:{node.line}: {what} `{node.text}`"))
+            error(native_unsupported, try strings.format(self.c.scratch[..<half], f"{file}:{node.line}: {what}"))
+        error(native_unsupported, try strings.format(self.c.scratch[..<half], f"{file}:{node.line}: {what} `{node.text}`"))

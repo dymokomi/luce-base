@@ -52,6 +52,9 @@ pub struct Lexer:
     var delimiters: i32
     ## 0: code; 1: inside a formatted string's literal part; 2: inside a `{field}`
     var modes: u8[32]
+    ## For each field open in `modes`, how many brackets were open before it: a `:` with no
+    ## more open than that starts the field's specification (§5.5).
+    var field_brackets: i32[32]
     var mode_depth: usize
     var asm_header: bool
     var raw_level: u32
@@ -69,7 +72,7 @@ pub struct Lexer:
     var token_start: usize
 
     ## A lexer positioned at the start of `src`.
-    pub static func over(src: source.Source) -> Lexer:
+    pub func over(src: source.Source) -> Lexer:
         return Lexer(src = src, offset = 0, line = 1, line_start = 0, at_line_start = true,
                      depth = 0, pending_dedents = 0, delimiters = 0, mode_depth = 0,
                      asm_header = false, raw_level = 0, in_raw = false, comment_start = 0, comment_end = 0,
@@ -96,15 +99,6 @@ pub struct Lexer:
             return 0
         return self.src.bytes[self.offset + ahead]
 
-    func is_letter(c: u8) -> bool:
-        return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '_'
-
-    func is_digit(c: u8) -> bool:
-        return c >= '0' and c <= '9'
-
-    func is_hex(c: u8) -> bool:
-        return self.is_digit(c) or (c >= 'a' and c <= 'f') or (c >= 'A' and c <= 'F')
-
     func make(kind: token.Kind, start: usize) -> token.Token:
         return token.Token(kind = kind, start = start, end = self.offset, line = self.line,
                            column = u32(start - self.line_start) + 1)
@@ -114,24 +108,24 @@ pub struct Lexer:
             return 0
         return self.modes[self.mode_depth - 1]
 
-    mutating func push_mode(m: u8) -> !:
+    func push_mode(m: u8) -> !:
         if self.mode_depth >= max_modes:
             error(unterminated, "formatted strings nest too deeply")
         self.modes[self.mode_depth] = m
         self.mode_depth += 1
 
-    mutating func pop_mode():
+    func pop_mode():
         if self.mode_depth > 0:
             self.mode_depth -= 1
 
-    mutating func newline_here():
+    func newline_here():
         self.offset += 1
         self.line += 1
         self.line_start = self.offset
         self.at_line_start = true
 
     ## Skip spaces and a trailing comment; a `##` at a line's start is a token.
-    mutating func skip_trivia() -> token.Token?!:
+    func skip_trivia() -> token.Token?!:
         while true:
             let c = self.peek()
             if c == ' ':
@@ -153,7 +147,7 @@ pub struct Lexer:
                 return none
 
     ## Measure the current line's indentation and queue layout tokens.
-    mutating func layout() -> token.Token?!:
+    func layout() -> token.Token?!:
         var column: u32 = 0
         while true:
             column = 0
@@ -202,7 +196,7 @@ pub struct Lexer:
         return none
 
     ## One physical line of an `asm` suite, or the dedent that ends it.
-    mutating func raw_line() -> token.Token!:
+    func raw_line() -> token.Token!:
         # layout() may already have consumed the indentation; measure from the line start
         var i = self.offset
         while i < self.src.bytes.length and self.src.bytes[i] == ' ':
@@ -241,7 +235,7 @@ pub struct Lexer:
             self.newline_here()
         return t
 
-    mutating func number(start: usize) -> token.Token!:
+    func number(start: usize) -> token.Token!:
         var kind = token.Kind.integer
         if self.peek() == '0' and (self.peek_at(1) == 'X' or self.peek_at(1) == 'O' or self.peek_at(1) == 'B'):
             error(bad_character, "a based integer prefix is lowercase: `0x`, `0o`, or `0b`")
@@ -251,18 +245,18 @@ pub struct Lexer:
             try self.digits(base)
         else:
             try self.digits(10)
-            if self.peek() == '.' and self.is_digit(self.peek_at(1)):
+            if self.peek() == '.' and is_digit(self.peek_at(1)):
                 kind = token.Kind.float
                 self.offset += 1
                 try self.digits(10)
-            if (self.peek() == 'e' or self.peek() == 'E') and (self.is_digit(self.peek_at(1)) or ((self.peek_at(1) == '+' or self.peek_at(1) == '-') and self.is_digit(self.peek_at(2)))):
+            if (self.peek() == 'e' or self.peek() == 'E') and (is_digit(self.peek_at(1)) or ((self.peek_at(1) == '+' or self.peek_at(1) == '-') and is_digit(self.peek_at(2)))):
                 kind = token.Kind.float
                 self.offset += 1
                 if self.peek() == '+' or self.peek() == '-':
                     self.offset += 1
                 try self.digits(10)
         let digits_end = self.offset
-        while self.is_letter(self.peek()) or self.is_digit(self.peek()):
+        while is_letter(self.peek()) or is_digit(self.peek()):
             self.offset += 1  # a suffix such as u8 or f32
         if self.offset > digits_end and not is_literal_suffix(self.src.text(digits_end, self.offset)):
             error(bad_character, "a literal suffix names an integer or float type: `255u8`, `0.5f32`")
@@ -270,7 +264,7 @@ pub struct Lexer:
 
     ## The digits of a number in `base` with `_` between digits (§4.2): at least one digit,
     ## no separator at either end or doubled, and no digit of a wider base after them.
-    mutating func digits(base: u8) -> !:
+    func digits(base: u8) -> !:
         var count: usize = 0
         var separator = false
         while true:
@@ -289,17 +283,17 @@ pub struct Lexer:
             error(bad_character, "a `_` in a number separates two digits")
         if count == 0:
             error(bad_character, "a number needs a digit")
-        if self.is_digit(self.peek()):
+        if is_digit(self.peek()):
             error(bad_character, "a digit outside the number's base")
 
     ## The escapes of §4.2: `\\ \" \' \n \r \t \0 \u{HEX}`, and `\xNN` in a byte literal only.
-    mutating func escape(bytes: bool) -> !:
+    func escape(bytes: bool) -> !:
         self.offset += 1  # the backslash
         let c = self.peek()
         if c == 'u' and self.peek_at(1) == '{':
             self.offset += 2
             var digits: usize = 0
-            while self.is_hex(self.peek()):
+            while is_hex(self.peek()):
                 self.offset += 1
                 digits += 1
             if self.peek() != '}' or digits == 0 or digits > 6:
@@ -309,7 +303,7 @@ pub struct Lexer:
         if c == 0 or c == '\n':
             error(unterminated, "escape at the end of the line")
         if bytes and c == 'x':
-            if not (self.is_hex(self.peek_at(1)) and self.is_hex(self.peek_at(2))):
+            if not (is_hex(self.peek_at(1)) and is_hex(self.peek_at(2))):
                 error(bad_character, "a byte escape is \\xNN")
             self.offset += 3
             return
@@ -318,7 +312,7 @@ pub struct Lexer:
         self.offset += 1
 
     ## A quoted literal after its opening quote: text, bytes, raw, or triple.
-    mutating func quoted(kind: token.Kind, start: usize, triple: bool, raw: bool) -> token.Token!:
+    func quoted(kind: token.Kind, start: usize, triple: bool, raw: bool) -> token.Token!:
         # a triple-quoted literal spans lines; its token keeps the line and column it opened on
         let first_line = self.line
         let first_start = self.line_start
@@ -347,7 +341,7 @@ pub struct Lexer:
             self.offset += 1
 
     ## The literal part of a formatted string up to the next field or its end.
-    mutating func format_part() -> token.Token!:
+    func format_part() -> token.Token!:
         let start = self.offset
         while true:
             let c = self.peek()
@@ -367,6 +361,7 @@ pub struct Lexer:
                     return self.make(token.Kind.format_text, start)
                 self.offset += 1
                 try self.push_mode(2)
+                self.field_brackets[self.mode_depth - 1] = self.delimiters
                 return self.make(token.Kind.operator, start)
             if c == '}' and self.peek_at(1) == '}':
                 self.offset += 2
@@ -376,7 +371,21 @@ pub struct Lexer:
                 continue
             self.offset += 1
 
-    mutating func operator(start: usize) -> token.Token!:
+    ## A field's specification, from after its `:` up to the field's `}`: plain text, no
+    ## field or escape of its own (§5.5).
+    func format_spec() -> token.Token!:
+        self.offset += 1
+        let start = self.offset
+        while self.peek() != '}':
+            let c = self.peek()
+            if c == 0 or c == '\n' or c == '"':
+                error(unterminated, "a formatted string's field ends with `}`")
+            if c == '{' or c == '\\':
+                error(bad_character, "a format specification holds no field and no escape")
+            self.offset += 1
+        return self.make(token.Kind.format_spec, start)
+
+    func operator(start: usize) -> token.Token!:
         let first = self.peek()
         for op in token.operators:
             # the first byte rules out all but a few, before any text is compared
@@ -390,7 +399,7 @@ pub struct Lexer:
         error(bad_character, "unexpected character")
 
     ## The next token, advancing past it; the `eof` token at the end.
-    pub mutating func next() -> token.Token!:
+    pub func next() -> token.Token!:
         self.token_start = self.offset
         if self.in_raw:
             return try self.raw_line()
@@ -421,9 +430,9 @@ pub struct Lexer:
             let t = token.Token(kind = token.Kind.newline, start = start, end = start + 1,
                                 line = self.line - 1, column = u32(start - self.line_start_before(start)) + 1)
             return t
-        if self.is_letter(c):
+        if is_letter(c):
             return try self.name_or_keyword(start, c)
-        if self.is_digit(c):
+        if is_digit(c):
             return try self.number(start)
         if c == '"':
             self.offset += 1
@@ -433,6 +442,8 @@ pub struct Lexer:
             return try self.quoted(token.Kind.text, start, false, false)
         if c == '\'':
             return try self.character(start)
+        if c == ':' and self.mode() == 2 and self.delimiters == self.field_brackets[self.mode_depth - 1]:
+            return try self.format_spec()
         if c == '(' or c == '[' or c == '{':
             # the depth a bracket was opened at is kept for each; more open brackets than
             # the table holds is a diagnostic, never a fault
@@ -460,7 +471,7 @@ pub struct Lexer:
 
     ## A token starting with the letter `c` at `start`: a name, a keyword, or a `b"..."`,
     ## `r"..."`, or `f"..."` literal; `asm ARCH` at the start of a line opens a raw suite.
-    mutating func name_or_keyword(start: usize, c: u8) -> token.Token!:
+    func name_or_keyword(start: usize, c: u8) -> token.Token!:
         # b"...", r"...", f"..." are literals, not names
         if (c == 'b' or c == 'r' or c == 'f') and self.peek_at(1) == '"':
             self.offset += 2
@@ -471,7 +482,7 @@ pub struct Lexer:
             if triple:
                 self.offset += 2
             return try self.quoted(token.Kind.bytes if c == 'b' else token.Kind.raw, start, triple, c == 'r')
-        while self.is_letter(self.peek()) or self.is_digit(self.peek()):
+        while is_letter(self.peek()) or is_digit(self.peek()):
             self.offset += 1
         if self.offset - start > longest_name:
             error(bad_character, "an identifier is at most 128 bytes")
@@ -484,12 +495,12 @@ pub struct Lexer:
             var look = self.offset
             while look < self.src.bytes.length and self.src.bytes[look] == ' ':
                 look += 1
-            if look < self.src.bytes.length and self.is_letter(self.src.bytes[look]):
+            if look < self.src.bytes.length and is_letter(self.src.bytes[look]):
                 self.asm_header = true
         return self.make(token.Kind.keyword, start)
 
     ## A character literal at `start`: one scalar, or an escape, between single quotes.
-    mutating func character(start: usize) -> token.Token!:
+    func character(start: usize) -> token.Token!:
         self.offset += 1
         if self.peek() == '\n' or self.peek() == 0:
             error(unterminated, "unterminated character literal")
@@ -527,6 +538,15 @@ pub struct Lexer:
     ## The source text token `t` spans.
     pub func text(t: token.Token) -> str:
         return self.src.text(t.start, t.end)
+
+func is_hex(c: u8) -> bool:
+    return is_digit(c) or (c >= 'a' and c <= 'f') or (c >= 'A' and c <= 'F')
+
+func is_letter(c: u8) -> bool:
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '_'
+
+func is_digit(c: u8) -> bool:
+    return c >= '0' and c <= '9'
 
 # mark: Entry point and tests =================================================================
 
@@ -610,7 +630,7 @@ test "a blank CRLF line inside or after an asm suite keeps the suite's block":
     var dedents = 0
     var g_line: u32 = 0
     for index in 0..<40:
-        discard(index)
+        _ = index
         let t = try lexer.next()
         if t.kind == token.Kind.raw_line:
             raw += 1
@@ -629,7 +649,7 @@ test "CRLF asm lines exclude the physical line ending":
     var lexer = Lexer.over(src)
     var found = false
     for index in 0..<8:
-        discard(index)
+        _ = index
         let t = try lexer.next()
         if t.kind == token.Kind.raw_line:
             assert(lexer.text(t) == "cpuid")
@@ -639,9 +659,9 @@ test "CRLF asm lines exclude the physical line ending":
 test "a tab is an error":
     var toks: token.Token[8] = ---
     var refused = false
-    discard(tokenize("\tx", toks) catch failure:
+    _ = tokenize("\tx", toks) catch failure:
         refused = failure.code == tab
-        recover 0)
+        recover 0
     assert(refused)
 
 test "a suite inside brackets closes with the bracket":

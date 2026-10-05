@@ -21,10 +21,10 @@ func datagram_cases() -> !:
     var buffer: u8[4]
     try sender.send_to("too large".bytes, target)
     var rejected = false
-    discard(receiver.receive_from(buffer) catch failure:
+    _ = receiver.receive_from(buffer) catch failure:
         assert(failure.code == net.message_too_large)
         rejected = true
-        recover (0, net.SocketAddress.any(0)))
+        recover (0, net.SocketAddress.any(0))
     assert(rejected)
     try sender.send_to("next".bytes, target)
     let (count, peer) = try receiver.receive_from(buffer)
@@ -35,10 +35,10 @@ func datagram_cases() -> !:
     assert(empty_count == 0 and empty_peer.port == peer.port)
     try sender.send_to("x".bytes, target)
     rejected = false
-    discard(receiver.receive_from(empty) catch failure:
+    _ = receiver.receive_from(empty) catch failure:
         assert(failure.code == net.message_too_large)
         rejected = true
-        recover (0, net.SocketAddress.any(0)))
+        recover (0, net.SocketAddress.any(0))
     assert(rejected)
     try sender.send_to(empty, target)
     let (zero_count, zero_peer) = try receiver.receive_from(buffer)
@@ -49,10 +49,10 @@ func datagram_cases() -> !:
             try sender.send_to("addr".bytes, target)
         fault_arm(kind)
         rejected = false
-        discard(receiver.receive_from(buffer) catch failure:
+        _ = receiver.receive_from(buffer) catch failure:
             assert(failure.code == (io.would_block if kind == 56 else net.failed))
             rejected = true
-            recover (0, net.SocketAddress.any(0)))
+            recover (0, net.SocketAddress.any(0))
         assert(rejected and fault_hits() == 1)
         kind += 1
     fault_arm(60)
@@ -72,18 +72,18 @@ func tcp_control_cases() -> !:
     var backlog: i32 = -1
     while backlog <= 0:
         var rejected = false
-        discard(net.Listener.bind(net.SocketAddress.loopback(0), backlog) catch failure:
+        _ = net.Listener.bind(net.SocketAddress.loopback(0), backlog) catch failure:
             assert(failure.code == net.invalid_options)
             rejected = true
-            recover net.Listener())
+            recover net.Listener()
         assert(rejected)
         backlog += 1
     fault_arm(55)
     var rejected = false
-    discard(net.Listener.bind(net.SocketAddress.loopback(0)) catch failure:
+    _ = net.Listener.bind(net.SocketAddress.loopback(0)) catch failure:
         assert(failure.code == net.failed)
         rejected = true
-        recover net.Listener())
+        recover net.Listener()
     assert(rejected and fault_hits() == 1 and fault_listener_closed() == 1)
     fault_arm(54)
     var listener = try net.Listener.bind(net.SocketAddress.loopback(0), 37)
@@ -103,10 +103,10 @@ func tcp_control_cases() -> !:
     while kind <= 51:
         fault_arm(kind)
         rejected = false
-        discard(client.peer_address() catch failure:
+        _ = client.peer_address() catch failure:
             assert(failure.code == net.failed)
             rejected = true
-            recover net.SocketAddress.any(0))
+            recover net.SocketAddress.any(0)
         assert(rejected and fault_hits() == 1)
         kind += 1
     fault_arm(53)
@@ -150,10 +150,10 @@ func adoption_cases() -> !:
             assert(fault_socket_cloexec(pair[0]) == 1)
         kind += 1
     var rejected = false
-    discard(net.Connection.over(-1) catch failure:
+    _ = net.Connection.over(-1) catch failure:
         assert(failure.code == net.closed)
         rejected = true
-        recover net.Connection())
+        recover net.Connection()
     assert(rejected)
 
 func closed_values() -> !:
@@ -169,28 +169,28 @@ func closed_values() -> !:
     datagram.destroy()
     var buffer: u8[]
     var rejected = false
-    discard(connection.write(buffer) catch failure:
+    _ = connection.write(buffer) catch failure:
         assert(failure.code == net.closed)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected)
     rejected = false
-    discard(connection.read(buffer) catch failure:
+    _ = connection.read(buffer) catch failure:
         assert(failure.code == net.closed)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected)
     rejected = false
-    discard(listener.address() catch failure:
+    _ = listener.address() catch failure:
         assert(failure.code == net.closed)
         rejected = true
-        recover net.SocketAddress.any(0))
+        recover net.SocketAddress.any(0)
     assert(rejected)
     rejected = false
-    discard(listener.accept() catch failure:
+    _ = listener.accept() catch failure:
         assert(failure.code == net.closed)
         rejected = true
-        recover net.Connection())
+        recover net.Connection()
     assert(rejected)
     rejected = false
     datagram.send_to(buffer, net.SocketAddress.loopback(1)) catch failure:
@@ -239,10 +239,10 @@ pub func main(arguments: str[]) -> i32!:
     while kind <= 4:
         fault_arm(kind)
         var failed = false
-        discard(sender.write("bad".bytes) catch failure:
+        _ = sender.write("bad".bytes) catch failure:
             assert(failure.code == (net.closed if kind == 3 else io.no_progress))
             failed = true
-            recover 0)
+            recover 0
         assert(failed and fault_hits() == 1)
         kind += 1
     # A failure after the first successful short send must report that prefix.
@@ -258,31 +258,31 @@ pub func main(arguments: str[]) -> i32!:
     assert((str)buffer == "retry-me")
     fault_arm(39)
     blocked = false
-    discard(receiver.read(buffer) catch failure:
+    _ = receiver.read(buffer) catch failure:
         assert(failure.code == io.would_block)
         blocked = true
-        recover 0)
+        recover 0
     assert(blocked and fault_hits() == 1)
     fault_arm(40)
     blocked = false
-    discard(sender.write("x".bytes) catch failure:
+    _ = sender.write("x".bytes) catch failure:
         assert(failure.code == net.failed)
         blocked = true
-        recover 0)
+        recover 0
     assert(blocked and fault_hits() == 1)
     try receiver.close()
     var closed = false
-    discard(sender.write("closed".bytes) catch failure:
+    _ = sender.write("closed".bytes) catch failure:
         assert(failure.code == net.closed)
         closed = true
-        recover 0)
+        recover 0
     assert(closed)
     fault_arm(44)
     var option_failed = false
-    discard(net.Listener.bind(net.SocketAddress.loopback(0)) catch failure:
+    _ = net.Listener.bind(net.SocketAddress.loopback(0)) catch failure:
         assert(failure.code == net.failed)
         option_failed = true
-        recover net.Listener())
+        recover net.Listener()
     assert(option_failed and fault_hits() == 1 and fault_socket_option_closed() == 1)
     var listener = try net.Listener.bind(net.SocketAddress.loopback(0))
     defer listener.destroy()
@@ -292,10 +292,10 @@ pub func main(arguments: str[]) -> i32!:
     while kind <= 43:
         fault_arm(kind)
         var rejected = false
-        discard(listener.address() catch failure:
+        _ = listener.address() catch failure:
             assert(failure.code == net.failed)
             rejected = true
-            recover net.SocketAddress.any(0))
+            recover net.SocketAddress.any(0)
         assert(rejected and fault_hits() == 1)
         kind += 1
     var client = try net.Connection.connect((try listener.address()))

@@ -144,7 +144,7 @@ pub struct Preprocessor:
     # mark: Setup ==============================================================================
 
     ## A preprocessor with `compiler`'s include directories and predefined macros.
-    pub static func create(compiler: c.str) -> Preprocessor!:
+    pub func create(compiler: c.str) -> Preprocessor!:
         var p = Preprocessor(dirs = try list.List[str].create(16), user_dirs = 0,
                              frameworks = try list.List[str].create(4),
                              files = try list.List[FileEntry].create(64),
@@ -160,7 +160,7 @@ pub struct Preprocessor:
         return p
 
     ## The system include directories, from `cc -E -Wp,-v` on an empty input.
-    mutating func ask_directories(compiler: c.str) -> !:
+    func ask_directories(compiler: c.str) -> !:
         let empty: c.str = "nul" if platform.windows else "/dev/null"
         let arguments: c.str[4] = ["-E", "-Wp,-v", "-xc", empty]
         let asked = try process.run(compiler, arguments)
@@ -183,7 +183,7 @@ pub struct Preprocessor:
                 try self.dirs.push(try strings.copy(t))
 
     ## The predefined macros, from `cc -dM -E`, read as `#define` lines.
-    mutating func ask_macros(compiler: c.str) -> !:
+    func ask_macros(compiler: c.str) -> !:
         let empty: c.str = "nul" if platform.windows else "/dev/null"
         let arguments: c.str[4] = ["-dM", "-E", "-xc", empty]
         let asked = try process.run(compiler, arguments)
@@ -194,10 +194,10 @@ pub struct Preprocessor:
         # the tokens point into their text, which outlives the answer
         let macros = try strings.copy(asked.value.output)
         let head = try tokenize(macros.bytes, u32(self.files.count - 1))
-        discard(try self.process(head))
+        _ = try self.process(head)
 
     ## A `-I` directory, searched before the system ones.
-    pub mutating func add_include_dir(dir: str) -> !:
+    pub func add_include_dir(dir: str) -> !:
         try self.dirs.push("")
         var i = self.dirs.count - 1
         while i > self.user_dirs:
@@ -207,7 +207,7 @@ pub struct Preprocessor:
         self.user_dirs += 1
 
     ## A `-D` definition: `NAME` or `NAME=VALUE`, as `#define` would.
-    pub mutating func define(text: str) -> !:
+    pub func define(text: str) -> !:
         var line = try buffer.Buffer.create(text.length + 16)
         try line.put("#define ")
         if let pair = split_at(text, '='):
@@ -220,10 +220,10 @@ pub struct Preprocessor:
             try line.put(" 1")
         try line.put("\n")
         let head = try tokenize(line.bytes(), 0)
-        discard(try self.process(head))
+        _ = try self.process(head)
 
     ## Preprocess `path` and everything it includes: the token list of the whole unit.
-    pub mutating func run(path: str) -> Tok*!:
+    pub func run(path: str) -> Tok*!:
         let file = try self.open(path, no_dir)
         self.main_file = file
         let bytes = try in_arena.read((c.str)self.files.items[file].path)
@@ -235,12 +235,12 @@ pub struct Preprocessor:
         return out
 
     ## A file that is not on disk, a recipe's prototypes say: its index for tokens.
-    pub mutating func add_virtual_file(name: str) -> u32!:
+    pub func add_virtual_file(name: str) -> u32!:
         try self.files.push(FileEntry(path = name, dir = no_dir))
         return u32(self.files.count - 1)
 
     ## Where `#include <name>` would find `name`, for a header given by its include name.
-    pub mutating func locate(name: str) -> str?!:
+    pub func locate(name: str) -> str?!:
         let found = try self.search(name, true, 0, false) else return none
         return found.path
 
@@ -254,21 +254,21 @@ pub struct Preprocessor:
         return none if m.deleted else m
 
     ## `m` as its name's definition, replacing any earlier one.
-    mutating func insert(m: Macro*) -> !:
+    func insert(m: Macro*) -> !:
         try self.macros.put(m.name, m)
 
-    mutating func add_builtin(name: str, which: u8) -> !:
-        let m = try new Macro(name = name, function_like = false, params = try alloc str[0], variadic = false,
+    func add_builtin(name: str, which: u8) -> !:
+        let m = try new Macro(name = name, function_like = false, params = try new str[0] ---, variadic = false,
                               body = none, builtin = which, file = 0, line = 0, deleted = false)
         try self.insert(m)
 
     # mark: Files ==============================================================================
 
     ## The index of `path` in the file table, canonical, opened once.
-    mutating func open(path: str, dir: usize) -> u32!:
+    func open(path: str, dir: usize) -> u32!:
         let terminated = try strings.copy(path)
         let canonical = in_arena.canonical((c.str)terminated) catch failure:
-            discard(failure)
+            _ = failure
             recover terminated
         for i in 0..<self.files.count:
             if self.files.items[i].path == canonical:
@@ -278,7 +278,7 @@ pub struct Preprocessor:
 
     ## Where `#include` finds `name`: beside the including file for a quoted name, then the
     ## directories in order, from the one after the including file's for `#include_next`.
-    mutating func search(name: str, angled: bool, source: u32, next: bool) -> Found?!:
+    func search(name: str, angled: bool, source: u32, next: bool) -> Found?!:
         if paths.is_absolute(name):
             if try exists(name):
                 return Found(path = name, dir = no_dir)
@@ -307,7 +307,7 @@ pub struct Preprocessor:
     # mark: The loop ===========================================================================
 
     ## The tokens of `start` with directives obeyed and macros expanded.
-    pub mutating func process(start: Tok*) -> Tok*!:
+    pub func process(start: Tok*) -> Tok*!:
         let head = try new Tok(kind = Kind.eof, text = "", file = 0, line = 0, space = false, bol = true, hide = none, next = none)
         var cur = head
         var tok = start
@@ -329,7 +329,7 @@ pub struct Preprocessor:
         return head.next else trap("unreachable")
 
     ## One directive, `tok` its name; the token after its line, or after the group it skips.
-    mutating func directive(sharp: Tok*, tok: Tok*) -> Tok*!:
+    func directive(sharp: Tok*, tok: Tok*) -> Tok*!:
         let name = tok.text
         if name == "include" or name == "include_next" or name == "import":
             return try self.include(sharp, tok)
@@ -344,31 +344,31 @@ pub struct Preprocessor:
         if name == "if":
             let (value, rest) = try self.const_expr(tok.next else trap("unreachable"))
             try self.push_cond(sharp, value != 0)
-            return rest if value != 0 else try self.skip_group(rest)
+            return rest if value != 0 else try skip_group(rest)
         if name == "ifdef" or name == "ifndef":
             let target = tok.next else trap("unreachable")
             let present = target.kind == Kind.ident and self.lookup(target.text) != none
             let included = present if name == "ifdef" else not present
             try self.push_cond(sharp, included)
             let rest = skip_line(target)
-            return rest if included else try self.skip_group(rest)
+            return rest if included else try skip_group(rest)
         if name == "elif":
             if self.conds.count == 0 or self.conds.items[self.conds.count - 1].in_else:
                 error(failed, try at(self.path_of(sharp.file), sharp.line, "a stray #elif"))
             if self.conds.items[self.conds.count - 1].included:
-                return try self.skip_group(skip_line(tok))
+                return try skip_group(skip_line(tok))
             let (value, rest) = try self.const_expr(tok.next else trap("unreachable"))
             if value != 0:
                 self.conds.items[self.conds.count - 1].included = true
                 return rest
-            return try self.skip_group(rest)
+            return try skip_group(rest)
         if name == "else":
             if self.conds.count == 0 or self.conds.items[self.conds.count - 1].in_else:
                 error(failed, try at(self.path_of(sharp.file), sharp.line, "a stray #else"))
             self.conds.items[self.conds.count - 1].in_else = true
             let rest = skip_line(tok)
             if self.conds.items[self.conds.count - 1].included:
-                return try self.skip_group(rest)
+                return try skip_group(rest)
             return rest
         if name == "endif":
             if self.conds.count == 0:
@@ -377,7 +377,7 @@ pub struct Preprocessor:
             return skip_line(tok)
         if name == "error":
             let (line, rest) = try copy_line(tok.next else trap("unreachable"))
-            discard(rest)
+            _ = rest
             error(failed, try at(self.path_of(sharp.file), sharp.line, try spelled(line)))
         if name == "pragma":
             let what = tok.next else trap("unreachable")
@@ -388,37 +388,15 @@ pub struct Preprocessor:
             return skip_line(tok)
         if tok.kind == Kind.number:
             return skip_line(tok)
-        try self.report.put(try at(self.path_of(sharp.file), sharp.line, try format(scratch[0..], f"an unknown directive #{name} is ignored\n")))
+        try self.report.put(try at(self.path_of(sharp.file), sharp.line, try strings.format(scratch[0..], f"an unknown directive #{name} is ignored\n")))
         return skip_line(tok)
 
-    mutating func push_cond(sharp: Tok*, included: bool) -> !:
+    func push_cond(sharp: Tok*, included: bool) -> !:
         try self.conds.push(Cond(included = included, in_else = false, line = sharp.line, file = sharp.file))
-
-    ## Past a group that is not taken: to its `#elif`, `#else`, or `#endif`, nested ones
-    ## skipped whole; the directive is left for the loop.
-    mutating func skip_group(start: Tok*) -> Tok*!:
-        var tok = start
-        var depth: u32 = 0
-        while tok.kind != Kind.eof:
-            if tok.bol and tok.is_punct("#"):
-                let name = tok.next else trap("unreachable")
-                if name.kind == Kind.ident:
-                    if name.text == "if" or name.text == "ifdef" or name.text == "ifndef":
-                        depth += 1
-                    elif name.text == "endif":
-                        if depth == 0:
-                            return tok
-                        depth -= 1
-                    elif (name.text == "elif" or name.text == "else") and depth == 0:
-                        return tok
-                tok = skip_line(name)
-                continue
-            tok = tok.next else trap("unreachable")
-        return tok
 
     # mark: Including ==========================================================================
 
-    mutating func include(sharp: Tok*, tok: Tok*) -> Tok*!:
+    func include(sharp: Tok*, tok: Tok*) -> Tok*!:
         let next = tok.text == "include_next"
         let once_only = tok.text == "import"
         var first = tok.next else trap("unreachable")
@@ -440,13 +418,13 @@ pub struct Preprocessor:
                 name = (str)expanded.text.bytes[1..<expanded.text.length - 1]
             elif expanded.is_punct("<"):
                 let (joined, tail) = try angle_name(expanded)
-                discard(tail)
+                _ = tail
                 name = joined
                 angled = true
             else:
                 error(failed, try at(self.path_of(sharp.file), sharp.line, "#include expects a file name"))
             rest = after
-        let found = try self.search(name, angled, sharp.file, next) else error(failed, try at(self.path_of(sharp.file), sharp.line, try format(scratch[0..], f"{name} is not in any include directory")))
+        let found = try self.search(name, angled, sharp.file, next) else error(failed, try at(self.path_of(sharp.file), sharp.line, try strings.format(scratch[0..], f"{name} is not in any include directory")))
         let file = try self.open(found.path, found.dir)
         let path = self.path_of(file)
         for seen in self.once.span():
@@ -464,7 +442,7 @@ pub struct Preprocessor:
     # mark: Defining ===========================================================================
 
     ## `#define NAME body` or `#define NAME(params) body`, the `(` touching the name.
-    mutating func define_macro(tok: Tok*) -> Tok*!:
+    func define_macro(tok: Tok*) -> Tok*!:
         if tok.kind != Kind.ident:
             error(failed, try at(self.path_of(tok.file), tok.line, "#define expects a name"))
         let name = tok.text
@@ -505,7 +483,7 @@ pub struct Preprocessor:
 
     ## The expansion of a macro invocation at `tok`, spliced before what follows it; none
     ## when `tok` is not one.
-    mutating func expand(tok: Tok*) -> Tok*?!:
+    func expand(tok: Tok*) -> Tok*?!:
         if tok.kind != Kind.ident or hidden(tok.hide, tok.text):
             return none
         let m = self.lookup(tok.text) else return none
@@ -532,7 +510,7 @@ pub struct Preprocessor:
             out.space = tok.space
         return append(out, close.next else trap("unreachable"))
 
-    mutating func expand_builtin(m: Macro*, tok: Tok*, rest: Tok*) -> Tok*!:
+    func expand_builtin(m: Macro*, tok: Tok*, rest: Tok*) -> Tok*!:
         var made: Tok* = tok
         if m.builtin == builtin_file:
             var quoted = try buffer.Buffer.create(64)
@@ -542,11 +520,11 @@ pub struct Preprocessor:
             made = try new Tok(kind = Kind.text, text = try strings.copy(quoted.view()), file = tok.file, line = tok.line,
                                space = tok.space, bol = tok.bol, hide = none, next = rest)
         elif m.builtin == builtin_line:
-            let number = try format(scratch[0..], f"{tok.line}")
+            let number = try strings.format(scratch[0..], f"{tok.line}")
             made = try new Tok(kind = Kind.number, text = try strings.copy(number), file = tok.file, line = tok.line,
                                space = tok.space, bol = tok.bol, hide = none, next = rest)
         else:
-            let number = try format(scratch[0..], f"{self.counter}")
+            let number = try strings.format(scratch[0..], f"{self.counter}")
             self.counter += 1
             made = try new Tok(kind = Kind.number, text = try strings.copy(number), file = tok.file, line = tok.line,
                                space = tok.space, bol = tok.bol, hide = none, next = rest)
@@ -554,7 +532,7 @@ pub struct Preprocessor:
 
     ## The arguments of a function-like invocation, `open` its `(`: one token list per
     ## parameter, each ending in `eof`, and the closing `)`.
-    mutating func read_arguments(open: Tok*, m: Macro*, at_tok: Tok*) -> (Tok*[], Tok*)!:
+    func read_arguments(open: Tok*, m: Macro*, at_tok: Tok*) -> (Tok*[], Tok*)!:
         var arguments = try list.List[Tok*].create(8)
         var tok = open.next else trap("unreachable")
         var index: usize = 0
@@ -566,7 +544,7 @@ pub struct Preprocessor:
             var level: u32 = 0
             while true:
                 if tok.kind == Kind.eof:
-                    error(failed, try at(self.path_of(at_tok.file), at_tok.line, try format(scratch[0..], f"the arguments of {m.name} are not closed")))
+                    error(failed, try at(self.path_of(at_tok.file), at_tok.line, try strings.format(scratch[0..], f"the arguments of {m.name} are not closed")))
                 if level == 0 and tok.is_punct(")"):
                     break
                 if level == 0 and tok.is_punct(",") and not variadic_now:
@@ -594,27 +572,19 @@ pub struct Preprocessor:
         while m.variadic and arguments.count < m.params.length:
             try arguments.push(try new Tok(kind = Kind.eof, text = "", file = tok.file, line = tok.line, space = false, bol = false, hide = none, next = none))
         if arguments.count != m.params.length:
-            error(failed, try at(self.path_of(at_tok.file), at_tok.line, try format(scratch[0..], f"{m.name} takes {m.params.length} arguments, not {arguments.count}")))
+            error(failed, try at(self.path_of(at_tok.file), at_tok.line, try strings.format(scratch[0..], f"{m.name} takes {m.params.length} arguments, not {arguments.count}")))
         return (arguments.span(), tok)
-
-    func param_index(m: Macro*, tok: Tok*) -> usize?:
-        if tok.kind != Kind.ident:
-            return none
-        for i in 0..<m.params.length:
-            if m.params[i] == tok.text:
-                return i
-        return none
 
     ## The body with parameters replaced: `#` stringises, `##` pastes, a parameter beside
     ## neither is its argument fully expanded, `__VA_OPT__(...)` only with variadic arguments.
-    mutating func substitute(m: Macro*, arguments: Tok*[], origin: Tok*) -> Tok*!:
+    func substitute(m: Macro*, arguments: Tok*[], origin: Tok*) -> Tok*!:
         let head = try new Tok(kind = Kind.eof, text = "", file = origin.file, line = origin.line, space = false, bol = false, hide = none, next = none)
         var cur = head
         var tok = m.body else trap("a macro without a body")
         while tok.kind != Kind.eof:
             let next = tok.next else trap("unreachable")
             if tok.is_punct("#"):
-                if let p = self.param_index(m, next):
+                if let p = param_index(m, next):
                     let made = try stringize(arguments[p], tok)
                     cur.next = made
                     cur = made
@@ -630,7 +600,7 @@ pub struct Preprocessor:
             if tok.is_punct("##"):
                 if cur == head:
                     error(failed, try at(self.path_of(origin.file), origin.line, "## at the start of a macro body"))
-                if let p = self.param_index(m, next):
+                if let p = param_index(m, next):
                     let argument = arguments[p]
                     if argument.kind != Kind.eof:
                         let pasted = try self.paste(cur, argument)
@@ -642,12 +612,12 @@ pub struct Preprocessor:
                 *cur = *pasted
                 tok = next.next else trap("unreachable")
                 continue
-            if let p = self.param_index(m, tok):
+            if let p = param_index(m, tok):
                 let argument = arguments[p]
                 if next.is_punct("##"):
                     let after = next.next else trap("unreachable")
                     if argument.kind == Kind.eof:
-                        if let q = self.param_index(m, after):
+                        if let q = param_index(m, after):
                             cur = link(cur, try copy_list(arguments[q]))
                             tok = after.next else trap("unreachable")
                         else:
@@ -671,7 +641,7 @@ pub struct Preprocessor:
         return head.next else trap("unreachable")
 
     ## `substitute` over a token list rather than the macro's own body.
-    mutating func substitute_tokens(m: Macro*, arguments: Tok*[], body: Tok*, origin: Tok*) -> Tok*!:
+    func substitute_tokens(m: Macro*, arguments: Tok*[], body: Tok*, origin: Tok*) -> Tok*!:
         let saved = m.body
         m.body = body
         let out = try self.substitute(m, arguments, origin)
@@ -679,14 +649,14 @@ pub struct Preprocessor:
         return out
 
     ## `left ## right`: their spellings joined and read as one token.
-    mutating func paste(left: Tok*, right: Tok*) -> Tok*!:
-        let joined = try format(scratch[0..], f"{left.text}{right.text}")
+    func paste(left: Tok*, right: Tok*) -> Tok*!:
+        let joined = try strings.format(scratch[0..], f"{left.text}{right.text}")
         let head = try tokenize(try strings.copy(joined), left.file)
         if head.kind == Kind.eof:
             error(failed, try at(self.path_of(left.file), left.line, "pasting produces nothing"))
         let after = head.next else trap("unreachable")
         if after.kind != Kind.eof:
-            error(failed, try at(self.path_of(left.file), left.line, try format(scratch[0..], f"pasting \"{left.text}\" and \"{right.text}\" does not give one token")))
+            error(failed, try at(self.path_of(left.file), left.line, try strings.format(scratch[0..], f"pasting \"{left.text}\" and \"{right.text}\" does not give one token")))
         head.space = left.space
         head.bol = left.bol
         head.line = left.line
@@ -697,7 +667,7 @@ pub struct Preprocessor:
     # mark: Conditions =========================================================================
 
     ## The value of the `#if` expression at `tok`, and the token after its line.
-    mutating func const_expr(tok: Tok*) -> (i64, Tok*)!:
+    func const_expr(tok: Tok*) -> (i64, Tok*)!:
         let (line, rest) = try copy_line(tok)
         let prepared = try self.replace_queries(line)
         let expanded = try self.process(prepared)
@@ -711,12 +681,12 @@ pub struct Preprocessor:
         var e = Evaluator(tok = again, path = self.path_of(tok.file), line = tok.line)
         let value = try e.conditional()
         if e.tok.kind != Kind.eof:
-            error(failed, try at(self.path_of(tok.file), tok.line, try format(scratch[0..], f"the #if expression stops at {e.tok.text}")))
+            error(failed, try at(self.path_of(tok.file), tok.line, try strings.format(scratch[0..], f"the #if expression stops at {e.tok.text}")))
         return (value.value, rest)
 
     ## `defined X`, `defined(X)`, `__has_include(...)` and the other `__has_*` queries,
     ## replaced by their numbers before the line is expanded.
-    mutating func replace_queries(head: Tok*) -> Tok*!:
+    func replace_queries(head: Tok*) -> Tok*!:
         let anchor = try new Tok(kind = Kind.eof, text = "", file = head.file, line = head.line, space = false, bol = false, hide = none, next = head)
         var prev = anchor
         var tok = head
@@ -753,12 +723,12 @@ pub struct Preprocessor:
                 continue
             prev = tok
             tok = tok.next else trap("unreachable")
-        discard(prev)
+        _ = prev
         return anchor.next else trap("unreachable")
 
     ## `__has_include` looks; `__has_feature(nullability)` is yes, because the declaration
     ## parser reads the annotations; every other query is no.
-    mutating func query(name: Tok*, inner: Tok*) -> bool!:
+    func query(name: Tok*, inner: Tok*) -> bool!:
         if name.text == "__has_include" or name.text == "__has_include_next":
             var target = ""
             var angled = false
@@ -766,7 +736,7 @@ pub struct Preprocessor:
                 target = (str)inner.text.bytes[1..<inner.text.length - 1]
             elif inner.is_punct("<"):
                 let (joined, after) = try angle_name(inner)
-                discard(after)
+                _ = after
                 target = joined
                 angled = true
             else:
@@ -775,7 +745,7 @@ pub struct Preprocessor:
                     target = (str)expanded.text.bytes[1..<expanded.text.length - 1]
                 elif expanded.is_punct("<"):
                     let (joined, after) = try angle_name(expanded)
-                    discard(after)
+                    _ = after
                     target = joined
                     angled = true
                 else:
@@ -787,6 +757,36 @@ pub struct Preprocessor:
         if name.text == "__is_identifier":
             return true
         return false
+
+## Past a group that is not taken: to its `#elif`, `#else`, or `#endif`, nested ones
+## skipped whole; the directive is left for the loop.
+func skip_group(start: Tok*) -> Tok*!:
+    var tok = start
+    var depth: u32 = 0
+    while tok.kind != Kind.eof:
+        if tok.bol and tok.is_punct("#"):
+            let name = tok.next else trap("unreachable")
+            if name.kind == Kind.ident:
+                if name.text == "if" or name.text == "ifdef" or name.text == "ifndef":
+                    depth += 1
+                elif name.text == "endif":
+                    if depth == 0:
+                        return tok
+                    depth -= 1
+                elif (name.text == "elif" or name.text == "else") and depth == 0:
+                    return tok
+            tok = skip_line(name)
+            continue
+        tok = tok.next else trap("unreachable")
+    return tok
+
+func param_index(m: Macro*, tok: Tok*) -> usize?:
+    if tok.kind != Kind.ident:
+        return none
+    for i in 0..<m.params.length:
+        if m.params[i] == tok.text:
+            return i
+    return none
 
 ## The queries clang answers as if they were macros.
 func is_query(name: str) -> bool:
@@ -807,15 +807,15 @@ struct Evaluator:
     var path: str
     var line: u32
 
-    mutating func advance():
+    func advance():
         self.tok = self.tok.next else trap("unreachable")
 
-    mutating func expect(text: str) -> !:
+    func expect(text: str) -> !:
         if not self.tok.is_punct(text):
-            error(failed, try at(self.path, self.line, try format(scratch[0..], f"the #if expression expects {text}")))
+            error(failed, try at(self.path, self.line, try strings.format(scratch[0..], f"the #if expression expects {text}")))
         self.advance()
 
-    mutating func conditional() -> Value!:
+    func conditional() -> Value!:
         let condition = try self.binary(0)
         if not self.tok.is_punct("?"):
             return condition
@@ -825,7 +825,7 @@ struct Evaluator:
         let no = try self.conditional()
         return yes if condition.value != 0 else no
 
-    mutating func binary(minimum: u32) -> Value!:
+    func binary(minimum: u32) -> Value!:
         var left = try self.unary()
         while self.tok.kind == Kind.punct:
             let p = precedence(self.tok.text)
@@ -870,7 +870,7 @@ struct Evaluator:
             return Value(value = (i64)((u64)x % (u64)y), unsigned = true)
         return Value(value = x % y, unsigned = false)
 
-    mutating func unary() -> Value!:
+    func unary() -> Value!:
         if self.tok.is_punct("+"):
             self.advance()
             return try self.unary()
@@ -888,21 +888,21 @@ struct Evaluator:
             return Value(value = ~v.value, unsigned = v.unsigned)
         return try self.primary()
 
-    mutating func primary() -> Value!:
+    func primary() -> Value!:
         if self.tok.is_punct("("):
             self.advance()
             let v = try self.conditional()
             try self.expect(")")
             return v
         if self.tok.kind == Kind.number:
-            let v = try integer(self.tok.text) else error(failed, try at(self.path, self.line, try format(scratch[0..], f"{self.tok.text} is not an integer the #if expression can use")))
+            let v = try integer(self.tok.text) else error(failed, try at(self.path, self.line, try strings.format(scratch[0..], f"{self.tok.text} is not an integer the #if expression can use")))
             self.advance()
             return v
         if self.tok.kind == Kind.character:
             let v = character_value(self.tok.text)
             self.advance()
             return Value(value = v, unsigned = false)
-        error(failed, try at(self.path, self.line, try format(scratch[0..], f"the #if expression does not understand {self.tok.text}")))
+        error(failed, try at(self.path, self.line, try strings.format(scratch[0..], f"the #if expression does not understand {self.tok.text}")))
 
 func less(x: i64, y: i64, unsigned: bool) -> bool:
     if unsigned:
@@ -1019,7 +1019,7 @@ pub func split_at(text: str, separator: u8) -> (str, str)?:
 
 ## A message placed at a file and line.
 pub func at(path: str, line: u32, what: str) -> str!:
-    let text = try format(place[0..], f"{path}:{line}: {what}")
+    let text = try strings.format(place[0..], f"{path}:{line}: {what}")
     return try strings.copy(text)
 
 func exists(path: str) -> bool!:
@@ -1036,7 +1036,7 @@ func hidden(hide: Hide*?, name: str) -> bool:
 
 func add_hide(hide: Hide*?, name: str) -> Hide*?:
     let h: Hide*? = new Hide(name = name, next = hide) catch failure:
-        discard(failure)
+        _ = failure
         recover none
     return h
 
@@ -1229,7 +1229,7 @@ func is_punct_char(b: u8) -> bool:
 
 ## The text with backslash-newlines removed, and where each was, for line numbers.
 func splice(bytes: const u8[]) -> (u8[], usize[])!:
-    let out = try alloc u8[bytes.length]
+    let out = try new u8[bytes.length] ---
     var splices = try list.List[usize].create(16)
     var n: usize = 0
     var i: usize = 0

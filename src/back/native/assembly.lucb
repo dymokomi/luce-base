@@ -20,35 +20,35 @@ pub struct Text:
     pub var out: buffer.Buffer
 
     ## `text` where the line already is.
-    pub mutating func put(text: str) -> !:
+    pub func put(text: str) -> !:
         try self.out.put(text)
 
     ## A new instruction line, indented under the function's labels.
-    pub mutating func line(text: str) -> !:
+    pub func line(text: str) -> !:
         try self.out.put("\n    ")
         try self.out.put(text)
 
     ## A new line of two pieces: a mnemonic and its operand.
-    pub mutating func line2(a: str, b: str) -> !:
+    pub func line2(a: str, b: str) -> !:
         try self.line(a)
         try self.put(b)
 
     ## A new line of three pieces.
-    pub mutating func line3(a: str, b: str, c: str) -> !:
+    pub func line3(a: str, b: str, c: str) -> !:
         try self.line(a)
         try self.put(b)
         try self.put(c)
 
     ## A new line of four pieces, the way most instructions read: the mnemonic, an operand,
     ## a separator, an operand.
-    pub mutating func line4(a: str, b: str, c: str, d: str) -> !:
+    pub func line4(a: str, b: str, c: str, d: str) -> !:
         try self.line(a)
         try self.put(b)
         try self.put(c)
         try self.put(d)
 
     ## A new line of five pieces.
-    pub mutating func line5(a: str, b: str, c: str, d: str, e: str) -> !:
+    pub func line5(a: str, b: str, c: str, d: str, e: str) -> !:
         try self.line(a)
         try self.put(b)
         try self.put(c)
@@ -56,16 +56,16 @@ pub struct Text:
         try self.put(e)
 
     ## `v` in decimal.
-    pub mutating func put_u64(v: u64) -> !:
+    pub func put_u64(v: u64) -> !:
         try self.out.put_u64(v)
 
     ## `v` in decimal, with its sign.
-    pub mutating func put_i64(v: i64) -> !:
+    pub func put_i64(v: i64) -> !:
         try self.out.put_i64(v)
 
     ## `text` as a quoted string the assembler reads back byte for byte: `\` and `"`
     ## escaped, newline and tab by name, every other byte outside printable ASCII in octal.
-    pub mutating func c_string(text: str) -> !:
+    pub func c_string(text: str) -> !:
         try self.put("\"")
         for b in text.bytes:
             if b == '\\' or b == '"':

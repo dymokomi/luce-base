@@ -5,7 +5,7 @@ import memory
 struct Half: memory.Allocator:
     var n: usize
 
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         return none
 
 pub func main(arguments: str[]) -> i32!:

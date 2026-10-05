@@ -109,7 +109,7 @@ pub struct Frame:
     pub var indirect_home: u64
 
     ## An empty frame for a target's register set.
-    pub static func create(registers: Registers) -> Frame!:
+    pub func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
                       temp_regs = try list.List[u8].create(256), temp_saved = try list.List[bool].create(256), crossings = try list.List[Crossing].create(16), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
@@ -118,7 +118,7 @@ pub struct Frame:
     ## Keep callee-saved register `code` out of the pools and save it on entry, as an asm
     ## block of the function names it (§8.9): it holds no value of the function, and the
     ## caller's survives.
-    pub mutating func reserve(code: u8):
+    pub func reserve(code: u8):
         self.reserved = self.reserved | ((u64)1 << (u64)(code - 1))
 
     func is_reserved(code: u8) -> bool:
@@ -192,7 +192,7 @@ pub struct Frame:
     ## Decide the registers for function `f`: the temporaries' exact lives (`regalloc`), the
     ## pressure they exert, the slots promoted with what the temporaries leave, then the
     ## temporaries themselves.
-    pub mutating func plan(f: ir.Function*) -> !:
+    pub func plan(f: ir.Function*) -> !:
         with memory.heap:
             var g = try cfg.Graph.blocks_of(f)
             defer g.release()
@@ -220,12 +220,12 @@ pub struct Frame:
     ## pointer's home when `indirect_result`, a word per callee-saved register used, every
     ## slot at its alignment, then a word per temporary left in the frame. A parameter whose
     ## slot `straight` marks arrives in its register and a promoted slot lives in one: no home.
-    pub mutating func layout(f: ir.Function*, base: u64, indirect_result: bool, straight: const bool[]) -> !:
+    pub func layout(f: ir.Function*, base: u64, indirect_result: bool, straight: const bool[]) -> !:
         self.temp_homes.count = 0
         self.slot_homes.count = 0
-        var live_slots = try alloc bool[f.slots.count + 1]
+        var live_slots = try new bool[f.slots.count + 1] ---
         defer free(live_slots)
-        var live_temps = try alloc bool[f.temps.count + 1]
+        var live_temps = try new bool[f.temps.count + 1] ---
         defer free(live_temps)
         for i in 0..<live_slots.length:
             live_slots[i] = f.debug
@@ -308,7 +308,7 @@ pub struct Frame:
                 self.slot_homes.set(k, self.size + (u64)s.level * (u64)ir.level_bytes - (u64)s.offset)
 
     ## Record when each temporary and slot lives, for `layout` to share their homes.
-    mutating func note_spans(f: ir.Function*, g: cfg.Graph*, lives: regalloc.Lives*) -> !:
+    func note_spans(f: ir.Function*, g: cfg.Graph*, lives: regalloc.Lives*) -> !:
         self.temp_spans.count = 0
         self.slot_spans.count = 0
         let temps = try sharing.temp_spans(f, lives)
@@ -323,7 +323,7 @@ pub struct Frame:
     ## Which frame slots live in registers: a slot of 1, 2, 4, or 8 bytes whose address is
     ## taken only to load or store that many bytes at once, in one register class. The
     ## most-used ones take the first `ints` integer and `floats` float codes.
-    mutating func promote(f: ir.Function*, ints: u8, floats: u8) -> !:
+    func promote(f: ir.Function*, ints: u8, floats: u8) -> !:
         self.slot_regs.count = 0
         self.temp_slot.count = 0
         let ns = f.slots.count
@@ -339,9 +339,9 @@ pub struct Frame:
         if f.debug or ns == 0:
             return
         # 1 = integer, 2 = float, 3 = unfit
-        var kind = try alloc u8[ns] in memory.heap
+        var kind = try new u8[ns] --- in memory.heap
         defer free(kind) in memory.heap
-        var uses = try alloc u32[ns] in memory.heap
+        var uses = try new u32[ns] --- in memory.heap
         defer free(uses) in memory.heap
         i = 0
         while i < ns:
@@ -367,9 +367,9 @@ pub struct Frame:
     ## (`note_access`); any other use of a slot's address leaves it unfit.
     func note_slot_uses(f: ir.Function*, n: ir.Instr, kind: u8[], uses: u32[]):
         if is_load(n.op):
-            self.note_access(f, self.slot_of(n.a), access_width(n.op), is_float_access(n.op), kind, uses)
+            note_access(f, self.slot_of(n.a), access_width(n.op), is_float_access(n.op), kind, uses)
         elif is_store(n.op):
-            self.note_access(f, self.slot_of(n.b), access_width(n.op), is_float_access(n.op), kind, uses)
+            note_access(f, self.slot_of(n.b), access_width(n.op), is_float_access(n.op), kind, uses)
             unfit(kind, self.slot_of(n.a))
         elif n.op == ir.Op.addr:
             let inner = self.slot_of(n.a)
@@ -396,7 +396,7 @@ pub struct Frame:
 
     ## The most-used fit slots, used at least twice, take the registers, up to the budget
     ## of `ints` integer and `floats` float codes; a fit slot left over becomes unfit.
-    mutating func assign_slot_registers(kind: u8[], uses: u32[], ints: u8, floats: u8):
+    func assign_slot_registers(kind: u8[], uses: u32[], ints: u8, floats: u8):
         let ns = kind.length
         var int_code: u8 = 1
         var float_code: u8 = self.registers.ints + 1
@@ -430,28 +430,9 @@ pub struct Frame:
                 self.used_mask = self.used_mask | ((u64)1 << (u64)(float_code - 1))
                 float_code += 1
 
-    ## One load or store of `width` bytes through slot `k` (1-based): it fits when the width
-    ## is the slot's and the class agrees with every other access.
-    func note_access(f: ir.Function*, k: u32, width: u32, float: bool, kind: u8[], uses: u32[]):
-        if k == 0:
-            return
-        let i = (usize)k - 1
-        if kind[i] == 3:
-            return
-        if f.slots.get(i).size != width:
-            kind[i] = 3
-            return
-        let want: u8 = 2 if float else 1
-        if kind[i] == 0:
-            kind[i] = want
-        elif kind[i] != want:
-            kind[i] = 3
-            return
-        uses[i] += 1
-
     ## Give each temporary a register by linear scan over its life (`regalloc`); a promoted
     ## slot's register is held for the whole function.
-    mutating func allocate(f: ir.Function*, lives: regalloc.Lives*) -> !:
+    func allocate(f: ir.Function*, lives: regalloc.Lives*) -> !:
         self.temp_regs.count = 0
         self.temp_saved.count = 0
         self.crossings.count = 0
@@ -472,7 +453,7 @@ pub struct Frame:
         self.used_mask = taken
         if n == 0:
             return
-        var codes = try alloc u8[n]
+        var codes = try new u8[n] ---
         defer free(codes)
         let used = try lives.allocate(f, self.registers.pools(), taken, codes)
         i = 0
@@ -497,6 +478,25 @@ pub struct Frame:
             for t in saved.span():
                 if lives.covers_across(t, u32(2 * at)):
                     try self.crossings.push(Crossing(at = u32(at), temp = t))
+
+## One load or store of `width` bytes through slot `k` (1-based): it fits when the width
+## is the slot's and the class agrees with every other access.
+func note_access(f: ir.Function*, k: u32, width: u32, float: bool, kind: u8[], uses: u32[]):
+    if k == 0:
+        return
+    let i = (usize)k - 1
+    if kind[i] == 3:
+        return
+    if f.slots.get(i).size != width:
+        kind[i] = 3
+        return
+    let want: u8 = 2 if float else 1
+    if kind[i] == 0:
+        kind[i] = want
+    elif kind[i] != want:
+        kind[i] = 3
+        return
+    uses[i] += 1
 
 # mark: Instruction classification ============================================================
 

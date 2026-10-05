@@ -1,3 +1,5 @@
+import memory
+
 ## §5.3: a bare pointer is never null and `T*?` is one word with null as `none`; a pointer
 ## converts to a more qualified one and to `void*`; addresses compare and order.
 struct Node:
@@ -38,7 +40,7 @@ pub func main(arguments: str[]) -> i32:
     if let missing = nulled:
         seen += 100
     let pp: const (i64*)* = &p
-    print(f"{total(&c)} {read_only(q)} {erase(v)} {x} {seen} {ordered} {same} {sizeof(maybe)} {**pp}")
+    print(f"{total(&c)} {read_only(q)} {erase(v)} {x} {seen} {ordered} {same} {memory.size_of(maybe)} {**pp}")
     nulled = &x
     let known = nulled else return 1
     print(f"{nulled == maybe} {*known} {(usize)(*pp) == (usize)p}")

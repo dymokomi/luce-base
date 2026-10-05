@@ -1,4 +1,0 @@
-# error: expected `}`
-pub func main(arguments: str[]) -> i32:
-    print(f"{1:04}")
-    return 0

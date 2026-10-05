@@ -1,11 +1,13 @@
+import strings
+
 ## §5.5: formatted strings passed as `fmt` arguments, two to one call and in statements one after
 ## another, in a loop and on a path not taken: each call reads its own text, whichever of them
 ## share a buffer.
 noinline func two(a: fmt, b: fmt) -> i32!:
     var one: u8[64] = ---
     var other: u8[64] = ---
-    let x = try format(one, a)
-    let y = try format(other, b)
+    let x = try strings.format(one, a)
+    let y = try strings.format(other, b)
     print(f"[{x}] [{y}]")
     return (i32)(x.length + y.length)
 

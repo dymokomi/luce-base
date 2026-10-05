@@ -28,14 +28,14 @@ pub struct Levels:
     pub var settle: bool[]
 
     ## Give back the storage.
-    pub mutating func release():
+    pub func release():
         free(self.before)
         free(self.settle)
 
 ## The levels of `f`, all 0 for a function without a dynamic area.
 pub func over(f: ir.Function*) -> Levels!:
     let n = f.instrs.count
-    var levels = Levels(before = try alloc u32[n + 1], settle = try alloc bool[n + 1])
+    var levels = Levels(before = try new u32[n + 1] ---, settle = try new bool[n + 1] ---)
     for i in 0..<n + 1:
         levels.before[i] = 0
         levels.settle[i] = false
@@ -45,9 +45,9 @@ pub func over(f: ir.Function*) -> Levels!:
         var g = try cfg.Graph.blocks_of(f)
         defer g.release()
         let count = g.blocks.count
-        let entering = try alloc u32[count]
+        let entering = try new u32[count] ---
         defer free(entering)
-        let leaving = try alloc u32[count]
+        let leaving = try new u32[count] ---
         defer free(leaving)
         for b in 0..<count:
             entering[b] = 0

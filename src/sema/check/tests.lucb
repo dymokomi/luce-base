@@ -23,7 +23,7 @@ func test_arena_size() -> usize!:
 
 func expect_error(text: str, fragment: str) -> !:
     let capacity = try test_arena_size()
-    let backing = try alloc u8[capacity] in memory.heap
+    let backing = try new u8[capacity] --- in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
@@ -40,14 +40,14 @@ func expect_error(text: str, fragment: str) -> !:
 
 func expect_ok(text: str) -> !:
     let capacity = try test_arena_size()
-    let backing = try alloc u8[capacity] in memory.heap
+    let backing = try new u8[capacity] --- in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:
         check_text(text, scratch) catch failure:
             # the message lives in this frame's scratch; the runner reads it after the return
-            let kept = try format(test_message, f"{failure.message}")
+            let kept = try strings.format(test_message, f"{failure.message}")
             error(failure.code, kept)
 
 var test_message: u8[1024]
@@ -95,8 +95,12 @@ test "else needs an optional or a fallible operand":
 test "structs construct by name and expose fields":
     try expect_ok("struct P:\n    var x: i64\n    var y: i64\n    func sum() -> i64:\n        return self.x + self.y\nfunc f() -> i64:\n    let p = P(x = 1, y = 2)\n    return p.sum() + p.x\n")
 
-test "a mutating method needs a var receiver":
-    try expect_error("struct C:\n    var n: i64\n    mutating func bump():\n        self.n += 1\nfunc f():\n    let c = C(n = 0)\n    c.bump()\n", "needs a `var` receiver")
+test "a method that changes its receiver needs a var receiver, found from its body":
+    try expect_error("struct C:\n    var n: i64\n    func bump():\n        self.n += 1\nfunc f():\n    let c = C(n = 0)\n    c.bump()\n", "`bump` changes its receiver, so it needs a `var` here")
+    try expect_error("func f() -> i64:\n    let c = C(n = 0)\n    c.bump()\n    return c.n\nstruct C:\n    var n: i64\n    func bump():\n        self.step()\n    func step():\n        self.n += 1\n", "needs a `var` here")
+    try expect_error("func touch(p: i64*):\n    *p = 2\nfunc f() -> i64:\n    let c = C(n = 0)\n    c.poke()\n    return c.n\nstruct C:\n    var n: i64\n    func poke():\n        touch(&self.n)\n", "`poke` changes its receiver, so it needs a `var` or a mutable pointer here")
+    try expect_ok("struct C:\n    var n: i64\n    func peek() -> i64:\n        let p = &self.n\n        return *p\nfunc f() -> i64:\n    let c = C(n = 1)\n    return c.peek()\n")
+    try expect_error("struct P:\n    var x: i64\n    func origin() -> P:\n        return P(x = 0)\nfunc f() -> P:\n    let p = P(x = 1)\n    return p.origin()\n", "it is a function of the type, called as `P.origin()`")
 
 test "enums match by case":
     try expect_ok("enum K as u8:\n    a = 1\n    b = 2\nfunc f(k: K) -> i64:\n    match k:\n        .a:\n            return 1\n        .b:\n            return 2\n        _:\n            return 0\n")
@@ -109,7 +113,7 @@ test "a memberwise initialiser is positional or named, each field once":
     try expect_error("struct P:\n    var x: i64\nfunc f() -> i64:\n    let p = P(1, 2)\n    return p.x\n", "too many values")
 
 test "an init assigns every field once and reads none early":
-    try expect_ok("struct P:\n    let a: i64\n    let b: i64\n    pub func init(n: i64) -> !:\n        if n < 0:\n            error(1, \"neg\")\n        self.a = n\n        self.b = n * 2\n        discard(self.a + self.b)\nfunc f() -> i64!:\n    let p = try P(1)\n    return p.b\n")
+    try expect_ok("struct P:\n    let a: i64\n    let b: i64\n    pub func init(n: i64) -> !:\n        if n < 0:\n            error(1, \"neg\")\n        self.a = n\n        self.b = n * 2\n        _ = self.a + self.b\nfunc f() -> i64!:\n    let p = try P(1)\n    return p.b\n")
     try expect_error("struct P:\n    let a: i64\n    let b: i64\n    pub func init(n: i64):\n        self.a = n\nfunc f() -> i64:\n    return P(1).a\n", "not assigned")
     try expect_error("struct P:\n    let a: i64\n    pub func init(n: i64):\n        self.a = n\n        self.a = n + 1\nfunc f() -> i64:\n    return P(1).a\n", "assigned twice")
     try expect_error("struct P:\n    let a: i64\n    let b: i64\n    pub func init(n: i64):\n        self.a = n\n        self.b = self.a * 2\nfunc f() -> i64:\n    return P(1).a\n", "before every field is assigned")
@@ -137,18 +141,18 @@ test "equality needs it in every component; a union has a member":
     try expect_error("union U:\n    func g() -> i64:\n        return 1\nfunc f() -> i64:\n    return 0\n", "at least one member")
 
 test "a catch handler for a value recovers or leaves":
-    try expect_error("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = g() catch e:\n        discard(e)\n    return v\n", "must `recover`")
+    try expect_error("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = g() catch e:\n        _ = e\n    return v\n", "must `recover`")
     try expect_ok("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = g() catch e:\n        recover 2\n    return v\n")
-    try expect_ok("func g() -> !:\n    return\nfunc f() -> i64:\n    g() catch e:\n        discard(e)\n    return 1\n")
+    try expect_ok("func g() -> !:\n    return\nfunc f() -> i64:\n    g() catch e:\n        _ = e\n    return 1\n")
 
 test "a module-level assert is decided at compile time":
-    try expect_ok("assert(sizeof(i64) == 8, \"a word\")\nfunc f() -> i64:\n    return 0\n")
-    try expect_error("assert(sizeof(i64) == 4, \"a word\")\nfunc f() -> i64:\n    return 0\n", "`assert` failed: a word")
+    try expect_ok("import memory\n\nassert(memory.size_of(i64) == 8, \"a word\")\nfunc f() -> i64:\n    return 0\n")
+    try expect_error("import memory\n\nassert(memory.size_of(i64) == 4, \"a word\")\nfunc f() -> i64:\n    return 0\n", "`assert` failed: a word")
     try expect_error("assert(not (1 < 2 and true))\nfunc f() -> i64:\n    return 0\n", "`assert` failed")
 
 test "a message formatted on a local buffer is local through try and let":
-    try expect_error("let code = ErrorCode.package(1)\nfunc fail(n: i64) -> !:\n    var buffer: u8[64]\n    let text = try format(buffer, f\"bad {n}\")\n    error(code, text)\n", "must not name a local")
-    try expect_ok("let code = ErrorCode.package(1)\nfunc fail(n: i64, buffer: u8[]) -> !:\n    let text = try format(buffer, f\"bad {n}\")\n    error(code, text)\n")
+    try expect_error("import strings\n\nlet code = ErrorCode.package(1)\nfunc fail(n: i64) -> !:\n    var buffer: u8[64]\n    let text = try strings.format(buffer, f\"bad {n}\")\n    error(code, text)\n", "must not name a local")
+    try expect_ok("import strings\n\nlet code = ErrorCode.package(1)\nfunc fail(n: i64, buffer: u8[]) -> !:\n    let text = try strings.format(buffer, f\"bad {n}\")\n    error(code, text)\n")
 
 test "two constants of one package do not share an error code":
     try expect_error("let first = ErrorCode.package(1)\nlet second = ErrorCode.package(1)\nfunc f() -> i64:\n    return 0\n", "share this error code")
@@ -162,15 +166,15 @@ test "error needs a fallible function, in a handler too":
     try expect_error("func may() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = may() catch e:\n        error(e.code, e.message)\n    return v\n", "only valid in a fallible function")
 
 test "sizeof takes every type form":
-    try expect_ok("struct P:\n    var x: i64\nfunc f() -> usize:\n    return sizeof(i64*) + sizeof(i64?) + sizeof(P*?) + sizeof(i64[4]) + sizeof((i64?)[2]) + sizeof(func(i64) -> i64) + alignof(P)\n")
+    try expect_ok("import memory\n\nstruct P:\n    var x: i64\nfunc f() -> usize:\n    return memory.size_of(i64*) + memory.size_of(i64?) + memory.size_of(P*?) + memory.size_of(i64[4]) + memory.size_of((i64?)[2]) + memory.size_of(func(i64) -> i64) + memory.align_of(P)\n")
 
 test "memory exhaustion keeps its standard error identity":
     assert(exhausted_code() == 208273409)
 
 test "new zeroes its elements and allocates no result":
-    try expect_error("func f() -> !:\n    let p = try new (i64*)[4]\n    discard(p.length)\n", "must be zeroable")
-    try expect_error("func f() -> !:\n    let p = try new (i64!)\n    discard(p)\n", "not a storable type")
-    try expect_ok("func f() -> !:\n    let p = try alloc (i64*)[4]\n    free(p)\n")
+    try expect_error("func f() -> !:\n    let p = try new (i64*)[4]\n    _ = p.length\n", "must be zeroable")
+    try expect_error("func f() -> !:\n    let p = try new (i64!)\n    _ = p\n", "not a storable type")
+    try expect_ok("func f() -> !:\n    let p = try new (i64*)[4] ---\n    free(p)\n")
 
 test "the allocator named by in binds below catch":
     try expect_ok("import memory\nfunc f() -> usize:\n    var backing: u8[64]\n    var arena = memory.FixedBuffer.over(backing)\n    let block = new u8[8] in arena catch e:\n        recover backing[..<0]\n    return block.length\n")
@@ -182,9 +186,9 @@ test "a type argument satisfies its constraints":
 
 test "an unconstrained type parameter has no equality, hash, or display":
     try expect_error("func same[T](a: T, b: T) -> bool:\n    return a == b\n", "no equality")
-    try expect_error("func h[T](a: T) -> u64:\n    return hash(a)\n", "only under `Hashable`")
+    try expect_error("func h[T](a: T) -> u64:\n    return a.hash()\n", "only under `Hashable`")
     try expect_error("func show[T](a: T):\n    print(f\"{a}\")\n", "cannot be formatted")
-    try expect_ok("from luce import Equatable\nfrom luce import Hashable\nfunc both[T: Equatable & Hashable](a: T, b: T) -> bool:\n    return a == b and hash(a) == hash(b)\n")
+    try expect_ok("from luce import Equatable\nfrom luce import Hashable\nfunc both[T: Equatable & Hashable](a: T, b: T) -> bool:\n    return a == b and a.hash() == b.hash()\n")
 
 test "a type parameter may not take the name of a type in scope":
     try expect_error("struct Point:\n    var x: i64\nfunc f[Point](a: Point) -> Point:\n    return a\n", "name of a type in scope")
@@ -193,14 +197,15 @@ test "a generic that nests its own parameter in a recursive call is an infinite 
     try expect_error("struct Pair[A, B]:\n    var first: A\n    var second: B\nfunc grow[T](depth: T) -> i64:\n    return grow(Pair[T, T](first = depth, second = depth))\n", "infinite chain")
 
 test "a mutating view needs a var; a view comes from a pointer; a temporary has no address":
-    try expect_error("interface Shape:\n    mutating func scale(k: f64)\nstruct Q: Shape:\n    var s: f64\n    mutating func scale(k: f64):\n        self.s = k\nfunc f() -> unit:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    v.scale(2.0)\n", "expected `Shape`")
+    try expect_error("interface Shape:\n    func scale(k: f64)\nstruct Q: Shape:\n    var s: f64\n    func scale(k: f64):\n        self.s = k\nfunc f() -> unit:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    v.scale(2.0)\n", "`scale` changes its receiver, so a view of it needs a mutable pointer")
     try expect_ok("interface Shape:\n    func area() -> f64\nstruct Q: Shape:\n    var s: f64\n    func area() -> f64:\n        return self.s\nfunc f() -> f64:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    return v.area()\n")
     try expect_error("struct Q:\n    var s: f64\nfunc f() -> Q*:\n    return &Q(s = 1.0)\n", "address of a temporary")
 
-test "interfaces have no generic methods; Equatable is not written by hand; mutating is exact":
+test "interfaces have no generic methods; Equatable is not written by hand; what changes its receiver needs a mutable one":
     try expect_error("interface Shape:\n    func scaled[T](f: T) -> f64\n", "no generic methods")
     try expect_error("from luce import Equatable\nstruct P: Equatable:\n    var x: i64\n    func equals(other: P) -> bool:\n        return true\n", "not implemented by hand")
-    try expect_error("interface Sink:\n    mutating func put(v: i64)\nstruct S: Sink:\n    var n: i64\n    func put(v: i64):\n        discard(v)\n", "declares this method mutating")
+    try expect_ok("interface Sink:\n    func put(v: i64)\nstruct S: Sink:\n    var n: i64\n    func put(v: i64):\n        _ = v\nfunc f():\n    let s = S(n = 0)\n    let view: Sink = &s\n    view.put(1)\n")
+    try expect_error("interface Shape:\n    func grow()\nstruct Sq: Shape:\n    var s: i64\n    func grow():\n        self.s += 1\nfunc bigger[S: Shape](shape: const S*):\n    shape.grow()\nfunc f():\n    var q = Sq(s = 2)\n    bigger(&q)\n", "`Sq.grow` changes its receiver, and `bigger` calls it on a value it may not change")
 
 test "an atomic takes its payload as initial value and reads as it in expressions":
     try expect_ok("struct C:\n    var hits: @u64\n    var flag: @bool\nfunc f() -> u64:\n    var byte: @u8 = 250\n    var c = C(hits = 1, flag = false)\n    var head: @i64*? = none\n    let same = c.hits == 1 and byte == 250 and head == none\n    return 1 if same else 0\n")
@@ -211,8 +216,8 @@ test "atomic compound assignments are the five instructions and never checked ar
     try expect_error("func f() -> u64:\n    var hits: @u64\n    return hits +? 1\n", "does not apply to an atomic")
 
 test "cas orderings: no release on failure, and failure no stronger than success":
-    try expect_error("func f() -> unit:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .acq_rel, .release)\n    discard(ok)\n", "may not be `release`")
-    try expect_error("func f() -> unit:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .relaxed, .acquire)\n    discard(ok)\n", "stronger than the success")
+    try expect_error("func f() -> unit:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .acq_rel, .release)\n    _ = ok\n", "may not be `release`")
+    try expect_error("func f() -> unit:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .relaxed, .acquire)\n    _ = ok\n", "stronger than the success")
     try expect_ok("func f() -> bool:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .acq_rel, .acquire)\n    return ok and seen == 0\n")
 
 test "generics infer from arguments and substitute results":
@@ -233,13 +238,13 @@ test "a generic struct instantiates and its methods substitute":
     try expect_ok("struct Box[T]:\n    var item: T\n    func get() -> T:\n        return self.item\nfunc f() -> i64:\n    let b = Box[i64](item = 3)\n    return b.get()\n")
 
 test "the standard modules need an import":
-    try expect_ok("import io\nfunc f() -> !:\n    let out = io.stdout()\n    try out.write(\"hi\")\n    var buf: u8[16]\n    let s = try format(buf, f\"{buf.length}\")\n    discard(s.length)\n")
+    try expect_ok("import io\nimport strings\nfunc f() -> !:\n    let out = io.stdout()\n    try out.write(\"hi\")\n    var buf: u8[16]\n    let s = try strings.format(buf, f\"{buf.length}\")\n    _ = s.length\n")
     try expect_error("func f() -> !:\n    let out = io.stdout()\n    try out.write(\"hi\")\n", "unknown name")
-    try expect_ok("from io import Writer\nfunc f(w: Writer) -> !:\n    discard(try w.write(\"hi\".bytes))\n")
-    try expect_error("func f(w: Writer) -> !:\n    discard(try w.write(\"hi\".bytes))\n", "unknown type")
+    try expect_ok("from io import Writer\nfunc f(w: Writer) -> !:\n    _ = try w.write(\"hi\".bytes)\n")
+    try expect_error("func f(w: Writer) -> !:\n    _ = try w.write(\"hi\".bytes)\n", "unknown type")
 
 test "interfaces form views from pointers":
-    try expect_ok("from io import Writer\nstruct W: Writer:\n    var n: usize\n    pub mutating func write(bytes: const u8[]) -> usize!:\n        self.n += bytes.length\n        return bytes.length\nfunc f() -> !:\n    var w = W(n = 0)\n    let v: Writer = &w\n    discard(try v.write(\"abc\"))\n")
+    try expect_ok("from io import Writer\nstruct W: Writer:\n    var n: usize\n    pub func write(bytes: const u8[]) -> usize!:\n        self.n += bytes.length\n        return bytes.length\nfunc f() -> !:\n    var w = W(n = 0)\n    let v: Writer = &w\n    _ = try v.write(\"abc\")\n")
 
 test "none needs an optional and if let unwraps":
     try expect_error("func f() -> i64:\n    let x = none\n    return 0\n", "`none` needs a written type")
@@ -250,7 +255,7 @@ test "error and catch handle failure":
 
 test "modules import and qualify names":
     let capacity = try test_arena_size()
-    let backing = try alloc u8[capacity] in memory.heap
+    let backing = try new u8[capacity] --- in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]

@@ -1,0 +1,20 @@
+# error: `Square.grow` changes its receiver, and `grow_it` calls it on a value it may not change
+# oracle: none
+## §13.1, §14.2: a generic calling a requirement on a value it may not change refuses a
+## conformer whose implementation changes its receiver, where it is instantiated.
+interface Shape:
+    func grow()
+
+struct Square: Shape:
+    var side: i64
+
+    func grow():
+        self.side += 1
+
+func grow_it[S: Shape](shape: const S*):
+    shape.grow()
+
+pub func main(arguments: str[]) -> i32:
+    var square = Square(side = 1)
+    grow_it(&square)
+    return 0

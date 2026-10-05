@@ -628,11 +628,6 @@ uint32_t lb_utf8_scalar(const char* s, size_t n, size_t i, size_t* width);
 uint64_t lb_hash_seed(void);
 uint64_t lb_hash_mix(uint64_t h, uint64_t x);
 uint64_t lb_hash_bytes(uint64_t h, const void* p, size_t n);
-lb_str lb_show_hex(uint64_t v);
-lb_str lb_show_bin(uint64_t v);
-lb_str lb_show_pad(lb_str inner, size_t width);
-int lb_fmtbuf_hex(lb_fmtbuf* b, uint64_t v);
-int lb_fmtbuf_bin(lb_fmtbuf* b, uint64_t v);
 
 #define LB_FILES_MISSING 2
 #define LB_INVALID_UTF8 3

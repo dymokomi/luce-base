@@ -32,11 +32,11 @@ pub func clean(program: ir.Unit*) -> !:
 pub func clean_function(f: ir.Function*) -> !:
     if f.naked:
         return
-    discard(try failure_flags(f))
-    discard(powers_of_two(f))
-    discard(negations(f))
-    discard(try low_bits(f))
-    discard(fold(f))
+    _ = try failure_flags(f)
+    _ = powers_of_two(f)
+    _ = negations(f)
+    _ = try low_bits(f)
+    _ = fold(f)
     # a chain of values the rewrites left unread goes one link per sweep
     var swept = try sweep(f)
     while swept:
@@ -46,7 +46,7 @@ pub func clean_function(f: ir.Function*) -> !:
 ## the flag's byte takes on its way through the result's slot is the flag itself. Whether
 ## any changed.
 func failure_flags(f: ir.Function*) -> bool!:
-    var flag = try alloc bool[f.temps.count + 1]
+    var flag = try new bool[f.temps.count + 1] ---
     defer free(flag)
     for t in 0..<flag.length:
         flag[t] = false
@@ -76,9 +76,9 @@ func failure_flags(f: ir.Function*) -> bool!:
 ## shifts by `bits` itself (`lsl x0, x0, x1`). Only a value one instruction defines is
 ## followed; the extensions go if nothing else reads them (`sweep`). Whether any changed.
 func low_bits(f: ir.Function*) -> bool!:
-    var definition = try alloc u32[f.temps.count + 1]
+    var definition = try new u32[f.temps.count + 1] ---
     defer free(definition)
-    var assigned = try alloc u32[f.temps.count + 1]
+    var assigned = try new u32[f.temps.count + 1] ---
     defer free(assigned)
     for t in 0..<definition.length:
         definition[t] = 0
@@ -220,7 +220,7 @@ pub func function(f: ir.Function*) -> !:
 ## The slot an `addr` temporary names, per temporary; 0 for every other temporary. Slot
 ## indices are stored one above their value so that 0 means none.
 func addressed_slots(f: ir.Function*) -> u32[]!:
-    var slot_of = try alloc u32[f.temps.count + 1]
+    var slot_of = try new u32[f.temps.count + 1] ---
     var z: usize = 0
     while z < slot_of.length:
         slot_of[z] = 0
@@ -237,7 +237,7 @@ func addressed_slots(f: ir.Function*) -> u32[]!:
 ## the address of a scalar load or store. A slot whose address is copied, passed, blitted,
 ## or read by an atomic may be reached by anything, and is left as memory.
 func promotable_slots(f: ir.Function*, slot_of: u32[]) -> bool[]!:
-    var ok = try alloc bool[f.slots.count + 1]
+    var ok = try new bool[f.slots.count + 1] ---
     var k: usize = 0
     while k < ok.length:
         ok[k] = true
@@ -298,7 +298,7 @@ func promote(f: ir.Function*) -> bool!:
     defer free(slot_of)
     let ok = try promotable_slots(f, slot_of)
     defer free(ok)
-    var known = try alloc Known[f.slots.count + 1]
+    var known = try new Known[f.slots.count + 1] ---
     defer free(known)
     clear_known(known)
     var changed = false
@@ -314,7 +314,7 @@ func promote(f: ir.Function*) -> bool!:
             elif s == 0:
                 # a store through an address that is not a promotable slot's: every promotable
                 # slot is still its own memory, so nothing changes
-                discard(0)
+                _ = 0
         elif is_load(x.op):
             let s = slot_named(slot_of, x.a)
             if s != 0 and ok[s - 1] and known[s - 1].op != ir.Op.copy and matches(known[s - 1].op, x.op):
@@ -349,9 +349,9 @@ func matches(store: ir.Op, load: ir.Op) -> bool:
 ## Every use of a temporary that was a copy of another temporary or a constant reads the
 ## original; the copy is left for `sweep`.
 func propagate(f: ir.Function*) -> bool!:
-    var source = try alloc ir.Ref[f.temps.count + 1]
+    var source = try new ir.Ref[f.temps.count + 1] ---
     defer free(source)
-    var defs = try alloc u32[f.temps.count + 1]
+    var defs = try new u32[f.temps.count + 1] ---
     defer free(defs)
     var k: usize = 0
     while k < source.length:
@@ -544,7 +544,7 @@ func checked_mul(a: i64, b: i64, wide: bool) -> (i64, bool):
 ## Drop an instruction whose result nothing reads and that has no other effect, and a store
 ## to a promotable slot the function never loads.
 func sweep(f: ir.Function*) -> bool!:
-    var used = try alloc bool[f.temps.count + 1]
+    var used = try new bool[f.temps.count + 1] ---
     defer free(used)
     clear_flags(used)
     var i: usize = 0
@@ -562,7 +562,7 @@ func sweep(f: ir.Function*) -> bool!:
     defer free(slot_of)
     let ok = try promotable_slots(f, slot_of)
     defer free(ok)
-    var loaded = try alloc bool[f.slots.count + 1]
+    var loaded = try new bool[f.slots.count + 1] ---
     defer free(loaded)
     clear_flags(loaded)
     i = 0

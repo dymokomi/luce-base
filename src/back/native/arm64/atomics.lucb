@@ -12,7 +12,7 @@ extend Generator:
 
     ## `fresh = old` when `old` compares `cond` (`ge` or `le`) to `value`, else `value`: the
     ## new value of an atomic max or min.
-    mutating func extreme(fresh: str, old: str, value: str, cond: str) -> !:
+    func extreme(fresh: str, old: str, value: str, cond: str) -> !:
         try self.writer.line("cmp ")
         try self.writer.put(old)
         try self.writer.put(", ")
@@ -29,9 +29,9 @@ extend Generator:
     ## Read-modify-write atomics as an exclusive-load, compute, exclusive-store loop that
     ## retries until the store holds; acquire and release follow the ordering asked for,
     ## and the old value is the result.
-    mutating func read_modify_write(n: ir.Instr) -> !:
+    func read_modify_write(n: ir.Instr) -> !:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
-        let value = self.reg(cls, 1)
+        let value = scratch_register(cls, 1)
         try self.operand(value, cls, n.a)
         try self.address_operand("x17", n.b)
         let acquire = n.extra2 == 2 or n.extra2 == 4 or n.extra2 == 5
@@ -40,10 +40,10 @@ extend Generator:
         try self.writer.line("ldaxr" if acquire else "ldxr")
         try self.writer.put(width_suffix(n.extra))
         try self.writer.put(" ")
-        try self.writer.put(self.reg(cls, 0))
+        try self.writer.put(scratch_register(cls, 0))
         try self.writer.put(", [x17]")
-        let old = self.reg(cls, 0)
-        let fresh = self.reg(cls, 2)
+        let old = scratch_register(cls, 0)
+        let fresh = scratch_register(cls, 2)
         match n.op:
             .atomic_add:
                 try self.writer.line("add ")
@@ -80,30 +80,30 @@ extend Generator:
 
     ## Compare-and-swap as an `ldaxr`/`stlxr` loop: the store is tried only while memory
     ## holds the expected value, and what memory held is the result.
-    mutating func compare_and_swap(n: ir.Instr) -> !:
+    func compare_and_swap(n: ir.Instr) -> !:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
         let expected = self.f.args.get((usize)n.b.value)
         let desired = self.f.args.get((usize)n.b.value + 1)
-        try self.operand(self.reg(cls, 1), cls, expected.value)
-        try self.operand(self.reg(cls, 2), cls, desired.value)
+        try self.operand(scratch_register(cls, 1), cls, expected.value)
+        try self.operand(scratch_register(cls, 2), cls, desired.value)
         try self.address_operand("x17", n.a)
         try self.writer.put("\n1:")
         try self.writer.line("ldaxr")
         try self.writer.put(width_suffix(n.extra))
         try self.writer.put(" ")
-        try self.writer.put(self.reg(cls, 0))
+        try self.writer.put(scratch_register(cls, 0))
         try self.writer.put(", [x17]")
         try self.writer.line("cmp ")
-        try self.writer.put(self.reg(cls, 0))
+        try self.writer.put(scratch_register(cls, 0))
         try self.writer.put(", ")
-        try self.writer.put(self.reg(cls, 1))
+        try self.writer.put(scratch_register(cls, 1))
         try self.writer.line("b.ne 2f")
         try self.writer.line("stlxr")
         try self.writer.put(width_suffix(n.extra))
         try self.writer.put(" w16, ")
-        try self.writer.put(self.reg(cls, 2))
+        try self.writer.put(scratch_register(cls, 2))
         try self.writer.put(", [x17]")
         try self.writer.line("cbnz w16, 1b")
         try self.writer.put("\n2:")
         try self.writer.line("clrex")
-        try self.store_temp(self.reg(cls, 0), n.dst)
+        try self.store_temp(scratch_register(cls, 0), n.dst)

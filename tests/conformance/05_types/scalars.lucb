@@ -1,11 +1,13 @@
-## §5.1: the scalar widths; `usize` from `sizeof` is a constant that sizes an array; `never`
+import memory
+
+## §5.1: the scalar widths; `usize` from `memory.size_of` is a constant that sizes an array; `never`
 ## coerces to any type and `unit` is what a function returning nothing yields.
 struct Header:
     var tag: u32
     var length: u32
 
-let header_bytes: usize = sizeof(Header)
-var scratch: u8[sizeof(Header) * 2]
+let header_bytes: usize = memory.size_of(Header)
+var scratch: u8[memory.size_of(Header) * 2]
 
 func fail_now() -> never:
     trap("never returns")
@@ -19,12 +21,12 @@ func nothing():
 
 pub func main(arguments: str[]) -> i32:
     let t = true
-    let widths = [sizeof(bool), sizeof(u8), sizeof(u16), sizeof(u32), sizeof(u64), sizeof(usize), sizeof(isize), sizeof(f16), sizeof(f32), sizeof(f64), sizeof(char)]
+    let widths = [memory.size_of(bool), memory.size_of(u8), memory.size_of(u16), memory.size_of(u32), memory.size_of(u64), memory.size_of(usize), memory.size_of(isize), memory.size_of(f16), memory.size_of(f32), memory.size_of(f64), memory.size_of(char)]
     var total: usize = 0
     for width in widths:
         total += width
     let flag_word: u8 = 1 if t else 0
     scratch[15] = 3
     nothing()
-    print(f"{total} {header_bytes} {scratch.length} {pick(true)} {flag_word} {scratch[15]} {alignof(Header)}")
+    print(f"{total} {header_bytes} {scratch.length} {pick(true)} {flag_word} {scratch[15]} {memory.align_of(Header)}")
     return 0

@@ -25,7 +25,7 @@ pub func main(arguments: c.str[]) -> i32!:
     let source = arguments[1]
     let compiler = compiler_path(arguments[0])
     var name: u8[1024]
-    let exe = try format(name, f"{(str)source}.debug")
+    let exe = try strings.format(name, f"{(str)source}.debug")
     var build_args: c.str[5] = ---
     build_args[0] = "build"
     build_args[1] = source
@@ -46,7 +46,7 @@ pub func main(arguments: c.str[]) -> i32!:
         try io.stderr().write(built.value.error_output)
         print(f"luce-base-d: `{(str)compiler}` exited with {status}")
         error(failed, "the program did not build")
-    discard(setenv("LUCE_DEBUG", "1", 1))
+    _ = setenv("LUCE_DEBUG", "1", 1)
     var argv: void*?[64]
     argv[0] = (void*)(c.str)exe
     var i: usize = 2
@@ -56,7 +56,7 @@ pub func main(arguments: c.str[]) -> i32!:
         i += 1
         n += 1
     argv[n] = none
-    discard(execv((c.str)exe, &argv[0]))
+    _ = execv((c.str)exe, &argv[0])
     error(failed, "the program could not be started")
 
 ## The compiler beside this binary, or `luce-base` on the path; the name lives in
@@ -70,7 +70,7 @@ func compiler_path(self_path: c.str) -> c.str:
         i -= 1
     if i == 0:
         return "luce-base"
-    let beside = format(compiler_name, f"{(str)text.bytes[..<i]}luce-base") catch:
+    let beside = strings.format(compiler_name, f"{(str)text.bytes[..<i]}luce-base") catch:
         return "luce-base"
     if files.exists((c.str)beside):
         return (c.str)beside

@@ -8,6 +8,7 @@ or `cffi` for this; Base needs only the declaration.
 
 ```luce
 import c
+import memory
 
 extern func strlen(text: c.str) -> usize
 extern func getenv(name: c.str) -> c.str?
@@ -25,7 +26,7 @@ pub func main(arguments: str[]) -> i32!:
     let missing = getenv("SURELY_NOT_SET_ANYWHERE") else "(not set)"
     print(try str(missing))
     var values: i32[5] = [5, 3, 9, 1, 4]
-    qsort(&values[0], 5, sizeof(i32), by_value)
+    qsort(&values[0], 5, memory.size_of(i32), by_value)
     print(f"{values[0]} {values[1]} {values[2]} {values[3]} {values[4]}")
     return 0
 ```

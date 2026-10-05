@@ -13,7 +13,7 @@ extend Generator:
     ## the result computes into v16 (v18 for a checked form) and goes to its home. The lane
     ## shape picks the arrangement, `.4s` or `.8b`; an eight-byte vector is the low half
     ## of the register, loaded and stored as `d`.
-    mutating func vector(n: ir.Instr) -> !:
+    func vector(n: ir.Instr) -> !:
         let shape = n.extra
         let bytes = ir.vector_bytes(shape)
         let arr = arrangement(shape)
@@ -62,7 +62,7 @@ extend Generator:
 
     ## A sixteen-byte load, store, or lane-wise arithmetic straight between the allocated
     ## registers; false for an operation that takes the scratch sequences instead.
-    mutating func full_vector(n: ir.Instr, arr: str, all: str) -> bool!:
+    func full_vector(n: ir.Instr, arr: str, all: str) -> bool!:
         if n.op == ir.Op.loadv:
             let address = try self.source(n.a, ir.Class.l, "x9")
             let d = self.target(n.dst, ir.Class.v, "q16")
@@ -98,7 +98,7 @@ extend Generator:
     ## `v << count` and `v >> count`: the count, one scalar, spread over the lanes; a right
     ## shift is a left shift by the negated count, arithmetic or logical by the lanes'
     ## signedness.
-    mutating func vector_shift(n: ir.Instr, arr: str, bytes: u32) -> !:
+    func vector_shift(n: ir.Instr, arr: str, bytes: u32) -> !:
         let shape = n.extra
         try self.vector_source(0, n.a, bytes)
         let wide = ir.lane_bits(shape) == 64
@@ -122,7 +122,7 @@ extend Generator:
 
     ## Checked `+` and `-` over lanes: the wrapping result beside the saturating one; a lane
     ## that differs overflowed, and traps.
-    mutating func vector_checked(n: ir.Instr, arr: str, all: str, bytes: u32) -> !:
+    func vector_checked(n: ir.Instr, arr: str, all: str, bytes: u32) -> !:
         try self.vector_source(0, n.a, bytes)
         try self.vector_source(1, n.b, bytes)
         let add = n.op == ir.Op.vaddo
@@ -154,10 +154,10 @@ extend Generator:
         try self.vector_result(n.dst, 2, bytes)
 
     ## `T[N](x)`: the scalar into every lane of v16.
-    mutating func splat(n: ir.Instr, shape: u32, arr: str) -> !:
+    func splat(n: ir.Instr, shape: u32, arr: str) -> !:
         if ir.lanes_float(shape):
             let cls = ir.Class.d if ir.lane_bits(shape) == 64 else ir.Class.s
-            try self.operand(self.reg(cls, 0), cls, n.a)
+            try self.operand(scratch_register(cls, 0), cls, n.a)
             try self.writer.line("dup v16")
             try self.writer.put(arr)
             try self.writer.put(", v16.d[0]" if cls == ir.Class.d else ", v16.s[0]")
@@ -171,11 +171,11 @@ extend Generator:
 
     ## A vector temporary into scratch register `k`: from the register it lives in, else
     ## from its home.
-    mutating func vector_source(k: u32, r: ir.Ref, bytes: u32) -> !:
+    func vector_source(k: u32, r: ir.Ref, bytes: u32) -> !:
         try self.load_temp(vector_scratch(k, bytes), ir.Class.v, r.index)
 
     ## Scratch register `k` into vector temporary `dst`, where it lives.
-    mutating func vector_result(dst: u32, k: u32, bytes: u32) -> !:
+    func vector_result(dst: u32, k: u32, bytes: u32) -> !:
         if dst == 0:
             return
         try self.store_temp(vector_scratch(k, bytes), dst)

@@ -1,3 +1,5 @@
+import memory
+
 ## §4.3: float forms, `f64` without context, a suffix, context choosing `f32` and `f16`,
 ## and a decimal correctly rounded to each width.
 pub func main(arguments: str[]) -> i32:
@@ -10,5 +12,5 @@ pub func main(arguments: str[]) -> i32:
     let tenth = 0.1
     print(f"{one} {avogadro} {half} {grouped}")
     print(f"{f64(narrow) == tenth} {f64(half_float) == tenth} {f64(narrow) > f64(half_float)}")
-    print(f"{sizeof(one)} {sizeof(half)} {sizeof(half_float)}")
+    print(f"{memory.size_of(one)} {memory.size_of(half)} {memory.size_of(half_float)}")
     return 0

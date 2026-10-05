@@ -65,7 +65,7 @@ pub struct Graph:
     var by_label: u32[]
 
     ## The graph of `f` as its instructions stand.
-    pub static func over(f: ir.Function*) -> Graph!:
+    pub func over(f: ir.Function*) -> Graph!:
         var g = try Graph.blocks_of(f)
         try g.dominators()
         try g.frontiers()
@@ -75,8 +75,8 @@ pub struct Graph:
 
     ## The blocks, their edges, and the reverse post-order alone: what liveness needs, at
     ## a fraction of the cost of the dominators, frontiers, and loops `over` adds.
-    pub static func blocks_of(f: ir.Function*) -> Graph!:
-        var g = Graph(blocks = try list.List[Block].create(32), order = try list.List[u32].create(32), by_label = try alloc u32[(usize)f.labels + 1])
+    pub func blocks_of(f: ir.Function*) -> Graph!:
+        var g = Graph(blocks = try list.List[Block].create(32), order = try list.List[u32].create(32), by_label = try new u32[(usize)f.labels + 1] ---)
         var k: usize = 0
         while k < g.by_label.length:
             g.by_label[k] = none_block
@@ -89,7 +89,7 @@ pub struct Graph:
         return g
 
     ## Release the graph's storage.
-    pub mutating func release():
+    pub func release():
         var i: usize = 0
         while i < self.blocks.count:
             var b = self.blocks.get(i)
@@ -128,7 +128,7 @@ pub struct Graph:
     # -- construction ---------------------------------------------------------------------
 
     ## Cut the instruction list into blocks.
-    mutating func split(f: ir.Function*) -> !:
+    func split(f: ir.Function*) -> !:
         var start: u32 = 0
         var label: u32 = 0
         var open = true
@@ -150,7 +150,7 @@ pub struct Graph:
         if open:
             try self.add(label, start, i)
 
-    mutating func add(label: u32, start: u32, end: u32) -> !:
+    func add(label: u32, start: u32, end: u32) -> !:
         let index = u32(self.blocks.count)
         try self.blocks.push(Block(label = label, start = start, end = end, succ1 = none_block, succ2 = none_block, succs = try list.List[u32].create(2), preds = try list.List[u32].create(2),
                                    rpo = none_block, idom = none_block, frontier = try list.List[u32].create(2), children = try list.List[u32].create(2),
@@ -159,7 +159,7 @@ pub struct Graph:
             self.by_label[(usize)label] = index
 
     ## Successors from each block's last instruction, or the block after it.
-    mutating func link(f: ir.Function*) -> !:
+    func link(f: ir.Function*) -> !:
         var i: usize = 0
         while i < self.blocks.count:
             var b = self.blocks.get(i)
@@ -172,7 +172,7 @@ pub struct Graph:
             elif b.end > b.start and last.op == ir.Op.switch_:
                 b.succ1 = self.by_label[(usize)last.extra]
             elif b.end > b.start and (last.op == ir.Op.ret or last.op == ir.Op.trap_):
-                discard(0)
+                _ = 0
             elif i + 1 < self.blocks.count:
                 b.succ1 = u32(i + 1)
             try add_successor(&b.succs, b.succ1)
@@ -184,15 +184,15 @@ pub struct Graph:
             i += 1
 
     ## Reverse post-order from the entry; predecessors of the reachable blocks.
-    mutating func number() -> !:
+    func number() -> !:
         let n = self.blocks.count
-        var state = try alloc u8[n + 1]
+        var state = try new u8[n + 1] ---
         defer free(state)
-        var stack = try alloc u32[n + 1]
+        var stack = try new u32[n + 1] ---
         defer free(stack)
-        var next = try alloc u32[n + 1]
+        var next = try new u32[n + 1] ---
         defer free(next)
-        var post = try alloc u32[n + 1]
+        var post = try new u32[n + 1] ---
         defer free(post)
         var k: usize = 0
         while k <= n:
@@ -239,13 +239,13 @@ pub struct Graph:
                 try self.add_pred(s, b)
             i += 1
 
-    mutating func add_pred(to: u32, source: u32) -> !:
+    func add_pred(to: u32, source: u32) -> !:
         var block = self.blocks.get((usize)to)
         try block.preds.push(source)
         self.blocks.set((usize)to, block)
 
     ## Immediate dominators over the reverse post-order.
-    mutating func dominators() -> !:
+    func dominators() -> !:
         var changed = true
         while changed:
             changed = false
@@ -289,7 +289,7 @@ pub struct Graph:
 
     ## Dominance frontiers: a successor a block does not strictly dominate is in the
     ## frontier of the block and of its dominators up to the successor's.
-    mutating func frontiers() -> !:
+    func frontiers() -> !:
         var i: usize = 0
         while i < self.order.count:
             let b = self.order.get(i)
@@ -298,7 +298,7 @@ pub struct Graph:
                 try self.frontier_edge(b, s)
             i += 1
 
-    mutating func frontier_edge(head: u32, to: u32) -> !:
+    func frontier_edge(head: u32, to: u32) -> !:
         if to == none_block:
             return
         var a = head
@@ -318,7 +318,7 @@ pub struct Graph:
                 return
 
     ## Depth in the dominator tree, in reverse post-order (a dominator comes first).
-    mutating func depths():
+    func depths():
         var i: usize = 0
         while i < self.order.count:
             let b = self.order.get(i)
@@ -329,15 +329,15 @@ pub struct Graph:
 
     ## Loop weights: a back-edge into a header marks every block that reaches the header
     ## inside the loop (QBE's `loopiter`).
-    pub mutating func loops() -> !:
+    pub func loops() -> !:
         let n = self.blocks.count
-        var visit = try alloc u32[n + 1]
+        var visit = try new u32[n + 1] ---
         defer free(visit)
         var k: usize = 0
         while k <= n:
             visit[k] = none_block
             k += 1
-        var stack = try alloc u32[n + 1]
+        var stack = try new u32[n + 1] ---
         defer free(stack)
         var i: usize = 0
         while i < self.order.count:

@@ -25,7 +25,7 @@ func drop_lease(object: ownership.Object*):
 func trace_lease(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
     visit(((LeaseState*)object).owner, context)
 
-var lease_info: ownership.Info = ownership.Info(name = "native lease", size = sizeof(LeaseState),
+var lease_info: ownership.Info = ownership.Info(name = "native lease", size = memory.size_of(LeaseState),
                                                 finish = none, drop = drop_lease, trace = trace_lease)
 
 ## A one-shot validity scope over an owning native object.
@@ -36,7 +36,7 @@ pub struct Lease:
     func init(owner: ownership.Object*, open: func(ownership.Object*) -> bool,
               begin: func(ownership.Object*) -> unit, end: func(ownership.Object*) -> unit) -> !:
         ownership.check_alive(owner)
-        let state = (LeaseState*)try ownership.reserve(&lease_info, sizeof(LeaseState))
+        let state = (LeaseState*)try ownership.reserve(&lease_info, memory.size_of(LeaseState))
         state.owner = ownership.retain(owner)
         state.open = open
         state.begin = begin
@@ -53,7 +53,7 @@ pub struct Lease:
     ## Another edge to the same lease.
     pub func clone() -> Lease:
         self.alive()
-        discard(ownership.retain(&self.state.header))
+        _ = ownership.retain(&self.state.header)
         return self
 
     ## Drop this lease's edge.
@@ -80,7 +80,7 @@ pub struct Lease:
     ## Operational closure/expiry is still visible immediately to every alias.
     pub func enter() -> !:
         try self.check()
-        discard(ownership.retain(&self.state.header))
+        _ = ownership.retain(&self.state.header)
         self.state.begin(self.state.owner)
 
     ## End a guarded invocation, releasing the owner.

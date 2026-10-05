@@ -5,11 +5,11 @@
 import atomic
 
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     var hits: @u64
     let (exchanged, seen) = hits.cas(0, 2, weak = false)
     let (again, before) = hits.cas(2, 3, success = .acq_rel, failure = .acquire)
-    discard(hits.add(5, order = .relaxed))
+    _ = hits.add(5, order = .relaxed)
     atomic.fence(.signal)
     hits.store(10, order = .release)
     print(f"{exchanged} {seen} {again} {before} {hits.load(order = .acquire)}")

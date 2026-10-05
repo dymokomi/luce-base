@@ -10,9 +10,9 @@ memory bugs. [Reference: Memory](../../language/base.md#12-memory).
   local arrays and structs, however large.
 - **Fields and elements** live inside the struct or array that holds them.
 - **Globals** (top-level `var`) live for the whole program.
-- **Allocated memory** lives from `new` or `alloc` until `free`.
+- **Allocated memory** lives from `new` until `free`.
 
-Only `new` and `alloc` allocate. No other operation does: not passing arguments, not string
+Only `new` allocates. No other operation does: not passing arguments, not string
 operations (there are none that create strings), not loops, not the standard library behind
 your back. Any library function that allocates takes or uses an allocator, and says so.
 
@@ -43,17 +43,20 @@ let node = try new Node(value = 1, next = none)    # Node*: one value, construct
 let zeroed = try new Node                           # Node*: the zero value
 let leaf = try new Expr.number(value = 2.0)         # Expr*: an enum case
 let bytes = try new u8[4096]                        # u8[]: 4096 zeroed bytes
-let pool = try alloc Node[64]                       # Node[]: 64 uninitialised nodes
-let raw = try alloc(size, 16)                       # u8[]: uninitialised bytes, 16-byte aligned
+let pool = try new Node[64] ---                     # Node[]: 64 nodes, left unwritten
+let raw = try memory.allocate(size, 16)             # u8[]: unwritten bytes, 16-byte aligned
 let four = try new (u8[4])                          # u8[4]*: a pointer to one fixed array
 free(node)
 free(bytes)
 ```
 
 - `new` constructs: a struct through its constructor, an enum case, a zero value, or zeroed
-  elements. `alloc` does not initialise; reading before writing is undefined.
-- Both can fail with `memory.exhausted`, so both are used with `try`, `catch` or `else`.
-- `free` takes what `new` or `alloc` returned: a pointer or a span.
+  elements. `new T[count] ---` leaves the elements unwritten, as `---` leaves a `var`;
+  reading one before writing it is undefined. `memory.allocate(size, alignment)` gives raw
+  bytes the same way.
+- Every allocation can fail with `memory.exhausted`, so each is used with `try`, `catch` or
+  `else`.
+- `free` takes what `new` or `memory.allocate` returned: a pointer or a span.
 - A pointer to a fixed array is indexed through `*`: `(*four)[1]`. Writing `four[1]` indexes
   the pointer itself, as in C.
 
@@ -79,7 +82,7 @@ func load(path: c.str) -> u8[]!:
 
 ## Allocators
 
-Every `new`, `alloc` and `free` goes to an allocator. Which one:
+Every `new` and `free` goes to an allocator. Which one:
 
 - **The current allocator**, `memory.allocator`. It starts as `memory.heap`, which is the C
   library's `malloc`, and each thread has its own.
@@ -150,9 +153,9 @@ Any type implementing `Allocator` can be used with `with` and `in`:
 
 ```luce
 pub interface Allocator:
-    mutating func allocate(size: usize, alignment: usize) -> u8[]?
-    mutating func resize(block: u8[], size: usize) -> bool
-    mutating func release(block: u8[])
+    func allocate(size: usize, alignment: usize) -> u8[]?
+    func resize(block: u8[], size: usize) -> bool
+    func release(block: u8[])
 ```
 
 `allocate` returns uninitialised memory of at least `size` bytes at the alignment (0 means 1),
@@ -168,16 +171,16 @@ struct Counting: Allocator:
     var live: usize
     var total: usize
 
-    mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    func allocate(size: usize, alignment: usize) -> u8[]?:
         let block = self.parent.allocate(size, alignment) else return none
         self.live += 1
         self.total += size
         return block
 
-    mutating func resize(block: u8[], size: usize) -> bool:
+    func resize(block: u8[], size: usize) -> bool:
         return self.parent.resize(block, size)
 
-    mutating func release(block: u8[]):
+    func release(block: u8[]):
         self.live -= 1
         self.parent.release(block)
 
@@ -256,7 +259,8 @@ There is no ownership syntax. The conventions, which the standard library follow
 - freeing with a different allocator than the one that allocated;
 - a dangling pointer the escape check could not see;
 - pointer arithmetic outside the object;
-- reading memory from `alloc`, `memory.frame` or `---` before writing it;
+- reading memory from `new T[count] ---`, `memory.allocate`, `memory.frame` or `---` before
+  writing it;
 - reading a union member with an invariant after writing another;
 - writing to a `let` or `const` through a cast;
 - `(str)bytes` on bytes that are not UTF-8;

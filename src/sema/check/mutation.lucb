@@ -1,0 +1,435 @@
+#==============================================================================================
+#
+#   check/mutation - Which methods change their receiver, and which are the type's
+#
+#   DESCRIPTION:
+#       Nothing is written on a method (§9.5): one whose body never reads `self` is a
+#       function of the type, and one that changes its receiver is found from its body.
+#       Before any body is checked, a walk of each method finds the changes it spells
+#       out: an assignment to `self` or a part of it, a changing method called on one, and
+#       the same through a local that holds its address; a method calling another of the
+#       module on `self` follows that one, until nothing changes. The checker then finds
+#       the rest where a body takes the receiver's address, or a part's, as mutable. A call
+#       that leaned on a method of this module whose answer was not final yet is kept and
+#       settled when the module's bodies are done.
+#
+#==============================================================================================
+
+## A use that depended on whether `method` changes its receiver, before that was final:
+## a call on a receiver that cannot change, or a view formed from one (§14.3). When
+## `method` turns out to change it, the use is refused, or, when the receiver is part of
+## the receiver of `caller`, `caller` changes its receiver too.
+struct PendingChange:
+    var at: ast.Node*
+    var method: ast.Node*
+    var caller: ast.Node*?
+    ## The use is the method taken as a function value, typed as one that reads.
+    var value: bool = false
+
+## A requirement a generic body calls on a value of its parameter `param` that it may not
+## change: an instantiation whose argument implements it by changing its receiver is
+## refused (§13.1, §14.2).
+struct ReadOnlyUse:
+    var param: ast.Node*
+    var requirement: str
+
+## A generic passing a value of its parameter `to` on as another generic's parameter
+## `passed`: what that one calls on a value it may not change, this one does too.
+struct UseForward:
+    var passed: ast.Node*
+    var to: ast.Node*
+
+## An instantiation of `param` with `argument` at `at`, settled when this module's methods
+## are final.
+struct PendingInstance:
+    var at: ast.Node*
+    var param: ast.Node*
+    var argument: u32
+
+## A local that holds the address of the receiver or a part of it, and the type of the
+## place it reaches: what is written through it is written to the receiver.
+struct ReceiverAlias:
+    var name: str
+    var place: u32
+
+extend Checker:
+    # mark: Functions of the type ==============================================================
+
+    ## A method implementing a requirement of an interface its type declares stays a
+    ## method, though its body never reads `self` (§9.5): the view calls it with one.
+    func keep_required_methods(tree: ast.Node*):
+        var cursor = tree.body
+        while let d = cursor:
+            if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_:
+                var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
+                while let l = listed:
+                    if let iface = self.table.get(l.type_id).decl:
+                        if iface.kind == ast.Kind.interface_:
+                            var requirement = iface.body
+                            while let r = requirement:
+                                if let m = find_member(d, r.text, ast.Kind.func_):
+                                    m.flags &= ~ast.flag_static
+                                requirement = r.next
+                    listed = l.next
+            cursor = d.next
+
+    # mark: Changes written out ================================================================
+
+    ## Mark every method of `tree`'s types whose body changes its receiver by what it
+    ## spells out, following calls between them until nothing changes.
+    func infer_receiver_changes(tree: ast.Node*) -> !:
+        var aliases = try list.List[ReceiverAlias].create(8)
+        var changed = true
+        while changed:
+            changed = false
+            var cursor = tree.body
+            while let d = cursor:
+                if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_:
+                    var member = d.body
+                    while let m = member:
+                        if m.kind == ast.Kind.func_ and not m.has(ast.flag_static) and not m.has(ast.flag_mutating) and m.text != "init":
+                            aliases.count = 0
+                            if try self.body_changes(d, m.body, &aliases):
+                                m.flags |= ast.flag_mutating
+                                changed = true
+                        member = m.next
+                cursor = d.next
+
+    ## Whether the statements and expressions from `n` on, siblings included, change the
+    ## receiver of a method of `d`.
+    func body_changes(d: ast.Node*, n: ast.Node*?, aliases: list.List[ReceiverAlias]*) -> bool!:
+        var cursor = n
+        while let s = cursor:
+            if try self.node_changes(d, s, aliases):
+                return true
+            cursor = s.next
+        return false
+
+    func node_changes(d: ast.Node*, s: ast.Node*, aliases: list.List[ReceiverAlias]*) -> bool!:
+        match s.kind:
+            .lambda:
+                # a lambda's body is a function of its own, with no receiver (§9.6)
+                return false
+            .assign:
+                if let place = s.left:
+                    if try self.receiver_place(d, place, aliases) != types.none_id:
+                        return true
+            .let_, .var_:
+                try self.note_alias(d, s, aliases)
+            .for_:
+                # the loop's binding is noted here, not walked as a `let` of its own
+                try self.note_loop_alias(d, s, aliases)
+                if let iterable = s.right:
+                    if try self.node_changes(d, iterable, aliases):
+                        return true
+                return try self.body_changes(d, s.body, aliases)
+            .call:
+                if try self.changing_call(d, s, aliases):
+                    return true
+            .with_, .new_, .new_unwritten, .free_:
+                # allocating from an allocator the receiver holds changes it (§12.3)
+                let allocator = s.left if s.kind == ast.Kind.with_ else s.right
+                if let a = allocator:
+                    let place = try self.receiver_place(d, a, aliases)
+                    if place != types.none_id and self.table.kind(place) == types.Kind.struct_:
+                        return true
+            _:
+                _ = 0
+        if let l = s.left:
+            if try self.node_changes(d, l, aliases):
+                return true
+        if let r = s.right:
+            if try self.node_changes(d, r, aliases):
+                return true
+        return try self.body_changes(d, s.body, aliases)
+
+    ## `recv.name(...)` where `recv` is the receiver or a part of it and `name` changes it.
+    func changing_call(d: ast.Node*, call: ast.Node*, aliases: list.List[ReceiverAlias]*) -> bool!:
+        let callee = call.left else return false
+        if callee.kind != ast.Kind.member:
+            return false
+        let receiver = callee.left else return false
+        let place = try self.receiver_place(d, receiver, aliases)
+        if place == types.none_id:
+            return false
+        let t = self.table.get(place)
+        if t.kind == types.Kind.atomic:
+            # an atomic's operations store, its `load` and `wait` aside (§15.1)
+            return callee.text != "load" and callee.text != "wait"
+        if t.kind != types.Kind.struct_ and t.kind != types.Kind.enum_ and t.kind != types.Kind.union_:
+            return false
+        let owner = t.decl else return false
+        let m = find_member(owner, callee.text, ast.Kind.func_) else return false
+        return m.has(ast.flag_mutating) and not m.has(ast.flag_static)
+
+    ## `let p = &self.part`, `let row = self.cells[..]`: a local that reaches the receiver.
+    func note_alias(d: ast.Node*, s: ast.Node*, aliases: list.List[ReceiverAlias]*) -> !:
+        forget_alias(aliases, s.text)
+        if s.ty != none:
+            return
+        let init = s.left else return
+        var place = types.none_id
+        if init.kind == ast.Kind.unary and init.text == "&":
+            if let inner = init.left:
+                place = try self.receiver_place(d, inner, aliases)
+        elif init.kind == ast.Kind.slice:
+            if let owner = init.left:
+                let whole = try self.receiver_place(d, owner, aliases)
+                if self.table.kind(whole) == types.Kind.array:
+                    place = whole
+        if place != types.none_id:
+            try aliases.push(ReceiverAlias(name = s.text, place = place))
+
+    ## `for p in &self.items`: each `p` reaches an element of the receiver.
+    func note_loop_alias(d: ast.Node*, s: ast.Node*, aliases: list.List[ReceiverAlias]*) -> !:
+        let binding = s.left else return
+        forget_alias(aliases, binding.text)
+        if not s.has(ast.flag_by_pointer) or binding.body != none:
+            return
+        let iterable = s.right else return
+        let whole = try self.receiver_place(d, iterable, aliases)
+        if self.table.kind(whole) == types.Kind.array:
+            try aliases.push(ReceiverAlias(name = binding.text, place = self.table.get(whole).elem))
+
+    ## The type of place `e` when it is the receiver of a method of `d` or a part of it,
+    ## reached through fields and array elements and never through a pointer or a span, or
+    ## through a local holding such an address; `none_id` otherwise.
+    func receiver_place(d: ast.Node*, e: ast.Node*, aliases: list.List[ReceiverAlias]*) -> u32!:
+        match e.kind:
+            .self_:
+                return d.type_id
+            .name:
+                for a in aliases.span():
+                    if a.name == e.text:
+                        return a.place
+                return types.none_id
+            .group:
+                let inner = e.left else return types.none_id
+                return try self.receiver_place(d, inner, aliases)
+            .unary:
+                # `*p` where `p` holds the receiver's address
+                let inner = e.left else return types.none_id
+                if e.text != "*" or inner.kind != ast.Kind.name:
+                    return types.none_id
+                return try self.receiver_place(d, inner, aliases)
+            .member:
+                let owner = e.left else return types.none_id
+                let whole = try self.receiver_place(d, owner, aliases)
+                if whole == types.none_id:
+                    return types.none_id
+                return try self.part_type(whole, e.text)
+            .index:
+                let owner = e.left else return types.none_id
+                let whole = try self.receiver_place(d, owner, aliases)
+                let t = self.table.get(whole)
+                return t.elem if whole != types.none_id and t.kind == types.Kind.array else types.none_id
+            _:
+                return types.none_id
+
+    ## The type of field or tuple member `name` of a value of type `whole`; `none_id` for
+    ## anything a value does not hold in place.
+    func part_type(whole: u32, name: str) -> u32!:
+        let t = self.table.get(whole)
+        if t.kind == types.Kind.tuple:
+            var index: usize = 0
+            for b in name.bytes:
+                if b < '0' or b > '9':
+                    return types.none_id
+                index = index * 10 + (usize)(b - '0')
+            return t.args[index] if index < t.args.length else types.none_id
+        if t.kind != types.Kind.struct_ and t.kind != types.Kind.union_:
+            return types.none_id
+        let owner = t.decl else return types.none_id
+        let field = find_member(owner, name, ast.Kind.field) else return types.none_id
+        return try self.substitute(field.type_id, owner, t.args)
+
+    # mark: Changes the checker finds ===========================================================
+
+    ## Whether `e` is the receiver of the method being checked or a part of it, reached
+    ## through fields and array elements, never through a pointer or a span (§9.5).
+    func rooted_at_self(e: ast.Node*) -> bool:
+        match e.kind:
+            .self_:
+                return self.self_type != types.none_id
+            .group:
+                let inner = e.left else return false
+                return self.rooted_at_self(inner)
+            .member:
+                let owner = e.left else return false
+                let k = self.table.kind(owner.type_id)
+                if k == types.Kind.pointer or k == types.Kind.module:
+                    return false
+                if let field = e.resolved:
+                    if field.kind == ast.Kind.global or field.kind == ast.Kind.extern_var:
+                        return false
+                return self.rooted_at_self(owner)
+            .index:
+                let owner = e.left else return false
+                return self.table.kind(owner.type_id) == types.Kind.array and self.rooted_at_self(owner)
+            _:
+                return false
+
+    ## `e` must change and is not mutable here. When it is the receiver of the method being
+    ## checked, or a part of it, the method changes its receiver from here on (§9.5): true.
+    func changes_receiver(e: ast.Node*) -> bool:
+        let f = self.current_func else return false
+        if self.self_type == types.none_id or f.has(ast.flag_static) or not self.rooted_at_self(e):
+            return false
+        f.flags |= ast.flag_mutating
+        self.self_mutable = true
+        return true
+
+    ## Whether `hint` wants a pointer to `pointee` that may change it: a mutable pointer, or
+    ## a view whose conformer's methods change their receiver (§6.6, §14.3); `place` is
+    ## what the address is taken of.
+    func wants_changing_view(hint: u32, pointee: u32, place: ast.Node*) -> bool!:
+        var h = self.table.get(hint)
+        if h.kind == types.Kind.optional:
+            h = self.table.get(h.elem)
+        if h.kind == types.Kind.pointer:
+            return not h.is_const
+        if h.kind == types.Kind.interface_ and self.rooted_at_self(place):
+            # a view of anything else is settled where it is checked against the view
+            return try self.implementation_changes(place, pointee, hint)
+        return false
+
+    ## Whether `hint` wants a span that may change its elements.
+    func wants_mutable_span(hint: u32) -> bool:
+        var h = self.table.get(hint)
+        if h.kind == types.Kind.optional:
+            h = self.table.get(h.elem)
+        return h.kind == types.Kind.span and not h.is_const
+
+    ## Before `e` of type `got` is checked against `target`: the receiver's array where a
+    ## mutable span is wanted changes the receiver, and a view formed from a read-only
+    ## pointer waits on the conformer's methods while they are not final. (`&self.part`
+    ## settled this where its address was taken.)
+    func note_change_of(e: ast.Node*, got: u32, target: u32) -> !:
+        let t = self.table.get(target)
+        let s = self.table.get(got)
+        if t.kind == types.Kind.span and not t.is_const and s.kind == types.Kind.array and not self.is_mutable_place(e):
+            _ = self.changes_receiver(e)
+        elif t.kind == types.Kind.interface_ and s.kind == types.Kind.pointer and s.is_const:
+            if e.kind == ast.Kind.unary and e.text == "&":
+                if let inner = e.left:
+                    if self.rooted_at_self(inner):
+                        return
+            _ = try self.implementation_changes(e, s.elem, target)
+
+    ## Whether any method of conformer `id` implementing a requirement of `iface` changes its
+    ## receiver; one of this module's not yet final is kept to settle at `at` (§14.3).
+    func implementation_changes(at: ast.Node*, id: u32, iface: u32) -> bool!:
+        let t = self.table.get(id)
+        let d = t.decl else return false
+        let i = self.table.get(iface).decl else return false
+        var requirement = i.body
+        while let r = requirement:
+            if let m = find_member(d, r.text, ast.Kind.func_):
+                if m.has(ast.flag_mutating):
+                    return true
+                try self.keep_pending_change(at, m, d)
+            requirement = r.next
+        return false
+
+    ## `method` taken as a function value at `at` and typed as one that reads its receiver,
+    ## while it may still turn out to change it: kept when `owner` is a type of this module.
+    func keep_pending_value(at: ast.Node*, method: ast.Node*, owner: ast.Node*) -> !:
+        if method.has(ast.flag_mutating) or method.has(ast.flag_static) or method.body == none:
+            return
+        let module = try self.owner_of(owner) else return
+        if module == self.current:
+            try self.pending_changes.push(PendingChange(at = at, method = method, caller = none, value = true))
+
+    ## A use of `method` on a receiver that cannot change, at `at`, while `method` may still
+    ## turn out to change its receiver: kept when `owner` is a type of this module.
+    func keep_pending_change(at: ast.Node*, method: ast.Node*, owner: ast.Node*) -> !:
+        if method.has(ast.flag_mutating) or method.has(ast.flag_static) or method.body == none:
+            return
+        let module = try self.owner_of(owner) else return
+        if module != self.current:
+            return
+        var caller: ast.Node*? = none
+        if self.rooted_at_self(at):
+            caller = self.current_func
+        try self.pending_changes.push(PendingChange(at = at, method = method, caller = caller))
+
+    ## Settle the uses kept while this module's methods were being checked: a method whose
+    ## receiver's part met a changing method changes its receiver too, until nothing does;
+    ## then every other use of a changing method on a receiver that cannot change is refused.
+    func settle_pending_changes() -> !:
+        var changed = true
+        while changed:
+            changed = false
+            for p in self.pending_changes.span():
+                if let caller = p.caller:
+                    if p.method.has(ast.flag_mutating) and not caller.has(ast.flag_mutating):
+                        caller.flags |= ast.flag_mutating
+                        changed = true
+        for p in self.pending_changes.span():
+            if p.caller == none and p.method.has(ast.flag_mutating):
+                let (name, line, column) = self.located(p.at)
+                var text: u8[512]
+                if p.value:
+                    try self.keep_error(said(text, f"{name}:{line}:{column}: `{p.method.text}` changes its receiver, which its body showed only after its value was taken here as a function that reads it; take the value below the method's own uses (§9.5)"))
+                else:
+                    try self.keep_error(said(text, f"{name}:{line}:{column}: `{p.method.text}` changes its receiver, so it needs a `var` or a mutable pointer here (§9.5)"))
+        self.pending_changes.count = 0
+
+    # mark: Generic instances =================================================================
+
+    ## A requirement called on a value of generic parameter `id` that may not change there.
+    func note_read_only_use(id: u32, requirement: str) -> !:
+        let g = self.generic_param_node(id) else return
+        for u in self.read_only_uses.span():
+            if u.param == g and u.requirement == requirement:
+                return
+        try self.read_only_uses.push(ReadOnlyUse(param = g, requirement = requirement))
+
+    ## Generic parameter `g` takes `argument` at `at`: a parameter of the generic being
+    ## checked passes its uses on; a type is settled with this module's methods.
+    func note_instance(g: ast.Node*, argument: u32, at: ast.Node*) -> !:
+        let t = self.table.get(argument)
+        if t.kind == types.Kind.param:
+            if let to = self.generic_param_node(argument):
+                try self.use_forwards.push(UseForward(passed = g, to = to))
+            return
+        let instance = t.elem if t.kind == types.Kind.pointer and t.is_const else argument
+        if self.table.get(instance).decl != none:
+            try self.pending_instances.push(PendingInstance(at = at, param = g, argument = instance))
+
+    ## Every instantiation of this module against what its generic calls on values it may
+    ## not change, the parameters it passes on included.
+    func settle_pending_instances() -> !:
+        for p in self.pending_instances.span():
+            var seen = try list.List[ast.Node*].create(4)
+            try self.settle_instance(p, p.param, &seen)
+        self.pending_instances.count = 0
+
+    func settle_instance(p: PendingInstance, param: ast.Node*, seen: list.List[ast.Node*]*) -> !:
+        for s in seen.span():
+            if s == param:
+                return
+        try seen.push(param)
+        let d = self.table.get(p.argument).decl else return
+        for u in self.read_only_uses.span():
+            if u.param == param:
+                if let m = find_member(d, u.requirement, ast.Kind.func_):
+                    if m.has(ast.flag_mutating):
+                        let generic = self.table.get(param.type_id).decl
+                        let (name, line, column) = self.located(p.at)
+                        var text: u8[512]
+                        try self.keep_error(said(text, f"{name}:{line}:{column}: `{d.text}.{m.text}` changes its receiver, and `{(generic else param).text}` calls it on a value it may not change (§13.1)"))
+                        return
+        for f in self.use_forwards.span():
+            if f.to == param:
+                try self.settle_instance(p, f.passed, seen)
+
+## Drop the alias named `name`: a new binding of that name holds something else.
+func forget_alias(aliases: list.List[ReceiverAlias]*, name: str):
+    var i: usize = 0
+    while i < aliases.count:
+        if aliases.get(i).name == name:
+            aliases.set(i, aliases.get(aliases.count - 1))
+            aliases.count -= 1
+        else:
+            i += 1

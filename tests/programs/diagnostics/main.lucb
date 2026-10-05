@@ -1,3 +1,5 @@
+import strings
+
 extern func diagnostic_edge(empty: bool) -> u8*
 extern func diagnostic_retry_enable()
 
@@ -11,7 +13,7 @@ pub func main(arguments: str[]) -> i32!:
     let storage = "okTAIL"
     let with_zero = "ok\u{0}xTAIL"
     var buffer: u8[16]
-    let formatted = try format(buffer, f"ok{2}")
+    let formatted = try strings.format(buffer, f"ok{2}")
     if arguments[3] == "faults":
         diagnostic_retry_enable()
     var message = (str)storage.bytes[..<2]

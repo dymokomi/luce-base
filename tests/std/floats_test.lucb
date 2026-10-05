@@ -12,7 +12,7 @@ test "f64s format as their shortest digits":
         let text = try strings.format_f64(f64.bits(case.bits), room[0..])
         if text != case.text:
             if failures < 10:
-                print(f"f64 {hex(case.bits)}: {text}, expected {case.text}")
+                print(f"f64 {case.bits:x}: {text}, expected {case.text}")
             failures += 1
     assert(failures == 0)
 
@@ -23,7 +23,7 @@ test "f32s format as their own shortest digits":
         let text = try strings.format_f32(f32.bits(case.bits), room[0..])
         if text != case.text:
             if failures < 10:
-                print(f"f32 {hex(case.bits)}: {text}, expected {case.text}")
+                print(f"f32 {case.bits:x}: {text}, expected {case.text}")
             failures += 1
     assert(failures == 0)
 
@@ -33,13 +33,13 @@ test "decimal text parses to the nearest f64 and the nearest f32":
         let value = try strings.parse_f64(case.text)
         if value.bits() != case.bits:
             if failures < 10:
-                print(f"f64 {case.text}: {hex(value.bits())}, expected {hex(case.bits)}")
+                print(f"f64 {case.text}: {value.bits():x}, expected {case.bits:x}")
             failures += 1
     for case in cases.parse_cases_32:
         let value = try strings.parse_f32(case.text)
         if value.bits() != case.bits:
             if failures < 20:
-                print(f"f32 {case.text}: {hex(value.bits())}, expected {hex(case.bits)}")
+                print(f"f32 {case.text}: {value.bits():x}, expected {case.bits:x}")
             failures += 1
     assert(failures == 0)
 
@@ -108,28 +108,28 @@ test "scanning stops where the number does":
 test "what is not a number, what is too large, what does not fit":
     for text in ["", "+", ".", "e5", " 1", "1 ", "0x1p0", "1_0", "nan(1)", "--1", "1e5x"]:
         var failed = false
-        discard(strings.parse_f64(text) catch failure:
+        _ = strings.parse_f64(text) catch failure:
             assert(failure.code == strings.invalid_number)
             failed = true
-            recover 0.0)
+            recover 0.0
         assert(failed)
     for text in ["1e309", "-1.8e308", "1e5000"]:
         var failed = false
-        discard(strings.parse_f64(text) catch failure:
+        _ = strings.parse_f64(text) catch failure:
             assert(failure.code == strings.number_out_of_range)
             failed = true
-            recover 0.0)
+            recover 0.0
         assert(failed)
     var failed = false
-    discard(strings.parse_f32("3.5e38") catch failure:
+    _ = strings.parse_f32("3.5e38") catch failure:
         assert(failure.code == strings.number_out_of_range)
         failed = true
-        recover (f32)0)
+        recover (f32)0
     assert(failed)
     var small: u8[4]
     failed = false
-    discard(strings.format_f64(0.125, small[0..]) catch failure:
+    _ = strings.format_f64(0.125, small[0..]) catch failure:
         failed = true
-        recover "")
+        recover ""
     assert(failed)
     assert(try strings.format_f64(0.5, small[0..]) == "0.5")

@@ -11,7 +11,7 @@ extend Emitter:
     # mark: Failure and matching ===============================================================
 
     ## `try x`: the value, or the caller's failure returned with cleanup run.
-    mutating func try_expr(e: ast.Node*) -> !:
+    func try_expr(e: ast.Node*) -> !:
         let inner = e.left else return
         let ft = try self.ty(inner)
         let payload = self.elem(ft)
@@ -57,7 +57,7 @@ extend Emitter:
             try self.put(".value; })")
 
     ## `x else y`: the payload of an optional or fallible, or the alternative.
-    mutating func else_expr(e: ast.Node*) -> !:
+    func else_expr(e: ast.Node*) -> !:
         let l = e.left else return
         let r = e.right else return
         let lt = try self.ty(l)
@@ -128,10 +128,10 @@ extend Emitter:
                 try self.put(".value; })")
             else:
                 try self.put("; })")
-        discard(present_test)
+        _ = present_test
 
     ## `x catch name:` with its handler as statements.
-    mutating func catch_expr(e: ast.Node*) -> !:
+    func catch_expr(e: ast.Node*) -> !:
         let l = e.left else return
         let body = e.body else return
         let result = try self.ty(e)
@@ -202,7 +202,7 @@ extend Emitter:
     # -- match ----------------------------------------------------------------------------
 
     ## `match` as a statement (`dest` 0) or filling the expression temporary `dest`.
-    mutating func match_stmt(m: ast.Node*, dest: u32) -> !:
+    func match_stmt(m: ast.Node*, dest: u32) -> !:
         let scrutinee = m.left else return
         let st = try self.ty(scrutinee)
         let n = self.tmp()
@@ -224,7 +224,7 @@ extend Emitter:
             try self.match_chain(m, st, n, dest)
 
     ## A `match` on a value C can switch on: a `case` per value or range, `default` for `_`.
-    mutating func match_switch(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
+    func match_switch(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
         try self.line("switch ((int64_t)(")
         try self.put_tmp("m", n)
         try self.put(")) {")
@@ -274,7 +274,7 @@ extend Emitter:
 
     ## A `match` on an enum with payloads: a `case` per tag, its payload's names bound in
     ## the arm.
-    mutating func match_tags(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
+    func match_tags(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
         let d = self.decl_of(st) else return
         try self.line("switch ((int)(")
         try self.put_tmp("m", n)
@@ -312,7 +312,7 @@ extend Emitter:
 
     ## A `match` C cannot switch on (text, pointers, optionals, guarded arms): a chain of
     ## tests, each arm's patterns joined by `||` and its guard by `&&`.
-    mutating func match_chain(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
+    func match_chain(m: ast.Node*, st: u32, n: u32, dest: u32) -> !:
         var first = true
         var arm = m.body
         while let a = arm:
@@ -352,7 +352,7 @@ extend Emitter:
             arm = a.next
 
     ## The test of one pattern `p` (value `v`) against the subject `m<n>` of type `st`.
-    mutating func pattern_test(p: ast.Node*, v: ast.Node*, st: u32, n: u32) -> !:
+    func pattern_test(p: ast.Node*, v: ast.Node*, st: u32, n: u32) -> !:
         # `!!` keeps clang from seeing an `==` in doubled parentheses
         try self.put("(!!(")
         if v.kind == ast.Kind.case_value and v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st) or self.is_nullable_view(st)):
@@ -415,7 +415,7 @@ extend Emitter:
 
     ## The names an arm's first pattern binds, in the chain form: `.some(name)` over an
     ## optional takes the value; `.case(names)` over an enum takes the payload's fields.
-    mutating func bind_arm_names(a: ast.Node*, st: u32, n: u32) -> !:
+    func bind_arm_names(a: ast.Node*, st: u32, n: u32) -> !:
         let p = a.left else return
         let v = p.left else return
         if v.kind != ast.Kind.case_value:
@@ -441,7 +441,7 @@ extend Emitter:
 
     ## The names a case pattern `v` binds to the payload fields of `case_decl`, read from the
     ## matched value `m<n>`; `_` binds nothing.
-    mutating func bind_payload_names(v: ast.Node*, case_decl: ast.Node*, n: u32) -> !:
+    func bind_payload_names(v: ast.Node*, case_decl: ast.Node*, n: u32) -> !:
         var name = v.body
         var param = case_decl.body
         while let nm = name:
@@ -454,15 +454,15 @@ extend Emitter:
                 try self.put(" __attribute__((unused)) = ")
                 try self.put_tmp("m", n)
                 try self.put(".u.")
-                try self.put(try self.field(case_decl.text))
+                try self.put(try c_field_name(case_decl.text))
                 try self.put(".")
-                try self.put(try self.field(q.text))
+                try self.put(try c_field_name(q.text))
                 try self.put(";")
             name = nm.next
             param = q.next
 
     ## The body of one arm, with its guard; `in_switch` adds the `break`.
-    mutating func arm_body(a: ast.Node*, dest: u32, n: u32, in_switch: bool) -> !:
+    func arm_body(a: ast.Node*, dest: u32, n: u32, in_switch: bool) -> !:
         if in_switch:
             try self.line("{")
             self.indent += 1
@@ -491,9 +491,9 @@ extend Emitter:
         if in_switch:
             self.indent -= 1
             try self.line("}")
-        discard(n)
+        _ = n
 
-    mutating func match_expr(m: ast.Node*) -> !:
+    func match_expr(m: ast.Node*) -> !:
         let t = try self.ty(m)
         let n = self.tmp()
         let saved = self.match_result

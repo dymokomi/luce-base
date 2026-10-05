@@ -136,7 +136,7 @@ the call.
 
 ## Out of memory
 
-`new` and `alloc` fail with the code `memory.exhausted` when the allocator has no room. This is
+`new` and `memory.allocate` fail with the code `memory.exhausted` when the allocator has no room. This is
 an ordinary failure, handled like any other. With an allocator over a fixed buffer, running
 out is an expected condition, not a disaster.
 
@@ -174,5 +174,5 @@ At the top level of a file, outside any function, `assert` is checked by the com
 `static_assert` is:
 
 ```luce
-assert(sizeof(Header) == 32, "Header must match the file format")
+assert(memory.size_of(Header) == 32, "Header must match the file format")
 ```

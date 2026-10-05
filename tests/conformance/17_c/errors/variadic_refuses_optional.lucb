@@ -5,5 +5,5 @@ extern func printf(format: c.str, ...) -> i32
 
 pub func main(arguments: str[]) -> i32:
     let n: i32? = 3
-    discard(printf("%d", n))
+    _ = printf("%d", n)
     return 0

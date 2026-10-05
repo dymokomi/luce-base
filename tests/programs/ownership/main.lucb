@@ -3,6 +3,7 @@
 import ownership
 import strings
 import thread
+import memory
 
 struct Value:
     var header: ownership.Object
@@ -14,9 +15,9 @@ func drop(value: ownership.Object*):
     destroyed += 1
 
 func trace(value: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
-    discard(value)
+    _ = value
 
-var info: ownership.Info = ownership.Info(name = "Value", size = sizeof(Value), finish = none, drop = drop, trace = trace)
+var info: ownership.Info = ownership.Info(name = "Value", size = memory.size_of(Value), finish = none, drop = drop, trace = trace)
 
 struct Delivery:
     var value: ownership.Object*
@@ -25,9 +26,9 @@ struct Delivery:
 func worker(context: void*?):
     let delivery = (Delivery*)(context else trap("missing delivery"))
     match delivery.operation:
-        1: discard(ownership.retain(delivery.value))
+        1: _ = ownership.retain(delivery.value)
         2: ownership.release(delivery.value)
-        3: discard(ownership.weak_make(delivery.value))
+        3: _ = ownership.weak_make(delivery.value)
         4: ownership.require_context()
         _: trap("unknown test operation")
 
@@ -37,7 +38,7 @@ pub func main(arguments: str[]) -> i32!:
     if operation == 5:
         # a failed `init` that handed `self` to something outside its own fields
         ownership.enter()
-        discard(ownership.retain(value))
+        _ = ownership.retain(value)
         ownership.abandon(value)
         return 0
     if operation != 0:
@@ -51,7 +52,7 @@ pub func main(arguments: str[]) -> i32!:
     let context = value.context
     assert(generation != 0 and context != 0)
     let weak = ownership.weak_make(value)
-    discard(ownership.retain(value))
+    _ = ownership.retain(value)
     ownership.release(value)
     assert(destroyed == 0)
     ownership.release(value)

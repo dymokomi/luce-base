@@ -3,21 +3,21 @@
 import io
 
 interface Counter:
-    mutating func bump() -> i64
+    func bump() -> i64
 
 struct Box: Counter:
     var n: i64
 
-    mutating func bump() -> i64:
+    func bump() -> i64:
         self.n += 1
         return self.n
 
 func twice(c: Counter*) -> i64:
-    discard(c.bump())
+    _ = c.bump()
     return c.bump()
 
 func greet(out: io.Writer*) -> !:
-    discard(try out.write("hello through a pointer\n"))
+    _ = try out.write("hello through a pointer\n")
 
 pub func main(arguments: str[]) -> i32!:
     var b = Box(n = 40)

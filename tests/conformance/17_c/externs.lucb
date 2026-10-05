@@ -16,7 +16,7 @@ pub func main(arguments: str[]) -> i32:
     print(f"{strlen("hello")} {atoi("42x")} {c_abs(-7)}")
     let (mantissa, exponent) = frexp(8.0)
     print(f"{mantissa} {exponent}")
-    discard(usleep(1))
+    _ = usleep(1)
     let left: u8[3] = [1, 2, 3]
     let right: u8[3] = [1, 2, 4]
     print(f"{memcmp(&left[0], &right[0], 3) < 0} {memcmp(&left[0], &left[0], 3)}")

@@ -93,7 +93,7 @@ export func changing_call_result(iterations: usize) -> u64:
     return result
 
 export func discarded_call_result() -> u64:
-    discard(optional_large(1))
+    _ = optional_large(1)
     return 77
 
 export func map_doubles(target: f64[], source: const f64[]):
@@ -134,7 +134,7 @@ export func grid_read(values: const u64[], rows: usize, columns: usize, row: usi
     return 0
 
 export func grid_edge(rows: u64, width: u64, row: u64, column: u64) -> u64:
-    discard(rows * width)
+    _ = rows * width
     if row <= rows:
         if column < width:
             return row * width + column

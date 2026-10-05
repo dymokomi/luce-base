@@ -35,7 +35,7 @@ pub struct Interface[I]:
 
     ## Another edge to the same witness.
     pub func clone() -> Interface[I]:
-        discard(ownership.retain(self.owner))
+        _ = ownership.retain(self.owner)
         return self
 
     ## Drop this witness's edge to the owner.
@@ -55,8 +55,8 @@ pub struct Interface[I]:
 
     ## Begin a guarded invocation, retaining the owner.
     pub func enter() -> !:
-        discard(try self.get())
-        discard(ownership.retain(self.owner))
+        _ = try self.get()
+        _ = ownership.retain(self.owner)
         if let begin = self.begin:
             begin(self.owner)
 

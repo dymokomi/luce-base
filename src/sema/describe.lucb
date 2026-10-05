@@ -21,7 +21,7 @@ import support.list
 ## Write the public description of module `tree`, named `name`, to `out`.
 pub func write(out: io.Writer, checker: check.Checker*, tree: ast.Node*, name: str) -> !:
     var writer = DescriptionWriter(out = out, checker = checker, tree = tree,
-                                   used = try alloc bool[checker.modules.count],
+                                   used = try new bool[checker.modules.count] ---,
                                    foreign_types = try list.List[u32].create(8))
     var i: usize = 0
     while i < writer.used.length:
@@ -38,7 +38,7 @@ struct DescriptionWriter:
     var used: bool[]
     var foreign_types: list.List[u32]
 
-    mutating func module(name: str) -> !:
+    func module(name: str) -> !:
         try self.out.write(f"description 9\nmodule {name}\n")
         var cursor = self.tree.body
         while let d = cursor:
@@ -85,7 +85,7 @@ struct DescriptionWriter:
                 try self.declaration(d)
             cursor = d.next
 
-    mutating func declaration(d: ast.Node*) -> !:
+    func declaration(d: ast.Node*) -> !:
         if generic(d):
             try self.out.write(f"unavailable {d.text} generic\n")
             return
@@ -98,7 +98,7 @@ struct DescriptionWriter:
                     try self.signature_as(target, "func ", d.text)
                     return
                 if interop.standard(self.checker, d.type_id, "Type") or interop.standard(self.checker, d.type_id, "ViewType"):
-                    discard(try interop.owned(self.checker, self.checker.table.get(d.type_id).args[0]))
+                    _ = try interop.owned(self.checker, self.checker.table.get(d.type_id).args[0])
                     return
                 try self.out.write(f"let {d.text}: ")
                 try self.type_name(d.type_id)
@@ -174,7 +174,7 @@ struct DescriptionWriter:
             .union_, .extern_union:
                 try self.out.write(f"unavailable {d.text} union\n")
             _:
-                discard(0)
+                _ = 0
 
     ## A native value may hide scalar storage, but not an untracked borrow. Public
     ## text/data fields can be rebased onto the consumer's owned copies. Every
@@ -211,7 +211,7 @@ struct DescriptionWriter:
             _:
                 return false
 
-    mutating func members(d: ast.Node*) -> !:
+    func members(d: ast.Node*) -> !:
         let ownership = try interop.owned(self.checker, d.type_id)
         var cursor = d.body
         while let member = cursor:
@@ -240,11 +240,11 @@ struct DescriptionWriter:
                         try self.signature(member, "    method ")
             cursor = member.next
 
-    mutating func signature(d: ast.Node*, prefix: str) -> !:
+    func signature(d: ast.Node*, prefix: str) -> !:
         try self.signature_as(d, prefix, d.text)
 
     ## `d`'s signature under `name`, the name a re-export gives it.
-    mutating func signature_as(d: ast.Node*, prefix: str, name: str) -> !:
+    func signature_as(d: ast.Node*, prefix: str, name: str) -> !:
         try self.out.write(f"{prefix}{name}(")
         var first = true
         var cursor = d.right
@@ -266,7 +266,7 @@ struct DescriptionWriter:
 
     ## Caller facts are expanded by the consumer at its source call. Other
     ## defaults stay native so private constants and language semantics survive.
-    mutating func default(value: ast.Node*) -> !:
+    func default(value: ast.Node*) -> !:
         if value.kind == ast.Kind.member:
             if let owner = value.left:
                 if owner.kind == ast.Kind.name and owner.text == "luce" and (value.text == "file" or value.text == "line" or value.text == "function" or value.text == "location"):
@@ -274,7 +274,7 @@ struct DescriptionWriter:
                     return
         try self.out.write(" = default")
 
-    mutating func conformance(d: ast.Node*) -> !:
+    func conformance(d: ast.Node*) -> !:
         var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty
         while let interface_type = cursor:
             let decl = self.checker.table.get(interface_type.type_id).decl
@@ -285,7 +285,7 @@ struct DescriptionWriter:
                     try self.out.write("\n")
             cursor = interface_type.next
 
-    mutating func mark_conformance(d: ast.Node*) -> !:
+    func mark_conformance(d: ast.Node*) -> !:
         if d.kind != ast.Kind.struct_ and d.kind != ast.Kind.enum_:
             return
         var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty
@@ -305,7 +305,7 @@ struct DescriptionWriter:
     ## The name a description gives module `index` it names a type of: `__base_` and the
     ## module's name, each dot two underscores (`support.list` is `__base_support__list`), so
     ## a module reads the same in any closure, whatever order its modules were loaded in.
-    mutating func alias(index: usize) -> !:
+    func alias(index: usize) -> !:
         try self.out.write("__base_")
         let name = self.checker.modules.get(index).name
         var start: usize = 0
@@ -316,7 +316,7 @@ struct DescriptionWriter:
                 start = i + 1
         try self.out.write((str)name.bytes[start..])
 
-    mutating func mark(id: u32) -> !:
+    func mark(id: u32) -> !:
         if let module = try self.foreign_module(id):
             self.used[module] = true
             var found = false
@@ -330,7 +330,7 @@ struct DescriptionWriter:
         for arg in t.args:
             try self.mark(arg)
 
-    mutating func type_name(id: u32, nominal: bool = false) -> !:
+    func type_name(id: u32, nominal: bool = false) -> !:
         let carrier = self.checker.table.get(id)
         if carrier.args.length == 3 and interop.standard(self.checker, id, "WorkerEntry"):
             try self.out.write("worker[")

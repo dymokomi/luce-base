@@ -8,17 +8,17 @@
 #==============================================================================================
 extend Generator:
     # mark: The unit ===========================================================================
-    pub mutating func generate() -> !:
+    pub func generate() -> !:
         self.unwinding = FrameUnwind(self.convention.windows, self.dw != none)
         try self.object_format.begin(&self.writer.out, self.program_unit)
         if let dw = self.dw:
             try dw.begin(&self.writer.out)
         try self.writer.put("    .text\n")
-        self.starts = try alloc usize[self.program_unit.functions.count + 1]
+        self.starts = try new usize[self.program_unit.functions.count + 1] ---
         # the reasons generated checks trap with, in the unit's texts before any function is
         # generated: the functions only read the texts, whichever thread generates them
         for reason in trap_reasons:
-            discard(try self.program_unit.text(reason))
+            _ = try self.program_unit.text(reason)
         if self.split:
             self.function_tags = try stable_names.function_tags(self.program_unit)
             self.text_tags = try stable_names.text_tags(self.program_unit)
@@ -32,7 +32,7 @@ extend Generator:
                 try self.function(i)
                 i += 1
         self.starts[self.program_unit.functions.count] = self.writer.out.used
-        try self.object_format.module_asm(&self.writer, self.program_unit)
+        try objects.module_asm(&self.writer, self.program_unit)
         try self.object_format.initializer(&self.writer.out, self.program_unit.init_function)
         # text literals, after the sign masks vector negation and unsigned lane checks read
         try self.object_format.read_only(&self.writer.out)
@@ -62,7 +62,7 @@ extend Generator:
             try dw.finish(&self.writer.out)
 
     ## `label:` for a label functions share, declared hidden first when it is a symbol.
-    mutating func shared_label(label: str) -> !:
+    func shared_label(label: str) -> !:
         let name = self.shared(label)
         if self.split:
             try self.object_format.hidden_global(&self.writer.out, name)
@@ -70,7 +70,7 @@ extend Generator:
         try self.writer.put(":\n")
 
     ## `text` with every `old` written as `replacement`.
-    mutating func put_renamed(text: str, old: str, replacement: str) -> !:
+    func put_renamed(text: str, old: str, replacement: str) -> !:
         var at: usize = 0
         var start: usize = 0
         while at + old.length <= text.length:

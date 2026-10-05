@@ -4,6 +4,7 @@
 from luce import Comparable, Display
 from io import Writer
 import io
+import strings
 
 struct Version: Comparable, Display:
     var major: u32
@@ -15,13 +16,13 @@ struct Version: Comparable, Display:
         return (i64)self.minor - (i64)other.minor
 
     func display(sink: Writer) -> !:
-        discard(try sink.write(f"v{self.major}.{self.minor}"))
+        _ = try sink.write(f"v{self.major}.{self.minor}")
 
 func newest[T: Comparable](a: T, b: T) -> T:
     return a if a.compare(b) >= 0 else b
 
 func describe[T: Display](value: T, buffer: u8[]) -> str!:
-    return try format(buffer, f"<{value}>")
+    return try strings.format(buffer, f"<{value}>")
 
 struct Pair:
     var a: Version
@@ -36,7 +37,7 @@ pub func main(arguments: str[]) -> i32!:
     print(try describe(7, buffer))
     let out: Writer = io.stdout()
     let n = try out.write("direct\n")
-    print(f"{n} {old == Version(major = 1, minor = 9)} {old != fresh} {hash(old) == hash(Version(major = 1, minor = 9))}")
+    print(f"{n} {old == Version(major = 1, minor = 9)} {old != fresh} {old.hash() == Version(major = 1, minor = 9).hash()}")
     let pair = Pair(a = old, b = fresh)
     print(f"{pair.a} and {pair.b} {pair == Pair(a = old, b = fresh)}")
     return 0

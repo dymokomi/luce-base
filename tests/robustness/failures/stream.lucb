@@ -21,18 +21,18 @@ func input_cases() -> !:
     while kind <= 31:
         fault_arm(kind)
         var rejected = false
-        discard(input.read(buffer) catch failure:
+        _ = input.read(buffer) catch failure:
             assert(failure.code == (io.would_block if kind == 30 else io.failed))
             rejected = true
-            recover 0)
+            recover 0
         assert(rejected and fault_hits() == 1)
         kind += 1
     assert(close(0) == 0)
     var rejected = false
-    discard(input.read(buffer) catch failure:
+    _ = input.read(buffer) catch failure:
         assert(failure.code == io.closed)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected)
 
 pub func main(arguments: str[]) -> i32!:
@@ -40,10 +40,10 @@ pub func main(arguments: str[]) -> i32!:
     var output = io.stdout()
     fault_arm(8)
     var rejected = false
-    discard(output.write("pending".bytes) catch failure:
+    _ = output.write("pending".bytes) catch failure:
         assert(failure.code == io.closed)
         rejected = true
-        recover 0)
+        recover 0
     assert(rejected and fault_hits() == 1, "flush failure was reported as success")
     assert(fault_global_flushes() == 0 and fault_opened_streams() == 0)
     fault_arm(8)
@@ -52,5 +52,5 @@ pub func main(arguments: str[]) -> i32!:
         assert(failure.code == io.closed)
         rejected = true
     assert(rejected and fault_hits() == 1)
-    discard(try output.write("\nok stream failures\n".bytes))
+    _ = try output.write("\nok stream failures\n".bytes)
     return 0

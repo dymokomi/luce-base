@@ -14,7 +14,7 @@ func build_table() -> View[2]:
     return table
 
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     let t = build_table()
     print(f"{t[0].bytes.length + t[1].bytes.length}")
     return 0

@@ -12,7 +12,7 @@ extend Generator:
 
     ## Copy `size` bytes from (`origin`) to (`to`) with plain loads and stores: 16 at a
     ## time through an SSE register, then 8, 4, 2, 1. Unaligned access is fine on this target.
-    mutating func inline_copy(origin: str, to: str, size: u64) -> !:
+    func inline_copy(origin: str, to: str, size: u64) -> !:
         var done: u64 = 0
         # through xmm4 on Windows, where xmm8 is nonvolatile (`reg`)
         let windows = self.convention.windows
@@ -33,7 +33,7 @@ extend Generator:
             k += 1
 
     ## Zero `size` bytes at (`to`) the same way.
-    mutating func inline_zero(to: str, size: u64) -> !:
+    func inline_zero(to: str, size: u64) -> !:
         var done: u64 = 0
         let windows = self.convention.windows
         if size >= 16:
@@ -51,7 +51,7 @@ extend Generator:
             k += 1
 
     ## `mnemonic offset(base)rest`.
-    mutating func based_move(mnemonic: str, offset: u64, base: str, rest: str) -> !:
+    func based_move(mnemonic: str, offset: u64, base: str, rest: str) -> !:
         try self.writer.line(mnemonic)
         try self.writer.put_u64(offset)
         try self.writer.put("(")
@@ -60,14 +60,14 @@ extend Generator:
         try self.writer.put(rest)
 
     ## `mnemonic` + offset + `rest`: one line of a copy.
-    mutating func offset_move(mnemonic: str, offset: u64, rest: str) -> !:
+    func offset_move(mnemonic: str, offset: u64, rest: str) -> !:
         try self.writer.line(mnemonic)
         try self.writer.put_u64(offset)
         try self.writer.put(rest)
 
     ## A load from a promoted slot: the register, extended as the load would extend from
     ## memory, since a narrow store leaves the register's upper bits as they were.
-    mutating func load_promoted(op: ir.Op, k: u32, d: str) -> !:
+    func load_promoted(op: ir.Op, k: u32, d: str) -> !:
         let code = (usize)self.fr.slot_regs.get((usize)k - 1)
         let q = q_names[code]
         let l = l_names[code]
@@ -87,7 +87,7 @@ extend Generator:
                 error(failed, "a float load from a promoted slot")
 
     ## A store into a promoted slot: the value's register `v` moves in.
-    mutating func store_promoted(op: ir.Op, k: u32, v: str) -> !:
+    func store_promoted(op: ir.Op, k: u32, v: str) -> !:
         let code = (usize)self.fr.slot_regs.get((usize)k - 1)
         match op:
             .storel:
@@ -102,7 +102,7 @@ extend Generator:
                 error(failed, "a float store into a promoted slot")
 
     ## The comparison at `i` and the branch on it after, as one conditional jump.
-    mutating func branch_pair(i: usize, index: usize) -> !:
+    func branch_pair(i: usize, index: usize) -> !:
         if let dw = self.dw:
             # the fused branch's own line and labels, ahead of the pair
             try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
@@ -111,7 +111,7 @@ extend Generator:
     ## The comparison at `i` and the branch on it after, with `next` as the fall-through:
     ## the pair in place, or a rotated loop's head test at a jump to that head
     ## (`selection.rotations`).
-    mutating func fused_branch(i: usize, next: u32) -> !:
+    func fused_branch(i: usize, next: u32) -> !:
         let branch = self.f.instrs.get(i + 1)
         var comparison = self.f.instrs.get(i)
         if next == branch.extra:
@@ -120,7 +120,7 @@ extend Generator:
 
     ## `.weak` for a weak symbol (§9.8); ELF has no directive for `used`, which only matters
     ## to a linker that discards sections, so it is left to the section's own flags.
-    mutating func function(index: usize) -> !:
+    func function(index: usize) -> !:
         self.index = index
         if let dw = self.dw:
             try dw.entry(&self.writer.out)
@@ -138,7 +138,7 @@ extend Generator:
 
     ## Function `index`'s text; on Windows with its save area holding `plan`, or the
     ## registers the allocator gave it (a debug build's, all of them) when none.
-    mutating func function_text(index: usize, plan: u16?) -> !:
+    func function_text(index: usize, plan: u16?) -> !:
         # Windows keeps the argument-register codes 6–9 out of the pools (rsi and rdi are
         # nonvolatile there, and its arguments are staged through the shadow area)
         self.fr.reserved = 480 if self.convention.windows else 0
@@ -236,7 +236,7 @@ extend Generator:
 
     ## After function `index`'s last instruction (`end`): its debug information, unwinding
     ## and Windows saves (its text began at `text_start`), then out of its section.
-    mutating func finish_function(index: usize, end: usize, text_start: usize) -> !:
+    func finish_function(index: usize, end: usize, text_start: usize) -> !:
         if let dw = self.dw:
             try dw.mark(&self.writer.out, self.f, &self.fr, index, end)
             if self.f.debug or self.f.symbols:

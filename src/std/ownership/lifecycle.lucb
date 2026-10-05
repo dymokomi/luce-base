@@ -10,16 +10,18 @@
 
 # mark: The end of a run =======================================================================
 
+import strings
+
 ## After `main`: the collector runs, and anything still alive is a defect. The exit status.
 pub func finish_run(status: i32) -> i32:
     drain(0)
     settle()
     if live != 0:
         var room: u8[96]
-        let text = format(room, f"runtime: {live} objects alive at exit\n") catch failure:
+        let text = strings.format(room, f"runtime: {live} objects alive at exit\n") catch failure:
             recover "runtime: objects alive at exit\n"
         var e = io.stderr()
-        discard(e.write(text.bytes) catch failure: recover 0)
+        _ = e.write(text.bytes) catch failure: recover 0
         return 3
     release_buffers()
     runtime_depth = 0
@@ -33,10 +35,10 @@ pub func finish_task():
     settle()
     if live != 0:
         var room: u8[96]
-        let text = format(room, f"runtime: {live} objects alive when a task ended\n") catch failure:
+        let text = strings.format(room, f"runtime: {live} objects alive when a task ended\n") catch failure:
             recover "runtime: objects alive when a task ended\n"
         var e = io.stderr()
-        discard(e.write(text.bytes) catch failure: recover 0)
+        _ = e.write(text.bytes) catch failure: recover 0
         core.exit(3)
     release_buffers()
     runtime_depth = 0

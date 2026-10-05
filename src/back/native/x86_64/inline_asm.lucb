@@ -16,7 +16,7 @@ extend Generator:
     ## the body, an output that lives in a pushed register is pushed as well, the saved
     ## registers are reloaded from the stack, and only then is every output stored, so the
     ## addresses of the output places, which may live in those registers, are sound.
-    mutating func inline_asm(n: ir.Instr) -> !:
+    func inline_asm(n: ir.Instr) -> !:
         let arch = self.program_unit.texts.get((usize)n.a.index).bytes
         if arch != "x86_64":
             return
@@ -70,7 +70,7 @@ extend Generator:
                     try self.writer.put("(%rsp), %rax")
                     reg = "%rax" if o.cls == ir.Class.l else "%eax"
                 try self.address_operand("%r10", o.a)
-                try self.writer.line3(self.move_of(o.cls), reg, ", (%r10)")
+                try self.writer.line3(move_of(o.cls), reg, ", (%r10)")
             k += 1
         if self.pending + values > 0:
             try self.writer.line("addq $")
@@ -79,7 +79,7 @@ extend Generator:
         self.pending = 0
 
     ## Remember the register `operand` names when the allocator may keep a value in it.
-    mutating func note_named(operand: ir.Instr) -> !:
+    func note_named(operand: ir.Instr) -> !:
         let reg = wide_name(with_percent(self.program_unit.texts.get((usize)operand.b.index).bytes))
         if self.saved_index(reg) < self.pending:
             return

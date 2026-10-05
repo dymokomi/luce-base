@@ -11,7 +11,7 @@ extend Lowerer:
     # mark: Places =============================================================================
 
     ## The address of an assignable location.
-    mutating func place(e: ast.Node*) -> ir.Ref!:
+    func place(e: ast.Node*) -> ir.Ref!:
         match e.kind:
             .name:
                 let d = e.resolved else return try self.fail(e, "a name without a place")
@@ -40,7 +40,7 @@ extend Lowerer:
                 let v = try self.expr(e)
                 return try self.address_of_value(v)
 
-    mutating func member_address(e: ast.Node*) -> ir.Ref!:
+    func member_address(e: ast.Node*) -> ir.Ref!:
         let owner = e.left else return try self.fail(e, "no owner")
         if let d = e.resolved:
             # `module.global` names a place of its own
@@ -92,12 +92,12 @@ extend Lowerer:
             cursor = m.next
         return try self.fail(e, "no such field")
 
-    mutating func index_address(e: ast.Node*) -> ir.Ref!:
+    func index_address(e: ast.Node*) -> ir.Ref!:
         return try self.index_address_at(e, false)
 
     ## The address of `owner[i]`; under `&` the index may equal the length, C's one past
     ## the end (§7.7), so the bound is one more.
-    mutating func index_address_at(e: ast.Node*, one_past: bool) -> ir.Ref!:
+    func index_address_at(e: ast.Node*, one_past: bool) -> ir.Ref!:
         let owner = e.left else return try self.fail(e, "no owner")
         let i = e.body else return try self.fail(e, "no index")
         let ot = try self.ty(owner)
@@ -128,7 +128,7 @@ extend Lowerer:
             return try self.f.binary(ir.Op.add, ir.Class.l, p.ref, scaled)
         return try self.fail(e, "indexing needs a span or an array")
 
-    mutating func slice(e: ast.Node*) -> LowerValue!:
+    func slice(e: ast.Node*) -> LowerValue!:
         let owner = e.left else return try self.fail(e, "no owner")
         let ot = try self.ty(owner)
         let result = try self.ty(e)
@@ -171,7 +171,7 @@ extend Lowerer:
         let new_length = try self.f.binary(ir.Op.sub, ir.Class.l, end, start)
         return try self.span_of(new_data, new_length, result)
 
-    mutating func tuple(e: ast.Node*) -> LowerValue!:
+    func tuple(e: ast.Node*) -> LowerValue!:
         let t = try self.ty(e)
         let tt = self.c.table.get(t)
         let slot = try self.new_slot(t)
@@ -189,7 +189,7 @@ extend Lowerer:
             cursor = m.next
         return LowerValue(ref = a, type_id = t, in_memory = true)
 
-    mutating func array_literal(e: ast.Node*) -> LowerValue!:
+    func array_literal(e: ast.Node*) -> LowerValue!:
         let t = try self.ty(e)
         let et = self.elem(t)
         let stride = self.c.table.size_of(et)
@@ -204,7 +204,7 @@ extend Lowerer:
             cursor = m.next
         return LowerValue(ref = a, type_id = t, in_memory = true)
 
-    mutating func conditional(e: ast.Node*) -> LowerValue!:
+    func conditional(e: ast.Node*) -> LowerValue!:
         let cond = e.ty else return try self.fail(e, "no condition")
         let l = e.left else return try self.fail(e, "no value")
         let r = e.right else return try self.fail(e, "no alternative")
@@ -231,7 +231,7 @@ extend Lowerer:
 
     # mark: Members ============================================================================
 
-    mutating func member(e: ast.Node*) -> LowerValue!:
+    func member(e: ast.Node*) -> LowerValue!:
         let owner = e.left else return try self.fail(e, "no owner")
         let t = try self.ty(e)
         if let d = e.resolved:
@@ -278,7 +278,7 @@ extend Lowerer:
             return LowerValue(ref = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(base, 8)), type_id = t, in_memory = false)
         return try self.load_from(try self.member_address(e), t)
 
-    mutating func module_member(e: ast.Node*, module_type: u32) -> LowerValue!:
+    func module_member(e: ast.Node*, module_type: u32) -> LowerValue!:
         let m = self.decl_of(module_type) else return try self.fail(e, "no module")
         if m.text == "luce":
             if e.text == "location":
@@ -295,7 +295,7 @@ extend Lowerer:
         let f = self.current_fn else return ""
         return f.text
 
-    mutating func location_value(e: ast.Node*) -> LowerValue!:
+    func location_value(e: ast.Node*) -> LowerValue!:
         let t = try self.ty(e)
         let slot = try self.new_slot(t)
         let a = try self.slot_address(slot)
@@ -309,11 +309,11 @@ extend Lowerer:
         try self.f.store(ir.Op.storel, ir.const_ref((i64)fname.length), try self.offset_address(a, 32))
         return LowerValue(ref = a, type_id = t, in_memory = true)
 
-    mutating func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> LowerValue!:
+    func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> LowerValue!:
         let ot = try self.ty(owner)
         if self.kind(ot) == types.Kind.module or d.kind == ast.Kind.extern_func:
             return try self.func_value(e, d)
         let t = self.c.table.get(self.elem(ot) if self.is_ptr(ot) else ot)
-        discard(try self.add_func(d, try types.no_args(), t.decl, t.args))
+        _ = try self.add_func(d, try types.no_args(), t.decl, t.args)
         let name = try self.function_name(d, try types.no_args(), t.decl, t.args)
         return LowerValue(ref = try self.f.address_of(ir.function_ref(name)), type_id = try self.ty(e), in_memory = false)

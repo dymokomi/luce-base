@@ -74,7 +74,7 @@ struct Search:
         return temps + (usize)(mixed >> 56)
 
     ## Drop the facts after the first `mark`, newest first, restoring the chains.
-    mutating func truncate(mark: usize):
+    func truncate(mark: usize):
         while self.facts.count > mark:
             let fact = self.facts.get(self.facts.count - 1)
             self.left_heads[self.bucket(fact.left)] = fact.next_left
@@ -373,7 +373,7 @@ struct Search:
         var high = b
         var strict = true
         match op:
-            .cult: discard(0)
+            .cult: _ = 0
             .cule: strict = false
             .cugt:
                 low = b
@@ -389,7 +389,7 @@ struct Search:
             return false
         return none
 
-    mutating func add(relation: Relation, cls: ir.Class, left: ir.Ref, right: ir.Ref) -> !:
+    func add(relation: Relation, cls: ir.Class, left: ir.Ref, right: ir.Ref) -> !:
         if same(left, right):
             return
         let l = self.bucket(left)
@@ -438,7 +438,7 @@ struct Search:
 
     ## A single predecessor makes this incoming edge unavoidable. This excludes
     ## joins and loop headers whose backedges could bypass the tested condition.
-    mutating func incoming(block: cfg.Block) -> !:
+    func incoming(block: cfg.Block) -> !:
         if block.preds.count != 1:
             return
         let predecessor = self.g.blocks.get(block.preds.get(0))
@@ -464,12 +464,12 @@ struct Search:
             .ceq, .cne:
                 if yes == (comparison.op == ir.Op.ceq):
                     try self.add(Relation.equal, comparison.cls, a, b)
-            _: discard(0)
+            _: _ = 0
 
     ## Walk the dominator tree from block `root`: each block's facts hold in the blocks it
     ## dominates and are dropped after them. An explicit stack, not recursion, as in
     ## `gvn.number`: a long function is a long chain of blocks.
-    mutating func visit(root: u32) -> !:
+    func visit(root: u32) -> !:
         var stack = try list.List[RangeVisit].create(64)
         defer stack.destroy()
         try stack.push(RangeVisit(block = root, child = 0, mark = self.facts.count, product_mark = self.products.count))
@@ -490,7 +490,7 @@ struct Search:
 
     ## Take in block `index`'s incoming facts and its instructions' own, and drop the checks
     ## the facts make redundant.
-    mutating func visit_block(index: u32) -> !:
+    func visit_block(index: u32) -> !:
         let block = self.g.blocks.get(index)
         try self.incoming(block)
         var at = block.start
@@ -545,7 +545,7 @@ struct Search:
 ## definition. The caller rebuilds its graph when instructions were removed.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
     let buckets = f.temps.count + 1 + shared_buckets
-    var search = Search(f = f, g = g, definitions = try alloc u32[f.temps.count + 1], facts = try list.List[Fact].create(32), left_heads = try alloc u32[buckets], right_heads = try alloc u32[buckets], products = try list.List[Product].create(8))
+    var search = Search(f = f, g = g, definitions = try new u32[f.temps.count + 1] ---, facts = try list.List[Fact].create(32), left_heads = try new u32[buckets] ---, right_heads = try new u32[buckets] ---, products = try list.List[Product].create(8))
     defer free(search.definitions)
     defer free(search.left_heads)
     defer free(search.right_heads)

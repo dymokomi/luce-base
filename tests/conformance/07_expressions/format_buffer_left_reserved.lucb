@@ -1,3 +1,5 @@
+import strings
+
 ## A statement that formats text and never completes, as `return try fail(f"...")` of a
 ## function that cannot return, leaves its format buffer's space below the frame reserved to
 ## the function's end. The next function's prologue saves the registers it keeps, relative
@@ -7,7 +9,7 @@ let bad = ErrorCode.package(1)
 
 ## `message` formatted into `buffer`, or "?" when it does not fit.
 func said(buffer: u8[], message: fmt) -> str:
-    let text = format(buffer, message) catch:
+    let text = strings.format(buffer, message) catch:
         return "?"
     return text
 

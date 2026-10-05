@@ -7,6 +7,8 @@
 #
 #==============================================================================================
 # mark: Helpers ================================================================================
+import strings
+
 ## The registers a fallible result of up to four words comes back in (private_words).
 let private_result_registers: str[4] = ["%rax", "%rdx", "%rcx", "%r8"]
 let private_result_narrow: str[4] = ["%eax", "%edx", "%ecx", "%r8d"]
@@ -186,9 +188,9 @@ func with_percent(name: str) -> str:
     if name.length > 0 and name.bytes[0] == '%':
         return name
     var room: u8[32]
-    let spelled = format(room, f"%{name}") catch failure:
+    let spelled = strings.format(room, f"%{name}") catch failure:
         return name
-    let copy = alloc u8[spelled.length] catch failure:
+    let copy = new u8[spelled.length] --- catch failure:
         return name
     memory.copy(copy, spelled.bytes, spelled.length)
     return (str)copy

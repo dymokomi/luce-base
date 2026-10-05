@@ -1,0 +1,5 @@
+# error: this format specification does not read
+## §5.5: a precision is digits after its `.`.
+pub func main(arguments: str[]) -> i32:
+    print(f"{1.5:4.}")
+    return 0

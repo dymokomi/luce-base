@@ -4,6 +4,7 @@
 
 import editor.buffer
 import editor.terminal
+import strings
 
 pub let tab_width: usize = 4
 
@@ -65,7 +66,7 @@ pub func draw(t: terminal.Terminal*, b: buffer.Buffer*, view: View*, name: str, 
     let line = b.line_of(b.cursor) + 1
     let column = display_column(b, b.line_start(b.cursor), b.cursor) + 1
     let mark = " *" if b.dirty else ""
-    let text = format(status, f" {name}{mark}   {line}:{column}   {total} lines ") catch:
+    let text = strings.format(status, f" {name}{mark}   {line}:{column}   {total} lines ") catch:
         return
     t.put("\u{1b}[7m")
     var padded: usize = 0
@@ -82,7 +83,7 @@ pub func draw(t: terminal.Terminal*, b: buffer.Buffer*, view: View*, name: str, 
     var move: u8[32]
     let cursor_row = b.line_of(b.cursor) - view.top + 1
     let cursor_column = column - view.left
-    let go = format(move, f"\u{1b}[{cursor_row};{cursor_column}H\u{1b}[?25h") catch:
+    let go = strings.format(move, f"\u{1b}[{cursor_row};{cursor_column}H\u{1b}[?25h") catch:
         return
     t.put(go)
     t.flush()

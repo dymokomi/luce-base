@@ -1,14 +1,14 @@
 ## §9: functions in depth: defaults and named arguments, multiple results consumed
-## partly, recursion through a function value, a mutating method chain, `noalias` and
-## `inline` attributes, a static constructor, and a lambda passed down.
+## partly, recursion through a function value, a chain of methods that change their receiver, `noalias` and
+## `inline` attributes, a constructor of the type, and a lambda passed down.
 struct Counter:
     var value: i64
     var steps: u32
 
-    pub static func starting(start: i64) -> Counter:
+    pub func starting(start: i64) -> Counter:
         return Counter(value = start, steps = 0)
 
-    pub mutating func add(n: i64) -> Counter*:
+    pub func add(n: i64) -> Counter*:
         self.value += n
         self.steps += 1
         return &self

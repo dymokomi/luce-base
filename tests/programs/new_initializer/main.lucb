@@ -18,7 +18,7 @@ struct Item:
             memory.allocator = memory.heap
             error(failed, "initializer failed")
 
-    mutating func remember_address():
+    func remember_address():
         self.address = &self
 
 struct Defaulted:

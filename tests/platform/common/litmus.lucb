@@ -69,7 +69,7 @@ func sb_second(context: void*?):
         i += 1
 
 pub func main(arguments: str[]) -> i32!:
-    discard(arguments)
+    _ = arguments
     var cell: Cell
     let writer = try thread.spawn(mp_writer, &cell)
     let reader = try thread.spawn(mp_reader, &cell)

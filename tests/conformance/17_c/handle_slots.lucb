@@ -11,7 +11,7 @@ struct Payload:
 
 # The fixture borrows stack payloads; its handles never own their storage.
 pub func release(item: Item):
-    discard(item)
+    _ = item
 
 func value(item: Item) -> i64:
     return ((Payload*)(void*)item).number

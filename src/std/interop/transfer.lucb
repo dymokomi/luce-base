@@ -36,28 +36,28 @@ pub struct Transfer[T]:
     pub let copy: func(T) -> Packet[T]!
 
     ## For pointer-free scalar/record values only. Text/spans need a deep copy.
-    pub static func plain() -> Transfer[T]:
+    pub func plain() -> Transfer[T]:
         return Transfer[T](Transfer[T].copy_plain)
 
-    static func copy_plain(value: T) -> Packet[T]!:
+    func copy_plain(value: T) -> Packet[T]!:
         return Packet[T](value)
 
 struct PacketBytes:
     var bytes: u8[]
 
-    static func drop(raw: void*):
+    func drop(raw: void*):
         let storage = (PacketBytes*)raw
         free(storage.bytes) in memory.heap
         free(storage) in memory.heap
 
-    static func copy(value: const u8[]) -> Packet[const u8[]]!:
-        let bytes = try alloc u8[value.length] in memory.heap
+    func copy(value: const u8[]) -> Packet[const u8[]]!:
+        let bytes = try new u8[value.length] --- in memory.heap
         errdefer free(bytes) in memory.heap
         memory.copy(bytes, value, value.length)
         let storage = try new PacketBytes(bytes) in memory.heap
         return Packet[const u8[]](bytes, (void*)storage, PacketBytes.drop)
 
-    static func text(value: str) -> Packet[str]!:
+    func text(value: str) -> Packet[str]!:
         let packet = try PacketBytes.copy(value.bytes)
         return Packet[str]((str)packet.value, packet.storage, packet.dispose)
 
@@ -75,11 +75,11 @@ pub struct Reply[T]:
     let message: Packet[str]?
 
     ## A successful reply carrying `value`.
-    pub static func success(value: Packet[T]) -> Reply[T]:
+    pub func success(value: Packet[T]) -> Reply[T]:
         return Reply[T](value, no_error, none)
 
     ## A failed reply with `code` and a copied `message`.
-    pub static func failure(code: ErrorCode, message: str) -> Reply[T]:
+    pub func failure(code: ErrorCode, message: str) -> Reply[T]:
         let copy = text_transfer.copy(message) catch failure:
             return Reply[T](none, memory.exhausted, Packet[str]("out of memory copying a worker failure"))
         return Reply[T](none, code, copy)

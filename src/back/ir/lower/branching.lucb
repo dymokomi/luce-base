@@ -9,7 +9,7 @@
 extend Lowerer:
     # mark: Failure and absence ================================================================
 
-    mutating func try_expr(e: ast.Node*) -> LowerValue!:
+    func try_expr(e: ast.Node*) -> LowerValue!:
         let inner = e.left else return try self.fail(e, "no operand")
         let ft = try self.ty(inner)
         let payload = self.elem(ft)
@@ -25,7 +25,7 @@ extend Lowerer:
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         return try self.load_from(v.ref, payload)
 
-    mutating func else_expr(e: ast.Node*) -> LowerValue!:
+    func else_expr(e: ast.Node*) -> LowerValue!:
         let l = e.left else return try self.fail(e, "no operand")
         let r = e.right else return try self.fail(e, "no alternative")
         let lt = try self.ty(l)
@@ -63,21 +63,21 @@ extend Lowerer:
             elif r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_:
                 try self.jump(r)
             else:
-                discard(try self.expr(r))
+                _ = try self.expr(r)
                 try self.trap_with("unreachable")
         else:
             if payload != types.unit_id and payload != types.never_id:
                 let alt = try self.value(r, payload)
                 try self.store_to(try self.slot_address(slot), alt)
             else:
-                discard(try self.expr(r))
+                _ = try self.expr(r)
         try self.f.jump(done)
         try self.f.place_label(done)
         if payload == types.unit_id or payload == types.never_id:
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         return try self.load_from(try self.slot_address(slot), payload)
 
-    mutating func catch_expr(e: ast.Node*) -> LowerValue!:
+    func catch_expr(e: ast.Node*) -> LowerValue!:
         let l = e.left else return try self.fail(e, "no operand")
         let body = e.body else return try self.fail(e, "no handler")
         let payload = try self.ty(l)
@@ -132,7 +132,7 @@ extend Lowerer:
 
     ## The body of match arm `a`, its value stored for a `match` expression, then out of the
     ## arm's scope to `done`.
-    mutating func finish_arm(a: ast.Node*, is_expr: bool, done: u32) -> !:
+    func finish_arm(a: ast.Node*, is_expr: bool, done: u32) -> !:
         if let body = a.body:
             if is_expr:
                 let bv = try self.value(body, self.match_type)
@@ -143,7 +143,7 @@ extend Lowerer:
         self.pop_scope()
         try self.f.jump(done)
 
-    mutating func match_stmt(m: ast.Node*, is_expr: bool) -> !:
+    func match_stmt(m: ast.Node*, is_expr: bool) -> !:
         let scrutinee = m.left else return
         let st = try self.ty(scrutinee)
         let v = try self.expr(scrutinee)
@@ -197,7 +197,7 @@ extend Lowerer:
     ## they are not, reading the scrutinee `v` where it is, where the chain of
     ## `pattern_test`s would store it and load and compare once per arm in turn. False,
     ## having emitted nothing, for any other `match`.
-    mutating func dispatch(m: ast.Node*, st: u32, v: LowerValue, done: u32, is_expr: bool) -> bool!:
+    func dispatch(m: ast.Node*, st: u32, v: LowerValue, done: u32, is_expr: bool) -> bool!:
         if not (self.is_int(st) or self.c.is_backed_enum(st) or st == types.char_id or st == types.bool_id):
             return false
         var values = try list.List[i64].create(16)
@@ -246,7 +246,7 @@ extend Lowerer:
     ## The value a pattern names when it is a constant of the scrutinee's type (a literal,
     ## an integer enum's case, a named constant), none for a range or anything computed.
     ## Whatever lowering it tried is taken back.
-    mutating func constant_pattern(p: ast.Node*, st: u32) -> i64?!:
+    func constant_pattern(p: ast.Node*, st: u32) -> i64?!:
         if p.right != none:
             return none
         let v = p.left else return none
@@ -267,7 +267,7 @@ extend Lowerer:
     ## Branch on `current` to the target of the value it equals among the sorted `values`,
     ## else to `fallback`: through a jump table when the values are dense enough
     ## (`dense_range`), else halve while more than three remain, then compare each.
-    mutating func search(current: ir.Ref, st: u32, values: i64[], branches: u32[], fallback: u32) -> !:
+    func search(current: ir.Ref, st: u32, values: i64[], branches: u32[], fallback: u32) -> !:
         let cls = self.class_of(st)
         if let entries = dense_range(values):
             try self.jump_table(current, cls, values, branches, entries, fallback)
@@ -294,8 +294,8 @@ extend Lowerer:
     ## Jump through a table of `entries` labels from the first of the sorted `values`: each
     ## value's entry is its target, every value between them none names goes to `fallback`,
     ## as does whatever lies outside the table.
-    mutating func jump_table(current: ir.Ref, cls: ir.Class, values: i64[], branches: u32[], entries: usize, fallback: u32) -> !:
-        var labels = try alloc u32[entries]
+    func jump_table(current: ir.Ref, cls: ir.Class, values: i64[], branches: u32[], entries: usize, fallback: u32) -> !:
+        var labels = try new u32[entries] ---
         defer free(labels)
         for k in 0..<entries:
             labels[k] = fallback
@@ -305,7 +305,7 @@ extend Lowerer:
         try self.f.switch(current, cls, low, labels, fallback)
 
     ## Branch to `take` when the pattern matches the scrutinee in its slot.
-    mutating func pattern_test(p: ast.Node*, st: u32, scrutinee_slot: u32, take: u32, miss: u32) -> !:
+    func pattern_test(p: ast.Node*, st: u32, scrutinee_slot: u32, take: u32, miss: u32) -> !:
         if p.has(ast.flag_wildcard):
             try self.f.jump(take)
             return
@@ -358,7 +358,7 @@ extend Lowerer:
         let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, want.ref)
         try self.f.branch(hit, take, miss)
 
-    mutating func bind_payload(v: ast.Node*, st: u32, scrutinee_slot: u32) -> !:
+    func bind_payload(v: ast.Node*, st: u32, scrutinee_slot: u32) -> !:
         if v.resolved == none and self.kind(st) == types.Kind.optional:
             # `.some(name)`: the value sits first in a tagged optional, and is the word itself
             # of a nullable pointer
@@ -390,7 +390,7 @@ extend Lowerer:
             name = nm.next
             param = q.next
 
-    mutating func match_expr(m: ast.Node*) -> LowerValue!:
+    func match_expr(m: ast.Node*) -> LowerValue!:
         let t = try self.ty(m)
         let saved_slot = self.match_slot
         let saved_type = self.match_type

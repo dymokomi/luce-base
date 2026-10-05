@@ -30,7 +30,7 @@ func node_trace(o: Object*, visit: func(Object*, void*) -> unit, context: void*)
     if let next = n.next:
         visit((Object*)next, context)
 
-var node_info: Info = Info(name = "Node", size = sizeof(Node), finish = node_finish, drop = node_drop, trace = node_trace)
+var node_info: Info = Info(name = "Node", size = memory.size_of(Node), finish = node_finish, drop = node_drop, trace = node_trace)
 
 func node(value: i64) -> Node*:
     let n = (Node*)allocate(&node_info)
@@ -80,8 +80,8 @@ test "a weak reference outlives its object and answers none":
 test "temporaries drain in the order they were pooled":
     fresh()
     let m = mark()
-    discard(pool_object((Object*)node(6)))
-    discard(pool_object((Object*)node(7)))
+    _ = pool_object((Object*)node(6))
+    _ = pool_object((Object*)node(7))
     assert(logged == 0)
     drain(m)
     assert((str)log[..<logged] == "67")
@@ -98,7 +98,7 @@ test "the run's end reports what is alive":
 
 test "unpublished native failure skips successful-object finalization":
     fresh()
-    let value = try reserve(&node_info, sizeof(Node))
+    let value = try reserve(&node_info, memory.size_of(Node))
     discard_unpublished(value)
     assert(live_count() == 0 and logged == 0)
     assert(finish_run(0) == 0)
@@ -108,11 +108,11 @@ test "an allocation records its allocator and does not reuse its identity":
     var storage: u8[2048]
     var arena = memory.FixedBuffer.over(storage)
     let allocator: memory.Allocator = &arena
-    let first = try reserve(&node_info, sizeof(Node), allocator)
+    let first = try reserve(&node_info, memory.size_of(Node), allocator)
     let address = (usize)first
     let generation = first.generation
     discard_unpublished(first)
-    let second = try reserve(&node_info, sizeof(Node), allocator)
+    let second = try reserve(&node_info, memory.size_of(Node), allocator)
     assert((usize)second == address)
     assert(second.generation != generation)
     assert(second.context == context_id())
@@ -124,11 +124,11 @@ test "reservation propagates allocation failure without publishing ownership":
     var storage: u8[1]
     var arena = memory.FixedBuffer.over(storage)
     let allocator: memory.Allocator = &arena
-    let value = reserve(&node_info, sizeof(Node), allocator) catch failure:
+    let value = reserve(&node_info, memory.size_of(Node), allocator) catch failure:
         assert(failure.code == memory.exhausted)
         assert(live_count() == 0 and logged == 0)
         return
-    discard(value)
+    _ = value
     assert(false)
 
 ## A class whose drop runs a collection after releasing its field, and whose trace counts
@@ -154,14 +154,14 @@ func probe_trace(o: Object*, visit: func(Object*, void*) -> unit, context: void*
     if let next = n.next:
         visit((Object*)next, context)
 
-var probe_info: Info = Info(name = "Probe", size = sizeof(Node), finish = none, drop = probe_drop, trace = probe_trace)
+var probe_info: Info = Info(name = "Probe", size = memory.size_of(Node), finish = none, drop = probe_drop, trace = probe_trace)
 
 test "abandon takes the object out of the collector's candidates before its fields go":
     fresh()
     let probe = (Node*)allocate(&probe_info)
     probe.next = node(1)
     # a release that leaves a count makes the object a purple candidate
-    discard(retain((Object*)probe))
+    _ = retain((Object*)probe)
     release((Object*)probe)
     abandon((Object*)probe)
     assert(walked_while_dropping == 0)
@@ -203,7 +203,7 @@ func duo_trace(o: Object*, visit: func(Object*, void*) -> unit, context: void*):
     if let right = d.right:
         visit(right, context)
 
-var duo_info: Info = Info(name = "Duo", size = sizeof(Duo), finish = none, drop = duo_drop, trace = duo_trace)
+var duo_info: Info = Info(name = "Duo", size = memory.size_of(Duo), finish = none, drop = duo_drop, trace = duo_trace)
 
 test "a garbage cycle's reference to a live object costs the object that one reference":
     fresh()

@@ -86,7 +86,7 @@ pub func owned(checker: check.Checker*, id: u32) -> Declaration?!:
                     var members = type_decl.body
                     while let member = members:
                         if member.has(ast.flag_pub) and member.has(ast.flag_mutating) and member.text != "init":
-                            error(check.type_error, "a view with public mutating methods must declare mutable = true")
+                            error(check.type_error, "a view with public methods that change their receiver must declare mutable = true")
                         members = member.next
             else:
                 let cleanup = argument(value, "dispose") else error(check.type_error, "name the interop.Type disposal argument explicitly")
@@ -96,7 +96,7 @@ pub func owned(checker: check.Checker*, id: u32) -> Declaration?!:
                 if closeable:
                     let method = dispose else error(check.type_error, "a closeable owner needs its disposal method")
                     if check.find_decl(type_decl, method.text) != method or not method.has(ast.flag_pub) or not method.has(ast.flag_mutating) or method.right != none:
-                        error(check.type_error, "closeable ownership requires a public mutating disposal method without parameters")
+                        error(check.type_error, "closeable ownership requires a public disposal method that changes its receiver, without parameters")
             found = Declaration(descriptor = declaration, dispose = dispose, closeable = closeable, view = view, mutable = mutable)
         return found
     return none

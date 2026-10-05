@@ -4,5 +4,5 @@ union Bits:
     u: u32
 pub func main(arguments: str[]) -> i32:
     var a: Bits
-    let h = hash(a)
+    let h = a.hash()
     return 0

@@ -23,7 +23,7 @@ pub func main(arguments: str[]) -> i32:
     let unused = 5
     let effect = bump()
     let out: Writer = io.stdout()
-    discard(out)
+    _ = out
     var total: i64 = 40
     if true:
         total += 1

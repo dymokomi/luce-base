@@ -11,7 +11,7 @@ extend Lowerer:
     # mark: Expressions ========================================================================
 
     ## `e` as a value of type `want`, converting where the checker allowed it.
-    mutating func value(e: ast.Node*, want: u32) -> LowerValue!:
+    func value(e: ast.Node*, want: u32) -> LowerValue!:
         let have = try self.ty(e)
         if want == types.none_id or have == want or have == types.never_id or have == types.error_id:
             return try self.expr(e)
@@ -76,7 +76,7 @@ extend Lowerer:
 
     ## A float temporary of `have` as the float `want`: itself when the widths agree, else
     ## extended or rounded once, directly between the two widths. An untyped literal is a double.
-    mutating func convert_float(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
+    func convert_float(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
         let source = self.c.table.bits(have)
         let target = self.c.table.bits(want)
         if source == target:
@@ -86,7 +86,7 @@ extend Lowerer:
         return try self.f.unary(ir.Op.truncs if source == 32 else ir.Op.truncd, self.class_of(want), r)
 
     ## An integer temporary widened from `have` to `want` (§7.5 implicit widening).
-    mutating func widen(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
+    func widen(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
         if have == types.untyped_int_id or have == types.none_id:
             return r
         let from_size = self.scalar_size(have)
@@ -98,7 +98,7 @@ extend Lowerer:
         return r
 
     ## A tagged optional without a value, or a null pointer.
-    mutating func none_of(t: u32) -> LowerValue!:
+    func none_of(t: u32) -> LowerValue!:
         if self.is_scalar(t):
             return LowerValue(ref = ir.const_ref(0), type_id = t, in_memory = false)
         let slot = try self.new_slot(t)
@@ -107,7 +107,7 @@ extend Lowerer:
         return LowerValue(ref = a, type_id = t, in_memory = true)
 
     ## `{ pointer, &vtable }` as a two-word view in memory.
-    mutating func iface_view(pointer: ir.Ref, record: u32, iface: u32) -> LowerValue!:
+    func iface_view(pointer: ir.Ref, record: u32, iface: u32) -> LowerValue!:
         let i = self.decl_of(iface) else return try self.fail(self.entry, "no interface")
         try self.note_vtable(record, iface)
         let name = try self.vtable_name(record, i)
@@ -119,7 +119,7 @@ extend Lowerer:
         return LowerValue(ref = a, type_id = iface, in_memory = true)
 
     ## The `Writer` view of an `io.FormatSink` over the buffer a formatted string is built in.
-    mutating func format_sink_view() -> LowerValue!:
+    func format_sink_view() -> LowerValue!:
         let sink_type = self.c.standard_type("io", "FormatSink")
         let slot = try self.new_slot(sink_type)
         let a = try self.slot_address(slot)
@@ -127,14 +127,14 @@ extend Lowerer:
         return try self.iface_view(a, sink_type, self.c.standard_type("io", "Writer"))
 
     ## `{ data, length }` in memory.
-    mutating func span_of(data: ir.Ref, length: ir.Ref, t: u32) -> LowerValue!:
+    func span_of(data: ir.Ref, length: ir.Ref, t: u32) -> LowerValue!:
         let slot = try self.f.slot(16, 8)
         let a = try self.slot_address(slot)
         try self.f.store(ir.Op.storel, data, a)
         try self.f.store(ir.Op.storel, length, try self.offset_address(a, 8))
         return LowerValue(ref = a, type_id = t, in_memory = true)
 
-    mutating func expr(e: ast.Node*) -> LowerValue!:
+    func expr(e: ast.Node*) -> LowerValue!:
         match e.kind:
             .literal:
                 return try self.literal(e)
@@ -143,7 +143,7 @@ extend Lowerer:
             .self_:
                 let p = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(self.self_slot))
                 let st = self.elem(try self.ty(e))
-                discard(st)
+                _ = st
                 return try self.load_from(p, try self.ty(e))
             .unit_:
                 return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
@@ -187,8 +187,8 @@ extend Lowerer:
                 return try self.formatted_value(e)
             .new_:
                 return try self.new_expr(e)
-            .alloc_:
-                return try self.alloc_expr(e)
+            .new_unwritten:
+                return try self.unwritten_expr(e)
             .span_make:
                 let first = e.body else return try self.fail(e, "empty span")
                 let p = first.left else return try self.fail(e, "empty span")
@@ -210,7 +210,7 @@ extend Lowerer:
 
     # -- literals and names ---------------------------------------------------------------
 
-    mutating func literal(e: ast.Node*) -> LowerValue!:
+    func literal(e: ast.Node*) -> LowerValue!:
         let t = try self.ty(e)
         if e.text == "true":
             return LowerValue(ref = ir.const_ref(1), type_id = types.bool_id, in_memory = false)
@@ -244,7 +244,7 @@ extend Lowerer:
         let it = types.i64_id if t == types.untyped_int_id else t
         return LowerValue(ref = ir.const_ref((i64)v), type_id = it, in_memory = false)
 
-    mutating func name(e: ast.Node*) -> LowerValue!:
+    func name(e: ast.Node*) -> LowerValue!:
         if e.has(ast.flag_format_sink):
             return try self.format_sink_view()
         let t = try self.ty(e)
@@ -265,7 +265,7 @@ extend Lowerer:
     ## A constant read as the literal it denotes, `platform.windows` or `os.name`: a bool,
     ## an integer or a text, so no initialiser depends on another library member's having
     ## run first (§17.6); none for the rest.
-    mutating func folded_constant(e: ast.Node*, t: u32) -> LowerValue?!:
+    func folded_constant(e: ast.Node*, t: u32) -> LowerValue?!:
         if self.is_int(t):
             if let v = self.folded_integer(e, t):
                 return LowerValue(ref = ir.const_ref(v), type_id = t, in_memory = false)
@@ -298,7 +298,7 @@ extend Lowerer:
         let init = d.left else return none
         return self.c.exact_integer(init, self.scalar_size(t) * 8, self.is_signed(t))
 
-    mutating func global_address(d: ast.Node*) -> ir.Ref!:
+    func global_address(d: ast.Node*) -> ir.Ref!:
         let name = try self.global_name(d)
         if d.has(ast.flag_thread_local):
             let t = try self.temp(ir.Class.l)
@@ -308,19 +308,19 @@ extend Lowerer:
             return try self.f.address_of(ir.import_ref(name))
         return try self.f.address_of(ir.global_ref(name))
 
-    mutating func func_value(e: ast.Node*, d: ast.Node*) -> LowerValue!:
+    func func_value(e: ast.Node*, d: ast.Node*) -> LowerValue!:
         let t = try self.ty(e)
         if d.kind == ast.Kind.extern_func:
             return LowerValue(ref = try self.f.address_of(ir.function_ref(names.c_symbol(d))), type_id = t, in_memory = false)
         var args = try types.no_args()
         if let holder = e.ty:
             args = try self.type_args(holder)
-        discard(try self.add_func(d, args, none, try types.no_args()))
+        _ = try self.add_func(d, args, none, try types.no_args())
         let name = try self.function_name(d, args, none, try types.no_args())
         return LowerValue(ref = try self.f.address_of(ir.function_ref(name)), type_id = t, in_memory = false)
 
     ## An enum case: the integer, or the tagged record with its payload.
-    mutating func enum_value(e: ast.Node*) -> LowerValue!:
+    func enum_value(e: ast.Node*) -> LowerValue!:
         let c = e.resolved else return try self.fail(e, "no case")
         let t = try self.ty(e)
         let d = self.decl_of(t) else return try self.fail(e, "no enum")

@@ -1,0 +1,59 @@
+## §9.5: nothing is written on a method. One whose body never reads `self` is a function of
+## the type, called through the type; one that assigns to its receiver or a part, calls a
+## method that does, stores to one of its atomics, or takes the address of a part where a
+## mutable pointer is wanted, changes its receiver and needs a `var`; any other is called on
+## a `let` as well.
+func touch(p: i64*):
+    *p += 100
+
+struct Cells:
+    var items: i64[4]
+    var count: i64
+    var total: @i64
+
+    func empty() -> Cells:
+        return Cells(items = [0, 0, 0, 0], count = 0, total = 0)
+
+    func sum() -> i64:
+        var s: i64 = 0
+        for x in self.items:
+            s += x
+        return s
+
+    func first() -> i64:
+        let p = &self.items[0]
+        return *p
+
+    func set_first(v: i64):
+        let p = &self.items[0]
+        *p = v
+
+    func bump_all():
+        for p in &self.items:
+            *p += 1
+
+    func push(v: i64):
+        self.items[self.count] = v
+        self.count += 1
+
+    func push_twice(v: i64):
+        self.push(v)
+        self.push(v)
+
+    func poke():
+        touch(&self.count)
+
+    func add_total(v: i64):
+        _ = self.total.add(v)
+
+pub func main(arguments: str[]) -> i32:
+    let fixed = Cells.empty()
+    print(f"{fixed.sum()} {fixed.first()}")
+    var cells = Cells.empty()
+    cells.push_twice(3)
+    cells.set_first(5)
+    cells.bump_all()
+    cells.poke()
+    cells.add_total(7)
+    print(f"{cells.sum()} {cells.first()} {cells.count} {cells.total.load()}")
+    return 0

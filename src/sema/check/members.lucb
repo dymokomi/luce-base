@@ -11,7 +11,7 @@ extend Checker:
 
     ## `x.name`: a field, method, case, static member, module member, or a
     ## builtin member of a span, `str`, or `Error`.
-    mutating func member_type(e: ast.Node*) -> u32!:
+    func member_type(e: ast.Node*) -> u32!:
         let owner = e.left else return try self.fail(e, "missing operand")
         let name = e.text
         let as_callee = self.calling
@@ -19,7 +19,7 @@ extend Checker:
         # `luce.location` and its pieces are compile-time facts, not members
         if owner.kind == ast.Kind.name and owner.text == "luce":
             if let b = self.lookup("luce"):
-                self.note_origin(b)
+                note_origin(b)
                 owner.type_id = b.type_id
                 owner.resolved = b.decl
                 if name == "location":
@@ -80,13 +80,13 @@ extend Checker:
         return try self.fail(e, try self.with_type("a `", id, said(said13, f"` has no members, so no `{name}`")))
 
     ## `module.name`: a public declaration of the module, or a C type of the `c` module.
-    mutating func module_member(e: ast.Node*, ot: types.Type, name: str) -> u32!:
+    func module_member(e: ast.Node*, ot: types.Type, name: str) -> u32!:
         let m = ot.decl else return try self.fail(e, "no module")
         if self.is_c_module(m) and c_type_id(name) != types.none_id:
             e.flags |= ast.flag_type_ref
             return c_type_id(name)
         var text: u8[256]
-        let d = self.module_decl(m, name) else return try self.fail(e, try format(text, f"`{m.text}` has no public `{name}`"))
+        let d = self.module_decl(m, name) else return try self.fail(e, try strings.format(text, f"`{m.text}` has no public `{name}`"))
         var said9: u8[256]
         if not d.has(ast.flag_pub):
             return try self.fail(e, said(said9, f"`{name}` is not public in `{m.text}`"))
@@ -111,7 +111,7 @@ extend Checker:
 
     ## `length`, `data`, `first()`, `last()`, `indexed()` of a span or an array, and a
     ## vector's folds.
-    mutating func sequence_member(e: ast.Node*, id: u32, t: types.Type, name: str) -> u32!:
+    func sequence_member(e: ast.Node*, id: u32, t: types.Type, name: str) -> u32!:
         if name == "length":
             return types.usize_id
         if name == "data":
@@ -135,19 +135,20 @@ extend Checker:
 
     ## A field or method of a struct, union or enum, with its visibility checked; `owner`
     ## is the operand, `as_callee` whether the member is being called.
-    mutating func record_member(e: ast.Node*, owner: ast.Node*, id: u32, t: types.Type, name: str, as_callee: bool) -> u32!:
+    func record_member(e: ast.Node*, owner: ast.Node*, id: u32, t: types.Type, name: str, as_callee: bool) -> u32!:
         let d = t.decl else return try self.fail(e, "no declaration")
         if let f = find_member(d, name, ast.Kind.field):
             e.resolved = f
             if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                 var said10: u8[256]
                 return try self.fail(e, said(said10, f"field `{name}` is not public"))
-            if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
-                self.mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
+            if is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
+                mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
             return try self.substitute(f.type_id, d, t.args)
         if let m = find_member(d, name, ast.Kind.func_):
             if m.has(ast.flag_static):
-                return try self.fail(e, "a static method is called through the type")
+                var said_static: u8[256]
+                return try self.fail(e, said(said_static, f"`{name}` does not read `self`: it is a function of the type, called as `{d.text}.{name}()` (§9.5)"))
             if not as_callee:
                 # `value.member` without `()` is always a field (§9.5)
                 return try self.fail(e, "a method is called; write `name()`")
@@ -162,7 +163,7 @@ extend Checker:
         return try self.fail(e, try self.with_type("`", id, said(said12, f"` has no member `{name}`")))
 
     ## A method of a generic parameter, from the first of its constraints declaring it.
-    mutating func bound_member(e: ast.Node*, id: u32, name: str) -> u32!:
+    func bound_member(e: ast.Node*, id: u32, name: str) -> u32!:
         let g = self.generic_param_node(id) else return try self.fail(e, "no such member")
         var bound = g.body
         while let constraint = bound:
@@ -185,8 +186,8 @@ extend Checker:
         return ids.length > 0
 
     ## The instance of generic `d` whose parameters the construction's values imply.
-    mutating func infer_construction(e: ast.Node*, d: ast.Node*, generic_count: usize) -> u32!:
-        var inferred = try alloc u32[generic_count]
+    func infer_construction(e: ast.Node*, d: ast.Node*, generic_count: usize) -> u32!:
+        var inferred = try new u32[generic_count] ---
         var j: usize = 0
         while j < generic_count:
             inferred[j] = types.none_id
@@ -209,7 +210,7 @@ extend Checker:
             var said14: u8[256]
             let f = field else return try self.fail(a, said(said14, f"no field `{a.text}`"))
             var got = try self.check_expr(v, types.none_id if self.mentions_param(f.type_id) else f.type_id)
-            got = self.concrete(got) if got != types.none_id else got
+            got = concrete(got) if got != types.none_id else got
             try self.infer(f.type_id, got, d, inferred)
             cursor = a.next
         j = 0
@@ -229,9 +230,9 @@ extend Checker:
         return try self.table.nominal(self.table.kind(d.type_id), d, inferred)
 
     ## A function type with every `void*` parameter replaced by `self_id`.
-    mutating func with_self_arguments(fn: u32, self_id: u32) -> u32!:
+    func with_self_arguments(fn: u32, self_id: u32) -> u32!:
         let f = self.table.get(fn)
-        var params = try alloc u32[f.args.length if f.args.length > 0 else 1]
+        var params = try new u32[f.args.length if f.args.length > 0 else 1] ---
         var i: usize = 0
         while i < f.args.length:
             let a = self.table.get(f.args[i])
@@ -242,7 +243,7 @@ extend Checker:
     ## `ErrorCode.package(n)` becomes the literal `(identity << 16) | n` (§11.3): the identity is
     ## sixteen bits of the package's name, `luce` for the standard modules, so that no two
     ## packages share a code and the backends see a plain constant.
-    mutating func fold_package_code(e: ast.Node*) -> !:
+    func fold_package_code(e: ast.Node*) -> !:
         let argument = e.body else return try self.fail(e, "`ErrorCode.package` takes a code")
         let v = argument.left else return try self.fail(e, "`ErrorCode.package` takes a code")
         if v.kind != ast.Kind.literal:
@@ -258,8 +259,8 @@ extend Checker:
             if known == full:
                 return try self.fail(v, "two constants of one package share this error code (§11.3)")
         try self.package_codes.push(full)
-        var digits = try alloc u8[24]
-        v.text = try format(digits, f"{full}")
+        var digits = try new u8[24] ---
+        v.text = try strings.format(digits, f"{full}")
 
     ## The unsigned integer as wide as the float `id`: the type its `bits` are (§7.5).
     pub func bits_type(id: u32) -> u32:
@@ -267,10 +268,10 @@ extend Checker:
         return types.u16_id if width == 16 else (types.u32_id if width == 32 else types.u64_id)
 
     ## The function type of a method taken through its type: `self` is its first parameter,
-    ## `const Self*` unless the method is `mutating` (§9.5).
-    mutating func method_as_function(ft: u32, owner: u32, writes: bool) -> u32!:
+    ## `const Self*` unless the method changes its receiver (§9.5).
+    func method_as_function(ft: u32, owner: u32, writes: bool) -> u32!:
         let f = self.table.get(ft)
-        var params = try alloc u32[f.args.length + 1]
+        var params = try new u32[f.args.length + 1] ---
         params[0] = try self.table.pointer(owner, not writes, false)
         var i: usize = 0
         while i < f.args.length:
@@ -279,7 +280,7 @@ extend Checker:
         return try self.table.function(params, f.elem, f.variadic)
 
     ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`.
-    mutating func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
+    func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
         let name = e.text
         let t = self.table.get(id)
         if id == types.error_code_id and name == "package":
@@ -312,17 +313,18 @@ extend Checker:
             let ft = try self.substitute(m.type_id, d, t.args)
             if not m.has(ast.flag_static):
                 # `Point.distance` through its type is a function taking the receiver first (§5.6)
+                try self.keep_pending_value(e, m, d)
                 return try self.method_as_function(ft, id, m.has(ast.flag_mutating))
             return ft
         var said21: u8[256]
         return try self.fail(e, try self.with_type("`", id, said(said21, f"` has no member `{name}`")))
 
     ## The function type that builds a payload case.
-    mutating func case_constructor(case_node: ast.Node*, d: ast.Node*, args: u32[]) -> u32!:
+    func case_constructor(case_node: ast.Node*, d: ast.Node*, args: u32[]) -> u32!:
         let n = ast.count(case_node.body)
         var params = try types.no_args()
         if n > 0:
-            params = try alloc u32[n]
+            params = try new u32[n] ---
         var i: usize = 0
         var cursor = case_node.body
         while let p = cursor:
@@ -333,7 +335,7 @@ extend Checker:
         return try self.table.function(params, result, false)
 
     ## Function types for the builtin methods of spans and floats.
-    mutating func builtin_method(e: ast.Node*, id: u32, name: str) -> u32!:
+    func builtin_method(e: ast.Node*, id: u32, name: str) -> u32!:
         let t = self.table.get(id)
         e.flags |= ast.flag_static
         if name == "sum" or name == "min" or name == "max":
@@ -342,7 +344,7 @@ extend Checker:
         if name == "first" or name == "last":
             return try self.table.function(try types.no_args(), try self.table.optional(t.elem), false)
         if name == "indexed":
-            var pair = try alloc u32[2]
+            var pair = try new u32[2] ---
             pair[0] = types.usize_id
             pair[1] = t.elem
             let tuple = try self.table.tuple(pair)
@@ -352,30 +354,27 @@ extend Checker:
             return try self.table.function(try types.no_args(), bits, false)
         if name == "compare":
             # numbers, `char`, and `str` order themselves (§14.4)
-            var one = try alloc u32[1]
+            var one = try new u32[1] ---
             one[0] = id
             return try self.table.function(one, types.i64_id, false)
         if name == "mul_add":
             # `a.mul_add(b, c)`: `a * b + c` rounded once, a scalar's or each lane's (§7.2)
-            var two = try alloc u32[2]
+            var two = try new u32[2] ---
             two[0] = id
             two[1] = id
             return try self.table.function(two, id, false)
         return try self.fail(e, "no such builtin member")
 
-    mutating func location_type() -> u32!:
-        let ii = self.find_module("io") else return try self.fail_now("the `io` module is missing")
+    func location_type() -> u32!:
+        let ii = self.find_module("io") else return try fail_now("the `io` module is missing")
         let io_tree = self.modules.get(ii).tree
-        let d = find_decl(io_tree, "Location") else return try self.fail_now("`io.Location` is missing")
+        let d = find_decl(io_tree, "Location") else return try fail_now("`io.Location` is missing")
         return d.type_id
-
-    func fail_now(what: str) -> never!:
-        error(unsupported, what)
 
     ## Whether `d` was declared in the module being checked: by the index of each
     ## declaration's module (`owner_of`), else, for a declaration the index has not seen,
     ## by a walk of the module, which a large module made the checker's slowest question.
-    mutating func same_module(d: ast.Node*) -> bool:
+    func same_module(d: ast.Node*) -> bool:
         let owner = self.owner_of(d) catch:
             return self.declared_here(d)
         if let index = owner:
@@ -396,7 +395,7 @@ extend Checker:
         let own = self.self_decl() else return false
         return own == d
 
-    mutating func check_constant_in(m: ast.Node*, d: ast.Node*) -> !:
+    func check_constant_in(m: ast.Node*, d: ast.Node*) -> !:
         var i: usize = 0
         while i < self.modules.count:
             if self.modules.get(i).tree == m:
@@ -405,7 +404,7 @@ extend Checker:
                 # the other module's names are not in scope; a constant initialiser
                 # may only use literals and names from its own module, so check it there
                 self.push_scope()
-                try self.bind_standard()
+                try bind_standard()
                 try self.bind_imports(m)
                 try self.collect(m)
                 try self.check_constant(d)
@@ -414,11 +413,11 @@ extend Checker:
                 return
             i += 1
 
-    mutating func instantiate_node(named: ast.Node*, d: ast.Node*) -> u32!:
+    func instantiate_node(named: ast.Node*, d: ast.Node*) -> u32!:
         let n = ast.count(named.body)
         if ast.count(generic_params_of(d)) != n:
             return try self.fail(named, "wrong number of type arguments")
-        var args = try alloc u32[n]
+        var args = try new u32[n] ---
         var i: usize = 0
         var cursor = named.body
         while let a = cursor:
@@ -428,7 +427,7 @@ extend Checker:
         try self.check_constraints(d, args, named)
         return try self.table.nominal(self.table.kind(d.type_id), d, args)
 
-    mutating func index_type(e: ast.Node*) -> u32!:
+    func index_type(e: ast.Node*) -> u32!:
         let owner = e.left else return try self.fail(e, "missing operand")
         let index = e.body else return try self.fail(e, "missing index")
         let raw = try self.check_expr(owner, types.none_id)
@@ -455,12 +454,12 @@ extend Checker:
             it = types.usize_id
         if not (it == types.untyped_int_id or self.table.is_integer(it)):
             return try self.fail(index, "an index is an integer")
-        discard(try self.coerce(index, it, offset_type if it == types.untyped_int_id else it))
+        _ = try self.coerce(index, it, offset_type if it == types.untyped_int_id else it)
         # the element is a copy: a `str` read from a local table views its own text, not
         # the frame; only `&a[i]` and a slice view the array (§6.6)
         return t.elem
 
-    mutating func slice_type(e: ast.Node*) -> u32!:
+    func slice_type(e: ast.Node*, hint: u32) -> u32!:
         let owner = e.left else return try self.fail(e, "missing operand")
         let ot = self.deref(try self.check_expr(owner, types.none_id))
         let t = self.table.get(ot)
@@ -468,19 +467,22 @@ extend Checker:
             let st = try self.check_expr(start, types.usize_id)
             if not (st == types.untyped_int_id or self.table.is_integer(st)):
                 return try self.fail(start, "a slice bound is an integer")
-            discard(try self.coerce(start, st, types.usize_id if st == types.untyped_int_id else st))
+            _ = try self.coerce(start, st, types.usize_id if st == types.untyped_int_id else st)
         if let end = e.right:
             let et = try self.check_expr(end, types.usize_id)
             if not (et == types.untyped_int_id or self.table.is_integer(et)):
                 return try self.fail(end, "a slice bound is an integer")
-            discard(try self.coerce(end, et, types.usize_id if et == types.untyped_int_id else et))
+            _ = try self.coerce(end, et, types.usize_id if et == types.untyped_int_id else et)
         # a span or str of a local array names the frame; a slice of a tainted view stays tainted
-        if self.is_local_value(owner) or (t.kind == types.Kind.array and self.place_is_local(owner)):
-            self.mark_local(e)
+        if is_local_value(owner) or (t.kind == types.Kind.array and self.place_is_local(owner)):
+            mark_local(e)
         if t.kind == types.Kind.span:
             return ot
         if t.kind == types.Kind.array:
-            return try self.table.span(t.elem, not self.is_mutable_place(owner))
+            var read_only = not self.is_mutable_place(owner)
+            if read_only and self.wants_mutable_span(hint) and self.changes_receiver(owner):
+                read_only = false
+            return try self.table.span(t.elem, read_only)
         if ot == types.str_id:
             return try self.fail(e, "slice `text.bytes`, not the text")
         return try self.fail(e, "slicing needs a span or an array")
@@ -491,3 +493,6 @@ extend Checker:
         if t.kind == types.Kind.pointer and t.elem != types.void_id:
             return t.elem
         return id
+
+func fail_now(what: str) -> never!:
+    error(unsupported, what)

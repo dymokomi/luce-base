@@ -9,7 +9,7 @@
 extend Checker:
     # mark: Lambdas ============================================================================
 
-    mutating func lambda_type(e: ast.Node*, hint: u32) -> u32!:
+    func lambda_type(e: ast.Node*, hint: u32) -> u32!:
         # a lambda where `(func(i64) -> i64)?` is expected takes the function's shape (§9.6)
         var target = hint
         if self.table.kind(hint) == types.Kind.optional and self.table.kind(self.table.get(hint).elem) == types.Kind.func_:
@@ -18,7 +18,7 @@ extend Checker:
         let n = ast.count(e.right)
         var params = try types.no_args()
         if n > 0:
-            params = try alloc u32[n]
+            params = try new u32[n] ---
         let saved_floor = self.lambda_floor
         let saved_self = self.self_type
         self.lambda_floor = self.scope.count
@@ -55,7 +55,7 @@ extend Checker:
         self.fallible = self.table.kind(want) == types.Kind.fallible
         let bt = try self.check_expr(body, want)
         self.in_defer = saved_defer
-        var result = self.concrete(bt)
+        var result = concrete(bt)
         if want == types.none_id:
             result = try self.settle(body, bt)
         else:
@@ -74,7 +74,7 @@ extend Checker:
 
     ## A lambda is a hidden module function (§9.6): its parameters, a body of one `return`,
     ## and no captures. The backends emit it as any other function of the module.
-    mutating func hoist_lambda(e: ast.Node*, body: ast.Node*, fn_type: u32) -> ast.Node*!:
+    func hoist_lambda(e: ast.Node*, body: ast.Node*, fn_type: u32) -> ast.Node*!:
         let fn = try ast.Node.make(ast.Kind.func_, try self.lambda_name(), e.start, e.line)
         fn.flags |= ast.flag_lambda | ast.flag_referenced
         fn.right = e.right
@@ -89,7 +89,7 @@ extend Checker:
         return fn
 
     ## A synthesised function joins the module's declarations, after the last one.
-    mutating func hoist(fn: ast.Node*):
+    func hoist(fn: ast.Node*):
         let tree = self.modules.get(self.current).tree
         var cursor = tree.body
         var last: ast.Node*? = none
@@ -105,7 +105,7 @@ extend Checker:
     ## mean a hoisted function of the wanted type that calls the named one and answers its
     ## result as success. Only a declaration can be wrapped this way; a function value
     ## held in a variable has no name to wrap.
-    mutating func wrap_as_fallible(e: ast.Node*, want: u32) -> !:
+    func wrap_as_fallible(e: ast.Node*, want: u32) -> !:
         let f = e.resolved else return try self.fail(e, "only a named function converts to a fallible function type")
         if f.kind != ast.Kind.func_ and f.kind != ast.Kind.extern_func:
             return try self.fail(e, "only a named function converts to a fallible function type")
@@ -151,11 +151,11 @@ extend Checker:
         e.type_id = want
 
     ## `__lambda1`, `__lambda2`, ...: names no source can spell.
-    mutating func lambda_name() -> str!:
+    func lambda_name() -> str!:
         return try self.hidden_name("__lambda")
 
     ## `prefix` followed by a fresh number: a name no source can spell.
-    mutating func hidden_name(prefix: str) -> str!:
+    func hidden_name(prefix: str) -> str!:
         self.lambda_count += 1
         var digits: u8[12]
         var n = self.lambda_count
@@ -166,7 +166,7 @@ extend Checker:
             n = n // 10
             if n == 0:
                 break
-        var out = try alloc u8[prefix.length + k]
+        var out = try new u8[prefix.length + k] ---
         memory.copy(out, prefix.bytes, prefix.length)
         var j: usize = 0
         while j < k:

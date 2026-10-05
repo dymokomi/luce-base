@@ -98,22 +98,22 @@ let generated_c_silences: c.str[5] = ["-Wno-format", "-Wno-self-assign", "-Wno-t
 struct Arguments:
     var items: list.List[c.str]
 
-    static func create() -> Arguments!:
+    func create() -> Arguments!:
         return Arguments(items = try list.List[c.str].create(32))
 
-    mutating func add(item: c.str) -> !:
+    func add(item: c.str) -> !:
         try self.items.push(item)
 
     ## `prefix` followed by `value`, NUL-terminated in the current allocator.
-    mutating func flag(prefix: str, value: str) -> !:
-        let room = try alloc u8[prefix.length + value.length + 1]
-        let text = try format(room, f"{prefix}{value}")
+    func flag(prefix: str, value: str) -> !:
+        let room = try new u8[prefix.length + value.length + 1] ---
+        let text = try strings.format(room, f"{prefix}{value}")
         try self.items.push((c.str)text)
 
     ## Every whitespace-separated word of `text`, as `pkg-config` prints its flags. The
     ## flags are the C driver's; for a link through `ld` itself, `-Wl,a,b` is the linker's
     ## own words `a b`.
-    mutating func words(text: str, for_linker: bool) -> !:
+    func words(text: str, for_linker: bool) -> !:
         let b = text.bytes
         var start: usize = 0
         var i: usize = 0
@@ -124,7 +124,7 @@ struct Arguments:
                 start = i + 1
             i += 1
 
-    mutating func word(text: str, for_linker: bool) -> !:
+    func word(text: str, for_linker: bool) -> !:
         let b = text.bytes
         if not for_linker or b.length < 5 or (str)b[..<4] != "-Wl,":
             try self.flag("", text)
@@ -174,8 +174,8 @@ func compile_sources(dir: str, arguments: Arguments*) -> !:
     var s: usize = 0
     while s < package.sources.length:
         let source_text = (str)package.sources[s]
-        let compiled_path = try alloc u8[dir.length + 32]
-        let compiled = try format(compiled_path, f"{dir}/source{s}.o")
+        let compiled_path = try new u8[dir.length + 32] ---
+        let compiled = try strings.format(compiled_path, f"{dir}/source{s}.o")
         var source_args = try Arguments.create()
         try source_args.add("-std=gnu11")
         try source_args.add("-c")
@@ -239,13 +239,13 @@ func settle_mode(entry: ast.Node*, path: c.str, mode: u32) -> u32!:
     # the message leaves this function with the failure, so its room is the heap's
     if mode == 4 and check.find_decl(entry, "_start") == none:
         let file = (str)path
-        let room = try alloc u8[file.length + 128]
-        error(build_failed, try format(room, f"{file}: a freestanding program supplies `export naked func _start` (§19.4)"))
+        let room = try new u8[file.length + 128] ---
+        error(build_failed, try strings.format(room, f"{file}: a freestanding program supplies `export naked func _start` (§19.4)"))
     if mode == 0 and check.find_decl(entry, "main") == none:
         if check.find_decl(entry, "answer") == none:
             let file = (str)path
-            let room = try alloc u8[file.length + 128]
-            error(build_failed, try format(room, f"{file}: this module has no `main` to build a program from; `check` it, or `test` it"))
+            let room = try new u8[file.length + 128] ---
+            error(build_failed, try strings.format(room, f"{file}: this module has no `main` to build a program from; `check` it, or `test` it"))
         return 2
     return mode
 
@@ -381,9 +381,9 @@ func running_level() -> u32:
     var d7: u32 = 0
     asm x86_64 (inout("eax") leaf7, inout("ecx") c7, out("ebx") b7, out("edx") d7, options(nostack)):
         cpuid
-    discard(b1)
-    discard(d1)
-    discard(d7)
+    _ = b1
+    _ = d1
+    _ = d7
     let sse42 = (c1 & (1 << 20)) != 0
     let popcnt = (c1 & (1 << 23)) != 0
     let fma = (c1 & (1 << 12)) != 0
@@ -456,9 +456,9 @@ struct Tools:
 
 func tools_for(t: targets.Target) -> Tools!:
     if t.arch != targets.Arch.wasm32:
-        return Tools(cc = host_c_compiler(), ar = "ar", nm = "nm", flags = try alloc c.str[0])
+        return Tools(cc = host_c_compiler(), ar = "ar", nm = "nm", flags = try new c.str[0] ---)
     if let sdk = os.env("WASI_SDK"):
-        var flags = try alloc c.str[1]
+        var flags = try new c.str[1] ---
         flags[0] = "--target=wasm32-wasip1"
         return Tools(cc = try tool_path(sdk, "/bin/clang"), ar = try tool_path(sdk, "/bin/llvm-ar"), nm = try tool_path(sdk, "/bin/llvm-nm"), flags = flags)
     var prefix = "/opt/homebrew"
@@ -472,7 +472,7 @@ func tools_for(t: targets.Target) -> Tools!:
     let resources = try prefixed(prefix, "/opt/wasi-runtimes/share/wasi-runtimes")
     if not (files.exists((c.str)clang) and files.exists((c.str)linker) and files.exists((c.str)sysroot) and files.exists((c.str)resources)):
         error(build_failed, "a build for wasm32 needs a WASI toolchain: set WASI_SDK to a wasi-sdk, or install llvm, lld, wasi-libc and wasi-runtimes with Homebrew")
-    var flags = try alloc c.str[5]
+    var flags = try new c.str[5] ---
     flags[0] = "--target=wasm32-wasip1"
     flags[1] = (c.str)try prefixed("--sysroot=", sysroot)
     flags[2] = (c.str)try prefixed("-resource-dir=", resources)
@@ -485,13 +485,13 @@ func tool_path(root: str, rest: str) -> c.str!:
     return (c.str)try prefixed(root, rest)
 
 func prefixed(left: str, right: str) -> str!:
-    let room = try alloc u8[left.length + right.length + 1]
-    return try format(room, f"{left}{right}")
+    let room = try new u8[left.length + right.length + 1] ---
+    return try strings.format(room, f"{left}{right}")
 
 ## The C compiler on `arguments`, with the target's flags first.
 func run_cc(arguments: c.str[], directory: str) -> interop.Owned[process.Completed]!:
     let tools = try tools_for(build_target())
-    let all = try alloc c.str[tools.flags.length + arguments.length]
+    let all = try new c.str[tools.flags.length + arguments.length] ---
     for i in 0..<tools.flags.length:
         all[i] = tools.flags[i]
     for i in 0..<arguments.length:
@@ -504,9 +504,9 @@ func is_wasm32() -> bool:
 ## The program's object, from the cache or by translating and assembling (§19.7), then the
 ## link into `requested_exe`.
 func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe: str, release: bool, with_start: bool) -> !:
-    let output_buffer = try alloc u8[requested_exe.length + 5]
+    let output_buffer = try new u8[requested_exe.length + 5] ---
     defer free(output_buffer)
-    let exe = try format(output_buffer, f"{requested_exe}.exe") if platform.windows and paths.extension(requested_exe).length == 0 else requested_exe
+    let exe = try strings.format(output_buffer, f"{requested_exe}.exe") if platform.windows and paths.extension(requested_exe).length == 0 else requested_exe
     let workspace = try host_tools.Workspace(exe)
     defer workspace.destroy()
     let dir = workspace.path()
@@ -515,21 +515,21 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
     let key = try build_key(mode, release)
     if native_backend:
         try assemble_and_link(dir, name_bytes[..<3072], checker, entry, mode, key, linked_exe)
-        try workspace.publish(linked_exe, exe)
+        try host_tools.publish(linked_exe, exe)
         if debug_backend:
             try finish_debug(exe)
         try workspace.close()
         return
-    let gen_path = try format(name_bytes[..<512], f"{dir}/gen.s" if native_backend else f"{dir}/gen.c")
-    let header_path = try format(name_bytes[512..<1024], f"{dir}/lucb_rt.h")
-    let runtime_path = try format(name_bytes[1024..<1536], f"{dir}/lucb_rt.c")
-    let start_path = try format(name_bytes[1536..<2048], f"{dir}/start.c")
-    let object_path = try format(name_bytes[2048..<2560], f"{dir}/gen.o")
+    let gen_path = try strings.format(name_bytes[..<512], f"{dir}/gen.s" if native_backend else f"{dir}/gen.c")
+    let header_path = try strings.format(name_bytes[512..<1024], f"{dir}/lucb_rt.h")
+    let runtime_path = try strings.format(name_bytes[1024..<1536], f"{dir}/lucb_rt.c")
+    let start_path = try strings.format(name_bytes[1536..<2048], f"{dir}/start.c")
+    let object_path = try strings.format(name_bytes[2048..<2560], f"{dir}/gen.o")
     try files.write((c.str)header_path, runtime.header.bytes)
     try files.write((c.str)runtime_path, runtime.source.bytes)
     if with_start:
         try files.write((c.str)start_path, runtime.start.bytes)
-    let include = try format(name_bytes[2560..<3072], f"-I{dir}")
+    let include = try strings.format(name_bytes[2560..<3072], f"-I{dir}")
     if let cached = try cache.find(key, "-c.o"):
         let object = try files.read((c.str)cached)
         defer object.release()
@@ -592,7 +592,7 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
         let out = io.stderr()
         try out.write(result.value.error_output)
         error(build_failed, "the C compiler rejected the generated code")
-    try workspace.publish(linked_exe, exe)
+    try host_tools.publish(linked_exe, exe)
     try workspace.close()
 
 ## Shared diagnostics and ABI flags for generated C and its runtime.
@@ -628,12 +628,12 @@ func finish_debug(exe: str) -> !:
         var arguments: c.str[1] = [(c.str)exe]
         try run_tool("dsymutil", arguments, "could not produce the dSYM")
         return
-    let room = try alloc u8[exe.length + 32]
-    let sidecar = try format(room, f"{exe}.debug")
+    let room = try new u8[exe.length + 32] ---
+    let sidecar = try strings.format(room, f"{exe}.debug")
     var keep: c.str[3] = ["--only-keep-debug", (c.str)exe, (c.str)sidecar]
     try run_tool("objcopy", keep, "could not produce the ELF debug file")
-    let link_room = try alloc u8[sidecar.length + 32]
-    let link = try format(link_room, f"--add-gnu-debuglink={sidecar}")
+    let link_room = try new u8[sidecar.length + 32] ---
+    let link = try strings.format(link_room, f"--add-gnu-debuglink={sidecar}")
     var attach: c.str[3] = ["--strip-debug", (c.str)link, (c.str)exe]
     try run_tool("objcopy", attach, "could not attach the ELF debug file")
 
@@ -659,8 +659,8 @@ func assemble_one(dir: str) -> !:
 ## system library found through `xcrun`, or the C driver, which knows where the C library,
 ## its start files, and the dynamic loader are.
 func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str, exe: str) -> !:
-    let asm_path = try format(name_bytes[..<512], f"{dir}/gen.s")
-    let object_path = try format(name_bytes[512..<1024], f"{dir}/gen.o")
+    let asm_path = try strings.format(name_bytes[..<512], f"{dir}/gen.s")
+    let object_path = try strings.format(name_bytes[512..<1024], f"{dir}/gen.o")
     if let cached = try cache.find(key, "-n.o"):
         let object = try files.read((c.str)cached)
         defer object.release()
@@ -689,7 +689,7 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
     defer found.release()
     if found.value.exit_code != 0:
         error(build_failed, "xcrun could not find the SDK")
-    let sdk = try format(name_bytes[1024..<2048], f"{trim(found.value.output)}")
+    let sdk = try strings.format(name_bytes[1024..<2048], f"{trim(found.value.output)}")
     var ld_args = try Arguments.create()
     try ld_args.add("-arch")
     try ld_args.add((c.str)t.arch_name())
@@ -891,12 +891,12 @@ func build_library(code: str, header_text: str, name: str) -> !:
     defer workspace.destroy()
     let dir = workspace.path()
     var names_bytes: u8[4096]
-    let destination = try format(names_bytes[2048..<2560], f"{name}.a")
+    let destination = try strings.format(names_bytes[2048..<2560], f"{name}.a")
     let archive = try in_arena.join(dir, "library.a")
-    let header_path = try format(names_bytes[2560..<3072], f"{name}.h")
-    let object_path = try format(names_bytes[..<512], f"{dir}/gen.o")
+    let header_path = try strings.format(names_bytes[2560..<3072], f"{name}.h")
+    let object_path = try strings.format(names_bytes[..<512], f"{dir}/gen.o")
     if native_backend:
-        let asm_path = try format(names_bytes[512..<1024], f"{dir}/gen.s")
+        let asm_path = try strings.format(names_bytes[512..<1024], f"{dir}/gen.s")
         try files.write((c.str)asm_path, code.bytes)
         var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
         try run_tool("as", as_args, "the assembler rejected the generated code", dir)
@@ -906,16 +906,16 @@ func build_library(code: str, header_text: str, name: str) -> !:
         try ar_args.add((c.str)object_path)
         try run_tool("ar", ar_args.span(), "the archiver failed", dir)
     else:
-        let gen_path = try format(names_bytes[512..<1024], f"{dir}/gen.c")
-        let rt_header = try format(names_bytes[1024..<1536], f"{dir}/lucb_rt.h")
-        let rt_source = try format(names_bytes[1536..<2048], f"{dir}/lucb_rt.c")
+        let gen_path = try strings.format(names_bytes[512..<1024], f"{dir}/gen.c")
+        let rt_header = try strings.format(names_bytes[1024..<1536], f"{dir}/lucb_rt.h")
+        let rt_source = try strings.format(names_bytes[1536..<2048], f"{dir}/lucb_rt.c")
         try files.write((c.str)gen_path, code.bytes)
         try files.write((c.str)rt_header, runtime.header.bytes)
         try files.write((c.str)rt_source, runtime.source.bytes)
         var include_bytes: u8[600]
-        let include = try format(include_bytes, f"-I{dir}")
+        let include = try strings.format(include_bytes, f"-I{dir}")
         var rt_object_bytes: u8[600]
-        let rt_object = try format(rt_object_bytes, f"{dir}/rt.o")
+        let rt_object = try strings.format(rt_object_bytes, f"{dir}/rt.o")
         var gen_args = try Arguments.create()
         for flag in library_c_flags:
             try gen_args.add(flag)
@@ -935,7 +935,7 @@ func build_library(code: str, header_text: str, name: str) -> !:
         try ar_args.add((c.str)object_path)
         try ar_args.add((c.str)rt_object)
         try run_tool("ar", ar_args.span(), "the archiver failed", dir)
-    try workspace.publish(archive, destination)
+    try host_tools.publish(archive, destination)
     try files.write((c.str)header_path, header_text.bytes)
     try workspace.close()
 
@@ -976,8 +976,8 @@ func test_file(path: c.str, native: bool) -> i32!:
             return finished.value.exit_code
         let directory = try scratch_directory()
         defer remove_tree((c.str)directory)
-        let exe_name = try alloc u8[directory.length + 16]
-        let exe = try format(exe_name, f"{directory}/test.exe" if platform.windows else f"{directory}/test")
+        let exe_name = try new u8[directory.length + 16] ---
+        let exe = try strings.format(exe_name, f"{directory}/test.exe" if platform.windows else f"{directory}/test")
         try compile(&checker, entry, 1, exe, false, false)
         var run_args: c.str[1] = ---
         run_args[0] = (c.str)exe
@@ -989,7 +989,7 @@ func test_file(path: c.str, native: bool) -> i32!:
 
 func remove_tree(path: c.str):
     files.remove_tree(path) catch failure:
-        discard(failure)
+        _ = failure
 
 ## The program could not be built.
 pub let build_failed: ErrorCode = ErrorCode.package(13)
@@ -1105,8 +1105,8 @@ func classified(importer: str, root: str, name: str, base_only: bool) -> (str, m
     if try module_paths.names_modules(importer, name):
         return ("package", module_paths.Resolution(name, root, root))
     let resolved = try module_paths.resolve(importer, root, name, base_only)
-    let order = try alloc u8[resolved.path.length + 8]
-    let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try format(order, f"{resolved.path}/ORDER"))
+    let order = try new u8[resolved.path.length + 8] ---
+    let base = strings.ends_with(resolved.path, ".lucb") or files.exists((c.str)try strings.format(order, f"{resolved.path}/ORDER"))
     return ("base" if base else "luce", resolved)
 
 ## `resolve-all IMPORTER ROOT NAME... [-- IMPORTER ROOT NAME...]...`: the imports of one
@@ -1235,13 +1235,13 @@ func describe_closures(build_root: str, triples: c.str[], out: io.Writer) -> !:
                 try question.put((str)argument)
             record = try cache.record_key(question.view())
             if let answer = try cache.recall(record):
-                discard(try out.write(answer))
+                _ = try out.write(answer)
                 return
         var answer = try buffer.Buffer.create(65536)
         try closure_of(build_root, triples, &answer)
         if record.length > 0:
             cache.remember(record, answer.bytes())
-        discard(try out.write(answer.bytes()))
+        _ = try out.write(answer.bytes())
 
 ## The closures `describe_closures` describes, checked and written to `out`.
 func closure_of(build_root: str, triples: c.str[], out: io.Writer) -> !:
@@ -1256,9 +1256,9 @@ func closure_of(build_root: str, triples: c.str[], out: io.Writer) -> !:
     var at: usize = 0
     while at + 2 < triples.length:
         let root = (str)triples[at + 2]
-        let room = try alloc u8[root.length + 2]
+        let room = try new u8[root.length + 2] ---
         # a root is a directory the module paths below it are joined to
-        checker.root = try format(room, f"{root}/") if root.length > 0 and root.bytes[root.length - 1] != '/' else root
+        checker.root = try strings.format(room, f"{root}/") if root.length > 0 and root.bytes[root.length - 1] != '/' else root
         if checker.find_module((str)triples[at]) == none:
             try checker.load_as(triples[at + 1], (str)triples[at])
         at += 3
@@ -1314,7 +1314,7 @@ func fmt_file(path: c.str, mode: str, out: io.Writer) -> i32!:
         var p2 = try parser.Parser.over(again, scratch_of())
         p2.allow_core_names = true
         let reread = p2.parse_module() catch failure:
-            error(failure.code, try format(scratch_bytes[..<2048], f"the layout does not parse: {failure.message}"))
+            error(failure.code, try strings.format(scratch_bytes[..<2048], f"the layout does not parse: {failure.message}"))
         if not same_tree(module, reread):
             error(build_failed, "the layout reads back as a different tree; the formatter is wrong for this file")
         if mode == "--check":
@@ -1582,7 +1582,7 @@ pub func main(arguments: c.str[]) -> i32!:
     if command == "describe-closure" and positional >= 5 and (str)arguments[2] == "--cache-dir":
         # the cache Luce keeps, where the closure's answer is recorded (`describe_closures`)
         cache.override = (str)arguments[3]
-        var rest = try alloc c.str[positional - 2]
+        var rest = try new c.str[positional - 2] ---
         rest[0] = arguments[0]
         rest[1] = arguments[1]
         for k in 4..<positional:

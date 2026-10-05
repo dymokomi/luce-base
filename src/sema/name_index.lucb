@@ -11,6 +11,7 @@
 #==============================================================================================
 
 import memory
+import strings
 
 ## A name's innermost binding, as its index in the scope list plus one; 0 when unbound.
 pub struct NameIndex:
@@ -24,9 +25,9 @@ pub struct NameIndex:
     var allocator: memory.Allocator
 
     ## An empty index, with room for five hundred names before it grows.
-    pub static func create() -> NameIndex!:
-        let names = try alloc str[1024]
-        let heads = try alloc u32[1024]
+    pub func create() -> NameIndex!:
+        let names = try new str[1024] ---
+        let heads = try new u32[1024] ---
         for i in 0..<names.length:
             names[i] = ""
             heads[i] = 0
@@ -45,7 +46,7 @@ pub struct NameIndex:
             slot = (slot + 1) & mask
 
     ## Make `head` the innermost binding of `name` (0 when none is left).
-    pub mutating func set(name: str, head: u32) -> !:
+    pub func set(name: str, head: u32) -> !:
         if (self.used + 1) * 2 > self.names.length:
             try self.grow()
         let mask = self.names.length - 1
@@ -62,11 +63,11 @@ pub struct NameIndex:
                 return
             slot = (slot + 1) & mask
 
-    mutating func grow() -> !:
+    func grow() -> !:
         let old_names = self.names
         let old_heads = self.heads
-        self.names = try alloc str[old_names.length * 2] in self.allocator
-        self.heads = try alloc u32[old_names.length * 2] in self.allocator
+        self.names = try new str[old_names.length * 2] --- in self.allocator
+        self.heads = try new u32[old_names.length * 2] --- in self.allocator
         for i in 0..<self.names.length:
             self.names[i] = ""
             self.heads[i] = 0
@@ -97,8 +98,8 @@ test "a name's head follows its bindings and survives growth":
     assert(index.head("b") == 0)
     var buffer: u8[16]
     for i in 0..<2000:
-        let name = try format(buffer, f"n{i}")
-        var owned = try alloc u8[name.length]
+        let name = try strings.format(buffer, f"n{i}")
+        var owned = try new u8[name.length] ---
         for j in 0..<name.length:
             owned[j] = name.bytes[j]
         try index.set((str)owned, (u32)i + 10)

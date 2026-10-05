@@ -71,7 +71,7 @@ parts deserve names is better as a struct.
 ## Formatted text parameters
 
 A parameter of type `fmt` accepts a formatted string (`f"..."`) or a `str`. In the function
-it can only be passed on: to `print`, to `format`, to a `Writer`, or to another `fmt`
+it can only be passed on: to `print`, to `strings.format`, to a `Writer`, or to another `fmt`
 parameter. It cannot be stored or compared. The caller formats the text before the call.
 
 A parameter whose default is `luce.location` (of type `io.Location`) receives the caller's
@@ -112,14 +112,14 @@ value the method was called on; `self` is not written in the parameter list.
 struct Counter:
     pub var count: u32
 
-    mutating func add(amount: u32):
+    func add(amount: u32):
         self.count += amount
 
 extend Counter:
     func doubled() -> u32:
         return self.count * 2
 
-    mutating func reset():
+    func reset():
         self = Counter(count = 0)
 
 func bump_through(counter: Counter*):
@@ -145,19 +145,21 @@ pub func main(arguments: str[]) -> i32:
 0 10
 ```
 
-- **The receiver is passed by pointer**, not copied: a method receives `self` as a
-  `const Counter*`, and a `mutating` method as a `Counter*`. So calling a method on a large
-  struct costs nothing, and a `mutating` method's changes are visible to the caller.
-- **`mutating`** marks a method that changes the value: assigning to fields, or replacing
-  `self` entirely. It can only be called on something changeable: a `var`, a pointer
-  `T*`, or an element of a changeable span. Calling one on a `let` is the error "a mutating
-  method needs a `var` receiver".
+- **The receiver is passed by pointer**, not copied: a method that only reads receives
+  `self` as a `const Counter*`, and one that changes the value as a `Counter*`. So calling a
+  method on a large struct costs nothing, and a change is visible to the caller.
+- **A method changes its receiver** when its body assigns to `self` or one of its fields,
+  calls a method that does, or passes `&self.field` where a `T*` is wanted; `add` and
+  `reset` above do. Nothing is written for it: the compiler reads the body. Such a method
+  can only be called on something changeable, a `var`, a pointer `T*`, or an element of a
+  changeable span; calling `add` on a `let` is the error "`add` changes its receiver, so
+  it needs a `var` here".
 - **A method can be called through a pointer** without dereferencing: `counter.add(10)`
   with `counter: Counter*`. On a temporary, `Counter(count = 5).doubled()`, the value is
   materialised for the call.
-- **`static func`** has no receiver and is called through the type: `Point.origin()`.
-  (Elsewhere in Base, "not `pub`" already means private to the module, so `static` has only
-  this meaning.)
+- **A function in a type that never uses `self`** has no receiver and is called through
+  the type, `Point.origin()`, like Python's `@staticmethod`. One that implements an
+  interface's requirement stays a method, since a view calls it on a value.
 - **`value.member` without parentheses is always a field.** There are no computed
   properties; a computed value is a method.
 - A method named `init` is the initialiser; see [Structs](06-structs-and-enums.md).
@@ -169,7 +171,7 @@ A type with many methods can spread them across the files of its module with `ex
 ```luce
 # canvas/selecting.lucb, a file of the module that declares Canvas
 extend Canvas:
-    pub mutating func select_all():
+    pub func select_all():
         self.selected = self.area()
 ```
 

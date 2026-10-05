@@ -19,10 +19,10 @@ pub struct Builder: io.Writer:
     ## Reserve this many usable text bytes plus the NUL terminator. Zero chooses
     ## a default of 64 usable bytes. Size overflow reports memory.exhausted before
     ## allocation. The builder retains the allocating context for its lifetime.
-    pub static func create(capacity: usize = 0) -> Builder!:
+    pub func create(capacity: usize = 0) -> Builder!:
         let usable = capacity if capacity > 0 else 64
         let size = usable +? 1 else error(memory.exhausted, "the builder capacity is too large")
-        return Builder(data = try alloc u8[size], used = 0, owner = memory.allocator)
+        return Builder(data = try new u8[size] ---, used = 0, owner = memory.allocator)
 
     ## Usable text bytes before growth, excluding the terminator. Zero after destroy.
     pub func capacity() -> usize:
@@ -35,7 +35,7 @@ pub struct Builder: io.Writer:
     ## Ensure room for this many additional bytes and the NUL terminator. Growth
     ## uses the original allocator and preserves the old text if allocation fails.
     ## Growth invalidates borrowed views; a destroyed builder reports io.closed.
-    pub mutating func reserve(additional: usize) -> !:
+    pub func reserve(additional: usize) -> !:
         if self.data.length == 0:
             error(io.closed, "the string builder is destroyed")
         let total = self.used +? additional else error(memory.exhausted, "the builder size overflows")
@@ -51,7 +51,7 @@ pub struct Builder: io.Writer:
     ## Append bytes, including a view into this builder's current text. Preserve a
     ## self-view's offset before growth, then rebase it if the allocation moves.
     ## Aliased input must be wholly inside the initialized text, not spare capacity.
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         if self.data.length == 0:
             error(io.closed, "the string builder is destroyed")
         if data.length == 0:
@@ -73,24 +73,24 @@ pub struct Builder: io.Writer:
         return data.length
 
     ## Append `text` to the builder.
-    pub mutating func put(text: str) -> !:
-        discard(try self.write(text.bytes))
+    pub func put(text: str) -> !:
+        _ = try self.write(text.bytes)
 
     ## The text so far, NUL-terminated in the buffer: a borrowed view, invalid after
     ## write, clear, growing reserve, or destroy. A destroyed builder has an empty view.
-    pub mutating func view() -> str:
+    pub func view() -> str:
         if self.used < self.data.length:
             self.data[self.used] = 0
         return (str)self.data[..<self.used]
 
     ## Discard the contents, keeping the storage.
-    pub mutating func clear():
+    pub func clear():
         self.used = 0
 
     ## Shorten to a byte length without allocation. Reject lengths past the
     ## initialized text, preserving it on failure. This does not validate a UTF-8
     ## boundary. Previously borrowed views expire; a destroyed builder is closed.
-    pub mutating func truncate(length: usize) -> !:
+    pub func truncate(length: usize) -> !:
         if self.data.length == 0:
             error(io.closed, "the string builder is destroyed")
         if length > self.used:
@@ -99,7 +99,7 @@ pub struct Builder: io.Writer:
         self.data[length] = 0
 
     ## Give the bytes back; the builder is empty and holds nothing.
-    pub mutating func destroy():
+    pub func destroy():
         if self.data.length > 0:
             free(self.data) in self.owner
         var empty: u8[]

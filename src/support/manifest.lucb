@@ -50,7 +50,7 @@ pub struct Setting:
 ## A package name may be spelled `luce-ui`; the compiler's identifier for it is `luce_ui`.
 ## Other elements (tasks, the desktop bundle) and properties are luc's and are skipped.
 pub func settings(text: str) -> Setting[]!:
-    var out = try alloc Setting[count_lines(text) + 2]
+    var out = try new Setting[count_lines(text) + 2] ---
     var count: usize = 0
     var depth: usize = 0
     var kind: str = ""
@@ -111,15 +111,15 @@ pub func settings(text: str) -> Setting[]!:
                 return error(malformed, "a package names its public modules in `str[] public = [...]`, under `src/` (§16.4); `def export` is gone")
             elif kind == "native":
                 # The element's name says where it applies; parse keeps the ones for the target.
-                var room = try alloc u8[element.length + key.length + 1]
-                let scoped = try format(room, f"{element}/{key}")
+                var room = try new u8[element.length + key.length + 1] ---
+                let scoped = try strings.format(room, f"{element}/{key}")
                 out[count] = Setting(section = "[native]", key = scoped, value = raw)
                 count += 1
     return out[..<count]
 
 ## `luce-ui` as the identifier `luce_ui`.
 pub func identifier_of(name: str) -> str!:
-    var copy = try alloc u8[name.length]
+    var copy = try new u8[name.length] ---
     var i: usize = 0
     for b in name.bytes:
         copy[i] = '_' if b == '-' else b
@@ -129,7 +129,7 @@ pub func identifier_of(name: str) -> str!:
 ## Where luc unpacks a registry dependency that declares no checkout path.
 func deps_path(name: str) -> str!:
     let prefix = ".luc/deps/"
-    var copy = try alloc u8[prefix.length + name.length]
+    var copy = try new u8[prefix.length + name.length] ---
     var i: usize = 0
     for b in prefix.bytes:
         copy[i] = b
@@ -171,8 +171,8 @@ pub struct Manifest:
 pub func load(entry_path: str) -> Manifest!:
     var dir = directory_of(entry_path)
     while true:
-        var buffer = try alloc u8[dir.length + 16]
-        let candidate = try format(buffer, f"{dir}package.prisma")
+        var buffer = try new u8[dir.length + 16] ---
+        let candidate = try strings.format(buffer, f"{dir}package.prisma")
         if let text = read_if_present((c.str)candidate):
             return try parse((str)text, dir)
         if dir.length == 0:
@@ -241,7 +241,7 @@ pub func applies(name: str) -> bool:
 ## Search directories with a leading `$NAME` taken from the environment: `$VULKAN_SDK/Lib`
 ## is the SDK's library directory where the variable is set, and nothing where it is not.
 func searched(items: c.str[]) -> c.str[]!:
-    var out = try alloc c.str[items.length]
+    var out = try new c.str[items.length] ---
     var count: usize = 0
     for item in items:
         let text = (str)item
@@ -250,13 +250,13 @@ func searched(items: c.str[]) -> c.str[]!:
             count += 1
             continue
         let slash = strings.find(text, "/") else text.length
-        let name = try alloc u8[slash]
+        let name = try new u8[slash] ---
         memory.copy(name, text.bytes[1..<slash], slash - 1)
         name[slash - 1] = 0
         let value = os.env((c.str)name.data) else continue
         let rest = (str)text.bytes[slash..] if slash < text.length else ""
-        let room = try alloc u8[value.length + rest.length + 1]
-        let joined_text = try format(room, f"{value}{rest}")
+        let room = try new u8[value.length + rest.length + 1] ---
+        let joined_text = try strings.format(room, f"{value}{rest}")
         room[joined_text.length] = 0
         out[count] = (c.str)room.data
         count += 1
@@ -268,7 +268,7 @@ func joined(first: c.str[], second: c.str[]) -> c.str[]!:
         return second
     if second.length == 0:
         return first
-    var out = try alloc c.str[first.length + second.length]
+    var out = try new c.str[first.length + second.length] ---
     for index in 0..<first.length:
         out[index] = first[index]
     for index in 0..<second.length:
@@ -280,7 +280,7 @@ func items_of(value: str) -> c.str[]!:
     var body = value
     if body.length >= 2 and body.bytes[0] == '[' and body.bytes[body.length - 1] == ']':
         body = (str)body.bytes[1..<body.length - 1]
-    var out = try alloc c.str[body.length + 1]
+    var out = try new c.str[body.length + 1] ---
     var count: usize = 0
     var at: usize = 0
     while at < body.length:
@@ -292,7 +292,7 @@ func items_of(value: str) -> c.str[]!:
         if quote != '"' and quote != '\'':
             error(malformed, "a list holds quoted strings")
         at += 1
-        let text = try alloc u8[body.length + 1]
+        let text = try new u8[body.length + 1] ---
         var used: usize = 0
         var ended = false
         while at < body.length:
@@ -334,7 +334,7 @@ func items_of(value: str) -> c.str[]!:
 ## The strings of a manifest list, `["ui", "widgets.button"]`, in order.
 pub func strings_of(value: str) -> str[]!:
     let items = try items_of(value)
-    var out = try alloc str[items.length]
+    var out = try new str[items.length] ---
     for k in 0..<items.length:
         out[k] = try strings.copy((str)items[k])
     return out
@@ -365,7 +365,7 @@ func trim(text: str) -> str:
     return (str)b[start..<end]
 
 func no_items() -> c.str[]!:
-    var none_at_all = try alloc c.str[1]
+    var none_at_all = try new c.str[1] ---
     return none_at_all[..<0]
 
 ## The directory part of a path, with its trailing slash; empty for a bare name.
@@ -447,4 +447,4 @@ test "a search directory may start from an environment variable, and goes where 
     let home = os.env("HOME") else return
     assert(m.link_search.length == 2 and (str)m.link_search[1] == "vendor")
     var expected: u8[1024]
-    assert((str)m.link_search[0] == try format(expected, f"{home}/lib"))
+    assert((str)m.link_search[0] == try strings.format(expected, f"{home}/lib"))

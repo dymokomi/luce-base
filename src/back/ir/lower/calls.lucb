@@ -10,7 +10,7 @@ extend Lowerer:
     # mark: Calls ==============================================================================
 
     ## An argument description from a value.
-    mutating func arg_of(v: LowerValue, freeze: bool = false) -> ir.Arg!:
+    func arg_of(v: LowerValue, freeze: bool = false) -> ir.Arg!:
         if v.in_memory:
             # A later argument may mutate the original record. Freeze this value
             # when it is evaluated, before the call's ABI reads its bytes.
@@ -25,7 +25,7 @@ extend Lowerer:
         return ir.Arg(value = v.ref, cls = cls, size = 0, align = 8, type_id = v.type_id, shape = 0, scalar_width = (u32)self.scalar_size(v.type_id))
 
     ## A call of a named symbol whose arguments are already pushed; the scalar result.
-    mutating func call_named(name: str, start: u32, count: u32, cls: ir.Class, has_result: bool, result_type: u32) -> ir.Ref!:
+    func call_named(name: str, start: u32, count: u32, cls: ir.Class, has_result: bool, result_type: u32) -> ir.Ref!:
         let info = ir.CallInfo(args_start = start, args_count = count, fixed_count = count, variadic = false, result_cls = cls, has_result = has_result, result_size = 0, result_align = 8, result_type = result_type, result_slot = 0, result_shape = 0)
         try self.f.calls.push(info)
         var dst: u32 = 0
@@ -36,7 +36,7 @@ extend Lowerer:
 
     ## A call through a callee reference with a Base function type: pushes the
     ## arguments per the declaration (names, defaults), classifies the result.
-    mutating func call_through(callee: ir.Ref, fn: u32, decl: ast.Node*?, args: ast.Node*?, receiver: ir.Ref, has_receiver: bool, template: ast.Node*?, template_args: u32[]) -> LowerValue!:
+    func call_through(callee: ir.Ref, fn: u32, decl: ast.Node*?, args: ast.Node*?, receiver: ir.Ref, has_receiver: bool, template: ast.Node*?, template_args: u32[]) -> LowerValue!:
         let f = self.c.table.get(fn)
         let grown_before = self.grown.count
         # the arguments are evaluated first, into a list of their own, because evaluating
@@ -65,7 +65,7 @@ extend Lowerer:
             try self.f.args.push(pending.get(k))
             k += 1
         let count = u32(pending.count)
-        let result = self.declared_result(decl, f.elem) if outs.count > 0 else f.elem
+        let result = declared_result(decl, f.elem) if outs.count > 0 else f.elem
         let info = try self.call_info(start, count, fixed, f.variadic, result)
         try self.f.calls.push(info)
         var dst: u32 = 0
@@ -75,8 +75,8 @@ extend Lowerer:
         # the formatted arguments' text, read by the call, is done with
         try self.release_grown(grown_before)
         self.grown.count = grown_before
-        discard(template)
-        discard(template_args)
+        _ = template
+        _ = template_args
         var answered = LowerValue(ref = ir.const_ref(0), type_id = result, in_memory = false)
         if info.has_result and info.result_size == 0:
             answered = LowerValue(ref = ir.temp_ref(dst), type_id = result, in_memory = false)
@@ -90,7 +90,7 @@ extend Lowerer:
     ## order: each supplied one as evaluated in source order, a default for one not given,
     ## a slot's address for each `out` parameter (recorded in `outs`), and a variadic's
     ## extra arguments last. The count of fixed arguments.
-    mutating func declared_arguments(d: ast.Node*, f: types.Type, args: ast.Node*?, pending: list.List[ir.Arg]*, outs: LowerOuts*) -> u32!:
+    func declared_arguments(d: ast.Node*, f: types.Type, args: ast.Node*?, pending: list.List[ir.Arg]*, outs: LowerOuts*) -> u32!:
         let supplied = try self.supplied_arguments(d, f, args)
         var pi: usize = 0
         var param = d.right
@@ -130,7 +130,7 @@ extend Lowerer:
 
     ## The supplied arguments of a call of `d`, evaluated in source order against the
     ## parameters they bind to, positional or named; past the parameters, as variadic ones.
-    mutating func supplied_arguments(d: ast.Node*, f: types.Type, args: ast.Node*?) -> list.List[LowerCallArgument]!:
+    func supplied_arguments(d: ast.Node*, f: types.Type, args: ast.Node*?) -> list.List[LowerCallArgument]!:
         var supplied = try list.List[LowerCallArgument].create(8)
         var source_position: usize = 0
         var source = args
@@ -153,7 +153,7 @@ extend Lowerer:
 
     ## A call's description: its arguments, and its result, none for `unit` and `never`, a
     ## scalar's class, or an aggregate's size, alignment, slot, and shape.
-    mutating func call_info(start: u32, count: u32, fixed: u32, variadic: bool, result: u32) -> ir.CallInfo!:
+    func call_info(start: u32, count: u32, fixed: u32, variadic: bool, result: u32) -> ir.CallInfo!:
         var info = ir.CallInfo(args_start = start, args_count = count, fixed_count = fixed, variadic = variadic, result_cls = ir.Class.l, has_result = false, result_size = 0, result_align = 8, result_type = result, result_slot = 0, result_shape = 0)
         if result != types.unit_id and result != types.never_id:
             info.has_result = true
@@ -166,17 +166,9 @@ extend Lowerer:
                 info.result_shape = try self.shape_of(result)
         return info
 
-    ## The result C declared, when the function type's result also counts `out` values.
-    func declared_result(decl: ast.Node*?, answered: u32) -> u32:
-        let d = decl else return answered
-        if d.kind != ast.Kind.extern_func:
-            return answered
-        let r = d.ty else return types.unit_id
-        return r.type_id
-
     ## The value a call with `out` parameters answers (§17.1): the declared result followed
     ## by each `out` slot's value, as the tuple `t`, or the one value alone.
-    mutating func with_out_values(declared: LowerValue, t: u32, slots: u32[], slot_types: u32[]) -> LowerValue!:
+    func with_out_values(declared: LowerValue, t: u32, slots: u32[], slot_types: u32[]) -> LowerValue!:
         if self.kind(t) != types.Kind.tuple:
             return try self.load_from(try self.slot_address(slots[0]), slot_types[0])
         let tt = self.c.table.get(t)
@@ -199,7 +191,7 @@ extend Lowerer:
         return LowerValue(ref = a, type_id = t, in_memory = true)
 
     ## An argument: its parameter's type, with text passed as bytes where wanted.
-    mutating func argument_value(v: ast.Node*, want: u32) -> LowerValue!:
+    func argument_value(v: ast.Node*, want: u32) -> LowerValue!:
         let have = try self.ty(v)
         if v.kind == ast.Kind.formatted:
             # an f"..." argument, as bytes or `fmt`: its text may be any length (§5.5)
@@ -210,7 +202,7 @@ extend Lowerer:
             return LowerValue(ref = text.ref, type_id = want, in_memory = true)
         return try self.value(v, want)
 
-    mutating func variadic_value(v: ast.Node*) -> LowerValue!:
+    func variadic_value(v: ast.Node*) -> LowerValue!:
         let have = try self.ty(v)
         if have == types.str_id:
             let text = try self.expr(v)
@@ -224,7 +216,7 @@ extend Lowerer:
             return LowerValue(ref = widened, type_id = types.f64_id, in_memory = false)
         return x
 
-    mutating func call(e: ast.Node*) -> LowerValue!:
+    func call(e: ast.Node*) -> LowerValue!:
         let callee = e.left else return try self.fail(e, "no callee")
         if let d = e.resolved:
             if self.c.is_memory_frame(d):
@@ -241,7 +233,7 @@ extend Lowerer:
         let fv = try self.expr(callee)
         return try self.call_through(fv.ref, try self.ty(callee), none, e.body, ir.none_ref(), false, none, try types.no_args())
 
-    mutating func direct_call(e: ast.Node*, d: ast.Node*, owner: ast.Node*?, owner_args: u32[]) -> LowerValue!:
+    func direct_call(e: ast.Node*, d: ast.Node*, owner: ast.Node*?, owner_args: u32[]) -> LowerValue!:
         var args = try types.no_args()
         if let holder = e.ty:
             args = try self.type_args(holder)
@@ -257,7 +249,7 @@ extend Lowerer:
         if d.kind == ast.Kind.extern_func:
             callee = ir.function_ref(names.c_symbol(d))
         else:
-            discard(try self.add_func(d, args, owner, owner_args))
+            _ = try self.add_func(d, args, owner, owner_args)
             callee = ir.function_ref(try self.function_name(d, args, owner, owner_args))
         var v = try self.call_through(callee, fn, d, e.body, ir.none_ref(), false, none, args)
         if d.kind == ast.Kind.extern_func and not v.in_memory and (self.is_int(v.type_id) or v.type_id == types.bool_id) and self.scalar_size(v.type_id) < 4:
@@ -274,13 +266,13 @@ extend Lowerer:
             try self.f.place_label(ok)
         return v
 
-    ## `memcpy(target, source, n)` with `n` known here, `sizeof(T)` or a literal, and at most
+    ## `memcpy(target, source, n)` with `n` known here, `memory.size_of(T)` or a literal, and at most
     ## `small_copy_limit` bytes: the copy itself, the loads and stores the generators inline
     ## for a block copy, not a call through the dynamic linker's stub. `memory.read[u32]` and
     ## `memory.write[u32]` are such copies, and then come to one unaligned load or store once
     ## the copy's local is forwarded. None when the size is anything else; nothing is
     ## evaluated then.
-    mutating func small_copy(e: ast.Node*) -> LowerValue?!:
+    func small_copy(e: ast.Node*) -> LowerValue?!:
         let first = e.body else return none
         let second = first.next else return none
         let third = second.next else return none
@@ -292,7 +284,7 @@ extend Lowerer:
             let callee = count.left else return none
             let measured = count.body else return none
             let of = measured.left else return none
-            if callee.kind != ast.Kind.name or callee.text != "sizeof" or callee.resolved != none:
+            if callee.kind != ast.Kind.name or callee.text != "size_of" or callee.resolved != none:
                 return none
             n = self.c.table.size_of(try self.map(of.type_id))
         elif count.kind == ast.Kind.literal:
@@ -307,7 +299,7 @@ extend Lowerer:
         try self.f.copy_bytes(t.ref, s.ref, u32(n))
         return LowerValue(ref = t.ref, type_id = try self.ty(e), in_memory = false)
 
-    mutating func member_call(e: ast.Node*, callee: ast.Node*) -> LowerValue!:
+    func member_call(e: ast.Node*, callee: ast.Node*) -> LowerValue!:
         let receiver = callee.left else return try self.fail(e, "no receiver")
         let rt_raw = try self.ty(receiver)
         if self.kind(rt_raw) == types.Kind.module:
@@ -373,7 +365,7 @@ extend Lowerer:
             args = try self.type_args(holder)
         if args.length > 0:
             fn = try self.c.substitute(fn, impl, args)
-        discard(try self.add_func(impl, args, t.decl, t.args))
+        _ = try self.add_func(impl, args, t.decl, t.args)
         let name = try self.function_name(impl, args, t.decl, t.args)
         var self_ref = ir.none_ref()
         var has_self = false
@@ -388,7 +380,7 @@ extend Lowerer:
 
     ## The address a method's `self` takes: the receiver's place, or a temporary holding a
     ## value receiver, `Flags.a.name()` or a call's result.
-    mutating func receiver_address(receiver: ast.Node*, rt: u32) -> ir.Ref!:
+    func receiver_address(receiver: ast.Node*, rt: u32) -> ir.Ref!:
         if self.c.is_place(receiver):
             return try self.place(receiver)
         let v = try self.expr(receiver)
@@ -400,7 +392,7 @@ extend Lowerer:
         return address
 
     ## `a.compare(b)` on a number, `char`, or `str`: negative, zero, or positive (§14.4).
-    mutating func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32, result: u32) -> LowerValue!:
+    func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32, result: u32) -> LowerValue!:
         let first = e.body else return try self.fail(e, "`compare` takes one argument")
         let other = first.left else return try self.fail(e, "empty argument")
         if rt == types.str_id:
@@ -421,7 +413,7 @@ extend Lowerer:
         return LowerValue(ref = try self.f.unary(ir.Op.extsw, ir.Class.l, diff), type_id = result, in_memory = false)
 
     ## A module-level `asm arm64:` block (§8.9): its lines go into the unit verbatim.
-    mutating func module_asm(d: ast.Node*) -> !:
+    func module_asm(d: ast.Node*) -> !:
         var text = try buffer.Buffer.create(64)
         var lines = d.body
         while let l = lines:
@@ -432,7 +424,7 @@ extend Lowerer:
 
     ## `a.mul_add(b, c)` (§7.2): `a * b + c` rounded once, on a scalar or lane by lane on a
     ## vector; one instruction where the target fuses (`isa.has_fma`), else the C library's.
-    mutating func mul_add(e: ast.Node*, receiver: ast.Node*, rt: u32) -> LowerValue!:
+    func mul_add(e: ast.Node*, receiver: ast.Node*, rt: u32) -> LowerValue!:
         let first = e.body else return try self.fail(e, "`mul_add` takes two arguments")
         let second = first.next else return try self.fail(e, "`mul_add` takes two arguments")
         let bn = first.left else return try self.fail(e, "empty argument")
@@ -459,7 +451,7 @@ extend Lowerer:
         return LowerValue(ref = out, type_id = rt, in_memory = true)
 
     ## `a * b + c` rounded once for a float of type `t`: `fma`, or a call of `fma`/`fmaf`.
-    mutating func scalar_fma(t: u32, a: ir.Ref, b: ir.Ref, c: ir.Ref) -> ir.Ref!:
+    func scalar_fma(t: u32, a: ir.Ref, b: ir.Ref, c: ir.Ref) -> ir.Ref!:
         let cls = self.class_of(t)
         if isa.has_fma(self.target.arch, self.target.level, 0):
             return try self.fused(cls, a, b, c, 0)
@@ -469,7 +461,7 @@ extend Lowerer:
         return try self.call_named("fmaf" if t == types.f32_id else "fma", start, 3, cls, true, t)
 
     ## An `fma` instruction: `c` goes in the argument list, where `ir.argument_range` finds it.
-    mutating func fused(cls: ir.Class, a: ir.Ref, b: ir.Ref, c: ir.Ref, shape: u32) -> ir.Ref!:
+    func fused(cls: ir.Class, a: ir.Ref, b: ir.Ref, c: ir.Ref, shape: u32) -> ir.Ref!:
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = c, cls = cls, size = 0, align = 16 if cls == ir.Class.v else 8, type_id = types.none_id, shape = 0))
         let t = try self.f.temp(cls)
@@ -478,7 +470,7 @@ extend Lowerer:
 
     ## The receiver of a method the compiler supplies, as a value of type `rt`: a pointer
     ## receiver (`key.bits()` with `key: const f32*`) is read through.
-    mutating func receiver_value(receiver: ast.Node*, rt: u32) -> LowerValue!:
+    func receiver_value(receiver: ast.Node*, rt: u32) -> LowerValue!:
         let have = try self.ty(receiver)
         if self.is_ptr(have) and not self.is_ptr(rt):
             let address = try self.value(receiver, have)
@@ -486,7 +478,7 @@ extend Lowerer:
         return try self.value(receiver, rt)
 
     ## `first()` and `last()` on spans; `bits()` on floats.
-    mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> LowerValue!:
+    func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> LowerValue!:
         let result = try self.ty(e)
         if callee.text == "compare":
             return try self.compare_call(e, receiver, rt, result)
@@ -532,7 +524,7 @@ extend Lowerer:
 
     # -- constructions --------------------------------------------------------------------
 
-    mutating func construct_or_convert(e: ast.Node*, callee: ast.Node*) -> LowerValue!:
+    func construct_or_convert(e: ast.Node*, callee: ast.Node*) -> LowerValue!:
         let target = try self.ty(e)
         if self.is_vector(target):
             return try self.splat(e, target)
@@ -548,12 +540,12 @@ extend Lowerer:
             return try self.str_conversion(v, self.is_fail(target))
         let first = e.body else return try self.fail(e, "no argument")
         let v = first.left else return try self.fail(e, "no argument")
-        discard(callee)
+        _ = callee
         return try self.conversion(v, target, true)
 
     ## Store supplied fields in source order, then defaults in declaration order.
     ## Each store snapshots its value before another initializer can mutate it.
-    mutating func constructor(e: ast.Node*, id: u32) -> LowerValue!:
+    func constructor(e: ast.Node*, id: u32) -> LowerValue!:
         let d = self.decl_of(id) else return try self.fail(e, "no record")
         let t = self.c.table.get(id)
         let a = try self.slot_address(try self.new_slot(id))
@@ -577,17 +569,17 @@ extend Lowerer:
         return LowerValue(ref = a, type_id = id, in_memory = true)
 
     ## Run initialization in its final storage; `new` must not relocate `self`.
-    mutating func initialize_at(e: ast.Node*, init: ast.Node*, id: u32, address: ir.Ref) -> LowerValue!:
+    func initialize_at(e: ast.Node*, init: ast.Node*, id: u32, address: ir.Ref) -> LowerValue!:
         let t = self.c.table.get(id)
         var fn = try self.map(init.type_id)
         if let o = t.decl:
             fn = try self.c.substitute(fn, o, t.args)
-        discard(try self.add_func(init, try types.no_args(), t.decl, t.args))
+        _ = try self.add_func(init, try types.no_args(), t.decl, t.args)
         let name = try self.function_name(init, try types.no_args(), t.decl, t.args)
         try self.f.zero_bytes(address, self.size(id))
         return try self.call_through(ir.function_ref(name), fn, init, e.body, address, true, none, try types.no_args())
 
-    mutating func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> LowerValue!:
+    func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> LowerValue!:
         let slot = try self.new_slot(id)
         let a = try self.slot_address(slot)
         let r = try self.initialize_at(e, init, id, a)
@@ -603,7 +595,7 @@ extend Lowerer:
 
     # -- core functions -------------------------------------------------------------------
 
-    mutating func intrinsic(e: ast.Node*, name: str) -> LowerValue!:
+    func intrinsic(e: ast.Node*, name: str) -> LowerValue!:
         var arg: ast.Node*? = none
         var second: ast.Node*? = none
         if let f = e.body:
@@ -619,7 +611,7 @@ extend Lowerer:
             let text = try self.expr(v)
             let start = u32(self.f.args.count)
             try self.f.args.push(try self.arg_of(LowerValue(ref = text.ref, type_id = types.str_id, in_memory = true)))
-            discard(try self.call_named("lb_core_9print_str", start, 1, ir.Class.w, false, types.unit_id))
+            _ = try self.call_named("lb_core_9print_str", start, 1, ir.Class.w, false, types.unit_id)
             return nothing
         if name == "format":
             let buf = arg else return try self.fail(e, "no buffer")
@@ -642,7 +634,7 @@ extend Lowerer:
                 try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
                 try self.f.args.push(ir.Arg(value = try self.f.address_of(ir.text_ref(prefix)), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
                 try self.f.args.push(try self.arg_of(LowerValue(ref = detail.ref, type_id = types.str_id, in_memory = true)))
-                discard(try self.call_named("lb_core_14trap_detail_at", start, 3, ir.Class.w, false, types.unit_id))
+                _ = try self.call_named("lb_core_14trap_detail_at", start, 3, ir.Class.w, false, types.unit_id)
             else:
                 try self.trap_with(where)
             try self.f.place_label(ok)
@@ -653,40 +645,15 @@ extend Lowerer:
         if name == "error":
             try self.error_return(e)
             return LowerValue(ref = ir.const_ref(0), type_id = types.never_id, in_memory = false)
-        if name == "discard":
-            let v = arg else return try self.fail(e, "no argument")
-            discard(try self.expr(v))
-            return nothing
         if name == "hash":
             let v = arg else return try self.fail(e, "no argument")
             return try self.hash_of(v)
-        if name == "hex" or name == "bin":
-            let v = arg else return try self.fail(e, "no argument")
-            let x = try self.expr(v)
-            let word = try self.to_word(x.ref, x.type_id) if x.type_id != types.untyped_int_id else x.ref
-            let start = u32(self.f.args.count)
-            try self.f.args.push(ir.Arg(value = word, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, shape = 0))
-            return try self.call_aggregate("lb_core_8show_hex" if name == "hex" else "lb_core_8show_bin", start, 1, types.str_id)
-        if name == "pad":
-            let v = arg else return try self.fail(e, "no argument")
-            let w = second else return try self.fail(e, "no width")
-            let (fb, chars) = try self.fresh_format_buffer(256)
-            try self.display(fb, v)
-            let start = u32(self.f.args.count)
-            try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            let inner = try self.call_aggregate("lb_core_13format_finish", start, 1, types.str_id)
-            let wv = try self.value(w, types.usize_id)
-            let start2 = u32(self.f.args.count)
-            try self.f.args.push(try self.arg_of(inner))
-            try self.f.args.push(ir.Arg(value = wv.ref, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            discard(chars)
-            return try self.call_aggregate("lb_core_8show_pad", start2, 2, types.str_id)
-        if name == "sizeof" or name == "alignof":
+        if name == "size_of" or name == "align_of":
             let v = arg else return try self.fail(e, "no argument")
             let t = try self.map(v.type_id)
-            let n = self.c.table.size_of(t) if name == "sizeof" else self.c.table.align_of(t)
+            let n = self.c.table.size_of(t) if name == "size_of" else self.c.table.align_of(t)
             return LowerValue(ref = ir.const_ref((i64)n), type_id = types.usize_id, in_memory = false)
-        if name == "offsetof":
+        if name == "offset_of":
             let tv = arg else return try self.fail(e, "no type")
             let fv = second else return try self.fail(e, "no field")
             let t = try self.map(tv.type_id)
@@ -694,7 +661,7 @@ extend Lowerer:
         return try self.fail(e, "unknown core function")
 
     ## A runtime call answering a small aggregate (`lb_str`) into a slot.
-    mutating func call_aggregate(name: str, start: u32, count: u32, result_type: u32) -> LowerValue!:
+    func call_aggregate(name: str, start: u32, count: u32, result_type: u32) -> LowerValue!:
         let slot = try self.new_slot(result_type)
         let info = ir.CallInfo(args_start = start, args_count = count, fixed_count = count, variadic = false, result_cls = ir.Class.l, has_result = true, result_size = self.size(result_type), result_align = self.align(result_type), result_type = result_type, result_slot = slot, result_shape = try self.shape_of(result_type))
         try self.f.calls.push(info)
@@ -702,7 +669,7 @@ extend Lowerer:
         return LowerValue(ref = try self.slot_address(slot), type_id = result_type, in_memory = true)
 
     ## The standard calls no Base body can express: `atomic.fence` and the C streams.
-    mutating func std_call(e: ast.Node*, module: str, name: str, d: ast.Node*) -> LowerValue!:
+    func std_call(e: ast.Node*, module: str, name: str, d: ast.Node*) -> LowerValue!:
         if module == "atomic" and name == "fence":
             let first = e.body else return try self.fail(e, "no order")
             let order = first.left else return try self.fail(e, "no order")
@@ -721,11 +688,11 @@ extend Lowerer:
         return try self.direct_call(e, d, none, try types.no_args())
 
     ## The operations of `@T` (§15.1).
-    mutating func atomic_call(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, through_ptr: bool) -> LowerValue!:
+    func atomic_call(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, through_ptr: bool) -> LowerValue!:
         let name = callee.text
         let et = self.elem(rt)
         var args: MaybeNode[5]
-        discard(calls.argument_values(e, args[0..]))
+        _ = calls.argument_values(e, args[0..])
         var address = ir.none_ref()
         if through_ptr:
             let p = try self.expr(receiver)
@@ -807,6 +774,14 @@ extend Lowerer:
         let t = try self.f.temp(cls)
         try self.f.instrs.push(ir.Instr(op = op, cls = cls, dst = t, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0, scope = 0, site = 0))
         return LowerValue(ref = ir.temp_ref(t), type_id = et, in_memory = false)
+
+## The result C declared, when the function type's result also counts `out` values.
+func declared_result(decl: ast.Node*?, answered: u32) -> u32:
+    let d = decl else return answered
+    if d.kind != ast.Kind.extern_func:
+        return answered
+    let r = d.ty else return types.unit_id
+    return r.type_id
 
 ## The argument `node`'s value, evaluated earlier into `supplied`, onto `pending`.
 func push_supplied(pending: list.List[ir.Arg]*, supplied: const list.List[LowerCallArgument]*, node: ast.Node*) -> !:

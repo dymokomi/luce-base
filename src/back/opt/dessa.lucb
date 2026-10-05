@@ -37,9 +37,9 @@ struct Moves:
     var start: u32[]
     var owner: u32[]
 
-    static func over(f: ir.Function*, g: cfg.Graph*) -> Moves!:
+    func over(f: ir.Function*, g: cfg.Graph*) -> Moves!:
         let nb = g.count()
-        var m = Moves(items = try list.List[Move].create(32), start = try alloc u32[nb + 2], owner = try alloc u32[f.temps.count + 1])
+        var m = Moves(items = try list.List[Move].create(32), start = try new u32[nb + 2] ---, owner = try new u32[f.temps.count + 1] ---)
         var k: usize = 0
         while k < m.start.length:
             m.start[k] = 0
@@ -72,7 +72,7 @@ struct Moves:
         while b < nb:
             m.start[b + 1] += m.start[b]
             b += 1
-        var fill = try alloc u32[nb + 1]
+        var fill = try new u32[nb + 1] ---
         defer free(fill)
         b = 0
         while b <= nb:
@@ -90,7 +90,7 @@ struct Moves:
             k += 1
         return m
 
-    mutating func release():
+    func release():
         self.items.destroy()
         free(self.start)
         free(self.owner)
@@ -106,7 +106,7 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
     # which predecessors need a block of their own: a branch with copies for a successor
     # that has other predecessors
     let nb = g.count()
-    var split_label = try alloc u32[nb + 1]
+    var split_label = try new u32[nb + 1] ---
     defer free(split_label)
     var k: usize = 0
     while k <= nb:

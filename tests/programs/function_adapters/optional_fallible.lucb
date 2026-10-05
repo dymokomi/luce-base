@@ -22,7 +22,7 @@ let table: Entry[1] = [Entry(getter = get)]
 func called(entry: Entry) -> i32:
     if let g = entry.getter:
         return g(4) catch failure:
-            discard(failure)
+            _ = failure
             recover -1
     return -2
 

@@ -10,23 +10,6 @@
 extend Checker:
     # mark: The escape rule ====================================================================
 
-    ## A tuple or array literal holding a local's address is as local as that address:
-    ## `return (1, &n)` leaves the frame through the tuple (§6.6).
-    mutating func mark_if_member_local(e: ast.Node*):
-        var cursor = e.body
-        while let m = cursor:
-            if self.is_local_value(m):
-                self.mark_local(e)
-                return
-            cursor = m.next
-
-    ## §6.6: whether an expression's value is the address of a local, or aliases one.
-    func is_local_value(e: ast.Node*) -> bool:
-        return e.has(ast.flag_local)
-
-    mutating func mark_local(e: ast.Node*):
-        e.flags |= ast.flag_local
-
     ## Whether a place (an lvalue) is rooted in the current frame: a local `var`/`let`/param,
     ## an element or field reached from one, or a dereference of a local pointer.
     func place_is_local(e: ast.Node*) -> bool:
@@ -48,21 +31,21 @@ extend Checker:
                 if ok == types.Kind.module:
                     return false  # `module.global`
                 if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
-                    return self.is_local_value(owner)  # wherever the pointer or view points
+                    return is_local_value(owner)  # wherever the pointer or view points
                 return self.place_is_local(owner)
             .index:
                 let owner = e.left else return false
                 let ok = self.table.kind(owner.type_id)
                 if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
-                    return self.is_local_value(owner)
-                return self.place_is_local(owner) or self.is_local_value(owner)
+                    return is_local_value(owner)
+                return self.place_is_local(owner) or is_local_value(owner)
             .unary:
                 if e.text == "*":
                     let inner = e.left else return false
-                    return self.is_local_value(inner)
-                return self.is_local_value(e)
+                    return is_local_value(inner)
+                return is_local_value(e)
             _:
-                return self.is_local_value(e)
+                return is_local_value(e)
 
     ## Whether a store to this place may outlive the function, as §6.6 lists: a global, or a
     ## place reached through a pointer or view that is a parameter (or `self`). A pointer
@@ -106,7 +89,7 @@ extend Checker:
         return d.kind == ast.Kind.param
 
     ## Record on a binding that it holds a local address (a `let` alias of §6.6).
-    mutating func set_from_local(name: str, taint: bool):
+    func set_from_local(name: str, taint: bool):
         var at = self.names.head(name)
         while at > 0:
             var b = self.scope.get((usize)at - 1)
@@ -143,7 +126,7 @@ extend Checker:
 
     # mark: Places =============================================================================
 
-    ## May `e` be assigned to, or have a mutating method called on it?
+    ## May `e` be assigned to, or have a method that changes its receiver called on it?
     func is_mutable_place(e: ast.Node*) -> bool:
         match e.kind:
             .name:
@@ -189,3 +172,20 @@ extend Checker:
     ## const pointer; a `var` yields a mutable one.
     func address_is_const(e: ast.Node*) -> bool:
         return not self.is_mutable_place(e)
+
+## A tuple or array literal holding a local's address is as local as that address:
+## `return (1, &n)` leaves the frame through the tuple (§6.6).
+func mark_if_member_local(e: ast.Node*):
+    var cursor = e.body
+    while let m = cursor:
+        if is_local_value(m):
+            mark_local(e)
+            return
+        cursor = m.next
+
+## §6.6: whether an expression's value is the address of a local, or aliases one.
+func is_local_value(e: ast.Node*) -> bool:
+    return e.has(ast.flag_local)
+
+func mark_local(e: ast.Node*):
+    e.flags |= ast.flag_local

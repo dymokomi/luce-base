@@ -108,7 +108,7 @@ func argument_names(args: ast.Node*?, f: ast.Node*, d: ast.Node*) -> bool:
 func clip(buffer: u8[], text: str) -> str!:
     if text.length <= 64:
         return text
-    return try format(buffer, f"{(str)text.bytes[..<60]}...")
+    return try strings.format(buffer, f"{(str)text.bytes[..<60]}...")
 
 ## Whether asm block `s` has a `reg` operand whose expression is the name `name`.
 pub func asm_names_operand(s: ast.Node*, name: str) -> bool:
@@ -312,8 +312,9 @@ pub func scalar_id(name: str) -> u32:
     return types.none_id
 
 ## The core functions (§3.5) and modules that no declaration may shadow.
+## Whether `name` is one of the core functions of §3.5.
 func is_intrinsic(name: str) -> bool:
-    let names: str[13] = ["assert", "discard", "error", "trap", "hash", "print", "format", "sizeof", "alignof", "offsetof", "hex", "bin", "pad"]
+    let names: str[4] = ["assert", "error", "trap", "print"]
     for n in names:
         if n == name:
             return true
@@ -611,6 +612,6 @@ pub func is_identifier(name: str) -> bool:
 
 ## A list of one type argument, `id`.
 func one_arg(id: u32) -> u32[]!:
-    var one = try alloc u32[1]
+    var one = try new u32[1] ---
     one[0] = id
     return one

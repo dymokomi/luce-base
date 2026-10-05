@@ -22,17 +22,17 @@ pub struct Owner[T]:
     var active: usize
 
     ## Whether the owner has not been closed.
-    pub static func is_open(object: ownership.Object*) -> bool:
+    pub func is_open(object: ownership.Object*) -> bool:
         ownership.check_alive(object)
         return not ((Owner[T]*)object).closed
 
     ## Begin a native call guard, retaining the object.
-    pub static func enter(object: ownership.Object*):
-        discard(ownership.retain(object))
+    pub func enter(object: ownership.Object*):
+        _ = ownership.retain(object)
         ((Owner[T]*)object).active += 1
 
     ## End a native call guard, disposing the owner once closed and idle.
-    pub static func leave(object: ownership.Object*):
+    pub func leave(object: ownership.Object*):
         ownership.check_alive(object)
         let owner = (Owner[T]*)object
         if owner.active == 0:
@@ -43,11 +43,11 @@ pub struct Owner[T]:
         ownership.release(object)
 
     ## The collector's finalizer: close the owner.
-    pub static func finish_owner(object: ownership.Object*):
+    pub func finish_owner(object: ownership.Object*):
         close_owner[T]((Owner[T]*)object)
 
     ## Free the owner's native storage.
-    pub static func drop_owner(object: ownership.Object*):
+    pub func drop_owner(object: ownership.Object*):
         let owner = (Owner[T]*)object
         if let native = owner.native:
             let allocator = owner.native_allocator else trap("native storage has no allocator")
@@ -55,7 +55,7 @@ pub struct Owner[T]:
             free(native) in allocator
 
     ## Visit the native value's strong references.
-    pub static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    pub func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         let owner = (Owner[T]*)object
         if owner.disposed:
             return
@@ -88,16 +88,16 @@ pub struct Reservation[T]:
     pub func init(declaration: Type[T]) -> !:
         if declaration.main_thread and not thread.is_main():
             error(wrong_thread, "this native type requires the process main thread")
-        var information = ownership.Info(name = declaration.name, size = sizeof(Owner[T]),
+        var information = ownership.Info(name = declaration.name, size = memory.size_of(Owner[T]),
                                          finish = Owner[T].finish_owner, drop = Owner[T].drop_owner, trace = Owner[T].trace_owner)
-        let owner = (Owner[T]*)try ownership.reserve(&information, sizeof(Owner[T]))
+        let owner = (Owner[T]*)try ownership.reserve(&information, memory.size_of(Owner[T]))
         owner.information = information
         owner.header.info = &owner.information
         owner.declaration = declaration
         self.owner = owner
 
     ## Publish the native value, yielding a reference and consuming the reservation.
-    pub mutating func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]:
+    pub func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]:
         let owner = self.owner else trap("native ownership has already been published or cancelled")
         owner.native = native
         owner.native_allocator = allocator else memory.allocator
@@ -105,7 +105,7 @@ pub struct Reservation[T]:
         return Reference[T](owner)
 
     ## Discard the reservation without publishing.
-    pub mutating func cancel():
+    pub func cancel():
         if let owner = self.owner:
             self.owner = none
             ownership.discard_unpublished(&owner.header)

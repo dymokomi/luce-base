@@ -55,11 +55,11 @@ chapter that explains it.
 - **`length` counts bytes**, not characters: `"café".length` is 5.
   [Types](02-types.md#text)
 - **A `str` cannot be indexed** by position, and **there is no `+`** to join strings. Use
-  `format` into a buffer, or a `strings.Builder`.
+  `strings.format` into a buffer, or a `strings.Builder`.
 - **A formatted string is not a value**: `let s = f"..."` is an error. It goes to `print`,
-  `format`, a `Writer` or a `fmt` parameter. [Types](02-types.md#formatted-strings)
-- **There is no format specification inside braces**: write `{hex(n)}` and `{pad(n, 8)}`, not
-  `{n:x}` or `{n:8}`.
+  `strings.format`, a `Writer` or a `fmt` parameter. [Types](02-types.md#formatted-strings)
+- **A format specification takes a number or text**: `{n:x}` and `{name:>8}` work, but a value
+  that shows itself through `display` takes none; write `{value}`.
 - **`print` and C's `printf` can appear out of order**, because `printf` is buffered.
   [C](13-c.md#variadic-functions)
 - **`main(arguments: str[])` traps on an argument that is not UTF-8.** Take `c.str[]` for
@@ -87,8 +87,11 @@ chapter that explains it.
 
 ## Functions and methods
 
-- **A `mutating` method needs a changeable receiver**: calling it on a `let` is an error.
+- **A method that changes its receiver needs a changeable one**: calling it on a `let` is an
+  error, and the message names the method. Nothing marks such a method; its body does.
   [Functions](05-functions.md#methods)
+- **A function in a type that never uses `self` is called through the type**:
+  `Point.origin()`, not `p.origin()`. [Functions](05-functions.md#methods)
 - **Default argument values must be constants.**
 - **Lambdas cannot capture local variables.** Pass state as a parameter or a context pointer.
   [Functions](05-functions.md#function-values)
@@ -98,7 +101,7 @@ chapter that explains it.
 ## Errors
 
 - **Every fallible call must be handled** with `try`, `catch` or `else`; it cannot be ignored,
-  even with `discard`. [Errors](08-errors.md#handling-a-failure)
+  even with `_ = ...`. [Errors](08-errors.md#handling-a-failure)
 - **A `catch` handler's `recover` value must have the type of the expression.** For a call
   that returns nothing, the handler needs no `recover`.
 - **One `try` covers the whole expression after it**, every fallible call inside it.

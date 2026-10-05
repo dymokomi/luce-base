@@ -1,11 +1,11 @@
-# error: needs a `var` receiver
+# error: changes its receiver, so it needs a `var` here
 
 import c
 
 struct Counter:
     var n: i64
 
-    mutating func bump():
+    func bump():
         self.n += 1
 
 func f() -> i64:

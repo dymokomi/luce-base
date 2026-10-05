@@ -45,15 +45,15 @@ pub func temporary_directory(parent: c.str) -> str!:
 ## allocator.
 pub func join(left: str, right: str) -> str!:
     # the separator and the NUL are the most a join adds
-    return paths.join_into(try alloc u8[left.length + right.length + 2], left, right)
+    return paths.join_into(try new u8[left.length + right.length + 2] ---, left, right)
 
 func copied(bytes: const u8[], allocator: memory.Allocator) -> u8[]!:
-    let copy = try alloc u8[bytes.length] in allocator
+    let copy = try new u8[bytes.length] --- in allocator
     memory.copy(copy, bytes, bytes.length)
     return copy
 
 func terminated(text: str, allocator: memory.Allocator) -> str!:
-    let copy = try alloc u8[text.length + 1] in allocator
+    let copy = try new u8[text.length + 1] --- in allocator
     memory.copy(copy, text.bytes, text.length)
     copy[text.length] = 0
     return (str)copy[..<text.length]

@@ -36,7 +36,7 @@ struct Pair:
         self.first = half
         self.second = sum - half
 
-    mutating func swap():
+    func swap():
         let t = self.first
         self.first = self.second
         self.second = t

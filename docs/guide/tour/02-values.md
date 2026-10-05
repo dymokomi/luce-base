@@ -141,6 +141,8 @@ Integers and floats never convert by themselves: write `f64(count)` or `i32(rati
 `str` is a string of UTF-8 text. Like a Python `str`, it cannot be changed in place.
 
 ```luce
+import strings
+
 pub func main(arguments: str[]) -> i32:
     let text = "naïve café"
     var letters = 0
@@ -148,7 +150,7 @@ pub func main(arguments: str[]) -> i32:
         letters += 1
     print(f"{text.length} bytes, {letters} characters")
     var buffer: u8[64]
-    let line = format(buffer, f"{text} costs {3}€") else ""
+    let line = strings.format(buffer, f"{text} costs {3}€") else ""
     print(f"'{line}' fits in {buffer.length} bytes")
     return 0
 ```
@@ -166,10 +168,11 @@ pub func main(arguments: str[]) -> i32:
   raw bytes.
 - **There is no `+` for strings.** A new string needs memory, and Base only allocates
   memory where your code asks for it (more in [Chapter 7](07-memory.md)). To build text,
-  `format` writes a formatted string into a buffer you provide and gives back the result.
+  `strings.format` writes a formatted string into a buffer you provide and gives back the
+  result.
   The `else ""` supplies a value in case the text does not fit.
 - **Formatted strings are not values** you can store in a variable. They are written
-  directly to `print`, `format`, or another destination of text.
+  directly to `print`, `strings.format`, or another destination of text.
 
 Other forms of string literal: `r"C:\raw\path"` has no escape sequences, as in Python;
 `"""` starts a string over several lines; and `b"\x89PNG"` is a sequence of bytes. The

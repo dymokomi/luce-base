@@ -9,12 +9,12 @@ pub struct Failing: memory.Allocator:
     var addresses: void*?[512]
     var sizes: usize[512]
 
-    pub static func at(index: usize) -> Failing:
+    pub func at(index: usize) -> Failing:
         var result = Failing(owner = memory.heap)
         result.fail_at = index
         return result
 
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         self.attempts += 1
         if self.attempts == self.fail_at:
             self.failures += 1
@@ -30,10 +30,10 @@ pub struct Failing: memory.Allocator:
             i += 1
         trap("too many live allocations in the failure test")
 
-    pub mutating func resize(block: u8[], size: usize) -> bool:
+    pub func resize(block: u8[], size: usize) -> bool:
         return false
 
-    pub mutating func release(block: u8[]):
+    pub func release(block: u8[]):
         var i: usize = 0
         while i < self.addresses.length:
             if self.addresses[i] == (void*)block.data:

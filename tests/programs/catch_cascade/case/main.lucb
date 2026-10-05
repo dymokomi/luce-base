@@ -14,7 +14,7 @@ func g() -> !:
     put('(') catch: recover ()
 
 func h(x: i32) -> i32:
-    discard(f(x) else false)
+    _ = f(x) else false
     return 1
 
 func main(arguments: str[]) -> i32:

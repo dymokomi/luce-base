@@ -1,0 +1,7 @@
+# error: 
+import memory
+
+## §12.2: `memory.allocate` is fallible, as every allocation is.
+pub func main(arguments: str[]) -> i32:
+    let raw = memory.allocate(64, 8)
+    return 0

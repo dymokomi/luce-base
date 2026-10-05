@@ -17,6 +17,7 @@ import sema.types
 import support.buffer
 import support.in_arena
 import support.list
+import strings
 
 ## Emits a unit's DWARF: the line table, the function DIEs, and the sections they need.
 pub struct Emitter:
@@ -51,7 +52,7 @@ pub struct Emitter:
     var serial: usize
 
     ## A DWARF emitter for `program` on `os` and `arch`, reading types from `checker`.
-    pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os, arch: targets.Arch = targets.Arch.arm64) -> Emitter!:
+    pub func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os, arch: targets.Arch = targets.Arch.arm64) -> Emitter!:
         return Emitter(checker = checker, program = program, os = os, arch = arch, last_line = 0, last_file = 0,
                        last_scope = 0, last_site = 0, changes = try list.List[u32].create(0), change_scopes = try list.List[u32].create(0),
                        change_sites = try list.List[u32].create(0), origins = try list.List[ir.InlineSite].create(0),
@@ -59,7 +60,7 @@ pub struct Emitter:
                        files = try list.List[str].create(0), needed = try list.List[u32].create(0),
                        info = try buffer.Buffer.create(0), cwd = "", serial = 0)
 
-    mutating func file(path: str) -> usize!:
+    func file(path: str) -> usize!:
         var i: usize = 0
         while i < self.files.count:
             if self.files.get(i) == path:
@@ -71,7 +72,7 @@ pub struct Emitter:
     # mark: The line table ====================================================================
 
     ## Emit the line-table header, declaring every source file the unit names.
-    pub mutating func begin(out: buffer.Buffer*) -> !:
+    pub func begin(out: buffer.Buffer*) -> !:
         var format_room: u8[4096]
         self.cwd = try in_arena.canonical(".")
         try section(out, "line", self.os)
@@ -80,37 +81,37 @@ pub struct Emitter:
         while i < self.program.functions.count:
             let f = &self.program.functions.items[i]
             if f.debug or f.symbols:
-                discard(try self.file(f.source))
+                _ = try self.file(f.source)
                 for point in f.points.span():
-                    discard(try self.file(point.file))
+                    _ = try self.file(point.file)
                 for site in f.sites.span():
-                    discard(try self.file(site.source))
+                    _ = try self.file(site.source)
                     if site.call_file != 0:
-                        discard(try self.file(self.program.files.get((usize)site.call_file - 1)))
+                        _ = try self.file(self.program.files.get((usize)site.call_file - 1))
             i += 1
         # the files the optimised functions' instructions name (`--release --debug`)
         for path in self.program.files.span():
-            discard(try self.file(path))
+            _ = try self.file(path)
         i = 0
         while i < self.files.count:
-            try out.put((try format(format_room, f"\n    .file {i + 1} ")))
+            try out.put((try strings.format(format_room, f"\n    .file {i + 1} ")))
             try quoted(out, self.files.get(i))
             try out.put("\n")
             i += 1
 
     ## Emit the `.loc` that opens a function's line program.
-    pub mutating func entry(out: buffer.Buffer*) -> !:
+    pub func entry(out: buffer.Buffer*) -> !:
         if self.files.count > 0:
             try out.put("\n    .loc 1 0 0 is_stmt 0\n")
 
     ## Emit the line, and for an optimised function the scope and value labels, at `instruction`.
-    pub mutating func mark(out: buffer.Buffer*, f: ir.Function*, fr: frame.Frame*, index: usize, instruction: usize) -> !:
+    pub func mark(out: buffer.Buffer*, f: ir.Function*, fr: frame.Frame*, index: usize, instruction: usize) -> !:
         var format_room: u8[4096]
         if f.symbols:
             # the optimised function: a line per instruction where the source changes
             if instruction == 0:
                 let file = try self.file(f.source)
-                try out.put(try format(format_room, f"\n    .loc {file} {f.source_line} 0 prologue_end is_stmt 1"))
+                try out.put(try strings.format(format_room, f"\n    .loc {file} {f.source_line} 0 prologue_end is_stmt 1"))
                 self.last_line = 0
                 self.last_file = 0
                 self.last_scope = 0
@@ -122,11 +123,11 @@ pub struct Emitter:
             if instruction < f.instrs.count:
                 let x = f.instrs.get(instruction)
                 if self.labelled.get(instruction) != 0:
-                    try out.put(try format(format_room, f"\nLdw_v_{index}_{instruction}:"))
+                    try out.put(try strings.format(format_room, f"\nLdw_v_{index}_{instruction}:"))
                 # a label where the scope or the inlined subroutine changes; an instruction a
                 # pass made (no line, no scope, no site) belongs to where it lies
                 if (x.scope != self.last_scope or x.site != self.last_site) and (x.scope != 0 or x.site != 0 or x.line != 0):
-                    try out.put(try format(format_room, f"\nLdw_sc_{index}_{instruction}:"))
+                    try out.put(try strings.format(format_room, f"\nLdw_sc_{index}_{instruction}:"))
                     try self.changes.push(u32(instruction))
                     try self.change_scopes.push(x.scope)
                     try self.change_sites.push(x.site)
@@ -135,25 +136,25 @@ pub struct Emitter:
                 if x.line != 0 and (x.line != self.last_line or x.file != self.last_file):
                     let path = self.program.files.get((usize)x.file - 1) if x.file != 0 else f.source
                     let file = try self.file(path)
-                    try out.put(try format(format_room, f"\n    .loc {file} {x.line} 0 is_stmt 1"))
+                    try out.put(try strings.format(format_room, f"\n    .loc {file} {x.line} 0 is_stmt 1"))
                     self.last_line = x.line
                     self.last_file = x.file
             return
         if not f.debug:
             return
-        try out.put((try format(format_room, f"\nLdw_pc_{index}_{instruction}:\n")))
+        try out.put((try strings.format(format_room, f"\nLdw_pc_{index}_{instruction}:\n")))
         if instruction == 0:
             let file = try self.file(f.source)
-            try out.put(try format(format_room, f"    .loc {file} {f.source_line} 0 prologue_end is_stmt 1\n"))
+            try out.put(try strings.format(format_room, f"    .loc {file} {f.source_line} 0 prologue_end is_stmt 1\n"))
         for point in f.points.span():
             if point.instruction == instruction:
                 let file = try self.file(point.file)
-                try out.put((try format(format_room, f"    .loc {file} {point.line} {point.column} is_stmt 1\n")))
+                try out.put((try strings.format(format_room, f"    .loc {file} {point.line} {point.column} is_stmt 1\n")))
 
     # mark: Function DIEs =====================================================================
 
     ## Emit the debugging information entry for function `f`: its scopes, locals and types.
-    pub mutating func function(f: ir.Function*, fr: frame.Frame*, index: usize) -> !:
+    pub func function(f: ir.Function*, fr: frame.Frame*, index: usize) -> !:
         var format_room: u8[4096]
         if not (f.debug or f.symbols) or f.naked:
             return
@@ -162,14 +163,14 @@ pub struct Emitter:
         try o.put("    .uleb128 2\n")
         try text(o, f.source_name)
         try text(o, f.name)
-        try o.put((try format(format_room, f"    .uleb128 {file}\n    .uleb128 {f.source_line}\n    .quad ")))
+        try o.put((try strings.format(format_room, f"    .uleb128 {file}\n    .uleb128 {f.source_line}\n    .quad ")))
         try o.put("_" if (self.os == targets.Os.macos) else "")
         try o.put(f.name)
-        try o.put(try format(format_room, f"\n    .quad Ldw_end_{index}\n"))
+        try o.put(try strings.format(format_room, f"\n    .quad Ldw_end_{index}\n"))
         if self.os == targets.Os.windows:
             # rbp points at the allocated frame's bottom on Windows. Present the
             # logical frame top so shared DW_OP_fbreg locations retain their meaning.
-            try o.put(try format(format_room, f"    .uleb128 Ldw_base_end_{index}-Ldw_base_{index}\nLdw_base_{index}:\n    .byte 118\n    .sleb128 {fr.size}\nLdw_base_end_{index}:\n"))
+            try o.put(try strings.format(format_room, f"    .uleb128 Ldw_base_end_{index}-Ldw_base_{index}\nLdw_base_{index}:\n    .byte 118\n    .sleb128 {fr.size}\nLdw_base_end_{index}:\n"))
         else:
             # the frame register by architecture: arm64's x29 is DWARF 29, x86-64's rbp is 6
             try o.put("    .uleb128 1\n    .byte ")
@@ -180,7 +181,7 @@ pub struct Emitter:
 
     ## Which instructions get a `Ldw_v` label: each `dbg`, and the instruction where the
     ## life of the temporary it names ends, when that is later.
-    mutating func plan_labels(f: ir.Function*, fr: frame.Frame*) -> !:
+    func plan_labels(f: ir.Function*, fr: frame.Frame*) -> !:
         self.labelled.count = 0
         var i: usize = 0
         while i <= f.instrs.count:
@@ -200,7 +201,7 @@ pub struct Emitter:
     ## The location list of local `k` of the optimised function `index`: an entry from each
     ## `dbg` of it to the next, or to the end of the life of the temporary it names.
     ## Whether the local has any.
-    mutating func location_list(f: ir.Function*, fr: frame.Frame*, index: usize, k: usize) -> bool!:
+    func location_list(f: ir.Function*, fr: frame.Frame*, index: usize, k: usize) -> bool!:
         var format_room: u8[4096]
         var any = false
         var i: usize = 0
@@ -224,7 +225,7 @@ pub struct Emitter:
 
     ## One entry: `value` from instruction `at` to `stop`, the register or frame home of a
     ## temporary while it lives, the address of a slot, or a constant. Whether one was written.
-    mutating func location_entry(f: ir.Function*, fr: frame.Frame*, index: usize, value: ir.Ref, at: usize, stop: usize, started: bool) -> bool!:
+    func location_entry(f: ir.Function*, fr: frame.Frame*, index: usize, value: ir.Ref, at: usize, stop: usize, started: bool) -> bool!:
         var format_room: u8[4096]
         var until = stop
         var expression: u8[24]
@@ -268,14 +269,14 @@ pub struct Emitter:
         else:
             return false
         if not started:
-            try self.locs.put((try format(format_room, f"Ldw_ll_{self.serial}:\n")))
+            try self.locs.put((try strings.format(format_room, f"Ldw_ll_{self.serial}:\n")))
             self.serial += 1
-        try self.locs.put((try format(format_room, f"    .quad Ldw_v_{index}_{at}, ")))
+        try self.locs.put((try strings.format(format_room, f"    .quad Ldw_v_{index}_{at}, ")))
         if until < f.instrs.count:
-            try self.locs.put((try format(format_room, f"Ldw_v_{index}_{until}\n")))
+            try self.locs.put((try strings.format(format_room, f"Ldw_v_{index}_{until}\n")))
         else:
-            try self.locs.put((try format(format_room, f"Ldw_end_{index}\n")))
-        try self.locs.put((try format(format_room, f"    .short {length}\n    .byte ")))
+            try self.locs.put((try strings.format(format_room, f"Ldw_end_{index}\n")))
+        try self.locs.put((try strings.format(format_room, f"    .short {length}\n    .byte ")))
         var b: usize = 0
         while b < length:
             if b > 0:
@@ -290,7 +291,7 @@ pub struct Emitter:
     ## instructions' labels; an optimised build's covers the runs its instructions kept,
     ## and a scope none kept describes its locals in its parent. An inlined subroutine
     ## none kept is not described at all.
-    mutating func scope(f: ir.Function*, fr: frame.Frame*, index: usize, scope: usize, site: u32) -> !:
+    func scope(f: ir.Function*, fr: frame.Frame*, index: usize, scope: usize, site: u32) -> !:
         var format_room: u8[4096]
         let o = &self.info
         var block = scope != 0 or site != 0
@@ -300,17 +301,17 @@ pub struct Emitter:
                 return
             if block and scope != 0:
                 try o.put("    .uleb128 20\n")
-                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), "Ldw_ranges", self.os)
+                try range_offset(o, (try strings.format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), "Ldw_ranges", self.os)
             elif block:
                 let where = f.sites.get((usize)site - 1)
                 let origin = try self.origin(where)
                 let call_file = try self.file(self.program.files.get((usize)where.call_file - 1) if where.call_file != 0 else f.source)
-                try o.put((try format(format_room, f"    .uleb128 21\n    .long Ldw_abstract_{origin}-Ldw_info\n")))
-                try range_offset(o, (try format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), "Ldw_ranges", self.os)
-                try o.put((try format(format_room, f"    .uleb128 {call_file}\n    .uleb128 {where.call_line}\n")))
+                try o.put((try strings.format(format_room, f"    .uleb128 21\n    .long Ldw_abstract_{origin}-Ldw_info\n")))
+                try range_offset(o, (try strings.format(format_room, f"Ldw_rs_{index}_{scope}_{site}")), "Ldw_ranges", self.os)
+                try o.put((try strings.format(format_room, f"    .uleb128 {call_file}\n    .uleb128 {where.call_line}\n")))
         elif block:
             let s = f.debug_scopes.get(scope)
-            try o.put((try format(format_room, f"    .uleb128 5\n    .quad Ldw_pc_{index}_{s.start}\n    .quad Ldw_pc_{index}_{s.end}\n")))
+            try o.put((try strings.format(format_room, f"    .uleb128 5\n    .quad Ldw_pc_{index}_{s.start}\n    .quad Ldw_pc_{index}_{s.end}\n")))
         var k: usize = 0
         while k < f.locals.count:
             let described = f.locals.get(k)
@@ -327,29 +328,29 @@ pub struct Emitter:
                     try o.put("    .uleb128 23\n" if described.parameter else "    .uleb128 24\n")
                     try text(o, described.name)
                     try self.reference(described.type_id)
-                    try o.put((try format(format_room, f"    .uleb128 {described.line}\n")))
-                    try range_offset(o, (try format(format_room, f"Ldw_ll_{list_label}")), "Ldw_loc", self.os)
+                    try o.put((try strings.format(format_room, f"    .uleb128 {described.line}\n")))
+                    try range_offset(o, (try strings.format(format_room, f"Ldw_ll_{list_label}")), "Ldw_loc", self.os)
                 else:
                     try o.put("    .uleb128 3\n" if described.parameter else "    .uleb128 4\n")
                     try text(o, described.name)
                     try self.reference(described.type_id)
-                    try o.put((try format(format_room, f"    .uleb128 {described.line}\n    .uleb128 0\n")))
+                    try o.put((try strings.format(format_room, f"    .uleb128 {described.line}\n    .uleb128 0\n")))
                 continue
             try o.put("    .uleb128 3\n" if described.parameter else "    .uleb128 4\n")
             try text(o, described.name)
             try self.reference(described.type_id)
-            try o.put((try format(format_room, f"    .uleb128 {described.line}\n")))
+            try o.put((try strings.format(format_room, f"    .uleb128 {described.line}\n")))
             let serial = self.serial
             self.serial += 1
             if register != 0:
                 # a promoted local lives in a callee-saved register for the whole function
                 let number = dwarf_register(self.arch, register)
                 if number < 32:
-                    try o.put((try format(format_room, f"    .uleb128 1\n    .byte {80 + number}\n")))
+                    try o.put((try strings.format(format_room, f"    .uleb128 1\n    .byte {80 + number}\n")))
                 else:
-                    try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 144\n    .uleb128 {number}\nLdw_expr_end_{serial}:\n")))
+                    try o.put((try strings.format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 144\n    .uleb128 {number}\nLdw_expr_end_{serial}:\n")))
             else:
-                try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 145\n    .sleb128 -{home}\nLdw_expr_end_{serial}:\n")))
+                try o.put((try strings.format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 145\n    .sleb128 -{home}\nLdw_expr_end_{serial}:\n")))
         var i: usize = 1
         while i < f.debug_scopes.count:
             let inner = f.debug_scopes.get(i)
@@ -367,7 +368,7 @@ pub struct Emitter:
 
     ## The abstract subprogram an inlined subroutine refers to, by the callee's name; its
     ## index among `origins`.
-    mutating func origin(site: ir.InlineSite) -> usize!:
+    func origin(site: ir.InlineSite) -> usize!:
         var i: usize = 0
         while i < self.origins.count:
             if self.origins.get(i).name == site.name and self.origins.get(i).source == site.source:
@@ -379,47 +380,30 @@ pub struct Emitter:
     ## The `.debug_ranges` entry of `scope` in site `site` of the optimised function `index`:
     ## each run of instructions in it or below it, from its first change point to the one
     ## that leaves it, or the function's end. Whether it kept any.
-    mutating func scope_ranges(f: ir.Function*, index: usize, scope: usize, site: u32) -> bool!:
+    func scope_ranges(f: ir.Function*, index: usize, scope: usize, site: u32) -> bool!:
         var format_room: u8[4096]
         var any = false
         var open = false
         var k: usize = 0
         while k < self.changes.count:
-            let inside = self.within(f, self.change_scopes.get(k), self.change_sites.get(k), scope, site)
+            let inside = within(f, self.change_scopes.get(k), self.change_sites.get(k), scope, site)
             if inside and not open:
                 if not any:
-                    try self.ranges.put((try format(format_room, f"Ldw_rs_{index}_{scope}_{site}:\n")))
+                    try self.ranges.put((try strings.format(format_room, f"Ldw_rs_{index}_{scope}_{site}:\n")))
                     any = true
-                try self.ranges.put((try format(format_room, f"    .quad Ldw_sc_{index}_{self.changes.get(k)}, ")))
+                try self.ranges.put((try strings.format(format_room, f"    .quad Ldw_sc_{index}_{self.changes.get(k)}, ")))
                 open = true
             elif not inside and open:
-                try self.ranges.put((try format(format_room, f"Ldw_sc_{index}_{self.changes.get(k)}\n")))
+                try self.ranges.put((try strings.format(format_room, f"Ldw_sc_{index}_{self.changes.get(k)}\n")))
                 open = false
             k += 1
         if open:
-            try self.ranges.put((try format(format_room, f"Ldw_end_{index}\n")))
+            try self.ranges.put((try strings.format(format_room, f"Ldw_end_{index}\n")))
         if any:
             try self.ranges.put("    .quad 0, 0\n")
         return any
 
-    ## Whether scope `inner` of site `inner_site` is `outer` of `outer_site` or lies within it:
-    ## up the scopes of one site, then out through the site's call to the scope it was in.
-    func within(f: ir.Function*, inner: u32, inner_site: u32, outer: usize, outer_site: u32) -> bool:
-        var s = (usize)inner
-        var k = inner_site
-        while true:
-            if s == outer and k == outer_site:
-                return true
-            if s != 0:
-                s = f.debug_scopes.get(s).parent
-            elif k != 0:
-                let site = f.sites.get((usize)k - 1)
-                s = (usize)site.scope
-                k = site.parent
-            else:
-                return false
-
-    mutating func reference(id: u32) -> !:
+    func reference(id: u32) -> !:
         var format_room: u8[4096]
         let actual = types.void_id if id == 0 or id == types.unit_id or id == types.never_id else id
         var found = false
@@ -429,25 +413,25 @@ pub struct Emitter:
                 break
         if not found:
             try self.needed.push(actual)
-        try self.info.put((try format(format_room, f"    .long Ldw_type_{actual}-Ldw_info\n")))
+        try self.info.put((try strings.format(format_room, f"    .long Ldw_type_{actual}-Ldw_info\n")))
 
-    mutating func member(name: str, id: u32, offset: u64) -> !:
+    func member(name: str, id: u32, offset: u64) -> !:
         var format_room: u8[4096]
         try self.info.put("    .uleb128 9\n")
         try text(&self.info, name)
         try self.reference(id)
-        try self.info.put((try format(format_room, f"    .uleb128 {offset}\n")))
+        try self.info.put((try strings.format(format_room, f"    .uleb128 {offset}\n")))
 
     ## The entry `Ldw_type_<id>` for type `id`: a base type, a pointer, an alias, an array,
     ## a signature, an enumeration, or a record of members.
-    mutating func type_info(id: u32) -> !:
+    func type_info(id: u32) -> !:
         var format_room: u8[4096]
         let checker = self.checker
         let t = checker.table.get(id)
         let o = &self.info
         let name = try checker.spell(id)
         let size = checker.table.size_of(id)
-        try o.put((try format(format_room, f"Ldw_type_{id}:\n")))
+        try o.put((try strings.format(format_room, f"Ldw_type_{id}:\n")))
         if t.kind == types.Kind.void_:
             try o.put("    .uleb128 16\n")
             try text(o, name)
@@ -456,7 +440,7 @@ pub struct Emitter:
             let encoding: u32 = 4 if checker.table.is_float(id) else (2 if id == types.bool_id else (5 if checker.table.is_signed(id) else 7))
             try o.put("    .uleb128 6\n")
             try text(o, name)
-            try o.put((try format(format_room, f"    .byte {encoding}\n    .uleb128 {size}\n")))
+            try o.put((try strings.format(format_room, f"    .byte {encoding}\n    .uleb128 {size}\n")))
             return
         if t.kind == types.Kind.pointer or t.kind == types.Kind.cstr_ or checker.table.is_opaque_handle(id):
             try o.put("    .uleb128 7\n    .byte 8\n")
@@ -470,10 +454,10 @@ pub struct Emitter:
         if t.kind == types.Kind.array:
             try o.put("    .uleb128 11\n")
             try self.reference(t.elem)
-            try o.put((try format(format_room, f"    .uleb128 12\n    .uleb128 {t.length}\n    .byte 0\n")))
+            try o.put((try strings.format(format_room, f"    .uleb128 12\n    .uleb128 {t.length}\n    .byte 0\n")))
             return
         if t.kind == types.Kind.func_:
-            try o.put((try format(format_room, f"    .uleb128 7\n    .byte 8\n    .long Ldw_signature_{id}-Ldw_info\nLdw_signature_{id}:\n    .uleb128 13\n")))
+            try o.put((try strings.format(format_room, f"    .uleb128 7\n    .byte 8\n    .long Ldw_signature_{id}-Ldw_info\nLdw_signature_{id}:\n    .uleb128 13\n")))
             try self.reference(t.elem)
             for param in t.args:
                 try o.put("    .uleb128 14\n")
@@ -487,7 +471,7 @@ pub struct Emitter:
                     return
         try o.put("    .uleb128 15\n" if t.kind == types.Kind.union_ else "    .uleb128 8\n")
         try text(o, name)
-        try o.put((try format(format_room, f"    .uleb128 {size}\n")))
+        try o.put((try strings.format(format_room, f"    .uleb128 {size}\n")))
         if t.kind == types.Kind.enum_:
             try self.payload_enum(id)
             return
@@ -496,12 +480,12 @@ pub struct Emitter:
 
     ## An enum with a backing type: an enumeration of its cases' names and values over
     ## the backing.
-    mutating func backed_enum(decl: ast.Node*, backing: u32, name: str, size: u64) -> !:
+    func backed_enum(decl: ast.Node*, backing: u32, name: str, size: u64) -> !:
         var format_room: u8[4096]
         let o = &self.info
         try o.put("    .uleb128 17\n")
         try text(o, name)
-        try o.put((try format(format_room, f"    .uleb128 {size}\n")))
+        try o.put((try strings.format(format_room, f"    .uleb128 {size}\n")))
         try self.reference(backing)
         var cursor = decl.body
         while let item = cursor:
@@ -512,15 +496,15 @@ pub struct Emitter:
                 try text(o, item.text)
                 let case_bits = types.case_value(decl, item)
                 if signed_backing:
-                    try o.put((try format(format_room, f"    .sleb128 {(i64)case_bits}\n")))
+                    try o.put((try strings.format(format_room, f"    .sleb128 {(i64)case_bits}\n")))
                 else:
-                    try o.put((try format(format_room, f"    .uleb128 {case_bits}\n")))
+                    try o.put((try strings.format(format_room, f"    .uleb128 {case_bits}\n")))
             cursor = item.next
         try o.put("    .byte 0\n")
 
     ## The members of the record-shaped type `id`: a struct's or a union's fields, and the
     ## C layout of text, spans, interface views, tuples, optionals, results, and errors.
-    mutating func members(id: u32, t: types.Type) -> !:
+    func members(id: u32, t: types.Type) -> !:
         var format_room: u8[4096]
         let checker = self.checker
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.union_:
@@ -544,7 +528,7 @@ pub struct Emitter:
             var index: usize = 0
             for member in t.args:
                 offset = round_up(offset, checker.table.align_of(member))
-                try self.member((try format(format_room, f"_{index}")), member, offset)
+                try self.member((try strings.format(format_room, f"_{index}")), member, offset)
                 offset += checker.table.size_of(member)
                 index += 1
         elif t.kind == types.Kind.optional:
@@ -564,7 +548,7 @@ pub struct Emitter:
     ## A payload enum (§6.1): its `tag`, an enumeration of the case names in case order, and
     ## `payload`, a union of one record per case with a payload, at the offset the lowerer
     ## lays the payloads at (`payload_offset`). The debuggers read that C shape as it is.
-    mutating func payload_enum(id: u32) -> !:
+    func payload_enum(id: u32) -> !:
         var format_room: u8[4096]
         let checker = self.checker
         let t = checker.table.get(id)
@@ -588,12 +572,12 @@ pub struct Emitter:
                     q = param.next
             cursor = c.next
         let base = round_up(4, widest)
-        try self.member_of("tag", (try format(format_room, f"Ldw_tag_{id}")), 0)
+        try self.member_of("tag", (try strings.format(format_room, f"Ldw_tag_{id}")), 0)
         if with_payload and size > base:
-            try self.member_of("payload", (try format(format_room, f"Ldw_payload_{id}")), base)
+            try self.member_of("payload", (try strings.format(format_room, f"Ldw_payload_{id}")), base)
         try o.put("    .byte 0\n")
         # the tag's enumeration
-        try o.put((try format(format_room, f"Ldw_tag_{id}:\n    .uleb128 17\n")))
+        try o.put((try strings.format(format_room, f"Ldw_tag_{id}:\n    .uleb128 17\n")))
         try text(o, "tag")
         try o.put("    .uleb128 4\n")
         try self.reference(types.u32_id)
@@ -603,22 +587,22 @@ pub struct Emitter:
             if c.kind == ast.Kind.enum_case:
                 try o.put("    .uleb128 18\n")
                 try text(o, c.text)
-                try o.put((try format(format_room, f"    .uleb128 {index}\n")))
+                try o.put((try strings.format(format_room, f"    .uleb128 {index}\n")))
                 index += 1
             cursor = c.next
         try o.put("    .byte 0\n")
         if not (with_payload and size > base):
             return
         # the union of the cases' records, then each record
-        try o.put((try format(format_room, f"Ldw_payload_{id}:\n    .uleb128 15\n")))
+        try o.put((try strings.format(format_room, f"Ldw_payload_{id}:\n    .uleb128 15\n")))
         try text(o, "payload")
-        try o.put((try format(format_room, f"    .uleb128 {size - base}\n")))
+        try o.put((try strings.format(format_room, f"    .uleb128 {size - base}\n")))
         index = 0
         cursor = decl.body
         while let c = cursor:
             if c.kind == ast.Kind.enum_case:
                 if c.body != none:
-                    try self.member_of(c.text, (try format(format_room, f"Ldw_case_{id}_{index}")), 0)
+                    try self.member_of(c.text, (try strings.format(format_room, f"Ldw_case_{id}_{index}")), 0)
                 index += 1
             cursor = c.next
         try o.put("    .byte 0\n")
@@ -634,9 +618,9 @@ pub struct Emitter:
                         offset = round_up(offset, checker.table.align_of(pt))
                         offset += checker.table.size_of(pt)
                         q = param.next
-                    try o.put((try format(format_room, f"Ldw_case_{id}_{index}:\n    .uleb128 8\n")))
+                    try o.put((try strings.format(format_room, f"Ldw_case_{id}_{index}:\n    .uleb128 8\n")))
                     try text(o, c.text)
-                    try o.put((try format(format_room, f"    .uleb128 {offset}\n")))
+                    try o.put((try strings.format(format_room, f"    .uleb128 {offset}\n")))
                     offset = 0
                     q = c.body
                     while let param = q:
@@ -650,16 +634,16 @@ pub struct Emitter:
             cursor = c.next
 
     ## A member whose type is a DIE of this emitter's own, by label.
-    mutating func member_of(name: str, label: str, offset: u64) -> !:
+    func member_of(name: str, label: str, offset: u64) -> !:
         var format_room: u8[4096]
         try self.info.put("    .uleb128 9\n")
         try text(&self.info, name)
-        try self.info.put((try format(format_room, f"    .long {label}-Ldw_info\n    .uleb128 {offset}\n")))
+        try self.info.put((try strings.format(format_room, f"    .long {label}-Ldw_info\n    .uleb128 {offset}\n")))
 
     # mark: The sections ======================================================================
 
     ## Emit the abbreviation, info, ranges and location sections, after every function.
-    pub mutating func finish(out: buffer.Buffer*) -> !:
+    pub func finish(out: buffer.Buffer*) -> !:
         var format_room: u8[4096]
         if self.files.count == 0:
             return
@@ -669,9 +653,9 @@ pub struct Emitter:
             # to `needed`, so before the types
             let origin = self.origins.get(i)
             let file = try self.file(origin.source)
-            try self.info.put((try format(format_room, f"Ldw_abstract_{i}:\n    .uleb128 22\n")))
+            try self.info.put((try strings.format(format_room, f"Ldw_abstract_{i}:\n    .uleb128 22\n")))
             try text(&self.info, origin.name)
-            try self.info.put((try format(format_room, f"    .uleb128 {file}\n    .uleb128 {origin.line}\n    .byte 1\n")))
+            try self.info.put((try strings.format(format_room, f"    .uleb128 {file}\n    .uleb128 {origin.line}\n    .byte 1\n")))
             try self.reference(origin.result_type)
             i += 1
         i = 0
@@ -705,13 +689,30 @@ pub struct Emitter:
                 try out.put("    .quad ")
                 try out.put("_" if (self.os == targets.Os.macos) else "")
                 try out.put(f.name)
-                try out.put((try format(format_room, f", Ldw_end_{i}\n")))
+                try out.put((try strings.format(format_room, f", Ldw_end_{i}\n")))
             i += 1
         try out.put("    .quad 0, 0\n")
         try out.put(self.ranges.view())
         try section(out, "loc", self.os)
         try out.put("Ldw_loc:\n")
         try out.put(self.locs.view())
+
+## Whether scope `inner` of site `inner_site` is `outer` of `outer_site` or lies within it:
+## up the scopes of one site, then out through the site's call to the scope it was in.
+func within(f: ir.Function*, inner: u32, inner_site: u32, outer: usize, outer_site: u32) -> bool:
+    var s = (usize)inner
+    var k = inner_site
+    while true:
+        if s == outer and k == outer_site:
+            return true
+        if s != 0:
+            s = f.debug_scopes.get(s).parent
+        elif k != 0:
+            let site = f.sites.get((usize)k - 1)
+            s = (usize)site.scope
+            k = site.parent
+        else:
+            return false
 
 # mark: Helpers ===============================================================================
 
@@ -723,11 +724,11 @@ func round_up(n: u64, alignment: u64) -> u64:
 func section(out: buffer.Buffer*, name: str, os: targets.Os) -> !:
     var format_room: u8[4096]
     if os == targets.Os.macos:
-        try out.put(try format(format_room, f"\n    .section __DWARF,__debug_{name},regular,debug\n"))
+        try out.put(try strings.format(format_room, f"\n    .section __DWARF,__debug_{name},regular,debug\n"))
     elif os == targets.Os.windows:
-        try out.put(try format(format_room, f"\n    .section .debug_{name},\"dr\"\n"))
+        try out.put(try strings.format(format_room, f"\n    .section .debug_{name},\"dr\"\n"))
     else:
-        try out.put(try format(format_room, f"\n    .section .debug_{name},\"\",@progbits\n"))
+        try out.put(try strings.format(format_room, f"\n    .section .debug_{name},\"\",@progbits\n"))
 
 func section_offset(out: buffer.Buffer*, label: str, os: targets.Os) -> !:
     if os == targets.Os.macos:

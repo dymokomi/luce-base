@@ -1,3 +1,5 @@
+import memory
+
 ## §10: aggregates in depth: a struct holding an enum with payloads inside a union-free
 ## tagged tree, methods on the enum, equality of nested structs, an array of structs
 ## sorted in place, a packed struct's size, and construction with defaults.
@@ -41,5 +43,5 @@ pub func main(arguments: str[]) -> i32:
     var total: i32 = 0
     for it in items:
         total += it.shape.area() * it.weight
-    print(f"{items[0].name}{items[1].name}{items[2].name} {same} {differ} {total} {sizeof(Header)} {alignof(Header)}")
+    print(f"{items[0].name}{items[1].name}{items[2].name} {same} {differ} {total} {memory.size_of(Header)} {memory.align_of(Header)}")
     return 0

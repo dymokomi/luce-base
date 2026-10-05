@@ -46,7 +46,7 @@ struct Cutter:
     var table: types.Table*
 
     ## One top-level declaration, from its doc comment to the next declaration's.
-    mutating func declaration(d: ast.Node*, start: usize, end: usize) -> !:
+    func declaration(d: ast.Node*, start: usize, end: usize) -> !:
         match d.kind:
             .test_, .asm_:
                 return
@@ -66,7 +66,7 @@ struct Cutter:
                 if compiled_where_used(d, none) or ast.is_linked(d):
                     try self.verbatim(start, end)
                 else:
-                    try self.linked_function(d, start, end)
+                    try self.linked_function(d, start, end, "")
             .struct_, .union_, .enum_:
                 if check.generic_params_of(d) != none:
                     try self.verbatim(start, end)
@@ -85,7 +85,7 @@ struct Cutter:
         try self.out.put((str)self.text[start..<end])
 
     ## A record: its header and fields as written, its methods as `linked` signatures.
-    mutating func record(d: ast.Node*, start: usize, end: usize) -> !:
+    func record(d: ast.Node*, start: usize, end: usize) -> !:
         var member = d.body
         let first = member else return try self.verbatim(start, end)
         try self.verbatim(start, block_start(self.text, first))
@@ -95,13 +95,15 @@ struct Cutter:
             if let following = m.next:
                 mend = block_start(self.text, following)
             if m.kind == ast.Kind.func_ and not compiled_where_used(m, d) and not ast.is_linked(m):
-                try self.linked_function(m, mstart, mend)
+                try self.linked_function(m, mstart, mend, d.text)
             else:
                 try self.verbatim(mstart, mend)
             member = m.next
 
     ## A function's doc comment and its signature line, `linked`, without the `:` and body.
-    mutating func linked_function(d: ast.Node*, start: usize, end: usize) -> !:
+    ## A method of `owner` names its receiver, which its body showed (§9.8): `self: T*`
+    ## when it changes it, `self: const T*` when it reads it, none for a function of the type.
+    func linked_function(d: ast.Node*, start: usize, end: usize, owner: str) -> !:
         let line = line_start(self.text, d.start)
         try self.verbatim(start, line)
         let stop = header_end(self.text, line)
@@ -111,7 +113,17 @@ struct Cutter:
         let at = word_start(self.text, line, last)
         try self.verbatim(line, at)
         try self.out.put("linked ")
-        try self.verbatim(at, last)
+        var open = at
+        while open < last and self.text[open] != '(':
+            open += 1
+        if owner.length == 0 or d.has(ast.flag_static) or open == last:
+            try self.verbatim(at, last)
+        else:
+            try self.verbatim(at, open + 1)
+            try self.out.put("self: " if d.has(ast.flag_mutating) or d.text == "init" else "self: const ")
+            try self.out.put(owner)
+            try self.out.put("*" if self.text[open + 1] == ')' else "*, ")
+            try self.verbatim(open + 1, last)
         try self.out.put("\n")
         try self.blank_after(end)
 
@@ -122,7 +134,7 @@ struct Cutter:
 
     ## A constant's declaration as written, `linked`: the value stays, the storage is the
     ## library's.
-    mutating func linked_constant(d: ast.Node*, start: usize, end: usize) -> !:
+    func linked_constant(d: ast.Node*, start: usize, end: usize) -> !:
         let line = line_start(self.text, d.start)
         try self.verbatim(start, line)
         let at = word_start(self.text, line, header_end(self.text, line))
@@ -131,7 +143,7 @@ struct Cutter:
         try self.verbatim(at, end)
 
     ## A global's doc comment and its declaration, `linked`, without the initialiser.
-    mutating func linked_global(d: ast.Node*, start: usize, end: usize) -> !:
+    func linked_global(d: ast.Node*, start: usize, end: usize) -> !:
         let line = line_start(self.text, d.start)
         try self.verbatim(start, line)
         let stop = header_end(self.text, line)
@@ -195,7 +207,7 @@ func reached(roots: list.List[ast.Node*]*, work: list.List[ast.Node*]*, seen: li
 ## The fragment file the byte at `offset` came from.
 pub func fragment_at(src: source.Source*, offset: usize) -> str:
     let (path, line, column) = src.located(offset)
-    discard(line + column)
+    _ = line + column
     return path
 
 ## Whether declaration `d` is one of the program's roots.

@@ -1,0 +1,22 @@
+## §7.9: `_ = value` evaluates a value and drops it; a failure is handled first, and a
+## `catch` whose value is dropped may end without `recover`.
+import memory
+
+func noisy(n: i64) -> i64:
+    print(f"noisy {n}")
+    return n
+
+func might(fail: bool) -> i64!:
+    if fail:
+        error(memory.exhausted, "refused")
+    return 3
+
+pub func main(arguments: str[]) -> i32!:
+    _ = noisy(1)
+    _ = noisy(2) + 1
+    _ = try might(false)
+    _ = might(true) catch failure:
+        print(f"handled {failure.message}")
+    defer _ = noisy(4)
+    print("end")
+    return 0

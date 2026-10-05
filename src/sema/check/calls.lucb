@@ -21,17 +21,25 @@ extend Checker:
 
     ## `f(args)`: an intrinsic, a conversion, a construction, or a call of a
     ## function, method, or function value.
-    mutating func call_type(e: ast.Node*, hint: u32) -> u32!:
+    func call_type(e: ast.Node*, hint: u32) -> u32!:
         let callee = e.left else return try self.fail(e, "missing callee")
+        # a call checked again (a constant read twice) keeps the name its first check gave it
+        if callee.kind == ast.Kind.name and callee.has(ast.flag_builtin):
+            return try self.intrinsic_type(e, callee.text)
         if callee.kind == ast.Kind.name and self.lookup(callee.text) == none:
             if is_intrinsic(callee.text):
                 return try self.intrinsic_type(e, callee.text)
+        let intrinsic = self.standard_intrinsic(callee)
+        if intrinsic.length > 0:
+            return try self.intrinsic_type(e, intrinsic)
         if callee.kind == ast.Kind.member:
             if let receiver = callee.left:
                 if receiver.kind != ast.Kind.name or self.lookup(receiver.text) != none:
                     let rt = try self.check_expr(receiver, types.none_id)
                     if self.table.kind(self.deref(rt)) == types.Kind.atomic:
                         return try self.atomic_call(e, callee, self.deref(rt))
+                    if try self.derived_hash_call(e, callee, receiver, rt):
+                        return try self.intrinsic_type(e, "hash")
         if callee.kind == ast.Kind.index:
             if let base = callee.left:
                 if base.kind == ast.Kind.name and is_lane_type_name(base.text) and self.lookup(base.text) == none:
@@ -67,8 +75,14 @@ extend Checker:
                     owner = rt.decl
                     owner_args = rt.args
                 if let m = callee.resolved:
-                    if m.kind == ast.Kind.func_ and m.has(ast.flag_mutating) and not callee.has(ast.flag_static):
-                        try self.require_mutable_receiver(receiver)
+                    if m.kind == ast.Kind.func_ and not callee.has(ast.flag_static):
+                        if m.has(ast.flag_mutating):
+                            try self.require_mutable_receiver(receiver, m)
+                        elif not self.receiver_may_change(receiver):
+                            if self.table.kind(self.deref(receiver.type_id)) == types.Kind.param:
+                                try self.note_read_only_use(self.deref(receiver.type_id), m.text)
+                            elif let o = owner:
+                                try self.keep_pending_change(receiver, m, o)
                 if callee.has(ast.flag_static) and callee.resolved == none:
                     decl = none
         if callee.kind != ast.Kind.name and callee.kind != ast.Kind.member:
@@ -95,28 +109,33 @@ extend Checker:
 
     ## The rules of a `memory.frame` call beyond its signature: `most` is a constant, the
     ## bytes it allows at most 4096, and the span is a local's address (§6.6).
-    mutating func frame_call(e: ast.Node*, span: u32) -> !:
+    func frame_call(e: ast.Node*, span: u32) -> !:
         let first = e.body else return
         let second = first.next else return
         let most_node = second.left else return
         let constant = self.constant_u64(most_node)
         if constant == none:
-            discard(try self.fail(most_node, "`memory.frame`'s most is a constant (§12.7)"))
+            try self.fail(most_node, "`memory.frame`'s most is a constant (§12.7)")
         let most = constant else return
         let bytes = most *? self.table.size_of(self.table.get(span).elem) else 4097
         if bytes > 4096:
-            discard(try self.fail(most_node, "`memory.frame` may take at most 4096 bytes (§12.7)"))
-        self.mark_local(e)
+            try self.fail(most_node, "`memory.frame` may take at most 4096 bytes (§12.7)")
+        mark_local(e)
 
     ## The operations of an `@T` (§15.1): read-modify-write methods returning the
     ## previous value, `load`, `store`, `cas`, `wait`, and `wake`. An omitted
     ## ordering is `seq_cst`.
-    mutating func atomic_call(e: ast.Node*, callee: ast.Node*, atomic_id: u32) -> u32!:
+    func atomic_call(e: ast.Node*, callee: ast.Node*, atomic_id: u32) -> u32!:
         let name = callee.text
         let elem = self.table.get(atomic_id).elem
         let ordering = try self.ordering_type()
         callee.flags |= ast.flag_static
         callee.type_id = atomic_id
+        # an operation that stores is a change of the receiver whose atomic it is (§9.5)
+        if name != "load" and name != "wait":
+            if let place = callee.left:
+                if not self.is_mutable_place(place):
+                    _ = self.changes_receiver(place)
         if name == "load":
             try self.place_atomic_arguments(e, ["order"])
         elif name == "cas":
@@ -175,7 +194,7 @@ extend Checker:
                         return try self.fail(failure, "the failure ordering of `cas` may not be stronger than the success ordering (§15.1)")
             if given == 5:
                 try self.expect_argument(e, 4, types.bool_id)
-            var pair = try alloc u32[2]
+            var pair = try new u32[2] ---
             pair[0] = types.bool_id
             pair[1] = elem
             return try self.table.tuple(pair)
@@ -195,7 +214,7 @@ extend Checker:
     ## each named one in the place `names` gives its name, an ordering skipped before a
     ## later one written as `.seq_cst`, as an omitted ordering is. The names are then
     ## dropped, so the method's check reads every argument by its position.
-    mutating func place_atomic_arguments(e: ast.Node*, names: const str[]) -> !:
+    func place_atomic_arguments(e: ast.Node*, names: const str[]) -> !:
         var slots: ast.Node*?[5]
         var named = false
         var position: usize = 0
@@ -243,41 +262,50 @@ extend Checker:
         e.body = first
 
     ## The `atomic.Ordering` enum from the prelude.
-    mutating func ordering_type() -> u32!:
-        let ai = self.find_module("atomic") else return try self.fail_now("the `atomic` module is missing")
+    func ordering_type() -> u32!:
+        let ai = self.find_module("atomic") else return try fail_now("the `atomic` module is missing")
         let tree = self.modules.get(ai).tree
-        let d = find_decl(tree, "Ordering") else return try self.fail_now("`atomic.Ordering` is missing")
+        let d = find_decl(tree, "Ordering") else return try fail_now("`atomic.Ordering` is missing")
         return d.type_id
 
     ## Check the `index`th argument of a call against `want`.
-    mutating func expect_argument(e: ast.Node*, index: usize, want: u32) -> !:
+    func expect_argument(e: ast.Node*, index: usize, want: u32) -> !:
         var i: usize = 0
         var args = e.body
         while let a = args:
             if i == index:
                 if a.text.length > 0:
-                    discard(try self.fail(a, "this argument is positional"))
+                    try self.fail(a, "this argument is positional")
                 let v = a.left else return try self.fail(a, "empty argument")
-                discard(try self.expect(v, want))
+                _ = try self.expect(v, want)
                 return
             i += 1
             args = a.next
-        discard(try self.fail(e, "missing argument"))
+        try self.fail(e, "missing argument")
 
-    ## A `mutating` call needs a `var`, a mutable pointer, or a mutable element (§9.5).
-    mutating func require_mutable_receiver(receiver: ast.Node*) -> !:
+    ## A call of a method that changes its receiver needs a `var`, a mutable pointer, or a
+    ## mutable element (§9.5).
+    func require_mutable_receiver(receiver: ast.Node*, method: ast.Node*) -> !:
         let rt = self.table.get(receiver.type_id)
+        var text: u8[256]
         if rt.kind == types.Kind.pointer:
             if rt.is_const:
-                discard(try self.fail(receiver, "a mutating method needs a mutable pointer"))
+                try self.fail(receiver, said(text, f"`{method.text}` changes its receiver, so it needs a mutable pointer here (§9.5)"))
             return
         if rt.kind == types.Kind.interface_:
             return
-        if not self.is_mutable_place(receiver):
-            discard(try self.fail(receiver, "a mutating method needs a `var` receiver"))
+        if not self.is_mutable_place(receiver) and not self.changes_receiver(receiver):
+            try self.fail(receiver, said(text, f"`{method.text}` changes its receiver, so it needs a `var` here (§9.5)"))
+
+    ## Whether a method may change `receiver`: a mutable pointer, a view, or a mutable place.
+    func receiver_may_change(receiver: ast.Node*) -> bool:
+        let rt = self.table.get(receiver.type_id)
+        if rt.kind == types.Kind.pointer:
+            return not rt.is_const
+        return rt.kind == types.Kind.interface_ or self.is_mutable_place(receiver)
 
     ## Match arguments to parameters, infer generic arguments, and yield the result.
-    mutating func check_call(e: ast.Node*, fn: u32, decl: ast.Node*?, explicit: ast.Node*?, owner: ast.Node*?, owner_args: u32[], hint: u32) -> u32!:
+    func check_call(e: ast.Node*, fn: u32, decl: ast.Node*?, explicit: ast.Node*?, owner: ast.Node*?, owner_args: u32[], hint: u32) -> u32!:
         let f = self.table.get(fn)
         let g = try self.call_generics(decl, explicit)
         # first pass: bind positional and named arguments to parameters and type them
@@ -294,7 +322,7 @@ extend Checker:
             if let a = slots[i]:
                 let v = a.left else return try self.fail(a, "empty argument")
                 if v.type_id == types.none_id or v.type_id == types.untyped_int_id or v.type_id == types.untyped_float_id or self.mentions_param(want) == false:
-                    discard(try self.coerce(v, v.type_id if v.type_id != types.none_id else try self.check_expr(v, want), want))
+                    _ = try self.coerce(v, v.type_id if v.type_id != types.none_id else try self.check_expr(v, want), want)
             i += 1
         var result = f.elem
         if let t = g.template:
@@ -310,14 +338,14 @@ extend Checker:
                     ast.append(&holder.body, &tail, a)
                     j += 1
                 e.ty = holder
-        discard(owner)
-        discard(owner_args)
-        discard(hint)
+        _ = owner
+        _ = owner_args
+        _ = hint
         return result
 
     ## The generic arguments of a call of `decl`: none for a plain function, else the ones
     ## `explicit` writes, or all still to infer.
-    mutating func call_generics(decl: ast.Node*?, explicit: ast.Node*?) -> CallGenerics!:
+    func call_generics(decl: ast.Node*?, explicit: ast.Node*?) -> CallGenerics!:
         var g = CallGenerics(template = none, count = 0, inferred = try types.no_args())
         if let d = decl:
             g.count = ast.count(generic_params_of(d))
@@ -325,7 +353,7 @@ extend Checker:
                 g.template = d
         if g.count == 0:
             return g
-        g.inferred = try alloc u32[g.count]
+        g.inferred = try new u32[g.count] ---
         var i: usize = 0
         while i < g.count:
             g.inferred[i] = types.none_id
@@ -344,9 +372,9 @@ extend Checker:
 
     ## The argument bound to each parameter of `f`, positional or named, `none` for one
     ## left to its default; the arguments past a C variadic's parameters are checked here.
-    mutating func bind_arguments(e: ast.Node*, f: types.Type, decl: ast.Node*?) -> ast.Node*?[]!:
+    func bind_arguments(e: ast.Node*, f: types.Type, decl: ast.Node*?) -> ast.Node*?[]!:
         let n_params = f.args.length
-        var slots = try alloc ast.Node*?[n_params + 1]
+        var slots = try new ast.Node*?[n_params + 1] ---
         var i: usize = 0
         while i <= n_params:
             slots[i] = none
@@ -373,23 +401,23 @@ extend Checker:
 
     ## An argument in a C variadic's `...`: a scalar or a pointer, a text literal passing
     ## as `c.str`, an untyped integer as `i32`.
-    mutating func variadic_argument(a: ast.Node*) -> !:
+    func variadic_argument(a: ast.Node*) -> !:
         let v = a.left else return try self.fail(a, "empty argument")
         let vt = try self.check_expr(v, types.none_id)
         let ck = self.table.kind(vt)
         if vt == types.str_id and v.kind == ast.Kind.literal and v.text.bytes[0] == '"':
             # a text literal passes as `c.str`, the way C's own literals do (§17.2)
-            discard(try self.coerce(v, vt, types.cstr_id))
+            _ = try self.coerce(v, vt, types.cstr_id)
         elif ck == types.Kind.span or ck == types.Kind.interface_ or ck == types.Kind.tuple or ck == types.Kind.array or ck == types.Kind.struct_ or ck == types.Kind.union_ or vt == types.str_id or vt == types.fmt_id or (ck == types.Kind.optional and not self.table.is_nullable_pointer(vt)):
             # C's `...` carries scalars and pointers only (§17.2)
             return try self.fail(v, "this type cannot be a variadic argument; C has no shape for it; text goes as `c.str`")
         else:
-            discard(try self.coerce(v, vt, types.i32_id if vt == types.untyped_int_id else self.concrete(vt)))
+            _ = try self.coerce(v, vt, types.i32_id if vt == types.untyped_int_id else concrete(vt))
 
     ## Types each bound argument against its parameter, inferring generic arguments from
     ## those whose parameter still names one; a parameter with no argument takes its
     ## default, a `luce` fact expanded at the call.
-    mutating func type_arguments(e: ast.Node*, f: types.Type, decl: ast.Node*?, explicit: bool, g: CallGenerics, slots: ast.Node*?[]) -> !:
+    func type_arguments(e: ast.Node*, f: types.Type, decl: ast.Node*?, explicit: bool, g: CallGenerics, slots: ast.Node*?[]) -> !:
         var i: usize = 0
         while i < f.args.length:
             var want = f.args[i]
@@ -404,7 +432,7 @@ extend Checker:
                 var got = try self.check_expr(v, want)
                 if let t = g.template:
                     if want == types.none_id:
-                        got = self.concrete(got) if got != types.none_id else got
+                        got = concrete(got) if got != types.none_id else got
                         try self.infer(f.args[i], got, t, g.inferred)
             else:
                 let d = decl else return try self.fail(e, "too few arguments")
@@ -416,7 +444,7 @@ extend Checker:
 
     ## Every generic argument of a call of `t` is known and meets its constraints, and a
     ## call of `t` inside itself does not nest its own parameter without end.
-    mutating func check_inferred(e: ast.Node*, t: ast.Node*, g: CallGenerics) -> !:
+    func check_inferred(e: ast.Node*, t: ast.Node*, g: CallGenerics) -> !:
         var j: usize = 0
         while j < g.count:
             if g.inferred[j] == types.none_id:
@@ -482,7 +510,7 @@ extend Checker:
 
     ## `T(x)` on a type: a checked conversion for scalars and integer-backed enums,
     ## a construction for structs, a payload case for enums.
-    mutating func construct_or_convert(e: ast.Node*, callee: ast.Node*, id: u32) -> u32!:
+    func construct_or_convert(e: ast.Node*, callee: ast.Node*, id: u32) -> u32!:
         var target = id
         if let ex = callee.ty:
             if callee.kind == ast.Kind.name:
@@ -498,9 +526,9 @@ extend Checker:
         if self.table.is_numeric(target) or target == types.char_id:
             let arg = try self.single_argument(e)
             let got = try self.check_expr(arg, types.none_id)
-            let have = self.concrete(got)
+            let have = concrete(got)
             if got == types.untyped_int_id or got == types.untyped_float_id:
-                discard(try self.coerce(arg, got, have))
+                _ = try self.coerce(arg, got, have)
             if not (self.table.is_numeric(have) or have == types.char_id or have == types.bool_id):
                 return try self.fail(arg, "a checked conversion takes a number")
             if is_negative_literal(arg) and self.table.is_integer(target) and not self.table.is_signed(target):
@@ -521,7 +549,7 @@ extend Checker:
             let got = try self.check_expr(arg, types.none_id)
             if not (got == types.untyped_int_id or self.table.is_integer(got)):
                 return try self.fail(arg, "an enum conversion takes an integer")
-            discard(try self.coerce(arg, got, self.concrete(got)))
+            _ = try self.coerce(arg, got, concrete(got))
             return target
         if t.kind == types.Kind.struct_:
             let d = t.decl else return try self.fail(e, "no declaration")
@@ -548,13 +576,13 @@ extend Checker:
     ## `Name(field = value, ...)`: the memberwise initialiser, positional or named,
     ## or the struct's own `init` (§10.1). Yields the struct, or `Name!` when
     ## `init` is fallible.
-    mutating func construct(e: ast.Node*, id: u32, args: ast.Node*?) -> u32!:
+    func construct(e: ast.Node*, id: u32, args: ast.Node*?) -> u32!:
         let t = self.table.get(id)
         let d = t.decl else return try self.fail(e, "no declaration")
         if let init = find_member(d, "init", ast.Kind.func_):
             e.resolved = init
             let fn = try self.substitute(init.type_id, d, t.args)
-            discard(try self.check_call(e, fn, init, none, d, t.args, types.none_id))
+            _ = try self.check_call(e, fn, init, none, d, t.args, types.none_id)
             if init.has(ast.flag_fallible):
                 return try self.table.fallible(id)
             return id
@@ -593,7 +621,7 @@ extend Checker:
                 var said19: u8[256]
                 return try self.fail(a, said(said19, f"field `{f.text}` of `{d.text}` is not public"))
             let want = try self.substitute(f.type_id, d, t.args)
-            discard(try self.expect(v, want))
+            _ = try self.expect(v, want)
             a.resolved = f
             cursor = a.next
         # a field with a default or a zero value may be omitted; every other field is required
@@ -605,137 +633,9 @@ extend Checker:
             member = f.next
         return id
 
-    # -- intrinsics -----------------------------------------------------------------------
-
-    ## The core functions (§3.5): typed here, never declared.
-    mutating func intrinsic_type(e: ast.Node*, name: str) -> u32!:
-        if name == "print":
-            let arg = try self.single_argument(e)
-            let got = try self.check_expr(arg, types.none_id)
-            if got != types.str_id and got != types.fmt_id:
-                return try self.fail(arg, "`print` takes text or a formatted string")
-            return types.unit_id
-        if name == "format":
-            return try self.format_type(e)
-        if name == "assert":
-            let first = e.body else return try self.fail(e, "`assert` needs a condition")
-            let cv = first.left else return try self.fail(e, "empty argument")
-            discard(try self.expect(cv, types.bool_id))
-            if let second = first.next:
-                let mv = second.left else return try self.fail(e, "empty argument")
-                discard(try self.expect(mv, types.str_id))
-            return types.unit_id
-        if name == "trap":
-            if let first = e.body:
-                let mv = first.left else return try self.fail(e, "empty argument")
-                let got = try self.check_expr(mv, types.none_id)
-                if got != types.str_id and got != types.fmt_id:
-                    return try self.fail(mv, "`trap` takes text")
-            return types.never_id
-        if name == "error":
-            return try self.error_type(e)
-        if name == "discard":
-            let arg = try self.single_argument(e)
-            let got = try self.check_expr(arg, types.none_id)
-            if self.table.kind(got) == types.Kind.fallible:
-                return try self.fail(arg, "a fallible result must be handled before it is discarded")
-            return types.unit_id
-        if name == "hash":
-            let arg = try self.single_argument(e)
-            let got = try self.check_expr(arg, types.none_id)
-            if self.table.kind(got) == types.Kind.param:
-                if not self.has_written_constraint(got, self.standard_type("luce", "Hashable")):
-                    return try self.fail(arg, "a type parameter hashes only under `Hashable`")
-            elif not self.comparable(got):
-                return try self.fail(arg, "this value is not hashable")
-            discard(try self.coerce(arg, got, self.concrete(got)))
-            return types.u64_id
-        if name == "hex" or name == "bin":
-            let arg = try self.single_argument(e)
-            let got = try self.check_expr(arg, types.none_id)
-            if not (got == types.untyped_int_id or self.table.is_integer(got)):
-                return try self.fail(arg, "`hex` and `bin` take an integer")
-            discard(try self.coerce(arg, got, self.concrete(got)))
-            return types.fmt_id
-        if name == "pad":
-            return try self.pad_type(e)
-        if name == "sizeof" or name == "alignof":
-            let arg = try self.single_argument(e)
-            let id = try self.type_of_argument(arg)
-            if name == "alignof" and not arg.has(ast.flag_type_ref):
-                return try self.fail(arg, "`alignof` takes a type")
-            e.resolved = arg
-            discard(id)
-            return types.usize_id
-        if name == "offsetof":
-            return try self.offsetof_type(e)
-        return try self.fail(e, "unknown core function")
-
-    ## `format(buffer, text)`: text viewing the bytes it was formatted into, or a failure
-    ## when they are too few.
-    mutating func format_type(e: ast.Node*) -> u32!:
-        let first = e.body else return try self.fail(e, "`format(buffer, text)` takes two arguments")
-        let bv = first.left else return try self.fail(e, "empty argument")
-        discard(try self.expect(bv, try self.table.span(types.u8_id, false)))
-        let second = first.next else return try self.fail(e, "`format(buffer, text)` takes two arguments")
-        let tv = second.left else return try self.fail(e, "empty argument")
-        let got = try self.check_expr(tv, types.none_id)
-        if got != types.str_id and got != types.fmt_id:
-            return try self.fail(tv, "`format` takes text or a formatted string")
-        # the returned text views the buffer: a local array, or a span derived from one, makes
-        # the result local (§6.6); a span variable or parameter views memory elsewhere
-        if self.is_local_value(bv) or (self.table.kind(bv.type_id) == types.Kind.array and self.place_is_local(bv)):
-            self.mark_local(e)
-        return try self.table.fallible(types.str_id)
-
-    ## `error(code, message)`: leaves a fallible function or a handler with that failure;
-    ## the message must outlive the function.
-    mutating func error_type(e: ast.Node*) -> u32!:
-        if self.in_defer and not self.fallible and not self.expression_effect:
-            return try self.fail(e, "a failure cannot escape a deferred block (§8.8)")
-        if not self.fallible and not self.expression_effect:
-            return try self.fail(e, "`error` is only valid in a fallible function, in a handler or not")
-        let first = e.body else return try self.fail(e, "`error(code, message)` takes two arguments")
-        let cv = first.left else return try self.fail(e, "empty argument")
-        discard(try self.expect(cv, types.error_code_id))
-        let second = first.next else return try self.fail(e, "`error(code, message)` takes two arguments")
-        let mv = second.left else return try self.fail(e, "empty argument")
-        discard(try self.expect(mv, types.str_id))
-        if self.is_local_value(mv):
-            discard(try self.fail(mv, "an error message must not name a local; format into a buffer that outlives the function"))
-        return types.never_id
-
-    ## `pad(value, width)`: a printable value padded to a `usize` width, as formatted text.
-    mutating func pad_type(e: ast.Node*) -> u32!:
-        let first = e.body else return try self.fail(e, "`pad(value, width)` takes two arguments")
-        let v = first.left else return try self.fail(e, "empty argument")
-        let got = try self.check_expr(v, types.none_id)
-        if not self.printable(got):
-            return try self.fail(v, "this value cannot be formatted")
-        discard(try self.coerce(v, got, self.concrete(got)))
-        let second = first.next else return try self.fail(e, "`pad(value, width)` takes two arguments")
-        let w = second.left else return try self.fail(e, "empty argument")
-        discard(try self.expect(w, types.usize_id))
-        return types.fmt_id
-
-    ## `offsetof(T, field)`: a struct's field, resolved on the name, at a `usize` offset.
-    mutating func offsetof_type(e: ast.Node*) -> u32!:
-        let first = e.body else return try self.fail(e, "`offsetof(T, field)` takes two arguments")
-        let tv = first.left else return try self.fail(e, "empty argument")
-        let id = try self.type_of_argument(tv)
-        let second = first.next else return try self.fail(e, "`offsetof(T, field)` takes two arguments")
-        let fv = second.left else return try self.fail(e, "empty argument")
-        if fv.kind != ast.Kind.name:
-            return try self.fail(fv, "`offsetof` names a field")
-        let d = self.table.get(id).decl else return try self.fail(tv, "`offsetof` takes a struct")
-        var said20: u8[256]
-        let f = find_member(d, fv.text, ast.Kind.field) else return try self.fail(fv, said(said20, f"`{d.text}` has no field `{fv.text}`"))
-        fv.resolved = f
-        return types.usize_id
-
     ## A default argument that is `luce.line`, `luce.file`, or `luce.function` expands at
     ## the call site (§6.4): the call gains a named argument holding the fact as a literal.
-    mutating func expand_fact_argument(call: ast.Node*, p: ast.Node*, fact: ast.Node*) -> !:
+    func expand_fact_argument(call: ast.Node*, p: ast.Node*, fact: ast.Node*) -> !:
         if fact.text == "location":
             # `luce.location` itself, re-spelled at the call so the backends read its line there
             let owner = fact.left else return
@@ -749,38 +649,38 @@ extend Checker:
             let argument = try ast.Node.make(ast.Kind.argument, p.text, call.start, call.line)
             argument.left = here
             argument.type_id = p.type_id
-            self.append_argument(call, argument)
+            append_argument(call, argument)
             return
         var text = ""
         var id = types.str_id
         if fact.text == "line":
-            var digits = try alloc u8[12]
-            text = try format(digits, f"{call.line}")
+            var digits = try new u8[12] ---
+            text = try strings.format(digits, f"{call.line}")
             id = types.u32_id
         elif fact.text == "file":
             let path = self.modules.get(self.current).src.path
-            var spelled = try alloc u8[path.length + 2]
-            text = try format(spelled, f"\"{path}\"")
+            var spelled = try new u8[path.length + 2] ---
+            text = try strings.format(spelled, f"\"{path}\"")
         else:
             var name = "main"
             if let f = self.current_func:
                 name = f.text
-            var spelled = try alloc u8[name.length + 2]
-            text = try format(spelled, f"\"{name}\"")
+            var spelled = try new u8[name.length + 2] ---
+            text = try strings.format(spelled, f"\"{name}\"")
         let literal = try ast.Node.make(ast.Kind.literal, text, call.start, call.line)
         literal.type_id = id
         let argument = try ast.Node.make(ast.Kind.argument, p.text, call.start, call.line)
         argument.left = literal
         argument.type_id = id
-        self.append_argument(call, argument)
+        append_argument(call, argument)
 
-    func append_argument(call: ast.Node*, argument: ast.Node*):
-        var tail: ast.Node*? = none
-        var cursor = call.body
-        while let a = cursor:
-            tail = a
-            cursor = a.next
-        if let last = tail:
-            last.next = argument
-        else:
-            call.body = argument
+func append_argument(call: ast.Node*, argument: ast.Node*):
+    var tail: ast.Node*? = none
+    var cursor = call.body
+    while let a = cursor:
+        tail = a
+        cursor = a.next
+    if let last = tail:
+        last.next = argument
+    else:
+        call.body = argument

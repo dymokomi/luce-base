@@ -8,7 +8,7 @@ This is the specification the compiler implements; [STATUS.md](../STATUS.md) rec
 
 Luce Base is C with a different organisation. It keeps the properties that make C the language other languages are implemented in: values with predictable layout, pointers, manual memory, a plain calling convention, and no runtime library (§1.3). It replaces the parts of C that are accidents of its history: header files, the preprocessor, null, integer promotion, `switch` fallthrough, return-code error handling, and `void*` generics.
 
-A Base program is made of structs with functions and initialisers inside them, modules instead of headers, generics instead of macros, tagged unions with exhaustive matching, interfaces, `defer`, optionals instead of null, and a fallible result type instead of return codes. Memory is managed by hand: `new`, `alloc`, and `free` are part of the language and go to an allocator the program chose. There is no reference counting, no garbage collector, and no hidden allocation.
+A Base program is made of structs with functions and initialisers inside them, modules instead of headers, generics instead of macros, tagged unions with exhaustive matching, interfaces, `defer`, optionals instead of null, and a fallible result type instead of return codes. Memory is managed by hand: `new` and `free` are part of the language and go to an allocator the program chose. There is no reference counting, no garbage collector, and no hidden allocation.
 
 Base is a profile of the Luce language, compiled by the same compiler as full Luce. A Base module is a file ending in `.lucb`. Full Luce, with its reference-counted classes and collections, can import a Base module as an ordinary module; Chapter 18 states that contract. A Base program that never touches full Luce needs nothing from it.
 
@@ -28,7 +28,7 @@ Each chapter states its rules first, then the reasons under the heading **Why.**
 
 Code in this document is Base source unless marked otherwise. A fenced block marked `c` is C, shown for comparison.
 
-Builtin names are single words. The language's own operations are keywords (`new`, `alloc`, `free`, `with`), operators (`+%`, `+?`), C's words (`sizeof`, `offsetof`), or one-word core functions (`format`, `assert`). Compile-time source facts live on the `luce` module (`luce.location`, `luce.file`, `luce.line`, `luce.function`) and are replaced at the use site, not called. A compound name such as `format_into` never appears in the builtin surface; user code may name things as it likes.
+Builtin names are single words, and few. The language's own operations are keywords (`new`, `free`, `with`), operators (`+%`, `+?`), or one of four core functions (`print`, `assert`, `error`, `trap`). What else the compiler answers lives in a standard module and is imported like the rest of it: C's `sizeof` is `memory.size_of`, formatting into a buffer is `strings.format`. Compile-time source facts live on the `luce` module (`luce.location`, `luce.file`, `luce.line`, `luce.function`) and are replaced at the use site, not called. A compound name such as `format_into` never appears in the builtin surface; user code may name things as it likes.
 
 ### 1.2 What it looks like
 
@@ -39,7 +39,7 @@ struct Cursor:
     var data: const u8[]
     var offset: usize
 
-    mutating func advance(count: usize) -> !:
+    func advance(count: usize) -> !:
         if self.offset + count > self.data.length:
             error(past_end, "advance past the end of the input")
         self.offset += count
@@ -93,7 +93,7 @@ Terms this document uses with a fixed meaning, each defined again where it first
 - **Plain**: a type whose representation is copied data with no pointer and no reference identity (§18.3).
 - **Lent**: passed for the duration of one call, to be read and not retained (§18.4).
 - **Witness table**: the static table of function pointers through which an interface view dispatches (§14.3).
-- **Current allocator**: the thread-local allocator that `new`, `alloc`, and `free` use unless told otherwise (§12.3).
+- **Current allocator**: the thread-local allocator that `new` and `free` use unless told otherwise (§12.3).
 - **Slot**: a parameter or result position in a signature that crosses the C boundary (§17.1).
 - **Sealed**: usable only by the runtime package, under its own identity (§18.13).
 - **Recipe**: the file `luce bind` reads for the facts a C header does not state (§17.5).
@@ -112,7 +112,7 @@ These are the tests every rule in the rest of the document had to pass.
 
 **Safer than C, never slower, never more convoluted.** A check that costs one predicted branch is on by default and the unchecked form is marked. A rule that would cost more than that, or would change what the hardware does, follows C. Signed division truncates as the instruction does; an atomic add is the instruction; a bounds check is one compare.
 
-**C's spelling wins where C's spelling is good.** `T*`, `&x`, `*p`, `(T*)p`, `T[N]`, `sizeof`, `offsetof`, `const`, `volatile`, and `union` mean in Base what they mean in C. Luce's spelling wins where C's is bad or absent: `name: type`, `let`/`var`, `T?`, `T!`, `match`, `defer`, indentation.
+**C's spelling wins where C's spelling is good.** `T*`, `&x`, `*p`, `(T*)p`, `T[N]`, `const`, `volatile`, and `union` mean in Base what they mean in C, and `memory.size_of` and `memory.offset_of` are C's `sizeof` and `offsetof`. Luce's spelling wins where C's is bad or absent: `name: type`, `let`/`var`, `T?`, `T!`, `match`, `defer`, indentation.
 
 **Builtins are one word, an operator, or syntax.** No compound names in the language's own surface.
 
@@ -176,28 +176,30 @@ Types, interfaces, and unions are `PascalCase`; functions, methods, bindings, fi
 
 Names resolve lexically. A module's declarations share one namespace and are order-independent. Members of a type have their own namespace. Locals are sequential; use before declaration is rejected. A local or a parameter may not shadow another visible local, a parameter, an imported name, or a declaration of its module; renaming is the repair. A loop, `catch`, `if let`, or `match` binding owns its nested scope. A loop label (§8.5) lives in its own namespace.
 
-The compiler-known core namespace cannot be redeclared: no declaration that binds a name in a scope, a binding, a parameter, a function, a type, an enum case, a label, or an alias, may take a core name. A struct field and an extern function's parameter bind nothing (a field is reached through its value, an extern parameter has no body), so they may: a library's `format` field shadows nothing. A compiler carries exactly this dictionary:
+The compiler-known core namespace cannot be redeclared: no declaration that binds a name in a scope, a binding, a parameter, a function, a type, a label, or an alias, may take a core name. A member binds nothing, a field, a method, an interface requirement, or an enum case, since it is reached through its value or its type; nor does an extern function's parameter, which has no body. So they may take any name but a reserved word: a type's `print` method shadows nothing. A compiler carries exactly this dictionary:
 
 ```text
-assert discard error trap hash print format sizeof alignof offsetof hex bin pad
+assert error trap print
 bool i8 i16 i32 i64 isize u8 u16 u32 u64 usize f16 f32 f64 char str
 unit never void fmt Error ErrorCode
 ```
 
-The reserved words of §3.6 are excluded the same way, by the lexer. A standard module's name, `io` or `c`, binds only where it is imported, so a local named `c` in a module that does not import `c` is ordinary. The prelude alone may declare core names, since it is what those names mean. Calls such as `sizeof` parse as ordinary calls; only their checked types and semantics are special. `luce.location` and its pieces are not calls: they are compile-time replacements.
+The reserved words of §3.6 are excluded the same way, by the lexer. A standard module's name, `io` or `c`, binds only where it is imported, so a local named `c` in a module that does not import `c` is ordinary. The prelude alone may declare core names, since it is what those names mean. Everything else the compiler answers belongs to a standard module (§16.6) and is reached as its other names are: `memory.size_of(T)` after `import memory`, or `size_of(T)` after `from memory import size_of`; such a call parses as an ordinary call whose argument may be a type, and only its checked type and meaning are special. `luce.location` and its pieces are not calls: they are compile-time replacements.
 
-**Why.** No shadowing removes a refactoring hazard and keeps every diagnostic that names a binding unambiguous. Making `sizeof` a core name rather than a keyword keeps the grammar small: it is a call whose argument may be a type.
+**Why.** No shadowing removes a refactoring hazard and keeps every diagnostic that names a binding unambiguous. Keeping the core to the language's own four functions and its type names keeps the namespace a program cannot use small: what a C programmer reaches for by habit, `sizeof` or a formatter, sits in the module it belongs to, as a Python programmer finds `math.floor` and not a builtin, and a library may call a method `format` or `hash` without asking.
 
 ### 3.6 Reserved words
 
 ```text
-alloc and as asm break catch const continue defer elif else enum errdefer
-export extern false for free from func goto if import in interface
-let local match mutating new none not or pub recover return self static struct test
+and as asm break catch const continue defer elif else enum errdefer
+extern false for free from func if import in interface let
+match new none not or pub recover return self struct test
 true try type union var volatile while with
 ```
 
-Contextual words, meaningful only in the positions stated: `void` before `*`; `packed`, `align`, `naked`, `weak`, `used`, `noinline`, `cold`, `section`, `linked`, and `inline` before a declaration (§9.8); `extend` before a type's name (§9.5); `handle` and `destroy` in a handle declaration (§17.7); `inout` before an `asm` operand (§8.9); `noalias` before a parameter type; `blocking` and `out` in `extern` declarations; `reg` and `options` in an `asm` operand list. `goto` is reserved and unused (§8.6). `class`, `weak` as a field marker, and `spawn` belong to full Luce and are rejected in Base with a diagnostic that names the tier they belong to. `none` is a literal (§4.1) and is never a case name.
+Contextual words, meaningful only in the positions stated: `void` before `*`; `local` before a module-level `var` (§6.3); `export` before a declaration (§17.6); `packed`, `align`, `naked`, `weak`, `used`, `noinline`, `cold`, `section`, `linked`, and `inline` before a declaration (§9.8); `extend` before a type's name (§9.5); `handle` and `destroy` in a handle declaration (§17.7); `inout` before an `asm` operand (§8.9); `noalias` before a parameter type; `blocking` and `out` in `extern` declarations; `reg` and `options` in an `asm` operand list. Anywhere else each is an ordinary name. `class`, `weak` as a field marker, and `spawn` belong to full Luce and are rejected in Base with a diagnostic that names the tier they belong to. `none` is a literal (§4.1) and is never a case name.
+
+**Why so few.** A reserved word is a name no program may use, so a word earns the place only where the grammar cannot do without it. What a method does to its receiver is in its body (§9.5); an allocation is `new` whatever it leaves in the memory (§12.2); and a word that matters in one position, `local` or `export`, is read in that position and nowhere else.
 
 ## 4. Literals
 
@@ -238,7 +240,7 @@ text"""
 - A byte literal `b"..."` is a view of static data, of type `const u8[]`, with `\xNN` escapes and ASCII text; it is not NUL-terminated. Where a byte array `u8[N]` is expected it is that array, as the array literal of its bytes, and N must be its length: `let magic: u8[4] = b"\x89PNG"`.
 - Triple-quoted strings drop a newline that directly follows the opening delimiter, strip indentation by the closing delimiter's column, and normalise CRLF to `\n` before escapes are decoded.
 - Escapes in text are `\\`, `\"`, `\'`, `\n`, `\r`, `\t`, `\0`, and `\u{HEX}` with one to six hex digits. There is no `\x` in text; it exists in byte literals.
-- A formatted string is not a value. It is consumed by `print`, by a `Writer`, by `format`, or by a parameter of type `fmt` (§5.5). `{{` and `}}` are literal braces. Each field is `{expression}`, evaluated once, left to right, and is code rather than text: a string inside it is written with plain quotes, `f"{name if name != "" else "none"}"`, and a backslash there is an error; there is no format specification inside the braces, and radix and padding are one-word functions applied in the field, `{hex(value)}`.
+- A formatted string is not a value. It is consumed by `print`, by a `Writer`, by `strings.format`, or by a parameter of type `fmt` (§5.5). `{{` and `}}` are literal braces. Each field is `{expression}`, evaluated once, left to right, and is code rather than text: a string inside it is written with plain quotes, `f"{name if name != "" else "none"}"`, and a backslash there is an error. A field may end with a format specification after a colon, `{value:>8}` or `{mask:#x}`, which lays the value out as Python's `format` does (§5.5).
 
 **Why.** The one extra byte per literal means a literal can be passed to any C function that takes a `char*` without a copy, and most of them do.
 
@@ -280,7 +282,7 @@ Everything else is written.
 | `unit` | the single value `()` of a function that returns nothing |
 | `never` | the type of an expression that cannot complete: `error(...)`, `trap(...)`, a function that never returns |
 
-`usize` and `isize` are the types of `sizeof`, `alignof`, `offsetof`, span lengths, array indices, and pointer differences. Their width is that of the target: 64 bits on the native targets, 32 on WebAssembly (§19.5). The compiler always compiles for one target, so a `usize` expression built from literals, `sizeof`, and arithmetic is a constant: it may be a top-level `let`, an array length, and the condition of a module-level `assert` (§11.6). The shared intermediate representation carries such a constant symbolically and the backend folds it, so the representation stays target-neutral while the source does not have to.
+`usize` and `isize` are the types of `memory.size_of`, `memory.align_of`, `memory.offset_of`, span lengths, array indices, and pointer differences. Their width is that of the target: 64 bits on the native targets, 32 on WebAssembly (§19.5). The compiler always compiles for one target, so a `usize` expression built from literals, `memory.size_of`, and arithmetic is a constant: it may be a top-level `let`, an array length, and the condition of a module-level `assert` (§11.6). The shared intermediate representation carries such a constant symbolically and the backend folds it, so the representation stays target-neutral while the source does not have to.
 
 `never` coerces to any type because the value never exists. Operands before a `never` operand are still evaluated, left to right.
 
@@ -369,7 +371,32 @@ Conversions between text and bytes use the two conversion spellings of §7.5:
 - `str(value)` from a `c.str` scans to the NUL, validates, and yields `str!`.
 - `(c.str)text` borrows the text's data pointer without reading bytes, allocating, checking termination or extending its lifetime. Before using it as a C string, the caller must provide a readable terminating NUL and keep that storage alive. To preserve an arbitrary byte view exactly, use `strings.copy(text)`, cast that terminated copy, and later call `strings.release(copy)`. Reading beyond valid storage remains undefined (§12.6), as for a raw pointer in C.
 
-A formatted string `f"..."` has no value of its own. It is consumed in one of four ways: `print(f"...")`; `writer.write(f"...")` on a `Writer` (§14.4); `format(buffer: u8[], f"...") -> str!`, which writes into the caller's buffer, appends a NUL when there is room, and returns a view of the text; or a parameter of type `fmt`, which a function declares to accept a formatted string or a `str` and may only pass on to one of these four (§9.1). `print` streams the pieces to standard output and `format` appends them to the caller's buffer, so neither builds an intermediate string. Passed to a `Writer` or to a `fmt` parameter, the text is formatted before the call into storage the caller owns, on the stack and on the heap once it outgrows that, which lives until the call returns; no length limit applies. This is the `printf` replacement.
+A formatted string `f"..."` has no value of its own. It is consumed in one of four ways: `print(f"...")`; `writer.write(f"...")` on a `Writer` (§14.4); `strings.format(buffer: u8[], f"...") -> str!`, which writes into the caller's buffer, appends a NUL when there is room, and returns a view of the text; or a parameter of type `fmt`, which a function declares to accept a formatted string or a `str` and may only pass on to one of these four (§9.1). `print` streams the pieces to standard output and `strings.format` appends them to the caller's buffer, so neither builds an intermediate string. Passed to a `Writer` or to a `fmt` parameter, the text is formatted before the call into storage the caller owns, on the stack and on the heap once it outgrows that, which lives until the call returns; no length limit applies. This is the `printf` replacement.
+
+A field may lay its value out by a format specification, Python's format mini-language, written after the field's first colon outside its brackets: `[[fill]align][sign][z][#][0][width][grouping][.precision][type]`.
+
+```luce
+func main(arguments: str[]) -> i32:
+    print(f"{1234.5:,.2f} {42:>6} {255:#x} {"total":*^11} {0.25:.0%} {-7:+05}")
+    return 0
+```
+
+prints `1,234.50     42 0xff ***total*** 25% -0007`.
+
+| Part | Meaning |
+| --- | --- |
+| `fill` | any one scalar, written before an alignment; a space when not written |
+| `align` | `<` left, `>` right, `^` centred, `=` a number's padding put after its sign; a number aligns right and text left when not written |
+| `sign` | `+` before every number, `-` before a negative one only (as when not written), a space before a positive one |
+| `z` | a float that rounds to negative zero shows as zero |
+| `#` | the alternate form: `0b`, `0o`, `0x`, `0X` before an integer in that base; a float's point kept |
+| `0` | zeros fill a number after its sign, as `0=` does; for text, a fill of `0` |
+| `width` | the least width, in scalars |
+| `grouping` | `,` or `_` between groups of three digits; `_` groups the digits of `b`, `o`, `x` and `X` by four |
+| `.precision` | digits after the point for `f`, `e` and `%`, significant digits for `g` and for no type, the scalars kept of text |
+| `type` | of an integer: `d` decimal (when not written), `b`, `o`, `x`, `X`, and `c`, the scalar the number names; of a float: `f` and `F` fixed, `e` and `E` with an exponent, `g` and `G` general, `%` a percentage in fixed; of text, `s` |
+
+A specification applies to an integer, a float, a `str`, a `char`, or a `bool`, the last three as their text; a value that shows itself through `Display` takes none, and its field is `{value}`. The specification is plain text: it holds no field of its own, no escape, and no quote. One that does not read as that grammar, or whose parts do not fit the value, is a compile error: a type letter of another kind, a precision of an integer, a sign, `z`, `#`, `=` or grouping of text. An integer takes no float type, so `{n:.2f}` is written `{f64(n):.2f}`. Digits are rounded half to even on the exact binary value, as Python's are: `f"{2.675:.2f}"` is `2.67`. A float with neither type nor precision shows its display (§14.4) where Python shows its repr (`1e16`, not `1e+16`), an `f32` its own shortest digits; a precision without a type is Python's general format with a digit always after the point. A `c` of a number that names no Unicode scalar traps. The layout is the standard module `numerals`, which a program may call itself, and `strings.write_i64` and its siblings write a value by a specification known only at run time to any `Writer` (§16.6).
 
 **Why a view.** Full Luce's `str` is owned and reference-counted, which is what makes concatenation safe there. Base has no reference counting, so a string is a view of storage that something else owns: static data, a buffer, an arena. Keeping the name `str` in both tiers means "text" reads the same in both; the difference is who owns the bytes, and Chapter 18 states how the two cross. The formatted-string rule follows: there is no owner for a fresh string, so the interpolation goes to whoever asked for it.
 
@@ -405,7 +432,7 @@ Aliases are how pointer shapes are kept readable. `T*`, `const T*`, `T*?`, and `
 
 Every Base aggregate has the target C ABI's layout: declaration order, the ABI's alignment and padding, no reordering. A struct has at least one field, as in C. `packed struct Name:` removes padding; `align(N) struct Name:` raises alignment to the power of two `N`; `align(N)` before a field raises that field's alignment, which is how two hot atomics are placed on separate cache lines. Taking the address of a field of a packed struct is a compile error unless the field's natural alignment is one, because C makes the resulting dereference undefined and Base does not produce the pointer.
 
-`sizeof(T)`, `sizeof(expression)`, `alignof(T)`, and `offsetof(T, field)` are constants of type `usize` (§5.1). `alignof` takes a type only, as in C.
+`memory.size_of(T)`, `memory.size_of(expression)`, `memory.align_of(T)`, and `memory.offset_of(T, field)` are constants of type `usize` (§5.1): C's `sizeof`, `alignof`, and `offsetof`, which the standard module `memory` holds and the compiler answers where they are written (`import memory`, or `from memory import size_of`). `align_of` takes a type only, as in C.
 
 Base has no type-based aliasing rule. Any pointer may alias any object of compatible size and alignment, and a backend may never assume otherwise. A parameter may be declared `noalias` (§9.2), which is the one place a program asserts non-aliasing, and violating it is undefined (§12.6).
 
@@ -496,7 +523,7 @@ A module may declare `var` at top level. It is zero before `main` runs, or holds
 
 ### 6.4 Constant expressions
 
-A constant expression is built from literals; `sizeof`, `alignof`, and `offsetof`; `luce.location`, `luce.file`, `luce.line`, and `luce.function`; arithmetic, bit, comparison, and cast operators on scalar constants (a lane-wise operator of §5.12 is not one); array and tuple literals of constants; enum cases and `|` on integer-backed enums; struct construction from constants; the address of a global or a function, or of a global's element or field reached by constant steps; and top-level `let` names. It may appear as a top-level initialiser, an array length, a default parameter value, and the condition of a module-level `assert`. `luce.location` (and its pieces) expand to the file, line, and function of the use site; when used as a default argument they expand at the call site.
+A constant expression is built from literals; `memory.size_of`, `memory.align_of`, and `memory.offset_of`; `luce.location`, `luce.file`, `luce.line`, and `luce.function`; arithmetic, bit, comparison, and cast operators on scalar constants (a lane-wise operator of §5.12 is not one); array and tuple literals of constants; enum cases and `|` on integer-backed enums; struct construction from constants; the address of a global or a function, or of a global's element or field reached by constant steps; and top-level `let` names. It may appear as a top-level initialiser, an array length, a default parameter value, and the condition of a module-level `assert`. `luce.location` (and its pieces) expand to the file, line, and function of the use site; when used as a default argument they expand at the call site.
 
 ### 6.5 Assignment
 
@@ -537,7 +564,7 @@ Left to right, always: receiver then arguments, operands, array elements, interp
 | `%` | remainder with the sign of the dividend: `-7 % 2 == -1`, as in C |
 | unary `-` | sign; rejected on unsigned types (use `-%`) |
 
-Two integers of one width and signedness compute together, `hash(key) % table.length` with a `u64` and a `usize`, in the pointer-sized type when one operand is; storing the result is still the strict rule of §5.1. Integer division by zero traps. `minimum_signed // -1` traps as overflow. Floor division and modulo are luce-std's `math.div_floor(a, b)` and `math.mod_floor(a, b)`. Constant folding uses the same rules as runtime. Float arithmetic is IEEE 754 with no contraction or reassociation. The one fused operation is written out: `a.mul_add(b, c)` on an `f32` or `f64` is `a * b + c` rounded once, one instruction where the target has it (every arm64, x86-64 from `v3`) and the C library's `fma` elsewhere, with the same bits on both.
+Two integers of one width and signedness compute together, `key.hash() % table.length` with a `u64` and a `usize`, in the pointer-sized type when one operand is; storing the result is still the strict rule of §5.1. Integer division by zero traps. `minimum_signed // -1` traps as overflow. Floor division and modulo are luce-std's `math.div_floor(a, b)` and `math.mod_floor(a, b)`. Constant folding uses the same rules as runtime. Float arithmetic is IEEE 754 with no contraction or reassociation. The one fused operation is written out: `a.mul_add(b, c)` on an `f32` or `f64` is `a * b + c` rounded once, one instruction where the target has it (every arm64, x86-64 from `v3`) and the C library's `fma` elsewhere, with the same bits on both.
 
 **Why trapping is the default.** C wraps unsigned arithmetic silently and leaves signed overflow undefined, and both are the source of most exploitable integer bugs. Base traps, because a trap reports the location of the overflow and a wrap does not, and the check is one predicted branch. Hashing, PRNGs, and checksums wrap on purpose and use the `%` operators; overflow-aware code uses `+?` and handles `none`.
 
@@ -549,7 +576,7 @@ Integers, including `usize` and `isize`, support `&`, `|`, `^`, `~`, `<<`, `>>`.
 
 ### 7.4 Equality and hashing
 
-`==` and `!=` exist for scalars, `char`, `str` (by bytes), tuples, arrays, structs, enums, optionals, and pointers (by address), when every component supports equality; comparing any optional with `none` asks whether it holds a value, whatever its payload. A struct or enum whose components are hashable is hashable, and `hash(value) -> u64` is process-seeded and not stable across runs. Pointers hash by address. Unions and interface views have neither. No user type overloads an operator; a domain with unusual equality exposes a named method.
+`==` and `!=` exist for scalars, `char`, `str` (by bytes), tuples, arrays, structs, enums, optionals, and pointers (by address), when every component supports equality; comparing any optional with `none` asks whether it holds a value, whatever its payload. A struct or enum whose components are hashable is hashable, and every hashable value has the method `value.hash() -> u64`, process-seeded and not stable across runs. A pointer hashes its address; its pointee's hash is `(*p).hash()`. Unions and interface views have neither. A hashable type declares no `hash` method of its own: the one its fields give it is the one `Hashable` (§14.4) and every hashed container use. No user type overloads an operator; a domain with unusual equality exposes a named method.
 
 ### 7.5 Conversions and casts
 
@@ -614,7 +641,7 @@ decode[Header](data)
 
 Pointer arithmetic is unchecked: producing a pointer outside the object `p` addresses, or one past its end, and using it, is undefined as in C. `&a[N]` on an array or span of length `N` is the one-past-the-end address, permitted for `&` alone; every other index is checked against the length. Spans cover the cases where a length is known.
 
-**Reading typed values from untyped memory.** Prefer declaring a struct for what is stored and casting once where the untyped memory enters; the cast-and-dereference form `*(Link*)block` is legal and is the last choice. When no struct fits, a header decoded from a buffer or a C structure walked by offsets, `memory.read[T](address: void*) -> T` and `memory.write[T](address: void*, value: T)` copy `sizeof(T)` bytes at the address with no alignment assumption. `memory.copy(to, from, count)`, `memory.move(to, from, count)` for overlapping ranges, and `memory.set(span, byte)` are `memcpy`, `memmove`, and `memset`.
+**Reading typed values from untyped memory.** Prefer declaring a struct for what is stored and casting once where the untyped memory enters; the cast-and-dereference form `*(Link*)block` is legal and is the last choice. When no struct fits, a header decoded from a buffer or a C structure walked by offsets, `memory.read[T](address: void*) -> T` and `memory.write[T](address: void*, value: T)` copy `memory.size_of(T)` bytes at the address with no alignment assumption. `memory.copy(to, from, count)`, `memory.move(to, from, count)` for overlapping ranges, and `memory.set(span, byte)` are `memcpy`, `memmove`, and `memset`.
 
 **Why no `->`.** Luce already uses `->` to declare a result type, and a symbol with two meanings is a cost. Auto-dereference on `.` is what Go, Odin, and Zig do, and C++ references do the same.
 
@@ -633,7 +660,7 @@ The conditional expression requires both branches and one common type. A `match`
 
 ### 7.9 Discarded values
 
-A call may appear as a statement. A non-`unit` result is discarded and the linter warns; `discard(call())` states the intent. A fallible result must be handled before it can be discarded.
+A call may appear as a statement. A non-`unit` result is dropped and the linter warns; `_ = value` drops a value on purpose. It evaluates the value, of any expression, and keeps nothing; a fallible one is handled first, as a binding's value would be, `_ = try write(data)`. A `catch` whose value `_ =` drops may end its handler without `recover`, since no value is wanted: `_ = save(doc) catch failure: print(failure.message)`.
 
 ### 7.10 Precedence
 
@@ -643,7 +670,7 @@ From tightest to loosest: member, call, index; operand `try`, `not`, `-`, `-%`, 
 
 ## 8. Control flow
 
-Control flow is structured. Base has `if`, `while`, `for`, `match`, labeled `break` and `continue`, `return`, `defer`, `errdefer`, `with` (§12.3), and inline assembly. It has no exceptions and, in this revision, no `goto`.
+Control flow is structured. Base has `if`, `while`, `for`, `match`, labeled `break` and `continue`, `return`, `defer`, `errdefer`, `with` (§12.3), and inline assembly. It has no exceptions and no `goto` (§8.6).
 
 ### 8.1 `if` and `if let`
 
@@ -690,7 +717,7 @@ for character in text: count += 1
 
 `for x in items` over a span or array yields each element by value. `for x in &items` yields a pointer to each element, `T*` for a mutable span or array and `const T*` otherwise, so the body may modify elements in place. `items.indexed()` yields `(usize, T)` pairs. `for character in text` yields Unicode scalars.
 
-`for` consumes the `Iterable` protocol (§14.4): it calls `source.iterator()` once, stores the resulting value iterator in a hidden local of its concrete type, and calls its `mutating next() -> T?` until `none`. It never forms an interface view of the iterator, so nothing dangles and nothing allocates. Spans, arrays, ranges, and `str` are iterable; a user type implements `Iterable` with a value iterator.
+`for` consumes the `Iterable` protocol (§14.4): it calls `source.iterator()` once, stores the resulting value iterator in a hidden local of its concrete type, and calls its `next() -> T?` until `none`. It never forms an interface view of the iterator, so nothing dangles and nothing allocates. Spans, arrays, ranges, and `str` are iterable; a user type implements `Iterable` with a value iterator.
 
 ### 8.4 `match`
 
@@ -724,11 +751,11 @@ rows: for y in 0..<height:
 
 **Why labels and not more.** Leaving a nested loop is the most common use of `goto` in C that `defer` does not already cover, and a labeled break is a structured jump: it leaves scopes and never enters one, which the compiler's structured intermediate representation expresses with the branch it already has. Full Luce refuses labels and asks for a helper function; Base admits them because extracting a function in order to leave a loop is a cost C code never pays.
 
-### 8.6 `goto`
+### 8.6 No `goto`
 
-`goto` is reserved and not implemented. If a future revision admits it, it follows Go's rules: targets within the same function; a jump may leave scopes, running their deferred calls, but may not enter a scope it is not already inside; it may not skip a binding's declaration; no computed targets; no jumps into or out of `match` arms.
+Base has no `goto`, and the word is an ordinary name. Should a later revision admit a jump, it follows Go's rules: targets within the same function; a jump may leave scopes, running their deferred calls, but may not enter a scope it is not already inside; it may not skip a binding's declaration; no computed targets; no jumps into or out of `match` arms.
 
-**Why.** The compiler's intermediate representation is structured, with blocks, loops, and branches to an enclosing region, and it was built that way so that the WebAssembly backend never has to reconstruct structure from a jump graph. An unrestricted `goto` would force that reconstruction into the compiler. Every use of `goto` in C is one of: retry (a `while`), error exit (`defer` and `errdefer`), leaving nested loops (labels), or a hand-written state machine. A state machine is written `while true: match state:` at the cost of one branch per transition; Zig, Odin, C3, and Hare have no `goto` and their users write it this way. The feature is reserved so that it can be admitted later if interpreter-style Base code shows the cost is justified.
+**Why.** The compiler's intermediate representation is structured, with blocks, loops, and branches to an enclosing region, and it was built that way so that the WebAssembly backend never has to reconstruct structure from a jump graph. An unrestricted `goto` would force that reconstruction into the compiler. Every use of `goto` in C is one of: retry (a `while`), error exit (`defer` and `errdefer`), leaving nested loops (labels), or a hand-written state machine. A state machine is written `while true: match state:` at the cost of one branch per transition; Zig, Odin, C3, and Hare have no `goto` and their users write it this way. A jump can be admitted later, under a word of its own, if interpreter-style Base code shows the cost is justified; reserving the word in the meantime would only keep it from programs.
 
 ### 8.7 `return`
 
@@ -821,7 +848,7 @@ func render(scene: Scene*, samples: u32 = 64, denoise: bool = true) -> Image!:
     ...
 
 func log(level: Level, message: fmt, at: Location = luce.location):
-    discard(io.stderr().write(f"{at.file}:{at.line}: {message}\n") catch: recover 0)
+    _ = io.stderr().write(f"{at.file}:{at.line}: {message}\n") catch: recover 0
 
 let image = try render(&scene, samples = 256, denoise = false)
 log(.warn, f"lost {count} packets")
@@ -829,7 +856,7 @@ log(.warn, f"lost {count} packets")
 
 - Parameter types and every non-`unit` result are explicit. A missing `->` means `unit`. A fallible function that returns nothing is written `-> !`, the short form of `-> unit!`; both are accepted.
 - Arguments are positional or named with `name = value`; positional ones come first. A default is a constant expression embedded at the call site. `luce.location` is a compile-time `Location` (`file` and `function` as `str`, `line` as `u32`); as a default it expands at the call site, which is how a log records the caller without a macro. Duplicate, unknown, and missing arguments are compile errors.
-- A parameter of type `fmt` accepts a formatted string or a `str`. Inside the function it may be written to a `Writer`, passed to `print` or `format`, or passed on to another `fmt` parameter, and nothing else: it cannot be stored, returned, or compared. The caller formats the text before the call, as for a `Writer` (§5.5), and the function receives it whole, whatever its length; a function that may discard the message is called behind a check at the call site, `if verbose: log(f"...")`, so a discarded message costs nothing. This is what makes a logging function possible without a macro.
+- A parameter of type `fmt` accepts a formatted string or a `str`. Inside the function it may be written to a `Writer`, passed to `print` or `strings.format`, or passed on to another `fmt` parameter, and nothing else: it cannot be stored, returned, or compared. The caller formats the text before the call, as for a `Writer` (§5.5), and the function receives it whole, whatever its length; a function that may discard the message is called behind a check at the call site, `if verbose: log(f"...")`, so a discarded message costs nothing. This is what makes a logging function possible without a macro.
 - One scope holds at most one callable with a given name: no overloading. Alternatives get semantic names: `Image.open`, `Image.decode`.
 - No variadic Base functions in this revision (§20). Calls to variadic C functions are §17.2.
 - Recursion is allowed; running out of stack is a trap, never a crash (§11.5).
@@ -880,43 +907,47 @@ struct Point:
         let dy = self.y - other.y
         return math.sqrt(dx * dx + dy * dy)
 
-    static func origin() -> Point:
+    func origin() -> Point:
         return Point(0.0, 0.0)
 
 struct Cursor:
     pub var position: usize
 
-    mutating func advance(amount: usize):
+    func advance(amount: usize):
         self.position += amount
 ```
 
 - A `func` declared inside a type is a method. `self` is implicit: it names the receiver inside the body, is not written in the parameter list, and cannot be used as a parameter name. `point.distance(other)` passes `point` as `self`.
-- `static func` declares a function that belongs to the type and has no receiver; it is called through the type, `Point.origin()`. This is the C++ and Java meaning of `static`, "of the type, not of the instance". C's other meaning, internal linkage, is what every declaration not marked `pub` already has in Base, so the two never collide.
-- `mutating` marks a method that assigns `var` fields or replaces `self`; a `static func` cannot be `mutating`. The receiver at a `mutating` call site must be a `var`, a mutable pointer, or a mutable span element.
-- A non-`mutating` method receives `self` as `const Self*`; a `mutating` method receives `self` as `Self*`. This is deterministic so that exported headers are stable. In the body `self` names the receiver itself, a place of type `Self`: `self.x` reads a field and `&self` is the receiver's address, which is how a `Self*` is passed on. Because `self` aliases the receiver, a callee that mutates the receiver through another pointer changes what `self.x` reads mid-method. `self = value` in a mutating method stores through the pointer.
+- A function inside a type whose body never reads `self` is a function of the type, with no receiver: `origin` above. It is called through the type, `Point.origin()`, as a static method is in C++ or Java; called through a value it is an error that names the type to call it through. An `init` is never one, nor is a function that implements a requirement of an interface the type declares (§14.1), which a view calls with a receiver whatever the body reads.
+- A method **changes its receiver** when its body assigns to `self` or a part of it (a field or an array element reached without passing through a pointer or a span), calls a method that changes its receiver on `self` or such a part, stores to one of its atomics, allocates through an allocator it holds (`new T in self.arena`), or takes the address of `self` or a part, or a span of one, where a mutable pointer, a mutable span, or a view of a conformer that changes its receiver is wanted: as an argument, as the value of a binding or a field whose type is written, or in an assignment. A local holding such an address counts as the part it reaches, `let cell = &self.cells[i]` and then `cell.value = 0`, and so does a `for p in &self.items` loop's binding. Nothing is written for any of this: the compiler reads it from the bodies, following methods that call each other until nothing changes, before it checks one.
+- A method that does not change its receiver may be called on anything: a `let`, a `const T*`, a temporary. The receiver of one that does must be a `var`, a mutable pointer, or a mutable span element, and the diagnostic names the method and why.
+- A method that does not change its receiver receives `self` as `const Self*`; one that does receives `self` as `Self*`, and so does `init`. In the body `self` names the receiver itself, a place of type `Self`: `self.x` reads a field and `&self` is the receiver's address, which is how a `Self*` is passed on. The address of `self` or a part, taken where no mutable pointer is wanted, `let p = &self.part`, is `const` in a method that changes nothing else; written with its type, `let p: Part* = &self.part`, it is mutable and the method changes its receiver. Because `self` aliases the receiver, a callee that mutates the receiver through another pointer changes what `self.x` reads mid-method. `self = value` stores through the pointer.
+- What the compiler found is part of the method's description (§17): `describe` lists a method, a `mutating method`, or a `static method`, so a module compiled apart and full Luce need not read the body. A `linked` method (§9.8), whose body is the library's, says it in its signature.
 - A method is callable on a value, a `var`, or a pointer; `p.advance(3)` on `p: Cursor*` needs no dereference. Calling on an rvalue materialises a temporary.
 - `value.member` without `()` is always a field. There are no computed properties.
-- A method named `init` is the initialiser (§10.1); it is never `static`.
+- A method named `init` is the initialiser (§10.1).
 
 A type's methods may also be declared under `extend Type:` at the top level of any fragment of the module that declares `Type` (§16.1), when a type with many methods is better split by concern across files:
 
 ```luce
 # canvas/selecting.lucb, a fragment of the module `canvas` that declares `Canvas`
 extend Canvas:
-    pub mutating func select_all():
+    pub func select_all():
         self.selected = self.area()
 ```
 
-- An extension holds methods only (`static`, `mutating`, `pub`, attributes, and doc comments as in the body), never fields, so a type's layout stays in its declaration.
+- An extension holds methods only (with `pub`, attributes, and doc comments as in the body), never fields, so a type's layout stays in its declaration.
 - `Type` is a struct, enum, or union this module declares; extending another module's type is an error, so a type's methods are all found within the module that owns it. It sees the module's private names and the type's private fields, as a method in the body does.
 - The methods are the type's methods like the ones in its body: one type, one set of methods, a name declared twice is an error, and the order of fragments does not matter. `describe` (§17) lists them with the rest, so full Luce sees every one.
 - `extend` is a word only in that position; elsewhere it is an ordinary name.
 
 **Why extensions.** A facade type with hundreds of methods would otherwise hold every one of them in one file, or repeat each as a one-line method calling a function in another file. Swift's extensions and Go's methods anywhere in the package split a type across files; Base keeps Go's limit, the owning module, so the full set of a type's methods is still known in one place.
 
-**Why implicit `self`.** Full Luce writes `self` as the first parameter, which is Python's convention and is justified in a language where a function inside a type may or may not be a method. In Base, having a receiver is what a function inside a type does by default, `mutating` already states what the receiver permits, and a C programmer reading `func distance(other: Point)` inside a struct knows what it is. The explicit parameter would have been a parameter in every method that carries no information, and `static` is the word C programmers already use for the exception.
+**Why implicit `self`.** Full Luce writes `self` as the first parameter, which is Python's convention and is justified in a language where a function inside a type may or may not be a method. In Base, having a receiver is what a function inside a type does by default, and a C programmer reading `func distance(other: Point)` inside a struct knows what it is. The explicit parameter would have been a parameter in every method that carries no information.
 
-**Why `self` is a pointer.** In full Luce a non-mutating method receives a copy, which is safe under reference counting and invisible to the caller. In Base a copy of a large struct on every method call is a cost C programmers would notice, and a struct method in C3, Zig, and Odin takes a pointer. Making the convention deterministic, rather than "by value if small", is what lets the generated C header say `const Point*`.
+**Why nothing is written on a method.** Whether a method changes its receiver, and whether it has one at all, is in its body; a word that repeats it is one more thing to keep true, and the diagnostic about a wrong one is about the word, not the code. Swift asks for `mutating` and Rust for `&mut self`; Base reads the body, as Luce does, and a caller that needs a `var` is told so at the call, with the method's name. The rule is the body's own assignments and calls, not a guess: the compiler never makes a method changing because it might be, and what it found is in the description, so nothing downstream reads a body twice.
+
+**Why `self` is a pointer.** In full Luce a method that changes nothing receives a copy, which is safe under reference counting and invisible to the caller. In Base a copy of a large struct on every method call is a cost C programmers would notice, and a struct method in C3, Zig, and Odin takes a pointer. Making the convention deterministic, rather than "by value if small", is what lets the generated C header say `const Point*`.
 
 ### 9.6 Closures
 
@@ -947,7 +978,7 @@ A small closed set of words may precede a `func` or a top-level `var`, each one 
 | `weak func`, `weak var` | a weak symbol that another definition may override |
 | `used func`, `used var` | keep the symbol even if nothing references it |
 | `section("name") func`, `section("name") var` | place the symbol in the named linker section |
-| `linked func`, `linked var`, `linked let` | the definition is in a library the program links: the function has a signature and no body, the global a type and no initialiser, the constant its type and, when the interface carries it, the value the library gives it, which the program neither stores nor folds; a `linked let` names storage, so it is not a constant expression (§6.4). An interface written by `luce-base interface` is made of these; a generic or `inline` function is compiled where it is used and cannot be `linked` |
+| `linked func`, `linked var`, `linked let` | the definition is in a library the program links: the function has a signature and no body, the global a type and no initialiser, the constant its type and, when the interface carries it, the value the library gives it, which the program neither stores nor folds; a `linked let` names storage, so it is not a constant expression (§6.4). An interface written by `luce-base interface` is made of these; a generic or `inline` function is compiled where it is used and cannot be `linked`. A `linked` method has no body to read (§9.5), so it names its receiver as its first parameter: `self: T*` when it changes it, `self: const T*` when it reads it, and none for a function of the type |
 
 They combine, `used section(".isr_vector") var vectors: Handler[64] = ...`. There is no general attribute syntax; this set is the language. A section name is passed to the target as written; a Mach-O target, whose sections live in segments, places a name without a comma in `__DATA` (a variable) or `__TEXT` (a function) under that name with its leading dot dropped, so `.isr_vector` is one spelling for every target.
 
@@ -1107,12 +1138,12 @@ let text = settings_text(path) catch failure:
 `assert(condition)` and `assert(condition, message)` trap when the condition is false, saying where and what: `trap: file:line:column: assert failed: condition`, with the message appended when given. The condition must be side-effect-free. Assertions are never removed by a build profile. An `assert` at module level, outside any function, is evaluated at compile time and its condition must be a constant expression; it is C's `static_assert`:
 
 ```luce
-assert(sizeof(Header) == 32, "Header must match the wire format")
+assert(memory.size_of(Header) == 32, "Header must match the wire format")
 ```
 
 ### 11.7 Out of memory
 
-Out of memory is a recoverable `memory.exhausted` error from `new` and `alloc` (§12.2), not a fatal termination as in full Luce.
+Out of memory is a recoverable `memory.exhausted` error from `new` (§12.2), not a fatal termination as in full Luce.
 
 **Why.** Full Luce makes allocation infallible and out-of-memory fatal, because making every list append fallible would make every API fallible for a condition most hosts cannot recover from anyway. Base programs often run with a fixed memory budget: an allocator over a fixed buffer running out is an ordinary condition there, and the caller wrote the allocation call, so it can handle the failure.
 
@@ -1120,17 +1151,17 @@ Out of memory is a recoverable `memory.exhausted` error from `new` and `alloc` (
 
 ### 12.1 Allocation is written, never hidden
 
-Only two operations allocate from an allocator: `new` and `alloc`; and one call takes storage from the running function's own frame, `memory.frame` (§12.7). No other operation, expression, or built-in type allocates. There are no built-in collections; a list, map, or string builder is a library type that allocates with `new` like any other code. The compiler never inserts an allocation.
+Only one operation allocates from an allocator, `new`, with `memory.allocate` asking the current allocator for raw bytes; and one call takes storage from the running function's own frame, `memory.frame` (§12.7). No other operation, expression, or built-in type allocates. There are no built-in collections; a list, map, or string builder is a library type that allocates with `new` like any other code. The compiler never inserts an allocation.
 
-### 12.2 `new`, `alloc`, and `free`
+### 12.2 `new` and `free`
 
 ```luce
 let node = try new Node(value = 1, next = none)      # Node*!: one Node, initialised
 let zeroed = try new Node                             # Node*!: the zero value; Node must be zeroable
 let leaf = try new Expr.number(value = 2.0)           # Expr*!: an enum case
 let items = try new u8[4096]                          # u8[]!: 4096 zeroed bytes
-let pool = try alloc Node[64]                         # Node[]!: 64 uninitialised nodes
-let raw = try alloc(size, alignment)                  # u8[]!: uninitialised bytes
+let pool = try new Node[64] ---                       # Node[]!: 64 nodes, left unwritten
+let raw = try memory.allocate(size, alignment)        # u8[]!: unwritten bytes
 let scratch = try new u8[size] in arena               # from a named allocator
 free(node)
 free(items)
@@ -1138,11 +1169,14 @@ free(scratch) in arena
 ```
 
 - `new` followed by a construction expression, a struct's initialiser call or an enum case, allocates storage for that value, constructs the value in it, and yields `T*`. `new T` with no arguments allocates the zero value and requires `T` to be zeroable (§6.1). `new T[count]` allocates `count` zeroed elements and yields `T[]`; `count` is a `usize` expression. To allocate a single fixed array rather than a span, parenthesise the type: `new (u8[4])` yields `u8[4]*`.
-- `alloc T[count]` allocates `count` uninitialised elements of any type and yields `T[]`; reading an element before writing it is undefined (§12.6). `alloc(size, alignment)` yields `u8[]` of uninitialised bytes, the raw form for code that lays memory out itself.
-- Counted `new T[count]` and `alloc T[count]` reject byte sizes above 2^62 as `memory.exhausted` before calling the allocator. Element counts are checked before multiplication; zero-sized elements consume no bytes.
-- Every `new` and `alloc` is fallible, because allocation can fail: the type is `T*!` or `T[]!`, and a fallible initialiser adds its own failures to the same result. `try`, `catch`, or `else` handles it as for any fallible call. Failure is `memory.exhausted`.
-- `free(x)` returns storage obtained from `new` or `alloc` to its allocator. `x` is a `T*`, a `T[]`, or a `u8[]`. `free` is a statement.
-- `new`, `alloc`, and `free` take the current allocator (§12.3) unless followed by `in expression`, which names the allocator: `new Node(...) in arena`, `alloc(n, 16) in parent`, `free(p) in arena`. The expression is a `var` whose type implements `Allocator`, or an `Allocator` view.
+- `new T[count] ---` allocates `count` elements of any type and leaves them unwritten, as `---` leaves a `var` (§6.2); reading an element before writing it is undefined (§12.6). It is the form for storage the program fills first, a buffer a `read` fills or a pool of structs that hold bare pointers, and the one a non-zeroable `T` takes.
+- `memory.allocate(size, alignment)` yields `u8[]!` of unwritten bytes from the current allocator, the raw form for code that lays memory out itself; from another allocator, `allocator.allocate(size, alignment)` answers `u8[]?` (§12.4).
+- Counted `new T[count]` and `new T[count] ---` reject byte sizes above 2^62 as `memory.exhausted` before calling the allocator. Element counts are checked before multiplication; zero-sized elements consume no bytes.
+- Every `new` is fallible, because allocation can fail: the type is `T*!` or `T[]!`, and a fallible initialiser adds its own failures to the same result. `try`, `catch`, or `else` handles it as for any fallible call. Failure is `memory.exhausted`.
+- `free(x)` returns storage obtained from `new` or `memory.allocate` to its allocator. `x` is a `T*`, a `T[]`, or a `u8[]`. `free` is a statement.
+- `new` and `free` take the current allocator (§12.3) unless followed by `in expression`, which names the allocator: `new Node(...) in arena`, `new u8[n] --- in parent`, `free(p) in arena`. The expression is a `var` whose type implements `Allocator`, or an `Allocator` view.
+
+**Why `---` and not a second word.** Zero is the default everywhere in Base (§6.1), and `---` is already how a program says it will write the storage itself (§6.2); an allocation that skips the zeroing says it the same way, in the same conspicuous spelling, so one keyword covers every allocation and the unwritten ones can be searched for.
 - Storage must be freed with the allocator that provided it; §12.3 states how a structure keeps that pairing.
 
 ### 12.3 The current allocator and `with`
@@ -1157,7 +1191,7 @@ with arena:
     ...                                      # released all at once by arena.destroy()
 ```
 
-- `memory.allocator` is a thread-local `var` holding an `Allocator` view, the **current allocator**. `new`, `alloc`, and `free` without `in` use it. `memory.heap` is the process's initial allocator: the C allocator when the C library is linked, the Luce runtime's heap inside a full Luce program (§18.9), and none in a `--freestanding` build.
+- `memory.allocator` is a thread-local `var` holding an `Allocator` view, the **current allocator**. `new` and `free` without `in` use it. `memory.heap` is the process's initial allocator: the C allocator when the C library is linked, the Luce runtime's heap inside a full Luce program (§18.9), and none in a `--freestanding` build.
 - `with allocator:` sets `memory.allocator` to `allocator` for the suite and restores the previous value on every exit, including `return` and error propagation. `allocator` is a `var` whose type implements `Allocator`, whose address is taken, or an `Allocator` view. The suite is a scope, so a `defer free(x)` inside it runs before the previous allocator is restored.
 - The startup shim sets `memory.allocator` to `memory.heap` before `main`, and `thread.spawn` sets it to `memory.heap` in the new thread (§15.3). In a `--freestanding` build the program assigns `memory.allocator` before its first `new`; a `new` or `alloc` with none set traps `memory.unset`.
 - A structure that allocates on behalf of its caller records the allocator it was built with and frees with `free(...) in self.allocator`, so that a caller's `with` block cannot change which allocator releases the structure's memory. Every standard library container does this. The linter reports a `free` without `in` whose argument did not come from a `new` or `alloc` without `in` in the same function.
@@ -1168,12 +1202,12 @@ with arena:
 
 ```luce
 pub interface Allocator:
-    mutating func allocate(size: usize, alignment: usize) -> u8[]?
-    mutating func resize(block: u8[], size: usize) -> bool
-    mutating func release(block: u8[])
+    func allocate(size: usize, alignment: usize) -> u8[]?
+    func resize(block: u8[], size: usize) -> bool
+    func release(block: u8[])
 ```
 
-A type that implements `Allocator` can be named by `in` and made current with `with`. The requirements are `mutating` because an allocator has state. `allocate` answers uninitialised memory of at least `size` bytes at the given alignment, or `none`. Zero alignment means one; for a nonempty block an allocator must satisfy the requested alignment or refuse it. `FixedBuffer` and `Arena` support arbitrary positive byte alignments; the C heap supports powers of two and the page allocator supports divisors of the page size. `resize` grows or shrinks a block in place and answers whether it could. `release` returns a block; an allocator that needs the block's alignment or size class recovers it from its own bookkeeping, as `free` in C does, so `free` never has to carry it.
+A type that implements `Allocator` can be named by `in` and made current with `with`. Its implementations change their receiver, since an allocator has state, so it is named and made current as a `var`, through a mutable pointer, or through a view. `allocate` answers uninitialised memory of at least `size` bytes at the given alignment, or `none`. Zero alignment means one; for a nonempty block an allocator must satisfy the requested alignment or refuse it. `FixedBuffer` and `Arena` support arbitrary positive byte alignments; the C heap supports powers of two and the page allocator supports divisors of the page size. `resize` grows or shrinks a block in place and answers whether it could. `release` returns a block; an allocator that needs the block's alignment or size class recovers it from its own bookkeeping, as `free` in C does, so `free` never has to carry it.
 
 The standard library provides `PageAllocator` (host pages), `CAllocator` (`malloc` and `free`), `FixedBuffer` (over a caller's `u8[]`), and `Arena` (bump allocation over a parent allocator, released all at once by `reset` or `destroy`; §24.3 shows its source). `CAllocator` and `PageAllocator` may be used from several threads at once; `FixedBuffer` and `Arena` may not. In a diagnostic build each of them quarantines released blocks, fills them with a pattern, and records allocation sites.
 
@@ -1204,7 +1238,7 @@ func sum_of_squares(values: const f64[]) -> f64:
     ...
 ```
 
-- `memory.frame[T](count, most)` yields `count` uninitialised elements of `T` as a `T[]` in the frame of the function that calls it, as C's `alloca` does: the storage lasts until that function returns, and nothing frees it. `count` is a `usize` expression; `most` is a constant expression, the most elements the call may take, and `most * sizeof(T)` is at most 4096 bytes. A `count` above `most` traps.
+- `memory.frame[T](count, most)` yields `count` uninitialised elements of `T` as a `T[]` in the frame of the function that calls it, as C's `alloca` does: the storage lasts until that function returns, and nothing frees it. `count` is a `usize` expression; `most` is a constant expression, the most elements the call may take, and `most * memory.size_of(T)` is at most 4096 bytes. A `count` above `most` traps.
 - The span is the address of a local (§6.6): it may be passed down and not returned or stored beyond the call.
 - Each call takes more of the frame, even in a loop; the stack pointer moves down by the bytes taken, rounded to sixteen, and the new bottom is touched, so the guard page that catches stack exhaustion (§11.5) is never stepped over.
 - A function that calls `memory.frame` is never expanded into its callers, so the storage belongs to the frame the source names. Reading an element before writing it is undefined (§12.6), as for `alloc`.
@@ -1245,12 +1279,12 @@ There are no value parameters (array length is the one built-in exception), no v
 
 ```luce
 pub interface Writer:
-    mutating func write(bytes: const u8[]) -> usize!
+    func write(bytes: const u8[]) -> usize!
 
 pub struct FileWriter: Writer:
     var descriptor: i32
 
-    pub mutating func write(bytes: const u8[]) -> usize!:
+    pub func write(bytes: const u8[]) -> usize!:
         ...
 ```
 
@@ -1262,10 +1296,12 @@ An interface is a nominal set of method requirements. Conformance is declared on
 from io import Writer
 
 func header[W: Writer](writer: W*, header: Header) -> !:
-    discard(try writer.write(header.bytes))
+    _ = try writer.write(header.bytes)
 ```
 
 A constrained generic is statically dispatched and monomorphised. Nothing allocates and nothing goes through a table.
+
+A requirement says nothing about the receiver; the conformer's implementation does (§9.5). A generic body may call a requirement on a value it may not change, a parameter or what a `const T*` reaches, as `largest[T: Comparable](left: T, right: T)` calls `left.compare(right)`; an instantiation whose argument implements that requirement by changing its receiver is refused where it is written, the generics it passes the parameter on to included. A generic type whose method calls a changing requirement on a part of its receiver holds the conformer through a pointer, `var sink: W*`.
 
 ### 14.3 Interface views
 
@@ -1279,7 +1315,7 @@ try writer.write(data)
 
 Using an interface as a type denotes a two-word value, a pointer to the conforming object and a pointer to its witness table, that borrows the object and does not own it.
 
-- A view is formed from `T*` where `T` implements the interface, or from `const T*` when the interface has no `mutating` requirement. A `mutating` requirement therefore needs the conformer addressable as `var`; mutability is fixed when the view is formed.
+- A view is formed from `T*` where `T` implements the interface, or from `const T*` when none of `T`'s methods implementing the interface's requirements changes its receiver (§9.5). A conformer whose implementations change it is therefore addressable as `var` to be viewed; what the view may do is fixed when it is formed, and a call through it needs nothing more.
 - Calls dispatch through the table: one indirect call. The table is static data, emitted once per type-and-interface pair.
 - The view is copyable and carries no lifetime; the object must outlive every view of it, the same obligation as for any pointer.
 - `Writer?` uses the null niche on the data word.
@@ -1289,11 +1325,11 @@ Using an interface as a type denotes a two-word value, a pointer to the conformi
 
 ### 14.4 Standard protocols
 
-`Equatable` and `Hashable` are the compiler-known marker interfaces behind `==` and `hash`; they are derived structurally (§7.4) and cannot be implemented by hand. `Comparable` is implemented with `compare(other) -> i64`, negative, zero, or positive; the compiler supplies it for integers, floats (IEEE order, with NaN unordered and `compare` trapping on it), `char`, and `str`.
+`Equatable` and `Hashable` are the compiler-known marker interfaces behind `==` and `value.hash()`; they are derived structurally (§7.4) and cannot be implemented by hand. `Comparable` is implemented with `compare(other) -> i64`, negative, zero, or positive; the compiler supplies it for integers, floats (IEEE order, with NaN unordered and `compare` trapping on it), `char`, and `str`.
 
-`Iterable[T, I]` and `Iterator[T]` are what `for` consumes (§8.3): `interface Iterable[T, I: Iterator[T]]: func iterator() -> I`, and `interface Iterator[T]: mutating func next() -> T?`. The iterator type is a parameter, so `for` resolves it statically.
+`Iterable[T, I]` and `Iterator[T]` are what `for` consumes (§8.3): `interface Iterable[T, I: Iterator[T]]: func iterator() -> I`, and `interface Iterator[T]: func next() -> T?`. The iterator type is a parameter, so `for` resolves it statically.
 
-`Display` writes a value to a sink: `func display(sink: Writer) -> !`. The compiler supplies it for integers (decimal), floats (the shortest decimal that reads back as the value, the closest of those: decimal notation for a decimal exponent from -6 to 14 and `1.5e-7`, `1e15` otherwise; digits without a point keep a `.0`, `-5.0`, `-0.0`; `inf`, `-inf`, `nan`; an `f32` shows its own shortest digits, `0.1` for `0.1f32`, and an `f16` those of its value as an `f32`), `bool`, `char`, `str`, and pointers (hexadecimal with `0x`). Formatted strings call it for each field; `hex(value)`, `bin(value)`, and `pad(value, width)` are one-word functions that answer a value whose `Display` is the requested form.
+`Display` writes a value to a sink: `func display(sink: Writer) -> !`. The compiler supplies it for integers (decimal), floats (the shortest decimal that reads back as the value, the closest of those: decimal notation for a decimal exponent from -6 to 14 and `1.5e-7`, `1e15` otherwise; digits without a point keep a `.0`, `-5.0`, `-0.0`; `inf`, `-inf`, `nan`; an `f32` shows its own shortest digits, `0.1` for `0.1f32`, and an `f16` those of its value as an `f32`), `bool`, `char`, `str`, and pointers (hexadecimal with `0x`). Formatted strings call it for each field; a field with a format specification (§5.5) lays out a number or text instead.
 
 `Writer` (§14.1) is the standard sink. `io.stdout()` and `io.stderr()` answer one. `print(text)` and `print(f"...")` write to standard output with a newline and ignore a failed write.
 
@@ -1440,14 +1476,15 @@ The language depends on these modules by name. Their full surfaces are in the li
 
 | Module | What the language relies on |
 | --- | --- |
-| `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `read`, `write`, `copy`, `move`, `set`, `grow`, `frame` (§12.7), `page_size()` |
+| `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `allocate` (§12.2), `size_of`, `align_of`, `offset_of` (§5.11), `read`, `write`, `copy`, `move`, `set`, `grow`, `frame` (§12.7), `page_size()` |
 | `io` | `stdout()` and `stderr()` as `Writer`s; `path.user()`, `path.home()`, `path.temp()`, `path.config()` for the process's directories |
 | `os` | the target as constants: `arm64`, `x86_64`, `wasm32`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`, `cpu_level` (§19.5); `cpu_level_running()`, `cpus()`, `page_size()`, `random_bytes`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
 | `thread` | `spawn`, `Handle`, `current`, `pause`, `yield`, `sleep` |
 | `sync` | `Mutex`, `Condition`, `Once`, `Semaphore`, `Cancellation` |
 | `atomic` | `fence`, `Ordering` |
 | `luce` | the protocols `Equatable`, `Hashable`, `Comparable` (§13.1), `Iterator`, `Iterable` and `Display` (§14.4); the source facts `location`, `file`, `line`, `function` (§9.1) |
-| `strings` | `copy`, `release` (§5.5), `join`, `split`, `find`, `trim`, `replace`, the number parsers and formatters |
+| `strings` | `format` (§5.5), `copy`, `release`, `join`, `split`, `find`, `trim`, `replace`, the number parsers and formatters, and `write_i64` and its siblings, a value laid out by a specification to a `Writer` |
+| `numerals` | the format specification of a `{value:spec}` field (§5.5): `read`, `misfit`, and `lay_integer`, `lay_float`, `lay_text` into a `Sink` |
 | `time` | `now`, `unix`, `since` |
 | `c` | the C types of §5.2, `errno()`, `set_errno(value)`, `stdin()`, `stdout()`, `stderr()` |
 | `testing` | assertions, seeds, and the per-test allocator of §16.5 |
@@ -1562,7 +1599,7 @@ A `def native` element of `package.prisma` applies by its name: `inputs` (or `al
 - A C enum becomes an integer-backed enum, `as u32` when every value fits, else `as i32`, `u64`, or `i64`; a case whose value repeats an earlier one is a constant of the enum type; an enum without a name is constants.
 - A typedef that names a struct or enum without a tag, or repeats its tag, is that type's name; any other typedef is an alias, `pub type`.
 - An array parameter `int a[4]` becomes `a: i32*?`, because C adjusts it to a pointer.
-- A flexible array member `T data[];` is omitted from the struct, and a function `Struct_data(record: Struct*) -> T*` is generated from `sizeof` of the fixed part. A struct declared in Base with a trailing payload uses `alloc` with a computed size and the same accessor pattern.
+- A flexible array member `T data[];` is omitted from the struct, and a function `Struct_data(record: Struct*) -> T*` is generated as the address one record past `record`, `record + 1`, where the fixed part ends. A struct declared in Base with a trailing payload allocates it with `memory.allocate` and a computed size and uses the same accessor pattern.
 - An anonymous struct or union member becomes a type of its own, named after the enclosing type and the field, `Outer_field_union`, and a member without a name is `memberN`, so that the layout stays C's. A struct with bit-fields is refused and left as an `extern type`; its fields are reached through shims the recipe names.
 - A macro that expands to a number, a character, or a string becomes a `pub let` of the type C gives it, casts and suffixes included; one that expands to a name is reported, since binding that name is the answer.
 - A name Base reserves (`type`, `str`, `out`, ...) gets an underscore after it, `type_`, and a function so renamed keeps its symbol through `as`.
@@ -1581,7 +1618,7 @@ export func blend(left: Pixel, right: Pixel) -> Pixel: ...
 struct Cursor:
     pub var offset: usize
 
-    export mutating func advance(count: usize) -> !: ...
+    export func advance(count: usize) -> !: ...
 ```
 
 Export is opt-in. `export func name(...)` gives a function C linkage under `name`, or under the manifest's `symbol_prefix` followed by `name`. `export` on a method exports it as `Type_method` with `self` first. A `pub` function that is not exported has hidden visibility and a module-qualified symbol and cannot collide with C. An `export` is a compile error when the signature is not C-representable or when two exports share a symbol.
@@ -1669,7 +1706,7 @@ A type is **plain** when its representation is copied data with no reference ide
 | `T[]`, `T` plain | `list[T]` | lent under the list's mutation guard: structural change through any alias traps until the call returns, and element storage does not move |
 | `str` | `str` | lent: the owned string's bytes are viewed |
 | `c.str` | `str` | lent as a NUL-terminated temporary |
-| interface view | a conforming value, class instance, or interface value | lent: the payload's address and the same static witness table; for a `mutating` requirement the argument must be a `var` or a class instance |
+| interface view | a conforming value, class instance, or interface value | lent: the payload's address and the same static witness table; for a conformer whose implementations change their receiver (§14.3) the argument must be a `var` or a class instance |
 | `func(...) -> R`, plain signature | a capture-free function or lambda | by value |
 | `T*`, `const T*`, `void*`, `T*?` | the native pointer from a `.lucn` module | by value; a safe module cannot produce one |
 | `union`, `@T`, `volatile T*`, `fmt` | nothing | rejected |
@@ -1731,7 +1768,7 @@ Source is tokenised, laid out, parsed, resolved, and typed into the same typed i
 
 All target-neutral:
 
-- a pointer-width integer type, and symbolic layout constants for `sizeof`, `alignof`, and `offsetof` that the backend folds;
+- a pointer-width integer type, and symbolic layout constants for `memory.size_of`, `memory.align_of`, and `memory.offset_of` that the backend folds;
 - a nullable pointer type, the one recorded exception to full Luce's uniform tagged optional, justified by the C layout of struct fields, and shared with native Luce's raw pointers;
 - a two-word unmanaged interface-view type with a witness-table-address instruction;
 - a union type;
@@ -1743,7 +1780,7 @@ All target-neutral:
 - a variadic call form;
 - the attribute facts of §9.8.
 
-The verifier checks each. `new`, `alloc`, and `free` lower to calls through the `memory` module's thread-local view and add nothing to the representation.
+The verifier checks each. `new` and `free` lower to calls through the `memory` module's thread-local view and add nothing to the representation.
 
 ### 19.3 Backends and bridges
 
@@ -1810,7 +1847,7 @@ Absent from Base, each with the reason it is not a loss:
 - **`NULL` and nullable-by-default pointers.** `T*?`.
 - **`->`.** Auto-dereference on `.`.
 - **Braces, semicolons, `&&`, `||`, `!`, `++`, `--`, the comma operator, statement expressions, `do while`, `switch` fallthrough.** One parser, one formatter, one spelling per idea.
-- **`goto`.** Reserved (§8.6).
+- **`goto`.** Not in the language, and an ordinary name (§8.6).
 - **`setjmp`/`longjmp`.** ISO C, but incompatible with `defer`, `errdefer`, and initialisation analysis. A `longjmp` through a Base frame is undefined. A library that reports errors through it (libpng, libjpeg, the Lua C API) is bound through a `shims.c` function that contains the `setjmp` and returns a status.
 - **Computed goto, VLAs, unbounded `alloca`, `register`, `long double`, `_Complex`.** GNU extensions, not representable by the backends, or not portable. Frame storage of a size the program bounds is `memory.frame` (§12.7).
 - **Variadic function definitions, bit-field widths in Base structs, designated array initialisers, a storable result type.** Deferred until enough exported and C-layout code exists to test the rules against; a storable result is an enum with two cases today.
@@ -1818,7 +1855,7 @@ Absent from Base, each with the reason it is not a loss:
 
 ## 21. Grammar
 
-Repetition is `{...}`, optional syntax is `[...]`, quoted text is a token. `NEWLINE`, `INDENT`, and `DEDENT` come from the layout lexer; `RAW_LINE` is a physical line captured without tokenisation after removal of the suite's indentation baseline. `IDENT` is an identifier that is not a reserved word; `TYPE_IDENT` is a `PascalCase` identifier; `TYPE_PATH` is a `TYPE_IDENT`, or an alias's `IDENT`, optionally qualified by a module path; `CORE_TYPE` is one of the scalar type names, `str`, `fmt`, `unit`, `never`; `COMPARE_OP` is `==`, `!=`, `<`, `<=`, `>`, `>=`; `FORMAT_START`, `FORMAT_TEXT`, `FORMAT_END` are the lexer's pieces of one `f"..."` literal; `constant_expression` is an `expression` meeting §6.4. Semantic restrictions in the earlier chapters remain normative over this shape.
+Repetition is `{...}`, optional syntax is `[...]`, quoted text is a token. A contextual word (§3.6) is quoted where it is one and is an `IDENT` everywhere else. `NEWLINE`, `INDENT`, and `DEDENT` come from the layout lexer; `RAW_LINE` is a physical line captured without tokenisation after removal of the suite's indentation baseline. `IDENT` is an identifier that is not a reserved word; `TYPE_IDENT` is a `PascalCase` identifier; `TYPE_PATH` is a `TYPE_IDENT`, or an alias's `IDENT`, optionally qualified by a module path; `CORE_TYPE` is one of the scalar type names, `str`, `fmt`, `unit`, `never`; `COMPARE_OP` is `==`, `!=`, `<`, `<=`, `>`, `>=`; `FORMAT_START`, `FORMAT_TEXT`, `FORMAT_END` are the lexer's pieces of one `f"..."` literal, and `FORMAT_SPEC` the text after a field's colon up to its `}` (§5.5); `constant_expression` is an `expression` meeting §6.4. Semantic restrictions in the earlier chapters remain normative over this shape.
 
 ```ebnf
 module          = { import_decl | top_decl }, EOF ;
@@ -1845,9 +1882,13 @@ type_alias      = "type", TYPE_IDENT, "=", type, NEWLINE ;
 attribute       = "inline" | "noinline" | "cold" | "naked" | "weak" | "used" | "linked"
                 | "section", "(", STRING_LITERAL, ")" ;
 
-function_decl   = { attribute }, [ "static" ], [ "mutating" ], "func", IDENT,
-                  [ generic_params ], parameter_list, result_clause, ":", suite ;
-function_sig    = [ "mutating" ], "func", IDENT, [ generic_params ],
+function_decl   = { attribute }, "func", IDENT,
+                  [ generic_params ], parameter_list, result_clause, ":", suite
+                | { attribute }, "linked", { attribute }, "func", IDENT,
+                  ( parameter_list | receiver_list ), result_clause, NEWLINE ;
+receiver_list   = "(", "self", ":", [ "const" ], TYPE_IDENT, "*",
+                  { ",", parameter }, [ "," ], ")" ;   (* a linked method, §9.8 *)
+function_sig    = "func", IDENT, [ generic_params ],
                   parameter_list, result_clause, NEWLINE ;
 generic_params  = "[", generic_param, { ",", generic_param }, [ "," ], "]" ;
 generic_param   = TYPE_IDENT, [ ":", interface_type, { "&", interface_type } ] ;
@@ -1902,7 +1943,7 @@ suite           = simple_stmt
                 | NEWLINE, INDENT, statement, { statement }, DEDENT ;
 statement       = simple_stmt | if_stmt | while_stmt | for_stmt | match_stmt
                 | labeled_loop | with_stmt | asm_stmt ;
-simple_stmt     = binding_stmt | assignment_stmt
+simple_stmt     = binding_stmt | assignment_stmt | drop_stmt
                 | "break", [ IDENT ], NEWLINE
                 | "continue", [ IDENT ], NEWLINE
                 | "return", [ expression ], NEWLINE
@@ -1917,6 +1958,7 @@ binding_stmt    = "let", binding_pattern, [ ":", type ], "=", expression, NEWLIN
 binding_pattern = IDENT | "(", IDENT, ",", IDENT, { ",", IDENT }, [ "," ], ")" ;
 
 assignment_stmt = lvalue, ASSIGN_OP, expression, NEWLINE ;
+drop_stmt       = "_", "=", expression, NEWLINE ;
 lvalue          = ( IDENT | "self" ), { lvalue_part }
                 | "*", unary_expr
                 | "(", lvalue, ")", { lvalue_part } ;
@@ -1975,7 +2017,7 @@ primary_expr    = literal | IDENT | "self" | ".", IDENT, [ argument_list ]
                 | "(", expression, [ ",", expression, { ",", expression }, [ "," ] ], ")"
                 | "(", ")"
                 | "[", [ expression, { ",", expression }, [ "," ] ], "]"
-                | lambda_expr | match_expr | span_constructor | new_expr | alloc_expr ;
+                | lambda_expr | match_expr | span_constructor | new_expr ;
 lambda_expr     = "(", [ IDENT, [ ":", type ], { ",", IDENT, [ ":", type ] } ], ")", "=>", expression ;
 match_expr      = "match", expression, ":", NEWLINE, INDENT,
                   match_value_arm, { match_value_arm }, DEDENT ;
@@ -1983,8 +2025,7 @@ match_value_arm = pattern, { ",", pattern }, [ "if", expression ], "=>", express
 span_constructor
                 = type, "[", "]", argument_list ;          (* u8[](pointer, count) *)
 new_expr        = "new", new_target, [ "in", expression ] ;
-new_target      = type_core, { "*" | "?" }, ( "[", expression, "]" | argument_list | ".", IDENT, argument_list | ) ;
-alloc_expr      = "alloc", ( type_core, { "*" | "?" }, "[", expression, "]" | argument_list ), [ "in", expression ] ;
+new_target      = type_core, { "*" | "?" }, ( "[", expression, "]", [ "---" ] | argument_list | ".", IDENT, argument_list | ) ;
 
 type            = [ "@" ], [ "const" ], [ "volatile" ], type_core,
                   { "*", [ "?" ] | "[", constant_expression, "]" | "[", "]" }, [ "?" ], [ "!" ] ;
@@ -2000,10 +2041,10 @@ integer_type    = "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | 
 literal         = INTEGER_LITERAL | FLOAT_LITERAL | CHAR_LITERAL | STRING_LITERAL | BYTES_LITERAL
                 | formatted_string | "true" | "false" | "none" ;
 formatted_string
-                = FORMAT_START, { FORMAT_TEXT | "{", expression, "}" }, FORMAT_END ;
+                = FORMAT_START, { FORMAT_TEXT | "{", expression, [ ":", FORMAT_SPEC ], "}" }, FORMAT_END ;
 ```
 
-Notes on the shape. Qualifiers bind to the innermost `type_core`, so `const (T*)*` is C's `T *const *` and `void` must be followed by at least one `*`. A `?` may follow any `*` and the final suffix; `??` is rejected semantically. A `type_arguments` bracket contains types; a bracket after a complete type containing a constant expression or nothing is an array or span suffix. `*%` and the other operator forms are recognised only between two operands, so they cannot be confused with a dereference. The tokens `@`, `---`, `...`, and the wrapping, saturating, and checked operators are matched longest-first and admitted by the parser in Base modules only, so the formatter stays single. A statement beginning `IDENT ":"` is a labeled loop and nothing else, because no other statement begins with a bare identifier and a colon. `new T[n]` is a span allocation; `new (T[4])` is a pointer to an array.
+Notes on the shape. Qualifiers bind to the innermost `type_core`, so `const (T*)*` is C's `T *const *` and `void` must be followed by at least one `*`. A `?` may follow any `*` and the final suffix; `??` is rejected semantically. A `type_arguments` bracket contains types; a bracket after a complete type containing a constant expression or nothing is an array or span suffix. `*%` and the other operator forms are recognised only between two operands, so they cannot be confused with a dereference. The tokens `@`, `---`, `...`, and the wrapping, saturating, and checked operators are matched longest-first and admitted by the parser in Base modules only, so the formatter stays single. A statement beginning `IDENT ":"` is a labeled loop and nothing else, because no other statement begins with a bare identifier and a colon. `new T[n]` is a span allocation, `new T[n] ---` one left unwritten; `new (T[4])` is a pointer to an array.
 
 ## 22. C to Base
 
@@ -2019,7 +2060,7 @@ p->f                         p.f
 (uint8_t)x                   (u8)x           # u8(x) is the checked form
 (int)f                       (i32)f          # saturating; i32(f) traps
 NULL / if (p)                none / if let q = p:
-sizeof(T), offsetof(T, f)    sizeof(T), offsetof(T, f)
+sizeof(T), offsetof(T, f)    memory.size_of(T), memory.offset_of(T, f)
 _Static_assert(c, "m")       assert(c, "m")   at module level
 T a[N]                       var a: T[N]
 char buf[N] = {0};           var buf: u8[N]
@@ -2028,7 +2069,8 @@ T *items, size_t count       items: T[]
 char *s                      s: c.str
 p = malloc(sizeof(T))        let p = try new T(...)
 p = calloc(n, sizeof(T))     let items = try new T[n]
-p = malloc(n * sizeof(T))    let items = try alloc T[n]
+p = malloc(n * sizeof(T))    let items = try new T[n] ---
+p = malloc(size)             let bytes = try memory.allocate(size, 16)
 free(p)                      free(p)
 a / b, a % b (ints)          a // b, a % b    # same truncation as C
 x * 31 + c (wrapping)        x *% 31 +% c
@@ -2047,6 +2089,7 @@ _Thread_local int t;         local var t: i32
 #include "x.h"               import x
 #ifdef __x86_64__            asm x86_64: ... / per-target modules
 printf("%d\n", n)            print(f"{n}")
+printf("%08x %.2f", n, x)    print(f"{n:08x} {x:.2f}")
 LOG("x=%d", x) (macro)       log(f"x={x}")   with a `fmt` parameter
 __FILE__, __LINE__           luce.file, luce.line, luce.location
 _Atomic int n; n++;          var n: @i32; n += 1
@@ -2063,8 +2106,8 @@ Base is a profile of Luce, and this document restates every shared rule so that 
 | --- | --- | --- | --- |
 | Reference identity | `class`, ARC, `weak`, `deinit` | none | no runtime |
 | Collections | `list`, `map`, `set` built in | library types over the current allocator | no hidden allocation |
-| Allocation | implicit, in the runtime | `new`, `alloc`, `free`, `with`, `in` | allocation is a language operation |
-| Text | owned, reference-counted `str`; `+` concatenates | `str` is a view; `format` and `fmt` | no owner for a fresh string |
+| Allocation | implicit, in the runtime | `new`, `free`, `with`, `in` | allocation is a language operation |
+| Text | owned, reference-counted `str`; `+` concatenates | `str` is a view; `strings.format` and `fmt` | no owner for a fresh string |
 | Slices | `slice[T]` retains its owner | `T[]` is a non-owning span | no reference counting |
 | Pointers | `native_ptr[T]` in audited modules only | `T*` everywhere, C spelling | Base is the native tier |
 | Optional pointers | token plus flag | null niche | C layout of struct fields; Base pointers are not handles |
@@ -2077,8 +2120,8 @@ Base is a profile of Luce, and this document restates every shared rule so that 
 | Zero values | every local initialised | typed `var` of a zeroable type is zero; `---` for any type | C idiom, with never-null types excluded |
 | Globals | none | `var` with a constant initialiser, `local var` | C needs them; no initialisation order |
 | Labels, guards | refused | `break label`, `pattern if condition` | structured jumps and state machines |
-| Methods | explicit `self` parameter; a type function has none | implicit `self`; `static func` | the receiver is what a function in a type has by default |
-| Non-mutating `self` | a copy | `const Self*` | no copy per call; deterministic C header |
+| Methods | explicit `self` parameter; a type function has none | implicit `self`; a function that never reads it belongs to the type | the receiver is what a function in a type has by default |
+| `self` of a method that changes nothing | a copy | `const Self*` | no copy per call; deterministic C header |
 | Fallible `unit` result | `-> unit!` | `-> !` | the most common signature in systems code |
 | `Display` | returns owned `str` | writes to a `Writer` | no allocation |
 | `new` | constructs a class | allocates from an allocator | Base has no classes |
@@ -2134,7 +2177,7 @@ pub struct Percentage:
             error(out_of_range, "percentage must be 0 through 100")
         self.value = value
 
-    pub static func half() -> Percentage:
+    pub func half() -> Percentage:
         return Percentage(value = 50.0) catch failure: trap("50 is in range")
 
 pub func main(arguments: str[]) -> i32!:
@@ -2161,23 +2204,23 @@ pub struct Ring:
     var count: usize
     var allocator: Allocator
 
-    pub static func create(capacity: usize) -> Ring!:
+    pub func create(capacity: usize) -> Ring!:
         return Ring(items = try new u32[capacity], head = 0, count = 0, allocator = memory.allocator)
 
-    pub mutating func push(value: u32) -> !:
+    pub func push(value: u32) -> !:
         if self.count == self.items.length:
             error(full, "ring buffer is full")
         self.items[(self.head + self.count) % self.items.length] = value
         self.count += 1
 
-    pub mutating func pop() -> u32?:
+    pub func pop() -> u32?:
         if self.count == 0: return none
         let value = self.items[self.head]
         self.head = (self.head + 1) % self.items.length
         self.count -= 1
         return value
 
-    pub mutating func destroy():
+    pub func destroy():
         free(self.items) in self.allocator
 
 pub func main(arguments: str[]) -> i32!:
@@ -2205,10 +2248,11 @@ pub struct Arena: Allocator:
     var block: u8[]
     var used: usize
 
-    pub static func over(parent: Allocator, capacity: usize) -> Arena!:
-        return Arena(parent = parent, block = try alloc(capacity, 16) in parent, used = 0)
+    pub func over(parent: Allocator, capacity: usize) -> Arena!:
+        with parent:
+            return Arena(parent = parent, block = try memory.allocate(capacity, 16), used = 0)
 
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         let base = (usize)self.block.data
         let start = ((base + self.used + alignment - 1) & ~(alignment - 1)) - base
         let end = start +? size else return none
@@ -2216,16 +2260,16 @@ pub struct Arena: Allocator:
         self.used = end
         return self.block[start..<end]
 
-    pub mutating func resize(block: u8[], size: usize) -> bool:
+    pub func resize(block: u8[], size: usize) -> bool:
         return size <= block.length
 
-    pub mutating func release(block: u8[]):
+    pub func release(block: u8[]):
         return                                   # an arena releases everything at once
 
-    pub mutating func reset():
+    pub func reset():
         self.used = 0
 
-    pub mutating func destroy():
+    pub func destroy():
         free(self.block) in self.parent
 
 func words(text: const u8[]) -> usize:
@@ -2249,9 +2293,11 @@ pub func main(arguments: c.str[]) -> i32!:
 
 ### 24.5 An intrusive list
 
-Pointers, nullable pointers, `offsetof`, and the two casts C uses for the same structure.
+Pointers, nullable pointers, `memory.offset_of`, and the two casts C uses for the same structure.
 
 ```luce
+import memory
+
 struct Link:
     var next: Link*?
 
@@ -2261,7 +2307,7 @@ struct Task:
     var link: Link
 
 func task_of(link: Link*) -> Task*:
-    return (Task*)((u8*)link - offsetof(Task, link))
+    return (Task*)((u8*)link - memory.offset_of(Task, link))
 
 func push(head: Link*?*, task: Task*):
     task.link.next = *head
@@ -2411,11 +2457,11 @@ import thread
 struct SpinLock:
     var locked: @bool
 
-    mutating func acquire():
+    func acquire():
         while self.locked.swap(true, .acquire):
             thread.pause()
 
-    mutating func release():
+    func release():
         self.locked.store(false, .release)
 
 struct Shared:
@@ -2467,16 +2513,17 @@ Formatted output into a caller's buffer, a `str` that views it, and a `fmt` para
 import io
 import luce
 from io import Location
+import strings
 
 func describe(bytes: usize, buffer: u8[]) -> str!:
     if bytes >= 1 << 20:
-        return try format(buffer, f"{bytes >> 20} MiB")
+        return try strings.format(buffer, f"{bytes >> 20} MiB")
     if bytes >= 1 << 10:
-        return try format(buffer, f"{bytes >> 10} KiB")
-    return try format(buffer, f"{bytes} B")
+        return try strings.format(buffer, f"{bytes >> 10} KiB")
+    return try strings.format(buffer, f"{bytes} B")
 
 func log(message: fmt, at: Location = luce.location):
-    discard(io.stderr().write(f"{at.file}:{at.line}: {message}\n") catch failure: recover 0)
+    _ = io.stderr().write(f"{at.file}:{at.line}: {message}\n") catch failure: recover 0
 
 pub func main(arguments: str[]) -> i32!:
     var buffer: u8[32]
@@ -2500,13 +2547,13 @@ pub struct Builder: Writer:
     var length: usize
     var allocator: Allocator
 
-    pub static func create(capacity: usize) -> Builder!:
-        return Builder(bytes = try alloc u8[capacity], length = 0, allocator = memory.allocator)
+    pub func create(capacity: usize) -> Builder!:
+        return Builder(bytes = try new u8[capacity] ---, length = 0, allocator = memory.allocator)
 
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         let needed = self.length +? data.length else error(memory.exhausted, "builder overflow")
         if needed > self.bytes.length:
-            let grown = try alloc u8[needed * 2] in self.allocator
+            let grown = try new u8[needed * 2] --- in self.allocator
             memory.copy(grown, self.bytes, self.length)
             free(self.bytes) in self.allocator
             self.bytes = grown
@@ -2517,7 +2564,7 @@ pub struct Builder: Writer:
     pub func text() -> str:
         return (str)self.bytes[..<self.length]
 
-    pub mutating func destroy():
+    pub func destroy():
         free(self.bytes) in self.allocator
 
 pub func main(arguments: str[]) -> i32!:
@@ -2545,17 +2592,17 @@ pub struct Map[K: Hashable & Equatable, V]:
     var count: usize
     var allocator: Allocator
 
-    pub static func create(capacity: usize) -> Map[K, V]!:
-        return Map(keys = try alloc K[capacity], values = try alloc V[capacity],
+    pub func create(capacity: usize) -> Map[K, V]!:
+        return Map(keys = try new K[capacity] ---, values = try new V[capacity] ---,
                    used = try new bool[capacity], count = 0, allocator = memory.allocator)
 
     func slot(key: K) -> usize:
-        var index = (usize)(hash(key) % self.keys.length)
+        var index = (usize)(key.hash() % self.keys.length)
         while self.used[index] and not (self.keys[index] == key):
             index = (index + 1) % self.keys.length
         return index
 
-    pub mutating func insert(key: K, value: V) -> !:
+    pub func insert(key: K, value: V) -> !:
         if self.count == self.used.length:
             error(memory.exhausted, "map is full")
         let index = self.slot(key)
@@ -2570,7 +2617,7 @@ pub struct Map[K: Hashable & Equatable, V]:
         if not self.used[index]: return none
         return self.values[index]
 
-    pub mutating func destroy():
+    pub func destroy():
         free(self.keys) in self.allocator
         free(self.values) in self.allocator
         free(self.used) in self.allocator
@@ -2592,6 +2639,7 @@ A fallible function calling another, one `catch` that recovers, one that adds co
 ```luce
 import c
 import luce_std.files
+import strings
 
 pub let missing_field: ErrorCode = ErrorCode.package(4)
 
@@ -2629,7 +2677,7 @@ func parse(text: str, scratch: u8[]) -> Config!:
     let name = field(text, "name") else error(missing_field, "name")
     let threads = field(text, "threads") else error(missing_field, "threads")
     let count = number(threads) catch failure:
-        error(failure.code, try format(scratch, f"threads: {failure.message}"))
+        error(failure.code, try strings.format(scratch, f"threads: {failure.message}"))
     return Config(name = name, threads = count)
 
 func load(path: c.str, scratch: u8[]) -> Config!:

@@ -1,0 +1,33 @@
+## §3.5, §3.6: a member takes any name but a reserved word: a field, a method and an enum
+## case may be named like a core function, and the words that left the language (`local`,
+## `export`, `static`, `mutating`, `alloc`, `goto`) are ordinary names everywhere.
+struct Report:
+    var print: str
+    var static: bool
+
+    func assert() -> str:
+        return self.print if self.static else "plain"
+
+    func error(code: i64) -> i64:
+        return code * 2 if self.static else code
+
+enum Kind:
+    print
+    trap
+    hash
+
+func describe(k: Kind) -> str:
+    return match k:
+        .print => "print"
+        .trap => "trap"
+        .hash => "hash"
+
+pub func main(arguments: str[]) -> i32:
+    let report = Report(print = "shown", static = true)
+    let local = 1
+    let mutating = 2
+    let alloc = 3
+    let goto = 4
+    let export = 5
+    print(f"{report.assert()} {report.error(21)} {describe(.trap)} {local + mutating + alloc + goto + export}")
+    return 0

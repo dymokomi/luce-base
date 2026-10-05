@@ -91,8 +91,8 @@ pub func main(arguments: str[]) -> i32:
     show("nested")
     handled()
     show("handled")
-    discard(failing(false) catch failure: recover 0)
-    discard(failing(true) catch failure: recover 0)
+    _ = failing(false) catch failure: recover 0
+    _ = failing(true) catch failure: recover 0
     show("errdefer")
     with_lambda()
     show("lambda")

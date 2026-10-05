@@ -1,0 +1,102 @@
+#==============================================================================================
+#
+#   strings/formatting - Formatted text into a caller's bytes, and fields by specification
+#
+#   DESCRIPTION:
+#       `format(buffer, f"...")` (§5.5), which the compiler lays out straight into the buffer
+#       where the call is written, and the writers a formatted string's `{value:spec}` field
+#       becomes: `numerals` lays the value out and the text goes to a `Writer`.
+#
+#==============================================================================================
+
+# mark: Formatting =============================================================================
+
+## `text` written into `buffer`: the `str` over the bytes written (§5.5). Fails with
+## `memory.exhausted` when the text does not fit, the bytes that fit written. The compiler
+## writes the text where the call is, so this body never runs.
+pub func format(buffer: u8[], text: fmt) -> str!:
+    trap("strings.format is answered where it is called")
+
+# mark: Fields by specification ================================================================
+
+## A `Writer` as `numerals` writes into it, with the first failure it gave.
+struct Through:
+    var writer: io.Writer
+    var failure: Error?
+
+## Append `bytes` to the `Through` at `context`; false once the writer has failed.
+func write_through(context: void*, bytes: const u8[]) -> bool:
+    let through = (Through*)context
+    let written = through.writer.write(bytes) catch failure:
+        through.failure = failure
+        return false
+    return written == bytes.length
+
+## The writer's failure after a layout that stopped, or a short write's.
+func stopped(through: Through) -> !:
+    if let failure = through.failure:
+        error(failure.code, failure.message)
+    error(memory.exhausted, "the writer took fewer bytes than it was given")
+
+## `value` laid out by format specification `spec` (§5.5), written to `sink`: what a
+## formatted string's `{value:spec}` field writes. A `spec` that does not read traps.
+pub func write_i64(sink: io.Writer, value: i64, spec: str) -> !:
+    var through = Through(writer = sink, failure = none)
+    let negative = value < 0
+    let magnitude = 0 -% (u64)value if negative else (u64)value
+    if not numerals.lay_integer(numerals.Sink(context = (void*)&through, write = write_through), negative, magnitude, spec):
+        try stopped(through)
+
+## `value` laid out by format specification `spec` (§5.5), written to `sink`.
+pub func write_u64(sink: io.Writer, value: u64, spec: str) -> !:
+    var through = Through(writer = sink, failure = none)
+    if not numerals.lay_integer(numerals.Sink(context = (void*)&through, write = write_through), false, value, spec):
+        try stopped(through)
+
+## `value` laid out by format specification `spec` (§5.5), written to `sink`.
+pub func write_f64(sink: io.Writer, value: f64, spec: str) -> !:
+    var through = Through(writer = sink, failure = none)
+    if not numerals.lay_float(numerals.Sink(context = (void*)&through, write = write_through), value, false, spec):
+        try stopped(through)
+
+## `value` laid out by format specification `spec` (§5.5), written to `sink`: with neither
+## a type nor a precision, the `f32`'s own shortest digits.
+pub func write_f32(sink: io.Writer, value: f32, spec: str) -> !:
+    var through = Through(writer = sink, failure = none)
+    if not numerals.lay_float(numerals.Sink(context = (void*)&through, write = write_through), f64(value), true, spec):
+        try stopped(through)
+
+## `text` laid out by format specification `spec` (§5.5), written to `sink`.
+pub func write_text(sink: io.Writer, text: str, spec: str) -> !:
+    var through = Through(writer = sink, failure = none)
+    if not numerals.lay_text(numerals.Sink(context = (void*)&through, write = write_through), text, spec):
+        try stopped(through)
+
+## `value`, its UTF-8, laid out by format specification `spec` (§5.5), written to `sink`.
+pub func write_char(sink: io.Writer, value: char, spec: str) -> !:
+    var bytes: u8[4]
+    let cp = u32(value)
+    var n: usize = 0
+    if cp < 0x80:
+        bytes[0] = u8(cp)
+        n = 1
+    elif cp < 0x800:
+        bytes[0] = u8(0xC0 | (cp >> 6))
+        bytes[1] = u8(0x80 | (cp & 0x3F))
+        n = 2
+    elif cp < 0x10000:
+        bytes[0] = u8(0xE0 | (cp >> 12))
+        bytes[1] = u8(0x80 | ((cp >> 6) & 0x3F))
+        bytes[2] = u8(0x80 | (cp & 0x3F))
+        n = 3
+    else:
+        bytes[0] = u8(0xF0 | (cp >> 18))
+        bytes[1] = u8(0x80 | ((cp >> 12) & 0x3F))
+        bytes[2] = u8(0x80 | ((cp >> 6) & 0x3F))
+        bytes[3] = u8(0x80 | (cp & 0x3F))
+        n = 4
+    try write_text(sink, (str)bytes[..<n], spec)
+
+## `true` or `false` laid out by format specification `spec` (§5.5), written to `sink`.
+pub func write_bool(sink: io.Writer, value: bool, spec: str) -> !:
+    try write_text(sink, "true" if value else "false", spec)

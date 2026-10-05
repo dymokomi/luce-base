@@ -24,7 +24,7 @@ extend Generator:
     ## Windows' nonvolatile registers beyond the allocator's (rdi, rsi and xmm6-xmm15, which
     ## shared instruction sequences use), saved or restored where `marker` left a line, and
     ## only those `used` marks, each in its place in the save area (`windows_plan`).
-    mutating func windows_saved(restore: bool, used: const bool[]) -> !:
+    func windows_saved(restore: bool, used: const bool[]) -> !:
         for i in 0..<12:
             if not used[i]:
                 continue
@@ -40,11 +40,11 @@ extend Generator:
     ## saves, and one where each exit restores, Windows' further nonvolatile registers; the
     ## text is scanned for the ones it names, and the markers become the saves and restores
     ## of those alone, so a function that names none keeps its prologue to the allocator's.
-    mutating func settle_windows_saves(start: usize) -> !:
+    func settle_windows_saves(start: usize) -> !:
         if not self.convention.windows or self.f.naked:
             return
         let length = self.writer.out.used - start
-        var text = try alloc u8[length]
+        var text = try new u8[length] ---
         defer free(text)
         memory.copy(text, self.writer.out.bytes()[start..<self.writer.out.used], length)
         var used: bool[12] = [false, false, false, false, false, false, false, false, false, false, false, false]
@@ -87,7 +87,7 @@ extend Generator:
     ## `receive_directly` makes (no argument register is ever a temporary's here); every
     ## other parameter is read from where the convention leaves it, the shadow area its
     ## register was stored to or the caller's stack, into its slot or promoted register.
-    mutating func receive_windows(entry: u32[], moves: list.List[incoming.Move]*) -> !:
+    func receive_windows(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         let hidden: usize = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
         let straight = try self.straight_params(entry)
         defer free(straight)
@@ -133,7 +133,7 @@ extend Generator:
                 try self.frame_address("%r10", home)
                 try self.store_bytes("%rax", "%r10", 0, (u64)p.size)
 
-    mutating func call_windows(n: ir.Instr) -> !:
+    func call_windows(n: ir.Instr) -> !:
         let info = self.f.calls.get((usize)n.extra)
         let hidden = info.has_result and self.result_in_memory(info.result_size, info.result_shape, info.result_private)
         let first: u64 = 1 if hidden else 0
@@ -218,10 +218,10 @@ extend Generator:
     ## still read by a pending one, a cycle breaks through r10 (the frame's address scratch,
     ## which only the last phase needs), and the arguments read from the frame or made
     ## from constants come last.
-    mutating func integer_arguments(info: ir.CallInfo, placements: Placement[]) -> !:
+    func integer_arguments(info: ir.CallInfo, placements: Placement[]) -> !:
         let count = (usize)info.args_count
-        var pending = try alloc bool[count + 1]
-        var reads = try alloc str[count + 1]
+        var pending = try new bool[count + 1] ---
+        var reads = try new str[count + 1] ---
         var i: usize = 0
         while i < count:
             let a = self.f.args.get((usize)info.args_start + i)
@@ -241,7 +241,7 @@ extend Generator:
             while i < count:
                 if pending[i] and reads[i].length > 0:
                     left = true
-                    if not self.destination_read(placements[i], self.f.args.get((usize)info.args_start + i), pending, reads, i, count):
+                    if not destination_read(placements[i], self.f.args.get((usize)info.args_start + i), pending, reads, i, count):
                         try self.integer_argument(i, info, placements[i], reads[i])
                         pending[i] = false
                         moved = true
@@ -260,34 +260,10 @@ extend Generator:
                 try self.integer_argument(i, info, placements[i], "")
             i += 1
 
-    ## How many integer registers argument `i` writes: one, or an aggregate's integer eightbytes.
-    func integer_words(p: Placement, a: ir.Arg) -> u32:
-        if a.size == 0:
-            return 1
-        var words: u32 = 0
-        var k: u32 = 0
-        while k < p.words:
-            if (p.sse & (u8)(1 << k)) == 0:
-                words += 1
-            k += 1
-        return words
-
-    ## Whether a pending argument other than `i` reads a register argument `i` writes.
-    func destination_read(p: Placement, a: ir.Arg, pending: bool[], reads: str[], i: usize, count: usize) -> bool:
-        let words = self.integer_words(p, a)
-        var k: usize = 0
-        while k < count:
-            if k != i and pending[k] and reads[k].length > 0:
-                let read = argument_index(reads[k])
-                if read >= (i32)p.first_int and read < (i32)p.first_int + (i32)words:
-                    return true
-            k += 1
-        return false
-
     ## One integer register argument: from `read` when it lives in a register, else loaded;
     ## an aggregate's eightbytes come from its address, the one into the address's own
     ## register last.
-    mutating func integer_argument(i: usize, info: ir.CallInfo, p: Placement, read: str) -> !:
+    func integer_argument(i: usize, info: ir.CallInfo, p: Placement, read: str) -> !:
         let a = self.f.args.get((usize)info.args_start + i)
         if a.size == 0:
             if read.length > 0:
@@ -313,7 +289,7 @@ extend Generator:
                 k += 1
             pass += 1
 
-    mutating func call(n: ir.Instr) -> !:
+    func call(n: ir.Instr) -> !:
         if self.convention.windows:
             try self.call_windows(n)
             return
@@ -325,7 +301,7 @@ extend Generator:
         # one placement per argument, however many: from the build's arena
         var placements: Placement[]
         if info.args_count > 0:
-            placements = try alloc Placement[(usize)info.args_count]
+            placements = try new Placement[(usize)info.args_count] ---
         var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
@@ -345,7 +321,7 @@ extend Generator:
                 if a.size == 0:
                     let cls = ir.Class.l if a.cls == ir.Class.w or a.cls == ir.Class.l else a.cls
                     try self.operand(self.reg(cls, 0), cls, a.value)
-                    try self.writer.line3(self.move_of(cls), self.reg(cls, 0), ", ")
+                    try self.writer.line3(move_of(cls), self.reg(cls, 0), ", ")
                     try self.writer.put_u64((u64)p.stack_offset)
                     try self.writer.put("(%rsp)")
                 else:
@@ -420,7 +396,7 @@ extend Generator:
     ## The words of a fallible result of up to four words between (%r10) and rax, rdx, rcx
     ## and r8, the program's own convention on both System V and Windows (all four are
     ## caller-saved on both); `store` into the memory from the registers, else the reverse.
-    mutating func private_words(size: u32, store: bool) -> !:
+    func private_words(size: u32, store: bool) -> !:
         var k: u32 = 0
         while k * 8 < size:
             let reg = private_result_registers[(usize)k]
@@ -432,7 +408,7 @@ extend Generator:
 
     ## The eightbytes of a small aggregate result between (%r10) and rax/rdx and xmm0/xmm1,
     ## `store` into the memory from the registers, else the reverse.
-    mutating func result_eightbytes(size: u32, sse: u8, store: bool) -> !:
+    func result_eightbytes(size: u32, sse: u8, store: bool) -> !:
         let words: u32 = 2 if size > 8 else 1
         var next_int: u32 = 0
         var next_float: u32 = 0
@@ -457,7 +433,7 @@ extend Generator:
     ## %rsp below `count` levels of the dynamic area under the fixed frame (`ir.Op.reserve`),
     ## set from %rbp whatever it was; on Windows a call's 32-byte shadow area stays below
     ## the levels too.
-    mutating func reserve_levels(count: u32) -> !:
+    func reserve_levels(count: u32) -> !:
         var below = (u64)count * (u64)ir.level_bytes
         if self.convention.windows:
             below += 32 if count > 0 else 0
@@ -478,7 +454,7 @@ extend Generator:
     ## after the call at `self.at`: those kept in the frame stored first, then the rest as
     ## one parallel copy (`incoming`), since a word may live in r8, another's register;
     ## r11 parks one to break a cycle.
-    mutating func take_words() -> !:
+    func take_words() -> !:
         var sources: u8[4] = [0, 0, 0, 0]
         var destinations: u8[4] = [0, 0, 0, 0]
         var targets: u8[4] = [0, 0, 0, 0]
@@ -525,7 +501,7 @@ extend Generator:
     ## those living in registers as one parallel copy (only r8 is both an allocated
     ## register and a result's), r11 parking one to break a cycle; then the rest, loaded
     ## or formed straight into theirs.
-    mutating func return_words(n: ir.Instr) -> !:
+    func return_words(n: ir.Instr) -> !:
         let count = (usize)n.extra2 if n.extra2 <= 4 else 4
         var reads: str[4] = ["", "", "", ""]
         var pending: bool[4] = [false, false, false, false]
@@ -564,7 +540,7 @@ extend Generator:
             if reads[k].length == 0:
                 try self.operand(private_result_registers[k], ir.Class.l, self.f.args.get((usize)n.extra + k).value)
 
-    mutating func return_value(n: ir.Instr) -> !:
+    func return_value(n: ir.Instr) -> !:
         if self.f.has_result and n.extra2 == 0:
             if self.f.result_size == 0:
                 if ir.is_float_class(self.f.result_cls):
@@ -605,7 +581,7 @@ extend Generator:
 
     ## The callee-saved registers the function's asm blocks name as operands, `rbx` and
     ## `r12`-`r15` in any width: reserved, so they are saved and restored like the allocator's.
-    mutating func reserve_asm_registers():
+    func reserve_asm_registers():
         for n in self.f.instrs.span():
             if n.op != ir.Op.set_reg and n.op != ir.Op.get_reg:
                 continue
@@ -616,7 +592,7 @@ extend Generator:
                     self.fr.reserve((u8)c)
                 c += 1
 
-    mutating func save_callee_saved() -> !:
+    func save_callee_saved() -> !:
         if self.convention.windows:
             try self.writer.put("\n")
             try self.writer.put(windows_save_marker)
@@ -628,7 +604,7 @@ extend Generator:
                 try self.unwinding.saved_cfi_register(&self.writer.out, 3 if c == 1 else (u64)c + 10, self.fr.save_offset[c] + 16)
             c += 1
 
-    mutating func restore_callee_saved() -> !:
+    func restore_callee_saved() -> !:
         if self.convention.windows:
             try self.writer.put("\n")
             try self.writer.put(windows_restore_marker)
@@ -637,3 +613,27 @@ extend Generator:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
                 try self.frame_load(q_names[c], ir.Class.l, self.fr.save_offset[c])
             c += 1
+
+## Whether a pending argument other than `i` reads a register argument `i` writes.
+func destination_read(p: Placement, a: ir.Arg, pending: bool[], reads: str[], i: usize, count: usize) -> bool:
+    let words = integer_words(p, a)
+    var k: usize = 0
+    while k < count:
+        if k != i and pending[k] and reads[k].length > 0:
+            let read = argument_index(reads[k])
+            if read >= (i32)p.first_int and read < (i32)p.first_int + (i32)words:
+                return true
+        k += 1
+    return false
+
+## How many integer registers argument `i` writes: one, or an aggregate's integer eightbytes.
+func integer_words(p: Placement, a: ir.Arg) -> u32:
+    if a.size == 0:
+        return 1
+    var words: u32 = 0
+    var k: u32 = 0
+    while k < p.words:
+        if (p.sse & (u8)(1 << k)) == 0:
+            words += 1
+        k += 1
+    return words

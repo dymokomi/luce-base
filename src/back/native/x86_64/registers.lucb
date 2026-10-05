@@ -12,7 +12,7 @@ extend Generator:
 
     ## `value` into an integer register: `movl` for a 32-bit name, `movq` when the value
     ## fits a sign-extended immediate, `movabsq` otherwise.
-    mutating func load_immediate(reg: str, value: i64) -> !:
+    func load_immediate(reg: str, value: i64) -> !:
         if is_narrow(reg):
             try self.writer.line("movl $")
             try self.writer.put_u64((u64)value & 4294967295)
@@ -29,7 +29,7 @@ extend Generator:
 
     ## `-offset(%rbp)`: the home `offset` bytes below the frame pointer. On Windows %rbp is
     ## the fixed frame's bottom, and a slot of the dynamic area lies below it.
-    mutating func frame_operand(offset: u64) -> !:
+    func frame_operand(offset: u64) -> !:
         if self.convention.windows:
             if offset > self.fr.size:
                 try self.writer.put("-")
@@ -41,24 +41,12 @@ extend Generator:
             try self.writer.put_u64(offset)
         try self.writer.put("(%rbp)")
 
-    ## The move that carries a register of class `cls` to or from memory.
-    func move_of(cls: ir.Class) -> str:
-        if cls == ir.Class.v:
-            return "movdqu "
-        if cls == ir.Class.w:
-            return "movl "
-        if cls == ir.Class.l:
-            return "movq "
-        if cls == ir.Class.d:
-            return "movsd "
-        return "movss "
-
-    mutating func frame_store(reg: str, cls: ir.Class, offset: u64) -> !:
-        try self.writer.line3(self.move_of(cls), reg, ", ")
+    func frame_store(reg: str, cls: ir.Class, offset: u64) -> !:
+        try self.writer.line3(move_of(cls), reg, ", ")
         try self.frame_operand(offset)
 
-    mutating func frame_load(reg: str, cls: ir.Class, offset: u64) -> !:
-        try self.writer.line(self.move_of(cls))
+    func frame_load(reg: str, cls: ir.Class, offset: u64) -> !:
+        try self.writer.line(move_of(cls))
         try self.frame_operand(offset)
         try self.writer.put(", ")
         try self.writer.put(reg)
@@ -67,7 +55,7 @@ extend Generator:
     ## Where a load or store by `op` through `address` reaches its bytes: a slot, or a
     ## frame address formed at its use (`remat`), addressed off the frame pointer
     ## directly, `below` it; any other address (or a half's access) into %r10 first.
-    mutating func memory_place(address: ir.Ref, op: ir.Op) -> u64?!:
+    func memory_place(address: ir.Ref, op: ir.Op) -> u64?!:
         if op != ir.Op.loadhf and op != ir.Op.storehf:
             if address.kind == ir.RefKind.slot:
                 return self.slot_home(address.index)
@@ -81,15 +69,15 @@ extend Generator:
     ## into their entry loads' results as one parallel copy (`incoming`); answers which
     ## instructions that leaves with nothing to do. %r11 parks an argument to break a
     ## cycle; %rax carries a value to a frame home, all written before any is parked.
-    mutating func receive_directly(moves: list.List[incoming.Move]*, uses: const u32[]) -> bool[]!:
-        var received = try alloc bool[self.f.instrs.count + 1]
+    func receive_directly(moves: list.List[incoming.Move]*, uses: const u32[]) -> bool[]!:
+        var received = try new bool[self.f.instrs.count + 1] ---
         for k in 0..<received.length:
             received[k] = false
         # the integer argument registers: rcx, rdx, r8 and r9 on Windows
         let names = windows_arguments[0..<4] if self.convention.windows else argument_names[0..<6]
-        var sources = try alloc u8[moves.count + 1]
+        var sources = try new u8[moves.count + 1] ---
         defer free(sources)
-        var destinations = try alloc u8[moves.count + 1]
+        var destinations = try new u8[moves.count + 1] ---
         defer free(destinations)
         for k in 0..<moves.count:
             let m = moves.get(k)
@@ -130,7 +118,7 @@ extend Generator:
 
     ## Entry load `n`'s result from the integer register `wide`: its argument's, or %r11;
     ## extended as the load from the parameter's slot would have.
-    mutating func receive_one(n: ir.Instr, wide: str) -> !:
+    func receive_one(n: ir.Instr, wide: str) -> !:
         let code = self.fr.temp_regs.get((usize)n.dst - 1)
         let d = class_name(code, n.cls) if code != 0 else ("%rax" if n.cls == ir.Class.l else "%eax")
         let long = n.cls == ir.Class.l
@@ -155,7 +143,7 @@ extend Generator:
 
     ## A load or store at `offset(base)`, the add that formed the address folded into it
     ## (`selection.offset_access`).
-    mutating func offset_access(n: ir.Instr, base: ir.Ref, offset: i64) -> !:
+    func offset_access(n: ir.Instr, base: ir.Ref, offset: i64) -> !:
         if (u8)n.op <= (u8)ir.Op.loadd:
             let lc = ir.load_class(n.op)
             let d = self.target(n.dst, lc, self.reg(lc, 0))
@@ -182,17 +170,17 @@ extend Generator:
         try self.writer.put(")")
 
     ## The memory operand `memory_place` chose.
-    mutating func put_place(place: u64?) -> !:
+    func put_place(place: u64?) -> !:
         if let below = place:
             try self.frame_operand(below)
         else:
             try self.writer.put("(%r10)")
 
-    mutating func put2(a: str, b: str) -> !:
+    func put2(a: str, b: str) -> !:
         try self.writer.put(a)
         try self.writer.put(b)
 
-    mutating func frame_address(reg: str, offset: u64) -> !:
+    func frame_address(reg: str, offset: u64) -> !:
         try self.writer.line("leaq ")
         try self.frame_operand(offset)
         try self.writer.put(", ")
@@ -200,7 +188,7 @@ extend Generator:
 
     ## Before the barrier at instruction `at`: each temporary that keeps a caller-saved
     ## register across it goes to its home (`frame.Frame.crossings`).
-    mutating func save_crossing(at: usize) -> !:
+    func save_crossing(at: usize) -> !:
         while self.crossing < self.fr.crossings.count and (usize)self.fr.crossings.get(self.crossing).at < at:
             self.crossing += 1
         var k = self.crossing
@@ -212,7 +200,7 @@ extend Generator:
             k += 1
 
     ## After it: each comes back from its home.
-    mutating func restore_crossing(at: usize) -> !:
+    func restore_crossing(at: usize) -> !:
         while self.crossing < self.fr.crossings.count and (usize)self.fr.crossings.get(self.crossing).at == at:
             let c = self.fr.crossings.get(self.crossing)
             let code = self.fr.temp_regs.get((usize)c.temp - 1)
@@ -241,7 +229,7 @@ extend Generator:
 
     ## The register holding `r` as class `cls` when `r` is a temporary living in one and the
     ## class is an integer one, else `scratch` after loading it there.
-    mutating func source(r: ir.Ref, cls: ir.Class, scratch: str) -> str!:
+    func source(r: ir.Ref, cls: ir.Class, scratch: str) -> str!:
         if r.kind == ir.RefKind.temp:
             let code = self.fr.temp_regs.get((usize)r.index - 1)
             if code != 0 and self.fr.float_code(code) == not is_int_class(cls):
@@ -260,7 +248,7 @@ extend Generator:
         return scratch
 
     ## After a result landed in `reg`: nothing when that is the temporary's own register.
-    mutating func finish(dst: u32, cls: ir.Class, reg: str) -> !:
+    func finish(dst: u32, cls: ir.Class, reg: str) -> !:
         if dst == 0:
             return
         let code = self.fr.temp_regs.get((usize)dst - 1)
@@ -270,7 +258,7 @@ extend Generator:
 
     ## Load temporary `t` into `reg` as class `cls`: a move when it lives in a register,
     ## else from its home. An integer register read as a float moves its bits over.
-    mutating func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
+    func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
         let code = self.fr.temp_regs.get((usize)t - 1)
         if code != 0:
             let home = class_name(code, cls)
@@ -287,7 +275,7 @@ extend Generator:
             return
         try self.frame_load(reg, cls, self.temp_home(t))
 
-    mutating func store_temp(reg: str, cls: ir.Class, t: u32) -> !:
+    func store_temp(reg: str, cls: ir.Class, t: u32) -> !:
         let code = self.fr.temp_regs.get((usize)t - 1)
         if code != 0:
             let home = class_name(code, cls)
@@ -299,7 +287,7 @@ extend Generator:
     ## `to = from` as class `cls` between registers, one of which is the home of a temporary
     ## in register `code`: integers move as words, floats and vectors with the SSE moves,
     ## and a float read as an integer word or the reverse moves its bits across.
-    mutating func register_move(target_reg: str, from_reg: str, cls: ir.Class, code: u8) -> !:
+    func register_move(target_reg: str, from_reg: str, cls: ir.Class, code: u8) -> !:
         let to_xmm = target_reg.bytes[1] == 'x'
         let from_xmm = from_reg.bytes[1] == 'x'
         if to_xmm and from_xmm:
@@ -308,10 +296,10 @@ extend Generator:
             try self.writer.line4("movl " if cls == ir.Class.w else "movq ", from_reg, ", ", target_reg)
         else:
             try self.writer.line4("movd " if cls == ir.Class.w or cls == ir.Class.s or cls == ir.Class.h else "movq ", from_reg, ", ", target_reg)
-        discard(code)
+        _ = code
 
     ## An operand into a register of class `cls`.
-    mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
+    func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
         if r.kind == ir.RefKind.temp:
             try self.load_temp(reg, cls, r.index)
             return
@@ -329,7 +317,7 @@ extend Generator:
         try self.address_operand(wide_name(reg), r)
 
     ## The address a slot, global, function, or text refers to, into a 64-bit register.
-    mutating func address_operand(reg: str, r: ir.Ref) -> !:
+    func address_operand(reg: str, r: ir.Ref) -> !:
         if r.kind == ir.RefKind.slot:
             try self.frame_address(reg, self.slot_home(r.index))
         elif r.kind == ir.RefKind.global and r.value == 0:
@@ -350,3 +338,15 @@ extend Generator:
             try self.load_immediate(reg, r.value)
         else:
             try self.writer.line3("movq $0, ", reg, "")
+
+## The move that carries a register of class `cls` to or from memory.
+func move_of(cls: ir.Class) -> str:
+    if cls == ir.Class.v:
+        return "movdqu "
+    if cls == ir.Class.w:
+        return "movl "
+    if cls == ir.Class.l:
+        return "movq "
+    if cls == ir.Class.d:
+        return "movsd "
+    return "movss "

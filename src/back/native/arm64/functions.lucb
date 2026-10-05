@@ -14,7 +14,7 @@ extend Generator:
     ## x17: 16 at a time, then 8, 4, 2, 1. The addresses are records in frames or fields, so
     ## unaligned access is fine on arm64; a copy of up to 128 bytes is cheaper inline than as
     ## a call.
-    mutating func inline_copy(origin: str, to: str, size: u64) -> !:
+    func inline_copy(origin: str, to: str, size: u64) -> !:
         var done: u64 = 0
         while size - done >= 16:
             try self.pair_move("ldp x16, x17, [", origin, done)
@@ -32,7 +32,7 @@ extend Generator:
             k += 1
 
     ## Zero `size` bytes at [`to`] the same way.
-    mutating func inline_zero(to: str, size: u64) -> !:
+    func inline_zero(to: str, size: u64) -> !:
         var done: u64 = 0
         while size - done >= 16:
             try self.pair_move("stp xzr, xzr, [", to, done)
@@ -47,7 +47,7 @@ extend Generator:
             k += 1
 
     ## `mnemonic` then `base, #offset]`.
-    mutating func pair_move(mnemonic: str, base: str, offset: u64) -> !:
+    func pair_move(mnemonic: str, base: str, offset: u64) -> !:
         try self.writer.line(mnemonic)
         try self.writer.put(base)
         try self.writer.put(", #")
@@ -56,7 +56,7 @@ extend Generator:
 
     ## A load from a promoted slot: the register, extended as the load would extend from
     ## memory, since a narrow store leaves the register's upper bits as they were.
-    mutating func load_promoted(op: ir.Op, k: u32, d: str) -> !:
+    func load_promoted(op: ir.Op, k: u32, d: str) -> !:
         let code = (usize)self.fr.slot_regs.get((usize)k - 1)
         let xs = x_names[code]
         let ws = w_names[code]
@@ -83,7 +83,7 @@ extend Generator:
                     try self.writer.line4("fmov ", d, ", ", xs)
 
     ## A store into a promoted slot: the value's register `v` moves in.
-    mutating func store_promoted(op: ir.Op, k: u32, v: str) -> !:
+    func store_promoted(op: ir.Op, k: u32, v: str) -> !:
         let code = (usize)self.fr.slot_regs.get((usize)k - 1)
         match op:
             .storel:
@@ -104,7 +104,7 @@ extend Generator:
 
     ## The prologue: the frame record, the frame below it, the hidden result pointer kept,
     ## and the callee-saved registers the function uses saved.
-    mutating func open_frame() -> !:
+    func open_frame() -> !:
         if self.dw != none:
             try self.writer.line(".cfi_startproc")
         try self.writer.line("stp x29, x30, [sp, #-16]!")
@@ -129,7 +129,7 @@ extend Generator:
             try self.writer.line("mov x28, sp")
             self.frame_base = true
 
-    mutating func function(index: usize) -> !:
+    func function(index: usize) -> !:
         self.index = index
         # the prologue's saves are relative to sp at the frame's bottom: nothing of the
         # previous function's dynamic area, which its last instruction may have left
@@ -225,7 +225,7 @@ extend Generator:
     ## Emit the instructions from `i` that select as one, when they do (a comparison and
     ## its branch, an address and its access, a shift and its add): how many they were, or
     ## 0 when the one at `i` selects alone.
-    mutating func fused_at(i: usize, uses: u32[], index: usize) -> usize!:
+    func fused_at(i: usize, uses: u32[], index: usize) -> usize!:
         if selection.branch(self.f, i, uses, true):
             try self.branch_pair(i, index)
             return 2
@@ -250,7 +250,7 @@ extend Generator:
         return 0
 
     ## The comparison at `i` and the branch on it after, as one conditional branch.
-    mutating func branch_pair(i: usize, index: usize) -> !:
+    func branch_pair(i: usize, index: usize) -> !:
         if let dw = self.dw:
             # the fused branch's own line and labels, ahead of the pair
             try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
@@ -259,7 +259,7 @@ extend Generator:
     ## The comparison at `i` and the branch on it after, with `next` as the fall-through:
     ## the pair in place, or a rotated loop's head test at a jump to that head
     ## (`selection.rotations`).
-    mutating func fused_branch(i: usize, next: u32) -> !:
+    func fused_branch(i: usize, next: u32) -> !:
         let branch = self.f.instrs.get(i + 1)
         var comparison = self.f.instrs.get(i)
         var negate = false
@@ -276,7 +276,7 @@ extend Generator:
     ## need no home. It walks the registers as `receive_params` does, for a function whose
     ## parameters are all scalars; with an aggregate among them, every slot keeps its home.
     func straight_params(entry: u32[]) -> bool[]!:
-        var straight = try alloc bool[self.f.slots.count + 1]
+        var straight = try new bool[self.f.slots.count + 1] ---
         for k in 0..<straight.length:
             straight[k] = false
         for p in self.f.params.span():
@@ -299,7 +299,7 @@ extend Generator:
     ## Store each parameter where the body reads it: a scalar into its promoted register or
     ## its slot (or, `straight`, left in its argument register for `receive_directly`), an
     ## aggregate into its slot, from registers or the caller's stack as AAPCS64 placed it.
-    mutating func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
+    func receive_params(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         var at = Arguments(next_int = 0, next_float = 0, stack_offset = 16)
         # an argument copied by memcpy (past 128 bytes) would clobber the ones left in
         # their registers for `receive_directly`
@@ -324,7 +324,7 @@ extend Generator:
 
     ## A scalar parameter: into its promoted register, else its slot; `straight` when it
     ## may stay in its argument register for the parallel copy (`moves`) at its entry load.
-    mutating func receive_scalar(p: ir.Param, home: u64, may_stay: bool, entry_load: u32, moves: list.List[incoming.Move]*, at: Arguments*) -> !:
+    func receive_scalar(p: ir.Param, home: u64, may_stay: bool, entry_load: u32, moves: list.List[incoming.Move]*, at: Arguments*) -> !:
         # a scalar; a promoted slot takes the value in its register
         let code = (usize)self.fr.slot_regs.get((usize)p.slot)
         let straight = may_stay and code == 0 and p.cls != ir.Class.h
@@ -392,7 +392,7 @@ extend Generator:
             at.stack_offset += (u64)slot
 
     ## A homogeneous float aggregate in d or s registers, into its slot.
-    mutating func receive_hfa_registers(p: ir.Param, home: u64, at: Arguments*) -> !:
+    func receive_hfa_registers(p: ir.Param, home: u64, at: Arguments*) -> !:
         # a homogeneous float aggregate in d or s registers
         let each = (u64)p.size // (u64)self.hfa(p.shape)
         var k: u32 = 0
@@ -408,7 +408,7 @@ extend Generator:
         at.next_float += self.hfa(p.shape)
 
     ## A homogeneous float aggregate past the registers, from the caller's stack.
-    mutating func receive_hfa_stack(p: ir.Param, home: u64, at: Arguments*) -> !:
+    func receive_hfa_stack(p: ir.Param, home: u64, at: Arguments*) -> !:
         # An HFA that cannot fit stays an aggregate on the stack. It
         # never falls back to integer registers or an indirect pointer,
         # and later floating arguments must spill as well (AAPCS64 C.3).
@@ -428,7 +428,7 @@ extend Generator:
         at.stack_offset += (u64)p.size
 
     ## An aggregate of at most 16 bytes, from one or two registers or the caller's stack.
-    mutating func receive_small(p: ir.Param, home: u64, at: Arguments*) -> !:
+    func receive_small(p: ir.Param, home: u64, at: Arguments*) -> !:
         let words = (p.size + 7) // 8
         if at.next_int + words <= 8:
             try self.frame_address("x16", home)
@@ -457,7 +457,7 @@ extend Generator:
 
     ## A larger aggregate, passed by reference: its address is kept in the slot for now; the
     ## bytes are copied in by `copy_references`, after every register is safely stored.
-    mutating func receive_reference(home: u64, at: Arguments*) -> !:
+    func receive_reference(home: u64, at: Arguments*) -> !:
         if at.next_int < 8:
             try self.frame_address("x16", home)
             try self.writer.line("str x")
@@ -475,7 +475,7 @@ extend Generator:
 
     ## Copy each by-reference aggregate's bytes into its slot, over the address that
     ## `receive_reference` kept there.
-    mutating func copy_references() -> !:
+    func copy_references() -> !:
         var i: usize = 0
         while i < self.f.params.count:
             let p = self.f.params.get(i)
@@ -498,13 +498,13 @@ extend Generator:
     ## entry loads' results as one parallel copy (`incoming`); answers which instructions
     ## that leaves with nothing to do. x16 parks an argument to break a cycle; x17 carries
     ## a value to a frame home, all of which are written before any argument is parked.
-    mutating func receive_directly(moves: list.List[incoming.Move]*, uses: const u32[]) -> bool[]!:
-        var received = try alloc bool[self.f.instrs.count + 1]
+    func receive_directly(moves: list.List[incoming.Move]*, uses: const u32[]) -> bool[]!:
+        var received = try new bool[self.f.instrs.count + 1] ---
         for k in 0..<received.length:
             received[k] = false
-        var sources = try alloc u8[moves.count + 1]
+        var sources = try new u8[moves.count + 1] ---
         defer free(sources)
-        var destinations = try alloc u8[moves.count + 1]
+        var destinations = try new u8[moves.count + 1] ---
         defer free(destinations)
         for k in 0..<moves.count:
             let m = moves.get(k)
@@ -545,7 +545,7 @@ extend Generator:
 
     ## Entry load `n`'s result from the integer register `x` (`w` its narrow view): its
     ## argument's, or x16; extended as the load from the parameter's slot would have.
-    mutating func receive_one(n: ir.Instr, x: str, w: str) -> !:
+    func receive_one(n: ir.Instr, x: str, w: str) -> !:
         let code = self.fr.temp_regs.get((usize)n.dst - 1)
         let d = class_name(code, n.cls) if code != 0 else ("x17" if n.cls == ir.Class.l else "w17")
         match n.op:

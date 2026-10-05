@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory(prefix='base-described-objects-') as temporary:
     original = source.read_text()
     for changed, message in [
         (original + '\npub let duplicate: interop.Type[Counter] = counter_type\n', 'exactly one'),
-        (original.replace('pub mutating func close', 'mutating func close'), 'public mutating disposal'),
+        (original.replace('    pub func close', '    func close'), 'public disposal method that changes its receiver'),
         (original.replace('pub struct Counter', 'struct Counter'), 'public struct'),
         (original.replace('    pub func value()', '    pub func is_closed()'), 'shared native ownership state')]:
         target.write_text(changed)
@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='base-described-objects-') as temporary:
 pub struct Counter:
     pub var count: i64
 func drop(value: Counter*):
-    discard(value)
+    _ = value
 pub let declaration = Type[Counter](dispose = drop)
 ''')
     result = subprocess.run([compiler, 'describe', target], capture_output=True, text=True, check=True)

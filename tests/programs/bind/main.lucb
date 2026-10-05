@@ -21,7 +21,7 @@ func visit(user: void*?, point: const sample.sample_point*?) -> i32:
     return p.x
 
 pub func main(arguments: str[]) -> i32!:
-    discard(arguments)
+    _ = arguments
     print(f"version {sample.SAMPLE_VERSION} name {(str)sample.SAMPLE_NAME} scale {sample.SAMPLE_SCALE} flags {sample.SAMPLE_FLAG_A | sample.SAMPLE_FLAG_B} limit {sample.SAMPLE_LIMIT} offset {(i64)sample.SAMPLE_OFFSET}")
     print(f"shapes {(u32)sample.sample_shape.SAMPLE_CIRCLE} {(u32)sample.sample_shape.SAMPLE_SQUARE} {(u32)sample.SAMPLE_BOX} {(u32)sample.sample_shape.SAMPLE_LAST} anonymous {sample.SAMPLE_ANONYMOUS}")
     let ctx = sample.sample_open("proof", sample.SAMPLE_FLAG_B) else error(failed, "sample_open refused")
@@ -32,7 +32,7 @@ pub func main(arguments: str[]) -> i32!:
     print(f"walk {total} over {calls} points")
     let sum = sample.sample_sum(sample.sample_point(x = 2, y = 3), sample.sample_point(x = 40, y = 50))
     print(f"sum {sum.x},{sum.y}")
-    let room = try alloc u8[sizeof(sample.sample_buffer) + 16]
+    let room = try new u8[memory.size_of(sample.sample_buffer) + 16] ---
     defer free(room)
     let buffer = (sample.sample_buffer*)room.data
     buffer.count = 16
@@ -51,7 +51,7 @@ pub func main(arguments: str[]) -> i32!:
     print(f"described {(str)(c.str)described[0..].data}")
     var value: sample.sample_value = ---
     value.real = 0.25
-    print(f"real {sample.sample_real(value)} packed {sizeof(sample.sample_packed)} bytes")
+    print(f"real {sample.sample_real(value)} packed {memory.size_of(sample.sample_packed)} bytes")
     let packed = sample.sample_packed(tag = 1, value = 1000)
     print(f"packed value {sample.sample_packed_value(&packed)}")
     if arguments.length > 1:

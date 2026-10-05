@@ -14,9 +14,9 @@ import io
 pub interface Equatable:
     func equals(other: void*) -> bool
 
-## Implemented by every hashable type.
+## Implemented by every hashable type: `value.hash()` (§7.4).
 pub interface Hashable:
-    func hashed() -> u64
+    func hash() -> u64
 
 ## Implemented by every ordered type.
 pub interface Comparable:
@@ -25,7 +25,7 @@ pub interface Comparable:
 ## The protocols `for` consumes (§8.3, §14.4): a value iterator answers each element
 ## until `none`; an iterable answers a fresh iterator of its own concrete type.
 pub interface Iterator[T]:
-    mutating func next() -> T?
+    func next() -> T?
 
 ## A type a `for` loop can walk: it yields an iterator of `T` (§13.3).
 pub interface Iterable[T, I: Iterator[T]]:

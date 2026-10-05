@@ -677,7 +677,7 @@ pub struct Function:
     pub var always_inline: bool = false
 
     ## An empty function named `name`.
-    pub static func create(name: str) -> Function!:
+    pub func create(name: str) -> Function!:
         return Function(name = name, exported = false, debug = false, symbols = false, at_line = 0, at_file = 0, at_scope = 0, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), sites = try list.List[InlineSite].create(0), locals = try list.List[LocalInfo].create(8),
                         params = try list.List[Param].create(8),
                         slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
@@ -687,7 +687,7 @@ pub struct Function:
                         result_shape = 0, variadic = false)
 
     ## Free the function's lists, when it is dropped from its unit.
-    pub mutating func destroy():
+    pub func destroy():
         self.points.destroy()
         self.debug_scopes.destroy()
         self.sites.destroy()
@@ -703,7 +703,7 @@ pub struct Function:
         self.jump_labels.destroy()
 
     ## A fresh temporary of class `cls`; its 1-based number.
-    pub mutating func temp(cls: Class) -> u32!:
+    pub func temp(cls: Class) -> u32!:
         try self.temps.push(cls)
         return u32(self.temps.count)
 
@@ -712,7 +712,7 @@ pub struct Function:
         return self.temps.get((usize)index - 1)
 
     ## A fresh slot of `wanted` bytes at `align`; its index.
-    pub mutating func slot(wanted: u32, align: u32) -> u32!:
+    pub func slot(wanted: u32, align: u32) -> u32!:
         # an aggregate that travels in two registers lands as two words
         let size = 16 if wanted > 8 and wanted < 16 else wanted
         try self.slots.push(Slot(size = size if size > 0 else 1, align = align if align > 0 else 1))
@@ -722,44 +722,44 @@ pub struct Function:
     ## stack pointer moves below it while the level is reserved, rather than the fixed
     ## frame keeping its bytes for the whole call (a format buffer of an error path in a
     ## recursive function).
-    pub mutating func dynamic_slot(level: u32, offset: u32, size: u32, align: u32) -> u32!:
+    pub func dynamic_slot(level: u32, offset: u32, size: u32, align: u32) -> u32!:
         try self.slots.push(Slot(size = size, align = align, level = level, offset = offset))
         self.dynamic_levels = level if level > self.dynamic_levels else self.dynamic_levels
         return u32(self.slots.count - 1)
 
     ## A fresh label number.
-    pub mutating func label() -> u32:
+    pub func label() -> u32:
         self.labels += 1
         return self.labels
 
     ## Append an instruction, stamping the current source position on it.
-    pub mutating func emit(op: Op, cls: Class, dst: u32, a: Ref, b: Ref, extra: u32) -> !:
+    pub func emit(op: Op, cls: Class, dst: u32, a: Ref, b: Ref, extra: u32) -> !:
         try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0, line = self.at_line, file = self.at_file, scope = self.at_scope, site = 0))
 
     ## `dst = op a, b` with a fresh temporary.
     ## `dst = a op b` at class `cls`; a comparison compares at `cls` and answers a word.
-    pub mutating func binary(op: Op, cls: Class, a: Ref, b: Ref) -> Ref!:
+    pub func binary(op: Op, cls: Class, a: Ref, b: Ref) -> Ref!:
         let t = try self.temp(Class.w if is_comparison(op) else cls)
         try self.emit(op, cls, t, a, b, 0)
         return temp_ref(t)
 
     ## `dst = op a` at class `cls`, into a fresh temporary.
-    pub mutating func unary(op: Op, cls: Class, a: Ref) -> Ref!:
+    pub func unary(op: Op, cls: Class, a: Ref) -> Ref!:
         let t = try self.temp(cls)
         try self.emit(op, cls, t, a, none_ref(), 0)
         return temp_ref(t)
 
     ## Mark where label `label` lands.
-    pub mutating func place_label(label: u32) -> !:
+    pub func place_label(label: u32) -> !:
         try self.emit(Op.label, Class.l, 0, none_ref(), none_ref(), label)
 
     ## An unconditional jump to `label`.
-    pub mutating func jump(label: u32) -> !:
+    pub func jump(label: u32) -> !:
         try self.emit(Op.jmp, Class.l, 0, none_ref(), none_ref(), label)
 
     ## Branch on `condition` being nonzero, tested at its own width: a pointer's low word
     ## may be zero while the pointer is not.
-    pub mutating func branch(condition: Ref, then_label: u32, else_label: u32) -> !:
+    pub func branch(condition: Ref, then_label: u32, else_label: u32) -> !:
         var cls = Class.l
         if condition.kind == RefKind.temp and (usize)condition.index <= self.temps.count:
             cls = self.temps.get((usize)condition.index - 1)
@@ -767,7 +767,7 @@ pub struct Function:
 
     ## Jump to `labels[value - low]`, or to `default` when `value - low`, at class `cls`, is
     ## not below the number of labels (compared unsigned).
-    pub mutating func switch(value: Ref, cls: Class, low: i64, labels: u32[], default: u32) -> !:
+    pub func switch(value: Ref, cls: Class, low: i64, labels: u32[], default: u32) -> !:
         try self.jump_tables.push(Table(low = low, start = u32(self.jump_labels.count), count = u32(labels.length)))
         for label in labels:
             try self.jump_labels.push(label)
@@ -779,27 +779,27 @@ pub struct Function:
         return self.jump_labels.span()[(usize)t.start..<(usize)(t.start + t.count)]
 
     ## Load through `address` with `op`, into a fresh temporary.
-    pub mutating func load(op: Op, cls: Class, address: Ref) -> Ref!:
+    pub func load(op: Op, cls: Class, address: Ref) -> Ref!:
         let t = try self.temp(cls)
         try self.emit(op, cls, t, address, none_ref(), 0)
         return temp_ref(t)
 
     ## Store `value` through `address` with `op`.
-    pub mutating func store(op: Op, value: Ref, address: Ref) -> !:
+    pub func store(op: Op, value: Ref, address: Ref) -> !:
         try self.emit(op, Class.l, 0, value, address, 0)
 
     ## The address of what `r` refers to, in a fresh temporary.
-    pub mutating func address_of(r: Ref) -> Ref!:
+    pub func address_of(r: Ref) -> Ref!:
         let t = try self.temp(Class.l)
         try self.emit(Op.addr, Class.l, t, r, none_ref(), 0)
         return temp_ref(t)
 
     ## Copy `size` bytes from `source` to `target`.
-    pub mutating func copy_bytes(target: Ref, source: Ref, size: u32) -> !:
+    pub func copy_bytes(target: Ref, source: Ref, size: u32) -> !:
         try self.emit(Op.blit, Class.l, 0, target, source, size)
 
     ## Zero `size` bytes at `target`.
-    pub mutating func zero_bytes(target: Ref, size: u32) -> !:
+    pub func zero_bytes(target: Ref, size: u32) -> !:
         try self.emit(Op.zero, Class.l, 0, target, none_ref(), size)
 
 ## A text literal of the unit, emitted once with a NUL after it.
@@ -874,14 +874,14 @@ pub struct Unit:
     pub var trap_two_at_function: str
 
     ## An empty unit.
-    pub static func create() -> Unit!:
+    pub func create() -> Unit!:
         return Unit(functions = try list.List[Function].create(64), files = try list.List[str].create(8), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
                     init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "", text_index = try hashed.Table[str].create(64))
 
     ## The index of a source file in `files`, adding it when new; 1-based.
-    pub mutating func file_index(path: str) -> u32!:
+    pub func file_index(path: str) -> u32!:
         var i: usize = 0
         while i < self.files.count:
             if self.files.get(i) == path:
@@ -899,7 +899,7 @@ pub struct Unit:
         return self.leaves.span()[(usize)s.start..<(usize)(s.start + s.count)]
 
     ## Record a shape from the leaves pushed since `start`; its 1-based index.
-    pub mutating func shape_from(start: usize) -> u32!:
+    pub func shape_from(start: usize) -> u32!:
         try self.shapes.push(Shape(start = u32(start), count = u32(self.leaves.count - start)))
         return u32(self.shapes.count)
 
@@ -910,20 +910,20 @@ pub struct Unit:
         return u32(index)
 
     ## The index of text literal `bytes`, adding it when new.
-    pub mutating func text(bytes: str) -> u32!:
+    pub func text(bytes: str) -> u32!:
         if let found = self.find_text(bytes):
             return found
         try self.texts.push(Text(bytes = bytes))
         let index = self.texts.count - 1
-        discard(try self.text_index.add(bytes, index))
+        _ = try self.text_index.add(bytes, index)
         return u32(index)
 
     ## Index every text again, after `texts` is replaced (`inline` drops the unread ones).
-    pub mutating func index_texts() -> !:
+    pub func index_texts() -> !:
         self.text_index.destroy()
         self.text_index = try hashed.Table[str].create(self.texts.count)
         for index in 0..<self.texts.count:
-            discard(try self.text_index.add(self.texts.get(index).bytes, index))
+            _ = try self.text_index.add(self.texts.get(index).bytes, index)
 
 ## A text a generator needed was not among the unit's texts when its function was generated.
 pub let missing_text: ErrorCode = ErrorCode.package(44)

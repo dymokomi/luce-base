@@ -14,6 +14,7 @@
 
 import memory
 from luce import Equatable, Hashable
+import strings
 
 ## Keys and the indexes they were added with.
 pub struct Table[K: Hashable & Equatable]:
@@ -26,11 +27,11 @@ pub struct Table[K: Hashable & Equatable]:
     var allocator: memory.Allocator
 
     ## A table with room for `expected` keys before it grows.
-    pub static func create(expected: usize) -> Table[K]!:
+    pub func create(expected: usize) -> Table[K]!:
         var size: usize = 16
         while size < expected * 2 + 2:
             size *= 2
-        var table = Table[K](keys = try alloc K[size], indexes = try alloc u32[size], used = 0, allocator = memory.allocator)
+        var table = Table[K](keys = try new K[size] ---, indexes = try new u32[size] ---, used = 0, allocator = memory.allocator)
         for i in 0..<size:
             table.indexes[i] = 0
         return table
@@ -38,7 +39,7 @@ pub struct Table[K: Hashable & Equatable]:
     ## The index `key` was added with, or `none`; the first, when it was added twice.
     pub func find(key: K) -> usize?:
         let mask = self.keys.length - 1
-        var slot = (usize)hash(key) & mask
+        var slot = (usize)key.hash() & mask
         while self.indexes[slot] != 0:
             if self.keys[slot] == key:
                 return (usize)self.indexes[slot] - 1
@@ -50,7 +51,7 @@ pub struct Table[K: Hashable & Equatable]:
         return self.find(key) != none
 
     ## Add `key` with `index`, unless the key is there already; whether it was added.
-    pub mutating func add(key: K, index: usize) -> bool!:
+    pub func add(key: K, index: usize) -> bool!:
         if self.find(key) != none:
             return false
         if (self.used + 1) * 2 > self.keys.length:
@@ -64,24 +65,24 @@ pub struct Table[K: Hashable & Equatable]:
         return self.used
 
     ## Release the slots.
-    pub mutating func destroy():
+    pub func destroy():
         free(self.keys) in self.allocator
         free(self.indexes) in self.allocator
 
-    mutating func place(key: K, stored: u32):
+    func place(key: K, stored: u32):
         let mask = self.keys.length - 1
-        var slot = (usize)hash(key) & mask
+        var slot = (usize)key.hash() & mask
         while self.indexes[slot] != 0:
             slot = (slot + 1) & mask
         self.keys[slot] = key
         self.indexes[slot] = stored
 
-    mutating func grow() -> !:
+    func grow() -> !:
         let old_keys = self.keys
         let old_indexes = self.indexes
         let size = old_keys.length * 2
-        self.keys = try alloc K[size] in self.allocator
-        self.indexes = try alloc u32[size] in self.allocator
+        self.keys = try new K[size] --- in self.allocator
+        self.indexes = try new u32[size] --- in self.allocator
         for i in 0..<size:
             self.indexes[i] = 0
         for i in 0..<old_keys.length:
@@ -96,7 +97,7 @@ test "names find the index they were added with, the first of two":
     var views: str[40] = ---
     var rooms: u8[320] = ---
     for i in 0..<views.length:
-        views[i] = try format(rooms[i * 8..<i * 8 + 8], f"n{i}")
+        views[i] = try strings.format(rooms[i * 8..<i * 8 + 8], f"n{i}")
         assert(try table.add(views[i], i))
     assert(not try table.add(views[3], 99))
     for i in 0..<views.length:
@@ -108,6 +109,6 @@ test "numbers and addresses are keys too":
     var table = try Table[u64].create(0)
     defer table.destroy()
     for k in 0..<100:
-        discard(try table.add((u64)k *% 0x9E3779B97F4A7C15, (usize)k))
+        _ = try table.add((u64)k *% 0x9E3779B97F4A7C15, (usize)k)
     assert(table.find(5 *% 0x9E3779B97F4A7C15) == 5)
     assert(not table.has(1))

@@ -4,7 +4,7 @@ import ownership
 
 interface Widget:
     func value() -> i64
-    mutating func add(amount: i64) -> interop.Outcome[i64]
+    func add(amount: i64) -> interop.Outcome[i64]
 
 var disposed: i64 = 0
 
@@ -14,14 +14,15 @@ struct Counter: Widget:
     func value() -> i64:
         return self.count
 
-    mutating func add(amount: i64) -> interop.Outcome[i64]:
+    func add(amount: i64) -> interop.Outcome[i64]:
         if amount < 0:
             return interop.Outcome[i64].failure(interop.invalid,
                 interop.copy_text("negative increment") catch failure: trap(failure.message))
         self.count += amount
         return interop.Outcome[i64].success(interop.Owned[i64](self.count))
 
-    mutating func close():
+    func close():
+        self.count = 0
         disposed += 1
 
 let counter_type: interop.Type[Counter] = interop.Type[Counter](name = "Counter",
@@ -40,7 +41,7 @@ func results() -> !:
     assert(try alias.get() == "owned answer")
     alias.release()
     let nothing = interop.Outcome[unit].success(interop.Owned[unit](()))
-    discard(try nothing.get())
+    _ = try nothing.get()
     nothing.release()
 
 pub func main(arguments: str[]) -> i32!:

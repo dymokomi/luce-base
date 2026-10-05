@@ -69,8 +69,9 @@ refused: low is above high
 1..<5
 ```
 
-Another common pattern is a `static func` that builds a value, `Point.origin()` or
-`Image.open(path)`, alongside or instead of `init`.
+Another common pattern is a function of the type that builds a value, `Point.origin()` or
+`Image.open(path)`, alongside or instead of `init`: a function in a struct that never uses
+`self` is called through the type.
 
 ## Enums
 
@@ -157,7 +158,7 @@ union Bits:
 pub func main(arguments: str[]) -> i32:
     var bits: Bits
     bits.real = 1.0
-    print(f"{hex(bits.integer)}")
+    print(f"{bits.integer:x}")
     return 0
 ```
 

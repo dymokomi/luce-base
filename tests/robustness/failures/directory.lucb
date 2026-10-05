@@ -58,7 +58,7 @@ pub func main(arguments: c.str[]) -> i32!:
     let steps = attempt(arguments[1], 0)
     var i: usize = 1
     while i <= steps:
-        discard(attempt(arguments[1], i))
+        _ = attempt(arguments[1], i)
         i += 1
     let listed = try files.list(arguments[1])
     let names = listed.value
@@ -87,10 +87,10 @@ pub func main(arguments: c.str[]) -> i32!:
     try directory.close()
     try directory.close()
     var rejected = false
-    discard(directory.next() catch failure:
+    _ = directory.next() catch failure:
         assert(failure.code == io.closed)
         rejected = true
-        recover none)
+        recover none
     assert(rejected)
     let nonempty = names.length > 0
     listed.release()

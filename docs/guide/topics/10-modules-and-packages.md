@@ -77,10 +77,10 @@ These come with the compiler and are imported by their bare names:
 
 | Module | Contents |
 | --- | --- |
-| `memory` | allocators, `heap`, `allocator`, `copy`, `move`, `set`, `read`, `write`, `frame` |
+| `memory` | allocators, `heap`, `allocator`, `allocate`, `size_of`, `align_of`, `offset_of`, `copy`, `move`, `set`, `read`, `write`, `frame` |
 | `io` | `stdout()`, `stderr()`, `Writer`, `Location`, the user's directories |
 | `os` | the target platform as constants, environment variables, the process |
-| `strings` | `Builder`, `copy`, `release`, `join`, `split`, `find`, `trim`, number parsing |
+| `strings` | `format`, `Builder`, `copy`, `release`, `join`, `split`, `find`, `trim`, number parsing |
 | `thread` | `spawn`, `Handle`, `sleep` |
 | `sync` | `Mutex`, `Condition`, `Once`, `Semaphore` |
 | `atomic` | `fence`, `Ordering` |

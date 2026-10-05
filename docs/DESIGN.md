@@ -119,11 +119,39 @@ convert only through `T(x)` or a cast (`is_distinct_c` keeps them out of
 implicit widening). C text is `c.str`. Nothing of the module is visible
 without `import c`.
 
-Names the language owns (§3.5: `str`, `i8`, `unit`, `print`, `pad`…) sit in
-`token.core_names`; no declaration of any kind may take one, and the
-standard modules, which are what those names mean, are exempt. A `from`
+Names the language owns (§3.5: `str`, `i8`, `unit`, `print`, `assert`…) sit in
+`token.core_names`; no declaration that binds a name may take one, a member may,
+and the standard modules, which are what those names mean, are exempt. A `from`
 import brings exactly the names it lists (§16.3); a program that also writes
-`io.stdout()` needs `import io` as well.
+`io.stdout()` needs `import io` as well. What the compiler answers beyond the core,
+`strings.format` and `memory.size_of`, `align_of` and `offset_of`, is found by the
+module it names (`check/intrinsics`), and its call's callee is rewritten to the bare
+name with `flag_builtin`, which is how the backends and the constant folder know it;
+`value.hash()` on a value that hashes by its fields becomes the same kind of call.
+
+Nothing is written on a method (§9.5), so `check/mutation` finds what a body says.
+The parser marks a function in a type whose body never reads `self` `flag_static`;
+the checker clears it again for a method that implements a requirement of an
+interface the type declares. Before any body is checked, a walk of every method of
+the module's types marks `flag_mutating` on one that assigns to a place rooted at
+`self` (fields and array elements reached without a pointer or a span), calls a
+changing method or a storing atomic operation on one, or allocates from an
+allocator it holds, through a local holding such an address as well, repeating
+until nothing changes; the walk resolves field types itself, from the signatures
+already resolved. While checking, `self` is then mutable exactly in the marked
+methods. The rest is found by the checker where it decides: a demand on a
+`self`-rooted place that is not mutable, an assignment, a changing receiver, or
+an address or span taken where the wanted type is mutable, marks the method from
+there on (`changes_receiver`) instead of failing. A use that leaned on a method of
+this module not yet marked, a call on a receiver that cannot change or a view of a
+`const T*`, is kept as a `PendingChange` and settled when the module's bodies are
+done: a method whose own receiver met it changes too, to a fixed point, and every
+other such use of a method that turned out changing is reported. A generic body
+calling a requirement on a value it may not change records a `ReadOnlyUse` of that
+type parameter, and passing the parameter on to another generic a `UseForward`;
+each instantiation of the module is settled against them with its argument's
+methods final. `describe` writes the flags, and a `linked` method, which has no
+body, carries them in its signature.
 
 `for` over a user type consumes the `Iterable` protocol (§8.3) by rewriting
 the tree: a `for x in source: body` whose source is a struct or enum with an
@@ -238,9 +266,9 @@ name; only `main` and `answer` keep the names the entry shims call.
 
 `runtime/lucb_rt.c` is what generated code calls by name and cannot be Base:
 the trap reporter, the checked and wrapping arithmetic families, conversions,
-the scalar formatting behind `print` and `format`, UTF-8 validation, and
+the scalar formatting behind `print` and `strings.format`, UTF-8 validation, and
 hashing. Allocation goes through the `Allocator` interface the `memory` module
-declares; the backend generates the three calls `new`, `alloc`, and `free`
+declares; the backend generates the calls `new` and `free`
 make on a view, next to that interface's witness-table type.
 
 ## The native backend
@@ -753,7 +781,7 @@ recursive types, and its rule is simple: the checker accepts, or it rejects with
 position, and anything else is a fault to fix. Its generator writes well-typed programs
 over the value language, integers of every width under every arithmetic form, bounded
 floats, structs by value, spans, fallible calls, optionals, enums, unions, generics,
-interfaces, vectors, lambdas, `defer`, and memory through `new`, `alloc`, `free`, arenas and
+interfaces, vectors, lambdas, `defer`, and memory through `new`, `free`, arenas and
 `errdefer`, so that nothing it writes can trap or leak, and the four executions must
 print the same checksum; a disagreement is a backend bug or a place
 where the language leaves something to C, which §7.2 does not. The gate's pass is short

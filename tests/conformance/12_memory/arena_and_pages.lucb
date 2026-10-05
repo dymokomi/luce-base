@@ -23,7 +23,7 @@ pub func main(arguments: str[]) -> i32!:
     while let n = cursor:
         sum += n.value
         cursor = n.next
-    let big = try alloc u8[100000] in &pages
+    let big = try new u8[100000] --- in &pages
     big[99999] = 7
     let used_before = arena.in_use()
     arena.reset()

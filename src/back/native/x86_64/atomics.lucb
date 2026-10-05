@@ -12,7 +12,7 @@ extend Generator:
 
     ## Read-modify-write atomics: `xadd` and `xchg` for the ones the machine has, a
     ## compare-and-swap loop for the rest; the old value is the result.
-    mutating func read_modify_write(n: ir.Instr) -> !:
+    func read_modify_write(n: ir.Instr) -> !:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
         let width = (u64)n.extra
         let suffix = width_suffix(n.extra)
@@ -60,14 +60,14 @@ extend Generator:
                 try self.writer.put(", ")
                 try self.writer.put(self.reg(cls, 2))
             _:
-                discard(fresh.length)
+                _ = fresh.length
         try self.writer.line5("lock cmpxchg", suffix, " ", fresh, ", (%r10)")
         try self.writer.line("jne 1b")
         try self.store_temp(self.reg(cls, 0), cls, n.dst)
 
     ## `lock cmpxchg`: the expected value in rax, the desired one in rcx; rax holds what
     ## memory held, which is the result.
-    mutating func compare_and_swap(n: ir.Instr) -> !:
+    func compare_and_swap(n: ir.Instr) -> !:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
         let width = (u64)n.extra
         let expected = self.f.args.get((usize)n.b.value)

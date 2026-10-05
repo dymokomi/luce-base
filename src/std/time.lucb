@@ -36,7 +36,7 @@ func read_clock(monotonic_clock: bool, stamp: Stamp*) -> i32:
 ## Nanoseconds from an arbitrary origin, never going backwards.
 pub func now() -> u64:
     var stamp = Stamp(seconds = 0, nanoseconds = 0)
-    discard(read_clock(true, &stamp))
+    _ = read_clock(true, &stamp)
     return (u64)stamp.seconds * 1000000000 + (u64)stamp.nanoseconds
 
 ## Seconds since the Unix epoch.

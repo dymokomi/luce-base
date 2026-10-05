@@ -17,12 +17,12 @@ import front.ast
 pub func may_have_effect(e: ast.Node*) -> bool:
     match e.kind:
         .call:
-            # `sizeof`, `alignof` and `offsetof` are constants, not calls that run
+            # `memory.size_of`, `align_of` and `offset_of` are constants, not calls that run
             if let callee = e.left:
-                if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof" or callee.text == "offsetof"):
+                if callee.kind == ast.Kind.name and callee.has(ast.flag_builtin) and (callee.text == "size_of" or callee.text == "align_of" or callee.text == "offset_of"):
                     return false
             return true
-        .catch_, .new_, .alloc_, .match_expr, .propagate:
+        .catch_, .new_, .new_unwritten, .match_expr, .propagate:
             return true
         .unary:
             if e.text == "try":
@@ -30,7 +30,7 @@ pub func may_have_effect(e: ast.Node*) -> bool:
         .lambda:
             return false
         _:
-            discard(e)
+            _ = e
     if let l = e.left:
         if may_have_effect(l):
             return true

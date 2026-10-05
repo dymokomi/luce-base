@@ -6,6 +6,7 @@ from luce import Comparable
 from luce import Display
 from luce import Equatable
 from luce import Hashable
+import strings
 
 struct Point:
     var x: i64
@@ -23,7 +24,7 @@ func index_of[T: Equatable](values: const T[], wanted: T) -> usize?:
     return none
 
 func agree[T: Hashable](a: T, b: T) -> bool:
-    return hash(a) == hash(b)
+    return a.hash() == b.hash()
 
 func largest[T: Comparable](left: T, right: T) -> T:
     if left.compare(right) >= 0:
@@ -33,7 +34,7 @@ func largest[T: Comparable](left: T, right: T) -> T:
 func sorted_pair[T: Comparable & Display](a: T, b: T, buffer: u8[]) -> str:
     let low = a if a.compare(b) <= 0 else b
     let high = b if a.compare(b) <= 0 else a
-    return format(buffer, f"{low} < {high}") catch e:
+    return strings.format(buffer, f"{low} < {high}") catch e:
         recover "?"
 
 pub func main(arguments: str[]) -> i32:

@@ -28,20 +28,20 @@ struct WorkerState[C, M, R]:
     let result_transfer: Transfer[R]
     var thread: thread.Handle
 
-    static func start(entry: WorkerEntry[C, M, R], configuration: C,
-                      config_transfer: Transfer[C], message_transfer: Transfer[M], result_transfer: Transfer[R],
-                      capacity: usize, stack: usize) -> WorkerState[C, M, R]*!:
+    func start(entry: WorkerEntry[C, M, R], configuration: C,
+               config_transfer: Transfer[C], message_transfer: Transfer[M], result_transfer: Transfer[R],
+               capacity: usize, stack: usize) -> WorkerState[C, M, R]*!:
         if capacity == 0:
             error(invalid, "a worker queue needs positive capacity")
         let config = try config_transfer.copy(configuration)
         errdefer config.release()
-        let input = try alloc (Packet[M]?)[capacity] in memory.heap
+        let input = try new (Packet[M]?)[capacity] --- in memory.heap
         errdefer free(input) in memory.heap
-        let output = try alloc (Reply[R]?)[capacity] in memory.heap
+        let output = try new (Reply[R]?)[capacity] --- in memory.heap
         errdefer free(output) in memory.heap
-        let block = try alloc(sizeof(WorkerState[C, M, R]), 16) in memory.heap
+        let block = try new WorkerState[C, M, R][1] --- in memory.heap
         errdefer free(block) in memory.heap
-        let state = (WorkerState[C, M, R]*)block.data
+        let state = &block[0]
         var mutex: sync.Mutex
         var changed: sync.Condition
         var cancellation: sync.Cancellation
@@ -52,7 +52,7 @@ struct WorkerState[C, M, R]:
         state.thread = try thread.spawn(WorkerState[C, M, R].run, (void*)state, stack)
         return state
 
-    static func run(raw: void*?):
+    func run(raw: void*?):
         let state = (WorkerState[C, M, R]*)(raw else trap("a worker has no state"))
         state.entry.enter()
         active_worker_cancellation = &state.cancellation
@@ -78,7 +78,7 @@ struct WorkerState[C, M, R]:
         opened.release()
         WorkerState[C, M, R].finish(state)
 
-    static func finish(state: WorkerState[C, M, R]*):
+    func finish(state: WorkerState[C, M, R]*):
         active_worker_cancellation = none
         state.entry.leave()
         state.mutex.lock()
@@ -86,7 +86,7 @@ struct WorkerState[C, M, R]:
         state.changed.broadcast()
         state.mutex.unlock()
 
-    static func deliver(state: WorkerState[C, M, R]*, handler: Callback[M, R]):
+    func deliver(state: WorkerState[C, M, R]*, handler: Callback[M, R]):
         while true:
             state.mutex.lock()
             while state.input.count == 0 and not state.cancellation.is_requested():
@@ -112,7 +112,7 @@ struct WorkerState[C, M, R]:
             state.changed.broadcast()
             state.mutex.unlock()
 
-    static func copy_reply(state: WorkerState[C, M, R]*, outcome: Outcome[R]) -> Reply[R]:
+    func copy_reply(state: WorkerState[C, M, R]*, outcome: Outcome[R]) -> Reply[R]:
         let value = outcome.get() catch failure:
             return Reply[R].failure(failure.code, failure.message)
         let copy = state.result_transfer.copy(value) catch failure:
@@ -148,7 +148,7 @@ pub struct Worker[C, M, R]:
                 self.close()
                 error(memory.exhausted, "out of memory copying a worker startup failure")
             let code = failure.code
-            discard(ownership.pool_object(saved.owner else trap("copied text has no owner")))
+            _ = ownership.pool_object(saved.owner else trap("copied text has no owner"))
             self.close()
             error(code, saved.value)
 
@@ -198,7 +198,7 @@ pub struct Worker[C, M, R]:
         state.mutex.unlock()
 
     ## Cancel the worker, join its thread, drain its queues, and free it.
-    pub mutating func close():
+    pub func close():
         let state = self.state else return
         self.cancel()
         state.thread.join() catch failure:
@@ -212,4 +212,4 @@ pub struct Worker[C, M, R]:
             failure.release()
         free(state.input.slots) in memory.heap
         free(state.output.slots) in memory.heap
-        free(u8[]((u8*)state, sizeof(WorkerState[C, M, R]))) in memory.heap
+        free(u8[]((u8*)state, memory.size_of(WorkerState[C, M, R]))) in memory.heap

@@ -3,7 +3,7 @@
 import thread
 
 func work(n: i64):
-    discard(n)
+    _ = n
 
 pub func main(arguments: str[]) -> i32!:
     let h = try thread.spawn(work, none)

@@ -35,13 +35,13 @@ func divide(a: i64, b: i64) -> i64!:
     return a // b
 
 pub func main(arguments: str[]) -> i32!:
-    discard(arguments)
+    _ = arguments
     print(f"target {os.name} pointer bits {os.pointer_bits} wasm32 {os.wasm32} posix {os.posix}")
-    print(f"sizes usize {sizeof(usize)} pointer {sizeof(void*)} long {sizeof(c.long)} str {sizeof(str)}")
+    print(f"sizes usize {memory.size_of(usize)} pointer {memory.size_of(void*)} long {memory.size_of(c.long)} str {memory.size_of(str)}")
     let p = Point(x = 3, y = 4)
     print(f"point {p.x} {p.y} sum {p.x + p.y}")
     print(f"areas {area(Shape.circle(radius = 1.0))} {area(Shape.square(side = 2.5))}")
-    let block = try alloc u8[1024]
+    let block = try new u8[1024] ---
     defer free(block)
     memory.set(block, 7)
     var total: u64 = 0

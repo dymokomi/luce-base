@@ -11,9 +11,9 @@ extern func fflush(stream: void*) -> i32
 pub func main(arguments: str[]) -> i32:
     let small: u8 = 7
     let ratio: f32 = 0.5
-    discard(fprintf(c.stdout(), "%d %d %.1f\n", 5, small, ratio))
-    discard(fputc((i32)'x', c.stdout()))
-    discard(fputc(10, c.stdout()))
-    discard(fflush(c.stdout()))
-    discard(fprintf(c.stderr(), ""))
+    _ = fprintf(c.stdout(), "%d %d %.1f\n", 5, small, ratio)
+    _ = fputc((i32)'x', c.stdout())
+    _ = fputc(10, c.stdout())
+    _ = fflush(c.stdout())
+    _ = fprintf(c.stderr(), "")
     return 0

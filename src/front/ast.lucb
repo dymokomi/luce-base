@@ -79,7 +79,8 @@ pub enum Kind as u8:
     format_text = 79
     format_field = 80
     new_ = 81
-    alloc_ = 82
+    ## `new T[count] ---`: an allocation whose elements stay unwritten (§12.2).
+    new_unwritten = 82
     span_make = 83
     match_expr = 84
     unit_ = 85
@@ -96,9 +97,10 @@ pub enum Kind as u8:
 
 ## Flags on a node; which ones apply depends on the kind.
 pub let flag_pub: u32 = 1
-## A `mutating` method or receiver.
+## A method that changes its receiver, found from its body (§9.5).
 pub let flag_mutating: u32 = 2
-## A `static` function.
+## A function of a type, whose body never reads `self`; on a member, one reached through
+## the type (§9.5).
 pub let flag_static: u32 = 4
 ## An `export` declaration, with C linkage.
 pub let flag_export: u32 = 8
@@ -195,7 +197,7 @@ pub struct Node:
     pub var resolved: Node*?
 
     ## A fresh node of `kind` spelling `text`, at `start` on `line`, with no children.
-    pub static func make(kind: Kind, text: str, start: usize, line: u32) -> Node*!:
+    pub func make(kind: Kind, text: str, start: usize, line: u32) -> Node*!:
         return try new Node(kind = kind, text = text, start = start, end = start, line = line,
                             flags = 0, left = none, right = none, body = none, ty = none, next = none,
                             type_id = 0, resolved = none)
@@ -301,7 +303,7 @@ pub func kind_name(kind: Kind) -> str:
         .format_text: return "format_text"
         .format_field: return "format_field"
         .new_: return "new"
-        .alloc_: return "alloc"
+        .new_unwritten: return "new_unwritten"
         .span_make: return "span_make"
         .match_expr: return "match_expr"
         .unit_: return "unit"

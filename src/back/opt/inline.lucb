@@ -58,7 +58,7 @@ pub func expand(program: ir.Unit*) -> !:
     let order = try post_order(program, &index)
     defer free(order)
     for fi in order:
-        discard(try expand_in(program, &index, &census, fi))
+        _ = try expand_in(program, &index, &census, fi)
     try drop_expanded(program, &index, &census)
     # Keep the inliner's call-count heuristics independent of optional standard
     # modules. Pruning first could turn shared helpers into larger caller bodies.
@@ -76,7 +76,7 @@ pub func expand_small(program: ir.Unit*, limit: usize) -> bool[]!:
     defer census.release()
     census.small = limit
     census.once = 0
-    let changed = try alloc bool[program.functions.count]
+    let changed = try new bool[program.functions.count] ---
     clear_flags(changed)
     let order = try post_order(program, &index)
     defer free(order)
@@ -100,7 +100,7 @@ func drop_unused_standard(program: ir.Unit*) -> !:
     var index = try Index.over(program)
     defer index.release()
     let count = program.functions.count
-    let retained = try alloc bool[count + 1]
+    let retained = try new bool[count + 1] ---
     defer free(retained)
     clear_flags(retained)
     var texts = try asm_texts_of(program)
@@ -112,32 +112,32 @@ func drop_unused_standard(program: ir.Unit*) -> !:
         i += 1
     # a standard global's initialiser is reached through the global, not through the
     # call `lb_init_globals` makes: that call goes when the global does
-    let retained_globals = try alloc bool[program.globals.count + 1]
+    let retained_globals = try new bool[program.globals.count + 1] ---
     defer free(retained_globals)
     clear_flags(retained_globals)
-    let initialisers = try alloc bool[count + 1]
+    let initialisers = try new bool[count + 1] ---
     defer free(initialisers)
     clear_flags(initialisers)
     for global in program.globals.span():
         if global.init_function.length > 0:
             if let position = index.find(global.init_function):
                 initialisers[position] = true
-    let retained_tables = try alloc bool[program.tables.count + 1]
+    let retained_tables = try new bool[program.tables.count + 1] ---
     defer free(retained_tables)
     clear_flags(retained_tables)
     # each reference finds its global and its table by name, not by a walk over all of them
     var globals_by_name = try hashed.Table[str].create(program.globals.count)
     defer globals_by_name.destroy()
     for gi in 0..<program.globals.count:
-        discard(try globals_by_name.add(program.globals.get(gi).name, gi))
+        _ = try globals_by_name.add(program.globals.get(gi).name, gi)
     var tables_by_name = try hashed.Table[str].create(program.tables.count)
     defer tables_by_name.destroy()
     for ti in 0..<program.tables.count:
-        discard(try tables_by_name.add(program.tables.get(ti).name, ti))
+        _ = try tables_by_name.add(program.tables.get(ti).name, ti)
     for table in program.tables.span():
         if named_in_asm(&texts, table.name):
             retain_table(program, &tables_by_name, &index, retained, retained_tables, ir.global_ref(table.name))
-    let visited = try alloc bool[count + 1]
+    let visited = try new bool[count + 1] ---
     defer free(visited)
     clear_flags(visited)
     var changed = true
@@ -223,7 +223,7 @@ func drop_dead_initialiser_calls(f: ir.Function*, index: Index*, retained: bool[
 ## The texts no retained function names are dropped and the rest renumbered, since a
 ## text is only data for the instruction that takes its address.
 func drop_unused_texts(program: ir.Unit*) -> !:
-    let used = try alloc bool[program.texts.count + 1]
+    let used = try new bool[program.texts.count + 1] ---
     defer free(used)
     clear_flags(used)
     for function in program.functions.span():
@@ -234,7 +234,7 @@ func drop_unused_texts(program: ir.Unit*) -> !:
                 used[instruction.extra2 - 1] = true
         for argument in function.args.span():
             note_text(used, argument.value)
-    let renumbered = try alloc u32[program.texts.count + 1]
+    let renumbered = try new u32[program.texts.count + 1] ---
     defer free(renumbered)
     var kept = try list.List[ir.Text].create(program.texts.count)
     for i in 0..<program.texts.count:
@@ -275,7 +275,7 @@ func renumber_text(r: ir.Ref, renumbered: const u32[]) -> ir.Ref:
 ## particular, an unused OS adapter must not reserve its TLS on another target.
 ## Application linkage, explicit retention attributes and raw assembly stay intact.
 func drop_unused_storage(program: ir.Unit*, assembly: list.List[str]*) -> !:
-    let retained = try alloc bool[program.globals.count + 1]
+    let retained = try new bool[program.globals.count + 1] ---
     defer free(retained)
     for i in 0..<program.globals.count:
         let global = program.globals.get(i)
@@ -283,7 +283,7 @@ func drop_unused_storage(program: ir.Unit*, assembly: list.List[str]*) -> !:
     var by_name = try hashed.Table[str].create(program.globals.count)
     defer by_name.destroy()
     for i in 0..<program.globals.count:
-        discard(try by_name.add(program.globals.get(i).name, i))
+        _ = try by_name.add(program.globals.get(i).name, i)
     for function in program.functions.span():
         for instruction in function.instrs.span():
             retain_storage(&by_name, retained, instruction.a)
@@ -313,12 +313,12 @@ test "standard storage follows retained code without changing user linkage":
             try program.globals.push(ir.Global(name = names[i], standard = i != 7, size = 8, align = 8, external = false,
                                                is_thread_local = true, used = i == 4, weak = i == 5, section = "custom" if i == 6 else ""))
         var entry = try ir.Function.create("entry")
-        discard(try entry.load(ir.Op.loadl, ir.Class.l, ir.global_ref("read")))
+        _ = try entry.load(ir.Op.loadl, ir.Class.l, ir.global_ref("read"))
         try entry.store(ir.Op.storel, ir.const_ref(42), ir.global_ref("initialized"))
         try program.functions.push(entry)
         var dead = try ir.Function.create("dead")
         dead.standard = true
-        discard(try dead.load(ir.Op.loadl, ir.Class.l, ir.global_ref("unused")))
+        _ = try dead.load(ir.Op.loadl, ir.Class.l, ir.global_ref("unused"))
         try program.functions.push(dead)
         try program.module_asm.push(ir.Text(bytes = "address of assembly"))
         try drop_unused_standard(&program)
@@ -345,12 +345,12 @@ func retain_table(program: ir.Unit*, by_name: hashed.Table[str]*, index: Index*,
 ## functions it calls.
 func post_order(program: ir.Unit*, index: Index*) -> usize[]!:
     let n = program.functions.count
-    var order = try alloc usize[n + 1]
-    var state = try alloc u8[n + 1]
+    var order = try new usize[n + 1] ---
+    var state = try new u8[n + 1] ---
     defer free(state)
-    var stack = try alloc usize[n + 1]
+    var stack = try new usize[n + 1] ---
     defer free(stack)
-    var cursor = try alloc usize[n + 1]
+    var cursor = try new usize[n + 1] ---
     defer free(cursor)
     memory.set(state, 0)
     var count: usize = 0
@@ -396,7 +396,7 @@ func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> 
     if f.debug or not has_expandable_call(program, index, census, fi):
         return false
     var out = Sink(instrs = try list.List[ir.Instr].create(f.instrs.count + 64))
-    var bases = try alloc u32[program.functions.count + 1]
+    var bases = try new u32[program.functions.count + 1] ---
     defer free(bases)
     var k: usize = 0
     while k < bases.length:
@@ -539,7 +539,7 @@ func is_expandable_op(op: ir.Op) -> bool:
 ## Drop every function that was expanded at a call and that nothing names any more: not
 ## a call, not an address, not a witness table, not the object file.
 func drop_expanded(program: ir.Unit*, index: Index*, census: Census*) -> !:
-    var referenced = try alloc bool[program.functions.count + 1]
+    var referenced = try new bool[program.functions.count + 1] ---
     defer free(referenced)
     clear_flags(referenced)
     var i: usize = 0
@@ -621,9 +621,9 @@ struct Census:
 
     ## The census of `program`; `with_leaves` for the second pass, which expands only
     ## the functions that were leaves when it began.
-    static func over(program: ir.Unit*, index: Index*, with_leaves: bool = false) -> Census!:
+    func over(program: ir.Unit*, index: Index*, with_leaves: bool = false) -> Census!:
         let n = program.functions.count + 1
-        var c = Census(calls = try alloc u32[n], pinned = try alloc bool[n], expanded = try alloc bool[n], sizes = try alloc u32[n], small = small, once = once, leaves = try alloc bool[program.functions.count if with_leaves else 0])
+        var c = Census(calls = try new u32[n] ---, pinned = try new bool[n] ---, expanded = try new bool[n] ---, sizes = try new u32[n] ---, small = small, once = once, leaves = try new bool[program.functions.count if with_leaves else 0] ---)
         for fi in 0..<c.leaves.length:
             c.leaves[fi] = not calls_the_program(&program.functions.items[fi], index)
         var z: usize = 0
@@ -676,7 +676,7 @@ struct Census:
             self.pinned[gi] = true
 
     ## The size of function `gi`'s body, measured once per shape of it.
-    mutating func size_of(program: ir.Unit*, gi: usize) -> usize?:
+    func size_of(program: ir.Unit*, gi: usize) -> usize?:
         if self.sizes[gi] == unknown:
             if let measured = body_size(&program.functions.items[gi]):
                 self.sizes[gi] = u32(measured)
@@ -740,7 +740,7 @@ func contains(text: str, name: str) -> bool:
 struct Sink:
     var instrs: ir.Instrs
 
-    mutating func push(n: ir.Instr) -> !:
+    func push(n: ir.Instr) -> !:
         try self.instrs.push(n)
 
 # mark: One expansion ==========================================================================
@@ -773,13 +773,13 @@ struct Expansion:
     var locals_base: u32
     var described: bool
 
-    static func of(program: ir.Unit*, f: ir.Function*, g: ir.Function*, call: ir.Instr, shared: u32) -> Expansion:
+    func of(program: ir.Unit*, f: ir.Function*, g: ir.Function*, call: ir.Instr, shared: u32) -> Expansion:
         return Expansion(program = program, f = f, g = g, call = call, info = f.calls.get((usize)call.extra),
                          slot_base = u32(f.slots.count) if shared == no_slots else shared,
                          temp_base = u32(f.temps.count), label_base = f.labels, exit_label = 0, result_slot = 0,
                          shares_slots = shared != no_slots, own_slots = no_own_slots(), site = 0, scope_base = 0, locals_base = 0, described = false)
 
-    mutating func run(out: Sink*) -> !:
+    func run(out: Sink*) -> !:
         defer self.release()
         try self.join_frames()
         try self.describe()
@@ -792,14 +792,14 @@ struct Expansion:
         try self.take_result(out)
 
     ## Free the parameters' own slots, when `join_frames` made them.
-    mutating func release():
+    func release():
         if self.own_slots.length > 0:
             free(self.own_slots)
             self.own_slots = no_own_slots()
 
     ## The callee's slots and temporaries join the caller's; its labels get fresh numbers,
     ## plus one for the exit; a scalar result gets a slot to cross the exit through.
-    mutating func join_frames() -> !:
+    func join_frames() -> !:
         var i: usize = 0
         while i < self.g.slots.count and not self.shares_slots:
             # the body's dynamic levels are the callee's own: expanded, their slots are the
@@ -810,7 +810,7 @@ struct Expansion:
             try self.f.slots.push(s)
             i += 1
         if self.shares_slots and self.g.params.count > 0:
-            self.own_slots = try alloc u32[self.g.slots.count]
+            self.own_slots = try new u32[self.g.slots.count] ---
             for k in 0..<self.own_slots.length:
                 self.own_slots[k] = no_slots
             for p in self.g.params.span():
@@ -850,7 +850,7 @@ struct Expansion:
     ## callee and the call; the callee's scopes, named locals and own sites join the caller's
     ## under it. A body without symbols brings no lines: its instructions belong to the
     ## statement of the call.
-    mutating func describe() -> !:
+    func describe() -> !:
         if not (self.f.symbols and self.g.symbols):
             return
         self.described = true
@@ -884,7 +884,7 @@ struct Expansion:
         return self.site if old == 0 else self.site + old
 
     ## One instruction of the body, renumbered; `ret` becomes the result's store and the exit.
-    mutating func copy_instr(n: ir.Instr, out: Sink*) -> !:
+    func copy_instr(n: ir.Instr, out: Sink*) -> !:
         var m = n
         if m.dst != 0:
             m.dst += self.temp_base
@@ -926,7 +926,7 @@ struct Expansion:
                     try self.leave(m.a, out)
                 return
             _:
-                discard(0)
+                _ = 0
         try out.push(m)
 
     ## A `ret a` of the body: the value goes to where the caller expects it, then the exit.
@@ -941,7 +941,7 @@ struct Expansion:
 
     ## A `ret` of the body's private result words: each goes to its place in the caller's
     ## result slot, where the call's `word`s are loaded from after the exit (`expand_in`).
-    mutating func leave_words(n: ir.Instr, out: Sink*) -> !:
+    func leave_words(n: ir.Instr, out: Sink*) -> !:
         var k: u32 = 0
         while k < n.extra2:
             let word = self.g.args.get((usize)(n.extra + k))
@@ -1004,16 +1004,16 @@ struct Expansion:
 struct Index:
     var names: hashed.Table[str]
 
-    static func over(program: ir.Unit*) -> Index!:
+    func over(program: ir.Unit*) -> Index!:
         var index = Index(names = try hashed.Table[str].create(program.functions.count))
         for i in 0..<program.functions.count:
-            discard(try index.names.add(program.functions.items[i].name, i))
+            _ = try index.names.add(program.functions.items[i].name, i)
         return index
 
     func find(name: str) -> usize?:
         return self.names.find(name)
 
-    mutating func release():
+    func release():
         self.names.destroy()
 
 # mark: After the second pass =================================================================
@@ -1035,11 +1035,11 @@ func drop_unread_stores(f: ir.Function*) -> !:
     if ns == 0:
         return
     # per temporary, 1 + the slot whose address it holds
-    let address_of = try alloc u32[f.temps.count + 1]
+    let address_of = try new u32[f.temps.count + 1] ---
     defer free(address_of)
     for t in 0..<address_of.length:
         address_of[t] = 0
-    let read = try alloc bool[ns]
+    let read = try new bool[ns] ---
     defer free(read)
     clear_flags(read)
     for n in f.instrs.span():
@@ -1092,7 +1092,7 @@ func is_store_op(op: ir.Op) -> bool:
 ## each jump to the label that follows it. Only `jmp`, `jnz` and `switch` name labels once
 ## the phis are gone.
 func drop_unreached(f: ir.Function*) -> !:
-    let named = try alloc bool[(usize)f.labels + 1]
+    let named = try new bool[(usize)f.labels + 1] ---
     defer free(named)
     clear_flags(named)
     for n in f.instrs.span():

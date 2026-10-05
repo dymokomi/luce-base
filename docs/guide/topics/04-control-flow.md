@@ -83,7 +83,7 @@ struct Countdown: Iterable[u32, CountdownIterator]:
 struct CountdownIterator: Iterator[u32]:
     var remaining: u32
 
-    mutating func next() -> u32?:
+    func next() -> u32?:
         if self.remaining == 0: return none
         self.remaining -= 1
         return self.remaining + 1

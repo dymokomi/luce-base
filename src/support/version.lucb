@@ -8,4 +8,4 @@
 #==============================================================================================
 
 ## The version of luce-base this binary was built from.
-pub let text: str = "0.35.4"
+pub let text: str = "0.36.0"

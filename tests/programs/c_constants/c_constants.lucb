@@ -3,15 +3,16 @@
 #   c_constants - Top-level constants the C backend keeps constant
 #
 #   DESCRIPTION:
-#       A global built from `sizeof` in a conditional, or from a `bool` constant cast to an
+#       A global built from `memory.size_of` in a conditional, or from a `bool` constant cast to an
 #       integer, stays a C constant expression; an `@T` read inside arithmetic is a load of
 #       the `T` (§6.4, §15.1).
 #
 #==============================================================================================
 
 import platform
+import memory
 
-let bits: usize = 3 if sizeof(usize) >= 8 else 2
+let bits: usize = 3 if memory.size_of(usize) >= 8 else 2
 let mask: usize = (1 << bits) - 1
 let is_mac: i32 = (i32)platform.macos
 let flags: i32 = is_mac * 8 + (i32)platform.linux * 1024

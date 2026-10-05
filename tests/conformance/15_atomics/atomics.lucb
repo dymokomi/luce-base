@@ -5,6 +5,7 @@
 ## returns at once when the value differs; `fence` is a standalone fence. §15.2: loads and
 ## stores through `volatile T*` are ordinary in value.
 import atomic
+import memory
 
 struct Node:
     var value: i64
@@ -63,7 +64,7 @@ pub func main(arguments: str[]) -> i32:
     c.hits += 2
     c.flag = not c.flag
     let flag_now: bool = c.flag
-    print(f"{c.hits} {flag_now} {sizeof(@u32)} {sizeof(@bool)} {sizeof(@Node*?) == sizeof(Node*)}")
+    print(f"{c.hits} {flag_now} {memory.size_of(@u32)} {memory.size_of(@bool)} {memory.size_of(@Node*?) == memory.size_of(Node*)}")
 
     var cells: u32[4] = [1, 2, 3, 4]
     let port: volatile u32* = &cells[2]

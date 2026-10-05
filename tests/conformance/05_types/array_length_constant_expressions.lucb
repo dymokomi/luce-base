@@ -13,7 +13,7 @@ struct Bits:
     var by_enum: bool[size_from_enum]
 
 pub func main(arguments: str[]) -> i32:
-    discard(arguments)
+    _ = arguments
     var bits: Bits = ---
     var direct: u8[(usize)Id.last // 5]
     print(f"{bits.by_arithmetic.length} {bits.by_enum.length} {direct.length}")

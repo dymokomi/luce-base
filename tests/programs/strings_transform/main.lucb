@@ -64,26 +64,26 @@ pub func main(arguments: c.str[]) -> i32!:
         strings.release(result)
         if result_length > 0:
             var rejected = false
-            discard(strings.replace(text, separator, replacement, max_replacements, result_length - 1) catch failure:
+            _ = strings.replace(text, separator, replacement, max_replacements, result_length - 1) catch failure:
                 assert(failure.code == strings.output_too_large)
                 rejected = true
-                recover "")
+                recover ""
             assert(rejected)
         cases += 1
     assert(cases > 5000)
     var empty: strings.SplitIterator
     assert(empty.next() == none)
     var rejected = false
-    discard(strings.SplitIterator.over("abc", "") catch failure:
+    _ = strings.SplitIterator.over("abc", "") catch failure:
         assert(failure.code == strings.invalid_separator)
         rejected = true
-        recover strings.SplitIterator())
+        recover strings.SplitIterator()
     assert(rejected)
     rejected = false
-    discard(strings.replace("abc", "", "x") catch failure:
+    _ = strings.replace("abc", "", "x") catch failure:
         assert(failure.code == strings.invalid_separator)
         rejected = true
-        recover "")
+        recover ""
     assert(rejected)
     let (first_before, first_after) = strings.split_once("abc", "") else trap("empty first separator")
     let (last_before, last_after) = strings.split_last("abc", "") else trap("empty last separator")
@@ -94,10 +94,10 @@ pub func main(arguments: c.str[]) -> i32!:
         var iterator = try strings.SplitIterator.over("a::b::", "::")
         assert(iterator.next() == "a" and iterator.next() == "b" and iterator.next() == "" and iterator.next() == none)
         rejected = false
-        discard(strings.replace("a", "a", "bb", max_bytes = 1) catch failure:
+        _ = strings.replace("a", "a", "bb", max_bytes = 1) catch failure:
             assert(failure.code == strings.output_too_large)
             rejected = true
-            recover "")
+            recover ""
         assert(rejected)
     let source = "abab"
     let aliased = try strings.replace(source, (str)source.bytes[..<2], (str)source.bytes[1..<3])

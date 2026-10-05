@@ -11,7 +11,7 @@ extend Checker:
 
     ## Give every top-level declaration a binding and, for types, a nominal id, so
     ## signatures can refer to each other in any order.
-    mutating func collect(tree: ast.Node*) -> !:
+    func collect(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
             # a top-level declaration remembers its module, for the backend's names
@@ -34,16 +34,16 @@ extend Checker:
                 .global, .extern_var:
                     try self.bind(d, d.text, types.none_id, d, true)
                 _:
-                    discard(0)
+                    _ = 0
             cursor = d.next
 
     ## The generic parameters of a declaration, registered as param types.
-    mutating func generic_ids(d: ast.Node*) -> u32[]!:
+    func generic_ids(d: ast.Node*) -> u32[]!:
         let params = generic_params_of(d)
         let n = ast.count(params)
         if n == 0:
             return try types.no_args()
-        var ids = try alloc u32[n]
+        var ids = try new u32[n] ---
         var i: usize = 0
         var cursor = params
         while let g = cursor:
@@ -54,17 +54,17 @@ extend Checker:
         return ids
 
     ## Bind a declaration's generic parameters and resolve their constraints.
-    mutating func bind_generics(d: ast.Node*) -> !:
+    func bind_generics(d: ast.Node*) -> !:
         if ast.count(generic_params_of(d)) > types.max_type_arguments:
             let first = generic_params_of(d) else return
             var text: u8[96]
-            return try self.fail(first, try format(text, f"a declaration has at most {types.max_type_arguments} type parameters"))
+            return try self.fail(first, try strings.format(text, f"a declaration has at most {types.max_type_arguments} type parameters"))
         var cursor = generic_params_of(d)
         while let g = cursor:
             if let existing = self.lookup(g.text):
                 if let ed = existing.decl:
                     if (is_type_decl(ed) or ed.kind == ast.Kind.type_alias) and ed != d:
-                        discard(try self.fail(g, "a type parameter may not take the name of a type in scope"))
+                        try self.fail(g, "a type parameter may not take the name of a type in scope")
             if g.type_id == types.none_id:
                 g.type_id = try self.table.parameter(d, g.text)
             try self.bind(g, g.text, g.type_id, g, false)
@@ -72,17 +72,17 @@ extend Checker:
             while let constraint = bound:
                 let id = try self.resolve_type(constraint)
                 if self.table.kind(id) != types.Kind.interface_:
-                    discard(try self.fail(constraint, "a constraint must be an interface"))
+                    try self.fail(constraint, "a constraint must be an interface")
                 bound = constraint.next
             cursor = g.next
 
-    mutating func resolve_signatures(tree: ast.Node*) -> !:
+    func resolve_signatures(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
             try self.resolve_declaration(d)
             cursor = d.next
 
-    mutating func resolve_declaration(d: ast.Node*) -> !:
+    func resolve_declaration(d: ast.Node*) -> !:
         match d.kind:
             .type_alias:
                 let t = d.ty else return try self.fail(d, "an alias needs a type")
@@ -105,26 +105,26 @@ extend Checker:
                 try self.rebind(d.text, d.type_id)
             .extern_type:
                 if let t = d.ty:
-                    discard(try self.resolve_type(t))
+                    _ = try self.resolve_type(t)
             .struct_, .extern_struct, .union_, .extern_union, .enum_, .interface_:
                 try self.resolve_members(d)
             _:
-                discard(0)
+                _ = 0
 
     ## A struct, union or enum cannot contain itself by value, an enum through a case's
     ## payload; a pointer, span, or optional pointer breaks the cycle (§10.1, §10.2). The
     ## offending field or payload loses its type so no layout recurses.
-    mutating func check_containment(d: ast.Node*) -> !:
+    func check_containment(d: ast.Node*) -> !:
         var cursor = d.body
         while let m = cursor:
             if m.kind == ast.Kind.field and self.contains_by_value(m.type_id, d, 0):
-                discard(try self.fail(m, "this struct contains itself; use a pointer (§10.1)"))
+                try self.fail(m, "this struct contains itself; use a pointer (§10.1)")
                 m.type_id = types.error_id
             if m.kind == ast.Kind.enum_case:
                 var payload = m.body
                 while let p = payload:
                     if self.contains_by_value(p.type_id, d, 0):
-                        discard(try self.fail(p, "this enum contains itself; use a pointer (§10.2)"))
+                        try self.fail(p, "this enum contains itself; use a pointer (§10.2)")
                         p.type_id = types.error_id
                     payload = p.next
             cursor = m.next
@@ -168,19 +168,19 @@ extend Checker:
     ## An `extern` or `export` signature crosses the C boundary: no generic, no `str`, no
     ## `fmt`, no array by value, no span outside a parameter, no tagged optional, no view
     ## (§17.1, §17.6); an export's symbol is unique in the program.
-    mutating func check_foreign_signature(f: ast.Node*, owner: ast.Node*?) -> !:
+    func check_foreign_signature(f: ast.Node*, owner: ast.Node*?) -> !:
         let exported = f.has(ast.flag_export)
         if exported and f.kind == ast.Kind.extern_func:
             return try self.fail(f, "an `extern` declaration is not exported (§17.6)")
         let which = "an `export`" if exported else "an `extern`"
         if generic_params_of(f) != none:
             var text: u8[128]
-            return try self.fail(f, try format(text, f"{which} cannot be generic (§17.6)"))
+            return try self.fail(f, try strings.format(text, f"{which} cannot be generic (§17.6)"))
         var cursor = f.right
         while let p = cursor:
             if not p.has(ast.flag_variadic) and not self.c_representable(p.type_id, true):
                 var text: u8[160]
-                return try self.fail(p, try format(text, f"this type is not C-representable in {which} signature; C text is `c.str` (§17.6)"))
+                return try self.fail(p, try strings.format(text, f"this type is not C-representable in {which} signature; C text is `c.str` (§17.6)"))
             if exported and p.has(ast.flag_out):
                 return try self.fail(p, "an `export` cannot have `out` parameters")
             cursor = p.next
@@ -196,12 +196,12 @@ extend Checker:
                     return try self.fail(f, "an `out` result is not C-representable (§17.1)")
         elif result != types.unit_id and not self.c_representable(result, false):
             var text: u8[160]
-            return try self.fail(f, try format(text, f"the result is not C-representable in {which} signature (§17.6)"))
+            return try self.fail(f, try strings.format(text, f"the result is not C-representable in {which} signature (§17.6)"))
         if exported:
-            var symbol_bytes = try alloc u8[f.text.length + 128]
+            var symbol_bytes = try new u8[f.text.length + 128] ---
             var symbol = f.text
             if let o = owner:
-                symbol = try format(symbol_bytes, f"{o.text}_{f.text}")
+                symbol = try strings.format(symbol_bytes, f"{o.text}_{f.text}")
             for known in self.export_symbols.span():
                 if known == symbol:
                     return try self.fail(f, "two exports share this symbol (§17.6)")
@@ -267,12 +267,12 @@ extend Checker:
             return try self.fail(at, "`T!` is a result, not a storable type; declare an enum to hold one (§11.2)")
 
     ## The fields, cases, and method signatures of a type declaration.
-    mutating func resolve_members(d: ast.Node*) -> !:
+    func resolve_members(d: ast.Node*) -> !:
         self.push_scope()
         try self.bind_generics(d)
         if let twice = duplicate_member(d):
             var text: u8[160]
-            return try self.fail(twice, try format(text, f"`{twice.text}` is already a member of this type"))
+            return try self.fail(twice, try strings.format(text, f"`{twice.text}` is already a member of this type"))
         if d.has(ast.flag_packed) and d.kind != ast.Kind.struct_ and d.kind != ast.Kind.extern_struct:
             return try self.fail(d, "`packed` lays out a struct (§5.11)")
         if (d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union) and generic_params_of(d) != none:
@@ -283,12 +283,12 @@ extend Checker:
             if let backing = d.ty:
                 let bt = try self.resolve_type(backing)
                 if not self.table.is_integer(bt):
-                    discard(try self.fail(backing, "an enum is backed by an integer type"))
+                    try self.fail(backing, "an enum is backed by an integer type")
         var implemented = d.ty if d.kind != ast.Kind.enum_ else d.right
         while let i = implemented:
             let id = try self.resolve_type(i)
             if self.table.kind(id) != types.Kind.interface_:
-                discard(try self.fail(i, "a conformance names an interface"))
+                try self.fail(i, "a conformance names an interface")
             implemented = i.next
         var cursor = d.body
         while let m = cursor:
@@ -309,16 +309,16 @@ extend Checker:
                     m.type_id = d.type_id
                 .func_:
                     if d.kind == ast.Kind.interface_ and generic_params_of(m) != none:
-                        discard(try self.fail(m, "an interface has no generic methods (§14.1)"))
+                        try self.fail(m, "an interface has no generic methods (§14.1)")
                     try self.resolve_function(m, d)
                 _:
-                    discard(0)
+                    _ = 0
             cursor = m.next
         self.pop_scope()
 
     ## An `extern` variable, handle, or record names only C-representable types (§17.1,
     ## §17.6); checked once every type is resolved, since a field may name a later record.
-    mutating func check_foreign_declaration(d: ast.Node*) -> !:
+    func check_foreign_declaration(d: ast.Node*) -> !:
         if d.kind == ast.Kind.extern_var and not self.c_representable(d.type_id, false):
             return try self.fail(d, "an `extern` variable has a C-representable type (§17.6)")
         if d.kind == ast.Kind.extern_type:
@@ -332,14 +332,14 @@ extend Checker:
             cursor = m.next
 
     ## `align(N)` (§5.11) names a power of two.
-    mutating func check_align(attribute: ast.Node*?, at: ast.Node*) -> !:
+    func check_align(attribute: ast.Node*?, at: ast.Node*) -> !:
         let n = types.explicit_align(attribute)
         if n != 0 and (n & (n - 1)) != 0:
             return try self.fail(at, "`align(N)` takes a power of two (§5.11)")
 
     ## A handle's `destroy` is a `pub` function of the module taking the handle and
     ## returning nothing, never failing (§17.7): full Luce calls it at the last reference.
-    mutating func check_handle(d: ast.Node*) -> !:
+    func check_handle(d: ast.Node*) -> !:
         let name = d.right else return
         let b = self.lookup(name.text) else return try self.fail(name, "a handle's `destroy` names a function of this module (§17.7)")
         let f = b.decl else return try self.fail(name, "a handle's `destroy` names a function of this module (§17.7)")
@@ -354,13 +354,13 @@ extend Checker:
 
     ## The function type of `f`. A method's receiver is implicit and not part of it, and so
     ## is an extern's `out` parameter, which the call answers instead (§17.1).
-    mutating func resolve_function(f: ast.Node*, owner: ast.Node*?) -> !:
+    func resolve_function(f: ast.Node*, owner: ast.Node*?) -> !:
         self.push_scope()
         try self.bind_generics(f)
         let n = ast.count(f.right)
         var params = try types.no_args()
         if n > 0:
-            params = try alloc u32[n]
+            params = try new u32[n] ---
         var i: usize = 0
         var outs: usize = 0
         var cursor = f.right
@@ -394,8 +394,8 @@ extend Checker:
 
     ## What a call of extern `f` answers: `declared`, then every `out` parameter, as a tuple
     ## when there is more than one value (§17.1).
-    mutating func extern_result(f: ast.Node*, declared: u32) -> u32!:
-        var parts = try alloc u32[ast.count(f.right) + 1]
+    func extern_result(f: ast.Node*, declared: u32) -> u32!:
+        var parts = try new u32[ast.count(f.right) + 1] ---
         var n: usize = 0
         if declared != types.unit_id:
             parts[n] = declared

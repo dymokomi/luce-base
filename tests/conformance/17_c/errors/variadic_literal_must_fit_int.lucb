@@ -4,5 +4,5 @@ import c
 extern func printf(format: c.str, ...) -> i32
 
 pub func main(arguments: str[]) -> i32:
-    discard(printf("%d", 5000000000))
+    _ = printf("%d", 5000000000)
     return 0

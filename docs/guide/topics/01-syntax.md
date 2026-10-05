@@ -95,27 +95,27 @@ Writing `let total = 2` inside the `if` would be the error "`total` is already i
 **Keywords** cannot be used as names:
 
 ```text
-alloc and as asm break catch const continue defer elif else enum errdefer
-export extern false for free from func goto if import in interface
-let local match mutating new none not or pub recover return self static struct test
+and as asm break catch const continue defer elif else enum errdefer
+extern false for free from func if import in interface let
+match new none not or pub recover return self struct test
 true try type union var volatile while with
 ```
 
-`local` and `type` are the ones most likely to catch you out as variable names.
+`type` is the one most likely to catch you out as a variable name.
 
 **The language's built-in names** cannot be declared either, as a variable, parameter,
-function or type: the built-in functions `assert`, `discard`, `error`, `trap`, `hash`,
-`print`, `format`, `sizeof`, `alignof`, `offsetof`, `hex`, `bin` and `pad`, and the
+function or type: the built-in functions `assert`, `error`, `trap` and `print`, and the
 built-in types `bool`, `i8` to `i64`, `u8` to `u64`, `isize`, `usize`, `f16`, `f32`, `f64`,
 `char`, `str`, `unit`, `never`, `void`, `fmt`, `Error` and `ErrorCode`. Declaring
-`let format = 1` is the error "this name belongs to the language". A struct field may use
-one of these names, since a field is always reached through its value: `style.format` is
-fine.
+`let print = 1` is the error "this name belongs to the language". A member may use one of
+these names, a field, a method or an enum case, since it is always reached through its
+value or its type: `report.print()` is fine. Everything else the language offers lives in
+a standard module you import, as in Python: `memory.size_of(T)`, `strings.format(...)`.
 
 **Standard module names** belong to the standard modules: a file cannot be named
 `memory.lucb`, `io.lucb`, `c.lucb`, `os.lucb` and so on.
 
-Some words are reserved only in one position: `extend` before a type name, `handle` and
-`destroy` in a handle declaration, attribute words such as `inline` or `section` before a
-declaration, and `out` and `blocking` in `extern` declarations. Elsewhere they are ordinary
-names.
+Some words are reserved only in one position: `local` before a module-level `var`, `export`
+before a declaration, `extend` before a type name, `handle` and `destroy` in a handle
+declaration, attribute words such as `inline` or `section` before a declaration, and `out`
+and `blocking` in `extern` declarations. Elsewhere they are ordinary names.

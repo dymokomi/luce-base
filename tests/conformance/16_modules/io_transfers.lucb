@@ -8,7 +8,7 @@ struct FragmentReader: io.Reader:
     var position: usize
     var calls: usize
 
-    pub mutating func read(buffer: u8[]) -> usize!:
+    pub func read(buffer: u8[]) -> usize!:
         self.calls += 1
         if self.position == self.data.length or buffer.length == 0:
             return 0
@@ -21,7 +21,7 @@ struct FragmentWriter: io.Writer:
     var position: usize
     var calls: usize
 
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         self.calls += 1
         if data.length == 0:
             return 0
@@ -34,13 +34,13 @@ struct FragmentWriter: io.Writer:
 struct InvalidWriter: io.Writer:
     var oversized: bool
 
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         return data.length + 1 if self.oversized else 0
 
 struct InvalidReader: io.Reader:
     var unused: u8
 
-    pub mutating func read(buffer: u8[]) -> usize!:
+    pub func read(buffer: u8[]) -> usize!:
         return buffer.length + 1
 
 func exact_read_cases() -> !:

@@ -10,7 +10,7 @@ extend Emitter:
     # mark: Conversions ========================================================================
 
     ## `(T)x` (C cast, `checked` false) and `T(x)` (checked, `checked` true).
-    mutating func conversion(src: ast.Node*, dest: u32, checked: bool) -> !:
+    func conversion(src: ast.Node*, dest: u32, checked: bool) -> !:
         let st = try self.ty(src)
         let s = self.c.table.get(st)
         if self.folding and (self.is_int(dest) or self.is_float(dest)) and (self.is_int(st) or self.is_float(st) or st == types.untyped_int_id or st == types.untyped_float_id):
@@ -66,7 +66,7 @@ extend Emitter:
         try self.plain_cast(src, dest)
 
     ## `((T)(x))`: C's own cast.
-    mutating func plain_cast(src: ast.Node*, dest: u32) -> !:
+    func plain_cast(src: ast.Node*, dest: u32) -> !:
         try self.put("((")
         try self.put_type(dest)
         try self.put(")(")
@@ -75,7 +75,7 @@ extend Emitter:
 
     ## A float to an integer through the runtime's helper, which traps on a value out of
     ## range when `checked` and otherwise wraps.
-    mutating func float_to_int(src: ast.Node*, dest: u32, checked: bool) -> !:
+    func float_to_int(src: ast.Node*, dest: u32, checked: bool) -> !:
         try self.put("((")
         try self.put_type(dest)
         try self.put(")")
@@ -89,7 +89,7 @@ extend Emitter:
 
     ## An integer of type `st` to a float through the runtime's `lb_to_f`, by its
     ## signedness.
-    mutating func int_to_float(src: ast.Node*, st: u32, dest: u32) -> !:
+    func int_to_float(src: ast.Node*, st: u32, dest: u32) -> !:
         let signed = st == types.untyped_int_id or self.is_signed(st)
         if dest != types.f64_id:
             try self.put("(")
@@ -105,7 +105,7 @@ extend Emitter:
     ## Between integers, `char`, and `bool`: the runtime's `lb_conv_s` or `lb_conv_u` from
     ## the source's width and signedness to the destination's, trapping on a value out of
     ## range when `checked`; a `char` is also checked to be a scalar.
-    mutating func word_conversion(src: ast.Node*, st: u32, dest: u32, checked: bool) -> !:
+    func word_conversion(src: ast.Node*, st: u32, dest: u32, checked: bool) -> !:
         let mode = "0" if checked else "1"
         let fb = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else self.bits(st))
         let tb = 32 if dest == types.char_id else self.bits(dest)
@@ -135,7 +135,7 @@ extend Emitter:
         try self.put("))")
 
     ## `Kind(n)`: trap unless `n` is a declared case.
-    mutating func enum_check(dest: u32, src: ast.Node*) -> !:
+    func enum_check(dest: u32, src: ast.Node*) -> !:
         let d = self.decl_of(dest) else return try self.expr(src)
         let n = self.tmp()
         try self.put("({ ")
@@ -171,7 +171,7 @@ extend Emitter:
         try self.put("; })")
 
     ## `(str)bytes` and `str(bytes)`: a view, checked for UTF-8 when `checked`.
-    mutating func str_conversion(src: ast.Node*, checked: bool) -> !:
+    func str_conversion(src: ast.Node*, checked: bool) -> !:
         let st = try self.ty(src)
         let n = self.tmp()
         try self.put("({ ")

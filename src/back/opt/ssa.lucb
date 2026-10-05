@@ -46,9 +46,9 @@ pub struct Uses:
     pub var sites: u32[]
 
     ## Gather every definition and use of `f`'s temporaries in one pass.
-    pub static func over(f: ir.Function*) -> Uses!:
+    pub func over(f: ir.Function*) -> Uses!:
         let n = f.temps.count + 1
-        var u = Uses(def_count = try alloc u32[n], def_at = try alloc u32[n], use_start = try alloc u32[n], use_count = try alloc u32[n], sites = try alloc u32[1])
+        var u = Uses(def_count = try new u32[n] ---, def_at = try new u32[n] ---, use_start = try new u32[n] ---, use_count = try new u32[n] ---, sites = try new u32[1] ---)
         errdefer u.release()
         var t: usize = 0
         while t < n:
@@ -99,7 +99,7 @@ pub struct Uses:
             i += 1
         return u
 
-    mutating func place_use(r: ir.Ref, site: u32):
+    func place_use(r: ir.Ref, site: u32):
         if r.kind != ir.RefKind.temp:
             return
         let t = (usize)r.index
@@ -111,12 +111,12 @@ pub struct Uses:
         return self.sites[(usize)(self.use_start[(usize)t] + k)]
 
     ## Room for `count` use sites, in place of the old.
-    mutating func grow_sites(count: usize) -> !:
+    func grow_sites(count: usize) -> !:
         free(self.sites)
-        self.sites = try alloc u32[count]
+        self.sites = try new u32[count] ---
 
     ## Free the gathered arrays.
-    pub mutating func release():
+    pub func release():
         free(self.def_count)
         free(self.def_at)
         free(self.use_start)
@@ -147,7 +147,7 @@ pub func promote(f: ir.Function*) -> bool!:
     defer free(addr_of)
     rule_out(f, &c, addr_of)
     var any = false
-    var temp_of = try alloc u32[ns + 1]
+    var temp_of = try new u32[ns + 1] ---
     defer free(temp_of)
     for s in 0..<ns:
         temp_of[s] = 0
@@ -170,9 +170,9 @@ struct Candidates:
     ## Every slot of `f` of a register's width open, but an aggregate parameter's; a scalar
     ## parameter's stored at the entry, in its class. A scalar parameter's width is its own,
     ## since its slot is a register wide or two and the body reads only the value's bytes.
-    static func over(f: ir.Function*) -> Candidates!:
+    func over(f: ir.Function*) -> Candidates!:
         let ns = f.slots.count
-        var c = Candidates(kind = try alloc u8[ns + 1], cls = try alloc ir.Class[ns + 1], has_store = try alloc bool[ns + 1], width = try alloc u32[ns + 1])
+        var c = Candidates(kind = try new u8[ns + 1] ---, cls = try new ir.Class[ns + 1] ---, has_store = try new bool[ns + 1] ---, width = try new u32[ns + 1] ---)
         for s in 0..<ns:
             c.width[s] = f.slots.get(s).size
         for param in f.params.span():
@@ -193,7 +193,7 @@ struct Candidates:
                 c.kind[(usize)param.slot] = no
         return c
 
-    mutating func release():
+    func release():
         free(self.kind)
         free(self.cls)
         free(self.has_store)
@@ -201,7 +201,7 @@ struct Candidates:
 
 ## The slot whose address each temporary holds, or `none_index`, by temporary.
 func addresses_of(f: ir.Function*) -> u32[]!:
-    var addr_of = try alloc u32[f.temps.count + 1]
+    var addr_of = try new u32[f.temps.count + 1] ---
     for t in 0..<f.temps.count + 1:
         addr_of[t] = none_index
     for i in 0..<f.instrs.count:
@@ -224,7 +224,7 @@ func rule_out(f: ir.Function*, c: Candidates*, addr_of: u32[]):
         let sb = slot_of(addr_of, x.b)
         if sa != none_index:
             if is_load(x.op) and load_fits(x.op, c.width[(usize)sa]):
-                discard(0)
+                _ = 0
             else:
                 c.kind[(usize)sa] = no
         if sb != none_index:
@@ -379,16 +379,16 @@ pub struct Liveness:
     pub var live_out: u64[]
 
     ## Compute per-block liveness for `f` over its control-flow graph `g`.
-    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Liveness!:
+    pub func over(f: ir.Function*, g: cfg.Graph*) -> Liveness!:
         let words = (f.temps.count + 1 + 63) // 64
         let nb = g.count()
-        var l = Liveness(words = words, live_in = try alloc u64[words * nb + 1], live_out = try alloc u64[words * nb + 1])
+        var l = Liveness(words = words, live_in = try new u64[words * nb + 1] ---, live_out = try new u64[words * nb + 1] ---)
         var k: usize = 0
         while k < l.live_in.length:
             l.live_in[k] = 0
             l.live_out[k] = 0
             k += 1
-        var gen = try alloc u64[words + 1]
+        var gen = try new u64[words + 1] ---
         defer free(gen)
         var changed = true
         while changed:
@@ -468,7 +468,7 @@ pub struct Liveness:
         return (self.live_in[(usize)b * self.words + (usize)t // 64] & ((u64)1 << ((u64)t % 64))) != 0
 
     ## Free the liveness bit sets.
-    pub mutating func release():
+    pub func release():
         free(self.live_in)
         free(self.live_out)
 
@@ -502,7 +502,7 @@ pub func construct(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
     defer origin.destroy()
     var g2 = try cfg.Graph.over(f)
     # renaming down the dominator tree
-    var current = try alloc u32[n]
+    var current = try new u32[n] ---
     defer free(current)
     for t in 0..<n:
         current[t] = 0
@@ -514,7 +514,7 @@ pub func construct(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
 ## The temporaries to rename, by temporary: those assigned more than once, or assigned
 ## outside the entry and used in another block; and whether there is any.
 func renamed_temps(uses: Uses*, block_at: u32[], n: usize) -> (bool[], bool)!:
-    var renamed = try alloc bool[n]
+    var renamed = try new bool[n] ---
     var t: usize = 0
     while t < n:
         renamed[t] = false
@@ -535,7 +535,7 @@ func renamed_temps(uses: Uses*, block_at: u32[], n: usize) -> (bool[], bool)!:
                     any = true
                 elif (site & arg_site) != 0:
                     # a call argument: the call is in some block; find it through the call
-                    discard(0)
+                    _ = 0
                 k += 1
         t += 1
     return (renamed, any)
@@ -547,11 +547,11 @@ func place_phis(f: ir.Function*, g: cfg.Graph*, live: Liveness*, renamed: bool[]
     let nb = g.count()
     var phis = try list.List[Pending].create(32)
     errdefer phis.destroy()
-    var placed = try alloc u32[nb + 1]
+    var placed = try new u32[nb + 1] ---
     defer free(placed)
-    var in_work = try alloc u32[nb + 1]
+    var in_work = try new u32[nb + 1] ---
     defer free(in_work)
-    var work = try alloc u32[nb + 1]
+    var work = try new u32[nb + 1] ---
     defer free(work)
     var b: usize = 0
     while b <= nb:
@@ -559,9 +559,9 @@ func place_phis(f: ir.Function*, g: cfg.Graph*, live: Liveness*, renamed: bool[]
         in_work[b] = none_index
         b += 1
     # the blocks defining each renamed temporary, gathered in one pass
-    var def_start = try alloc u32[n + 1]
+    var def_start = try new u32[n + 1] ---
     defer free(def_start)
-    var def_fill = try alloc u32[n + 1]
+    var def_fill = try new u32[n + 1] ---
     defer free(def_fill)
     var t: usize = 0
     while t <= n:
@@ -578,7 +578,7 @@ func place_phis(f: ir.Function*, g: cfg.Graph*, live: Liveness*, renamed: bool[]
     while t <= n:
         def_start[t] += def_start[t - 1]
         t += 1
-    var def_blocks = try alloc u32[(usize)def_start[n] + 1]
+    var def_blocks = try new u32[(usize)def_start[n] + 1] ---
     defer free(def_blocks)
     i = 0
     while i < f.instrs.count:
@@ -625,7 +625,7 @@ func insert_phis(f: ir.Function*, g: cfg.Graph*, phis: list.List[Pending]*) -> l
     let nb = g.count()
     # the phis grouped by block, then the rebuild with them at their blocks' heads, each
     # with one argument per predecessor
-    var phi_start = try alloc u32[nb + 2]
+    var phi_start = try new u32[nb + 2] ---
     defer free(phi_start)
     var b: usize = 0
     while b < nb + 2:
@@ -639,9 +639,9 @@ func insert_phis(f: ir.Function*, g: cfg.Graph*, phis: list.List[Pending]*) -> l
     while b < nb:
         phi_start[b + 1] += phi_start[b]
         b += 1
-    var by_block = try alloc u32[phis.count + 1]
+    var by_block = try new u32[phis.count + 1] ---
     defer free(by_block)
-    var fill = try alloc u32[nb + 1]
+    var fill = try new u32[nb + 1] ---
     defer free(fill)
     b = 0
     while b <= nb:
@@ -705,7 +705,7 @@ struct Undo:
 
 ## The block of every instruction, a label counting as its block's.
 func blocks_of_instrs(f: ir.Function*, g: cfg.Graph*) -> u32[]!:
-    var block_at = try alloc u32[f.instrs.count + 1]
+    var block_at = try new u32[f.instrs.count + 1] ---
     var i: usize = 0
     while i < block_at.length:
         block_at[i] = cfg.none_block

@@ -53,7 +53,7 @@ extend Checker:
                 return (d.kind == ast.Kind.constant and not ast.is_linked(d)) or d.kind == ast.Kind.enum_case or d.kind == ast.Kind.func_
             .call:
                 let callee = e.left else return false
-                if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof" or callee.text == "offsetof"):
+                if callee.kind == ast.Kind.name and callee.has(ast.flag_builtin) and (callee.text == "size_of" or callee.text == "align_of" or callee.text == "offset_of"):
                     return true
                 # a struct construction or a payload case from constants; a static function
                 # runs, so its result is not one
@@ -65,13 +65,6 @@ extend Checker:
                 return false
             _:
                 return false
-
-    ## Whether `e` constructs a value through its type's own `init`.
-    func runs_init(e: ast.Node*) -> bool:
-        if e.kind != ast.Kind.call:
-            return false
-        let own = e.resolved else return false
-        return own.kind == ast.Kind.func_ and own.text == "init"
 
     ## Whether `id` is a struct with an `init` of its own.
     func has_own_init(id: u32) -> bool:
@@ -94,7 +87,7 @@ extend Checker:
     pub func static_value(e: ast.Node*?) -> bool:
         let n = e else return true
         if n.kind == ast.Kind.call:
-            if self.runs_init(n):
+            if runs_init(n):
                 return false
             if let callee = n.left:
                 if callee.has(ast.flag_type_ref) and not self.defaults_are_static(n):
@@ -164,7 +157,7 @@ extend Checker:
     func global_place(e: ast.Node*) -> bool:
         match e.kind:
             .name:
-                return self.names_a_global(e)
+                return names_a_global(e)
             .group:
                 let inner = e.left else return false
                 return self.global_place(inner)
@@ -180,13 +173,6 @@ extend Checker:
                 return d.kind == ast.Kind.field and self.global_place(owner)
             _:
                 return false
-
-    ## `&global` and a function name are constant addresses (§6.4).
-    func names_a_global(e: ast.Node*) -> bool:
-        if e.kind != ast.Kind.name:
-            return false
-        let d = e.resolved else return false
-        return d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant or d.kind == ast.Kind.func_
 
     ## Constant integer expression `e` as a value of `bits` bits, sign-extended when
     ## `signed`: only when it is built from literals, constants, casts, and operators whose
@@ -242,12 +228,12 @@ extend Checker:
                 if callee.kind != ast.Kind.name or callee.resolved != none:
                     return none
                 let arg = e.resolved else return none
-                # `sizeof(T)` in a generic body is each instance's own, not a constant here
+                # `memory.size_of(T)` in a generic body is each instance's own, not a constant here
                 if self.mentions_param(arg.type_id):
                     return none
-                if callee.text == "sizeof":
+                if callee.text == "size_of":
                     return self.table.size_of(arg.type_id)
-                if callee.text == "alignof":
+                if callee.text == "align_of":
                     return self.table.align_of(arg.type_id)
                 return none
             .name, .member:
@@ -411,7 +397,7 @@ extend Checker:
     ## A condition that is a constant but not a literal, `if os.arm64:`, becomes the literal
     ## it stands for, so the branch it rules out is pruned; the program meant it, so no
     ## warning follows. Says whether it folded one.
-    mutating func fold_condition(s: ast.Node*) -> bool!:
+    func fold_condition(s: ast.Node*) -> bool!:
         let cond = s.left else return false
         if cond.kind == ast.Kind.literal:
             return false
@@ -422,7 +408,7 @@ extend Checker:
         return true
 
     ## A top-level constant typed on first use, so order does not matter.
-    mutating func check_constant(d: ast.Node*) -> !:
+    func check_constant(d: ast.Node*) -> !:
         if ast.is_linked(d):
             # the library defines the value; its type is what the program knows, and the
             # value, when the interface carries it, is checked but never stored (§9.8)
@@ -431,13 +417,13 @@ extend Checker:
             if let value = d.left:
                 let saved_top = self.at_top_level
                 self.at_top_level = true
-                discard(try self.expect(value, d.type_id))
+                _ = try self.expect(value, d.type_id)
                 self.at_top_level = saved_top
             try self.rebind(d.text, d.type_id)
             return
         let init = d.left else return try self.fail(d, "a constant needs a value")
         if d.type_id == types.error_id:
-            discard(try self.fail(d, "this constant depends on itself"))
+            try self.fail(d, "this constant depends on itself")
         d.type_id = types.error_id
         let saved_top = self.at_top_level
         self.at_top_level = true
@@ -447,10 +433,10 @@ extend Checker:
         let got = try self.expect(init, declared)
         self.at_top_level = saved_top
         if not self.is_constant(init):
-            discard(try self.fail(init, "a top-level `let` needs a constant expression (§6.4)"))
+            try self.fail(init, "a top-level `let` needs a constant expression (§6.4)")
         d.type_id = declared if declared != types.none_id else try self.settle(init, got)
         if d.type_id == types.none_id:
-            discard(try self.fail(d, "`none` needs a type"))
+            try self.fail(d, "`none` needs a type")
         try self.rebind(d.text, d.type_id)
 
     ## The function a checked top-level `let` names, `pub let add = lib.add` or `let add = sum`:
@@ -474,3 +460,17 @@ extend Checker:
             if self.table.kind(owner.type_id) == types.Kind.module:
                 return target
         return none
+
+## Whether `e` constructs a value through its type's own `init`.
+func runs_init(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.call:
+        return false
+    let own = e.resolved else return false
+    return own.kind == ast.Kind.func_ and own.text == "init"
+
+## `&global` and a function name are constant addresses (§6.4).
+func names_a_global(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.name:
+        return false
+    let d = e.resolved else return false
+    return d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant or d.kind == ast.Kind.func_

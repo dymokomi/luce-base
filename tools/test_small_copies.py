@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A copy of a size the compiler knows is the copy itself: `memory.read[u32]` and
-`memory.write[u64]`, which are `memcpy(.., .., sizeof(T))`, and `memcpy` with a literal size
+`memory.write[u64]`, which are `memcpy(.., .., memory.size_of(T))`, and `memcpy` with a literal size
 come to loads and stores in the native backend at every level, with no call through the
 dynamic linker's stub (a word-copy loop was a `memcpy` call per word, 2-3 times slower).
 A copy larger than the inline limit, or of a size known only at run time, stays a call.
@@ -23,15 +23,15 @@ noinline func copy_longs(out: u8[], data: const u8[], count: usize):
         memory.write[u64]((void*)&out[at * 8 + 1], memory.read[u64]((void*)&data[at * 8 + 1]))
 
 noinline func copy_literal(out: u8[], data: const u8[]):
-    discard(memcpy((void*)&out[3], (const void*)&data[3], 12))
+    _ = memcpy((void*)&out[3], (const void*)&data[3], 12)
 
 noinline func copy_runtime(out: u8[], data: const u8[], n: usize):
-    discard(memcpy((void*)&out[0], (const void*)&data[0], n))
+    _ = memcpy((void*)&out[0], (const void*)&data[0], n)
 
 pub func main(arguments: str[]) -> i32!:
-    let source = try alloc u8[256] in memory.heap
+    let source = try new u8[256] --- in memory.heap
     defer free(source) in memory.heap
-    let target = try alloc u8[256] in memory.heap
+    let target = try new u8[256] --- in memory.heap
     defer free(target) in memory.heap
     for at in 0..<(usize)256:
         source[at] = (u8)(at * 7)

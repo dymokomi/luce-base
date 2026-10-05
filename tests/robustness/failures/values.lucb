@@ -96,7 +96,7 @@ func arena_work(owner: memory.Allocator, other: memory.Allocator) -> !:
         assert(arena.allocate(64, 16) != none)
 
 func grow_work() -> !:
-    var block = try alloc u8[8]
+    var block = try new u8[8] ---
     defer free(block)
     memory.set(block, 23)
     block = memory.grow(block, 256) catch failure:
@@ -172,10 +172,10 @@ func builder_capacity_work(owner: allocator.Failing*) -> !:
     defer default_builder.destroy()
     assert(default_builder.capacity() == 64)
     var overflow = false
-    discard(strings.Builder.create(18446744073709551615) catch failure:
+    _ = strings.Builder.create(18446744073709551615) catch failure:
         assert(failure.code == memory.exhausted)
         overflow = true
-        recover default_builder)
+        recover default_builder
     assert(overflow)
 
 func attempt(which: i32, fail_at: usize) -> usize:
@@ -226,7 +226,7 @@ pub func main(arguments: str[]) -> i32:
         let steps = attempt(which, 0)
         var i: usize = 1
         while i <= steps:
-            discard(attempt(which, i))
+            _ = attempt(which, i)
             i += 1
         which += 1
     print("ok value failures")

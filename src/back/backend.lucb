@@ -52,20 +52,20 @@ pub interface Backend:
     ## 3 for a library, which has no entry and initialises itself when loaded (§17.6), 4 for
     ## a freestanding program, whose own `_start` is the entry (§19.4), 5 for one member of
     ## the standard library's archive: its own module's bodies and `lb_<module>_0init`.
-    mutating func compile(mode: u32) -> str!
+    func compile(mode: u32) -> str!
 
 ## C for the host C compiler.
 pub struct CBackend: Backend:
     var emitter: emit.Emitter
 
     ## A C backend that emits `entry`, checked by `checker`.
-    pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
+    pub func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
         var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
         return CBackend(emitter = emitter)
 
     ## Emit the whole program as C and return its text.
-    pub mutating func compile(mode: u32) -> str!:
+    pub func compile(mode: u32) -> str!:
         try self.emitter.program(mode)
         return self.emitter.text()
 
@@ -97,7 +97,7 @@ pub struct NativeBackend: Backend:
 
     ## A native backend that lowers `entry` to IR and generates the target's assembly.
     ## Positions name a source under `position_root` relative to it (`lower.Lowerer`).
-    pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false, position_root: str = "") -> NativeBackend!:
+    pub func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false, position_root: str = "") -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
         lowerer.symbols = symbols
@@ -105,7 +105,7 @@ pub struct NativeBackend: Backend:
         return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
 
     ## Lower, optimise, and generate the target's assembly, or the IR text with `dump_ir`.
-    pub mutating func compile(mode: u32) -> str!:
+    pub func compile(mode: u32) -> str!:
         let t = self.target
         let has_generator = (t.arch == targets.Arch.arm64 and (t.os == targets.Os.macos or t.os == targets.Os.linux)) or (t.arch == targets.Arch.x86_64 and (t.os == targets.Os.linux or t.os == targets.Os.windows))
         if not has_generator:
@@ -290,7 +290,7 @@ func optimise_function(f: ir.Function*, level: u32) -> !:
         # fields once promote has made the addresses an expansion passed through its
         # parameters' slots plain temporaries; promote then keeps each field in one
         if level >= 2 and try split.run(f):
-            discard(try ssa.promote(f))
+            _ = try ssa.promote(f)
             g.release()
             g = try cfg.Graph.over(f)
         try note(&at, 2)
@@ -330,7 +330,7 @@ func optimise_function(f: ir.Function*, level: u32) -> !:
             g3.release()
             g3 = try cfg.Graph.over(f)
         # neighbouring elements' accesses add constants to one address
-        discard(try addresses.run(f))
+        _ = try addresses.run(f)
         if level >= 3:
             g3.release()
             try loops.run(f)

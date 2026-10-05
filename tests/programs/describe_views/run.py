@@ -17,7 +17,8 @@ assert 'func echo(frame: borrowed[Frame]) -> borrowed[Frame]\n' in text, text
 assert 'func wrong(frame: owned[Frame])' not in text, text
 with tempfile.TemporaryDirectory(prefix='base-described-views-') as temporary:
     target = Path(temporary) / 'api.lucb'
-    target.write_text(source.read_text().replace('    pub func read()', '    pub mutating func read()'))
+    # a public method that changes its receiver: the view must say it is mutable
+    target.write_text(source.read_text().replace('        return self.text', '        self.text = ""\n        return self.text'))
     result = subprocess.run([compiler, 'describe', target], capture_output=True, text=True)
     assert result.returncode == 1 and 'mutable = true' in result.stderr, result.stderr
 print('PASS view descriptions: explicit borrow, aliases, unavailable ownership and mutation policy')

@@ -10,13 +10,13 @@
 extend Generator:
     # mark: Instructions =======================================================================
 
-    mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
+    func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
         if n.dst != 0 and self.fr.is_rematerialised(n.dst):
             # a frame address is formed where it is used
             return
         match n.op:
             .dbg:
-                discard(0)
+                _ = 0
             .label:
                 if (usize)n.extra < self.loop_heads.length and self.loop_heads[(usize)n.extra]:
                     # a loop starts on a sixteen-byte boundary
@@ -188,7 +188,7 @@ extend Generator:
                 try self.call(n)
             .word:
                 # moved out by the call before it (`take_words`)
-                discard(0)
+                _ = 0
             .reserve:
                 try self.reserve_levels(n.extra)
             .trap_:
@@ -218,7 +218,7 @@ extend Generator:
             .get_reg:
                 # the outputs of an asm block are stored by `inline_asm`, which follows the
                 # block's operands on both sides
-                discard(n.cls)
+                _ = n.cls
             .atomic_load:
                 # every aligned load is acquire on this target; the fence is for sequential
                 # consistency against stores, which `atomic_store` supplies with `xchg`
@@ -253,7 +253,7 @@ extend Generator:
                 error(failed, "an instruction the x86_64 generator does not know")
 
     ## `d = a op b` on the integer classes: the value into `d`, then the two-operand form.
-    mutating func arithmetic(n: ir.Instr) -> !:
+    func arithmetic(n: ir.Instr) -> !:
         let cls = n.cls
         let suffix = "q" if cls == ir.Class.l else "l"
         if n.op == ir.Op.sdiv or n.op == ir.Op.udiv or n.op == ir.Op.srem or n.op == ir.Op.urem:
@@ -319,7 +319,7 @@ extend Generator:
         try self.finish(n.dst, cls, d)
 
     ## Float arithmetic: singles and doubles directly, halves through single precision.
-    mutating func float_arithmetic(n: ir.Instr) -> !:
+    func float_arithmetic(n: ir.Instr) -> !:
         let cls = n.cls
         let a = try self.source(n.a, cls, self.reg(cls, 0))
         let b = try self.source(n.b, cls, self.reg(cls, 1))
@@ -352,7 +352,7 @@ extend Generator:
     ## The single in `reg` rounded to a half in its low sixteen bits, zero above, so that a
     ## reinterpretation of the bits as an integer reads the half alone: F16C from
     ## x86-64-v3, the unit's own routine below it.
-    mutating func round_to_half(reg: str) -> !:
+    func round_to_half(reg: str) -> !:
         try self.writer.line3("movd ", reg, ", %eax")
         if self.level >= 3:
             try self.writer.line4("vcvtps2ph $0, ", reg, ", ", reg)
@@ -364,7 +364,7 @@ extend Generator:
         try self.writer.line3("movd %eax, ", reg, "")
 
     ## The half in the low sixteen bits of `reg` widened to a single, in place.
-    mutating func widen_half(reg: str) -> !:
+    func widen_half(reg: str) -> !:
         if self.level >= 3:
             try self.writer.line4("vcvtph2ps ", reg, ", ", reg)
             return
@@ -373,7 +373,7 @@ extend Generator:
         try self.writer.line2("call ", self.shared(".Llb_half_to_single"))
         try self.writer.line3("movd %eax, ", reg, "")
 
-    mutating func negate(n: ir.Instr) -> !:
+    func negate(n: ir.Instr) -> !:
         let cls = n.cls
         let v = try self.source(n.a, cls, self.reg(cls, 0))
         let d = self.target(n.dst, cls, self.reg(cls, 0))
@@ -395,7 +395,7 @@ extend Generator:
     ## table's count; the entry is its label's distance from the table, which follows the
     ## jump in the text, so the table needs no relocation. rax holds the entry, rcx the
     ## table's address.
-    mutating func jump_table(n: ir.Instr) -> !:
+    func jump_table(n: ir.Instr) -> !:
         let wide = n.cls == ir.Class.l
         let table = self.f.jump_tables.get((usize)n.extra2)
         let index = "%rax" if wide else "%eax"
@@ -438,7 +438,7 @@ extend Generator:
             try self.writer.put(" - ")
             try self.table_name(n.extra2)
 
-    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
+    func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
         let cls = n.cls
         let a = try self.source(n.a, cls, self.reg(cls, 0))
         # a constant the instruction carries: a sign-extended 32-bit immediate
@@ -479,7 +479,7 @@ extend Generator:
     ## Float comparison: `ucomis` orders the second operand against the first and leaves the
     ## unordered case with every flag set, so `<` and `<=` swap operands to use the
     ## above-conditions, which an unordered pair fails, and equality also tests parity.
-    mutating func float_comparison(n: ir.Instr) -> !:
+    func float_comparison(n: ir.Instr) -> !:
         let cls = n.cls
         var a = try self.source(n.a, cls, self.reg(cls, 0))
         var b = try self.source(n.b, cls, self.reg(cls, 1))
@@ -521,7 +521,7 @@ extend Generator:
         try self.finish(n.dst, ir.Class.w, d)
 
     ## `op` applied to the 32-bit view `v` of a value, into `d` of class `cls`.
-    mutating func extend_from(op: ir.Op, cls: ir.Class, v: str, d: str) -> !:
+    func extend_from(op: ir.Op, cls: ir.Class, v: str, d: str) -> !:
         let to = "q " if cls == ir.Class.l else "l "
         match op:
             .extsb: try self.writer.line4("movsb", to, byte_name(v), ", ")
@@ -542,7 +542,7 @@ extend Generator:
 
     ## Conversions between float widths: `exth` a half up, `exts` a single up, `truncs` a
     ## single down to a half, `truncd` a double down.
-    mutating func float_convert(n: ir.Instr) -> !:
+    func float_convert(n: ir.Instr) -> !:
         let src = ir.float_source_class(n.op)
         let v = try self.source(n.a, src, self.reg(src, 0))
         let d = self.reg(n.cls, 0)
@@ -569,7 +569,7 @@ extend Generator:
     ## unsigned word through the 64-bit conversion; an unsigned long by taking 2^63 off
     ## first when the value reaches it. A saturating signed conversion (`extra` 1) fixes
     ## up what the instruction leaves out of range (`saturate`).
-    mutating func float_to_int(n: ir.Instr) -> !:
+    func float_to_int(n: ir.Instr) -> !:
         let src = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
         let v = try self.source(n.a, src, self.reg(src, 0))
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
@@ -606,7 +606,7 @@ extend Generator:
     ## After `cvttsd2si`, which leaves the least integer for NaN and for every value out of
     ## range: the greatest for a value at or above 2^(bits-1), 0 for NaN, as arm64's
     ## `fcvtzs` and `core.f_to_s` answer (the least is already right below the range).
-    mutating func saturate(n: ir.Instr, src: ir.Class, v: str, d: str) -> !:
+    func saturate(n: ir.Instr, src: ir.Class, v: str, d: str) -> !:
         let wide = n.cls == ir.Class.l
         let bound = self.reg(src, 2)
         if src == ir.Class.d:
@@ -629,7 +629,7 @@ extend Generator:
     ## An integer to a float: signed through the conversion instruction at the integer's
     ## width; an unsigned word as a long; an unsigned long halved when its top bit is set,
     ## keeping the low bit for the rounding, then doubled.
-    mutating func int_to_float(n: ir.Instr) -> !:
+    func int_to_float(n: ir.Instr) -> !:
         let src = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
         let v = try self.source(n.a, src, self.reg(src, 0))
         let d = self.reg(n.cls, 0)
@@ -664,7 +664,7 @@ extend Generator:
 
     ## `select`: both values read first (a move leaves the flags be), the condition word
     ## tested, then a `cmov` into r11 for integers, a branch around the float's move.
-    mutating func selected(n: ir.Instr) -> !:
+    func selected(n: ir.Instr) -> !:
         let other = self.f.args.get((usize)n.extra2).value
         let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let e = try self.source(other, n.cls, self.reg(n.cls, 2))
@@ -690,7 +690,7 @@ extend Generator:
 
     ## `fma` (x86-64-v3, `isa.has_fma`): FMA3 accumulates into its destination, so the addend
     ## goes to xmm10 and `vfmadd231` adds the product of the other two to it.
-    mutating func fused(n: ir.Instr) -> !:
+    func fused(n: ir.Instr) -> !:
         let addend = self.f.args.get((usize)n.extra2).value
         let a = try self.source(n.a, n.cls, "%xmm8")
         let b = try self.source(n.b, n.cls, "%xmm9")
@@ -712,7 +712,7 @@ extend Generator:
     ## operation reads its right operand where it lives and computes into the
     ## destination's register when it has one, its left operand moved there first; an
     ## unsigned multiply computes in rax as the instruction demands.
-    mutating func checked(n: ir.Instr) -> !:
+    func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
         let cls = n.cls
         let suffix = "q" if cls == ir.Class.l else "l"
@@ -733,7 +733,7 @@ extend Generator:
             d = self.reg(cls, 0)
         let a = try self.source(n.a, cls, d)
         if a != d:
-            try self.writer.line3(self.move_of(cls), a, ", ")
+            try self.writer.line3(move_of(cls), a, ", ")
             try self.writer.put(d)
         if n.op == ir.Op.mulo:
             try self.writer.line5("imul", suffix, " ", b, ", ")
@@ -749,7 +749,7 @@ extend Generator:
 
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
     ## position plus one, which the reporter names first (§11.5).
-    mutating func trap_text(reason: str, at: u32) -> !:
+    func trap_text(reason: str, at: u32) -> !:
         # the reasons were added before the functions were generated (`trap_reasons`), so
         # the threads generating them only read the unit's texts
         let index = self.program_unit.find_text(reason) else error(ir.missing_text, "a trap's reason is not among the unit's texts")

@@ -10,7 +10,7 @@
 extend Emitter:
     # mark: Statements =========================================================================
 
-    mutating func block(b: ast.Node*) -> !:
+    func block(b: ast.Node*) -> !:
         try self.line("{")
         self.indent += 1
         try self.push_scope(false, "")
@@ -23,7 +23,7 @@ extend Emitter:
         self.indent -= 1
         try self.line("}")
 
-    mutating func stmt(s: ast.Node*) -> !:
+    func stmt(s: ast.Node*) -> !:
         if s.kind != ast.Kind.block:
             try self.put_position(s)
         match s.kind:
@@ -68,7 +68,7 @@ extend Emitter:
                 return error(backend, "the C backend has no form for this statement")
 
     ## `let`/`var`, with a name or a tuple of names.
-    mutating func binding(s: ast.Node*) -> !:
+    func binding(s: ast.Node*) -> !:
         if s.body != none:
             let init = s.left else return
             let tt = try self.ty(init)
@@ -120,7 +120,7 @@ extend Emitter:
         try self.put(";")
 
     ## The zero value of a type as a C initialiser.
-    mutating func zero_value(t: u32) -> !:
+    func zero_value(t: u32) -> !:
         let k = self.kind(t)
         if t == types.bool_id:
             try self.put("false")
@@ -135,7 +135,7 @@ extend Emitter:
         else:
             try self.put("{}")
 
-    mutating func assign(s: ast.Node*) -> !:
+    func assign(s: ast.Node*) -> !:
         let place = s.left else return
         let value = s.right else return
         # `memory.allocator = x` sets the current allocator
@@ -222,10 +222,10 @@ extend Emitter:
 
     ## Opens a block holding a pointer to `place`, and answers the dereference that stands
     ## for the place from then on; the caller closes the block.
-    mutating func place_cell(place: ast.Node*, pt: u32) -> ast.Node*!:
+    func place_cell(place: ast.Node*, pt: u32) -> ast.Node*!:
         let n = self.tmp()
-        var name_bytes = try alloc u8[24]
-        let name = try format(name_bytes, f"_cell{n}")
+        var name_bytes = try new u8[24] ---
+        let name = try strings.format(name_bytes, f"_cell{n}")
         let cell = try ast.Node.make(ast.Kind.name, name, place.start, place.line)
         cell.type_id = try self.c.table.pointer(pt, false, false)
         let deref = try ast.Node.make(ast.Kind.unary, "*", place.start, place.line)
@@ -241,7 +241,7 @@ extend Emitter:
         return deref
 
     ## `lb_add_s(a, b, bits)` cast back to the type; `a` and `b` are expressions.
-    mutating func checked_op(helper: str, t: u32, l: ast.Node*, r: ast.Node*) -> !:
+    func checked_op(helper: str, t: u32, l: ast.Node*, r: ast.Node*) -> !:
         if self.folding:
             # a constant expression: C's operator, which the checker has already bounded
             try self.put("((")
@@ -267,7 +267,7 @@ extend Emitter:
         try self.put("))")
 
     ## An operand widened to the helper's 64-bit word.
-    mutating func word(t: u32, e: ast.Node*) -> !:
+    func word(t: u32, e: ast.Node*) -> !:
         try self.put("(int64_t)(" if self.signed_of(t) else "(uint64_t)(")
         try self.value(e, t)
         try self.put(")")
@@ -276,7 +276,7 @@ extend Emitter:
 
     ## The `let name = optional` of an `if let` or `while let`: declares the
     ## temporary and returns after the condition text has been written.
-    mutating func if_let_head(s: ast.Node*, n: u32) -> !:
+    func if_let_head(s: ast.Node*, n: u32) -> !:
         let binding = s.left else return
         let init = binding.left else return
         let ot = try self.ty(init)
@@ -288,7 +288,7 @@ extend Emitter:
         try self.value(init, ot)
         try self.put(";")
 
-    mutating func if_let_bind(s: ast.Node*, n: u32) -> !:
+    func if_let_bind(s: ast.Node*, n: u32) -> !:
         let binding = s.left else return
         let init = binding.left else return
         let ot = try self.ty(init)
@@ -302,7 +302,7 @@ extend Emitter:
             try self.put(".value")
         try self.put(";")
 
-    mutating func if_let_test(s: ast.Node*, n: u32) -> !:
+    func if_let_test(s: ast.Node*, n: u32) -> !:
         let binding = s.left else return
         let init = binding.left else return
         let ot = try self.ty(init)
@@ -316,7 +316,7 @@ extend Emitter:
             try self.put_tmp("o", n)
             try self.put(" != ((void*)0)")
 
-    mutating func if_stmt(s: ast.Node*) -> !:
+    func if_stmt(s: ast.Node*) -> !:
         if s.has(ast.flag_if_let):
             let n = self.tmp()
             try self.if_let_head(s, n)
@@ -350,7 +350,7 @@ extend Emitter:
         else:
             try self.block(rest)
 
-    mutating func while_stmt(s: ast.Node*) -> !:
+    func while_stmt(s: ast.Node*) -> !:
         try self.push_scope(true, s.text)
         if s.has(ast.flag_if_let):
             let n = self.tmp()
@@ -375,7 +375,7 @@ extend Emitter:
 
     ## The rest of loop `s` once its head is open: the body, the `continue` label a labelled
     ## loop has, the close, the scope's deferred calls, and the `break` labels after it.
-    mutating func loop_body_and_exit(s: ast.Node*) -> !:
+    func loop_body_and_exit(s: ast.Node*) -> !:
         if let body = s.body:
             try self.block(body)
         if s.text.length > 0:
@@ -394,7 +394,7 @@ extend Emitter:
             try self.put(": __attribute__((unused));")
 
     ## `for binding in seq`: a C `for` over a range or a sequence, then the loop's body.
-    mutating func for_stmt(s: ast.Node*) -> !:
+    func for_stmt(s: ast.Node*) -> !:
         let binding = s.left else return
         let seq = s.right else return
         try self.push_scope(true, s.text)
@@ -409,7 +409,7 @@ extend Emitter:
 
     ## The C `for` header of `for i in lo..<hi` or `lo..=hi`: the binding counts in its own
     ## type.
-    mutating func range_header(binding: ast.Node*, lo: ast.Node*, hi: ast.Node*, closed: bool) -> !:
+    func range_header(binding: ast.Node*, lo: ast.Node*, hi: ast.Node*, closed: bool) -> !:
         let t = try self.map(binding.type_id)
         let done = self.tmp()
         if closed:
@@ -455,7 +455,7 @@ extend Emitter:
 
     ## The C `for` header over an array, a span, or text, held in a sequence temporary,
     ## and the bindings at the top of its body.
-    mutating func sequence_header(s: ast.Node*, binding: ast.Node*, seq: ast.Node*) -> !:
+    func sequence_header(s: ast.Node*, binding: ast.Node*, seq: ast.Node*) -> !:
         # `items.indexed()` walks the span of `items` by index: no pairs are made (§8.3)
         let indexed = calls.indexed_receiver(seq)
         var it = try self.ty(seq)
@@ -513,7 +513,7 @@ extend Emitter:
 
     ## The element of a sequence loop's step, by value or by pointer, or the members of
     ## its tuple, or `(index, element)` under `indexed()`.
-    mutating func sequence_bindings(s: ast.Node*, binding: ast.Node*, it: u32, n: u32, indexed: bool) -> !:
+    func sequence_bindings(s: ast.Node*, binding: ast.Node*, it: u32, n: u32, indexed: bool) -> !:
         if binding.body != none and indexed:
             # `(index, element)`
             let index_name = binding.body else return
@@ -549,7 +549,7 @@ extend Emitter:
                     try self.put(";")
                 i += 1
                 cursor = name.next
-            discard(et)
+            _ = et
         else:
             try self.line("")
             try self.put_type(try self.map(binding.type_id))
@@ -565,7 +565,7 @@ extend Emitter:
             try self.put(";")
 
     ## Element `i` of the sequence temporary `n`: an array, a span, or text.
-    mutating func element_of(it: u32, n: u32) -> !:
+    func element_of(it: u32, n: u32) -> !:
         if self.is_array(it):
             try self.put_tmp("seq", n)
             try self.put("->d[" if self.seq_in_place else ".d[")
@@ -590,7 +590,7 @@ extend Emitter:
             try self.put_tmp("i", n)
             try self.put("]")
 
-    mutating func jump(s: ast.Node*) -> !:
+    func jump(s: ast.Node*) -> !:
         let target = exits.innermost_loop(&self.scopes, s.text)
         try self.unwind_from(target + 1, false)
         if s.text.length == 0 and s.kind == ast.Kind.break_:
@@ -609,7 +609,7 @@ extend Emitter:
     # -- returns, recovery, cleanup -------------------------------------------------------
 
     ## `return` with the deferred calls of every scope run first.
-    mutating func return_stmt(s: ast.Node*) -> !:
+    func return_stmt(s: ast.Node*) -> !:
         if let v = s.left:
             if calls.is_trap_call(v):
                 try self.line("")
@@ -656,7 +656,7 @@ extend Emitter:
         try self.line("return ((lb_r_unit){ .failed = false });" if self.fn_fallible() else "return;")
 
     ## `error(code, message)` as a statement: the failing result leaves the function.
-    mutating func error_return(e: ast.Node*) -> !:
+    func error_return(e: ast.Node*) -> !:
         let n = self.tmp()
         try self.line("")
         if self.failure_target != 0:
@@ -693,7 +693,7 @@ extend Emitter:
             try self.put(";")
 
     ## The failing result value of the current function for `error(code, message)`.
-    mutating func error_value(e: ast.Node*) -> !:
+    func error_value(e: ast.Node*) -> !:
         let first = e.body else return
         let code = first.left else return
         let second = first.next else return
@@ -706,7 +706,7 @@ extend Emitter:
         try self.value(message, types.str_id)
         try self.put(" }, .failed = true })")
 
-    mutating func recover_stmt(s: ast.Node*) -> !:
+    func recover_stmt(s: ast.Node*) -> !:
         let v = s.left else return
         let vt = try self.ty(v)
         if self.catch_var != 0:
@@ -727,10 +727,10 @@ extend Emitter:
             return
         try self.line("/* recover outside a handler */")
 
-    mutating func catch_result() -> u32:
+    func catch_result() -> u32:
         return self.catch_payload
 
-    mutating func free_stmt(s: ast.Node*) -> !:
+    func free_stmt(s: ast.Node*) -> !:
         let v = s.left else return
         let t = try self.ty(v)
         if self.is_ptr(t):
@@ -762,7 +762,7 @@ extend Emitter:
         try self.expr(v)
         try self.put(");")
 
-    mutating func with_stmt(s: ast.Node*) -> !:
+    func with_stmt(s: ast.Node*) -> !:
         let a = s.left else return
         let n = self.tmp()
         try self.line("{")
@@ -786,7 +786,7 @@ extend Emitter:
         try self.line("}")
 
     ## Inline assembly (§8.9): `in`/`out`/`inout` operands in named registers.
-    mutating func asm_stmt(s: ast.Node*) -> !:
+    func asm_stmt(s: ast.Node*) -> !:
         if s.text == "arm64":
             try self.line("#if defined(__aarch64__)")
         elif s.text == "x86_64":
@@ -838,7 +838,7 @@ extend Emitter:
     ## One `in`, `out`, or `inout` operand `o` of the `asm` block `s`, its expression `v`:
     ## a temporary, in its named register when it names one, listed among the outputs or
     ## the inputs; a discarded output is a clobber instead.
-    mutating func asm_operand(s: ast.Node*, o: ast.Node*, v: ast.Node*, ops: AsmOperands*) -> !:
+    func asm_operand(s: ast.Node*, o: ast.Node*, v: ast.Node*, ops: AsmOperands*) -> !:
         var place = ""
         if let p = o.body:
             let b = p.text.bytes

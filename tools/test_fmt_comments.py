@@ -75,10 +75,10 @@ struct Canvas:
 # selection, by concern
 extend Canvas:
     ## Selects everything.
-    pub mutating func select_all():
+    pub func select_all():
         self.width = 0
 
-    pub static func strip() -> Canvas:
+    pub func strip() -> Canvas:
         return Canvas(width = 1)
 """
         self.assertEqual(self.fmt(canonical), canonical)

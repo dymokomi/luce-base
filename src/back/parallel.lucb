@@ -78,13 +78,13 @@ pub func each(count: usize, body: func(void*?, usize) -> unit, context: void*?) 
         return
     var run = Run(body = body, context = context, count = count, next = 0)
     with memory.heap:
-        var handles = try alloc thread.Handle[threads - 1]
+        var handles = try new thread.Handle[threads - 1] ---
         defer free(handles)
         var started: usize = 0
         defer:
             for k in 0..<started:
                 handles[k].join() catch ignored:
-                    discard(ignored)
+                    _ = ignored
         while started < threads - 1:
             # a thread that cannot start leaves its share to the others
             handles[started] = thread.spawn(work, (void*)&run) catch:
@@ -103,7 +103,7 @@ pub struct Failure:
 
 ## `count` failures, none failed yet, from the current allocator.
 pub func failures(count: usize) -> Failure[]!:
-    var made = try alloc Failure[count]
+    var made = try new Failure[count] ---
     for index in 0..<count:
         made[index].failed = false
     return made

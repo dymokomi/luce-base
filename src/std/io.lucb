@@ -13,6 +13,7 @@ import core
 import memory
 import platform
 import os
+import strings
 extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
 extern func fflush(stream: void*?) -> i32
 extern func flockfile(stream: void*)
@@ -31,13 +32,13 @@ func c_read(descriptor: i32, buffer: void*, count: usize) -> isize:
 ## zero for a nonempty buffer means EOF. Empty reads return zero without consuming
 ## input. Errors are distinct from EOF. The implementing object owns its lifetime.
 pub interface Reader:
-    mutating func read(buffer: u8[]) -> usize!
+    func read(buffer: u8[]) -> usize!
 
 ## A borrowed byte sink (§14.4). A write may accept fewer bytes than supplied;
 ## callers needing the whole payload use `write_all`. Empty writes return zero.
 ## A failure may follow earlier successful writes; the view never owns the sink.
 pub interface Writer:
-    mutating func write(data: const u8[]) -> usize!
+    func write(data: const u8[]) -> usize!
 
 ## A stream ended before the expected bytes arrived.
 pub let unexpected_eof: ErrorCode = ErrorCode.package(14)
@@ -122,7 +123,7 @@ pub struct SliceReader: Reader:
     var position: usize
 
     ## A reader over `data`.
-    pub static func over(data: const u8[]) -> SliceReader:
+    pub func over(data: const u8[]) -> SliceReader:
         return SliceReader(data = data, position = 0)
 
     ## The number of bytes not yet read.
@@ -130,7 +131,7 @@ pub struct SliceReader: Reader:
         return self.data.length - self.position
 
     ## Copy up to the buffer length; zero means no bytes remain (or an empty read).
-    pub mutating func read(buffer: u8[]) -> usize!:
+    pub func read(buffer: u8[]) -> usize!:
         let left = self.remaining()
         let count = buffer.length if buffer.length < left else left
         memory.move(buffer, self.data[self.position..], count)
@@ -144,7 +145,7 @@ pub struct SliceWriter: Writer:
     var used: usize
 
     ## A writer into `data`.
-    pub static func over(data: u8[]) -> SliceWriter:
+    pub func over(data: u8[]) -> SliceWriter:
         return SliceWriter(data = data, used = 0)
 
     ## View of confirmed written bytes, borrowed from the caller's storage.
@@ -152,7 +153,7 @@ pub struct SliceWriter: Writer:
         return self.data[..<self.used]
 
     ## Write `data`; the number of bytes written.
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         if data.length == 0:
             return 0
         let left = self.data.length - self.used
@@ -174,7 +175,7 @@ pub struct BufferedReader: Reader:
     var used: usize
 
     ## A buffered reader over `source`, using `storage`.
-    pub static func over(source: Reader, storage: u8[]) -> BufferedReader!:
+    pub func over(source: Reader, storage: u8[]) -> BufferedReader!:
         if storage.length == 0:
             error(invalid_buffer, "buffered input requires nonempty storage")
         return BufferedReader(source = source, storage = storage, position = 0, used = 0)
@@ -185,7 +186,7 @@ pub struct BufferedReader: Reader:
 
     ## Return buffered bytes first, otherwise perform one source read. Empty reads
     ## do not call the source. EOF is not cached, allowing a growing source to resume.
-    pub mutating func read(buffer: u8[]) -> usize!:
+    pub func read(buffer: u8[]) -> usize!:
         if buffer.length == 0:
             return 0
         if self.position == self.used:
@@ -210,7 +211,7 @@ pub struct BufferedWriter: Writer:
     var used: usize
 
     ## A buffered writer over `destination`, using `storage`.
-    pub static func over(destination: Writer, storage: u8[]) -> BufferedWriter!:
+    pub func over(destination: Writer, storage: u8[]) -> BufferedWriter!:
         if storage.length == 0:
             error(invalid_buffer, "buffered output requires nonempty storage")
         return BufferedWriter(destination = destination, storage = storage, used = 0)
@@ -222,7 +223,7 @@ pub struct BufferedWriter: Writer:
     ## Drain this buffer, preserving the unconfirmed suffix if the sink fails.
     ## Retrying does not resend bytes confirmed by earlier successful sink writes.
     ## This neither flushes downstream buffers nor requests filesystem durability.
-    pub mutating func flush() -> !:
+    pub func flush() -> !:
         var written: usize = 0
         write_all(self.destination, self.storage[..<self.used], &written) catch failure:
             self.used -= written
@@ -233,7 +234,7 @@ pub struct BufferedWriter: Writer:
     ## Accept up to the remaining capacity. A full buffer is drained before any
     ## new input is accepted; a failure accepts none of this call's input. Empty
     ## writes do not drain the buffer. Use write_all to accept an entire payload.
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         if data.length == 0:
             return 0
         if self.used == self.storage.length:
@@ -276,13 +277,13 @@ pub struct File: Writer:
         error(closed, "the standard output stream is unavailable")
 
     ## Flush this C stream, without closing it or requesting filesystem durability.
-    pub mutating func flush() -> !:
+    pub func flush() -> !:
         let stream = try self.stream()
         if fflush(stream) != 0:
             error(closed, "the stream could not be flushed")
 
     ## Write `data`; the number of bytes written.
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         if data.length == 0:
             return 0
         let stream = try self.stream()
@@ -315,7 +316,7 @@ struct StandardInput: Reader:
     var descriptor: i32
 
     ## Read into `buffer`; the number of bytes read.
-    pub mutating func read(buffer: u8[]) -> usize!:
+    pub func read(buffer: u8[]) -> usize!:
         if buffer.length == 0:
             return 0
         let requested = 1073741824 if buffer.length > 1073741824 else buffer.length
@@ -367,7 +368,7 @@ pub struct FormatSink: Writer:
     var buffer: core.FormatBuffer*
 
     ## Write `data`; the number of bytes written.
-    pub mutating func write(data: const u8[]) -> usize!:
+    pub func write(data: const u8[]) -> usize!:
         if core.format_put(self.buffer, data.data, data.length) != 0:
             error(full, "the buffer is full")
         return data.length
@@ -379,16 +380,16 @@ pub struct path:
     var unused: u8
 
     ## The user's home directory: USERPROFILE on Windows, HOME on POSIX.
-    pub static func user() -> str!:
+    pub func user() -> str!:
         let home = os.env("USERPROFILE" if platform.windows else "HOME") else error(io_path_failed, "no home directory")
         return home
 
     ## The current user's home directory.
-    pub static func home() -> str!:
+    pub func home() -> str!:
         return try path.user()
 
     ## Where temporary files go: `$TMPDIR`, else `/tmp`.
-    pub static func temp() -> str:
+    pub func temp() -> str:
         if platform.windows:
             if let dir = os.env("TEMP"):
                 if dir.length > 0: return dir
@@ -399,18 +400,18 @@ pub struct path:
         return dir
 
     ## Where configuration lives: `$XDG_CONFIG_HOME`, else `$HOME/.config`.
-    pub static func config() -> str!:
+    pub func config() -> str!:
         if platform.windows:
             if let set = os.env("APPDATA"):
                 if set.length > 0: return set
             let home = try path.user()
-            let buffer = try alloc u8[home.length + 17]
-            return try format(buffer, f"{home}/AppData/Roaming")
+            let buffer = try new u8[home.length + 17] ---
+            return try strings.format(buffer, f"{home}/AppData/Roaming")
         if let set = os.env("XDG_CONFIG_HOME"):
             return set
         let home = try path.user()
-        let buffer = try alloc u8[home.length + 9]
-        return try format(buffer, f"{home}/.config")
+        let buffer = try new u8[home.length + 9] ---
+        return try strings.format(buffer, f"{home}/.config")
 
 ## The home directory could not be determined.
 pub let io_path_failed: ErrorCode = ErrorCode.package(13)

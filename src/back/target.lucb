@@ -16,6 +16,7 @@
 
 import memory
 import platform
+import strings
 
 # mark: Platform description ==================================================================
 
@@ -86,12 +87,12 @@ pub struct Target:
 
     ## The target this compiler runs on and emits natively: the one it was built for, which
     ## its own `platform` module names (§19.5).
-    pub static func host() -> Target:
+    pub func host() -> Target:
         let host = Target.named(platform.name) else trap("the compiler's own target is not one of §19.5")
         return host
 
     ## The target `name` of §19.5 spells, or none.
-    pub static func named(name: str) -> Target?:
+    pub func named(name: str) -> Target?:
         if name == "arm64-macos" or name == "x86_64-macos":
             return Target(name = name, os = Os.macos, arch = Arch.arm64 if name == "arm64-macos" else Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "_",
                           stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", linker = Linker.macho, system_libraries = macos_libraries)
@@ -141,7 +142,7 @@ pub struct Target:
     ## branches prune (§19.6).
     pub func module_text(buffer: u8[]) -> str!:
         let socket_type = "isize" if self.os == Os.windows else "i32"
-        return try format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let wasm32: bool = {self.arch == Arch.wasm32}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n")
+        return try strings.format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let wasm32: bool = {self.arch == Arch.wasm32}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n")
 
 # mark: Sections and names ====================================================================
 
@@ -159,9 +160,9 @@ pub func section_name(name: str, is_func: bool, os: Os) -> str:
         k += 1
     let bare = (str)name.bytes[1..] if name.length > 0 and name.bytes[0] == '.' else name
     var room: u8[64]
-    let joined = format(room, f"{"__TEXT," if is_func else "__DATA,"}{bare}") catch failure:
+    let joined = strings.format(room, f"{"__TEXT," if is_func else "__DATA,"}{bare}") catch failure:
         return name
-    let copy = alloc u8[joined.length] catch failure:
+    let copy = new u8[joined.length] --- catch failure:
         return name
     memory.copy(copy, joined.bytes, joined.length)
     return (str)copy

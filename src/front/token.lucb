@@ -27,6 +27,8 @@ pub enum Kind as u8:
     doc_comment = 16
     raw_line = 17
     eof = 18
+    ## A formatted string's field's specification, the text after its `:` (§5.5).
+    format_spec = 19
 
 ## One lexical token: its kind and its span, line, and column in the source.
 pub struct Token:
@@ -61,24 +63,25 @@ pub struct Token:
             .dedent: return "dedent"
             .doc_comment: return "doc_comment"
             .raw_line: return "raw_line"
+            .format_spec: return "format_spec"
             _: return "eof"
 
 # mark: Reserved words ========================================================================
 
-## The reserved words of the language; no declaration may take one (§3.5).
-pub let keywords: str[48] = [
-    "alloc", "and", "as", "asm", "break", "catch", "const", "continue", "defer",
-    "elif", "else", "enum", "errdefer", "export", "extern", "false", "for", "free",
-    "from", "func", "goto", "if", "import", "in", "interface", "let",
-    "match", "mutating", "new", "none", "not", "or", "pub", "recover", "return",
-    "self", "static", "struct", "test", "local", "true", "try", "type",
+## The reserved words of the language (§3.6); no name may be one.
+pub let keywords: str[42] = [
+    "and", "as", "asm", "break", "catch", "const", "continue", "defer",
+    "elif", "else", "enum", "errdefer", "extern", "false", "for", "free",
+    "from", "func", "if", "import", "in", "interface", "let",
+    "match", "new", "none", "not", "or", "pub", "recover", "return",
+    "self", "struct", "test", "true", "try", "type",
     "union", "var", "volatile", "while", "with"]
 
-## The core names of §3.5: the language's own functions and type names. No declaration of
-## any kind may take one; the standard modules, which are what these names mean, may.
-pub let core_names: str[35] = [
-    "assert", "discard", "error", "trap", "hash", "print", "format", "sizeof",
-    "alignof", "offsetof", "hex", "bin", "pad", "bool", "i8", "i16",
+## The core names of §3.5: the language's own functions and type names. No declaration that
+## binds a name may take one; a member, reached through its value or type, may, and so may
+## the standard modules, which are what these names mean.
+pub let core_names: str[26] = [
+    "assert", "error", "trap", "print", "bool", "i8", "i16",
     "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize",
     "f16", "f32", "f64", "char", "str", "unit", "never",
     "void", "fmt", "Error", "ErrorCode"]
@@ -117,5 +120,6 @@ pub let singles: str[13] = [")", "[", "]", "{", "}", ",", ":", ".", "?", "!", "@
 
 test "keywords are recognised":
     assert(is_keyword("func"))
-    assert(is_keyword("local"))
+    assert(not is_keyword("local"))
+    assert(not is_keyword("mutating"))
     assert(not is_keyword("function"))

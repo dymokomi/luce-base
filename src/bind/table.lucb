@@ -17,11 +17,11 @@ pub struct Table[T]:
     var count: usize
 
     ## An empty table sized for `capacity` entries.
-    pub static func create(capacity: usize) -> Table[T]!:
+    pub func create(capacity: usize) -> Table[T]!:
         var room: usize = 16
         while room < capacity * 2:
             room *= 2
-        var t = Table[T](keys = try alloc str[room], values = try alloc T[room], count = 0)
+        var t = Table[T](keys = try new str[room] ---, values = try new T[room] ---, count = 0)
         for i in 0..<room:
             t.keys[i] = ""
         return t
@@ -42,7 +42,7 @@ pub struct Table[T]:
         return self.get(name) != none
 
     ## Store `value` under `name`, replacing any earlier value and growing when full.
-    pub mutating func put(name: str, value: T) -> !:
+    pub func put(name: str, value: T) -> !:
         if (self.count + 1) * 2 > self.keys.length:
             try self.grow()
         let mask = self.keys.length - 1
@@ -58,11 +58,11 @@ pub struct Table[T]:
                 return
             i = (i + 1) & mask
 
-    mutating func grow() -> !:
+    func grow() -> !:
         let old_keys = self.keys
         let old_values = self.values
-        self.keys = try alloc str[old_keys.length * 2]
-        self.values = try alloc T[old_keys.length * 2]
+        self.keys = try new str[old_keys.length * 2] ---
+        self.values = try new T[old_keys.length * 2] ---
         for i in 0..<self.keys.length:
             self.keys[i] = ""
         self.count = 0

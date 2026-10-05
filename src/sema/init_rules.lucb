@@ -43,17 +43,17 @@ struct Walk:
     var every: u64
     var finding: Finding?
 
-    mutating func note(at: ast.Node*, what: str):
+    func note(at: ast.Node*, what: str):
         if self.finding == none:
             self.finding = Finding(at = at, what = what)
 
     ## An expression evaluated while fields are missing must not touch `self`.
-    mutating func expression(e: ast.Node*?, assigned: u64):
+    func expression(e: ast.Node*?, assigned: u64):
         let node = e else return
         if assigned != self.every and mentions_self(node):
             self.note(node, "`init` cannot read a field or call a method before every field is assigned")
 
-    mutating func statement(s: ast.Node*, assigned: u64*, in_loop: bool):
+    func statement(s: ast.Node*, assigned: u64*, in_loop: bool):
         match s.kind:
             .block:
                 var cursor = s.body
@@ -114,7 +114,7 @@ struct Walk:
                 self.expression(s.right, *assigned)
             _:
                 # `defer` runs at the end, when every field is assigned or the init has failed
-                discard(0)
+                _ = 0
 
 ## Whether a branch never continues past its end: a `return`, an `error`, a `trap`.
 func leaves(block: ast.Node*?) -> bool:

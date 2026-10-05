@@ -69,7 +69,7 @@ pub struct Handle:
     ## Let the thread run on its own; its resources are reclaimed at exit.
     pub func detach():
         let id = self.id else return
-        discard(pthread_detach(id))
+        _ = pthread_detach(id)
 
 ## What a new thread starts with: the entry, its context, its name in a heap block of
 ## `name_room` bytes, NUL-terminated, and the allocator rule of §15.3.
@@ -89,9 +89,9 @@ func trampoline(raw: void*) -> void*?:
     if start.name_length > 0:
         let text = (c.str)(str)start.name[..<start.name_length]
         if platform.macos:
-            discard(mac_setname(text))
+            _ = mac_setname(text)
         else:
-            discard(linux_setname(pthread_self(), text))
+            _ = linux_setname(pthread_self(), text)
     release_start(start)
     entry(context)
     return none
@@ -105,7 +105,7 @@ func release_start(start: Start*):
 ## when 0, at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the host's tools
 ## show for it, its first fifteen bytes.
 pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!:
-    let copy = try alloc u8[name_room] in memory.heap
+    let copy = try new u8[name_room] --- in memory.heap
     # on success the thread owns both, and `trampoline` frees them
     errdefer free(copy) in memory.heap
     let kept = name.length if name.length < name_room - 1 else name_room - 1
@@ -122,11 +122,11 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
     var size = wanted if wanted > least_stack else least_stack
     size = (size + page - 1) // page * page
     if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:
-        discard(pthread_attr_destroy((void*)&attributes[0]))
+        _ = pthread_attr_destroy((void*)&attributes[0])
         error(failed, "the stack size is refused")
     var id: void*? = none
     let created = pthread_create(&id, (void*)&attributes[0], trampoline, (void*)start)
-    discard(pthread_attr_destroy((void*)&attributes[0]))
+    _ = pthread_attr_destroy((void*)&attributes[0])
     if created != 0:
         error(failed, "spawn")
     let thread = id else error(failed, "spawn")
@@ -155,7 +155,7 @@ pub func pause():
 
 ## Yield the processor to another runnable thread.
 pub func yield():
-    discard(sched_yield())
+    _ = sched_yield()
 
 ## Sleep for at least `milliseconds`: a signal that interrupts the sleep leaves the time
 ## remaining, which is slept again.

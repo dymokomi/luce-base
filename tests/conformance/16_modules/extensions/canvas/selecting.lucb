@@ -1,12 +1,12 @@
 ## Selection: methods of `Canvas`, declared in a fragment of its own module (§9.5).
 extend Canvas:
     ## Selects the whole canvas; a private field is in reach, as in the type's own body.
-    pub mutating func select_all():
+    pub func select_all():
         self.selected = self.area()
 
     pub func selection() -> i64:
         return self.selected
 
     ## A canvas one pixel wide, built through the type.
-    pub static func strip(height: i64) -> Canvas:
+    pub func strip(height: i64) -> Canvas:
         return Canvas.create(1, height)

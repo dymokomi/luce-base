@@ -22,7 +22,7 @@ import support.hashed
 ## A tag for each function, by its symbol.
 pub func function_tags(program: ir.Unit*) -> u64[]!:
     let count = program.functions.count
-    var tags = try alloc u64[count]
+    var tags = try new u64[count] ---
     var used = try hashed.Table[u64].create(count)
     defer used.destroy()
     for i in 0..<count:
@@ -32,7 +32,7 @@ pub func function_tags(program: ir.Unit*) -> u64[]!:
 ## A tag for each text literal, by its bytes; the unit's texts are distinct.
 pub func text_tags(program: ir.Unit*) -> u64[]!:
     let count = program.texts.count
-    var tags = try alloc u64[count]
+    var tags = try new u64[count] ---
     var used = try hashed.Table[u64].create(count)
     defer used.destroy()
     for i in 0..<count:

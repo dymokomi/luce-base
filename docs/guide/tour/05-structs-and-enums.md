@@ -14,11 +14,11 @@ struct Point:
     func squared_length() -> f64:
         return self.x * self.x + self.y * self.y
 
-    mutating func move_by(dx: f64, dy: f64):
+    func move_by(dx: f64, dy: f64):
         self.x += dx
         self.y += dy
 
-    static func origin() -> Point:
+    func origin() -> Point:
         return Point(x = 0.0, y = 0.0)
 
 pub func main(arguments: str[]) -> i32:
@@ -44,11 +44,11 @@ origin is zero: true
   [Chapter 6](06-absence-and-failure.md) shows one.
 - **Methods** are functions declared inside the struct. Python's `self` parameter is
   implicit here: it is available in the body but not written in the parameter list.
-- **A method that changes the struct is marked `mutating`.** It can only be called on a
-  value that may change: a `var`, or a pointer to one. Calling `move_by` on a `let` is an
-  error.
-- **`static func`** belongs to the type rather than to a value, like Python's
-  `@staticmethod`: `Point.origin()`.
+- **A method that changes the struct** can only be called on a value that may change: a
+  `var`, or a pointer to one. Calling `move_by` on a `let` is an error. Nothing marks such
+  a method; the compiler sees from its body that it assigns to `self`.
+- **A function that never uses `self`** belongs to the type rather than to a value, like
+  Python's `@staticmethod`, and is called through the type: `Point.origin()`.
 - **`==` compares field by field** when every field can be compared, as a dataclass's
   `__eq__` does.
 

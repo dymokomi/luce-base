@@ -40,16 +40,16 @@ FILES = {
     "tests/shapes/sides.lucb": 'test "a triangle has three sides":\n    assert(sides_of_triangle() == triangle())\n',
     "tests/uses_area.lucb": (
         "import area\nimport fixtures\nfrom geometry import shapes\n\n"
-        "pub func main(arguments: str[]) -> i32:\n    discard(arguments)\n"
+        "pub func main(arguments: str[]) -> i32:\n    _ = arguments\n"
         '    print(f"{area.square(fixtures.side())} {shapes.triangle()}")\n    return 0\n'),
     "tests/fixtures.lucb": "## The side every test square has.\npub func side() -> i64:\n    return 4\n",
     "tests/area.lucb": (
         "import area\n\n"
-        "pub func main(arguments: str[]) -> i32:\n    discard(arguments)\n"
+        "pub func main(arguments: str[]) -> i32:\n    _ = arguments\n"
         '    print(f"{area.square(5)}")\n    return 0\n'),
     "tests/names_test_only.lucb": (
         "import geometry.area\n\n"
-        "pub func main(arguments: str[]) -> i32:\n    discard(arguments)\n"
+        "pub func main(arguments: str[]) -> i32:\n    _ = arguments\n"
         "    return i32(area.only_in_tests)\n"),
 }
 

@@ -152,7 +152,7 @@ pub func unset_env(variable: c.str) -> !:
 pub func cwd() -> str!:
     if platform.windows:
         return try windows_cwd()
-    let buffer = try alloc u8[4096]
+    let buffer = try new u8[4096] ---
     errdefer free(buffer)
     let found = getcwd(buffer.data, buffer.length)
     if found == none:
@@ -165,7 +165,7 @@ pub func cwd() -> str!:
 pub func executable() -> str!:
     if platform.windows:
         return try windows_executable()
-    let buffer = try alloc u8[4096]
+    let buffer = try new u8[4096] ---
     errdefer free(buffer)
     var count: usize = 0
     if platform.macos:
@@ -213,7 +213,7 @@ pub func hostname() -> str!:
         if GetComputerNameW(&host_text[0], &count) == 0:
             error(failed, "the host name cannot be read")
         return try windows_text.narrow(host_text[..<(usize)count], failed)
-    let buffer = try alloc u8[256]
+    let buffer = try new u8[256] ---
     errdefer free(buffer)
     if gethostname(buffer.data, buffer.length) != 0:
         error(failed, "the host name cannot be read")

@@ -1,8 +1,9 @@
-# error: 
-## §14.3: a `mutating` requirement needs the conformer addressable as `var`.
+# error: `scale` changes its receiver, so a view of it needs a mutable pointer
+# oracle: none
+## §14.3: a view of a conformer whose implementation changes its receiver needs a `var`.
 interface Shape:
     func area() -> f64
-    mutating func scale(factor: f64)
+    func scale(factor: f64)
 
 struct Square: Shape:
     var side: f64
@@ -10,7 +11,7 @@ struct Square: Shape:
     func area() -> f64:
         return self.side * self.side
 
-    mutating func scale(factor: f64):
+    func scale(factor: f64):
         self.side = self.side * factor
 
 pub func main(arguments: str[]) -> i32:

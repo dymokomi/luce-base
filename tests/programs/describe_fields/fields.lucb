@@ -9,4 +9,4 @@ pub handle Resource:
 
 ## A doc comment following a handle must not be parsed as a handle member.
 pub func close_resource(resource: Resource):
-    discard(resource)
+    _ = resource

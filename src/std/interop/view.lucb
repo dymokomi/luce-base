@@ -26,11 +26,11 @@ pub struct ViewOwner[T]:
     var lease: Lease
 
     ## Release the view's lease when the owner is dropped.
-    pub static func drop_view(object: ownership.Object*):
+    pub func drop_view(object: ownership.Object*):
         ((ViewOwner[T]*)object).lease.release()
 
     ## Visit the lease's strong references.
-    pub static func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    pub func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         ((ViewOwner[T]*)object).lease.trace(visit, context)
 
 ## Manual Base carrier for a checked view. The Luce adapter shares this owner and
@@ -45,11 +45,11 @@ pub struct View[T]:
         self.owner = owner
 
     ## A view of `native`, valid while `lease` is.
-    pub static func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!:
+    pub func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!:
         try lease.check()
-        var information = ownership.Info(name = declaration.name, size = sizeof(ViewOwner[T]),
+        var information = ownership.Info(name = declaration.name, size = memory.size_of(ViewOwner[T]),
                                          finish = none, drop = ViewOwner[T].drop_view, trace = ViewOwner[T].trace_view)
-        let owner = (ViewOwner[T]*)try ownership.reserve(&information, sizeof(ViewOwner[T]))
+        let owner = (ViewOwner[T]*)try ownership.reserve(&information, memory.size_of(ViewOwner[T]))
         owner.information = information
         owner.header.info = &owner.information
         owner.native = native
@@ -59,7 +59,7 @@ pub struct View[T]:
 
     ## Another strong reference to the same view.
     pub func clone() -> View[T]:
-        discard(ownership.retain(&self.owner.header))
+        _ = ownership.retain(&self.owner.header)
         return self
 
     ## Drop this view's edge.
@@ -74,7 +74,7 @@ pub struct View[T]:
 
     ## A mutable pointer to the value, when the view is mutable.
     pub func get_mut() -> T*!:
-        discard(try self.get())
+        _ = try self.get()
         if not self.owner.declaration.mutable:
             error(invalid, "a native view is read-only")
         return &self.owner.native
@@ -96,7 +96,7 @@ pub struct View[T]:
     pub func enter() -> !:
         ownership.check_alive(&self.owner.header)
         try self.owner.lease.enter()
-        discard(ownership.retain(&self.owner.header))
+        _ = ownership.retain(&self.owner.header)
 
     ## End a guarded invocation.
     pub func leave():
@@ -105,15 +105,15 @@ pub struct View[T]:
         ownership.release(&self.owner.header)
 
     ## Validate that `object` is a live view of this type.
-    pub static func validate_interface(object: ownership.Object*) -> !:
-        discard(try View[T]((ViewOwner[T]*)object).get())
+    pub func validate_interface(object: ownership.Object*) -> !:
+        _ = try View[T]((ViewOwner[T]*)object).get()
 
     ## Begin a guarded invocation for an interface witness.
-    pub static func begin_interface(object: ownership.Object*):
+    pub func begin_interface(object: ownership.Object*):
         View[T]((ViewOwner[T]*)object).enter() catch failure: trap(failure.message)
 
     ## End a guarded invocation for an interface witness.
-    pub static func end_interface(object: ownership.Object*):
+    pub func end_interface(object: ownership.Object*):
         View[T]((ViewOwner[T]*)object).leave()
 
     ## The witness borrows this view's storage and preserves its validity lease.

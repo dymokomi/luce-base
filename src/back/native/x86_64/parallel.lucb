@@ -33,7 +33,7 @@ func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
         halves = g.half_routines
         let made = g.writer.out.view()
         with memory.heap:
-            var kept = try alloc u8[made.length]
+            var kept = try new u8[made.length] ---
             memory.copy(kept, made.bytes, made.length)
             generated = (str)kept
     job.texts[index] = generated

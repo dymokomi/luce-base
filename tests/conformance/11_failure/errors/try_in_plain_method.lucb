@@ -6,7 +6,7 @@ func risky() -> i32!:
 struct Reader:
     var count: i32
 
-    pub mutating func read() -> i32:
+    pub func read() -> i32:
         self.count += try risky()
         return self.count
 

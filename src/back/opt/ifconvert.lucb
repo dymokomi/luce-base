@@ -53,7 +53,7 @@ struct Region:
     ## Whether the chain joins its comparisons with `or` (else with `and`).
     var any: bool
 
-    mutating func release():
+    func release():
         self.links.destroy()
 
 ## Whether `op` computes a value from its operands alone and cannot trap: what may run on
@@ -145,7 +145,7 @@ func region_at(f: ir.Function*, g: cfg.Graph*, definitions: u32[], h: u32) -> Re
             region.no = g.block_of(link.extra2)
         else:
             region.yes = g.block_of(link.extra)
-    discard(at)
+    _ = at
     # the arms: each a small block of the region's alone that goes on to one join, or the
     # join itself
     let yes = g.blocks.get((usize)region.yes)
@@ -183,14 +183,14 @@ func in_links(region: Region*, b: u32) -> bool:
 
 ## Whether the join is itself one of the region's blocks (a loop around the branch).
 func joins_region(g: cfg.Graph*, region: Region*, join: u32) -> bool:
-    discard(g)
+    _ = g
     return join == region.head or in_links(region, join)
 
 # mark: Rewriting ==================================================================================
 
 ## Find one region and convert it; whether one was found.
 func convert_one(f: ir.Function*, g: cfg.Graph*) -> bool!:
-    var definitions = try alloc u32[f.temps.count + 1] in memory.heap
+    var definitions = try new u32[f.temps.count + 1] --- in memory.heap
     defer free(definitions) in memory.heap
     for t in 0..<definitions.length:
         definitions[t] = 0
@@ -212,7 +212,7 @@ func rewrite(f: ir.Function*, g: cfg.Graph*, region: Region*) -> !:
     let head = g.blocks.get((usize)region.head)
     let join = g.blocks.get((usize)region.join)
     let branch = f.instrs.get((usize)head.end - 1)
-    var gone = try alloc bool[g.blocks.count] in memory.heap
+    var gone = try new bool[g.blocks.count] --- in memory.heap
     defer free(gone) in memory.heap
     for b in 0..<gone.length:
         gone[b] = false

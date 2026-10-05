@@ -1,4 +1,6 @@
 # oracle: none (the seed has no generic function values, as 13_generics/generic_function_values)
+import memory
+
 ## §13: a generic function named as a value with its type arguments written is that instance:
 ## `twice[i64]`, `twice[Point]`, `pick[i32, Point]`, including a type parameter its function
 ## type does not mention, which no expected type could infer. An index by a constant stays an
@@ -10,7 +12,7 @@ func twice[T](context: void*?, value: const T*) -> bool:
     return context == none
 
 func pick[A, B](context: void*?, value: const A*) -> bool:
-    return sizeof(B) == 8
+    return memory.size_of(B) == 8
 
 var table: i64[4]
 let Count: usize = 2

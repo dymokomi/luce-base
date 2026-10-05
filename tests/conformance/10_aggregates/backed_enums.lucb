@@ -1,3 +1,5 @@
+import memory
+
 ## §10.3: an enum `as` an integer type has that representation; `|`, `&`, `^`, `~` produce the
 ## enum type; `(u32)flag` reads it; `Access(n)` checks; `(Access)n` does not; `match` needs `_`.
 enum Access as u32:
@@ -41,7 +43,7 @@ pub func main(arguments: str[]) -> i32:
     let n = (i8)l
     let back = Level(n)
     let widened = (i32)(i8)Level.high
-    print(f"{n} {back == .low} {widened} {sizeof(Access)} {sizeof(Level)}")
+    print(f"{n} {back == .low} {widened} {memory.size_of(Access)} {memory.size_of(Level)}")
 
     var flags: Access
     flags = flags | .read

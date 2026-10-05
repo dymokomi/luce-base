@@ -14,13 +14,13 @@ pub struct Stack:
     var items: i64[8]
     var count: usize
 
-    pub mutating func push(value: i64) -> !:
+    pub func push(value: i64) -> !:
         if self.count == self.items.length:
             error(full, "the stack is full")
         self.items[self.count] = value
         self.count += 1
 
-    pub mutating func pop() -> i64?:
+    pub func pop() -> i64?:
         if self.count == 0: return none
         self.count -= 1
         return self.items[self.count]

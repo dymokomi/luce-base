@@ -5,4 +5,4 @@ first line
 last
 
 tab	here "quoted" \ é
-frame {7}: ff 101   7|
+frame {7}: 255|

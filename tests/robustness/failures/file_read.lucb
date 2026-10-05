@@ -39,6 +39,6 @@ pub func main(arguments: str[]) -> i32!:
     let length = (usize)(strings.parse_i64(arguments[2]) else -1)
     let attempts = try attempt(path, length, 0)
     for i in 1..=attempts:
-        discard(try attempt(path, length, i))
+        _ = try attempt(path, length, i)
     print("ok file read failures")
     return 0

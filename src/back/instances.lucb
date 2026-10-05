@@ -42,12 +42,12 @@ pub struct Instances:
     var slots: u32[]
 
     ## No instances yet.
-    pub static func create() -> Instances!:
+    pub func create() -> Instances!:
         return Instances(items = try list.List[Instance].create(64), slots = try empty_slots(256))
 
     ## Register a function instance; returns its index. An instance whose arguments nest
     ## past the checker's limit is an infinite chain of instantiations.
-    pub mutating func add(table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
+    pub func add(table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
         let mask = self.slots.length - 1
         var slot = instance_hash(f, args, owner, owner_args) & mask
         while self.slots[slot] != 0:
@@ -76,7 +76,7 @@ pub struct Instances:
     ## The next instance whose body is still to generate, from `*next` on, marked done; none
     ## when the list is drained. A body may need new instances, so generating goes on until
     ## this says none after the last one.
-    pub mutating func next_pending(next: usize*) -> Instance?:
+    pub func next_pending(next: usize*) -> Instance?:
         while *next < self.items.count:
             var inst = self.items.get(*next)
             *next += 1
@@ -87,7 +87,7 @@ pub struct Instances:
         return none
 
     ## Put instance `index` in the first free slot of its probe sequence.
-    mutating func place(index: usize):
+    func place(index: usize):
         let r = &self.items.items[index]
         let mask = self.slots.length - 1
         var slot = instance_hash(r.decl, r.args, r.owner, r.owner_args) & mask
@@ -101,7 +101,7 @@ pub let endless: ErrorCode = ErrorCode.package(53)
 ## `size` free slots for the index, from the heap, where a grown table's old slots go back.
 func empty_slots(size: usize) -> u32[]!:
     with memory.heap:
-        var slots = try alloc u32[size]
+        var slots = try new u32[size] ---
         for k in 0..<size:
             slots[k] = 0
         return slots
@@ -136,7 +136,7 @@ pub struct Generic:
     pub var owner_args: u32[]
 
     ## The context before any body: no instance, no arguments.
-    pub static func none_yet() -> Generic!:
+    pub func none_yet() -> Generic!:
         return Generic(fn_decl = none, fn_args = try types.no_args(), owner_decl = none, owner_args = try types.no_args())
 
     ## A type of the body, with the instance's arguments substituted.
@@ -155,7 +155,7 @@ pub struct Generic:
         let n = ast.count(holder.body)
         if n == 0:
             return try types.no_args()
-        var args = try alloc u32[n]
+        var args = try new u32[n] ---
         var i: usize = 0
         var cursor = holder.body
         while let a = cursor:

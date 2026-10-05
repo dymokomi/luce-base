@@ -13,5 +13,5 @@ pub func main(arguments: str[]) -> i32!:
         assert(failure.code == api.invalid)
         print("constructor failure preserved")
         return 0
-    discard(invalid)
+    _ = invalid
     return 1

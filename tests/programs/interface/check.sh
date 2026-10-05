@@ -17,8 +17,9 @@ grep -q '^pub linked var opened: i64$' build/interface/lib.lucb
 grep -q '^pub let limit: i64 = 3$' build/interface/lib.lucb
 grep -q '^pub linked let names: c.str\[2\] = \["one", "two"\]$' build/interface/lib.lucb
 grep -q '^local linked var per_thread: u32$' build/interface/lib.lucb
-grep -q '^    pub linked mutating func bump(by: i64) -> i64$' build/interface/lib.lucb
-grep -q '^    linked static func zero() -> Counter$' build/interface/lib.lucb
+grep -q '^    pub linked func bump(self: Counter\*, by: i64) -> i64$' build/interface/lib.lucb
+grep -q '^    linked func zero() -> Counter$' build/interface/lib.lucb
+grep -q '^    linked func name(self: const Mode\*) -> str$' build/interface/lib.lucb
 grep -q '^inline func triple(n: i64) -> i64:$' build/interface/lib.lucb
 grep -q '^    inline func peek() -> i64:$' build/interface/lib.lucb
 grep -q '^pub func first\[T\](items: const T\[\]) -> T?:$' build/interface/lib.lucb

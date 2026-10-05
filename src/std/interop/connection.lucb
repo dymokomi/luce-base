@@ -23,10 +23,10 @@ pub struct Connection:
         self.identifier = identifier
         self.remove = remove
         self.contains = contains
-        discard(ownership.retain(state))
+        _ = ownership.retain(state)
 
     ## Remove the registration; idempotent.
-    pub mutating func disconnect():
+    pub func disconnect():
         let state = self.state else return
         self.state = none
         self.remove(state, self.identifier)
@@ -38,7 +38,7 @@ pub struct Connection:
         ownership.check_alive(state)
         return self.contains(state, self.identifier)
 
-    mutating func destroy():
+    func destroy():
         self.disconnect()
 
     func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):

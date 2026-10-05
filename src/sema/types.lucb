@@ -204,8 +204,8 @@ pub struct Table:
     var allocator: memory.Allocator
 
     ## An empty table holding only the built-in scalar types.
-    pub static func create() -> Table!:
-        var t = Table(types = try list.List[Type].create(256), word = 8, index = try alloc u32[1024], allocator = memory.allocator)
+    pub func create() -> Table!:
+        var t = Table(types = try list.List[Type].create(256), word = 8, index = try new u32[1024] ---, allocator = memory.allocator)
         zero_index(t.index)
         # id 0 is "no type"; the scalars follow in Kind order
         let seeds: Kind[32] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value, Kind.i8_, Kind.i64_, Kind.u64_, Kind.i32_, Kind.pointer, Kind.f16_]
@@ -225,7 +225,7 @@ pub struct Table:
     ## C uses LLP64 on Windows: long is 32 bits and wchar_t is unsigned 16 bits; long is 32
     ## bits on wasm32 as well; and `char` is unsigned on AArch64 Linux (§5.2). Configure
     ## before interning any target-dependent compound types.
-    pub mutating func configure_c(windows: bool, long32: bool, unsigned_char: bool):
+    pub func configure_c(windows: bool, long32: bool, unsigned_char: bool):
         var plain_char = self.types.get((usize)c_char_id)
         plain_char.kind = Kind.u8_ if unsigned_char else Kind.i8_
         self.types.set((usize)c_char_id, plain_char)
@@ -256,12 +256,12 @@ pub struct Table:
 
     ## The id of a type equal to `t`, adding it when new. Nominal types with a
     ## declaration compare by declaration and type arguments.
-    pub mutating func intern(t: Type) -> u32!:
+    pub func intern(t: Type) -> u32!:
         let mask = self.index.length - 1
         var at = (usize)structure_hash(t) & mask
         while self.index[at] != 0:
             let id = self.index[at] - 1
-            if id >= seeded and self.same_type(self.types.get((usize)id), t):
+            if id >= seeded and same_type(self.types.get((usize)id), t):
                 return id
             at = (at + 1) & mask
         let id = u32(self.types.count)
@@ -272,17 +272,8 @@ pub struct Table:
             self.index_add(id)
         return id
 
-    ## Whether `have` is the type `t` describes: the same structure, and for a generic
-    ## parameter, which is its own type, or a type without a declaration, the same name.
-    func same_type(have: Type, t: Type) -> bool:
-        if have.kind != t.kind or have.elem != t.elem or have.length != t.length or have.is_const != t.is_const or have.is_volatile != t.is_volatile or have.variadic != t.variadic or have.decl != t.decl or not same_args(have.args, t.args):
-            return false
-        if t.kind == Kind.param:
-            return have.name == t.name
-        return have.decl != none or have.name == t.name
-
     ## Put type `id` into the first empty bucket on its hash's probe path.
-    mutating func index_add(id: u32):
+    func index_add(id: u32):
         let mask = self.index.length - 1
         var at = (usize)structure_hash(self.types.get((usize)id)) & mask
         while self.index[at] != 0:
@@ -290,9 +281,9 @@ pub struct Table:
         self.index[at] = id + 1
 
     ## Twice the buckets, every type re-added.
-    mutating func grow_index() -> !:
+    func grow_index() -> !:
         let old = self.index
-        self.index = try alloc u32[old.length * 2] in self.allocator
+        self.index = try new u32[old.length * 2] --- in self.allocator
         zero_index(self.index)
         var i: usize = 0
         while i < self.types.count:
@@ -300,67 +291,64 @@ pub struct Table:
             i += 1
         free(old) in self.allocator
 
-    func plain(kind: Kind, elem: u32, name: str) -> Type!:
-        return Type(kind = kind, elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = name)
-
     # -- constructors ---------------------------------------------------------------------
-    pub mutating func pointer(elem: u32, is_const: bool, is_volatile: bool) -> u32!:
-        var t = try self.plain(Kind.pointer, elem, "")
+    pub func pointer(elem: u32, is_const: bool, is_volatile: bool) -> u32!:
+        var t = try plain(Kind.pointer, elem, "")
         t.is_const = is_const
         t.is_volatile = is_volatile
         return try self.intern(t)
 
     ## The id of `elem[]`, `const` when `is_const`; interned.
-    pub mutating func span(elem: u32, is_const: bool) -> u32!:
-        var t = try self.plain(Kind.span, elem, "")
+    pub func span(elem: u32, is_const: bool) -> u32!:
+        var t = try plain(Kind.span, elem, "")
         t.is_const = is_const
         return try self.intern(t)
 
     ## The id of `elem[length]`; interned.
-    pub mutating func array(elem: u32, length: u64) -> u32!:
-        var t = try self.plain(Kind.array, elem, "")
+    pub func array(elem: u32, length: u64) -> u32!:
+        var t = try plain(Kind.array, elem, "")
         t.length = length
         return try self.intern(t)
 
     ## The id of `elem?`; `elem` itself when it is already optional.
-    pub mutating func optional(elem: u32) -> u32!:
+    pub func optional(elem: u32) -> u32!:
         if self.kind(elem) == Kind.optional:
             return elem
-        return try self.intern(try self.plain(Kind.optional, elem, ""))
+        return try self.intern(try plain(Kind.optional, elem, ""))
 
     ## The id of `elem!`; `elem` itself when it is already fallible.
-    pub mutating func fallible(elem: u32) -> u32!:
+    pub func fallible(elem: u32) -> u32!:
         if self.kind(elem) == Kind.fallible:
             return elem
-        return try self.intern(try self.plain(Kind.fallible, elem, ""))
+        return try self.intern(try plain(Kind.fallible, elem, ""))
 
     ## The id of `@elem`; interned.
-    pub mutating func atomic(elem: u32) -> u32!:
-        return try self.intern(try self.plain(Kind.atomic, elem, ""))
+    pub func atomic(elem: u32) -> u32!:
+        return try self.intern(try plain(Kind.atomic, elem, ""))
 
     ## The id of the tuple of `members`; interned.
-    pub mutating func tuple(members: u32[]) -> u32!:
-        var t = try self.plain(Kind.tuple, 0, "")
+    pub func tuple(members: u32[]) -> u32!:
+        var t = try plain(Kind.tuple, 0, "")
         t.args = members
         return try self.intern(t)
 
     ## The id of the function type over `params` returning `result`; interned.
-    pub mutating func function(params: u32[], result: u32, variadic: bool) -> u32!:
-        var t = try self.plain(Kind.func_, result, "")
+    pub func function(params: u32[], result: u32, variadic: bool) -> u32!:
+        var t = try plain(Kind.func_, result, "")
         t.args = params
         t.variadic = variadic
         return try self.intern(t)
 
     ## A nominal type for a declaration; the same declaration yields the same id.
-    pub mutating func nominal(kind: Kind, decl: ast.Node*, args: u32[]) -> u32!:
-        var t = try self.plain(kind, 0, decl.text)
+    pub func nominal(kind: Kind, decl: ast.Node*, args: u32[]) -> u32!:
+        var t = try plain(kind, 0, decl.text)
         t.decl = decl
         t.args = args
         return try self.intern(t)
 
     ## A generic parameter of a declaration.
-    pub mutating func parameter(decl: ast.Node*, name: str) -> u32!:
-        var t = try self.plain(Kind.param, 0, name)
+    pub func parameter(decl: ast.Node*, name: str) -> u32!:
+        var t = try plain(Kind.param, 0, name)
         t.decl = decl
         return try self.intern(t)
 
@@ -790,6 +778,18 @@ pub struct Table:
             _:
                 try out.write(t.name)
 
+## Whether `have` is the type `t` describes: the same structure, and for a generic
+## parameter, which is its own type, or a type without a declaration, the same name.
+func same_type(have: Type, t: Type) -> bool:
+    if have.kind != t.kind or have.elem != t.elem or have.length != t.length or have.is_const != t.is_const or have.is_volatile != t.is_volatile or have.variadic != t.variadic or have.decl != t.decl or not same_args(have.args, t.args):
+        return false
+    if t.kind == Kind.param:
+        return have.name == t.name
+    return have.decl != none or have.name == t.name
+
+func plain(kind: Kind, elem: u32, name: str) -> Type!:
+    return Type(kind = kind, elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = name)
+
 ## An empty argument list: a one-element allocation sliced to nothing, since a
 ## Base array literal cannot be empty (§5.4).
 ## An empty argument list that lives forever, for measuring types outside any instance.
@@ -800,7 +800,7 @@ func no_args_view() -> u32[]:
 
 ## An empty owned `u32[]`, for a type or call with no arguments.
 pub func no_args() -> u32[]!:
-    let one = try alloc u32[1]
+    let one = try new u32[1] ---
     return one[..<0]
 
 func round_up(value: u64, align: u64) -> u64:
@@ -894,14 +894,14 @@ pub func repeated_cases(d: ast.Node*) -> bool[]!:
         if node.kind == ast.Kind.enum_case:
             count += 1
         cursor = node.next
-    var repeated = try alloc bool[count]
+    var repeated = try new bool[count] ---
     var size: usize = 16
     while size < count * 2:
         size *= 2
     # open addressing over the values; `taken` marks a filled bucket
-    var buckets = try alloc u64[size]
+    var buckets = try new u64[size] ---
     defer free(buckets)
-    var taken = try alloc bool[size]
+    var taken = try new bool[size] ---
     defer free(taken)
     for k in 0..<size:
         taken[k] = false

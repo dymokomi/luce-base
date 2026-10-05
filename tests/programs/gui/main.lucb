@@ -15,6 +15,7 @@ import editor.terminal
 import luce_std.files
 import memory
 import sdl3
+import strings
 
 ## The debug font is 8 by 8; the renderer scales it up.
 let cell: f32 = 8.0
@@ -29,22 +30,22 @@ struct Window:
     var rows: usize
     var top: usize
 
-    static func open(headless: bool) -> Window!:
+    func open(headless: bool) -> Window!:
         if headless:
-            discard(sdl3.SDL_SetHint("SDL_VIDEO_DRIVER", "dummy"))
+            _ = sdl3.SDL_SetHint("SDL_VIDEO_DRIVER", "dummy")
         if not sdl3.SDL_Init(sdl3.SDL_INIT_VIDEO):
             error(failed, sdl_error())
         let window = sdl3.SDL_CreateWindow("luce editor", 960, 640, sdl3.SDL_WINDOW_RESIZABLE | sdl3.SDL_WINDOW_HIGH_PIXEL_DENSITY) else error(failed, sdl_error())
         let renderer = sdl3.SDL_CreateRenderer(window, none) else error(failed, sdl_error())
-        discard(sdl3.SDL_SetRenderScale(renderer, scale, scale))
+        _ = sdl3.SDL_SetRenderScale(renderer, scale, scale)
         var w = Window(window = window, renderer = renderer, columns = 60, rows = 40, top = 0)
         w.measure()
         return w
 
-    mutating func measure():
+    func measure():
         var width: i32 = 960
         var height: i32 = 640
-        discard(sdl3.SDL_GetRenderOutputSize(self.renderer, &width, &height))
+        _ = sdl3.SDL_GetRenderOutputSize(self.renderer, &width, &height)
         self.columns = (usize)((f32)width / scale / cell)
         self.rows = (usize)((f32)height / scale / cell)
         if self.rows < 3:
@@ -58,15 +59,15 @@ struct Window:
         sdl3.SDL_Quit()
 
     ## One frame: the text rows, the cursor as a block, a status line, the message.
-    mutating func draw(text: buffer.Buffer*, name: str, message: str):
+    func draw(text: buffer.Buffer*, name: str, message: str):
         let text_rows = self.rows - 2
         let line = text.line_of(text.cursor)
         if line < self.top:
             self.top = line
         if line >= self.top + text_rows:
             self.top = line + 1 - text_rows
-        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, 24, 24, 30, 255))
-        discard(sdl3.SDL_RenderClear(self.renderer))
+        _ = sdl3.SDL_SetRenderDrawColor(self.renderer, 24, 24, 30, 255)
+        _ = sdl3.SDL_RenderClear(self.renderer)
         var row_bytes: u8[1024]
         let total = text.count_lines()
         var row: usize = 0
@@ -81,19 +82,19 @@ struct Window:
         # the cursor
         let column = text.column_of(text.cursor)
         let cursor = sdl3.SDL_FRect(x = (f32)column * cell, y = (f32)(line - self.top) * cell, w = cell, h = cell)
-        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, 250, 200, 80, 160))
-        discard(sdl3.SDL_RenderFillRect(self.renderer, &cursor))
+        _ = sdl3.SDL_SetRenderDrawColor(self.renderer, 250, 200, 80, 160)
+        _ = sdl3.SDL_RenderFillRect(self.renderer, &cursor)
         # the status line and the message
         let bar = sdl3.SDL_FRect(x = 0.0, y = (f32)text_rows * cell, w = (f32)self.columns * cell, h = cell)
-        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, 70, 70, 90, 255))
-        discard(sdl3.SDL_RenderFillRect(self.renderer, &bar))
+        _ = sdl3.SDL_SetRenderDrawColor(self.renderer, 70, 70, 90, 255)
+        _ = sdl3.SDL_RenderFillRect(self.renderer, &bar)
         var status: u8[256]
         let mark = " *" if text.dirty else ""
-        let shown = format(status, f" {name}{mark}   {line + 1}:{column + 1}   {total} lines") catch:
+        let shown = strings.format(status, f" {name}{mark}   {line + 1}:{column + 1}   {total} lines") catch:
             return
         self.text_at(0, text_rows, shown.bytes, 255, 255, 255)
         self.text_at(0, text_rows + 1, message.bytes, 180, 180, 200)
-        discard(sdl3.SDL_RenderPresent(self.renderer))
+        _ = sdl3.SDL_RenderPresent(self.renderer)
 
     ## Text at a cell position, NUL-terminated for SDL, cut at the right edge.
     func text_at(column: usize, row: usize, raw: const u8[], r: u8, g: u8, b: u8):
@@ -103,8 +104,8 @@ struct Window:
             n = self.columns
         memory.copy(line, raw, n)
         line[n] = 0
-        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, r, g, b, 255))
-        discard(sdl3.SDL_RenderDebugText(self.renderer, (f32)column * cell, (f32)row * cell, (c.str)(str)line[..<n]))
+        _ = sdl3.SDL_SetRenderDrawColor(self.renderer, r, g, b, 255)
+        _ = sdl3.SDL_RenderDebugText(self.renderer, (f32)column * cell, (f32)row * cell, (c.str)(str)line[..<n])
 
 ## SDL's last error as text; the binding says it may be null, so an empty text stands in.
 func sdl_error() -> str:
@@ -195,7 +196,7 @@ pub func main(arguments: str[]) -> i32!:
     editor.page_rows = window.rows - 2
     if headless:
         var script_name: u8[1024]
-        let script_path = try format(script_name, f"{arguments[3]}")
+        let script_path = try strings.format(script_name, f"{arguments[3]}")
         let keys = try files.read((c.str)script_path)
         defer keys.release()
         try editor.replay(try str(keys.value))
@@ -207,7 +208,7 @@ pub func main(arguments: str[]) -> i32!:
         print((str)copy)
         print(editor.message())
         return 0
-    discard(sdl3.SDL_StartTextInput(window.window))
+    _ = sdl3.SDL_StartTextInput(window.window)
     editor.say("^S save  ^Q quit  ^F find  ^Z undo  ^Y redo  ^K delete line")
     var quit = false
     while editor.running and not quit:

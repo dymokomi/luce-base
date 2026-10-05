@@ -20,47 +20,47 @@ pub struct Buffer: io.Writer:
     var allocator: memory.Allocator
 
     ## An empty buffer with room for `capacity` bytes (at least 256).
-    pub static func create(capacity: usize) -> Buffer!:
+    pub func create(capacity: usize) -> Buffer!:
         let room = capacity if capacity > 0 else 256
-        return Buffer(data = try alloc u8[room], used = 0, allocator = memory.allocator)
+        return Buffer(data = try new u8[room] ---, used = 0, allocator = memory.allocator)
 
-    mutating func reserve(extra: usize) -> !:
+    func reserve(extra: usize) -> !:
         let required = self.used +? extra else error(memory.exhausted, "the output buffer size overflows")
         if required <= self.data.length:
             return
         var room = self.data.length if self.data.length > 0 else 1
         while room < required:
             room = room *? 2 else required
-        let grown = try alloc u8[room] in self.allocator
+        let grown = try new u8[room] --- in self.allocator
         memory.copy(grown, self.data, self.used)
         free(self.data) in self.allocator
         self.data = grown
 
     ## Append `text`.
-    pub mutating func put(text: str) -> !:
+    pub func put(text: str) -> !:
         try self.reserve(text.length)
         memory.copy(self.data[self.used..], text.bytes, text.length)
         self.used += text.length
 
     ## Append `bytes`, as a `Writer`: all of them, or none when memory is exhausted.
-    pub mutating func write(bytes: const u8[]) -> usize!:
+    pub func write(bytes: const u8[]) -> usize!:
         try self.put_bytes(bytes)
         return bytes.length
 
     ## Append raw `bytes`.
-    pub mutating func put_bytes(bytes: const u8[]) -> !:
+    pub func put_bytes(bytes: const u8[]) -> !:
         try self.reserve(bytes.length)
         memory.copy(self.data[self.used..], bytes, bytes.length)
         self.used += bytes.length
 
     ## Append one byte.
-    pub mutating func put_byte(byte: u8) -> !:
+    pub func put_byte(byte: u8) -> !:
         try self.reserve(1)
         self.data[self.used] = byte
         self.used += 1
 
     ## Append `value` in decimal.
-    pub mutating func put_u64(value: u64) -> !:
+    pub func put_u64(value: u64) -> !:
         var digits: u8[24]
         var n: usize = 0
         var v = value
@@ -78,7 +78,7 @@ pub struct Buffer: io.Writer:
             self.used += 1
 
     ## Append `value` in decimal, with a leading minus when negative.
-    pub mutating func put_i64(value: i64) -> !:
+    pub func put_i64(value: i64) -> !:
         if value < 0:
             try self.put_byte('-')
             try self.put_u64((u64)(0 -% value))
@@ -94,11 +94,11 @@ pub struct Buffer: io.Writer:
         return self.data[..<self.used]
 
     ## Discard the contents, keeping the storage.
-    pub mutating func clear():
+    pub func clear():
         self.used = 0
 
     ## Release the storage.
-    pub mutating func destroy():
+    pub func destroy():
         free(self.data) in self.allocator
 
 test "a buffer appends text and numbers and grows":

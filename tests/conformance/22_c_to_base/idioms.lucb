@@ -41,10 +41,10 @@ pub func main(arguments: str[]) -> i32!:
     let items = try new i64[3]
     defer free(items)
     items[2] = 9
-    let raw = try alloc u8[8]
+    let raw = try new u8[8] ---
     defer free(raw)
     raw[7] = 1
-    print(f"{items[2]} {raw[7]} {sizeof(Node)} {offsetof(Node, next)}")
+    print(f"{items[2]} {raw[7]} {memory.size_of(Node)} {memory.offset_of(Node, next)}")
     let five: i64 = 5
     print(f"{-7 // 2} {-7 % 2} {hash_of("ab")} {five & -%five}")
     let (found, at) = find(items, 9)

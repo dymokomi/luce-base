@@ -1,3 +1,5 @@
+import memory
+
 struct Box[T]:
     var value: T
     var number: i64
@@ -20,8 +22,8 @@ func failure() -> Box[unit]!:
 pub func main(arguments: str[]) -> i32:
     var box = Box[unit](nothing(()), 17)
     box.value = nothing(box.value)
-    assert(box.number == 17 and sizeof(Box[unit]) == 8)
-    assert(sizeof(unit) == 0)
+    assert(box.number == 17 and memory.size_of(Box[unit]) == 8)
+    assert(memory.size_of(unit) == 0)
     var zero: Box[unit]
     assert(zero.number == 0)
     let initialized = Initialized[unit](nothing(()), 23)

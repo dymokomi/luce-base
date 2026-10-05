@@ -54,7 +54,7 @@ func windows_cwd() -> str!:
         let capacity = GetCurrentDirectoryW(0, none)
         if capacity == 0:
             break
-        let text = try alloc u16[(usize)capacity]
+        let text = try new u16[(usize)capacity] ---
         defer free(text)
         let count = GetCurrentDirectoryW(capacity, text.data)
         if count == 0:
@@ -69,7 +69,7 @@ func windows_cwd() -> str!:
 func windows_executable() -> str!:
     var capacity: usize = 260
     while capacity <= 32768:
-        let text = try alloc u16[capacity]
+        let text = try new u16[capacity] ---
         defer free(text)
         let count = GetModuleFileNameW(none, text.data, (u32)capacity)
         if count == 0:
@@ -83,9 +83,9 @@ func windows_parent_pid() -> i32:
     let snapshot = CreateToolhelp32Snapshot(2, 0)
     if (usize)snapshot == ~(usize)0:
         return 0
-    defer discard(CloseHandle(snapshot))
+    defer _ = CloseHandle(snapshot)
     var entry: WinProcessEntry
-    entry.size = (u32)sizeof(WinProcessEntry)
+    entry.size = (u32)memory.size_of(WinProcessEntry)
     var found = Process32FirstW(snapshot, &entry)
     let current = GetCurrentProcessId()
     while found != 0:

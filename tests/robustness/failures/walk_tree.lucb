@@ -23,7 +23,7 @@ struct Visitor: files.WalkVisitor:
     var fail_after: usize
     var prune_root: bool
 
-    pub mutating func visit(path: str, info: files.Metadata, depth: usize) -> bool!:
+    pub func visit(path: str, info: files.Metadata, depth: usize) -> bool!:
         # Deliberately change the ambient allocator. Traversal must still grow
         # and free its storage through the allocator it captured on entry.
         memory.allocator = memory.heap
@@ -81,7 +81,7 @@ pub func main(arguments: c.str[]) -> i32!:
     assert(steps >= 4, "the callback redirected traversal allocations")
     var fail_at: usize = 1
     while fail_at <= steps:
-        discard(attempt(arguments[1], fail_at))
+        _ = attempt(arguments[1], fail_at)
         fail_at += 1
     try failure_cases(arguments[1])
     var owner = allocator.Failing.at(1)

@@ -1,3 +1,5 @@
+import memory
+
 ## §10.4: a union stores one member at one address; its size and alignment come from its
 ## members; another member reinterprets the bytes; it is zeroed as bytes; it may declare methods.
 union Value:
@@ -8,7 +10,7 @@ union Value:
     func low_byte() -> u8:
         return self.bytes[0]
 
-    mutating func clear():
+    func clear():
         self.integer = 0
 
 union Small:
@@ -17,11 +19,11 @@ union Small:
 
 pub func main(arguments: str[]) -> i32:
     var v: Value
-    print(f"{v.integer} {v.real} {v.bytes[7]} {sizeof(Value)} {alignof(Value)} {sizeof(Small)} {alignof(Small)}")
+    print(f"{v.integer} {v.real} {v.bytes[7]} {memory.size_of(Value)} {memory.align_of(Value)} {memory.size_of(Small)} {memory.align_of(Small)}")
     v.integer = 0x0102030405060708
-    print(f"{v.low_byte()} {v.bytes[7]} {hex(v.integer)}")
+    print(f"{v.low_byte()} {v.bytes[7]} {v.integer}")
     v.real = 1.0
-    print(f"{hex(v.integer)} {v.bytes[7]}")
+    print(f"{v.integer} {v.bytes[7]}")
     v.bytes[7] = 0xC0
     print(f"{v.real}")
     v.clear()
@@ -30,5 +32,5 @@ pub func main(arguments: str[]) -> i32:
     s.pair = 0x1234
     let copy = s
     s.byte = 0xFF
-    print(f"{hex(s.pair)} {hex(copy.pair)} {copy.byte}")
+    print(f"{s.pair} {copy.pair} {copy.byte}")
     return 0

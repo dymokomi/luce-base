@@ -6,14 +6,14 @@
 import memory
 
 pub func main(arguments: str[]) -> i32!:
-    let block = try alloc u8[16]
+    let block = try new u8[16] ---
     block[0] = 1
     let data = block.data
     free(block)
-    let next = try alloc u8[16]
-    print(f"{hex(data[0])} {hex(data[15])} {(usize)next.data != (usize)data}")
+    let next = try new u8[16] ---
+    print(f"{data[0]:x} {data[15]:x} {(usize)next.data != (usize)data}")
     var word: u64 = ---
-    print(f"{hex(word)}")
+    print(f"{word:x}")
     let sites = memory.allocation_sites()
     print(f"{sites.length} {sites[0].size} {sites[1].size}")
     free(next)

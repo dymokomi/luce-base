@@ -12,7 +12,7 @@ extend Lowerer:
 
     ## Lower the whole program: every function of every module, then the instances
     ## they needed, then the globals' initialiser, the entry, and the tables.
-    pub mutating func program(mode: u32) -> !:
+    pub func program(mode: u32) -> !:
         self.mode = mode
         self.program_unit.trap_function = "lb_core_trap"
         self.program_unit.trap_at_function = "lb_core_7trap_at"
@@ -26,14 +26,14 @@ extend Lowerer:
             var cursor = self.modules.get(i).body
             while let d = cursor:
                 if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none:
-                    discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
+                    _ = try self.add_func(d, try types.no_args(), none, try types.no_args())
                 elif d.kind == ast.Kind.asm_ and d.text == self.arch_name():
                     try self.module_asm(d)
                 elif (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
                     while let m = member:
                         if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
-                            discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
+                            _ = try self.add_func(m, try types.no_args(), d, try types.no_args())
                         member = m.next
                     var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
                     while let l = listed:
@@ -63,7 +63,7 @@ extend Lowerer:
             try self.entry_function(mode)
         try self.witness_tables()
 
-    mutating func declare_global(d: ast.Node*) -> !:
+    func declare_global(d: ast.Node*) -> !:
         let name = try self.global_name(d)
         let used = ast.has_attribute(d, "used")
         let standard = check.is_library_module(names.module_of(d))
@@ -74,12 +74,12 @@ extend Lowerer:
     ## any module that imports it. A standard global's initialiser is a function of its own
     ## (`<global>_0init`) that `lb_init_globals` calls, so the pruner drops it, its texts
     ## and the global together when nothing reaches the global.
-    mutating func globals_initialiser() -> !:
+    func globals_initialiser() -> !:
         var i: usize = 0
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if self.initialised(d) and check.is_library_module(names.module_of(d)):
+                if initialised(d) and check.is_library_module(names.module_of(d)):
                     try self.global_initialiser(d)
                 cursor = d.next
             i += 1
@@ -93,14 +93,14 @@ extend Lowerer:
         try self.push_scope(false, "", 0, 0)
         if locals:
             # the initial thread's `local var`s
-            discard(try self.call_named(thread_locals_function, u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+            _ = try self.call_named(thread_locals_function, u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
         i = 0
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if self.initialised(d) and not d.has(ast.flag_thread_local):
+                if initialised(d) and not d.has(ast.flag_thread_local):
                     if check.is_library_module(names.module_of(d)):
-                        discard(try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+                        _ = try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
                     elif let init = d.left:
                         let v = try self.value(init, d.type_id)
                         try self.store_to(try self.global_address(d), v)
@@ -118,13 +118,13 @@ extend Lowerer:
     ## storage starts zeroed here, so a thread runs these before anything else: the
     ## initial thread from `lb_init_globals`, a spawned one through `thread.locals_start`.
     ## Answers whether there is any; none, no function.
-    mutating func thread_locals_initialiser() -> bool!:
+    func thread_locals_initialiser() -> bool!:
         var any = false
         var i: usize = 0
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if self.initialised(d) and d.has(ast.flag_thread_local):
+                if initialised(d) and d.has(ast.flag_thread_local):
                     any = true
                 cursor = d.next
             i += 1
@@ -141,9 +141,9 @@ extend Lowerer:
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if self.initialised(d) and d.has(ast.flag_thread_local):
+                if initialised(d) and d.has(ast.flag_thread_local):
                     if check.is_library_module(names.module_of(d)):
-                        discard(try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+                        _ = try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
                     elif let init = d.left:
                         let v = try self.value(init, d.type_id)
                         try self.store_to(try self.global_address(d), v)
@@ -167,18 +167,14 @@ extend Lowerer:
             i += 1
         return none
 
-    ## Whether a top-level declaration has an initialiser this unit runs.
-    func initialised(d: ast.Node*) -> bool:
-        return (d.kind == ast.Kind.global or d.kind == ast.Kind.constant) and not d.has(ast.flag_uninit) and not ast.is_linked(d) and d.left != none
-
     ## `<global>_0init`: the initialiser function of one standard global.
-    mutating func init_function_name(d: ast.Node*) -> str!:
+    func init_function_name(d: ast.Node*) -> str!:
         let name = try self.global_name(d)
-        let room = try alloc u8[name.length + 8]
-        return try format(room, f"{name}_0init")
+        let room = try new u8[name.length + 8] ---
+        return try strings.format(room, f"{name}_0init")
 
     ## One standard global's initialiser as its own function, named on the global.
-    mutating func global_initialiser(d: ast.Node*) -> !:
+    func global_initialiser(d: ast.Node*) -> !:
         let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         let name = try self.init_function_name(d)
         let global = try self.global_name(d)
@@ -201,7 +197,7 @@ extend Lowerer:
         try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.end_function()
 
-    mutating func test_body(t: ast.Node*, index: u32) -> !:
+    func test_body(t: ast.Node*, index: u32) -> !:
         let inst = instances.Instance(decl = t, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function(try self.test_name(index), t, inst)
         # never expanded into the runner's `main`: a module of many small tests would make
@@ -220,22 +216,22 @@ extend Lowerer:
 
     ## A library has no `main`: `lb_library_init`, run when the library is loaded through the
     ## target's initialiser section, starts the globals and the allocator (§17.6).
-    mutating func library_init_function() -> !:
+    func library_init_function() -> !:
         let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function("lb_library_init", none, inst)
         self.generic.fn_decl = none
         self.current_fn = none
         self.f.used = true
         try self.push_scope(false, "", 0, 0)
-        discard(try self.call_named("lb_init_globals", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
-        discard(try self.call_named("lb_memory_startup", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        _ = try self.call_named("lb_init_globals", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
+        _ = try self.call_named("lb_memory_startup", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
         self.pop_scope()
         try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.end_function()
         self.program_unit.init_function = "lb_library_init"
 
     ## `main`: startup, the arguments, the program's entry, the exit code; or the test runner.
-    mutating func entry_function(mode: u32) -> !:
+    func entry_function(mode: u32) -> !:
         let inst = instances.Instance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
         try self.begin_function("main", none, inst)
         self.generic.fn_decl = none
@@ -248,12 +244,12 @@ extend Lowerer:
         try self.f.params.push(ir.Param(cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, slot = argc_slot, shape = 0))
         try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, slot = argv_slot, shape = 0))
         try self.push_scope(false, "", 0, 0)
-        discard(try self.call_named("lb_init_globals", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        _ = try self.call_named("lb_init_globals", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
         if self.diagnostic:
             # the allocator quarantines what is released (§19.4)
             try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.f.address_of(ir.global_ref("lb_memory_diagnostic")))
-        discard(try self.call_named("lb_core_13process_start", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
-        discard(try self.call_named("lb_memory_startup", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        _ = try self.call_named("lb_core_13process_start", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
+        _ = try self.call_named("lb_memory_startup", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
         let exit_code = try self.f.slot(4, 4)
         try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(exit_code))
         if mode == 1:
@@ -273,7 +269,7 @@ extend Lowerer:
 
     ## The test runner's body: each test between `testing_begin` and `testing_end`, its
     ## outcome reported, and the summary's code in `exit_code`.
-    mutating func run_tests(exit_code: u32) -> !:
+    func run_tests(exit_code: u32) -> !:
         let failed_slot = try self.f.slot(4, 4)
         try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(failed_slot))
         var i: usize = 0
@@ -288,13 +284,13 @@ extend Lowerer:
         try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
 
     ## Test `i`: run, reported by its title, its failure counted in `failed_slot`.
-    mutating func run_test(i: usize, failed_slot: u32) -> !:
+    func run_test(i: usize, failed_slot: u32) -> !:
         let t = self.tests.get(i)
         let s1 = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = ir.const_ref((i64)i), cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, shape = 0))
-        discard(try self.call_named("lb_testing_begin", s1, 1, ir.Class.w, false, types.unit_id))
+        _ = try self.call_named("lb_testing_begin", s1, 1, ir.Class.w, false, types.unit_id)
         let r = try self.call_aggregate(try self.test_name(u32(i)), u32(self.f.args.count), 0, try self.c.table.fallible(types.unit_id))
-        discard(try self.call_named("lb_testing_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        _ = try self.call_named("lb_testing_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
         let title = literals.decode_text(t.text)
         let index = try self.program_unit.text(title)
         let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
@@ -304,14 +300,14 @@ extend Lowerer:
         try self.f.args.push(try self.arg_of(name))
         try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
         try self.f.args.push(try self.arg_of(message))
-        discard(try self.call_named("lb_core_11test_report", s2, 3, ir.Class.w, false, types.unit_id))
+        _ = try self.call_named("lb_core_11test_report", s2, 3, ir.Class.w, false, types.unit_id)
         let old = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
         let sum = try self.f.binary(ir.Op.add, ir.Class.w, old, failed)
         try self.f.store(ir.Op.storew, sum, try self.slot_address(failed_slot))
 
     ## `answer()` of a program run for its answer: the value printed, or a failure's report
     ## and code in `exit_code`.
-    mutating func answer_call(answer: ast.Node*, exit_code: u32) -> !:
+    func answer_call(answer: ast.Node*, exit_code: u32) -> !:
         let name = try self.function_name(answer, try types.no_args(), none, try types.no_args())
         if not answer.has(ast.flag_fallible):
             let value = try self.call_named(name, u32(self.f.args.count), 0, ir.Class.l, true, types.i64_id)
@@ -336,7 +332,7 @@ extend Lowerer:
 
     ## The program's `main`, given its arguments as text or as C strings from `argc` and
     ## `argv`; its code, or a failure's, in `exit_code`.
-    mutating func main_call(main_fn: ast.Node*, argc_slot: u32, argv_slot: u32, exit_code: u32) -> !:
+    func main_call(main_fn: ast.Node*, argc_slot: u32, argv_slot: u32, exit_code: u32) -> !:
         let ft = self.c.table.get(main_fn.type_id)
         var as_text = true
         if ft.args.length > 0:
@@ -380,23 +376,23 @@ extend Lowerer:
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, args.ref)
             let release_start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
-            discard(try self.call_named("free", release_start, 1, ir.Class.w, false, types.unit_id))
+            _ = try self.call_named("free", release_start, 1, ir.Class.w, false, types.unit_id)
 
     ## An error value's code and message as two arguments.
-    mutating func push_error_pieces(err: ir.Ref) -> !:
+    func push_error_pieces(err: ir.Ref) -> !:
         let code = try self.f.load(ir.Op.loadsw, ir.Class.w, err)
         try self.f.args.push(ir.Arg(value = code, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
         let message = LowerValue(ref = try self.offset_address(err, 8), type_id = types.str_id, in_memory = true)
         try self.f.args.push(try self.arg_of(message))
 
     ## `answer()` programs print their result as the seed's `start.c` did.
-    mutating func print_answer(value: ir.Ref) -> !:
+    func print_answer(value: ir.Ref) -> !:
         let s = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = value, cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, shape = 0))
-        discard(try self.call_named("lb_core_9print_i64", s, 1, ir.Class.w, false, types.unit_id))
+        _ = try self.call_named("lb_core_9print_i64", s, 1, ir.Class.w, false, types.unit_id)
 
     ## Every witness table as data: one pointer per interface requirement.
-    mutating func witness_tables() -> !:
+    func witness_tables() -> !:
         var i: usize = 0
         while i < self.vtables.count:
             let w = self.vtables.get(i)
@@ -415,3 +411,7 @@ extend Lowerer:
                 req = r.next
             try self.program_unit.tables.push(table)
             i += 1
+
+## Whether a top-level declaration has an initialiser this unit runs.
+func initialised(d: ast.Node*) -> bool:
+    return (d.kind == ast.Kind.global or d.kind == ast.Kind.constant) and not d.has(ast.flag_uninit) and not ast.is_linked(d) and d.left != none

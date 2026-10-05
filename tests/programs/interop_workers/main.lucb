@@ -5,6 +5,7 @@ import ownership
 import thread
 import sync
 import time
+import strings
 
 extern func socketpair(domain: i32, kind: i32, protocol: i32, descriptors: i32*) -> i32
 
@@ -18,18 +19,18 @@ var waiter_ended: @i64 = 0
 
 struct Tracked:
     var packet: interop.Packet[str]
-    static func drop(raw: void*):
+    func drop(raw: void*):
         let state = (Tracked*)raw
         state.packet.release()
-        discard(packets.add(-1, .relaxed))
+        _ = packets.add(-1, .relaxed)
         free(state) in memory.heap
-    static func copy(value: str) -> interop.Packet[str]!:
+    func copy(value: str) -> interop.Packet[str]!:
         if value == "copy failure":
             error(memory.exhausted, "message copy rejected")
         let packet = try interop.text_transfer.copy(value)
         errdefer packet.release()
         let state = try new Tracked(packet) in memory.heap
-        discard(packets.add(1, .relaxed))
+        _ = packets.add(1, .relaxed)
         return interop.Packet[str](packet.value, (void*)state, Tracked.drop)
 let transfer: interop.Transfer[str] = interop.Transfer[str](Tracked.copy)
 
@@ -39,14 +40,14 @@ struct State:
     var context: u64
     func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         self.prefix.trace(visit, context)
-    mutating func close():
+    func close():
         assert(self.context == ownership.context_id())
         self.prefix.release()
-        discard(disposed.add(1, .release))
-    mutating func reply(message: str) -> interop.Outcome[str]:
+        _ = disposed.add(1, .release)
+    func reply(message: str) -> interop.Outcome[str]:
         assert(self.context == ownership.context_id())
         self.count += 1
-        discard(entered.add(1, .release))
+        _ = entered.add(1, .release)
         if message == "wait":
             var descriptors: i32[2]
             assert(socketpair(1, 1, 0, &descriptors[0]) == 0)
@@ -54,19 +55,18 @@ struct State:
             var second = net.Connection.over(descriptors[1]) catch failure: trap(failure.message)
             defer first.close() catch failure: trap(failure.message)
             defer second.close() catch failure: trap(failure.message)
-            discard(first.wait(cancellation = interop.worker_cancellation()) catch failure:
+            _ = first.wait(cancellation = interop.worker_cancellation()) catch failure:
                 assert(failure.code == net.cancelled)
                 recover net.Readiness(false, false, false, false, false)
-            )
         if message == "result copy failure":
             return interop.Outcome[str].success(interop.Owned[str]("copy failure"))
         if message == "failure":
             var buffer: u8[128]
-            let text = format(buffer, f"{self.prefix.value} failed") catch failure: trap(failure.message)
+            let text = strings.format(buffer, f"{self.prefix.value} failed") catch failure: trap(failure.message)
             return interop.Outcome[str].failure(interop.invalid, interop.copy_text(text) catch failure: trap(failure.message))
         var buffer: u8[256]
-        let text = format(buffer, f"{self.prefix.value}:{message}:{self.count}") catch failure: trap(failure.message)
-        discard(completed.add(1, .release))
+        let text = strings.format(buffer, f"{self.prefix.value}:{message}:{self.count}") catch failure: trap(failure.message)
+        _ = completed.add(1, .release)
         return interop.Outcome[str].success(interop.copy_text(text) catch failure: trap(failure.message))
 let state_type: interop.Type[State] = interop.Type[State]("worker fixture state", State.close, State.trace)
 
@@ -93,19 +93,19 @@ func wait_for(value: (@i64)*, count: i64):
 
 func send_waiter(raw: void*?):
     let worker = (TextWorker*)(raw else trap("missing worker"))
-    discard(waiter_started.add(1, .release))
+    _ = waiter_started.add(1, .release)
     worker.send("late") catch failure:
         assert(failure.code == interop.worker_closed)
-        discard(waiter_ended.add(1, .release))
+        _ = waiter_ended.add(1, .release)
         return
     trap("a blocked sender ignored cancellation")
 
 func receive_waiter(raw: void*?):
     let worker = (TextWorker*)(raw else trap("missing worker"))
-    discard(waiter_started.add(1, .release))
+    _ = waiter_started.add(1, .release)
     let result = worker.receive() catch failure:
         assert(failure.code == interop.worker_closed)
-        discard(waiter_ended.add(1, .release))
+        _ = waiter_ended.add(1, .release)
         return
     result.release()
     trap("an idle receiver ignored cancellation")
@@ -121,7 +121,7 @@ func ordinary() -> !:
         memory.set(message, '?')
         let result = try worker.receive()
         var buffer: u8[64]
-        assert((try result.get()) == (try format(buffer, f"base:hello:{index + 1}")))
+        assert((try result.get()) == (try strings.format(buffer, f"base:hello:{index + 1}")))
         result.release()
     worker.send("copy failure") catch failure:
         assert(failure.code == memory.exhausted)
@@ -210,7 +210,7 @@ func startup_failures() -> !:
     assert(refused == none)
 
 pub func main(arguments: str[]) -> i32!:
-    discard(arguments)
+    _ = arguments
     try ordinary()
     try cancel_active()
     try cancel_idle()

@@ -1,0 +1,11 @@
+# error: `bump` changes its receiver, so it needs a `var` here
+# oracle: none
+## §9.5: a method that assigns to its receiver changes it, so it needs a `var`.
+struct C:
+    var n: i64
+    func bump():
+        self.n += 1
+pub func main(arguments: str[]) -> i32:
+    let c = C(n = 0)
+    c.bump()
+    return 0

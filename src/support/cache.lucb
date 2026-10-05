@@ -27,6 +27,7 @@ import os
 import luce_std.paths
 import support.buffer
 import support.in_arena
+import strings
 
 # mark: The cache's settings ==================================================================
 
@@ -118,7 +119,7 @@ pub func rename_input(path: str, shown_as: str):
 
 func grow_absent():
     let size = 64 if absent_paths.length == 0 else absent_paths.length * 2
-    let room = alloc str[size] catch:
+    let room = new str[size] --- catch:
         lost = true
         return
     for i in 0..<absent_count:
@@ -129,14 +130,14 @@ func grow_absent():
 
 func grow_notes():
     let size = 64 if noted_paths.length == 0 else noted_paths.length * 2
-    let paths_room = alloc str[size] catch:
+    let paths_room = new str[size] --- catch:
         lost = true
         return
-    let bytes_room = alloc u64[size] catch:
+    let bytes_room = new u64[size] --- catch:
         free(paths_room)
         lost = true
         return
-    let read_room = alloc str[size] catch:
+    let read_room = new str[size] --- catch:
         free(paths_room)
         free(bytes_room)
         lost = true
@@ -157,7 +158,7 @@ func grow_notes():
 var lost: bool = false
 
 func try_copy(text: str) -> str?:
-    let room = alloc u8[text.length] catch:
+    let room = new u8[text.length] --- catch:
         return none
     memory.copy(room, text.bytes, text.length)
     return (str)room
@@ -214,7 +215,7 @@ pub func key(settings: str, located: bool = true) -> str!:
 
 ## `h` as sixteen hex digits.
 func digits_of(h: u64) -> str!:
-    let room = try alloc u8[16]
+    let room = try new u8[16] ---
     let digits = "0123456789abcdef"
     var i: usize = 0
     while i < 16:
@@ -262,11 +263,11 @@ pub func directory() -> str?!:
     if chosen.length == 0:
         # The default cache is project-local: `<project>/build/.cache`, beside the build
         # output, so `rm -rf build` clears it and each project keeps its own (§19.7).
-        let base_room = try alloc u8[default_root.length + 8]
-        let base = try format(base_room, f"{default_root}build")
+        let base_room = try new u8[default_root.length + 8] ---
+        let base = try strings.format(base_room, f"{default_root}build")
         try ensure((c.str)base)
-        let room = try alloc u8[default_root.length + 16]
-        chosen = try format(room, f"{default_root}build/.cache")
+        let room = try new u8[default_root.length + 16] ---
+        chosen = try strings.format(room, f"{default_root}build/.cache")
     try ensure((c.str)chosen)
     return chosen
 
@@ -284,8 +285,8 @@ pub func find(entry: str, suffix: str, quiet: bool = false) -> str?!:
     if lost:
         return none
     let dir = try directory() else return none
-    let room = try alloc u8[dir.length + entry.length + suffix.length + 2]
-    let path = try format(room, f"{dir}/{entry}{suffix}")
+    let room = try new u8[dir.length + entry.length + suffix.length + 2] ---
+    let path = try strings.format(room, f"{dir}/{entry}{suffix}")
     if not files.exists((c.str)path):
         if report and not quiet:
             try io.stderr().write(f"luce-base: cache miss {entry}{suffix}\n")
@@ -307,7 +308,7 @@ pub func piece_key(prelude: str, middle: str, closing: str, arch: str) -> str!:
 ## reader never sees a partial file. A cache that cannot be written is no cache.
 pub func keep(entry: str, suffix: str, object: str):
     keep_object(entry, suffix, object) catch ignored:
-        discard(ignored)
+        _ = ignored
 
 func keep_object(entry: str, suffix: str, object: str) -> !:
     if lost:
@@ -330,8 +331,8 @@ pub func record_key(question: str) -> str!:
 ## file it lists hashes as it did, and every absent path is still absent.
 pub func recall(record: str) -> u8[]?!:
     let dir = try directory() else return none
-    let room = try alloc u8[dir.length + record.length + 4]
-    let record_path = try format(room, f"{dir}/{record}-r")
+    let room = try new u8[dir.length + record.length + 4] ---
+    let record_path = try strings.format(room, f"{dir}/{record}-r")
     let record_bytes = files.read((c.str)record_path) catch: return none
     defer record_bytes.release()
     let text = (str)record_bytes.value
@@ -355,8 +356,8 @@ pub func recall(record: str) -> u8[]?!:
                 return none
         else:
             return none
-    let answer_room = try alloc u8[dir.length + record.length + 4]
-    let answer = in_arena.read((c.str)try format(answer_room, f"{dir}/{record}-o")) catch: return none
+    let answer_room = try new u8[dir.length + record.length + 4] ---
+    let answer = in_arena.read((c.str)try strings.format(answer_room, f"{dir}/{record}-o")) catch: return none
     if report:
         try io.stderr().write(f"luce-base: record hit {record}\n")
     return answer
@@ -365,7 +366,7 @@ pub func recall(record: str) -> u8[]?!:
 ## found absent. A record that cannot be written, or a run whose notes were lost, is none.
 pub func remember(record: str, answer: const u8[]):
     remember_answer(record, answer) catch ignored:
-        discard(ignored)
+        _ = ignored
 
 func remember_answer(record: str, answer: const u8[]) -> !:
     if lost:
@@ -390,15 +391,15 @@ func remember_answer(record: str, answer: const u8[]) -> !:
 ## Write `bytes` as `dir/name+suffix`, beside it first and then renamed into place: a
 ## reader never sees a partial file.
 func keep_bytes(dir: str, name: str, suffix: str, bytes: const u8[]) -> !:
-    let final_room = try alloc u8[dir.length + name.length + suffix.length + 2]
-    let final = try format(final_room, f"{dir}/{name}{suffix}")
+    let final_room = try new u8[dir.length + name.length + suffix.length + 2] ---
+    let final = try strings.format(final_room, f"{dir}/{name}{suffix}")
     # a directory of this run's own, so two runs keeping one name never share a file
     let staging = try files.create_temporary_directory((c.str)dir, 448u32)
     defer staging.release()
     defer files.remove_tree((c.str)staging.value) catch ignored:
-        discard(ignored)
-    let temp_room = try alloc u8[staging.value.length + 8]
-    let temp = try format(temp_room, f"{staging.value}/object")
+        _ = ignored
+    let temp_room = try new u8[staging.value.length + 8] ---
+    let temp = try strings.format(temp_room, f"{staging.value}/object")
     try files.write((c.str)temp, bytes)
     try files.rename((c.str)temp, (c.str)final, true)
 
@@ -406,7 +407,7 @@ func starts(text: str, prefix: str) -> bool:
     return text.length >= prefix.length and (str)text.bytes[..<prefix.length] == prefix
 
 func copy_terminated(text: str) -> str!:
-    let room = try alloc u8[text.length + 1]
+    let room = try new u8[text.length + 1] ---
     memory.copy(room, text.bytes, text.length)
     room[text.length] = 0
     return (str)room[..<text.length]

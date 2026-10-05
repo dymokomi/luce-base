@@ -40,6 +40,7 @@ import sema.init_rules
 import support.decimal
 import strings
 import support.literals
+import numerals
 import sema.standard as standard
 import support.cache as cache
 import sema.prune
@@ -110,7 +111,7 @@ struct SpanWriter: io.Writer:
     var used: usize
 
     ## Copy `bytes` into the buffer up to its capacity; the number written.
-    pub mutating func write(bytes: const u8[]) -> usize!:
+    pub func write(bytes: const u8[]) -> usize!:
         var i: usize = 0
         while i < bytes.length and self.used < self.data.length:
             self.data[self.used] = bytes[i]
@@ -122,7 +123,7 @@ struct SpanWriter: io.Writer:
 ## a diagnostic quoting a long name or literal still says where it is. `buffer` holds at
 ## least the three dots.
 func said(buffer: u8[], message: fmt) -> str:
-    let text = format(buffer, message) catch:
+    let text = strings.format(buffer, message) catch:
         # `format` kept the bytes that fit: the last three, from a character's start, go
         var end = buffer.length - 3
         while end > 0 and (buffer[end] & 0xC0) == 0x80:
@@ -188,6 +189,8 @@ pub struct Checker:
     ## The `.indexed` member of the `for` iterable being checked: the one place `indexed()`
     ## may appear, since the loop walks the span by index and no pairs are made (§8.3).
     var indexed_iterable: ast.Node*? = none
+    ## The `catch` whose value `_ =` drops: its handler may end without `recover` (§7.9).
+    var dropped_catch: ast.Node*? = none
     ## Whether the `if` or `while` just checked had a constant condition that is not a
     ## literal, `if os.arm64:`: what it rules out goes silently, and so does what follows it
     ## when it always leaves, since the program meant it for the other targets (§19.6).
@@ -235,9 +238,18 @@ pub struct Checker:
     ## The program's modules (not the prelude's) by canonical path: a module imported again
     ## is found here before its file is read again.
     var by_canonical: hashed.Table[str]
+    ## The uses of this module's methods made before it was final whether they change
+    ## their receiver, settled once its bodies are checked (§9.5).
+    var pending_changes: list.List[PendingChange]
+    ## What generic bodies call on values of their parameters they may not change, and
+    ## which parameters they pass on, with the instantiations to settle against them
+    ## (§13.1).
+    var read_only_uses: list.List[ReadOnlyUse]
+    var use_forwards: list.List[UseForward]
+    var pending_instances: list.List[PendingInstance]
 
     ## A fresh checker; `scratch` is a buffer for formatting diagnostics.
-    pub static func create(scratch: u8[]) -> Checker!:
+    pub func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
                        scope = try list.List[Binding].create(512), names = try name_index.NameIndex.create(), warnings = try list.List[str].create(16), errors = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
@@ -246,7 +258,9 @@ pub struct Checker:
                        package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32), resolving = try list.List[usize].create(8),
                        owners = try hashed.Table[usize].create(256), build_target = targets.Target.host(),
                        module_decls = try hashed.Table[DeclName].create(1024), decl_nodes = try list.List[ast.Node*].create(1024),
-                       decls_indexed = try hashed.Table[usize].create(64), by_canonical = try hashed.Table[str].create(256))
+                       decls_indexed = try hashed.Table[usize].create(64), by_canonical = try hashed.Table[str].create(256),
+                       pending_changes = try list.List[PendingChange].create(16), read_only_uses = try list.List[ReadOnlyUse].create(16),
+                       use_forwards = try list.List[UseForward].create(16), pending_instances = try list.List[PendingInstance].create(16))
 
     # -- diagnostics ----------------------------------------------------------------------
 
@@ -272,8 +286,8 @@ pub struct Checker:
         return ("?", node.line, 0)
 
     ## A declaration's failure, copied out of the scratch buffer, for the module's report.
-    mutating func keep_error(message: str) -> !:
-        var kept = try alloc u8[message.length if message.length > 0 else 1]
+    func keep_error(message: str) -> !:
+        var kept = try new u8[message.length if message.length > 0 else 1] ---
         memory.copy(kept, message.bytes, message.length)
         try self.errors.push((str)kept[..<message.length])
 
@@ -295,14 +309,14 @@ pub struct Checker:
             at += e.length
             shown += 1
         if shown < self.errors.count:
-            let rest = try format(joined[at..], f"\n  ... and {self.errors.count - shown} more")
+            let rest = try strings.format(joined[at..], f"\n  ... and {self.errors.count - shown} more")
             at += rest.length
         return (str)joined[..<at]
 
     ## The spelling of a type, kept in the current allocator.
     pub func spell(id: u32) -> str!:
         let text = try self.with_type("", id, "")
-        var out = try alloc u8[text.length if text.length > 0 else 1]
+        var out = try new u8[text.length if text.length > 0 else 1] ---
         memory.copy(out, text.bytes, text.length)
         return (str)out[..<text.length]
 
@@ -310,49 +324,49 @@ pub struct Checker:
     func with_type(prefix: str, id: u32, suffix: str) -> str!:
         let half = self.scratch.length // 2
         var sink = SpanWriter(data = self.scratch[half..], used = 0)
-        discard(try sink.write(prefix.bytes))
+        _ = try sink.write(prefix.bytes)
         try self.table.describe(&sink, id)
-        discard(try sink.write(suffix.bytes))
+        _ = try sink.write(suffix.bytes)
         return (str)self.scratch[half..<half + sink.used]
 
     func mismatch(node: ast.Node*, expected: u32, got: u32) -> never!:
         let half = self.scratch.length // 2
         var sink = SpanWriter(data = self.scratch[half..], used = 0)
-        discard(try sink.write("expected `".bytes))
+        _ = try sink.write("expected `".bytes)
         try self.table.describe(&sink, expected)
         if got == types.untyped_int_id or got == types.untyped_float_id:
-            discard(try sink.write("`, got an integer literal".bytes if got == types.untyped_int_id else "`, got a float literal".bytes))
+            _ = try sink.write("`, got an integer literal".bytes if got == types.untyped_int_id else "`, got a float literal".bytes)
         else:
-            discard(try sink.write("`, got `".bytes))
+            _ = try sink.write("`, got `".bytes)
             try self.table.describe(&sink, got)
-            discard(try sink.write("`".bytes))
+            _ = try sink.write("`".bytes)
         return try self.fail(node, (str)self.scratch[half..<half + sink.used])
 
     # -- scopes ---------------------------------------------------------------------------
 
-    mutating func push_scope():
+    func push_scope():
         self.depth += 1
 
-    mutating func pop_scope():
+    func pop_scope():
         while self.scope.count > 0 and self.scope.get(self.scope.count - 1).depth == self.depth:
             mark_if_unused(self.scope.get(self.scope.count - 1))
             self.drop_binding()
         self.depth -= 1
 
     ## Remove the innermost binding; the one it hid is its name's innermost again.
-    mutating func drop_binding():
+    func drop_binding():
         let b = self.scope.get(self.scope.count - 1)
         self.names.set(b.name, b.shadowed) catch failure:
             trap("the name index cannot shrink")
         self.scope.count -= 1
 
     ## Drop bindings until `count` remain.
-    mutating func truncate_scope(count: usize):
+    func truncate_scope(count: usize):
         while self.scope.count > count:
             self.drop_binding()
 
     ## Add a binding, the innermost of its name.
-    mutating func push_binding(b: Binding) -> !:
+    func push_binding(b: Binding) -> !:
         var binding = b
         binding.shadowed = self.names.head(b.name)
         try self.scope.push(binding)
@@ -379,26 +393,26 @@ pub struct Checker:
     ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local or a
     ## parameter may not reuse the name of another local, a parameter, an import, or a
     ## declaration of the module, and nothing may reuse a core name.
-    mutating func bind(at: ast.Node*, name: str, type_id: u32, decl: ast.Node*?, mutable: bool) -> !:
+    func bind(at: ast.Node*, name: str, type_id: u32, decl: ast.Node*?, mutable: bool) -> !:
         # `_` is the wildcard (§3.4): it binds nothing, so it is never read and never
         # collides, however many loops or patterns nest it
         if name == "_":
             return
         if token.is_core_name(name) and not self.in_prelude():
-            discard(try self.fail(at, "this name belongs to the language"))
+            try self.fail(at, "this name belongs to the language")
         if let existing = self.lookup(name):
             if existing.origin != none and existing.depth < 2 and self.depth >= 2:
-                discard(try self.fail(at, "this name is an import; a local may not shadow it"))
+                try self.fail(at, "this name is an import; a local may not shadow it")
             elif let earlier = existing.decl:
                 var text: u8[256]
-                discard(try self.fail_at(at, try format(text, f"`{name}` is already in scope"), earlier, "the earlier binding"))
+                try self.fail_at(at, try strings.format(text, f"`{name}` is already in scope"), earlier, "the earlier binding")
             else:
                 var text: u8[256]
-                discard(try self.fail(at, try format(text, f"`{name}` is already in scope")))
+                try self.fail(at, try strings.format(text, f"`{name}` is already in scope"))
         try self.push_binding(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false, shadowed = 0))
 
     ## The innermost binding of `name` was read or assigned (§19.6).
-    mutating func mark_used(name: str):
+    func mark_used(name: str):
         let at = self.names.head(name)
         if at == 0:
             return
@@ -407,31 +421,31 @@ pub struct Checker:
         self.scope.set((usize)at - 1, b)
 
     ## The reporter for the module being checked.
-    mutating func reporter() -> prune.Reporter:
+    func reporter() -> prune.Reporter:
         let m = self.modules.get(self.current)
         return prune.Reporter(path = m.src.path, src = m.src, warnings = &self.warnings, silent = m.is_prelude, keep_locals = self.debug_locals and not m.is_prelude)
 
     ## The binding just made came through import `at`.
-    mutating func set_origin(at: ast.Node*):
+    func set_origin(at: ast.Node*):
         if self.scope.count == 0:
             return
         var b = self.scope.get(self.scope.count - 1)
         b.origin = at
         self.scope.set(self.scope.count - 1, b)
 
-    ## A name was used: the import it came through is referenced (§16.3).
-    func note_origin(b: Binding):
-        if let o = b.origin:
-            o.flags |= ast.flag_referenced
-
     ## The standard modules may spell core names (`c.char`, `c.int`).
     func in_prelude() -> bool:
         return self.current < self.modules.count and self.modules.get(self.current).is_prelude
 
-    mutating func rebind(name: str, type_id: u32) -> !:
+    func rebind(name: str, type_id: u32) -> !:
         let at = self.names.head(name)
         if at == 0:
             return
         var b = self.scope.get((usize)at - 1)
         b.type_id = type_id
         self.scope.set((usize)at - 1, b)
+
+## A name was used: the import it came through is referenced (§16.3).
+func note_origin(b: Binding):
+    if let o = b.origin:
+        o.flags |= ast.flag_referenced

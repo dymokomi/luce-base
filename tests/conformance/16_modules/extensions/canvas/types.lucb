@@ -6,7 +6,7 @@ pub struct Canvas:
     var selected: i64
     pub var strokes: i64
 
-    pub static func create(width: i64, height: i64) -> Canvas:
+    pub func create(width: i64, height: i64) -> Canvas:
         return Canvas(width = width, height = height, selected = 0, strokes = 0)
 
     pub func area() -> i64:

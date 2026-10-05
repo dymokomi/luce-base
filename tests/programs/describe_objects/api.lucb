@@ -6,7 +6,7 @@ pub struct Counter:
         self.hidden = count
     pub func value() -> i64:
         return self.hidden
-    pub mutating func close():
+    pub func close():
         self.hidden = 0
 
 pub let counter_type: interop.Type[Counter] = interop.Type[Counter](

@@ -11,6 +11,7 @@
 from windows_abi import SystemInfo
 from windows_abi import GetSystemInfo
 import platform
+import strings
 extern func malloc(size: usize) -> void*?
 extern func c_free as "free"(block: void*)
 extern func posix_memalign(memptr: void*?*, alignment: usize, size: usize) -> i32
@@ -25,11 +26,11 @@ extern func memset(target: void*, value: i32, count: usize) -> void*
 ## block must meet the requested alignment; an allocator may refuse an unsupported
 ## alignment. Bump allocators support every positive alignment, not only powers of two.
 pub interface Allocator:
-    mutating func allocate(size: usize, alignment: usize) -> u8[]?
+    func allocate(size: usize, alignment: usize) -> u8[]?
 
-    mutating func resize(block: u8[], size: usize) -> bool
+    func resize(block: u8[], size: usize) -> bool
 
-    mutating func release(block: u8[])
+    func release(block: u8[])
 
 ## A bump allocator over a caller's bytes. Only the last block can be resized or
 ## released; everything goes away together when the buffer does.
@@ -38,11 +39,11 @@ pub struct FixedBuffer: Allocator:
     var used: usize
 
     ## An allocator handing out `buffer`'s bytes; only the last block resizes.
-    pub static func over(buffer: u8[]) -> FixedBuffer:
+    pub func over(buffer: u8[]) -> FixedBuffer:
         return FixedBuffer(data = buffer, used = 0)
 
     ## Allocate `size` bytes at `alignment`, or none when it cannot.
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return self.data[..<0]
         let align = alignment if alignment > 0 else 1
@@ -54,7 +55,7 @@ pub struct FixedBuffer: Allocator:
         return self.data[start..<self.used]
 
     ## Try to resize `block` to `size` in place; whether it worked.
-    pub mutating func resize(block: u8[], size: usize) -> bool:
+    pub func resize(block: u8[], size: usize) -> bool:
         if size == block.length:
             return true
         if block.length == 0:
@@ -68,11 +69,11 @@ pub struct FixedBuffer: Allocator:
         return true
 
     ## Free `block`.
-    pub mutating func release(block: u8[]):
+    pub func release(block: u8[]):
         if block.length == 0:
             return
         if diagnostic:
-            discard(memset(block.data, 221, block.length))  # a fixed buffer releases all at once
+            _ = memset(block.data, 221, block.length)  # a fixed buffer releases all at once
         let start = (usize)block.data - (usize)self.data.data
         if start + block.length == self.used:
             self.used = start
@@ -94,7 +95,7 @@ pub struct CAllocator: Allocator:
     var unused: u8
 
     ## Allocate `size` bytes at `alignment`, or none when it cannot.
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)8, 0)
         if alignment != 0 and (alignment & (alignment - 1)) != 0:
@@ -110,11 +111,11 @@ pub struct CAllocator: Allocator:
         return u8[]((u8*)block, size)
 
     ## Try to resize `block` to `size` in place; whether it worked.
-    pub mutating func resize(block: u8[], size: usize) -> bool:
+    pub func resize(block: u8[], size: usize) -> bool:
         return size <= block.length
 
     ## Free `block`.
-    pub mutating func release(block: u8[]):
+    pub func release(block: u8[]):
         if block.length == 0:
             return
         if not diagnostic:
@@ -127,7 +128,7 @@ pub struct CAllocator: Allocator:
         if already_held(quarantine, block):
             unlock(&records_lock)
             trap("double free: a block was released twice")
-        discard(memset(block.data, (i32)released_fill, block.length))
+        _ = memset(block.data, (i32)released_fill, block.length)
         let slot = quarantine_next % quarantine.length
         if let old = quarantine[slot]:
             if not still_released(old):
@@ -152,12 +153,12 @@ pub struct Arena: Allocator:
     var used: usize
 
     ## An arena of `capacity` bytes over `parent`, released all at once.
-    pub static func over(parent: Allocator, capacity: usize) -> Arena!:
+    pub func over(parent: Allocator, capacity: usize) -> Arena!:
         let block = parent.allocate(capacity, 16) else error(exhausted, "memory.exhausted")
         return Arena(parent = parent, block = block, used = 0)
 
     ## Allocate `size` bytes at `alignment`, or none when it cannot.
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return self.block[..<0]
         let align = alignment if alignment > 0 else 1
@@ -170,7 +171,7 @@ pub struct Arena: Allocator:
         return self.block[start..<end]
 
     ## Try to resize `block` to `size` in place; whether it worked.
-    pub mutating func resize(block: u8[], size: usize) -> bool:
+    pub func resize(block: u8[], size: usize) -> bool:
         if size == block.length:
             return true
         if block.length == 0:
@@ -185,9 +186,9 @@ pub struct Arena: Allocator:
         return true
 
     ## Free `block`.
-    pub mutating func release(block: u8[]):
+    pub func release(block: u8[]):
         if diagnostic and block.length > 0:
-            discard(memset(block.data, 221, block.length))  # an arena releases all at once
+            _ = memset(block.data, 221, block.length)  # an arena releases all at once
 
     ## What has been handed out since the last reset, and what the arena holds in all.
     pub func in_use() -> usize:
@@ -198,11 +199,11 @@ pub struct Arena: Allocator:
         return self.block.length
 
     ## Forget every allocation; the storage is reused from its start.
-    pub mutating func reset():
+    pub func reset():
         self.used = 0
 
     ## Give the storage back to the parent; the arena is empty afterwards.
-    pub mutating func destroy():
+    pub func destroy():
         self.parent.release(self.block)
         self.block = self.block[..<0]
         self.used = 0
@@ -212,7 +213,7 @@ pub struct PageAllocator: Allocator:
     var unused: u8
 
     ## Allocate `size` bytes at `alignment`, or none when it cannot.
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)8, 0)
         let page = page_size()
@@ -228,11 +229,11 @@ pub struct PageAllocator: Allocator:
         return u8[]((u8*)mapped, rounded)
 
     ## Try to resize `block` to `size` in place; whether it worked.
-    pub mutating func resize(block: u8[], size: usize) -> bool:
+    pub func resize(block: u8[], size: usize) -> bool:
         return size <= block.length
 
     ## Free `block`.
-    pub mutating func release(block: u8[]):
+    pub func release(block: u8[]):
         if block.length == 0:
             return
         if not diagnostic:
@@ -244,7 +245,7 @@ pub struct PageAllocator: Allocator:
         if already_held(held_pages, block):
             unlock(&records_lock)
             trap("double free: pages were released twice")
-        discard(memset(block.data, (i32)released_fill, block.length))
+        _ = memset(block.data, (i32)released_fill, block.length)
         let slot = held_next % held_pages.length
         if let old = held_pages[slot]:
             if not still_released(old):
@@ -280,18 +281,18 @@ func map_pages(size: usize) -> void*?:
 
 func unmap_pages(block: u8[]):
     if platform.windows:
-        discard(VirtualFree(block.data, 0, 32768))
+        _ = VirtualFree(block.data, 0, 32768)
     else:
-        discard(munmap(block.data, block.length))
+        _ = munmap(block.data, block.length)
 
 ## The heap refusing a request is rare and worth a line on standard error: what was asked,
 ## so an exhaustion in the field says more than its error code. A fixed buffer running out
 ## is ordinary and says nothing.
 func note_refusal(who: str, size: usize, alignment: usize, used: usize):
     var text: u8[160]
-    let line = format(text, f"memory: the {who} refused {size} bytes at alignment {alignment} (used {used})\n") catch failure:
+    let line = strings.format(text, f"memory: the {who} refused {size} bytes at alignment {alignment} (used {used})\n") catch failure:
         return
-    discard(write_bytes(2, line.bytes.data, line.length))
+    _ = write_bytes(2, line.bytes.data, line.length)
 
 extern func write_bytes as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 
@@ -319,7 +320,7 @@ var records_lock: @bool
 func lock(flag: (@bool)*):
     while true:
         let (exchanged, observed) = flag.cas(false, true)
-        discard(observed)
+        _ = observed
         if exchanged:
             return
 
@@ -401,36 +402,41 @@ pub func copy[T](target: T[], source: const T[], count: usize):
     if count > target.length or count > source.length:
         trap("index out of bounds")
     if count > 0:
-        discard(memcpy(target.data, source.data, count * sizeof(T)))
+        _ = memcpy(target.data, source.data, count * size_of(T))
 
 ## Copy `count` elements, allowing `source` and `target` to overlap.
 pub func move[T](target: T[], source: const T[], count: usize):
     if count > target.length or count > source.length:
         trap("index out of bounds")
     if count > 0:
-        discard(memmove(target.data, source.data, count * sizeof(T)))
+        _ = memmove(target.data, source.data, count * size_of(T))
 
 ## Set every byte of `target` to `value`.
 pub func set(target: u8[], value: u8):
     if target.length > 0:
-        discard(memset(target.data, (i32)value, target.length))
+        _ = memset(target.data, (i32)value, target.length)
 
 ## Read a `T` from `address`, which may be unaligned.
 pub func read[T](address: const void*) -> T:
     var value: T = ---
-    discard(memcpy(&value, address, sizeof(T)))
+    _ = memcpy(&value, address, size_of(T))
     return value
 
 ## Write `value` to `address`, which may be unaligned.
 pub func write[T](address: void*, value: T):
     var copy_of = value
-    discard(memcpy(address, &copy_of, sizeof(T)))
+    _ = memcpy(address, &copy_of, size_of(T))
 
 ## `count` uninitialised elements of `T` in the frame of the function that calls this, at
-## most `most` (a constant; `most * sizeof(T)` at most 4096 bytes), freed when that function
+## most `most` (a constant; `most * size_of(T)` at most 4096 bytes), freed when that function
 ## returns (§12.7). The compiler takes the storage at the call, so this body never runs.
 pub func frame[T](count: usize, most: usize) -> T[]:
     trap("memory.frame is answered where it is called")
+
+## `size` unwritten bytes aligned to `alignment`, from the current allocator: storage a
+## structure lays out itself (§12.2), given back with `free`. Fails with `memory.exhausted`.
+pub func allocate(size: usize, alignment: usize) -> u8[]!:
+    return allocator.allocate(size, alignment) else error(exhausted, "memory.exhausted")
 
 ## `block` with `size` bytes: in place when the current allocator can, else a
 ## new block with the old bytes copied and the old block released.
@@ -440,6 +446,6 @@ pub func grow(block: u8[], size: usize) -> u8[]!:
     let fresh = allocator.allocate(size, 8) else error(exhausted, "memory.exhausted")
     let keep = block.length if block.length < size else size
     if keep > 0:
-        discard(memcpy(fresh.data, block.data, keep))
+        _ = memcpy(fresh.data, block.data, keep)
     allocator.release(block)
     return fresh

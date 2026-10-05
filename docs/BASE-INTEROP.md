@@ -39,8 +39,9 @@ hidden in a record is not silently promoted into owned storage. If copying needs
 an operation the description cannot express, that record is unavailable as a
 value until an explicit copy/drop contract is implemented.
 
-Value assignment copies. Mutating methods require a mutable receiver in Luce;
-static methods and nonmutating methods retain their existing meaning. A custom
+Value assignment copies. Methods that change their receiver (base.md §9.5) require a
+mutable receiver in Luce; functions of the type and methods that only read retain their
+existing meaning. A custom
 Base `init` is invoked as written and suppresses bypass through memberwise
 construction. Private fields cannot be supplied by Luce callers. Default
 expressions are evaluated according to Base's rules, not approximated in Luce.
@@ -70,7 +71,7 @@ The declaration must specify:
 
 An owned object has stable native storage containing its full Base representation.
 Its Luce reference is a shared reference to the canonical owner, not a copied
-snapshot of public fields. Calling a mutating Base method on a Luce object reached
+snapshot of public fields. Calling a Base method that changes its receiver on a Luce object reached
 through `let` is allowed: the binding is fixed, while the object is mutable.
 
 The canonical owner identifies an allocation and its generation, not just its raw
@@ -147,8 +148,8 @@ fallibility and mutation. A boxed owning interface retains its concrete owner;
 a borrowed interface retains the same validity lease as its source. Witness-table
 dispatch must perform the same checks and argument conversion as a concrete call.
 
-Base interfaces can require mutation, unlike current read-only Luce value
-interface use. A mutating requirement can dispatch to an owned Luce object or a
+A Base interface's conformer may change its receiver, unlike current read-only Luce value
+interface use. A requirement implemented that way can dispatch to an owned Luce object or a
 declared mutable borrowed view. It must not mutate a supposedly copied immutable
 value box. Reject incompatible conformance rather than silently changing Luce's
 value/interface semantics. Retained collections of widgets store owning interface

@@ -45,12 +45,12 @@ struct Table:
     ## several do: what `redundant_extension` reads an operand's range from.
     var defining: u32[]
 
-    static func create(f: ir.Function*) -> Table!:
+    func create(f: ir.Function*) -> Table!:
         let room = f.instrs.count
         var size: usize = 64
         while size < room * 2:
             size *= 2
-        var t = Table(buckets = try alloc u32[size], entries = try list.List[Entry].create(room + 1), log = try list.List[u32].create(room + 1), defining = try alloc u32[f.temps.count + 1])
+        var t = Table(buckets = try new u32[size] ---, entries = try list.List[Entry].create(room + 1), log = try list.List[u32].create(room + 1), defining = try new u32[f.temps.count + 1] ---)
         var k: usize = 0
         while k < size:
             t.buckets[k] = 0
@@ -73,7 +73,7 @@ struct Table:
             return none
         return f.instrs.get((usize)self.defining[(usize)r.index] - 1)
 
-    mutating func release():
+    func release():
         free(self.defining)
         free(self.buckets)
         self.entries.destroy()
@@ -83,7 +83,7 @@ struct Table:
         return self.log.count
 
     ## Empty the buckets filled since `mark`, latest first.
-    mutating func cut(mark: usize):
+    func cut(mark: usize):
         while self.log.count > mark:
             let bucket = self.log.get(self.log.count - 1)
             self.log.count -= 1
@@ -100,7 +100,7 @@ struct Table:
             at = (at + 1) & (self.buckets.length - 1)
         return 0
 
-    mutating func insert(x: ir.Instr) -> !:
+    func insert(x: ir.Instr) -> !:
         var at = hash_of(x) & (self.buckets.length - 1)
         while self.buckets[at] != 0:
             at = (at + 1) & (self.buckets.length - 1)
@@ -132,13 +132,13 @@ func ref_hash(r: ir.Ref) -> u64:
 ## afterwards, which is a new one when blocks were removed.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
     let n = f.temps.count + 1
-    var rep = try alloc ir.Ref[n]
+    var rep = try new ir.Ref[n] ---
     defer free(rep)
     var t: usize = 0
     while t < n:
         rep[t] = ir.none_ref()
         t += 1
-    var dead = try alloc bool[f.instrs.count + 1]
+    var dead = try new bool[f.instrs.count + 1] ---
     defer free(dead)
     var i: usize = 0
     while i <= f.instrs.count:
@@ -381,13 +381,13 @@ func identity(x: ir.Instr) -> ir.Ref?:
             if one:
                 return x.a
         _:
-            discard(0)
+            _ = 0
     if same:
         match x.op:
             .and_, .or_: return x.a
             .xor, .sub, .subo, .cne, .cslt, .csgt, .cult, .cugt: return ir.const_ref(0)
             .ceq, .csle, .csge, .cule, .cuge: return ir.const_ref(1)
-            _: discard(0)
+            _: _ = 0
     return none
 
 ## An extension of a value that is already what the extension would make of it: a byte
@@ -471,7 +471,7 @@ func same_phi(f: ir.Function*, block: cfg.Block, at: u32, rep: ir.Ref[], dead: b
 
 ## Remove the blocks the entry no longer reaches, and the phi arguments they supplied.
 func drop_unreachable(f: ir.Function*, g: cfg.Graph*) -> !:
-    var keep_label = try alloc bool[(usize)f.labels + 1]
+    var keep_label = try new bool[(usize)f.labels + 1] ---
     defer free(keep_label)
     var k: usize = 0
     while k < keep_label.length:
@@ -518,7 +518,7 @@ func drop_dead_phis(f: ir.Function*) -> !:
     var changed = true
     while changed:
         changed = false
-        var used = try alloc bool[f.temps.count + 1]
+        var used = try new bool[f.temps.count + 1] ---
         defer free(used)
         var k: usize = 0
         while k < used.length:

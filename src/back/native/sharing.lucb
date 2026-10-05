@@ -38,7 +38,7 @@ pub let pinned: u32 = 0xFFFFFFFE
 ## The spans of every temporary: the hull of its ranges.
 pub func temp_spans(f: ir.Function*, lives: const regalloc.Lives*) -> Span[]!:
     let n = f.temps.count
-    let spans = try alloc Span[n + 1]
+    let spans = try new Span[n + 1] ---
     for t in 0..<n + 1:
         spans[t] = Span(low = unused, high = 0)
     for t in 1..<n + 1:
@@ -55,7 +55,7 @@ pub func temp_spans(f: ir.Function*, lives: const regalloc.Lives*) -> Span[]!:
 ## value, used before it is written). One pass forwards.
 pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
     let ns = f.slots.count
-    let spans = try alloc Span[ns + 1]
+    let spans = try new Span[ns + 1] ---
     for s in 0..<ns + 1:
         spans[s] = Span(low = unused, high = 0)
     # a parameter's slot is written by the prologue, before the first instruction, and
@@ -68,7 +68,7 @@ pub func slot_spans(f: ir.Function*, g: const cfg.Graph*) -> Span[]!:
     for parameter in f.params.span():
         spans[parameter.slot + 1] = Span(low = 0, high = 2 * entry + 2)
     # 1 + the slot whose address a temporary holds or was computed from, 0 for none
-    let origin = try alloc u32[f.temps.count + 1]
+    let origin = try new u32[f.temps.count + 1] ---
     defer free(origin)
     for t in 0..<origin.length:
         origin[t] = 0
@@ -125,9 +125,9 @@ func over_loops(g: const cfg.Graph*, spans: Span[]) -> !:
     var edges: usize = 1
     for b in g.blocks.span():
         edges += b.succs.count
-    var lows = try alloc u32[edges]
+    var lows = try new u32[edges] ---
     defer free(lows)
-    var highs = try alloc u32[edges]
+    var highs = try new u32[edges] ---
     defer free(highs)
     var n: usize = 0
     for b in g.blocks.span():
@@ -221,12 +221,12 @@ pub struct Item:
 ## gap no item placed before it covers.
 pub func pack(items: const Item[], base: u64) -> (u64[], u64)!:
     let n = items.length
-    let homes = try alloc u64[n]
+    let homes = try new u64[n] ---
     errdefer free(homes)
     let order = try by_low(items)
     defer free(order)
     # the items placed whose lives may still meet the next ones, as indices
-    let active = try alloc u32[n if n > 0 else 1]
+    let active = try new u32[n if n > 0 else 1] ---
     defer free(active)
     var live: usize = 0
     var end = base
@@ -290,9 +290,9 @@ func bytes(item: Item) -> u64:
 ## pinned and never-used ones (the highest `low`) last.
 func by_low(items: const Item[]) -> u32[]!:
     let n = items.length
-    var order = try alloc u32[n]
+    var order = try new u32[n] ---
     errdefer free(order)
-    var other = try alloc u32[n]
+    var other = try new u32[n] ---
     defer free(other)
     for k in 0..<n:
         order[k] = u32(k)

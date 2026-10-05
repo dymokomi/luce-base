@@ -69,7 +69,7 @@ struct Analysis:
             return none
         return (entry, back)
 
-    mutating func recognize() -> bool!:
+    func recognize() -> bool!:
         var count: u32 = 0
         for member in self.loop.members:
             if member:
@@ -175,7 +175,7 @@ struct Builder:
     var index: ir.Ref
     var shape: u32
 
-    mutating func value(original: ir.Ref) -> ir.Ref!:
+    func value(original: ir.Ref) -> ir.Ref!:
         if original.kind == ir.RefKind.temp and self.values[original.index].kind != ir.RefKind.none_:
             return self.values[original.index]
         let value = try result(self.f, &self.pre, ir.Op.vsplat, ir.Class.v, original, ir.none_ref(), self.shape)
@@ -183,12 +183,12 @@ struct Builder:
             self.values[original.index] = value
         return value
 
-    mutating func address(original: ir.Ref) -> ir.Ref!:
+    func address(original: ir.Ref) -> ir.Ref!:
         let base = self.analysis.bases[original.index]
         let offset = try result(self.f, &self.body, ir.Op.mul, ir.Class.l, self.index, ir.const_ref((i64)self.analysis.width))
         return try result(self.f, &self.body, ir.Op.add, ir.Class.l, base, offset)
 
-    mutating func translate() -> !:
+    func translate() -> !:
         let block = self.analysis.body
         for i in block.start..<block.end:
             let x = self.f.instrs.get(i)
@@ -213,7 +213,7 @@ pub func run(f: ir.Function*) -> !:
     # Newly made vector loops contain vector operations, so cannot match again.
     # Remember original headers: their scalar tails must not be versioned again.
     let original_labels = f.labels
-    var handled = try alloc bool[(usize)original_labels + 1]
+    var handled = try new bool[(usize)original_labels + 1] ---
     defer free(handled)
     for i in 0..<handled.length:
         handled[i] = false
@@ -229,7 +229,7 @@ pub func run(f: ir.Function*) -> !:
             if let found = try loops.Natural.find(&g, h):
                 var loop = found
                 defer loop.release()
-                var analysis = Analysis(f = f, g = &g, loop = &loop, definitions = try loops.definition_blocks(f, &g), kinds = try alloc u8[f.temps.count + 1], bases = try alloc ir.Ref[f.temps.count + 1], streams = try list.List[ir.Ref].create(4), header = header, body = header, initial = ir.none_ref(), bound = ir.none_ref(), store_base = ir.none_ref())
+                var analysis = Analysis(f = f, g = &g, loop = &loop, definitions = try loops.definition_blocks(f, &g), kinds = try new u8[f.temps.count + 1] ---, bases = try new ir.Ref[f.temps.count + 1] ---, streams = try list.List[ir.Ref].create(4), header = header, body = header, initial = ir.none_ref(), bound = ir.none_ref(), store_base = ir.none_ref())
                 defer free(analysis.definitions)
                 defer free(analysis.kinds)
                 defer free(analysis.bases)
@@ -262,11 +262,11 @@ func rewrite(a: Analysis*) -> !:
     let finish_label = f.label()
     let join_label = f.label()
     let index = ir.temp_ref(try f.temp(ir.Class.l))
-    var accumulators = try alloc ir.Ref[unroll]
+    var accumulators = try new ir.Ref[unroll] ---
     defer free(accumulators)
-    var backedges = try alloc ir.Ref[unroll]
+    var backedges = try new ir.Ref[unroll] ---
     defer free(backedges)
-    var builder = Builder(f = f, analysis = a, pre = try list.List[ir.Instr].create(8), body = try list.List[ir.Instr].create(32), values = try alloc ir.Ref[f.temps.count + 1], index = index, shape = shape)
+    var builder = Builder(f = f, analysis = a, pre = try list.List[ir.Instr].create(8), body = try list.List[ir.Instr].create(32), values = try new ir.Ref[f.temps.count + 1] ---, index = index, shape = shape)
     defer builder.pre.destroy()
     defer builder.body.destroy()
     defer free(builder.values)
