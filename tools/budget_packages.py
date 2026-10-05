@@ -13,6 +13,7 @@ Usage: tools/budget_packages.py [--crlf]   (--crlf checks out as Git for Windows
 import argparse
 from pathlib import Path
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 PARENT = ROOT.parent
@@ -53,8 +54,9 @@ def main():
             if package not in taken:
                 taken.add(package)
                 checkout(package, commit, args.crlf)
-    for name, _, entry in programs:
-        print((PARENT / name / entry).as_posix())
+    # bytes, so Windows' text mode adds no carriage return to a path the shell reads back
+    entries = "".join((PARENT / name / entry).as_posix() + "\n" for name, _, entry in programs)
+    sys.stdout.buffer.write(entries.encode())
 
 
 if __name__ == "__main__":
