@@ -95,10 +95,10 @@ jobs:
           python tools/test_module_batches.py build/luce-base.exe
           python tools/test_package_tests.py build/luce-base.exe
       # real programs, checked out with CRLF line endings as Git for Windows does, built
-      # for every target
+      # for every target; every package of their dependency closure is cloned beside them
       - name: Compile budget
         run: |
-          for repo in luce-js luce-regex luce-compress luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-fonts luce-browser-engine; do
+          for repo in luce-js luce-regex luce-compress luce-crypto luce-tls luce-xml luce-png luce-jpeg luce-raster luce-browser-foundation luce-browser-css luce-browser-html luce-browser-render luce-fonts luce-browser-engine; do
             git -c core.autocrlf=true clone -q --depth 1 "https://github.com/dymokomi/$repo" "../$repo"
           done
           python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 ../luce-js/tests/ljs.lucb ../luce-browser-engine/src/web/module.lucb

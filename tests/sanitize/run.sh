@@ -3,16 +3,14 @@
 # built through the C backend at -O0 and -O2 with the address and undefined-behaviour
 # sanitizers (`LUCE_CFLAGS`), must run clean and print its expectation. A program that
 # misuses memory on purpose says `# sanitize: skip`. Alignment is not checked: a packed
-# record's fields are read unaligned by design (§10.1). Nor is the function check: a
-# witness table calls a method through a pointer whose `self` is `void*`, which every
-# C ABI passes exactly as the typed pointer (§14.3).
+# record's fields are read unaligned by design (§10.1). Clang's undefined-behaviour set
+# includes the function check, which stops a call through a pointer of another function
+# type: witness tables and converted functions call through adapters of the exact type
+# (§14.3, §5.6). GCC has no such check.
 set -eu
 cd "$(dirname "$0")/../.."
 host=$(tools/host.sh)
-# GCC has no `function` sanitizer to turn off, and rejects the name.
-excluded=alignment
-if ${CC:-cc} --version 2>/dev/null | grep -qi clang; then excluded=alignment,function; fi
-flags="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=$excluded -fno-omit-frame-pointer"
+flags="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-sanitize=alignment -fno-omit-frame-pointer"
 programs=0
 for f in tests/conformance/[0-9]*/*.expect tests/robustness/*/*.expect; do
     [ -e "$f" ] || continue

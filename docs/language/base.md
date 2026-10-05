@@ -264,7 +264,7 @@ Base is statically and nominally typed. Every expression has one type. Inference
 - a string literal, or a `str` produced by `format`, to `c.str`;
 - an ASCII character literal to `u8`, and to an index;
 - `T` to `T?`, and `T` to a successful `T!`;
-- a non-fallible function to the corresponding fallible function type;
+- a named non-fallible function to the corresponding fallible function type, and a named function that reads through a `const T*` parameter to the function type taking `T*` there (§9.4);
 - a pointer to a conforming type to an interface view (§14.3).
 
 Everything else is written.
@@ -891,7 +891,7 @@ func main(arguments: str[]) -> i32:
     return i32(operation(2, 3))
 ```
 
-A function value is a C function pointer (§5.6). A non-fallible function converts to the corresponding fallible function type; nothing else converts. A top-level `let` that names a function, `pub let add = lib.add`, is that function under another name: a call through it, qualified or not, takes the function's defaults and named arguments, so a module hands on another's function unchanged.
+A function value is a C function pointer (§5.6). A non-fallible function converts to the corresponding fallible function type, and a function that only reads through a `const T*` parameter, a method that changes nothing among them, to the type taking the `T*` there; nothing else converts. Either conversion is of a named function, `f`, `module.f` or `Type.method`, never of a value that holds one: the compiler calls the function through an adapter of exactly the wanted type, whose receiver, for a method, is the first parameter. A top-level `let` that names a function, `pub let add = lib.add`, is that function under another name: a call through it, qualified or not, takes the function's defaults and named arguments, so a module hands on another's function unchanged.
 
 ### 9.5 Methods
 

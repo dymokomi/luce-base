@@ -161,6 +161,10 @@ pub func main(arguments: str[]) -> i32:
   Python's `@staticmethod`. Any other function in a type is a method, called on a value,
   whether or not its body uses `self`; an interface's requirement is always implemented
   by a method.
+- **A method named through its type is a function value** with the receiver first:
+  `Counter.doubled` is a `func(const Counter*) -> u32`, as `twice` above takes it. It
+  also stands where a `func(Counter*) -> u32` is wanted, since a function that only reads
+  may be given what it could change.
 - **`value.member` without parentheses is always a field.** There are no computed
   properties; a computed value is a method.
 - A method named `init` is the initialiser; see [Structs](06-structs-and-enums.md).

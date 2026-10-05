@@ -93,5 +93,7 @@ printf 'no shim\n' | cmp - build/conformance.out
 if $lb build $dir/warnings.lucb --native --freestanding -o build/conformance 2> build/conformance.err; then
     echo "FAIL $dir: a freestanding build without _start"; exit 1
 fi
-grep -q '_start' build/conformance.err
+# the refusal names `_start`: a compiler that fails another way (it crashed reporting a
+# message its arena had freed) says so here rather than stopping the gate silently
+grep -q '_start' build/conformance.err || { echo "FAIL $dir: the refusal does not name _start:"; cat build/conformance.err; exit 1; }
 rm -f build/conformance build/conformance.out build/conformance.err

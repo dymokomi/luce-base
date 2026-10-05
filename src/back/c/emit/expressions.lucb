@@ -63,14 +63,10 @@ extend Emitter:
             try self.put("atomic_load(&(")
             try self.expr(e)
             try self.put("))")
-        elif w.kind == types.Kind.func_ and h.kind == types.Kind.func_:
+        elif self.c.table.reads_where_changed(have, want):
             # a function reading through `const T*` where one taking `T*` is wanted (§5.6):
-            # one ABI, two C types
-            try self.put("((")
-            try self.put_type(want)
-            try self.put(")(")
-            try self.expr(e)
-            try self.put("))")
+            # one machine type, two C types, so an adapter of the wanted one calls it
+            try self.adapted_value(e, want)
         elif (self.is_int(want) and (self.is_int(have) or have == types.untyped_int_id)) or (self.is_float(want) and (have == types.untyped_int_id or have == types.untyped_float_id or self.is_float(have))):
             try self.put("(")
             try self.put_type(want)
@@ -501,20 +497,6 @@ extend Emitter:
         try self.value(init, t)
         if scalar:
             try self.put(")")
-
-    ## A function used as a value: its instance's C name.
-    func func_value(e: ast.Node*, d: ast.Node*) -> !:
-        if d.kind == ast.Kind.extern_func:
-            try self.put_extern_callee(d)
-            return
-        var args = try types.no_args()
-        if let t = e.ty:
-            args = try self.type_args(t)
-        if check.generic_params_of(d) != none or args.length > 0:
-            _ = try self.add_func(d, args, none, try types.no_args())
-        else:
-            _ = try self.add_func(d, args, none, try types.no_args())
-        try self.put_func_name(d, args, none, try types.no_args())
 
     ## The concrete type arguments recorded on a call or name.
     func type_args(holder: ast.Node*) -> u32[]!:

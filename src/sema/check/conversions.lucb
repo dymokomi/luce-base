@@ -288,6 +288,10 @@ extend Checker:
             wanted_function = self.table.get(target).elem
         if self.table.kind(got) == types.Kind.func_ and self.table.kind(wanted_function) == types.Kind.func_ and self.table.get(got).elem != self.table.get(wanted_function).elem:
             try self.wrap_as_fallible(e, wanted_function)
+        elif self.table.reads_where_changed(got, wanted_function) and not names_function(e):
+            # the C backend calls the function through an adapter of the wanted type, which
+            # names the function itself, not a value that may hold any (§5.6)
+            return try self.fail(e, "only a named function that reads through `const T*` converts to one taking `T*`")
         # a local array passed where a span is wanted aliases the frame (§6.6); one copied
         # out as an array is a value and names nothing, whatever its elements hold
         if self.table.kind(got) == types.Kind.array and self.views_array(target) and self.place_is_local(e):

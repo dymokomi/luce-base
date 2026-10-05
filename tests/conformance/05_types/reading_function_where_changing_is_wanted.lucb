@@ -1,0 +1,62 @@
+# oracle: none -- the seed does not convert a function reading through `const T*`.
+## §5.6, §9.4: a named function that only reads through a `const T*`, a method whose body
+## changes nothing among them, stands where one taking the `T*` is wanted: in a call, a
+## generic call, an optional, a constant, and wrapped where a fallible type is wanted. A
+## method's receiver comes first, and a changing method wrapped as fallible changes it.
+struct Counter:
+    var n: i64
+
+    static func start(n: i64) -> Counter:
+        return Counter(n = n)
+
+    func peek(extra: i64) -> i64:
+        return self.n + extra
+
+    func bump(extra: i64) -> i64:
+        self.n += extra
+        return self.n
+
+struct Box[T]:
+    var item: T
+
+    func get() -> T:
+        return self.item
+
+func total(c: const Counter*, extra: i64) -> i64:
+    return c.n + extra * 10
+
+func call(f: func(Counter*, i64) -> i64, c: Counter*) -> i64:
+    return f(c, 1)
+
+func call_fallible(f: func(Counter*, i64) -> i64!, c: Counter*) -> i64!:
+    return try f(c, 2)
+
+func maybe(f: (func(Counter*, i64) -> i64)?, c: Counter*) -> i64:
+    if let g = f:
+        return g(c, 3)
+    return -1
+
+func through[T, R](f: func(T*) -> R, at: T*) -> R:
+    return f(at)
+
+func made(f: func(i64) -> Counter!) -> i64!:
+    return (try f(7)).n
+
+let reader: func(Counter*, i64) -> i64 = Counter.peek
+
+pub func main(arguments: str[]) -> i32:
+    var c = Counter(n = 41)
+    var box = Box[i64](item = 5)
+    let a = call(Counter.peek, &c)
+    let b = call(total, &c)
+    let d = maybe(Counter.peek, &c)
+    let e = reader(&c, 4)
+    let f = through(Box[i64].get, &box)
+    let g = call_fallible(Counter.peek, &c) catch:
+        recover -1
+    let h = call_fallible(Counter.bump, &c) catch:
+        recover -1
+    let i = made(Counter.start) catch:
+        recover -1
+    print(f"{a} {b} {d} {e} {f} {g} {h} {c.n} {i}")
+    return 0

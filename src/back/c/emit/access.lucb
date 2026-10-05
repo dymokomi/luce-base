@@ -16,7 +16,7 @@ extend Emitter:
                 try self.enum_value(e)
                 return
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
-                try self.method_value(e, owner, d)
+                try self.func_value(e, d)
                 return
             if d.kind == ast.Kind.constant and self.folding and not ast.is_linked(d):
                 # `other.flag` in a file-scope initialiser: the constant's value stands in for

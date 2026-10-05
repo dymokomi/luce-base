@@ -20,7 +20,8 @@ mechanically, in code only (never in a string's text, a comment or an `asm` suit
 A module that already binds `strings` or `memory` to something else (a local, a parameter, an
 import of another module by that name) imports the functions by name instead, `from memory
 import size_of`, and keeps the bare call, `size_of(T)`. The import goes after the module's
-last import, or before its first declaration.
+last import, or before its first declaration. A directory module's imports serve all its
+fragments (§16.3), so a fragment gets none that another already has.
 
 In Markdown, the ```luce blocks are rewritten; a block that declares `func main(` gets its
 imports too. Whatever cannot be rewritten mechanically (a `discard(...)` inside a larger
@@ -34,10 +35,16 @@ reported with its line, and the file is left for a person to finish there.
 declared in a type (a struct, enum or union, or an `extend`) whose body never reads `self`,
 that is not `init` and that does not implement a requirement of an interface the type
 declares; a `linked` one whose parameters name no `self` receiver gets it too. Those are
-exactly the functions luce-base 0.36 made functions of the type. An interface's requirements
-are read from the PATHs, from luce-base's standard modules beside this script, and from each
-`--interfaces DIR` (a dependency's sources). A function of a type that declares an interface
-none of those define is reported, not changed.
+exactly the functions luce-base 0.36 made functions of the type. That includes a method
+luce-base 0.35 never declared `static` and whose body simply does not read `self`: the
+script cannot tell the two apart, and marks both. Such a method that is called on values,
+`value.method()`, public ones above all, whose callers are in other packages, stays a
+method: take its `static` back off where the checker says the call needs the type.
+
+An interface's requirements are read from the PATHs, from luce-base's standard modules beside
+this script, and from each `--interfaces DIR` (a dependency's sources); a generic type's
+conformance, `struct PtrTraits[T]: Traits[T*]`, counts as any other. A function of a type
+that declares an interface none of those define is reported, not changed.
 
 Usage: tools/migrate_lean_base.py [--check] [--restore-static [--interfaces DIR]...] PATH...
 Each PATH is a `.lucb` or `.md` file or a directory searched for both. `--check` changes
@@ -449,11 +456,11 @@ class Rewrite:
         return f"{module}.{name}"
 
     def own_names(self):
-        """The functions this module declares, and the names its `from` imports bring in."""
-        names = set(re.findall(r"^(?:pub )?func (\w+)", self.src, re.M))
-        for m in re.finditer(r"^from \S+ import (.*)$", self.src, re.M):
-            for item in m.group(1).split(","):
-                names.add(item.split(" as ")[-1].strip())
+        """The functions this module declares, and the names its `from` imports bring in, in
+        every fragment of a directory module: its imports are the whole module's (§16.3)."""
+        names = text_own_names(self.src)
+        for other in self.siblings:
+            names = names | file_own_names(other)
         return names
 
     def bound_names(self):
@@ -606,10 +613,9 @@ class Declared:
                 continue
             m = TYPE_HEAD.match(line)
             if m:
-                rest = m.group(4)
-                if rest.startswith("["):
-                    rest = rest[len(top_level_split(rest, "]")[0]) + 1:]
-                parts = top_level_split(rest, ":")
+                # a generic type's parameters, `[K: Hashable, V]`, keep their own `:` inside
+                # brackets, so the conformances are what follows the first outside them
+                parts = top_level_split(m.group(4), ":")
                 self.conforms.setdefault(m.group(3), set()).update(interface_names(parts[1]) if len(parts) > 1 else [])
 
     def required(self, type_name):
@@ -791,12 +797,29 @@ def text_words(text):
 # once, not once for every fragment beside it; a fragment rewritten is read again
 _WORDS = {}
 _IMPORTS = {}
+_OWN = {}
 
 
 def file_words(path):
     if path not in _WORDS:
         _WORDS[path] = text_words(path.read_text(errors="replace"))
     return _WORDS[path]
+
+
+def text_own_names(text):
+    """The functions `text` declares at its top level, and the names its `from` imports bring
+    in."""
+    names = set(re.findall(r"^(?:pub )?func (\w+)", text, re.M))
+    for m in re.finditer(r"^from \S+ import (.*)$", text, re.M):
+        for item in m.group(1).split(","):
+            names.add(item.split(" as ")[-1].strip())
+    return names
+
+
+def file_own_names(path):
+    if path not in _OWN:
+        _OWN[path] = text_own_names(path.read_text(errors="replace"))
+    return _OWN[path]
 
 
 def file_imports(path):
@@ -887,6 +910,7 @@ def main(argv):
                 f.write_text(new)
                 _WORDS.pop(f.resolve(), None)
                 _IMPORTS.pop(f.resolve(), None)
+                _OWN.pop(f.resolve(), None)
     for p in problems:
         print("manual: " + p)
     if check and changed:

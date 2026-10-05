@@ -89,6 +89,14 @@ func is_derived_bound(d: ast.Node*?) -> bool:
         return false
     return decl.text == "Equatable" or decl.text == "Hashable" or decl.text == "Comparable"
 
+## Whether `e` names a function, `f`, `module.f` or `Type.method`, rather than reading a
+## value that holds one.
+func names_function(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.name and e.kind != ast.Kind.member:
+        return false
+    let d = e.resolved else return false
+    return d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func
+
 func is_type_decl(d: ast.Node*) -> bool:
     return d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.interface_ or d.kind == ast.Kind.extern_type or d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union
 

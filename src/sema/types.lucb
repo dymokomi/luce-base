@@ -427,6 +427,23 @@ pub struct Table:
             .bool_: return 8
             _: return 0
 
+    ## Whether function type `want` takes a `T*` where function type `have` takes the
+    ## `const T*`: a function that only reads standing for one that may change (§5.6). One
+    ## machine type, but two C types, so the C backend calls it through an adapter.
+    pub func reads_where_changed(have: u32, want: u32) -> bool:
+        let h = self.get(have)
+        let w = self.get(want)
+        if h.kind != Kind.func_ or w.kind != Kind.func_ or h.args.length != w.args.length:
+            return false
+        var i: usize = 0
+        while i < h.args.length:
+            let hp = self.get(h.args[i])
+            let wp = self.get(w.args[i])
+            if hp.kind == Kind.pointer and wp.kind == Kind.pointer and hp.is_const and not wp.is_const and hp.elem == wp.elem:
+                return true
+            i += 1
+        return false
+
     ## Whether an integer of `from` widens implicitly to `to` (base.md §7.5):
     ## the same signedness and no fewer bits.
     pub func widens(source: u32, target: u32) -> bool:

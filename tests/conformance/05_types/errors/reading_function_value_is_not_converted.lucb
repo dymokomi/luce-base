@@ -1,0 +1,14 @@
+# error: only a named function that reads through `const T*` converts to one taking `T*`
+# oracle: none
+## §5.6: the conversion is of a named function, which the C backend calls through an
+## adapter of the wanted type; a value holding a function has no name to adapt.
+struct Counter:
+    var n: i64
+    func peek() -> i64:
+        return self.n
+func call(f: func(Counter*) -> i64, c: Counter*) -> i64:
+    return f(c)
+pub func main(arguments: str[]) -> i32:
+    var c = Counter(n = 0)
+    let held: func(const Counter*) -> i64 = Counter.peek
+    return (i32)call(held, &c)

@@ -54,6 +54,12 @@ struct Witness:
     var record: u32
     var iface: u32
 
+## An adapter the program needs: a function of type `want` that calls `target`, which reads
+## through a `const T*` where `want` takes the `T*` (§5.6).
+struct Adapter:
+    var target: instances.Instance
+    var want: u32
+
 ## The buffer `put` writes to.
 let to_out: u8 = 0
 let to_body: u8 = 1
@@ -106,6 +112,7 @@ pub struct Emitter:
     var decls_done: list.List[NodeRef]
     var tests: list.List[NodeRef]
     var vtables: list.List[Witness]
+    var adapters: list.List[Adapter]
     ## Top-level `let`s whose value runs code (a construction through `init`): zero storage,
     ## set by `lb_init_runtime_globals` when the program starts, as the native backend sets
     ## them in `lb_init_globals`.
@@ -168,7 +175,7 @@ pub struct Emitter:
                        funcs = try instances.Instances.create(), records = try list.List[instances.Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
-                       vtables = try list.List[Witness].create(16), runtime_globals = try list.List[NodeRef].create(8),
+                       vtables = try list.List[Witness].create(16), adapters = try list.List[Adapter].create(4), runtime_globals = try list.List[NodeRef].create(8),
                        defined_globals = try list.List[NodeRef].create(64),
                        current_fn = none, generic = try instances.Generic.none_yet(), scopes = try list.List[exits.Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,

@@ -537,15 +537,90 @@ extend Emitter:
         if by_value:
             try self.put("; })")
 
-    ## A method named without a call: a function value of the instance.
-    func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> !:
-        let ot = try self.ty(owner)
-        if self.kind(ot) == types.Kind.module or d.kind == ast.Kind.extern_func:
-            try self.func_value(e, d)
-            return
-        let t = self.c.table.get(self.elem(ot) if self.is_ptr(ot) else ot)
-        _ = try self.add_func(d, try types.no_args(), t.decl, t.args)
-        try self.put_func_name(d, try types.no_args(), t.decl, t.args)
+    ## A function named without a call, `f`, `module.f` or `Type.method`: a function value
+    ## of the instance.
+    func func_value(e: ast.Node*, d: ast.Node*) -> !:
+        let named = try self.named_instance(e, d)
+        try self.put_func_name(named.decl, named.args, named.owner, named.owner_args)
+
+    ## The instance function `d`, named as a value by `e`, stands for, registered to be
+    ## generated: a method is the one of the record its owner names; anything else takes the
+    ## type arguments the name gives.
+    func named_instance(e: ast.Node*, d: ast.Node*) -> instances.Instance!:
+        var args = try types.no_args()
+        if e.kind == ast.Kind.member and d.kind != ast.Kind.extern_func:
+            let owner = e.left else return error(backend, "a member names no owner")
+            let ot = try self.ty(owner)
+            if self.kind(ot) != types.Kind.module:
+                let t = self.c.table.get(self.elem(ot) if self.is_ptr(ot) else ot)
+                _ = try self.add_func(d, args, t.decl, t.args)
+                return instances.Instance(decl = d, args = args, owner = t.decl, owner_args = t.args, done = true)
+        if let t = e.ty:
+            args = try self.type_args(t)
+        if d.kind != ast.Kind.extern_func:
+            _ = try self.add_func(d, args, none, try types.no_args())
+        return instances.Instance(decl = d, args = args, owner = none, owner_args = try types.no_args(), done = true)
+
+    ## A named function where a function type taking `T*` is wanted and its own reads
+    ## through the `const T*` (§5.6): the name of an adapter of exactly the wanted type that
+    ## calls it, one per function and type. Calling a function through a pointer of another
+    ## type is undefined in C, and Clang's function sanitizer stops the program that does.
+    func adapted_value(e: ast.Node*, want: u32) -> !:
+        let d = e.resolved else return error(backend, "a converted function names no declaration")
+        let target = try self.named_instance(e, d)
+        let wanted = try self.map(want)
+        var i: usize = 0
+        while i < self.adapters.count:
+            let a = self.adapters.get(i)
+            if a.want == wanted and a.target.decl == target.decl and a.target.owner == target.owner and types.same_args(a.target.args, target.args) and types.same_args(a.target.owner_args, target.owner_args):
+                break
+            i += 1
+        if i == self.adapters.count:
+            try self.adapters.push(Adapter(target = target, want = wanted))
+        try self.put("lb_adapt_")
+        try self.put_u64((u64)i)
+
+    ## Every adapter the program's converted functions need, after the prototypes of the
+    ## functions they call: `static R lb_adapt_N(A a0, B a1) { return f(a0, a1); }`, each
+    ## argument converting as C converts `T*` to `const T*`.
+    func adapters_defined() -> !:
+        var i: usize = 0
+        while i < self.adapters.count:
+            let a = self.adapters.get(i)
+            let t = self.c.table.get(a.want)
+            let returns = t.elem != types.unit_id and t.elem != types.never_id
+            try self.line("static ")
+            if returns:
+                try self.put_type(t.elem)
+            else:
+                try self.put("void")
+            try self.put(" lb_adapt_")
+            try self.put_u64((u64)i)
+            try self.put("(")
+            if t.args.length == 0:
+                try self.put("void")
+            var k: usize = 0
+            while k < t.args.length:
+                if k > 0:
+                    try self.put(", ")
+                try self.put_type(t.args[k])
+                try self.put(" a")
+                try self.put_u64((u64)k)
+                k += 1
+            try self.put(") { ")
+            if returns:
+                try self.put("return ")
+            try self.put_func_name(a.target.decl, a.target.args, a.target.owner, a.target.owner_args)
+            try self.put("(")
+            k = 0
+            while k < t.args.length:
+                if k > 0:
+                    try self.put(", ")
+                try self.put("a")
+                try self.put_u64((u64)k)
+                k += 1
+            try self.put("); }")
+            i += 1
 
     ## `first()` and `last()` on spans; `bits()` on floats.
     ## `a.compare(b)` on a number, `char`, or `str`: negative, zero, or positive (§14.4).

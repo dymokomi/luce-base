@@ -103,12 +103,18 @@ extend Checker:
 
     ## A named function where a fallible function type is wanted (§9.4): the name comes to
     ## mean a hoisted function of the wanted type that calls the named one and answers its
-    ## result as success. Only a declaration can be wrapped this way; a function value
-    ## held in a variable has no name to wrap.
+    ## result as success. Its parameters have the wanted types, so a function reading
+    ## through `const T*` is wrapped as one taking `T*` too; a method's receiver is the
+    ## first, and the method is called on it. Only a declaration can be wrapped this way; a
+    ## function value held in a variable has no name to wrap.
     func wrap_as_fallible(e: ast.Node*, want: u32) -> !:
-        let f = e.resolved else return try self.fail(e, "only a named function converts to a fallible function type")
-        if f.kind != ast.Kind.func_ and f.kind != ast.Kind.extern_func:
+        if not names_function(e):
             return try self.fail(e, "only a named function converts to a fallible function type")
+        let f = e.resolved else return
+        let wanted = self.table.get(want).args
+        var method = false
+        if let owner = e.left:
+            method = e.kind == ast.Kind.member and owner.has(ast.flag_type_ref) and not f.has(ast.flag_static)
         let fn = try ast.Node.make(ast.Kind.func_, try self.hidden_name("__thunk"), e.start, e.line)
         fn.flags |= ast.flag_lambda | ast.flag_referenced | ast.flag_fallible
         fn.type_id = want
@@ -116,22 +122,34 @@ extend Checker:
         var params_tail: ast.Node*? = none
         var args: ast.Node*? = none
         var args_tail: ast.Node*? = none
+        var receiver: ast.Node*? = none
+        var i: usize = 0
         var cursor = f.right
-        while let p = cursor:
-            let np = try ast.Node.make(ast.Kind.param, p.text, e.start, e.line)
-            np.type_id = p.type_id
-            np.ty = p.ty
+        while i < wanted.length:
+            var name: str = "__receiver"
+            if not method or i > 0:
+                let p = cursor else return try self.fail(e, "the function's parameters differ from the wanted type's")
+                name = p.text
+                cursor = p.next
+            let np = try ast.Node.make(ast.Kind.param, name, e.start, e.line)
+            np.type_id = wanted[i]
             ast.append(&params, &params_tail, np)
-            let use = try ast.Node.make(ast.Kind.name, p.text, e.start, e.line)
-            use.type_id = p.type_id
+            let use = try ast.Node.make(ast.Kind.name, name, e.start, e.line)
+            use.type_id = wanted[i]
             use.resolved = np
-            let a = try ast.Node.make(ast.Kind.argument, "", e.start, e.line)
-            a.left = use
-            a.type_id = p.type_id
-            ast.append(&args, &args_tail, a)
-            cursor = p.next
+            if method and i == 0:
+                receiver = use
+            else:
+                let a = try ast.Node.make(ast.Kind.argument, "", e.start, e.line)
+                a.left = use
+                a.type_id = wanted[i]
+                ast.append(&args, &args_tail, a)
+            i += 1
         fn.right = params
-        let callee = try ast.Node.make(ast.Kind.name, f.text, e.start, e.line)
+        # the method on the receiver, `__receiver.name(...)`; else the name as written
+        let callee = try ast.Node.make(e.kind, f.text, e.start, e.line)
+        callee.left = receiver if method else e.left
+        callee.ty = e.ty
         callee.type_id = f.type_id
         callee.resolved = f
         let call = try ast.Node.make(ast.Kind.call, "", e.start, e.line)
@@ -146,6 +164,10 @@ extend Checker:
         block.body = ret
         fn.body = block
         self.hoist(fn)
+        # the expression now names the hoisted function, unqualified
+        e.kind = ast.Kind.name
+        e.left = none
+        e.ty = none
         e.resolved = fn
         e.text = fn.text
         e.type_id = want
