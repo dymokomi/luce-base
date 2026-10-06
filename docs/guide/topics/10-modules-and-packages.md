@@ -120,7 +120,6 @@ def package "shapes-lib" {
 
     def dependency "luce-std" {
         str owner = "dymokomi"
-        str version = "^0.3.2"
     }
 }
 ```
@@ -159,7 +158,6 @@ A dependency comes from the registry, or from a directory beside the project:
 ```text
 def dependency "luce-std" {
     str owner = "dymokomi"
-    str version = "^0.3.2"
 }
 
 def dependency "shapes-lib" {
@@ -167,8 +165,9 @@ def dependency "shapes-lib" {
 }
 ```
 
-`luc add owner/name` adds the newest release of a registry package with a caret version
-(`^0.3.2` accepts any `0.3.x` from `0.3.2`), and `luc add ../path` adds a local one. A
+`luc add owner/name` adds a registry package with no version: its newest release, which
+`luc.lock` records. A project that must hold back gives a caret version, `luc add
+owner/name@^0.3.2` (any `0.3.x` from `0.3.2`). `luc add ../path` adds a local one. A
 dependency's own dependencies are resolved relative to it.
 
 `luc.lock` records the exact version of every registry package in the build, and the SHA-256

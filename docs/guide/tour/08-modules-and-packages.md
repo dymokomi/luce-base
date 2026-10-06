@@ -97,9 +97,11 @@ in `luc.lock`, unpacks it under `.luc/deps/`, and adds it to the manifest:
 ```text
 def dependency "luce-std" {
     str owner = "dymokomi"
-    str version = "^0.3.2"
 }
 ```
+
+No version means the newest release; `luc.lock` keeps the build on the one it chose until
+`luc lock` runs again. `luc add luce-std@^0.3.2` holds a project to `0.3.x` instead.
 
 Its modules are imported behind the package's name, with `-` written as `_`:
 
