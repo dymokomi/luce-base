@@ -154,8 +154,10 @@ an allocator too, by implementing the `Allocator` interface.
 
 Only `new` allocates. Nothing else in the language does: not string operations,
 not passing arguments, not `for` loops. That is why Base has no `+` on strings and no
-built-in growable list. Those come from library types such as `strings.Builder`, which take
-memory from an allocator and must be destroyed when you are done with them.
+built-in growable list. Those come from library types such as `strings.Builder` for text and
+`List` in the `luce-std` package for any values (see the
+[memory topic](../topics/09-memory.md#growing-storage)), which take memory from an allocator and
+must be destroyed when you are done with them.
 
 ## Where next
 

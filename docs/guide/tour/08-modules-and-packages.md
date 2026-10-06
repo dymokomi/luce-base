@@ -126,7 +126,8 @@ the code then uses `files.read`. A package lists the modules other packages may 
 `public` in its manifest; the rest are internal to it.
 
 `luce-std` holds everyday modules that are not part of the compiler: `files`, `paths`,
-`process`, `net`, `math`, `utf8`, `unicode` and others. The [Library](../../LIBRARY.md)
+`process`, `net`, `math`, `utf8`, `unicode`, `collections` (growable lists and byte
+buffers) and others. The [Library](../../LIBRARY.md)
 reference lists them.
 
 A package kept in a directory beside your project, rather than on the registry, is added by

@@ -201,6 +201,53 @@ live 2
 live 0, 100 bytes requested
 ```
 
+## Growing storage
+
+A span has a fixed length. For storage that grows as values arrive, like Python's `list` or
+`bytearray`, the `collections` module of the `luce-std` package has three types:
+
+- `List[T]`: values side by side, as in Python's `list` or Rust's `Vec`. `append`, `insert`,
+  `remove(index, count = 1)` (the rest keep their order), `at`, `set`, `truncate`, `clear`;
+  `view()` answers a `const T[]` to read, `items()` a `T[]` to change in place or sort.
+- `Buffer`: bytes, with `put`, `put_text`, `put_byte` and `put_number`. `view()` answers the
+  bytes, `text()` the text as far as it is valid UTF-8, and `terminated()` a `c.str` for a C
+  function. It is an `io.Writer`, so `strings.write_f64(&buffer, x, ".2f")` writes into it.
+- `TextPool`: copies of bytes or text at addresses that never move, for text that must
+  outlive the buffer it was read from.
+
+A zero value of each is empty and ready to use. The first growth takes the current allocator
+and keeps it, as `strings.Builder` does, and `destroy` gives the storage back. When a list
+grows, its capacity at least doubles and the values move, so a view is valid only until the
+next `append`, `insert` or `reserve`:
+
+<!-- needs luce-std -->
+```luce
+from luce_std import collections
+
+struct Point:
+    var x: i64
+    var y: i64
+
+pub func main(arguments: str[]) -> i32!:
+    var points: collections.List[Point]
+    defer points.destroy()
+    for i in 0..<(i64)5:
+        try points.append(Point(x = i, y = i * i))
+    points.remove(1)
+    var line: collections.Buffer
+    defer line.destroy()
+    for point in points.view():
+        if line.length() > 0:
+            try line.put_byte(' ')
+        try line.put_number(point.y)
+    print(line.text())
+    return 0
+```
+
+```output
+0 4 9 16
+```
+
 ## Memory in the frame
 
 `memory.frame[T](count, most)` takes `count` elements of `T` from the current function's
