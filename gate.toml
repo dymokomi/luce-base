@@ -14,7 +14,7 @@ steps = [
     "(cd ../luce-seed && ./build.sh)",
     "./test.sh",
     # real programs built for every target within a time and a memory
-    "python3 tools/compile_budget.py --seconds 240 --megabytes 4096 $(python3 tools/budget_packages.py)",
+    "IFS=$'\\n' entries=($(python3 tools/budget_packages.py)) && python3 tools/compile_budget.py --seconds 240 --megabytes 4096 \"${entries[@]}\"",
 ]
 # every fuzzing generator for a bounded time (gate.py --extended)
 extended = [
@@ -58,8 +58,9 @@ steps = [
     python tools/test_module_batches.py build/luce-base.exe
     python tools/test_package_tests.py build/luce-base.exe
     """,
-    # real programs, checked out with CRLF line endings as Git for Windows does
-    "python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 $(python tools/budget_packages.py --crlf)",
+    # real programs, checked out with CRLF line endings as Git for Windows does (one path a
+    # line: the workspace's path has a space)
+    "IFS=$'\\n' entries=($(python tools/budget_packages.py --crlf)) && python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 \"${entries[@]}\"",
 ]
 extended = [
     "python tools/fuzz.py --seed $RANDOM --minutes 15 --mutations 200 --programs 30 --trap-programs 20 --packages 6 --mem-programs 12 --atomic-programs 6 --litmus-programs 4 --width-programs 30",

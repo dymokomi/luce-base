@@ -498,7 +498,8 @@ class Platform(threading.Thread):
     def __init__(self, platform, command, log, ssh=None, bundle=None):
         super().__init__()
         self.platform, self.command, self.log, self.ssh, self.bundle = platform, command, log, ssh, bundle
-        self.status, self.seconds, self.toolchain = "FAIL", 0, ""
+        # seconds: the whole run here; ran: the agent's own, without waiting for its machine
+        self.status, self.seconds, self.ran, self.toolchain = "FAIL", 0, 0, ""
 
     def prepare(self):
         """Send the agent (and the bundle) to the machine."""
@@ -524,7 +525,7 @@ class Platform(threading.Thread):
                     log.write(line + "\n")
                     log.flush()
                     if line.startswith("GATE-RESULT "):
-                        self.status = line.split()[1]
+                        self.status, self.ran = line.split()[1], float(line.split()[2])
                     elif line.startswith("GATE-TOOLCHAIN "):
                         self.toolchain = line.split(" ", 1)[1]
                     print(prefix + line, flush=True)
@@ -552,7 +553,7 @@ def record(repository, commit, results):
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for result in results:
         host = PLATFORMS[result.platform][0]
-        lines[host] = f"{host} {result.status} {now} {result.seconds:.0f}s {result.toolchain}".rstrip()
+        lines[host] = f"{host} {result.status} {now} {result.ran:.0f}s {result.toolchain}".rstrip()
     text = "\n".join(lines[host] for host, _ in PLATFORMS.values() if host in lines)
     git("notes", "--ref=gate", "add", "-f", "-m", text, commit, cwd=repository)
     for _ in range(3):
@@ -616,7 +617,7 @@ def orchestrate(arguments):
     failed = [run for run in runs if run.status not in ("PASS", "NONE")]
     print()
     for run in runs:
-        print(f"gate: {run.platform:8} {run.status:5} {run.seconds:6.0f}s  {run.log}")
+        print(f"gate: {run.platform:8} {run.status:5} {run.ran:6.0f}s ({run.seconds:.0f}s with waiting)  {run.log}")
     for run in runs:
         if run.status == "PASS" and run.ssh:
             fetch_artifacts(run.ssh, name, commit, local)
