@@ -164,7 +164,10 @@ also ask for two things to follow a crash, much as macOS's crash reporter does f
   before the process ends, on the thread that trapped. It is the place to save what can be
   saved: write it under `crash.recovery_directory()` (`~/.luce/recovery/<program>`), never over
   the user's own file, and call `crash.note_recovery(path)` so the report says where it is.
-  The hooks get five seconds in all; a trap inside one is added to the report and the hooks
+  It answers the hook's handle, an `interop.Reference[crash.Hook]`: the hook runs while the
+  handle is held, and releasing it, or `remove()`, takes the hook away along with what its
+  callback holds, as releasing a signal's `Connection` disconnects it. The hooks get five
+  seconds in all; a trap inside one is added to the report and the hooks
   after it are skipped. A fatal signal (a segmentation fault, say) runs no hooks, since almost
   nothing is safe inside a signal handler: a program that must not lose work saves it as it
   goes and looks in the recovery directory when it starts.
