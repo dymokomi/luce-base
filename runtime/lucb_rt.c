@@ -3,21 +3,16 @@
 //   runtime/lucb_rt - The C runtime linked into every Base program
 //
 //   DESCRIPTION:
-//       Traps with their reason, the wrapping and saturating arithmetic families,
-//       conversions, formatted display of scalars, UTF-8 validation, and hashing. Base has
-//       no runtime of its own (base.md §1.3); the standard modules are Base source, and
-//       this is the trap reporter and the helpers the generated C calls by name.
+//       The wrapping and saturating arithmetic families, conversions, formatted display of
+//       scalars, UTF-8 validation, and hashing. Base has no runtime of its own (base.md
+//       §1.3); the standard modules are Base source, and this is the helpers the generated C
+//       calls by name. Traps are `core`'s: the generated program defines the `lb_trap`
+//       entry points lucb_rt.h declares, each calling `core` at the position `lb_pos` holds.
 //
 //==============================================================================================
 
 #include "lucb_rt.h"
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#elif !defined(__wasi__)
-#include <execinfo.h>
-#endif
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
@@ -230,70 +225,7 @@ int lb_str_compare(lb_str a, lb_str b) {
     return a.length > b.length ? 1 : 0;
 }
 
-void lb_trap_two(const char* message, const char* detail) {
-    if (lb_pos != NULL && lb_pos[0] != '\0') {
-        fprintf(stderr, "trap: %s: %s: %s\n", lb_pos, message != NULL ? message : "", detail != NULL ? detail : "");
-    } else {
-        fprintf(stderr, "trap: %s: %s\n", message != NULL ? message : "", detail != NULL ? detail : "");
-    }
-    exit(1);
-}
-
 _Thread_local const char* lb_pos = "";
-
-static LB_NORETURN void finish_trap(void) {
-    // `LB_TRACE=1` in the environment adds the C frames, for finding a trap in a C build
-    if (getenv("LB_TRACE") != NULL) {
-        void* frames[32];
-#ifdef _WIN32
-        USHORT depth = CaptureStackBackTrace(0, 32, frames, NULL);
-        for (USHORT i = 0; i < depth; ++i) fprintf(stderr, "%p\n", frames[i]);
-#elif defined(__wasi__)
-        // WASI has no backtrace; the runtime's own trace is what there is
-        (void)frames;
-#else
-        int depth = backtrace(frames, 32);
-        backtrace_symbols_fd(frames, depth, 2);
-#endif
-    }
-    exit(1);
-}
-
-static void trap_location(void) {
-    if (lb_pos != NULL && lb_pos[0] != '\0') fprintf(stderr, "trap: %s: ", lb_pos);
-    else fputs("trap: ", stderr);
-}
-
-void lb_trap_text(lb_str message) {
-    trap_location();
-    if (message.length != 0) fwrite(message.data, 1, message.length, stderr);
-    fputc('\n', stderr);
-    finish_trap();
-}
-
-// `trap(f"...")` streams its pieces to stderr between a begin and
-// `lb_trap_end`, so no format buffer bounds the message.
-void lb_trap_begin(void) {
-    trap_location();
-}
-
-void lb_trap_end(void) {
-    fputc('\n', stderr);
-    finish_trap();
-}
-
-void lb_trap_detail(const char* prefix, lb_str detail) {
-    trap_location();
-    fprintf(stderr, "%s: ", prefix != NULL ? prefix : "");
-    if (detail.length != 0) fwrite(detail.data, 1, detail.length, stderr);
-    fputc('\n', stderr);
-    finish_trap();
-}
-
-void lb_trap(const char* message) {
-    lb_str text = {message, message != NULL ? strlen(message) : 0};
-    lb_trap_text(text);
-}
 
 void lb_pause(void) {
 #if defined(__aarch64__)

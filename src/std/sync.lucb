@@ -37,6 +37,27 @@ func sleep_on(address: void*, value: u32):
         let no_timeout: void*? = none
         _ = syscall(futex_number, address, futex_wait_private, value, no_timeout)
 
+## `sleep_on`, giving up after about `milliseconds`: a timeout, a change, a wake or nothing
+## at all return, so every caller loops against its own deadline.
+func sleep_on_for(address: void*, value: u32, milliseconds: u64):
+    if milliseconds == 0:
+        return
+    if platform.windows:
+        var expected = value
+        _ = WaitOnAddress(address, &expected, 4, (u32)(milliseconds if milliseconds < 4294967294 else 4294967294))
+    elif platform.macos:
+        # microseconds, where 0 would wait for ever
+        let micros = milliseconds *? 1000 else 4294967295
+        _ = __ulock_wait(compare_and_wait, address, (u64)value, (u32)(micros if micros < 4294967295 else 4294967295))
+    else:
+        var timeout = Timeout(seconds = (i64)(milliseconds // 1000), nanoseconds = (i64)(milliseconds % 1000) * 1000000)
+        _ = syscall(futex_number, address, futex_wait_private, value, &timeout)
+
+## A relative `timespec` for the futex call.
+extern struct Timeout:
+    seconds: i64
+    nanoseconds: i64
+
 func wake_one(address: void*):
     if platform.windows:
         WakeByAddressSingle(address)
@@ -92,6 +113,14 @@ pub struct Condition:
         let seen = self.sequence.load(.acquire)
         mutex.unlock()
         sleep_on((void*)&self.sequence, seen)
+        mutex.lock()
+
+    ## `wait`, giving up after about `milliseconds`; it may also return early, without a
+    ## signal, so a caller rechecks its condition against its own deadline.
+    pub func wait_for(mutex: Mutex*, milliseconds: u64):
+        let seen = self.sequence.load(.acquire)
+        mutex.unlock()
+        sleep_on_for((void*)&self.sequence, seen, milliseconds)
         mutex.lock()
 
     ## Wake one waiter.

@@ -115,7 +115,7 @@ extend Checker:
         let rt = self.plain_read(try self.check_expr(r, rhint))
         if (self.table.is_vector(lt) or self.table.is_vector(rt)) and not is_comparison(op):
             return try self.vector_binary_type(e, l, lt, r, rt)
-        var t = try self.unify(l, lt, r, rt)
+        var t = try self.views_compared(op, l, lt, r, rt) else try self.unify(l, lt, r, rt)
         # two untyped literals under a typed context compute in that type: `3 -| 7` as `u8`
         if is_arithmetic(op) and t == types.untyped_int_id and self.table.is_integer(context):
             _ = try self.coerce(l, lt, context)
@@ -304,34 +304,58 @@ extend Checker:
         let d = t.decl else return false
         return d.ty != none
 
-    ## Types with `==` (§7.4).
-    ## `==` exists where every component supports it; unions and views never do (§7.4).
-    func comparable(id: u32) -> bool:
+    ## `==` or `!=` between a span and an array or a span of another qualifier: both read as
+    ## a `const` span of the element, so lengths are compared and then elements (§7.4); none
+    ## for any other pair of operands.
+    func views_compared(op: str, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32?!:
+        if op != "==" and op != "!=":
+            return none
+        let lk = self.table.kind(lt)
+        let rk = self.table.kind(rt)
+        if not ((lk == types.Kind.span or lk == types.Kind.array) and (rk == types.Kind.span or rk == types.Kind.array)):
+            return none
+        if lk == types.Kind.array and rk == types.Kind.array:
+            return none
+        let elem = self.table.get(lt).elem
+        if elem != self.table.get(rt).elem:
+            return none
+        let view = try self.table.span(elem, true)
+        _ = try self.coerce(l, lt, view)
+        _ = try self.coerce(r, rt, view)
+        return view
+
+    ## Types with `==` (§7.4), and with `hashing`, the hashable ones: `==` exists where every
+    ## component supports it, and a hash where every component hashes. Unions and interface
+    ## views have neither; a span compares by its elements but does not hash, as a Python list
+    ## compares but is no dictionary key, since what it views may change under it.
+    func comparable(id: u32, hashing: bool = false) -> bool:
         let t = self.table.get(id)
         if id == types.untyped_int_id or id == types.untyped_float_id or id == types.none_id:
             return true
         match t.kind:
-            .union_, .interface_, .func_, .span, .module, .fmt_, .error_value:
+            .union_, .interface_, .func_, .module, .fmt_, .error_value:
                 return false
+            .span:
+                return not hashing and self.comparable(t.elem)
             .array, .optional, .atomic:
-                return self.comparable(t.elem)
+                return self.comparable(t.elem, hashing)
             .tuple:
                 for a in t.args:
-                    if not self.comparable(a):
+                    if not self.comparable(a, hashing):
                         return false
                 return true
             .param:
-                return self.has_written_constraint(id, self.standard_type("luce", "Equatable"))
+                return self.has_written_constraint(id, self.standard_type("luce", "Hashable" if hashing else "Equatable"))
             .struct_, .enum_:
                 let d = t.decl else return true
                 var cursor = d.body
                 while let m = cursor:
-                    if m.kind == ast.Kind.field and not self.comparable(m.type_id):
+                    if m.kind == ast.Kind.field and not self.comparable(m.type_id, hashing):
                         return false
                     if m.kind == ast.Kind.enum_case:
                         var payload = m.body
                         while let p = payload:
-                            if not self.comparable(p.type_id):
+                            if not self.comparable(p.type_id, hashing):
                                 return false
                             payload = p.next
                     cursor = m.next

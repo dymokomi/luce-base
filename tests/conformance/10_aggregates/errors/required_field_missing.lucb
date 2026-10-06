@@ -1,4 +1,4 @@
-# error: a required field is missing
+# error: is required: it has no default and its type no zero value
 ## §10.1: a field without a default that is not zeroable must be given.
 struct S:
     let p: i64*

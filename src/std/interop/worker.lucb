@@ -112,6 +112,17 @@ struct WorkerState[C, M, R]:
             state.changed.broadcast()
             state.mutex.unlock()
 
+    ## Under the mutex: the queued reply first, or worker_closed once the worker has
+    ## stopped; none while it runs with nothing queued.
+    static func take_reply(state: WorkerState[C, M, R]*) -> Reply[R]?!:
+        if state.cancellation.is_requested() or state.done:
+            error(worker_closed, "the worker no longer produces replies")
+        if state.output.count == 0:
+            return none
+        let result = state.output.pop()
+        state.changed.broadcast()
+        return result
+
     static func copy_reply(state: WorkerState[C, M, R]*, outcome: Outcome[R]) -> Reply[R]:
         let value = outcome.get() catch failure:
             return Reply[R].failure(failure.code, failure.message)
@@ -175,19 +186,34 @@ pub struct Worker[C, M, R]:
         state.input.push(packet)
         state.changed.broadcast()
 
-    ## Replies preserve accepted-message order. Cancellation is terminal: queued
-    ## replies are discarded by close, and blocked receivers wake with worker_closed.
+    ## The next reply, waiting for it. Replies preserve accepted-message order.
+    ## Cancellation is terminal: queued replies are discarded by close, and blocked
+    ## receivers wake with worker_closed.
     pub func receive() -> Reply[R]!:
         let state = self.state else error(worker_closed, "the worker is closed")
         state.mutex.lock()
         defer state.mutex.unlock()
         while state.output.count == 0 and not state.cancellation.is_requested() and not state.done:
             state.changed.wait(&state.mutex)
-        if state.cancellation.is_requested() or state.done:
-            error(worker_closed, "the worker no longer produces replies")
-        let result = state.output.pop()
-        state.changed.broadcast()
-        return result
+        return try WorkerState[C, M, R].take_reply(state) else trap("a worker woke with no reply")
+
+    ## The next reply if one is ready, none if not: a receive that never waits, for a
+    ## caller that polls, as a UI frame does.
+    pub func try_receive() -> Reply[R]?!:
+        return try self.receive_within(0)
+
+    ## The next reply, waiting at most about `milliseconds` for it; none when none came.
+    pub func receive_within(milliseconds: u64) -> Reply[R]?!:
+        let state = self.state else error(worker_closed, "the worker is closed")
+        let deadline = time.now() + milliseconds * 1000000
+        state.mutex.lock()
+        defer state.mutex.unlock()
+        while state.output.count == 0 and not state.cancellation.is_requested() and not state.done:
+            let now = time.now()
+            if now >= deadline:
+                return none
+            state.changed.wait_for(&state.mutex, (deadline - now + 999999) // 1000000)
+        return try WorkerState[C, M, R].take_reply(state)
 
     ## Ask the worker to stop; cancellation is terminal and wakes blocked callers.
     pub func cancel():

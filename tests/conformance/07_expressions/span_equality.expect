@@ -1,0 +1,12 @@
+bytes: true
+prefix: false
+different: true
+const and not: true
+signed zeros: true
+nan: false
+text: true
+structs: false
+holders: true
+empty: true
+array and span: true
+array and shorter span: true

@@ -121,7 +121,7 @@ extend Checker:
         if self.table.kind(got) == types.Kind.param:
             if not self.has_written_constraint(got, self.standard_type("luce", "Hashable")):
                 return try self.fail(arg, "a type parameter hashes only under `Hashable`")
-        elif not self.comparable(got):
+        elif not self.comparable(got, hashing = true):
             return try self.fail(arg, "this value is not hashable")
         _ = try self.coerce(arg, got, concrete(got))
         return types.u64_id
@@ -140,7 +140,7 @@ extend Checker:
                     return false
         if t.kind == types.Kind.module or t.kind == types.Kind.interface_:
             return false
-        if t.kind != types.Kind.param and not self.comparable(receiver_type):
+        if t.kind != types.Kind.param and not self.comparable(receiver_type, hashing = true):
             return try self.fail(receiver, "this value is not hashable (§7.4)")
         let argument = try ast.Node.make(ast.Kind.argument, "", receiver.start, receiver.line)
         argument.left = receiver

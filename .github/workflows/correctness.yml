@@ -65,6 +65,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gdb
           bash tools/ci_backtrace.sh
+      # a process a check left behind keeps the hosted runner from ending the job ("lost
+      # communication"): list them for the artifact
+      - name: List processes the gate left
+        if: always()
+        run: bash tools/ci_leftovers.sh
       - name: Record final dependency provenance
         if: always()
         run: |
@@ -81,6 +86,8 @@ jobs:
             luce-base/build/conformance.err
             luce-base/build/luce-base/build/*.log
             luce-base/build/provenance*.json
+            luce-base/build/processes.txt
+            luce-base/build/leftovers.txt
             luce-base/build/dwarf/
             luce-base/build/failures/
             luce-base/build/fuzz/

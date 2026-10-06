@@ -13,6 +13,7 @@ import memory
 import ownership
 import thread
 import sync
+import time
 ## The carrier or its native value is not valid.
 pub let invalid: ErrorCode = ErrorCode.package(101)
 ## The value was touched from a thread other than its owner.

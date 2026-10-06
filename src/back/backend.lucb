@@ -59,9 +59,11 @@ pub struct CBackend: Backend:
     var emitter: emit.Emitter
 
     ## A C backend that emits `entry`, checked by `checker`.
-    pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
+    ## Positions name a source under `position_root` relative to it, as a native build's do.
+    pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool, position_root: str = "") -> CBackend!:
         var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
+        emitter.position_root = position_root
         return CBackend(emitter = emitter)
 
     ## Emit the whole program as C and return its text.

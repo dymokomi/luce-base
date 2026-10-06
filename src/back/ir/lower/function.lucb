@@ -21,6 +21,10 @@ extend Lowerer:
     ## Open a loop `for i in 0..<count` in the function being built: the index is in a slot
     ## of its own, and the body follows this; `count_on` closes it.
     func count_up(count: i64) -> Counting!:
+        return try self.count_up_to(ir.const_ref(count))
+
+    ## `count_up` to a bound computed at run time, `bound` a `usize` value.
+    func count_up_to(bound: ir.Ref) -> Counting!:
         let counter = try self.f.slot(8, 8)
         try self.f.store(ir.Op.storel, ir.const_ref(0), try self.slot_address(counter))
         let head = self.f.label()
@@ -29,7 +33,7 @@ extend Lowerer:
         try self.f.jump(head)
         try self.f.place_label(head)
         let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter))
-        let more = try self.f.binary(ir.Op.cult, ir.Class.l, i, ir.const_ref(count))
+        let more = try self.f.binary(ir.Op.cult, ir.Class.l, i, bound)
         try self.f.branch(more, body, done)
         try self.f.place_label(body)
         return Counting(counter = counter, head = head, done = done, index = i)

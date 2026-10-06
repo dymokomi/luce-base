@@ -15,7 +15,9 @@ since every build starts with this compiler.
 
 Usage: python3 luce-base/tools/checkout_main.py REPOSITORY [TOOL...]
   e.g. python3 luce-base/tools/checkout_main.py luce-image luce
-A TOOL that is not checked out yet is cloned first (as `luce` above).
+A TOOL is named by its repository's name and is always REPOSITORY's sibling: `luce`,
+`../luce` from inside REPOSITORY and `luce` from beside it all name the same directory. A
+TOOL that is not checked out yet is cloned first (as `luce` above).
 """
 import re
 import subprocess
@@ -85,7 +87,10 @@ def check_out(roots, git_config=()):
 def main(arguments):
     if not arguments or arguments[0] in ("-h", "--help"):
         raise SystemExit(__doc__)
-    check_out([Path(argument).resolve() for argument in arguments])
+    repository = Path(arguments[0]).resolve()
+    # tools sit beside the repository whatever directory this runs from
+    tools = [repository.parent / Path(argument).name for argument in arguments[1:]]
+    check_out([repository, *tools])
 
 
 if __name__ == "__main__":

@@ -16,4 +16,4 @@ with tempfile.TemporaryDirectory(prefix='base-workers-') as temporary:
         for _ in range(3):
             result = subprocess.run([binary], capture_output=True, text=True, timeout=20)
             assert result.returncode == 0 and not result.stdout and not result.stderr, result
-print('PASS native workers: copied packets, persistent state, errors, blocked queues, socket cancellation, startup failure and joined cleanup; six modes')
+print('PASS native workers: copied packets, persistent state, errors, blocked queues, polled and timed receives, socket cancellation, startup failure and joined cleanup; six modes')

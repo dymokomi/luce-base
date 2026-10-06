@@ -56,7 +56,8 @@ ok    a full stack refuses
   `error(...)`), or when an `assert` written in the test itself is false. It is reported as
   `FAIL` with a position and a message, and the other tests still run. Anything else that
   traps (an overflow, an index out of range, an `assert` inside a function the test calls,
-  a `testing.expect`) stops the run there, naming the file and line.
+  a `testing.expect`) stops the run there: the test is reported as `FAIL`, the trap's line
+  follows, then the count of the tests run so far.
 - `luce-base build` leaves tests out of the program.
 
 A failing run reports each failure under its test and counts them; the status is 1:
@@ -78,7 +79,35 @@ ok    still runs
 ```
 
 A failed `assert` is reported where it stands, with its condition; a test that fails by an
-error is reported at the test, with the error's message.
+error is reported at the test, with the error's message. Positions name the file relative to
+the project root, the directory with `package.prisma`, as in the rest of this guide.
+
+A trap ends the run, as a trap ends a program. Like an unhandled exception in a pytest
+worker, it takes the test down with it, but the report still says which test and how far the
+run got:
+
+```luce
+func third(items: const i64[]) -> i64:
+    return items[2]
+
+test "two and two":
+    assert(2 + 2 == 4)
+
+test "reads past the end":
+    let pair: i64[2] = [1, 2]
+    _ = third(pair)
+
+test "never reached":
+    assert(true)
+```
+
+```text
+ok    two and two
+FAIL  reads past the end
+trap: sums.lucb:2:5: index out of bounds
+1 passed
+1 failed
+```
 
 ### Checking values
 

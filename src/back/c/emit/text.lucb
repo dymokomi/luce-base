@@ -97,6 +97,8 @@ extend Emitter:
             try self.same_optional(t, a, b)
         elif k == types.Kind.array:
             try self.same_array(t, a, b)
+        elif k == types.Kind.span:
+            try self.same_span(t, a, b)
         elif k == types.Kind.tuple:
             try self.same_tuple(t, a, b)
         elif k == types.Kind.struct_:
@@ -161,6 +163,53 @@ extend Emitter:
         var index_bytes = try new u8[i.length + 5] ---
         let index = try strings.format(index_bytes, f".d[{i}]")
         try self.same_value(self.elem(t), try c_path(a, index), try c_path(b, index))
+        try self.put("; } ")
+        try self.put(eq)
+        try self.put("; })")
+
+    ## Equal spans: the same length, then a loop over the elements that stops at the first
+    ## difference (§7.4).
+    func same_span(t: u32, a: str, b: str) -> !:
+        let n = self.tmp()
+        let i = try tmp_name("i", n)
+        let eq = try tmp_name("eq", n)
+        let pa = try tmp_name("pa", n)
+        let pb = try tmp_name("pb", n)
+        let et = self.elem(t)
+        try self.put("({ bool ")
+        try self.put(eq)
+        try self.put(" = ")
+        try self.put(a)
+        try self.put(".length == ")
+        try self.put(b)
+        try self.put(".length; const ")
+        try self.put_type(et)
+        try self.put("* ")
+        try self.put(pa)
+        try self.put(" = (const void*)")
+        try self.put(a)
+        try self.put(".data; const ")
+        try self.put_type(et)
+        try self.put("* ")
+        try self.put(pb)
+        try self.put(" = (const void*)")
+        try self.put(b)
+        try self.put(".data; for (size_t ")
+        try self.put(i)
+        try self.put(" = 0; ")
+        try self.put(eq)
+        try self.put(" && ")
+        try self.put(i)
+        try self.put(" < ")
+        try self.put(a)
+        try self.put(".length; ")
+        try self.put(i)
+        try self.put("++) { ")
+        try self.put(eq)
+        try self.put(" = ")
+        var index_bytes = try new u8[i.length + 4] ---
+        let index = try strings.format(index_bytes, f"[{i}]")
+        try self.same_value(et, try c_path(pa, index), try c_path(pb, index))
         try self.put("; } ")
         try self.put(eq)
         try self.put("; })")
@@ -319,13 +368,14 @@ extend Emitter:
         try self.put(", 1024); ")
         return n
 
-    ## A formatted string written piece by piece to the C stream `stream`, so no buffer
-    ## bounds it: text and `str` fields go as they are, and each other field is displayed
-    ## alone into one format buffer of the function, which the pieces share.
-    ## The pieces of `f` written to `stream` through a buffer of their own that goes out
-    ## as it passes half full and at the end (`lb_stream_put`), as a native build streams
-    ## them: a field that prints writes before the line it is part of.
-    func stream_formatted(f: ast.Node*, stream: str) -> !:
+    ## A formatted string written piece by piece, so no buffer bounds it: to standard output
+    ## through C's `stdout`, or to the diagnostic (a trap's message) through `core`, which
+    ## also writes it into a crash report. Text and `str` fields go as they are, and each
+    ## other field is displayed alone into one format buffer of the function, which the
+    ## pieces share. The pieces go through a buffer of their own that goes out as it passes
+    ## half full and at the end (`lb_stream_put`, `core.stream_put`), as a native build
+    ## streams them: a field that prints writes before the line it is part of.
+    func stream_formatted(f: ast.Node*, diagnostic: bool) -> !:
         let line = self.tmp()
         try self.put("({ char ")
         try self.put_tmp("sb", line)
@@ -341,14 +391,12 @@ extend Emitter:
             part = p.next
             if p.kind == ast.Kind.format_text:
                 let text = literals.unescape_braces(literals.decode_text(p.text))
-                try self.put("lb_stream_put(&")
-                try self.put_tmp("sf", line)
-                try self.put(", ")
+                try self.stream_call("put", line, diagnostic)
                 try self.put_c_string(text)
                 try self.put(", ")
                 try self.put_u64((u64)text.length)
                 try self.put(", ")
-                try self.put(stream)
+                try self.put("2" if diagnostic else "stdout")
                 try self.put("); ")
                 continue
             if p.kind != ast.Kind.format_field:
@@ -374,20 +422,27 @@ extend Emitter:
                 try self.put("; lb_fmtbuf_finish(&")
                 try self.put_tmp("ff", n)
                 try self.put("); })")
-            try self.put("; lb_stream_put(&")
-            try self.put_tmp("sf", line)
-            try self.put(", ")
+            try self.put("; ")
+            try self.stream_call("put", line, diagnostic)
             try self.put_tmp("ps", k)
             try self.put(".data, ")
             try self.put_tmp("ps", k)
             try self.put(".length, ")
-            try self.put(stream)
+            try self.put("2" if diagnostic else "stdout")
             try self.put("); } ")
-        try self.put("lb_stream_flush(&")
-        try self.put_tmp("sf", line)
-        try self.put(", ")
-        try self.put(stream)
+        try self.stream_call("flush", line, diagnostic)
+        try self.put("2" if diagnostic else "stdout")
         try self.put("); (void)0; })")
+
+    ## The start of a call that streams through buffer `line`, `put` or `flush`, up to
+    ## its next argument: the runtime's for `stdout`, `core`'s for the diagnostic.
+    func stream_call(which: str, line: u32, diagnostic: bool) -> !:
+        if diagnostic:
+            try self.put("lb_core_10stream_put((struct lb_core_FormatBuffer*)&" if which == "put" else "lb_core_12stream_flush((struct lb_core_FormatBuffer*)&")
+        else:
+            try self.put("lb_stream_put(&" if which == "put" else "lb_stream_flush(&")
+        try self.put_tmp("sf", line)
+        try self.put(", (const uint8_t*)" if diagnostic and which == "put" else ", ")
 
     ## `strings.format(buffer, text)` into the caller's bytes, yielding `str!`.
     func format_call(buf: ast.Node*, msg: ast.Node*) -> !:

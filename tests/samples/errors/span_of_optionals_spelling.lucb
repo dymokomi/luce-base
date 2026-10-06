@@ -1,0 +1,4 @@
+# error: expected `bool`, got `(i32?)[]`
+# An optional element is parenthesised under `[]`, since `?` suffixes the whole type before it.
+func f(values: (i32?)[]) -> bool:
+    return values

@@ -1,0 +1,5 @@
+# error: this value is not hashable
+## §7.4: a span compares by its elements but does not hash, since what it views may change.
+pub func main(arguments: str[]) -> i32:
+    let bytes: const u8[] = "ab".bytes
+    return i32(bytes.hash() % 2)

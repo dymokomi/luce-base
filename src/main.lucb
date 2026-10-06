@@ -293,12 +293,28 @@ func generate_library(path: c.str) -> (str, str)!:
     try header.write(&checker, &text)
     return (code, try names.keep(&text))
 
+## The project root as the sources are spelled, which positions name a source relative to:
+## the manifest's root is found from the canonical path, the sources keep the spelling
+## they were given (`/var/...` where the root is `/private/var/...`), so the root is
+## spelled as `path` is when `path` ends the same way below it.
+var position_root: str = ""
+
+func spelled_root(path: str, canonical: str, root: str) -> str:
+    if root.length == 0 or canonical.length < root.length:
+        return root
+    let below = (str)canonical.bytes[root.length..]
+    if path.length >= below.length and (str)path.bytes[path.length - below.length..] == below:
+        return (str)path.bytes[..<path.length - below.length]
+    return root
+
 ## The program at `path`, checked, with its warnings reported.
 func checked(path: c.str, test_build: bool = false, whole_package: bool = false) -> check.Checker!:
     cache.begin()
-    let m = try manifest.load(try module_paths.canonical((str)path))
+    let canonical = try module_paths.canonical((str)path)
+    let m = try manifest.load(canonical)
     package = m
     cache.default_root = m.root
+    position_root = spelled_root((str)path, canonical, m.root)
     names.export_prefix = m.symbol_prefix
     var checker = try check.Checker.create(scratch_of())
     checker.debug_locals = debug_backend
@@ -322,8 +338,8 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
     if native_backend:
         # positions name a source relative to the project root, as the cache key does,
         # except in a debug or symbol build, which names (and keys) sources as they were read
-        let position_root = "" if debug_backend or symbols_backend else cache.default_root
-        var native = try backend.NativeBackend.over(checker, entry, debug_backend and not symbols_backend, diagnostic_profile, symbols_backend, position_root)
+        let root = "" if debug_backend or symbols_backend else position_root
+        var native = try backend.NativeBackend.over(checker, entry, debug_backend and not symbols_backend, diagnostic_profile, symbols_backend, root)
         native.dump_ir = dump_ir
         native.opt_level = opt_level
         native.opt_count = opt_count
@@ -335,7 +351,7 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
         split_ending = native.ending
         split_tags = native.tags
         return text
-    var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile)
+    var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile, position_root)
     let target: backend.Backend = &host_c
     return try target.compile(mode)
 
@@ -976,11 +992,7 @@ func test_file(path: c.str, native: bool, whole_package: bool) -> i32!:
             try compile(&checker, entry, 1, kept, false, false)
             var kept_args: c.str[1] = ---
             kept_args[0] = (c.str)kept
-            let finished = try process.run((c.str)kept, kept_args)
-            defer finished.release()
-            try io.stdout().write(finished.value.output)
-            try io.stderr().write(finished.value.error_output)
-            return finished.value.exit_code
+            return try process.call((c.str)kept, kept_args)
         let directory = try scratch_directory()
         defer remove_tree((c.str)directory)
         let exe_name = try new u8[directory.length + 16] ---
@@ -988,35 +1000,45 @@ func test_file(path: c.str, native: bool, whole_package: bool) -> i32!:
         try compile(&checker, entry, 1, exe, false, false)
         var run_args: c.str[1] = ---
         run_args[0] = (c.str)exe
-        let ran = try process.run((c.str)exe, run_args)
-        defer ran.release()
-        try io.stdout().write(ran.value.output)
-        try io.stderr().write(ran.value.error_output)
-        return ran.value.exit_code
+        # the runner writes to our streams as it goes: a report and a trap stay in order
+        return try process.call((c.str)exe, run_args)
 
-## `test`'s options after the file: the backend, `--native` (the default) or `--backend=c`,
-## the profile, `--profile diagnostic` or `--profile default` (§19.4), and `--package`, the
-## whole package (§16.5); none, after the usage, for anything else.
-func test_options(arguments: const c.str[]) -> (bool, bool, bool)?!:
-    var native = true
-    var diagnostic = false
-    var whole_package = false
+## `test`'s file and options, in any order: the backend, `--native` (the default) or
+## `--backend=c`, the profile, `--profile diagnostic` or `--profile default` (§19.4), and
+## `--package`, the whole package (§16.5); none, after the usage, for anything else or for
+## other than one file.
+func test_options(arguments: const c.str[]) -> TestOptions?!:
+    var options = TestOptions()
+    var count: usize = 0
     var i: usize = 0
     while i < arguments.length:
         let a = (str)arguments[i]
         let profile = (str)arguments[i + 1] if a == "--profile" and i + 1 < arguments.length else ""
         if a == "--backend=c":
-            native = false
+            options.native = false
         elif a == "--package":
-            whole_package = true
+            options.whole_package = true
         elif profile == "diagnostic" or profile == "default":
-            diagnostic = profile == "diagnostic"
+            options.diagnostic = profile == "diagnostic"
             i += 1
+        elif a.length > 0 and not starts_with(a, "-"):
+            options.file = arguments[i]
+            count += 1
         elif a != "--native" and a != "-W":
-            try usage(io.stderr())
-            return none
+            count = 0
+            break
         i += 1
-    return (native, diagnostic, whole_package)
+    if count != 1:
+        try usage(io.stderr())
+        return none
+    return options
+
+## What `luce-base test` was asked: the file and how to build its tests.
+struct TestOptions:
+    var file: c.str = ""
+    var native: bool = true
+    var diagnostic: bool = false
+    var whole_package: bool = false
 
 func remove_tree(path: c.str):
     files.remove_tree(path) catch failure:
@@ -1595,9 +1617,9 @@ pub func main(arguments: c.str[]) -> i32!:
             return 1
         return 0
     if command == "test" and positional >= 3:
-        let (native, diagnostic, whole_package) = try test_options(arguments[3..]) else return 2
-        diagnostic_profile = diagnostic
-        let code = test_file(arguments[2], native, whole_package) catch failure:
+        let options = try test_options(arguments[2..]) else return 2
+        diagnostic_profile = options.diagnostic
+        let code = test_file(options.file, options.native, options.whole_package) catch failure:
             try report_failure(failure.message)
             recover 1
         return code

@@ -143,6 +143,9 @@ pub struct Emitter:
     var sink_index: u32
     ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
     pub var diagnostic: bool
+    ## The project root, with its trailing slash, that positions name a source relative to,
+    ## as a native build's do; empty to name sources as they were read.
+    pub var position_root: str = ""
     ## Inside a top-level initialiser (§6.4): arithmetic and casts are C's own constant
     ## operators, since the helpers that trap are not constant expressions to C.
     var folding: bool
@@ -231,11 +234,19 @@ pub struct Emitter:
         if let f = self.current_fn:
             if let s = instances.source_unit_of(self.c, f, self.src_file):
                 let (mf, ml, mc) = s.mapped(n.line, s.statement_column(n.line))
-                file = mf
+                # a directive's file is the source's own text, named as it says
+                file = mf if s.directed(n.line) else self.under_root(mf)
                 line = ml
                 column = mc
         let room = try new u8[file.length + 24] ---
         return try strings.format(room, f"{file}:{line}:{column}")
+
+    ## `path` relative to `position_root` when under it.
+    func under_root(path: str) -> str:
+        let root = self.position_root
+        if root.length > 0 and path.length > root.length and (str)path.bytes[..<root.length] == root:
+            return (str)path.bytes[root.length..]
+        return path
 
     ## A float's bits as a hexadecimal float literal, `0x1.8p+1f`: exact in C, whatever the
     ## value, a subnormal included; `f` and `f16` name the narrower widths.

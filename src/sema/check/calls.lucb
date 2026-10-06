@@ -629,14 +629,62 @@ extend Checker:
             _ = try self.expect(v, want)
             a.resolved = f
             cursor = a.next
-        # a field with a default or a zero value may be omitted; every other field is required
+        # a field with a default or a zero value may be omitted, a struct field that has a
+        # zero value by its own defaults receiving `Field()`; every other field is required
         var member = d.body
         while let f = member:
-            if f.kind == ast.Kind.field and f.left == none and not self.table.zeroable(try self.substitute(f.type_id, d, t.args)):
-                if not argument_names(args, f, d):
-                    return try self.fail(e, "a required field is missing")
             member = f.next
+            if f.kind != ast.Kind.field or f.left != none:
+                continue
+            let ft = try self.substitute(f.type_id, d, t.args)
+            if self.table.zeroable(ft) or argument_names(args, f, d):
+                continue
+            if not try self.has_zero_value(ft):
+                var said20: u8[256]
+                return try self.fail(e, said(said20, f"field `{f.text}` of `{d.text}` is required: it has no default and its type no zero value"))
+            let argument = try ast.Node.make(ast.Kind.argument, f.text, e.start, e.line)
+            argument.left = try self.zero_construction(ft, e)
+            argument.resolved = f
+            argument.type_id = ft
+            append_argument(e, argument)
         return id
+
+    ## Whether `T` has a zero value, which `var x: T` holds (§6.1): a zeroable type, or a
+    ## struct with no `init` of its own whose every field has a default or a zero value.
+    pub func has_zero_value(id: u32) -> bool!:
+        if self.table.zeroable(id):
+            return true
+        return try self.undefaulted_field(id) == none and self.table.kind(id) == types.Kind.struct_
+
+    ## The first field of struct `id` with neither a default nor a zero value, which keeps
+    ## the struct from having a zero value; none when every field has one, or when `id` is
+    ## no struct or has its own `init` (the struct itself is then what has none).
+    pub func undefaulted_field(id: u32) -> ast.Node*?!:
+        let t = self.table.get(id)
+        if t.kind != types.Kind.struct_:
+            return none
+        let d = t.decl else return none
+        if find_member(d, "init", ast.Kind.func_) != none:
+            return none
+        var member = d.body
+        while let f = member:
+            member = f.next
+            if f.kind == ast.Kind.field and f.left == none and not try self.has_zero_value(try self.substitute(f.type_id, d, t.args)):
+                return f
+        return none
+
+    ## `T()` for a struct `T` that has a zero value by its defaults, checked: the value
+    ## a `var` without one, or an omitted field, holds (§6.1).
+    pub func zero_construction(id: u32, at: ast.Node*) -> ast.Node*!:
+        let d = self.table.get(id).decl else return try self.fail(at, "no declaration")
+        let callee = try ast.Node.make(ast.Kind.name, d.text, at.start, at.line)
+        callee.flags |= ast.flag_type_ref
+        callee.resolved = d
+        callee.type_id = id
+        let call = try ast.Node.make(ast.Kind.call, "", at.start, at.line)
+        call.left = callee
+        call.type_id = try self.construct(call, id, none)
+        return call
 
     ## A default argument that is `luce.line`, `luce.file`, or `luce.function` expands at
     ## the call site (§6.4): the call gains a named argument holding the fact as a literal.

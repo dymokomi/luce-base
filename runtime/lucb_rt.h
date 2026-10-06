@@ -40,6 +40,8 @@ extern _Thread_local const char* lb_pos;
 static inline void lb_restore_pos(const char** saved) {
     lb_pos = *saved;
 }
+/* The trap entry points: the generated program defines them, each calling `core`'s trap at
+   `lb_pos`, so a trap writes the crash report and runs the crash handler (base.md §8.7). */
 LB_NORETURN void lb_trap(const char* message);
 LB_NORETURN void lb_trap_two(const char* message, const char* detail);
 void lb_pause(void);
@@ -547,7 +549,7 @@ typedef struct lb_str {
 /* Base diagnostic messages are byte spans, not NUL-terminated C strings. */
 LB_NORETURN void lb_trap_text(lb_str message);
 LB_NORETURN void lb_trap_detail(const char* prefix, lb_str detail);
-/* A streamed trap message: a begin, its pieces written to stderr, then the end. */
+/* A streamed trap message: a begin, its pieces streamed through `core`, then the end. */
 void lb_trap_begin(void);
 LB_NORETURN void lb_trap_end(void);
 

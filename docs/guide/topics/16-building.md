@@ -177,8 +177,8 @@ also ask for two things to follow a crash, much as macOS's crash reporter does f
   luce-ui does this for every UI application, so a Base or Luce program with a window gets a
   crash window without writing any of it.
 
-Nothing is sent anywhere: the reports stay in `~/.luce/crashes`. Under `--backend=c` a trap
-goes through the C runtime and writes no report; build with the native backend, the default.
+Nothing is sent anywhere: the reports stay in `~/.luce/crashes`. Both backends write them:
+a trap in a `--backend=c` build goes through the same `core` code as a native one.
 
 ### Looking at the generated code
 

@@ -3,7 +3,6 @@ import allocator
 import memory
 import strings
 import luce_std.paths
-import io
 import luce_std.unicode
 
 func text_work() -> !:
@@ -64,24 +63,6 @@ func text_work() -> !:
         assert(path.value == expected[i])
         path.release()
 
-func builder_work(other: memory.Allocator) -> !:
-    var builder = try strings.Builder.create(4)
-    defer builder.destroy()
-    var count: usize = 0
-    while count < 80:
-        with other:
-            builder.put("abcdef") catch failure:
-                let before = builder.view()
-                assert(before.length == count * 6)
-                for b in before.bytes:
-                    assert(b >= 'a' and b <= 'f')
-                error(failure.code, failure.message)
-        count += 1
-    assert(builder.view().length == 480)
-    builder.clear()
-    try builder.put("reused")
-    assert(builder.view() == "reused")
-
 func arena_work(owner: memory.Allocator, other: memory.Allocator) -> !:
     var arena = try memory.Arena.over(owner, 128)
     with other:
@@ -108,76 +89,6 @@ func grow_work() -> !:
     for b in block[..<8]:
         assert(b == 23)
 
-func builder_alias_work() -> !:
-    var builder = try strings.Builder.create(4)
-    defer builder.destroy()
-    try builder.put("abc")
-    let original = builder.view()
-    builder.put(original) catch failure:
-        assert(builder.view() == "abc")
-        error(failure.code, failure.message)
-    assert(builder.view() == "abcabc")
-    let middle = builder.view().bytes[1..<5]
-    builder.write(middle) catch failure:
-        assert(builder.view() == "abcabc")
-        error(failure.code, failure.message)
-    assert(builder.view() == "abcabcbcab")
-    var caught = false
-    builder.reserve(18446744073709551615) catch failure:
-        assert(failure.code == memory.exhausted)
-        caught = true
-    assert(caught and builder.view() == "abcabcbcab")
-    try builder.truncate(3)
-    assert(builder.view() == "abc")
-    caught = false
-    builder.truncate(4) catch failure:
-        assert(failure.code == io.invalid_buffer)
-        caught = true
-    assert(caught and builder.view() == "abc")
-    try builder.truncate(0)
-    assert(builder.view() == "")
-    builder.destroy()
-    builder.destroy()
-    caught = false
-    builder.put("x") catch failure:
-        assert(failure.code == io.closed)
-        caught = true
-    assert(caught)
-    caught = false
-    builder.truncate(0) catch failure:
-        assert(failure.code == io.closed)
-        caught = true
-    assert(caught)
-
-func builder_capacity_work(owner: allocator.Failing*) -> !:
-    let before = owner.attempts
-    var builder = try strings.Builder.create(4)
-    defer builder.destroy()
-    assert(builder.capacity() == 4 and builder.length() == 0)
-    try builder.put("abcd")
-    try builder.reserve(0)
-    assert(builder.length() == 4 and builder.view() == "abcd")
-    assert(owner.attempts == before + 1, "usable capacity unexpectedly needed another allocation")
-    builder.reserve(1) catch failure:
-        assert(builder.capacity() == 4 and builder.length() == 4 and builder.view() == "abcd")
-        error(failure.code, failure.message)
-    assert(builder.capacity() >= 5 and builder.length() == 4)
-    try builder.put("e")
-    assert(builder.length() == 5 and builder.view() == "abcde")
-    builder.clear()
-    assert(builder.length() == 0 and builder.capacity() >= 5)
-    builder.destroy()
-    assert(builder.length() == 0 and builder.capacity() == 0 and builder.view() == "")
-    var default_builder = try strings.Builder.create()
-    defer default_builder.destroy()
-    assert(default_builder.capacity() == 64)
-    var overflow = false
-    _ = strings.Builder.create(18446744073709551615) catch failure:
-        assert(failure.code == memory.exhausted)
-        overflow = true
-        recover default_builder
-    assert(overflow)
-
 func attempt(which: i32, fail_at: usize) -> usize:
     var owner = allocator.Failing.at(fail_at)
     var other = allocator.Failing.at(1)
@@ -189,27 +100,12 @@ func attempt(which: i32, fail_at: usize) -> usize:
                 rejected = true
                 recover ()
         elif which == 1:
-            builder_work(&other) catch failure:
-                assert(failure.code == memory.exhausted)
-                rejected = true
-                recover ()
-        elif which == 2:
             arena_work(&owner, &other) catch failure:
                 assert(failure.code == memory.exhausted)
                 rejected = true
                 recover ()
-        elif which == 3:
-            grow_work() catch failure:
-                assert(failure.code == memory.exhausted)
-                rejected = true
-                recover ()
-        elif which == 4:
-            builder_alias_work() catch failure:
-                assert(failure.code == memory.exhausted)
-                rejected = true
-                recover ()
         else:
-            builder_capacity_work(&owner) catch failure:
+            grow_work() catch failure:
                 assert(failure.code == memory.exhausted)
                 rejected = true
                 recover ()
@@ -222,7 +118,7 @@ func attempt(which: i32, fail_at: usize) -> usize:
 
 pub func main(arguments: str[]) -> i32:
     var which: i32 = 0
-    while which < 6:
+    while which < 3:
         let steps = attempt(which, 0)
         var i: usize = 1
         while i <= steps:

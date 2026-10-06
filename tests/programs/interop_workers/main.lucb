@@ -189,6 +189,36 @@ func cancel_output() -> !:
     # One reply fills the bounded output queue; the second producer must wake.
     worker.close()
 
+## `try_receive` answers at once, none while the reply is not ready; `receive_within`
+## gives up after its time with none, and answers a reply that comes within it; both fail
+## with worker_closed once the worker is cancelled.
+func polling() -> !:
+    entered.store(0, .relaxed)
+    var worker = try start()
+    assert(try worker.try_receive() == none)
+    let started = time.now()
+    assert(try worker.receive_within(30) == none)
+    assert(time.now() - started >= 30000000)
+    try worker.send("first")
+    let waited = try worker.receive_within(5000) else trap("no reply within five seconds")
+    assert((try waited.get()) == "base:first:1")
+    waited.release()
+    try worker.send("second")
+    wait_for(&entered, 2)
+    var polled: interop.Reply[str]? = none
+    let end = time.now() + 5000000000
+    while polled == none:
+        assert(time.now() < end)
+        polled = try worker.try_receive()
+    let reply = polled else trap("no reply")
+    assert((try reply.get()) == "base:second:2")
+    reply.release()
+    worker.cancel()
+    _ = worker.try_receive() catch failure:
+        assert(failure.code == interop.worker_closed)
+        recover none
+    worker.close()
+
 func startup_failures() -> !:
     let mark = ownership.mark()
     defer ownership.drain(mark)
@@ -215,6 +245,7 @@ pub func main(arguments: str[]) -> i32!:
     try cancel_active()
     try cancel_idle()
     try cancel_output()
+    try polling()
     try startup_failures()
-    assert(packets.load(.acquire) == 0 and disposed.load(.acquire) == 4)
+    assert(packets.load(.acquire) == 0 and disposed.load(.acquire) == 5)
     return ownership.finish_run(0)

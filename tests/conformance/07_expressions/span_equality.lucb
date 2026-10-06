@@ -1,0 +1,51 @@
+# oracle: none
+## §7.4: spans compare by their elements, as Python compares lists: the same length and
+## equal elements, each by its own `==` (floats by value, text by bytes, structs by fields),
+## whatever memory they view; a struct holding a span compares through it, and an array
+## beside a span compares as a span.
+struct Point:
+    var x: f64
+    var name: str
+
+struct Holder:
+    var bytes: const u8[]
+
+func show(label: str, value: bool):
+    print(f"{label}: {value}")
+
+pub func main(arguments: str[]) -> i32:
+    let a: u8[3] = [1, 2, 3]
+    let b: u8[3] = [1, 2, 3]
+    let first: const u8[] = a
+    let second: const u8[] = b
+    show("bytes", first == second)
+    show("prefix", first[..<2] == second)
+    show("different", first != second[1..])
+    var writable: u8[3] = [1, 2, 3]
+    let view: u8[] = writable
+    show("const and not", view == first)
+    let zeros: f64[2] = [0.0, 2.5]
+    let negative: f64[2] = [-0.0, 2.5]
+    let zs: const f64[] = zeros
+    let ns: const f64[] = negative
+    show("signed zeros", zs == ns)
+    let nan: f64[1] = [0.0 / 0.0]
+    let nv: const f64[] = nan
+    show("nan", nv == nv)
+    let words: str[2] = ["a", "bc"]
+    let same: str[2] = ["a", "bc"]
+    let wv: const str[] = words
+    let sv: const str[] = same
+    show("text", wv == sv)
+    let points: Point[1] = [Point(x = 1.0, name = "p")]
+    let others: Point[1] = [Point(x = 1.0, name = "q")]
+    let pv: const Point[] = points
+    let ov: const Point[] = others
+    show("structs", pv == ov)
+    show("holders", Holder(bytes = "ab".bytes) == Holder(bytes = "ab".bytes))
+    let empty: const u8[] = "".bytes
+    show("empty", empty == first[..<0])
+    # an array beside a span compares as a span, either way round
+    show("array and span", a == second and second == a and view == b)
+    show("array and shorter span", a != second[..<2] and not (second[..<2] == a))
+    return 0

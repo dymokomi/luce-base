@@ -61,8 +61,8 @@ contents, or an allocation that some other code owns and frees.
 - `for character in text` gives each Unicode character as a `char`.
 - `==`, `!=` and the ordering operators compare bytes.
 - There is no `text[i]`, because a byte position is not a character position.
-- There is no `+`. Text is built by `strings.format` into a buffer you own, or with a
-  `strings.Builder`, which allocates.
+- There is no `+`. Text is built by `strings.format` into a buffer you own, or with
+  luce-std's `collections.Buffer`, which allocates.
 
 Converting bytes to text uses the two conversion forms of the language. `str(bytes)` checks
 that the bytes are valid UTF-8 and is fallible; `(str)bytes` does not check, and is for bytes

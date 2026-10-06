@@ -1,0 +1,15 @@
+# error: expected `const Rule*[]`, got `const (Rule*)[]`
+# A diagnostic spells each type so it reads back as that type: `const` qualifies the
+# innermost type (§5.3), so a read-only span of pointers is `const (Rule*)[]`, and a span
+# of pointers to read-only rules is `const Rule*[]`.
+struct Rule:
+    var id: i32
+
+func count(rules: const Rule*[]) -> usize:
+    return rules.length
+
+pub func main(arguments: str[]) -> i32:
+    var rule = Rule(id = 1)
+    let pointers: Rule*[1] = [&rule]
+    let view: const (Rule*)[] = pointers
+    return i32(count(view))

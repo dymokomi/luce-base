@@ -134,7 +134,10 @@ extend Emitter:
         if self.is_vector(t):
             try self.vector_binary(e, l, lt, r, rt, t)
             return
-        let ot = operand_type(lt, rt)
+        var ot = operand_type(lt, rt)
+        # an array beside a span compares as a span: lengths, then elements (§7.4)
+        if self.kind(lt) == types.Kind.array and self.kind(rt) == types.Kind.span:
+            ot = rt
         if op == "==" or op == "!=":
             try self.equality(l, lt, r, rt, ot, op == "!=")
         elif op == "<" or op == "<=" or op == ">" or op == ">=":
@@ -511,7 +514,7 @@ extend Emitter:
         try self.put_u64((u64)self.bits(t))
         try self.put("))")
 
-    ## `==` and `!=` over scalars, text, pointers, and tagged optionals.
+    ## `==` and `!=` over scalars, text, pointers, tagged optionals, and composite values.
     func equality(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, ot: u32, negate: bool) -> !:
         let l_none = l.kind == ast.Kind.literal and l.text == "none"
         let r_none = r.kind == ast.Kind.literal and r.text == "none"
@@ -551,7 +554,7 @@ extend Emitter:
             try self.put("; ")
             try self.same_text(try tmp_name("sa", n), try tmp_name("sb", n))
             try self.put("; })")
-        elif self.is_record(ot) or self.is_tuple(ot) or self.is_array(ot):
+        elif self.is_record(ot) or self.is_tuple(ot) or self.is_array(ot) or self.kind(ot) == types.Kind.span:
             let n = self.tmp()
             try self.put("({ ")
             try self.put_type(ot)

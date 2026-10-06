@@ -25,5 +25,6 @@ streams (`deadline_stream.lucb`), and TCP/UDP owners (`listener.lucb`,
 
 `strings/` separates common imports (`module.lucb`), byte searches (`search.lucb`),
 splitting (`split.lucb`), text transformations and owned text allocation
-(`transform.lucb`), bounded replacement (`replace.lucb`), numeric conversion (`numbers.lucb`), and the retained-allocator
-builder (`builder.lucb`). Its public import remains `strings`.
+(`transform.lucb`), bounded replacement (`replace.lucb`), numeric conversion (`numbers.lucb`),
+and the formatting of numbers (`floats.lucb`, `formatting.lucb`). Its public import remains
+`strings`. Growable text is luce-std's `collections.Buffer`: nothing in the runtime needs one.

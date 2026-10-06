@@ -7,6 +7,7 @@
 ## Build: luce-base build tests/programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal
 
 import c
+import luce_std.collections
 import objc
 import objc_runtime
 import strings
@@ -95,15 +96,14 @@ pub func main(arguments: str[]) -> i32!:
     _ = objc.send(command, "waitUntilCompleted")
     # read the squares back from the shared output buffer
     let results = (const f32*)contents(out_buffer)
-    var line: u8[512]
-    var writer = try strings.Builder.create(512)
+    var writer: collections.Buffer
+    defer writer.destroy()
     for i in 0..<count:
         if i > 0:
-            try writer.put(" ")
+            try writer.put_text(" ")
         var one: u8[32]
-        try writer.put((str)(try strings.format(one, f"{results[i]}")))
-    _ = line.length
-    print(f"squared on the GPU: {writer.view()}")
+        try writer.put_text(try strings.format(one, f"{results[i]}"))
+    print(f"squared on the GPU: {writer.text()}")
     return 0
 
 ## `[encoder setBuffer: b offset: 0 atIndex: i]`.

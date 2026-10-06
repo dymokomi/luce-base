@@ -62,14 +62,12 @@ such as `Comparable`), `c` (C's types) and `testing`.
 
 ```luce
 import io
-from strings import Builder
+import strings
 
 pub func main(arguments: str[]) -> i32!:
-    var text = try Builder.create()
-    defer text.destroy()
-    _ = try text.write("built ")
-    _ = try text.write(f"in {2} steps")
-    _ = try io.stdout().write(text.view().bytes)
+    var room: u8[64]
+    let text = try strings.format(room, f"built in {2} steps")
+    _ = try io.stdout().write(text.bytes)
     print("")
     return 0
 ```

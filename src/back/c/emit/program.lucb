@@ -56,6 +56,7 @@ extend Emitter:
         try self.out.put_bytes(self.body.bytes())
         try self.line("")
         try self.runtime_globals_initialiser()
+        try self.trap_entries()
         if mode == 1:
             try self.test_runner()
         elif mode == 2:
@@ -485,6 +486,19 @@ extend Emitter:
         self.current_fn = saved_fn
         self.src_file = saved_file
 
+    ## The runtime's trap entry points (`lucb_rt.h`), which the checked arithmetic and the
+    ## generated code call: each is `core`'s, at the running statement's position, so a trap
+    ## in a C build writes the crash report and runs the crash handler as a native one does.
+    func trap_entries() -> !:
+        try self.line("#define LB_AT ((char*)(lb_pos != NULL ? lb_pos : \"\"))")
+        try self.line("void lb_trap(const char* message) { lb_core_7trap_at(LB_AT, (char*)message); __builtin_unreachable(); }")
+        try self.line("void lb_trap_two(const char* message, const char* detail) { lb_core_11trap_two_at(LB_AT, (char*)message, (char*)detail); __builtin_unreachable(); }")
+        try self.line("void lb_trap_text(lb_str message) { lb_core_12trap_text_at(LB_AT, message); __builtin_unreachable(); }")
+        try self.line("void lb_trap_detail(const char* prefix, lb_str detail) { lb_core_14trap_detail_at(LB_AT, (char*)prefix, detail); __builtin_unreachable(); }")
+        try self.line("void lb_trap_begin(void) { lb_core_13trap_begin_at(LB_AT); }")
+        try self.line("void lb_trap_end(void) { lb_core_8trap_end(); __builtin_unreachable(); }")
+        try self.line("#undef LB_AT")
+
     ## `main` for a program with `main(arguments)`: the C strings become `str` or `c.str` items.
     func main_shim(f: ast.Node*) -> !:
         let ft = self.c.table.get(f.type_id)
@@ -541,20 +555,19 @@ extend Emitter:
         try self.line("int main(void) {")
         try self.line("    lb_core_13process_start();")
         try self.startup_lines()
-        try self.line("    int failed = 0;")
         var i: usize = 0
         while i < self.tests.count:
             let t = self.tests.get(i)
             let name = literals.decode_text(t.text)
-            try self.line("    { lb_testing_begin(")
-            try self.put_u64((u64)i)
-            try self.put("); lb_r_unit r = lb_test_")
-            try self.put_u64((u64)i)
-            try self.put("(); lb_testing_end(); failed += r.failed; lb_core_11test_report((lb_str){ ")
+            try self.line("    { lb_core_10test_start((lb_str){ ")
             try self.put_c_string(name)
             try self.put(", ")
             try self.put_u64((u64)name.length)
-            try self.put(" }, r.failed, ")
+            try self.put(" }); lb_testing_begin(")
+            try self.put_u64((u64)i)
+            try self.put("); lb_r_unit r = lb_test_")
+            try self.put_u64((u64)i)
+            try self.put("(); lb_testing_end(); lb_core_11test_report(r.failed, ")
             # where a test failing by an error is reported, the test's own place (§16.5)
             let saved = self.current_fn
             self.current_fn = t
@@ -562,9 +575,7 @@ extend Emitter:
             self.current_fn = saved
             try self.put(", r.failed ? r.error.message : (lb_str){ 0 }); }")
             i += 1
-        try self.line("    return lb_core_12test_summary(")
-        try self.put_u64((u64)self.tests.count)
-        try self.put(", failed);")
+        try self.line("    return lb_core_12test_summary();")
         try self.line("}")
 
     ## The generated C, once `program` has run.

@@ -127,9 +127,11 @@ with tempfile.TemporaryDirectory() as directory:
         assert result.returncode == 1 and result.stdout.splitlines() == package, \
             f"FAIL: test src/main.lucb --package {backend}: {result.returncode} {result.stdout}{result.stderr}"
         trapped = run(root, "test", "traps/main.lucb", backend, ok=False)
-        assert trapped.returncode == 1 and trapped.stdout == "" and "traps/main.lucb:2:5: assert failed: n > 0" in trapped.stderr, \
+        # a trap ends the run with the test named and the tally so far (§16.5)
+        assert trapped.returncode == 1 and trapped.stdout.splitlines()[-2:] == ["0 passed", "1 failed"] \
+            and "FAIL  " in trapped.stdout and "traps/main.lucb:2:5: assert failed: n > 0" in trapped.stderr, \
             f"FAIL: a helper's assert {backend}: {trapped.returncode} {trapped.stdout}{trapped.stderr}"
     refused = run(root, "check", "tests/names_test_only.lucb", ok=False)
     assert refused.returncode != 0 and "only_in_tests" in refused.stderr, \
         f"FAIL: a build read the test fragments: {refused.returncode} {refused.stderr}"
-print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests, --package every module's, a test's assert fails it")
+print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests, --package every module's, a test's assert fails it, a trap names its test")

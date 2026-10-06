@@ -216,7 +216,7 @@ A span has a fixed length. For storage that grows as values arrive, like Python'
   outlive the buffer it was read from.
 
 A zero value of each is empty and ready to use. The first growth takes the current allocator
-and keeps it, as `strings.Builder` does, and `destroy` gives the storage back. When a list
+and keeps it, and `destroy` gives the storage back. When a list
 grows, its capacity at least doubles and the values move, so a view is valid only until the
 next `append`, `insert` or `reserve`:
 

@@ -88,7 +88,10 @@ be representable at the Base boundary; managed collections remain outside this
 worker bridge. No source-thread object is retained by a worker descriptor.
 
 `send` waits for input capacity; `try_send` reports `worker_busy` instead.
-`receive` transfers one `Reply[R]`, in accepted-message order. A reply owns either
+`receive` transfers one `Reply[R]`, in accepted-message order, waiting for it;
+`try_receive` answers `none` at once when no reply is ready, for a controller that polls
+once a frame, and `receive_within(milliseconds)` waits at most about that long before
+answering `none`, like Python's `queue.get(timeout=...)`. A reply owns either
 its copied successful payload or copied failure text; `get` borrows and `release`
 ends that obligation. A handler failure affects its message, and later messages
 can still run. Native package wrappers copy results into `Outcome` on the receiving

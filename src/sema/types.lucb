@@ -725,8 +725,20 @@ pub struct Table:
     ## The type a suffix (`*`, `[]`, `[N]`, `?`) follows: an atomic one in parentheses,
     ## since `@` covers the whole type after it (§15.1): `(@u64)*` points to an atomic,
     ## where `@u64*` is an atomic pointer.
-    func describe_element(out: io.Writer, elem: u32) -> !:
-        if self.kind(elem) == Kind.atomic:
+    ## The element of a pointer, span, array or optional, parenthesised where it would
+    ## otherwise read as something else: under `const` or `volatile`, which qualify the
+    ## innermost type (§5.3), a compound element, so `const (Rule*)[]` (a read-only span of
+    ## pointers) is not `const Rule*[]` (a span of pointers to read-only rules); an optional
+    ## under `[]` or `[N]`, `(c.str?)[3]`, or under `*` unless it is a nullable pointer
+    ## (`Link*?*`); a function type, whose result would take the suffix; and an atomic.
+    func describe_element(out: io.Writer, elem: u32, qualified: bool, parent: Kind) -> !:
+        let e = self.get(elem)
+        var grouped = e.kind == Kind.atomic or e.kind == Kind.func_ or e.kind == Kind.fallible
+        if qualified and (e.kind == Kind.pointer or e.kind == Kind.span or e.kind == Kind.array or e.kind == Kind.optional):
+            grouped = true
+        if e.kind == Kind.optional and parent != Kind.optional:
+            grouped = grouped or parent != Kind.pointer or self.kind(e.elem) != Kind.pointer
+        if grouped:
             try out.write("(")
             try self.describe(out, elem)
             try out.write(")")
@@ -742,18 +754,18 @@ pub struct Table:
                     try out.write("const ")
                 if t.is_volatile:
                     try out.write("volatile ")
-                try self.describe_element(out, t.elem)
+                try self.describe_element(out, t.elem, t.is_const or t.is_volatile, t.kind)
                 try out.write("*")
             .span:
                 if t.is_const:
                     try out.write("const ")
-                try self.describe_element(out, t.elem)
+                try self.describe_element(out, t.elem, t.is_const, t.kind)
                 try out.write("[]")
             .array:
-                try self.describe_element(out, t.elem)
+                try self.describe_element(out, t.elem, false, t.kind)
                 try out.write(f"[{t.length}]")
             .optional:
-                try self.describe_element(out, t.elem)
+                try self.describe_element(out, t.elem, false, t.kind)
                 try out.write("?")
             .fallible:
                 if t.elem != unit_id:

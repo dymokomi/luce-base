@@ -30,7 +30,9 @@ and wasmtime on macOS, and wasi-sdk with wasmtime on Linux, naming the SDK in `W
 Every dependency is checked out at main: there are no commit pins.
 `tools/checkout_main.py REPOSITORY [TOOL...]` clones, beside REPOSITORY, every package its
 package.prisma files name by `path` (and theirs, and this compiler's own luce-std), each
-from main; a sibling already present is used as it is. Every dymokomi repository's CI starts
+from main; a sibling already present is used as it is. A TOOL is named by its repository
+(`luce`, or `../luce` from inside REPOSITORY) and is always REPOSITORY's sibling, whatever
+directory the script runs from. Every dymokomi repository's CI starts
 the same way: clone luce-base's main, run this script, build the compilers it needs from
 those checkouts. Versions are fixed only when a batch of releases is cut.
 

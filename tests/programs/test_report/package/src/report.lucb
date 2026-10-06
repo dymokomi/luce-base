@@ -1,0 +1,17 @@
+## Tests whose report `check.sh` reads: one passes, one fails by its `assert`, one traps
+## in a function it calls, which ends the run, and one is never reached.
+func third(items: const i64[]) -> i64:
+    return items[2]
+
+test "two and two":
+    assert(2 + 2 == 4)
+
+test "a false assert":
+    assert(1 + 1 == 3, "arithmetic")
+
+test "reads past the end":
+    let pair: i64[2] = [1, 2]
+    _ = third(pair)
+
+test "never reached":
+    assert(true)

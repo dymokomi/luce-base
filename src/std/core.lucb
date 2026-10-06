@@ -51,7 +51,7 @@ extern func strlen(text: c.str) -> usize
 
 ## Stop the program with its reason on stderr (§8.7).
 pub func trap(message: c.str) -> never:
-    begin_crash_report()
+    begin_trap()
     write_diagnostic("trap: ".bytes)
     write_diagnostic(((str)message).bytes)
     write_diagnostic("\n".bytes)
@@ -76,7 +76,7 @@ pub func trap_two_at(position: c.str, message: c.str, detail: c.str) -> never:
 
 ## Unpositioned diagnostic with NUL-terminated C strings.
 pub func trap_two(message: c.str, detail: c.str) -> never:
-    begin_crash_report()
+    begin_trap()
     write_diagnostic("trap: ".bytes)
     write_diagnostic(((str)message).bytes)
     write_diagnostic(": ".bytes)
@@ -112,22 +112,27 @@ pub func trap_detail_at(position: c.str, message: c.str, detail: str) -> never:
     write_diagnostic("\n".bytes)
     finish_trap()
 
-## A trap at a position given as Base text: how the value language's runtime stops.
+## A trap at a position given as Base text, none when it is empty: how the value
+## language's runtime and its interpreter stop.
 pub func trap_located(position: str, message: str) -> never:
-    begin_crash_report()
+    begin_trap()
     write_diagnostic("trap: ".bytes)
-    write_diagnostic(position.bytes)
-    write_diagnostic(": ".bytes)
+    if position.length > 0:
+        write_diagnostic(position.bytes)
+        write_diagnostic(": ".bytes)
     write_diagnostic(message.bytes)
     write_diagnostic("\n".bytes)
     finish_trap()
 
+## `trap: file:line:column: `, or `trap: ` when the position is empty (a C build's code
+## before its first statement).
 func diagnostic_location(position: c.str):
-    begin_crash_report()
+    begin_trap()
     write_diagnostic("trap: ".bytes)
     let location = (str)position
-    write_diagnostic(location.bytes)
-    write_diagnostic(": ".bytes)
+    if location.length > 0:
+        write_diagnostic(location.bytes)
+        write_diagnostic(": ".bytes)
 
 ## Panic reporting cannot raise another language error. The diagnostic goes to
 ## stderr and, when crash reports are on, to the report as well.
@@ -222,6 +227,24 @@ pub func set_crash_handler(handler: (func(i32) -> unit)?):
     crash_handler = handler
 
 ## Open the report, if reports are on and it is not open yet, and write its header.
+## The start of every trap and fatal signal: the running test, if any, named as failed
+## (§16.5), then the crash report opened.
+func begin_trap():
+    if test_running.length > 0:
+        write_all(1, "FAIL  ".bytes)
+        write_all(1, test_running.bytes)
+        write_all(1, "\n".bytes)
+    begin_crash_report()
+
+## The end of a trap or fatal signal inside a test: the test counted as failed and the
+## tally of the tests run so far printed, since the run ends here (§16.5).
+func end_trapped_test():
+    if test_running.length == 0:
+        return
+    test_running = ""
+    tests_failed += 1
+    _ = test_summary()
+
 func begin_crash_report():
     if crash_file >= 0 or crash_path[0] == 0 or platform.wasm32:
         return
@@ -243,6 +266,7 @@ func begin_crash_report():
 
 ## Finish a trap: the stack into the report, close it, the crash handler, and exit.
 func finish_trap() -> never:
+    end_trapped_test()
     finish_crash_report(trap_registers())
     if let handler = crash_handler:
         handler(0)
@@ -564,10 +588,11 @@ pub func report_fatal_signal_in(name: str, number: i32, context: const void*?) -
             write_all(crash_file, "(the walk stopped at a frame it could not read)\n".bytes)
             close_crash_report()
         c_quick_exit(128 + number)
-    begin_crash_report()
+    begin_trap()
     write_diagnostic("trap: fatal signal ".bytes)
     write_diagnostic(name.bytes)
     write_diagnostic("\n".bytes)
+    end_trapped_test()
     crash_context = context
     if let interrupted = context:
         finish_crash_report(context_registers(interrupted))
@@ -811,23 +836,57 @@ pub func test_assert(position: c.str, text: c.str, detail: str, detailed: bool) 
         recover condition
     error(assert_failed, message)
 
-## The test runner's report line: `ok`, or `FAIL` with the place and the message on the next
-## line, the place being the failed `assert`'s or else the test's own, `at` (§16.5).
-pub func test_report(name: str, failed: bool, at: c.str, message: str):
-    var bytes: u8[1024] = ---
+## The test the runner is running, empty between tests, and the tally so far: a trap or
+## fatal signal in a test names it as failed and prints the tally before the run ends.
+var test_running: str = ""
+var tests_passed: i32 = 0
+var tests_failed: i32 = 0
+
+## The runner starts the test named `name`.
+pub func test_start(name: str):
+    test_running = name
+
+## The test runner's report line for the test that ran: `ok`, or `FAIL` with the place and
+## the message on the next line, the place being the failed `assert`'s or else the test's
+## own, `at` (§16.5).
+pub func test_report(failed: bool, at: c.str, message: str):
     let place = (str)(assert_position if ((str)assert_position).length > 0 else at)
     assert_position = ""
-    let line = strings.format(bytes, f"FAIL  {name}\n      {place}: {message}\n" if failed else f"ok    {name}\n") catch:
-        return
-    _ = write(1, line.bytes.data, line.length)
+    test_result(failed, place, message)
 
-## Print a test run's tally, the failures counted when there are any; the process exit status.
-pub func test_summary(total: i32, failed: i32) -> i32:
-    var bytes: u8[64] = ---
-    let line = strings.format(bytes, f"{total - failed} passed\n{failed} failed\n" if failed > 0 else f"{total - failed} passed\n") catch:
-        return 1
-    _ = write(1, line.bytes.data, line.length)
-    return 0 if failed == 0 else 1
+## Report the test that ran and count it: `ok    name`, or `FAIL  name` and the indented
+## `place: message`. Luce's runners report through here too, so every runner prints alike.
+pub func test_result(failed: bool, place: str, message: str):
+    let name = test_running
+    test_running = ""
+    if failed:
+        tests_failed += 1
+    else:
+        tests_passed += 1
+    if not failed:
+        write_all(1, "ok    ".bytes)
+        write_all(1, name.bytes)
+        write_all(1, "\n".bytes)
+        return
+    write_all(1, "FAIL  ".bytes)
+    write_all(1, name.bytes)
+    write_all(1, "\n      ".bytes)
+    write_all(1, place.bytes)
+    write_all(1, ": ".bytes)
+    write_all(1, message.bytes)
+    write_all(1, "\n".bytes)
+
+## Print the tally of the tests run, the failures counted when there are any; the process
+## exit status. Formats without the heap or `strings`, since a trap may print it.
+pub func test_summary() -> i32:
+    var line: u8[128] = ---
+    var used = put_decimal(line, 0, (usize)tests_passed)
+    used = put_text(line, used, " passed\n")
+    if tests_failed > 0:
+        used = put_decimal(line, used, (usize)tests_failed)
+        used = put_text(line, used, " failed\n")
+    write_all(1, line[..<used])
+    return 0 if tests_failed == 0 else 1
 
 ## `print`: the text and a newline on stdout; `answer()` programs print their number.
 pub func print_str(text: str):

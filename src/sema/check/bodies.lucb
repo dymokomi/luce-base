@@ -147,7 +147,7 @@ extend Checker:
     ## A struct, union, or enum body: field defaults, case values, conformance, methods.
     func check_type_body(d: ast.Node*) -> !:
         if let own = find_member(d, "hash", ast.Kind.func_):
-            if d.kind != ast.Kind.union_ and self.comparable(d.type_id):
+            if d.kind != ast.Kind.union_ and self.comparable(d.type_id, hashing = true):
                 try self.fail(own, "a hashable type's `hash()` is the one its fields give it (§7.4); name this method otherwise")
         if d.kind == ast.Kind.struct_ and not has_field(d):
             try self.fail(d, "a struct has at least one field, as in C (§10.1)")

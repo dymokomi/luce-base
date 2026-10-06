@@ -215,7 +215,7 @@ extend Checker:
                     return true
                 let sd = t.decl else return false
                 return t.kind == types.Kind.struct_ and find_member(sd, "compare", ast.Kind.func_) != none
-            return self.comparable(id)
+            return self.comparable(id, hashing = d.text == "Hashable")
         if d.has(ast.flag_builtin) and d.text == "Display":
             return self.printable(id) or self.displays_itself(id)
         if t.kind == types.Kind.interface_:

@@ -202,5 +202,5 @@ pub func main(arguments: str[]) -> i32!:
 21 bytes written
 ```
 
-`io.stdout()` and `io.stderr()` return `Writer`s for the standard streams, and
-`strings.Builder` is a `Writer` that collects text in memory.
+`io.stdout()` and `io.stderr()` return `Writer`s for the standard streams, and luce-std's
+`collections.Buffer` is a `Writer` that collects text in memory.

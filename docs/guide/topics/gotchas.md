@@ -55,7 +55,7 @@ chapter that explains it.
 - **`length` counts bytes**, not characters: `"café".length` is 5.
   [Types](02-types.md#text)
 - **A `str` cannot be indexed** by position, and **there is no `+`** to join strings. Use
-  `strings.format` into a buffer, or a `strings.Builder`.
+  `strings.format` into a buffer, or luce-std's `collections.Buffer`.
 - **A formatted string is not a value**: `let s = f"..."` is an error. It goes to `print`,
   `strings.format`, a `Writer` or a `fmt` parameter. [Types](02-types.md#formatted-strings)
 - **A format specification takes a number or text**: `{n:x}` and `{name:>8}` work, but a value

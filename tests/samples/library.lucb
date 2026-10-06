@@ -1,5 +1,6 @@
 ## The standard modules that are Base source: text, paths, numbers, time, and tests.
 
+import luce_std.collections
 import luce_std.math
 import luce_std.paths
 import strings
@@ -20,10 +21,10 @@ pub func main(arguments: str[]) -> i32!:
         let n = strings.parse_i64("-42") else 0
         let bad = strings.parse_i64("4x") else 7
         print(f"{n} {bad} {try strings.to_upper("Luce")}")
-        var b = try strings.Builder.create(8)
-        try b.put("one")
+        var b: collections.Buffer
+        try b.put_text("one")
         try b.write(f", {2}, {3.5}")
-        print(b.view())
+        print(b.text())
         print(f"{paths.directory("/usr/local/bin/cc")} {paths.base("/usr/local/bin/cc")} {paths.extension("src/main.lucb")} {paths.stem("src/main.lucb")}")
         let joined = try paths.join("src", "main.lucb")
         print(joined.value)

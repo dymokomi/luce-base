@@ -10,7 +10,6 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[3]
 COMPILER = Path(sys.argv[1]).resolve()
 ENVIRONMENT = dict(os.environ)
-ENVIRONMENT.pop("LB_TRACE", None)
 CASES = [(operation, kind, payload, b"evaluated\n")
          for operation in ("assert", "trap")
          for kind, payload in (("slice", b"ok"), ("empty", b""), ("nul", b"ok\0x"),

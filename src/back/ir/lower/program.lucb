@@ -270,42 +270,35 @@ extend Lowerer:
     ## The test runner's body: each test between `testing_begin` and `testing_end`, its
     ## outcome reported, and the summary's code in `exit_code`.
     func run_tests(exit_code: u32) -> !:
-        let failed_slot = try self.f.slot(4, 4)
-        try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(failed_slot))
         var i: usize = 0
         while i < self.tests.count:
-            try self.run_test(i, failed_slot)
+            try self.run_test(i)
             i += 1
-        let total = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
-        let s3 = u32(self.f.args.count)
-        try self.f.args.push(ir.Arg(value = ir.const_ref((i64)self.tests.count), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-        try self.f.args.push(ir.Arg(value = total, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-        let code = try self.call_named("lb_core_12test_summary", s3, 2, ir.Class.w, true, types.i32_id)
+        let code = try self.call_named("lb_core_12test_summary", u32(self.f.args.count), 0, ir.Class.w, true, types.i32_id)
         try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
 
-    ## Test `i`: run, reported by its title, its failure counted in `failed_slot`.
-    func run_test(i: usize, failed_slot: u32) -> !:
+    ## Test `i`: started by its title, run, and reported (`core.test_report` keeps the tally).
+    func run_test(i: usize) -> !:
         let t = self.tests.get(i)
+        let title = literals.decode_text(t.text)
+        let index = try self.program_unit.text(title)
+        let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
+        let s0 = u32(self.f.args.count)
+        try self.f.args.push(try self.arg_of(name))
+        _ = try self.call_named("lb_core_10test_start", s0, 1, ir.Class.w, false, types.unit_id)
         let s1 = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = ir.const_ref((i64)i), cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, shape = 0))
         _ = try self.call_named("lb_testing_begin", s1, 1, ir.Class.w, false, types.unit_id)
         let r = try self.call_aggregate(try self.test_name(u32(i)), u32(self.f.args.count), 0, try self.c.table.fallible(types.unit_id))
         _ = try self.call_named("lb_testing_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
-        let title = literals.decode_text(t.text)
-        let index = try self.program_unit.text(title)
-        let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
         let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
         let message = LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
         let place = try self.test_place(t)
         let s2 = u32(self.f.args.count)
-        try self.f.args.push(try self.arg_of(name))
         try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
         try self.f.args.push(ir.Arg(value = try self.f.address_of(place), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
         try self.f.args.push(try self.arg_of(message))
-        _ = try self.call_named("lb_core_11test_report", s2, 4, ir.Class.w, false, types.unit_id)
-        let old = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
-        let sum = try self.f.binary(ir.Op.add, ir.Class.w, old, failed)
-        try self.f.store(ir.Op.storew, sum, try self.slot_address(failed_slot))
+        _ = try self.call_named("lb_core_11test_report", s2, 3, ir.Class.w, false, types.unit_id)
 
     ## `file:line:column` of test `t`, where it is reported when it fails by an error (§16.5).
     func test_place(t: ast.Node*) -> ir.Ref!:

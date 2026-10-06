@@ -4,6 +4,7 @@
 ## through `destroy`, whatever allocator was current when each was made.
 import c
 import counting
+import luce_std.collections
 import luce_std.process
 import strings
 
@@ -24,15 +25,15 @@ pub func main(arguments: str[]) -> i32!:
         strings.release(upper)
         strings.release(copied)
         strings.release(joined)
-    var builder = strings.Builder.create(8) catch failure:
-        return 1
+    var builder: collections.Buffer
+    try builder.reserve(8)
     with counter:
         var i: usize = 0
         while i < 500:
-            try builder.put("ab")
+            try builder.put_text("ab")
             i += 1
-    # the builder grew in its own allocator, the heap, whatever was current meanwhile
-    print(f"{builder.view().length} {counter.live} {counter.bytes}")
+    # the buffer grew in the allocator of its first growth, the heap, whatever was current meanwhile
+    print(f"{builder.length()} {counter.live} {counter.bytes}")
     builder.destroy()
     counter.report("process_release")
     return 0

@@ -1,0 +1,10 @@
+# error: this type has no zero value: field `next` of `Link` has no default and its type no zero value
+## §6.1: a struct field with neither a default nor a zero value keeps `var s: S` illegal,
+## whatever defaults the other fields have.
+struct Link:
+    var next: i64*
+    var label: str = "x"
+
+pub func main(arguments: str[]) -> i32:
+    var link: Link
+    return 0

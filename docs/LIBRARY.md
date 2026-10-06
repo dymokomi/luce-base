@@ -430,6 +430,7 @@ A lock whose waiters sleep: zero is unlocked, so `var lock: Mutex` is ready to u
 A sequence number waiters watch; every signal advances it and wakes. A condition variable: waiters sleep until signalled.
 
 - `func wait(mutex: Mutex*)` — Release `mutex`, sleep until signalled, then reacquire it.
+- `func wait_for(mutex: Mutex*, milliseconds: u64)` — `wait`, giving up after about `milliseconds`; it may also return early, without a signal, so a caller rechecks its condition against its own deadline.
 - `func signal()` — Wake one waiter.
 - `func broadcast()` — Wake every waiter.
 
@@ -622,21 +623,6 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 - `func format_f64(value: f64, buffer: u8[]) -> str!` — The shortest decimal text that parse_f64 reads back as `value`, the closest to it of those, as double-conversion's ToShortest lays it out: decimal notation for a decimal exponent from -6 to 14 (`0.000001`, `123456789012345`, `1.5`), otherwise one digit, the rest after a point, and `e` with the exponent (`1e-7`, `1.2345e15`, `5e-324`); `-0`, `inf`, `-inf`, `nan` (no sign, no payload). Written into `buffer` (32 bytes always suffice), and a view of it; io.full when it does not fit, the buffer unchanged. Neither allocates, locale or rounding mode (float_text).
 
 - `func format_f32(value: f32, buffer: u8[]) -> str!` — The f32 counterpart of format_f64: the f32's own shortest digits (`0.1` for 0.1f32, not the digits of its f64 value).
-
-### `Builder` (struct : io.Writer)
-
-Text built piece by piece. The builder keeps the allocator that was current when it was created and grows in it, so it may cross `with` blocks and outlive them; `destroy` gives its bytes back to that allocator.
-
-- `Builder.create(capacity: usize = 0) -> Builder!` — Reserve this many usable text bytes plus the NUL terminator. Zero chooses a default of 64 usable bytes. Size overflow reports memory.exhausted before allocation. The builder retains the allocating context for its lifetime.
-- `func capacity() -> usize` — Usable text bytes before growth, excluding the terminator. Zero after destroy.
-- `func length() -> usize` — The initialized text length in bytes; querying it does not create a view.
-- `func reserve(additional: usize) -> !` — Ensure room for this many additional bytes and the NUL terminator. Growth uses the original allocator and preserves the old text if allocation fails. Growth invalidates borrowed views; a destroyed builder reports io.closed.
-- `func write(data: const u8[]) -> usize!` — Append bytes, including a view into this builder's current text. Preserve a self-view's offset before growth, then rebase it if the allocation moves. Aliased input must be wholly inside the initialized text, not spare capacity.
-- `func put(text: str) -> !` — Append `text` to the builder.
-- `func view() -> str` — The text so far, NUL-terminated in the buffer: a borrowed view, invalid after write, clear, growing reserve, or destroy. A destroyed builder has an empty view.
-- `func clear()` — Discard the contents, keeping the storage.
-- `func truncate(length: usize) -> !` — Shorten to a byte length without allocation. Reject lengths past the initialized text, preserving it on failure. This does not validate a UTF-8 boundary. Previously borrowed views expire; a destroyed builder is closed.
-- `func destroy()` — Give the bytes back; the builder is empty and holds nothing.
 
 - `func format(buffer: u8[], text: fmt) -> str!` — `text` written into `buffer`: the `str` over the bytes written (§5.5). Fails with `memory.exhausted` when the text does not fit, the bytes that fit written. The compiler writes the text where the call is, so this body never runs.
 
@@ -906,7 +892,9 @@ A bounded persistent worker: a uniquely-owned handle over a thread, its queues a
 - `func init(entry: WorkerEntry[C, M, R], configuration: C,` — Start `entry` on a new worker thread with `configuration`, waiting until it is ready.
 - `func send(message: M) -> !` — Post `message` to the worker, blocking while its input queue is full.
 - `func try_send(message: M) -> !` — Nonblocking backpressure: a full input queue returns worker_busy.
-- `func receive() -> Reply[R]!` — Replies preserve accepted-message order. Cancellation is terminal: queued replies are discarded by close, and blocked receivers wake with worker_closed.
+- `func receive() -> Reply[R]!` — The next reply, waiting for it. Replies preserve accepted-message order. Cancellation is terminal: queued replies are discarded by close, and blocked receivers wake with worker_closed.
+- `func try_receive() -> Reply[R]?!` — The next reply if one is ready, none if not: a receive that never waits, for a caller that polls, as a UI frame does.
+- `func receive_within(milliseconds: u64) -> Reply[R]?!` — The next reply, waiting at most about `milliseconds` for it; none when none came.
 - `func cancel()` — Ask the worker to stop; cancellation is terminal and wakes blocked callers.
 - `func close()` — Cancel the worker, join its thread, drain its queues, and free it.
 

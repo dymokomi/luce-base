@@ -152,6 +152,14 @@ extend Checker:
                 i += 1
             lines = l.next
 
+    ## `var x: T` where `T` has no zero value: what keeps it from one (§6.1).
+    func no_zero_value(s: ast.Node*, declared: u32) -> !:
+        var room: u8[512]
+        if let f = try self.undefaulted_field(declared):
+            let owner = self.table.get(declared).decl else return try self.fail(s, "this type has no zero value; give the `var` a value")
+            return try self.fail(s, said(room, f"this type has no zero value: field `{f.text}` of `{owner.text}` has no default and its type no zero value; give the field a default or the `var` a value"))
+        return try self.fail(s, "this type has no zero value; give the `var` a value")
+
     ## `let`/`var`, with a name or a tuple of names (§6.1).
     ## Whether `e` is a member of a `packed` struct whose natural alignment exceeds one:
     ## the address C would make undefined to dereference (§5.11).
@@ -250,7 +258,10 @@ extend Checker:
             if declared == types.none_id:
                 return try self.fail(s, "a `var` without a value needs a type")
             if not self.table.zeroable(declared):
-                return try self.fail(s, "this type has no zero value; give it one")
+                if not try self.has_zero_value(declared):
+                    return try self.no_zero_value(s, declared)
+                # a struct whose fields have defaults or zero values: `var s: S` is `S()`
+                s.left = try self.zero_construction(declared, s)
         s.type_id = id
         try self.bind(s, s.text, id, s, mutable)
         # `let s = &local` or `let s = local_array[..]`: the name inherits the escape taint

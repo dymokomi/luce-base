@@ -290,6 +290,9 @@ extend Lowerer:
             else:
                 ot = types.i64_id
         if op == "==" or op == "!=":
+            # an array beside a span compares as a span: lengths, then elements (§7.4)
+            if self.c.table.kind(lt) == types.Kind.array and self.c.table.kind(rt) == types.Kind.span:
+                ot = rt
             return try self.equality(l, lt, r, rt, ot, op == "!=")
         if op == "<" or op == "<=" or op == ">" or op == ">=":
             if ot == types.str_id:
@@ -597,6 +600,8 @@ extend Lowerer:
             return try self.fields_equal(a, b, d, tt.args)
         if tt.kind == types.Kind.array:
             return try self.array_equal(a, b, t, tt)
+        if tt.kind == types.Kind.span:
+            return try self.span_equal(a, b, tt)
         if tt.kind == types.Kind.enum_:
             let d = tt.decl else return try self.memory_equal(a, b, self.size(t))
             return try self.enum_equal(a, b, t, d, tt.args)
@@ -713,6 +718,11 @@ extend Lowerer:
 
     ## Two `str` views in memory compared by length then bytes.
     func text_equal(a: ir.Ref, b: ir.Ref) -> ir.Ref!:
+        return try self.span_bytes_equal(a, b, 1)
+
+    ## Two spans of `stride`-byte elements whose bytes are their values: the same length
+    ## and the same bytes.
+    func span_bytes_equal(a: ir.Ref, b: ir.Ref, stride: u64) -> ir.Ref!:
         let slot = try self.f.slot(1, 1)
         let out = try self.slot_address(slot)
         let la = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(a, 8))
@@ -725,7 +735,9 @@ extend Lowerer:
         try self.f.place_label(compare)
         let da = try self.f.load(ir.Op.loadl, ir.Class.l, a)
         let db = try self.f.load(ir.Op.loadl, ir.Class.l, b)
-        let n = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(a, 8))
+        var n = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(a, 8))
+        if stride != 1:
+            n = try self.f.binary(ir.Op.mul, ir.Class.l, n, ir.const_ref((i64)stride))
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = da, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
         try self.f.args.push(ir.Arg(value = db, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
@@ -733,6 +745,36 @@ extend Lowerer:
         let c = try self.call_named("memcmp", start, 3, ir.Class.w, true, types.i32_id)
         let equal = try self.f.binary(ir.Op.ceq, ir.Class.w, c, ir.const_ref(0))
         try self.f.store(ir.Op.storeb, equal, try self.slot_address(slot))
+        try self.f.jump(done)
+        try self.f.place_label(done)
+        return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+
+    ## Two spans at `a` and `b`: the same length and equal elements (§7.4); elements whose
+    ## bytes are their values compare as bytes, others one by one.
+    func span_equal(a: ir.Ref, b: ir.Ref, tt: types.Type) -> ir.Ref!:
+        let et = try self.map(tt.elem)
+        let stride = (u64)self.c.table.size_of(et)
+        if self.is_scalar(et) and not self.is_float(et):
+            return try self.span_bytes_equal(a, b, stride)
+        let slot = try self.f.slot(1, 1)
+        let la = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(a, 8))
+        let lb = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(b, 8))
+        let same_length = try self.f.binary(ir.Op.ceq, ir.Class.l, la, lb)
+        try self.f.store(ir.Op.storeb, same_length, try self.slot_address(slot))
+        let compare = self.f.label()
+        let done = self.f.label()
+        try self.f.branch(same_length, compare, done)
+        try self.f.place_label(compare)
+        let da = try self.f.load(ir.Op.loadl, ir.Class.l, a)
+        let db = try self.f.load(ir.Op.loadl, ir.Class.l, b)
+        let counting = try self.count_up_to(la)
+        let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, counting.index, ir.const_ref((i64)stride))
+        let ea = try self.f.binary(ir.Op.add, ir.Class.l, da, scaled)
+        let eb = try self.f.binary(ir.Op.add, ir.Class.l, db, scaled)
+        let same = try self.value_equal(ea, eb, et)
+        let so_far = try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+        try self.f.store(ir.Op.storeb, try self.f.binary(ir.Op.and_, ir.Class.w, so_far, same), try self.slot_address(slot))
+        try self.count_on(counting)
         try self.f.jump(done)
         try self.f.place_label(done)
         return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
