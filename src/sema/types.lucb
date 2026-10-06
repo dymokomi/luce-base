@@ -223,12 +223,9 @@ pub struct Table:
         return t
 
     ## C uses LLP64 on Windows: long is 32 bits and wchar_t is unsigned 16 bits; long is 32
-    ## bits on wasm32 as well; and `char` is unsigned on AArch64 Linux (§5.2). Configure
-    ## before interning any target-dependent compound types.
-    pub func configure_c(windows: bool, long32: bool, unsigned_char: bool):
-        var plain_char = self.types.get((usize)c_char_id)
-        plain_char.kind = Kind.u8_ if unsigned_char else Kind.i8_
-        self.types.set((usize)c_char_id, plain_char)
+    ## bits on wasm32 as well (§5.2). Configure before interning any target-dependent
+    ## compound types.
+    pub func configure_c(windows: bool, long32: bool):
         var signed_long = self.types.get((usize)c_long_id)
         signed_long.kind = Kind.i32_ if long32 else Kind.i64_
         self.types.set((usize)c_long_id, signed_long)

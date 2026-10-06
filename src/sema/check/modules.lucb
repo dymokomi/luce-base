@@ -36,7 +36,7 @@ extend Checker:
     ## `directory/ORDER` lists, a module being `name.lucb` or the fragments of `name/`.
     pub func add_prelude_from(directory: str) -> !:
         self.table.word = (u64)self.build_target.pointer_bits // 8
-        self.table.configure_c(self.build_target.os == targets.Os.windows, self.build_target.os == targets.Os.windows or self.build_target.arch == targets.Arch.wasm32, self.build_target.arch == targets.Arch.arm64 and self.build_target.os == targets.Os.linux)
+        self.table.configure_c(self.build_target.os == targets.Os.windows, self.build_target.os == targets.Os.windows or self.build_target.arch == targets.Arch.wasm32)
         var order_bytes = try new u8[directory.length + 8] ---
         let order = try in_arena.read((c.str)try strings.format(order_bytes, f"{directory}/ORDER"))
         var start: usize = 0

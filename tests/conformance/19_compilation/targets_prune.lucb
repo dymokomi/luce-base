@@ -9,8 +9,6 @@ pub func main(arguments: str[]) -> i32:
         print("ARM_LINUX_X86")
     elif os.macos and os.arm64:
         print("ARM_MACOS_ARM64")
-    elif os.linux:
-        print("ARM_LINUX_ARM64")
     elif os.windows:
         print("ARM_WINDOWS")
     print(f"{os.posix}")

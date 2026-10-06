@@ -51,14 +51,14 @@ $lb build $dir/library.lucb --lib --target x86_64-windows --emit=c -o build/conf
 grep -q 'twice' build/conformance.c
 rm -f build/conformance.s build/conformance.c
 # `--target NAME`: one arm of a target test survives per target in the emitted C (§19.5, §19.6)
-for pair in "x86_64-linux ARM_LINUX_X86" "arm64-macos ARM_MACOS_ARM64" "arm64-linux ARM_LINUX_ARM64" "x86_64-windows ARM_WINDOWS"; do
+for pair in "x86_64-linux ARM_LINUX_X86" "arm64-macos ARM_MACOS_ARM64" "x86_64-windows ARM_WINDOWS"; do
     set -- $pair
     $lb build $dir/targets_prune.lucb --target $1 --emit=c -o build/conformance.c
     survivors=$(grep -o 'ARM_[A-Z0-9_]*' build/conformance.c | sort -u | tr '\n' ' ')
     [ "$survivors" = "$2 " ] || { echo "FAIL $dir/targets_prune.lucb for $1: kept [$survivors]"; exit 1; }
 done
-# another target than this host's: arm64-linux everywhere but on arm64 Linux itself
-case "$(tools/host.sh)" in arm64-linux) other=x86_64-linux;; *) other=arm64-linux;; esac
+# another target than this host's
+case "$(tools/host.sh)" in x86_64-windows) other=x86_64-linux;; *) other=x86_64-windows;; esac
 if $lb build $dir/targets_prune.lucb --target $other --native -o build/conformance 2> build/conformance.err; then
     echo "FAIL $dir: the native backend accepted another target"; exit 1
 fi
@@ -83,8 +83,7 @@ rm -f build/conformance.s build/conformance.c build/conformance.err
 # the target listing (§19.5); the host's mark is not part of the expectation
 $lb build $dir/targets.lucb --target | sed 's/ (built here)//' | cmp - $dir/targets.targets
 # a freestanding program: its own `_start`, no shim, an exit code of its own choosing (§19.4)
-case "$(tools/host.sh)" in arm64-linux) freestanding=freestanding_arm64_linux;; *) freestanding=freestanding;; esac
-$lb build $dir/$freestanding.lucb --native --freestanding -o build/conformance
+$lb build $dir/freestanding.lucb --native --freestanding -o build/conformance
 rc=0
 ./build/conformance > build/conformance.out || rc=$?
 [ "$rc" = 3 ] || { echo "FAIL $dir/freestanding.lucb: exit code $rc"; exit 1; }

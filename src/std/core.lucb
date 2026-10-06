@@ -339,9 +339,6 @@ func context_registers(context: const void*) -> FaultRegisters:
     elif platform.linux and platform.x86_64:
         # uc_mcontext.gregs at 40: RIP is register 16, RBP 10.
         return FaultRegisters(pc = word_at(base, 168), fp = word_at(base, 120))
-    elif platform.linux and platform.arm64:
-        # uc_mcontext at 176: fault_address, then x0..x30, sp, pc.
-        return FaultRegisters(pc = word_at(base, 440), fp = word_at(base, 416), lr = word_at(base, 424))
     elif platform.macos:
         # uc_mcontext is a pointer at 48, to the exception state (16 bytes) and the thread state.
         let machine = (const u8*)(const void*)word_at(base, 48)

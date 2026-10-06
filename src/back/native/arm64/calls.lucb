@@ -10,17 +10,14 @@ extend Generator:
     # mark: Calls ==============================================================================
 
     ## Classify one argument under the Apple convention, advancing the counters.
-    ## The stack a scalar argument takes: its own width on Apple's convention, which packs
-    ## stack arguments, eight bytes under AAPCS64.
+    ## The stack a scalar argument takes: its own width, as Apple's convention packs
+    ## stack arguments.
     func stack_slot(width: u32) -> u32:
-        return width if self.object_format.apple else 8
+        return width
 
-    ## Where an aggregate begins on the stack: its own alignment under Apple's convention,
-    ## eight bytes at least under AAPCS64.
+    ## Where an aggregate begins on the stack: its own alignment under Apple's convention.
     func stack_boundary(align: u64) -> u64:
-        if self.object_format.apple or align >= 8:
-            return align
-        return 8
+        return align
 
     func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> ArgPlacement:
         if a.size == 0:
@@ -212,9 +209,8 @@ extend Generator:
         var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
-            if info.variadic and i >= info.fixed_count and self.object_format.apple:
-                # Apple passes every variadic argument on the stack, eight bytes each;
-                # AAPCS64 places them like any other
+            if info.variadic and i >= info.fixed_count:
+                # Apple passes every variadic argument on the stack, eight bytes each
                 stack = (u32)arm_round_up((u64)stack, 8)
                 placements[i] = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = stack)
                 stack += 8
@@ -235,7 +231,7 @@ extend Generator:
                 if a.size == 0:
                     try self.operand(scratch_register(a.cls, 0), a.cls, a.value)
                     let width = scalar_stack_width(a.cls, a.scalar_width)
-                    if info.variadic and i >= info.fixed_count and self.object_format.apple:
+                    if info.variadic and i >= info.fixed_count:
                         try self.writer.line("str ")
                         try self.writer.put(stack_store_register(a.cls, 0))
                     elif ir.is_float_class(a.cls):
@@ -286,10 +282,10 @@ extend Generator:
                 if a.size == 0:
                     try self.operand(scratch_register(a.cls, 0), a.cls, a.value)
                     try self.writer.line("fmov ")
-                    try self.writer.put(self.half_letter(a.cls))
+                    try self.writer.put(float_letter(a.cls))
                     try self.writer.put_u64((u64)p.first)
                     try self.writer.put(", ")
-                    try self.writer.put(try self.hv(scratch_register(a.cls, 0)))
+                    try self.writer.put(scratch_register(a.cls, 0))
                 else:
                     let at = try self.source(a.value, ir.Class.l, "x9")
                     let each = (u64)a.size // (u64)self.hfa(a.shape)

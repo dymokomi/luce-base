@@ -314,29 +314,12 @@ extend Generator:
             return
         try self.frame_store(reg, self.temp_home(t))
 
-    ## A half register as this target moves it: itself with FEAT_FP16, else its
-    ## single-precision view, whose low sixteen bits are the half.
-    func hv(reg: str) -> str!:
-        if self.fp16 or reg.length == 0 or reg.bytes[0] != 'h':
-            return reg
-        let room = try new u8[reg.length] ---
-        memory.copy(room, reg.bytes, reg.length)
-        room[0] = 's'
-        return (str)room
-
-    ## The register letter of a float class as this target moves it.
-    func half_letter(cls: ir.Class) -> str:
-        if cls == ir.Class.h and not self.fp16:
-            return "s"
-        return float_letter(cls)
-
-    ## `fmov to, from` between float registers, halves through their single views where
-    ## the target has no half moves.
+    ## `fmov to, from` between float registers, halves included (FEAT_FP16).
     func fmove(target_reg: str, from_reg: str) -> !:
         try self.writer.line("fmov ")
-        try self.writer.put(try self.hv(target_reg))
+        try self.writer.put(target_reg)
         try self.writer.put(", ")
-        try self.writer.put(try self.hv(from_reg))
+        try self.writer.put(from_reg)
 
     ## `to = from` between registers: `mov` for integers, `fmov` for floats, and the whole
     ## vector for a `q` view.

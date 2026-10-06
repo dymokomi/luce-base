@@ -3,11 +3,10 @@
 #   arm64 - The arm64 code generator
 #
 #   DESCRIPTION:
-#       Turns an `ir.Unit` into assembly text for the system assembler, for arm64-macos
-#       and arm64-linux: sections and symbols as native/objects spells them for Mach-O or
-#       ELF, page addressing and thread-locals as arm64/object does, and calls under
-#       AAPCS64 with Apple's
-#       variant on macOS (base.md §19.5): integers in x0-x7, floats in d0-d7, aggregates
+#       Turns an `ir.Unit` into assembly text for the system assembler, for arm64-macos:
+#       sections and symbols as native/objects spells them for Mach-O, page addressing
+#       and thread-locals as arm64/object does, and calls under AAPCS64 with Apple's
+#       variant (base.md §19.5): integers in x0-x7, floats in d0-d7, aggregates
 #       up to sixteen bytes in registers, larger ones by address, homogeneous float
 #       aggregates in d registers, results the same way with x8 for the large ones, and
 #       variadic arguments on the stack under Apple's rule.
@@ -64,12 +63,8 @@ pub struct Generator:
     var crossing: usize = 0
     ## What precedes a C symbol in this target's assembler: `_` on macOS (§19.5).
     pub var symbol_prefix: str
-    ## Mach-O or ELF: what differs between arm64-macos and arm64-linux.
+    ## How Mach-O spells sections, symbols and labels.
     var object_format: objects.Format
-    ## Whether the target promises FEAT_FP16, half-precision arithmetic in registers:
-    ## Apple's arm64 does; ARMv8.0-A, arm64-linux's baseline, has the conversions only, so
-    ## halves compute through single precision, which rounds the same (§19.5).
-    pub var fp16: bool
     var program_unit: ir.Unit*
     var f: ir.Function*
     var index: usize
@@ -118,7 +113,7 @@ pub struct Generator:
 
     ## A generator for `program_unit`, targeting `os` with the given C symbol prefix.
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
-        return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 2), fp16 = os == build_target.Os.macos, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+        return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 2), writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------

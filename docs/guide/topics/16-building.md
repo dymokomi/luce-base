@@ -70,9 +70,8 @@ of the program.
 | `--target` | Notes |
 | --- | --- |
 | `arm64-macos` | Apple Silicon |
-| `arm64-linux` | |
 | `x86_64-linux` | |
-| `x86_64-windows` | with MSYS2's UCRT64 toolchain |
+| `x86_64-windows` | with a MinGW-w64 GCC |
 | `x86_64-macos` | through the C backend: `--emit=c`, compiled on an Intel Mac |
 | `wasm32` | through the C backend and a WASI toolchain; runs under wasmtime |
 

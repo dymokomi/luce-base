@@ -28,7 +28,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parent.parent
-TARGETS = ("arm64-macos", "arm64-linux", "x86_64-linux", "x86_64-windows")
+TARGETS = ("arm64-macos", "x86_64-linux", "x86_64-windows")
 
 
 def host_target():

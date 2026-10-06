@@ -335,9 +335,9 @@ extend Generator:
             elif at.next_float < 8:
                 if code != 0:
                     try self.writer.line("fmov ")
-                    try self.writer.put(try self.hv(class_name((u8)code, p.cls)))
+                    try self.writer.put(class_name((u8)code, p.cls))
                     try self.writer.put(", ")
-                    try self.writer.put(self.half_letter(p.cls))
+                    try self.writer.put(float_letter(p.cls))
                 else:
                     try self.frame_address("x16", home)
                     try self.writer.line("str ")

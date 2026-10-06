@@ -81,15 +81,10 @@ extend Generator:
             .neg:
                 let v = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
                 let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
-                if n.cls == ir.Class.h and not self.fp16:
-                    try self.writer.line3("fcvt s16, ", v, "")
-                    try self.writer.line("fneg s16, s16")
-                    try self.writer.line3("fcvt ", d, ", s16")
-                else:
-                    try self.writer.line("fneg " if ir.is_float_class(n.cls) else "neg ")
-                    try self.writer.put(d)
-                    try self.writer.put(", ")
-                    try self.writer.put(v)
+                try self.writer.line("fneg " if ir.is_float_class(n.cls) else "neg ")
+                try self.writer.put(d)
+                try self.writer.put(", ")
+                try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
                 if self.role() & (flags.first | flags.either | flags.both) != 0:
@@ -171,25 +166,15 @@ extend Generator:
                 let v = try self.source(n.a, src_cls, scratch_register(src_cls, 0))
                 let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 let convert = "scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf "
-                if n.cls == ir.Class.h and not self.fp16:
-                    # exact in single precision for every integer a half can hold
-                    try self.writer.line3(convert, "s16, ", v)
-                    try self.writer.line3("fcvt ", d, ", s16")
-                else:
-                    try self.writer.line3(convert, d, ", ")
-                    try self.writer.put(v)
+                try self.writer.line3(convert, d, ", ")
+                try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .cast:
-                # bits move between an integer and a float of the same width; a half's
-                # sixteen bits travel through its single view where there is no half move
+                # bits move between an integer and a float of the same width
                 let other = ir.cast_partner(n.cls)
                 let v = try self.source(n.a, other, scratch_register(other, 0))
                 let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 try self.fmove(d, v)
-                if other == ir.Class.h and not self.fp16:
-                    try self.writer.line3("and ", d, ", ")
-                    try self.writer.put(d)
-                    try self.writer.put(", #0xffff")
                 try self.finish(n.dst, n.cls, d)
             .addr:
                 if self.fr.promoted_slot(n.dst) == 0:
@@ -358,21 +343,6 @@ extend Generator:
         let b = try self.source(n.b, n.cls, scratch_register(n.cls, 1))
         let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
         let is_float = ir.is_float_class(n.cls)
-        if n.cls == ir.Class.h and not self.fp16:
-            # single precision holds every half exactly and its result rounds to the
-            # half a half operation would give (§5.1): one rounding, not two
-            var half_op = "fadd"
-            match n.op:
-                .sub: half_op = "fsub"
-                .mul: half_op = "fmul"
-                .sdiv: half_op = "fdiv"
-                _: half_op = "fadd"
-            try self.writer.line3("fcvt s16, ", a, "")
-            try self.writer.line3("fcvt s17, ", b, "")
-            try self.writer.line3(half_op, " s16, s16, s17", "")
-            try self.writer.line3("fcvt ", d, ", s16")
-            try self.finish(n.dst, n.cls, d)
-            return
         var mnemonic = "add"
         match n.op:
             .add: mnemonic = "fadd" if is_float else "add"
@@ -422,10 +392,6 @@ extend Generator:
         if immediate:
             try self.writer.line3("cmp " if n.b.value >= 0 else "cmn ", a, ", #")
             try self.writer.put_i64(n.b.value if n.b.value >= 0 else 0 - n.b.value)
-        elif n.cls == ir.Class.h and not self.fp16:
-            try self.writer.line3("fcvt s16, ", a, "")
-            try self.writer.line3("fcvt s17, ", b, "")
-            try self.writer.line("fcmp s16, s17")
         else:
             try self.writer.line("fcmp " if is_float else "cmp ")
             try self.writer.put(a)

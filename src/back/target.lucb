@@ -96,8 +96,8 @@ pub struct Target:
         if name == "arm64-macos" or name == "x86_64-macos":
             return Target(name = name, os = Os.macos, arch = Arch.arm64 if name == "arm64-macos" else Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "_",
                           stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", linker = Linker.macho, system_libraries = macos_libraries)
-        if name == "arm64-linux" or name == "x86_64-linux":
-            return Target(name = name, os = Os.linux, arch = Arch.arm64 if name == "arm64-linux" else Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
+        if name == "x86_64-linux":
+            return Target(name = name, os = Os.linux, arch = Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
                           stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", linker = Linker.c_driver, system_libraries = linux_libraries)
         if name == "x86_64-windows":
             return Target(name = name, os = Os.windows, arch = Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
@@ -185,4 +185,4 @@ pub func section_name(name: str, is_func: bool, os: Os) -> str:
     return (str)copy
 
 ## Every target name, for `--target` with no argument (§19.6).
-pub let names: str[6] = ["x86_64-linux", "x86_64-macos", "x86_64-windows", "arm64-linux", "arm64-macos", "wasm32"]
+pub let names: str[5] = ["x86_64-linux", "x86_64-macos", "x86_64-windows", "arm64-macos", "wasm32"]

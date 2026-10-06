@@ -16,7 +16,7 @@ checked out beside this tree as `../luce-seed`: `LUCB=../luce-seed/build/lucb
 ./build.sh` still starts from it, the gate proves the compiler it builds
 agrees with the snapshot-built one, and the compiler's own sources stay
 within what the seed provides. `bootstrap/luce-base-HOST.c` is the compiler's
-own C for each host it runs on natively, arm64-macos, arm64-linux, x86_64-linux and x86_64-windows, plus wasm32 through the C backend and a WASI toolchain, and
+own C for each host it runs on natively, arm64-macos, x86_64-linux and x86_64-windows, plus wasm32 through the C backend and a WASI toolchain, and
 only this compiler moves. `build/luce-base` is the compiler built by
 itself through the native backend, with no C in its path; `build.sh` checks
 that it reproduces its own assembly. The language is
@@ -41,12 +41,12 @@ from [luce-base.luciaos.com](https://luce-base.luciaos.com): `curl -fsSL
 https://luce-base.luciaos.com/install.sh | sh` on macOS and Linux, `irm
 https://luce-base.luciaos.com/install.ps1 | iex` in PowerShell on Windows. It
 needs the host's C toolchain (`cc`, `as`, `ar`, `nm`: the Xcode command line
-tools, a Linux `gcc`/`clang` package, or MSYS2's UCRT64 GCC), which the
+tools, a Linux `gcc`/`clang` package, or a MinGW-w64 GCC), which the
 compiler drives for assembling and linking. A program it builds links the
 standard library statically and needs nothing from the installation to run.
-The archives come from the `Release` workflow, one per host, each proved by
-`tools/install_smoke.sh` before it is published; `tools/package.sh` writes the
-same archive from a local build.
+The archives are built by the gate on each host (`gate.toml`'s release steps), each proved
+by `tools/install_smoke.sh`, and published by `tools/release.py`; `tools/package.sh` writes
+the same archive from a local build.
 
 `luce-base fmt FILE` prints a module in the canonical layout (`--write` puts it back,
 `--check` reports drift); every source under `src/` is a fixpoint of it, and the gate
@@ -89,11 +89,10 @@ Test material lives under `tests/samples` (programs and expected output),
 `tests/programs` (integration checks), and `tests/conformance` (accepted and
 rejected language cases checked through both backends and the Seed oracle).
 
-The Unix gate runs on arm64 macOS, x86_64 Linux and arm64 Linux. Windows x64 has a native
-bootstrap and a Python-based gate described in the Windows guide. `tests/platform` holds what depends on the target.
-After pulling on either host, `./test.sh` must be green; a bootstrap snapshot that has
-drifted is reported as a failure, and `tools/snapshot.sh` writes all three hosts' snapshots
-from either host.
+The gate (`tools/gate.py`, [docs/CI.md](docs/CI.md)) runs on arm64 macOS, x86_64 Linux and
+x86_64 Windows: `./test.sh` on the Unix hosts, the Windows checks of `gate.toml` on Windows.
+`tests/platform` holds what depends on the target. A bootstrap snapshot that has drifted is
+reported as a failure, and `tools/snapshot.sh` writes every host's snapshot from any host.
 
 The sources are `src/front` (source, tokens, lexer, tree, parser),
 `src/sema` (types, the standard modules as Base text, the checker),
@@ -103,7 +102,7 @@ native code generation, C emission and shared target definitions), and `src/supp
 ## Status
 
 The whole of Base (base.md §3 to §17, §19, §21) through two backends: C for the
-host C compiler, and native assembly for arm64-macos, arm64-linux, x86_64-linux and x86_64-windows, with no
+host C compiler, and native assembly for arm64-macos, x86_64-linux and x86_64-windows, with no
 C in the native path. The compiler builds itself through both to the same C and
 the same assembly, and the seed (`../luce-seed`, at main) builds it to the
 same C. [`docs/STATUS.md`](docs/STATUS.md) is the one current matrix of what is

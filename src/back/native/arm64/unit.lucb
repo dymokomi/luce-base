@@ -71,7 +71,7 @@ extend Generator:
     ## A generator for one function like `model`: the same target and settings, its own
     ## frame and output, from the current allocator.
     static func like(model: Generator*) -> Generator!:
-        var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, fp16 = model.fp16, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
+        var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
                              fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(256))
         made.dw = none
         made.split = model.split

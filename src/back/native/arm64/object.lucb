@@ -1,11 +1,11 @@
 #==============================================================================================
 #
-#   object - How arm64 code loads an address, on Mach-O and ELF
+#   object - How arm64 code loads an address on Mach-O
 #
 #   DESCRIPTION:
 #       A symbol's or a local label's address through its page, a library symbol's through
-#       the GOT, and a thread-local's through the descriptor (Mach-O) or the thread pointer
-#       (ELF). Everything else about the object format is the shared `objects.Format`.
+#       the GOT, and a thread-local's through its descriptor. Everything else about the
+#       object format is the shared `objects.Format`.
 #
 #==============================================================================================
 
@@ -18,19 +18,14 @@ pub func page_address(object_format: const objects.Format*, out: buffer.Buffer*,
     try out.put(reg)
     try out.put(", ")
     try put_name(object_format, out, name, is_symbol)
-    if object_format.apple:
-        try out.put("@PAGE")
+    try out.put("@PAGE")
     try line(out, "add ")
     try out.put(reg)
     try out.put(", ")
     try out.put(reg)
     try out.put(", ")
-    if object_format.apple:
-        try put_name(object_format, out, name, is_symbol)
-        try out.put("@PAGEOFF")
-    else:
-        try out.put(":lo12:")
-        try put_name(object_format, out, name, is_symbol)
+    try put_name(object_format, out, name, is_symbol)
+    try out.put("@PAGEOFF")
 
 ## `name`, behind the symbol prefix when it is a symbol rather than a local label.
 func put_name(object_format: const objects.Format*, out: buffer.Buffer*, name: str, is_symbol: bool) -> !:
@@ -45,46 +40,27 @@ pub func got_address(object_format: const objects.Format*, out: buffer.Buffer*, 
     try line(out, "adrp ")
     try out.put(reg)
     try out.put(", ")
-    if object_format.apple:
-        try object_format.symbol(out, name)
-        try out.put("@GOTPAGE")
-    else:
-        try out.put(":got:")
-        try object_format.symbol(out, name)
+    try object_format.symbol(out, name)
+    try out.put("@GOTPAGE")
     try line(out, "ldr ")
     try out.put(reg)
     try out.put(", [")
     try out.put(reg)
     try out.put(", ")
-    if object_format.apple:
-        try object_format.symbol(out, name)
-        try out.put("@GOTPAGEOFF]")
-    else:
-        try out.put(":got_lo12:")
-        try object_format.symbol(out, name)
-        try out.put("]")
+    try object_format.symbol(out, name)
+    try out.put("@GOTPAGEOFF]")
 
 ## The address of a thread-local into x0, x16 clobbered: Mach-O's descriptor and its
-## accessor, or ELF's initial-exec model, the thread pointer plus the offset the
-## linker writes into the GOT.
+## accessor.
 pub func thread_address(object_format: const objects.Format*, out: buffer.Buffer*, name: str) -> !:
-    if object_format.apple:
-        try line(out, "adrp x0, ")
-        try object_format.symbol(out, name)
-        try out.put("@TLVPPAGE")
-        try line(out, "ldr x0, [x0, ")
-        try object_format.symbol(out, name)
-        try out.put("@TLVPPAGEOFF]")
-        try line(out, "ldr x16, [x0]")
-        try line(out, "blr x16")
-        return
-    try line(out, "adrp x0, :gottprel:")
+    try line(out, "adrp x0, ")
     try object_format.symbol(out, name)
-    try line(out, "ldr x0, [x0, :gottprel_lo12:")
+    try out.put("@TLVPPAGE")
+    try line(out, "ldr x0, [x0, ")
     try object_format.symbol(out, name)
-    try out.put("]")
-    try line(out, "mrs x16, tpidr_el0")
-    try line(out, "add x0, x16, x0")
+    try out.put("@TLVPPAGEOFF]")
+    try line(out, "ldr x16, [x0]")
+    try line(out, "blr x16")
 
 func line(out: buffer.Buffer*, text: str) -> !:
     try out.put("\n    ")

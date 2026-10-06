@@ -300,7 +300,7 @@ C's types live in the standard `c` module, so that a C signature can be written 
 | `c.bool` | `_Bool` | alias of `bool` | 1 byte, 0 or 1 |
 | `c.size`, `c.uintptr` | `size_t`, `uintptr_t` | alias of `usize` | pointer width |
 | `c.ssize`, `c.ptrdiff`, `c.intptr` | `ssize_t`, `ptrdiff_t`, `intptr_t` | alias of `isize` | pointer width |
-| `c.char` | `char` | distinct | 8 bits; unsigned on AArch64 Linux, signed on the other supported targets |
+| `c.char` | `char` | distinct | 8 bits, signed |
 | `c.long`, `c.ulong` | `long`, `unsigned long` | distinct | 64 bits on SysV and AAPCS64 targets, 32 on Windows x64 |
 | `c.wchar` | `wchar_t` | distinct | 32 bits except on Windows, where it is 16 |
 | `c.va_list` | `va_list` | opaque | may only be passed through to C |
@@ -1791,7 +1791,7 @@ The verifier checks each. `new` and `free` lower to calls through the `memory` m
 The Base compiler uses its native backend by default. It lowers checked Base through
 its own IR, optimization passes and register allocation to target assembly, then
 assembles and links the result. Native executable, test-runner and static-library
-builds target arm64 macOS, arm64 Linux, x86-64 Linux and x86-64 Windows, from any host:
+builds target arm64 macOS, x86-64 Linux and x86-64 Windows, from any host:
 `--emit=asm` writes another target's assembly anywhere, and the build links it where the
 target's toolchain is. `--native` is an explicit alias for the
 default; `--opt 0` through `--opt 3` select native optimization levels.
@@ -1817,7 +1817,7 @@ A Base executable links a startup shim and a trap reporter and no Luce runtime (
 
 ### 19.5 Targets
 
-`luce build --target NAME` compiles for a target; without `--target` the host is the target. The compiler writes the `platform` standard module for the build, whose constants `os` re-exports, so `if os.linux and os.x86_64:` is decided at compile time and the other arms are pruned (§19.6): one source covers every target, and each target links only what it uses. The standard library is written that way: a constant whose value differs by target is a conditional of constants, `6 if platform.macos else 1`, and a call whose shape differs is an `if` over the target's arms. The native backend emits arm64-macos, arm64-linux, x86_64-linux and x86_64-windows from any host (§19.3); another target's program, x86_64-macos or wasm32, is written as C with `--emit=c` and compiled there.
+`luce build --target NAME` compiles for a target; without `--target` the host is the target. The compiler writes the `platform` standard module for the build, whose constants `os` re-exports, so `if os.linux and os.x86_64:` is decided at compile time and the other arms are pruned (§19.6): one source covers every target, and each target links only what it uses. The standard library is written that way: a constant whose value differs by target is a conditional of constants, `6 if platform.macos else 1`, and a call whose shape differs is an `if` over the target's arms. The native backend emits arm64-macos, x86_64-linux and x86_64-windows from any host (§19.3); another target's program, x86_64-macos or wasm32, is written as C with `--emit=c` and compiled there.
 
 The same module names the program: `platform.program` is the name of the package the entry belongs to as its `package.prisma` spells it (`luced-2d`), `app` for a program outside any package, and `platform.program_version` is that manifest's `version`, empty when it has none. They are how a crash report (`crash` in luce-std) names the program without being told.
 
@@ -1826,7 +1826,6 @@ The same module names the program: `platform.program` is the name of the package
 | `x86_64-linux` | `x86_64` | 64 | 64 | signed | SysV |
 | `x86_64-macos` | `x86_64` | 64 | 64 | signed | SysV |
 | `x86_64-windows` | `x86_64` | 64 | 32 | signed | Windows x64 |
-| `arm64-linux` | `arm64` | 64 | 64 | unsigned | AAPCS64 |
 | `arm64-macos` | `arm64` | 64 | 64 | signed | Apple arm64 |
 | `wasm32` | none | 32 | 32 | signed | WebAssembly C ABI |
 
