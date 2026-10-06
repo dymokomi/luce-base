@@ -159,6 +159,8 @@ pub struct Checker:
     ## The module being checked, as an index into `modules`.
     var current: usize
     var current_func: ast.Node*?
+    ## Whether the body being checked is a test's own, outside any lambda in it (§16.5).
+    var in_test: bool = false
     ## The unwrapped result type of the function being checked, and whether it may fail.
     var result_type: u32
     var fallible: bool
@@ -211,6 +213,11 @@ pub struct Checker:
     pub var test_build: bool = false
     ## The package of the entry under test, a module of which is tested too.
     var tested_package: str = ""
+    ## `luce-base test --package`: every module of the package under test is loaded and
+    ## tested, whether the entry imports it or not (§16.5).
+    pub var whole_package: bool = false
+    ## The entry, the module under test, by its index in `modules`.
+    pub var entry_index: usize = 0
     ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
     pub var package_name: str
     ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.

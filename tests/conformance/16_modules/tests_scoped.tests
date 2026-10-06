@@ -1,0 +1,8 @@
+ok    the helper's own test runs first
+ok    main's own test, after the helper's
+ok    an unimported module's test runs
+FAIL  a false assert fails its test alone
+      tests/conformance/16_modules/tests_scoped/unimported.lucb:9:5: assert failed: helper.value() == 41: the helper's value is 40
+ok    the run goes on after a failed test
+4 passed
+1 failed

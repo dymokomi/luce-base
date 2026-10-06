@@ -70,7 +70,25 @@ extend Checker:
             let building = try module_paths.building_package(self.root)
             if building.length > 0:
                 self.package_name = building
+        if self.test_build:
+            # a path that does not resolve is the entry's read's to report
+            self.tested_package = module_paths.package_of((str)path, self.package_name) catch:
+                recover ""
         try self.load_as(path, try module_paths.entry_name((str)path))
+        self.entry_index = self.modules.count - 1
+        if self.test_build and self.whole_package:
+            try self.load_package_modules((str)path)
+
+    ## Every module of the entry's package that it does not import, in the order of their
+    ## paths, each after the modules it imports; all are library code, as the entry is in
+    ## a test (§16.5).
+    func load_package_modules(entry: str) -> !:
+        let standard_library = try module_paths.canonical(try standard.directory())
+        for path in (try module_paths.package_modules(entry, standard_library)).span():
+            let name = try module_paths.name_of(path)
+            # spelled as the entry is, so their positions read as an import's do
+            try self.load_as((c.str)try module_paths.spelled_like(path, entry), name)
+            try note_library_module(name)
 
     ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
     pub func load_as(path: c.str, name: str) -> !:
@@ -174,14 +192,12 @@ extend Checker:
         if self.loading.count > 1:
             try note_library_module(name)
 
-    ## Whether the module at `path` is under test: the entry, or a module of the entry's
-    ## package that it imports, never a dependency's (§16.5). A path that does not resolve
-    ## is not, and the read that follows reports it.
+    ## Whether the module at `path` is under test: one of the entry's package, never a
+    ## dependency's (§16.5). A path that does not resolve is not, and the read that follows
+    ## reports it.
     func under_test(path: str) -> bool:
         let owner = module_paths.package_of(path, self.package_name) catch:
             return false
-        if self.loading.count == 1:
-            self.tested_package = owner
         return owner == self.tested_package
 
     ## Leave the active import path on success and on every loading error.

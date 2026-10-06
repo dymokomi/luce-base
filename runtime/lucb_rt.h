@@ -660,6 +660,4 @@ typedef struct lb_r_unit {
    report lines. */
 lb_span lb_arguments(int argc, char** argv, bool as_text);
 int lb_entry_failed(lb_error error);
-void lb_test_report(lb_str name, const lb_r_unit* result);
-int lb_test_summary(int32_t total, int32_t failed);
 

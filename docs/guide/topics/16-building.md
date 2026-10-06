@@ -8,7 +8,7 @@
 | --- | --- |
 | `luce-base build file.lucb -o out` | compile to a native executable |
 | `luce-base check file.lucb` | type-check without building |
-| `luce-base test file.lucb` | build and run the file's tests |
+| `luce-base test file.lucb [--package]` | build and run the tests of the file and the modules it imports; with `--package`, of every module of its package |
 | `luce-base fmt file.lucb [--write \| --check]` | print the file formatted, rewrite it, or check it |
 | `luce-base bind header.h -o module.lucb` | write declarations for a C header ([C](13-c.md)) |
 | `luce-base describe file.lucb` | describe a module's public declarations |

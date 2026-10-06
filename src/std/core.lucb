@@ -770,17 +770,38 @@ pub func main_failed(code: i32, message: str) -> i32:
     _ = write(2, line.bytes.data, line.length)
     return 1
 
-## The test runner's report line and its summary.
-pub func test_report(name: str, failed: bool, message: str):
+## The failure of a test whose `assert` was false (§16.5).
+pub let assert_failed: ErrorCode = ErrorCode.package(60)
+
+## Where the `assert` that failed the running test stands, empty while none has, and the
+## room its message is written in, which the failure views until the test is reported.
+var assert_position: c.str = ""
+var assert_message: u8[1024]
+
+## A false `assert` in a test's own body (§16.5): the test fails with `text`, `assert failed:`
+## and the condition, and `detail` after it when there is one, and is reported at `position`,
+## the assert's.
+pub func test_assert(position: c.str, text: c.str, detail: str, detailed: bool) -> !:
+    assert_position = position
+    let condition = (str)text
+    let message = strings.format(assert_message, f"{condition}: {detail}" if detailed else f"{condition}") catch:
+        recover condition
+    error(assert_failed, message)
+
+## The test runner's report line: `ok`, or `FAIL` with the place and the message on the next
+## line, the place being the failed `assert`'s or else the test's own, `at` (§16.5).
+pub func test_report(name: str, failed: bool, at: c.str, message: str):
     var bytes: u8[1024] = ---
-    let line = strings.format(bytes, f"FAIL  {name}\n      error: {message}\n" if failed else f"ok    {name}\n") catch:
+    let place = (str)(assert_position if ((str)assert_position).length > 0 else at)
+    assert_position = ""
+    let line = strings.format(bytes, f"FAIL  {name}\n      {place}: {message}\n" if failed else f"ok    {name}\n") catch:
         return
     _ = write(1, line.bytes.data, line.length)
 
-## Print a test run's tally; the process exit status.
+## Print a test run's tally, the failures counted when there are any; the process exit status.
 pub func test_summary(total: i32, failed: i32) -> i32:
     var bytes: u8[64] = ---
-    let line = strings.format(bytes, f"{total - failed} passed\n") catch:
+    let line = strings.format(bytes, f"{total - failed} passed\n{failed} failed\n" if failed > 0 else f"{total - failed} passed\n") catch:
         return 1
     _ = write(1, line.bytes.data, line.length)
     return 0 if failed == 0 else 1

@@ -51,10 +51,14 @@ extend Checker:
         # a lambda's body is a function of its own, even written in a deferred block
         let saved_defer = self.in_defer
         self.in_defer = false
+        # nor the test it is written in: an `assert` in it traps (§16.5)
+        let saved_test = self.in_test
+        self.in_test = false
         self.expression_effect = false
         self.fallible = self.table.kind(want) == types.Kind.fallible
         let bt = try self.check_expr(body, want)
         self.in_defer = saved_defer
+        self.in_test = saved_test
         var result = concrete(bt)
         if want == types.none_id:
             result = try self.settle(body, bt)

@@ -1,0 +1,12 @@
+## A module of the package that nothing imports: `luce-base test --package` runs its tests
+## too, after the entry's, the modules being taken in the order of their paths.
+import helper
+
+test "an unimported module's test runs":
+    assert(helper.value() == 40)
+
+test "a false assert fails its test alone":
+    assert(helper.value() == 41, "the helper's value is 40")
+
+test "the run goes on after a failed test":
+    assert(helper.tested)

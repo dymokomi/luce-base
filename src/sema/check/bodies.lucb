@@ -301,8 +301,10 @@ extend Checker:
         self.result_type = types.unit_id
         self.fallible = true
         self.current_func = d
+        self.in_test = true
         let body = d.body else return try self.fail(d, "a test needs a body")
         try self.check_block(body)
+        self.in_test = false
         self.result_type = saved_result
         self.fallible = saved_fallible
         self.current_func = saved_func

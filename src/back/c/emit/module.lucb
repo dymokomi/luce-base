@@ -219,6 +219,12 @@ pub struct Emitter:
     ## `lb_pos = "file:line:column";` before a statement: what a trap in it names (§11.5),
     ## through the source's position directives (§3.3).
     func put_position(n: ast.Node*) -> !:
+        try self.line("lb_pos = ")
+        try self.put_c_string(try self.position_text(n))
+        try self.put(";")
+
+    ## `file:line:column` of the statement `n` of the current function.
+    func position_text(n: ast.Node*) -> str!:
         var file = self.src_file
         var line = n.line
         var column: u32 = 1
@@ -228,10 +234,8 @@ pub struct Emitter:
                 file = mf
                 line = ml
                 column = mc
-        try self.line("lb_pos = ")
         let room = try new u8[file.length + 24] ---
-        try self.put_c_string(try strings.format(room, f"{file}:{line}:{column}"))
-        try self.put(";")
+        return try strings.format(room, f"{file}:{line}:{column}")
 
     ## A float's bits as a hexadecimal float literal, `0x1.8p+1f`: exact in C, whatever the
     ## value, a subnormal included; `f` and `f16` name the narrower widths.

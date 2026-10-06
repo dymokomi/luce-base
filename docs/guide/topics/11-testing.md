@@ -52,11 +52,33 @@ ok    a full stack refuses
 
 - **A test is a declaration**, `test "description":` followed by a block. It can sit next to
   the code it tests and use the module's private declarations.
-- **A test can fail in two ways.** If it fails with an error (from `try` or `error(...)`),
-  it is reported as `FAIL` with the message, and the other tests still run. If it traps (a
-  failed `assert`, an overflow, an index out of range), the run stops at the trap, which
-  names the file and line.
+- **A test fails, or the run stops.** A test fails when an error leaves it (from `try` or
+  `error(...)`), or when an `assert` written in the test itself is false. It is reported as
+  `FAIL` with a position and a message, and the other tests still run. Anything else that
+  traps (an overflow, an index out of range, an `assert` inside a function the test calls,
+  a `testing.expect`) stops the run there, naming the file and line.
 - `luce-base build` leaves tests out of the program.
+
+A failing run reports each failure under its test and counts them; the status is 1:
+
+```luce
+test "two and two":
+    assert(2 + 2 == 5, "arithmetic")
+
+test "still runs":
+    assert(true)
+```
+
+```text
+FAIL  two and two
+      sums.lucb:2:5: assert failed: 2 + 2 == 5: arithmetic
+ok    still runs
+1 passed
+1 failed
+```
+
+A failed `assert` is reported where it stands, with its condition; a test that fails by an
+error is reported at the test, with the error's message.
 
 ### Checking values
 
@@ -87,21 +109,22 @@ globals, or reset them.
 `luce-base test file.lucb` runs the tests of the file and of every module of the same package
 that it imports, directly or not: module by module, each module's tests in the order they
 are declared, and an imported module before the module importing it. Tests in a dependency,
-another package, do not run; that package runs its own. In a project, `luc test` tests the
-entry module, `src/main.lucb` for a tool or application, so it runs the tests of every
-module of the project that the program imports.
+another package, do not run; that package runs its own.
 
-For a project whose `src/main.lucb` imports `helper` and declares `test "in main"`, and whose
-`src/helper.lucb` declares `test "in helper"`, `luc test` prints:
+In a project, `luc test` runs the tests of every module of the project, imported or not: it
+tests the entry module with `--package`, which adds every other `.lucb` module under `src/`,
+in the order of their paths. For a project whose `src/main.lucb` imports `helper` and declares
+`test "in main"`, whose `src/helper.lucb` declares `test "in helper"`, and whose
+`src/extra.lucb`, which nothing imports, declares `test "in extra"`, `luc test` prints:
 
 ```text
 ok    in helper
 ok    in main
-2 passed
+ok    in extra
+3 passed
 ```
 
-A module that nothing imports from the file under test is not tested with it; run
-`luce-base test` on that module.
+`luce-base test src/main.lucb --package` does the same outside `luc`.
 
 ## Tests in their own files
 

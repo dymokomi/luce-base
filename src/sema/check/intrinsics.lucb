@@ -85,6 +85,10 @@ extend Checker:
             if let second = first.next:
                 let mv = second.left else return try self.fail(e, "empty argument")
                 _ = try self.expect(mv, types.str_id)
+            # in a test's own body a false condition fails the test (§16.5); in a deferred
+            # block, which cannot fail, it traps
+            if self.in_test and not self.in_defer:
+                e.flags |= ast.flag_test_assert
             return types.unit_id
         if name == "trap":
             if let first = e.body:

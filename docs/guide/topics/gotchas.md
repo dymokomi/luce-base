@@ -126,9 +126,10 @@ chapter that explains it.
 ## Tools
 
 - **`luce-base test` runs the tests of one package**: the file's and those of the modules of
-  its package it imports, but never a dependency's. A module the file does not import is
-  not tested. [Testing](11-testing.md#which-tests-run)
-- **A test that fails with an error is reported and the run continues; a trap ends the run.**
+  its package it imports, but never a dependency's; with `--package`, as `luc test` runs it,
+  every module of the package's too. [Testing](11-testing.md#which-tests-run)
+- **A test that fails by an error or a false `assert` in its own body is reported and the
+  run continues; any other trap, an `assert` in a function it calls included, ends the run.**
 - **`--lib -o name` writes `name.a` and `name.h`**: pass `-o libname`, not `-o libname.a`.
   [C](13-c.md#c-calling-base)
 - **`-W` turns warnings on**; without it, unused code is not reported. `check -W` exits with

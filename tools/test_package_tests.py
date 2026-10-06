@@ -10,7 +10,13 @@
 - a build never reads them: a program naming a declaration only they declare fails;
 - `luce-base test` on the entry runs the tests of every module of its package that it
   reaches, fragments included, in module order and then declaration order, and never
-  the tests of a dependency's modules.
+  the tests of a dependency's modules;
+- with `--package`, which `luc test` passes, it runs those of every module under the
+  source root too, imported or not, a fragment directory and a nested one included and a
+  hidden directory's left out, each after what it imports and the rest by their paths;
+- a false `assert` in a test's body fails that test, reported at the `assert`, an error at
+  the test, and the run goes on to count the failures; one in a function a test calls
+  traps and ends the run.
 
 Usage: tools/test_package_tests.py [COMPILER]
 """
@@ -61,6 +67,20 @@ FILES = {
         "import area\n\n"
         "pub func main(arguments: str[]) -> i32:\n    _ = arguments\n"
         '    print(f"{area.square(5)}")\n    return 0\n'),
+    "src/orphan.lucb": (
+        "import area\n\nlet wrong = ErrorCode.package(1)\n\n"
+        'test "an orphan\'s assert fails":\n    assert(area.square(2) == 5, "two squared is not five")\n\n'
+        'test "an orphan\'s error fails":\n    error(wrong, "no circles")\n\n'
+        'test "an orphan passes":\n    assert(area.square(1) == 1)\n'),
+    "src/solids/cube.lucb": (
+        "import area\n\n## The surface of a cube.\npub func surface(side: i64) -> i64:\n    return 6 * area.square(side)\n\n"
+        'test "a nested module\'s":\n    assert(surface(1) == 6)\n'),
+    "src/.scratch/ignored.lucb": 'test "a hidden directory\'s":\n    assert(false)\n',
+    "traps/main.lucb": (
+        "func checked(n: i64) -> i64:\n    assert(n > 0)\n    return n\n\n"
+        "pub func main(arguments: str[]) -> i32:\n    _ = arguments\n    return 0\n\n"
+        'test "a helper\'s assert traps":\n    assert(checked(-1) == -1)\n\n'
+        'test "never runs":\n    assert(true)\n'),
     "tests/names_test_only.lucb": (
         "import geometry.area\n\n"
         "pub func main(arguments: str[]) -> i32:\n    _ = arguments\n"
@@ -98,7 +118,18 @@ with tempfile.TemporaryDirectory() as directory:
     for backend in ("--backend=c", "--native"):
         result = run(root, "test", "src/main.lucb", backend)
         assert result.stdout.splitlines() == tested, f"FAIL: test src/main.lucb {backend}: {result.stdout}{result.stderr}"
+    package = tested[:4] + [
+        "FAIL  an orphan's assert fails", "      src/orphan.lucb:6:5: assert failed: area.square(2) == 5: two squared is not five",
+        "FAIL  an orphan's error fails", "      src/orphan.lucb:8:1: no circles",
+        "ok    an orphan passes", "ok    a nested module's", "6 passed", "2 failed"]
+    for backend in ("--backend=c", "--native"):
+        result = run(root, "test", "src/main.lucb", "--package", backend, ok=False)
+        assert result.returncode == 1 and result.stdout.splitlines() == package, \
+            f"FAIL: test src/main.lucb --package {backend}: {result.returncode} {result.stdout}{result.stderr}"
+        trapped = run(root, "test", "traps/main.lucb", backend, ok=False)
+        assert trapped.returncode == 1 and trapped.stdout == "" and "traps/main.lucb:2:5: assert failed: n > 0" in trapped.stderr, \
+            f"FAIL: a helper's assert {backend}: {trapped.returncode} {trapped.stdout}{trapped.stderr}"
     refused = run(root, "check", "tests/names_test_only.lucb", ok=False)
     assert refused.returncode != 0 and "only_in_tests" in refused.stderr, \
         f"FAIL: a build read the test fragments: {refused.returncode} {refused.stderr}"
-print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests")
+print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests, --package every module's, a test's assert fails it")

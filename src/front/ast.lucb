@@ -106,6 +106,10 @@ pub let flag_static: u32 = 4
 pub let flag_export: u32 = 8
 ## A `packed` struct.
 pub let flag_packed: u32 = 16
+## Set by the checker on a call of `assert` written in a test's own body, a lambda's
+## excepted: a false condition fails the test rather than trapping (§16.5). It shares its
+## bit with `flag_packed`, which only a struct carries.
+pub let flag_test_assert: u32 = 16
 ## A `local` (thread-local) global.
 pub let flag_thread_local: u32 = 32
 ## An uninitialised binding (`= ---`).

@@ -218,20 +218,6 @@ int lb_entry_failed(lb_error error) {
     return 1;
 }
 
-void lb_test_report(lb_str name, const lb_r_unit* result) {
-    if (result->failed) {
-        fprintf(stdout, "FAIL  %.*s\n      error: %.*s\n", (int)name.length, name.data,
-                (int)result->error.message.length, result->error.message.data);
-    } else {
-        fprintf(stdout, "ok    %.*s\n", (int)name.length, name.data);
-    }
-}
-
-int lb_test_summary(int32_t total, int32_t failed) {
-    fprintf(stdout, "%d passed\n", total - failed);
-    return failed == 0 ? 0 : 1;
-}
-
 int lb_str_compare(lb_str a, lb_str b) {
     size_t n = a.length < b.length ? a.length : b.length;
     int c = n == 0 ? 0 : memcmp(a.data, b.data, n);

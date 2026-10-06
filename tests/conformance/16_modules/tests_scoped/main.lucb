@@ -1,7 +1,8 @@
 # tests: true
 ## §16.5: `luce-base test FILE` runs the `test` blocks of FILE's package, module by module,
 ## an import before its importer; a dependency's blocks belong to its own package's runs
-## (tools/test_package_tests.py).
+## (tools/test_package_tests.py). With `--package` the modules FILE does not import run
+## theirs too, and the report (tests_scoped.tests) names each failed test.
 import helper
 
 pub func main(arguments: str[]) -> i32:

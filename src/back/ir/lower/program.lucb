@@ -296,14 +296,29 @@ extend Lowerer:
         let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
         let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
         let message = LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
+        let place = try self.test_place(t)
         let s2 = u32(self.f.args.count)
         try self.f.args.push(try self.arg_of(name))
         try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = try self.f.address_of(place), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
         try self.f.args.push(try self.arg_of(message))
-        _ = try self.call_named("lb_core_11test_report", s2, 3, ir.Class.w, false, types.unit_id)
+        _ = try self.call_named("lb_core_11test_report", s2, 4, ir.Class.w, false, types.unit_id)
         let old = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
         let sum = try self.f.binary(ir.Op.add, ir.Class.w, old, failed)
         try self.f.store(ir.Op.storew, sum, try self.slot_address(failed_slot))
+
+    ## `file:line:column` of test `t`, where it is reported when it fails by an error (§16.5).
+    func test_place(t: ast.Node*) -> ir.Ref!:
+        let (saved_fn, saved_file, saved_line, saved_column, saved_text) = (self.current_fn, self.at_file, self.at_line, self.at_column, self.at_text)
+        self.current_fn = t
+        self.set_position(t)
+        let place = try self.position_ref()
+        self.current_fn = saved_fn
+        self.at_file = saved_file
+        self.at_line = saved_line
+        self.at_column = saved_column
+        self.at_text = saved_text
+        return place
 
     ## `answer()` of a program run for its answer: the value printed, or a failure's report
     ## and code in `exit_code`.

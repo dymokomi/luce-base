@@ -1103,6 +1103,8 @@ extend Emitter:
     ## `assert(cond)` and `assert(cond, msg)`: a trap naming the condition, and the
     ## message when one is given, unless it holds.
     func assert_call(e: ast.Node*, cond: ast.Node*, message: ast.Node*?) -> !:
+        if e.has(ast.flag_test_assert):
+            return try self.test_assert(e, cond, message)
         try self.put("((void)((")
         try self.value(cond, types.bool_id)
         if let msg = message:
@@ -1114,6 +1116,36 @@ extend Emitter:
             try self.put(") ? 0 : (lb_trap(")
             try self.put_assert_text(e)
         try self.put("), 0)))")
+
+    ## A false `assert` in a test's own body: `core.test_assert` makes the failure, and the
+    ## test leaves with it as with an `error` (§16.5).
+    func test_assert(e: ast.Node*, cond: ast.Node*, message: ast.Node*?) -> !:
+        let result = self.tmp()
+        let n = self.tmp()
+        try self.put("({ if (!(")
+        try self.value(cond, types.bool_id)
+        try self.put(")) {")
+        self.indent += 1
+        try self.line("lb_r_unit ")
+        try self.put_tmp("ta", result)
+        # Base's `c.str` is `char*` in C, which the literals and `lb_pos` are not
+        try self.put(" = lb_core_11test_assert((char*)lb_pos, (char*)(")
+        try self.put_assert_text(e)
+        try self.put(")")
+        if let msg = message:
+            try self.put(", ")
+            try self.expr(msg)
+            try self.put(", true);")
+        else:
+            try self.put(", (lb_str){ 0 }, false);")
+        try self.line("lb_error ")
+        try self.put_tmp("err", n)
+        try self.put(" = ")
+        try self.put_tmp("ta", result)
+        try self.put(".error;")
+        try self.leave_failing(n)
+        self.indent -= 1
+        try self.line("} (void)0; })")
 
     ## `trap()`, `trap(text)`, and `trap(f"...")`, the last streamed to stderr.
     func trap_call(message: ast.Node*?) -> !:

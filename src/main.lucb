@@ -49,7 +49,7 @@ import support.pieces
 import support.in_arena
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native] [--profile diagnostic]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -294,7 +294,7 @@ func generate_library(path: c.str) -> (str, str)!:
     return (code, try names.keep(&text))
 
 ## The program at `path`, checked, with its warnings reported.
-func checked(path: c.str, test_build: bool = false) -> check.Checker!:
+func checked(path: c.str, test_build: bool = false, whole_package: bool = false) -> check.Checker!:
     cache.begin()
     let m = try manifest.load(try module_paths.canonical((str)path))
     package = m
@@ -305,6 +305,7 @@ func checked(path: c.str, test_build: bool = false) -> check.Checker!:
     checker.package_name = m.name
     checker.build_target = build_target()
     checker.test_build = test_build
+    checker.whole_package = whole_package
     try checker.add_prelude()
     try checker.load(path)
     try checker.check_program()
@@ -952,18 +953,19 @@ func run_tool(program: c.str, arguments: c.str[], what: str, directory: str = ""
         try io.stderr().write(ran.value.error_output)
         error(build_failed, what)
 
-## `test FILE`: build the test runner into a scratch file and run it.
-func test_file(path: c.str, native: bool) -> i32!:
+## `test FILE`: build the test runner into a scratch file and run it; `whole_package`
+## (`--package`) tests every module of the file's package, imported or not (§16.5).
+func test_file(path: c.str, native: bool, whole_package: bool) -> i32!:
     var arena = Arena(memory.heap)
     defer arena.destroy()
     with arena:
         native_backend = native
-        var checker = try checked(path, true)
-        let entry = checker.modules.get(checker.modules.count - 1).tree
+        var checker = try checked(path, true, whole_package)
+        let entry = checker.modules.get(checker.entry_index).tree
         used_mode = try settle_mode(entry, path, 1)
         # a function no test reaches is not compiled, so one naming another platform's
         # symbol builds here as it does in a program that imports the module
-        try check.test_as_library(checker.modules.get(checker.modules.count - 1).name)
+        try check.test_as_library(checker.modules.get(checker.entry_index).name)
         # LUCE_TEST_BINARY keeps the compiled test kept at a path so a memory checker can
         # run it (tools/valgrind_std.sh); otherwise it builds into a scratch dir and removes it.
         if let requested = os.env("LUCE_TEST_BINARY"):
@@ -990,17 +992,20 @@ func test_file(path: c.str, native: bool) -> i32!:
         return ran.value.exit_code
 
 ## `test`'s options after the file: the backend, `--native` (the default) or `--backend=c`,
-## and the profile, `--profile diagnostic` or `--profile default` (§19.4); none, after the
-## usage, for anything else.
-func test_options(arguments: const c.str[]) -> (bool, bool)?!:
+## the profile, `--profile diagnostic` or `--profile default` (§19.4), and `--package`, the
+## whole package (§16.5); none, after the usage, for anything else.
+func test_options(arguments: const c.str[]) -> (bool, bool, bool)?!:
     var native = true
     var diagnostic = false
+    var whole_package = false
     var i: usize = 0
     while i < arguments.length:
         let a = (str)arguments[i]
         let profile = (str)arguments[i + 1] if a == "--profile" and i + 1 < arguments.length else ""
         if a == "--backend=c":
             native = false
+        elif a == "--package":
+            whole_package = true
         elif profile == "diagnostic" or profile == "default":
             diagnostic = profile == "diagnostic"
             i += 1
@@ -1008,7 +1013,7 @@ func test_options(arguments: const c.str[]) -> (bool, bool)?!:
             try usage(io.stderr())
             return none
         i += 1
-    return (native, diagnostic)
+    return (native, diagnostic, whole_package)
 
 func remove_tree(path: c.str):
     files.remove_tree(path) catch failure:
@@ -1587,9 +1592,9 @@ pub func main(arguments: c.str[]) -> i32!:
             return 1
         return 0
     if command == "test" and positional >= 3:
-        let (native, diagnostic) = try test_options(arguments[3..]) else return 2
+        let (native, diagnostic, whole_package) = try test_options(arguments[3..]) else return 2
         diagnostic_profile = diagnostic
-        let code = test_file(arguments[2], native) catch failure:
+        let code = test_file(arguments[2], native, whole_package) catch failure:
             try report_failure(failure.message)
             recover 1
         return code

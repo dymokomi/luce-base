@@ -1,3 +1,4 @@
 #prisma 4.0
 def package "tests_scoped" {
+    str source = "."
 }

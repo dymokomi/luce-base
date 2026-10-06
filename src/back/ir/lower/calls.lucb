@@ -626,7 +626,9 @@ extend Lowerer:
             try self.f.place_label(bad)
             # the text is as long as the condition's source, however long that is
             let where = try assert_text(e.text, "")
-            if let msg = second:
+            if e.has(ast.flag_test_assert):
+                try self.test_assert(where, second)
+            elif let msg = second:
                 let detail = try self.expr(msg)
                 let start = u32(self.f.args.count)
                 let prefix = try self.program_unit.text(where)
@@ -659,6 +661,24 @@ extend Lowerer:
             let t = try self.map(tv.type_id)
             return LowerValue(ref = ir.const_ref((i64)self.c.table.offset_of(t, fv.text)), type_id = types.usize_id, in_memory = false)
         return try self.fail(e, "unknown core function")
+
+    ## A false `assert` in a test's own body: `core.test_assert` leaves the failure, and the
+    ## test passes it on as a failing call's (§16.5).
+    func test_assert(text: str, message: ast.Node*?) -> !:
+        var detail = LowerValue(ref = ir.const_ref(0), type_id = types.str_id, in_memory = false)
+        if let msg = message:
+            detail = try self.expr(msg)
+        else:
+            detail = try self.span_of(ir.const_ref(0), ir.const_ref(0), types.str_id)
+        let start = u32(self.f.args.count)
+        let position = try self.position_ref()
+        let prefix = try self.program_unit.text(text)
+        try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = try self.f.address_of(ir.text_ref(prefix)), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+        try self.f.args.push(try self.arg_of(LowerValue(ref = detail.ref, type_id = types.str_id, in_memory = true)))
+        try self.f.args.push(ir.Arg(value = ir.const_ref(1 if message != none else 0), cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
+        let r = try self.call_aggregate("lb_core_11test_assert", start, 4, try self.c.table.fallible(types.unit_id))
+        try self.propagate(r.ref, r.type_id)
 
     ## A runtime call answering a small aggregate (`lb_str`) into a slot.
     func call_aggregate(name: str, start: u32, count: u32, result_type: u32) -> LowerValue!:

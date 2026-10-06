@@ -44,10 +44,22 @@ for dir in tests/conformance/[0-9]*/; do
             run "$seed" eval "$src" > build/conformance.out
             cmp build/conformance.out "$f"
         fi
-        # `# tests: true`: the program's `test` declarations run under both backends and pass
+        # `# tests: true`: the program's `test` declarations run under both backends and pass;
+        # beside a `NAME.tests`, its package's tests (`--package`) print that report, and the
+        # status is 1 when it counts a failure
         if grep -q '^# tests: true' "$src"; then
-            run ./build/luce-base test "$src" --backend=c > build/conformance.out
-            run ./build/luce-base test "$src" --native > build/conformance.out
+            report="${f%%.*}.tests"
+            if [ -e "$report" ]; then
+                if grep -q ' failed$' "$report"; then status=1; else status=0; fi
+                for backend in --backend=c --native; do
+                    python3 tools/run_case.py --expected "$status" -- ./build/luce-base test "$src" --package $backend > build/conformance.out && rc=0 || rc=$?
+                    [ "$rc" -eq "$status" ] || { echo "FAIL $src ($backend): status $rc, expected $status"; exit 1; }
+                    cmp build/conformance.out "$report"
+                done
+            else
+                run ./build/luce-base test "$src" --backend=c > build/conformance.out
+                run ./build/luce-base test "$src" --native > build/conformance.out
+            fi
         fi
         programs=$((programs + 1))
     done

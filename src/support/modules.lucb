@@ -13,6 +13,7 @@
 #==============================================================================================
 
 import c
+import luce_std.files
 import memory
 import luce_std.paths
 import strings
@@ -208,6 +209,50 @@ func dependency_directory(package: Package, dependency: Mapping) -> str!:
         if parent == directory or parent.length == 0:
             error(invalid, "a registry dependency is not synced; run luc sync")
         directory = parent
+
+## The source of every module of the package that owns the file at `path`, canonical and in
+## the order of their paths: each `.lucb` file under its source root, and each directory
+## there whose `ORDER` makes it one module (§16.1); nothing in a hidden directory, in one
+## holding a `package.prisma` of its own, or in `skip` (the standard library, when the
+## package is the compiler's own). None outside a package. What a test of the whole package
+## loads (§16.5).
+pub func package_modules(path: str, skip: str) -> list.List[str]!:
+    var found = try list.List[str].create(16)
+    let package = try enclosing(try canonical(path)) else return found
+    if package.name.length == 0 or not try present(package.source):
+        return found
+    try gather_modules(try canonical(package.source), skip, &found)
+    # gathered directory by directory; the modules go in their paths' order
+    for k in 1..<found.count:
+        let moved = found.get(k)
+        var j = k
+        while j > 0 and moved < found.get(j - 1):
+            found.set(j, found.get(j - 1))
+            j -= 1
+        found.set(j, moved)
+    return found
+
+## The modules under `directory` into `found`: its `.lucb` files, and each directory below
+## it that is one module by its `ORDER`, or else the modules under it.
+func gather_modules(directory: str, skip: str, found: list.List[str]*) -> !:
+    let listed = try files.list((c.str)directory)
+    defer listed.release()
+    for name in listed.value:
+        if name.length == 0 or name.bytes[0] == '.':
+            continue
+        let path = try in_arena.join(directory, name)
+        if strings.ends_with(name, ".lucb"):
+            try found.push(path)
+            continue
+        if path == skip or try present(try in_arena.join(path, "package.prisma")):
+            continue
+        # a directory with an `ORDER` is one module, its files the fragments
+        if try present(try in_arena.join(path, "ORDER")):
+            try found.push(path)
+            continue
+        # anything else is searched when it is a directory, and is not a module when not
+        gather_modules(path, skip, found) catch failure:
+            _ = failure
 
 ## The package that owns the file at `path` and its root directory, when a manifest
 ## encloses it; the root is canonical, as module paths are.
