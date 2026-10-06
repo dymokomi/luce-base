@@ -16,16 +16,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: luce-base
-      - name: Read the library pin
-        id: pins
-        shell: pwsh
-        working-directory: luce-base
-        run: '"std=$(Get-Content bootstrap/STD)" >> $env:GITHUB_OUTPUT'
-      # the compiler's own package depends on luce-std beside it
+      # the compiler's own package depends on luce-std beside it, at main (docs/CI.md)
       - uses: actions/checkout@v7
         with:
           repository: dymokomi/luce-std
-          ref: ${{ steps.pins.outputs.std }}
           path: luce-std
       - uses: msys2/setup-msys2@v2
         with:
@@ -40,13 +34,9 @@ jobs:
             git
       - name: Bootstrap and verify native self-hosting
         run: python tools/build_windows.py
-      - name: Read seed pin
-        id: seed
-        run: echo "revision=$(cat bootstrap/SEED)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
         with:
           repository: dymokomi/luce-seed
-          ref: ${{ steps.seed.outputs.revision }}
           path: luce-base/build/seed
       - name: Verify fresh seed bootstrap
         run: |
@@ -98,7 +88,7 @@ jobs:
           python tools/test_module_batches.py build/luce-base.exe
           python tools/test_package_tests.py build/luce-base.exe
       # real programs, checked out with CRLF line endings as Git for Windows does, built
-      # for every target: tools/compile_budget.pins's programs, and the packages they pin
+      # for every target: tools/budget_packages.py's programs and their dependencies, at main
       - name: Compile budget
         run: |
           python tools/budget_packages.py --crlf > "$RUNNER_TEMP/budget-entries"

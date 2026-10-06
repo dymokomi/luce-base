@@ -2,7 +2,7 @@
 
 The `Correctness` workflow runs on every push, pull request, manual dispatch and weekly
 schedule, on macOS ARM64 and Linux x86-64. The job asserts its actual architecture and
-retains toolchain versions, source revisions, dependency pins, complete gate logs and
+retains toolchain versions, source revisions, complete gate logs and
 failure replay records. Matrix jobs finish independently so a failing host cannot hide
 another host's result.
 
@@ -13,7 +13,7 @@ signal or timeout. Replay records under `build/failures/` name the command, work
 directory, source revision and outputs.
 
 Base's ordinary conformance gate runs C default, C release, native levels 0–3 and the
-pinned seed oracle where applicable. Both optimized and unoptimized trap programs run.
+seed oracle (luce-seed's main) where applicable. Both optimized and unoptimized trap programs run.
 The seed oracle is required for the full gate; it must not silently disappear.
 
 Hosted Macs may have no Metal device. CI explicitly sets `LUCE_TEST_GPU=optional`: the
@@ -27,12 +27,16 @@ the emitted C with the compilers a release meets) and a WASI toolchain and wasmt
 (§19.5): `tools/ci_dependencies.sh` installs Homebrew's llvm, lld, wasi-libc, wasi-runtimes
 and wasmtime on macOS, and wasi-sdk with wasmtime on Linux, naming the SDK in `WASI_SDK`.
 
+Every dependency is checked out at main: there are no commit pins.
+`tools/checkout_main.py REPOSITORY [TOOL...]` clones, beside REPOSITORY, every package its
+package.prisma files name by `path` (and theirs, and this compiler's own luce-std), each
+from main; a sibling already present is used as it is. Every dymokomi repository's CI starts
+the same way: clone luce-base's main, run this script, build the compilers it needs from
+those checkouts. Versions are fixed only when a batch of releases is cut.
+
 The compile budget (`tools/compile_budget.py`, on Linux x86-64 and Windows) builds real
-programs for every target within a time and a memory. Which programs, at which commits, is
-`tools/compile_budget.pins`, bumped deliberately; `tools/budget_packages.py` checks each out
-with every package its own `bootstrap/PACKAGES` pins, so the job builds what the program
-itself builds and a dependency it adds needs no change here. luce-std is the compiler's own
-`bootstrap/STD`.
+programs for every target within a time and a memory. `tools/budget_packages.py` names the
+programs and checks each out at main with every package it depends on.
 
 Runner labels follow [GitHub's runner documentation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 

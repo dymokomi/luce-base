@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 # the gate's builds share a cache of this tree's own, not the user's (§19.7)
 export LUCE_CACHE="$PWD/build/cache"
 if [ ! -x ../luce-seed/build/lucb ]; then
-    echo "FAIL: the full gate requires ../luce-seed/build/lucb ($(cat bootstrap/SEED))"
+    echo "FAIL: the full gate requires ../luce-seed/build/lucb (luce-seed's main, built)"
     exit 1
 fi
 ./build.sh
@@ -154,11 +154,11 @@ for snapshot in bootstrap/luce-base-*.c; do
     fi
 done
 rm -f build/stage1.c build/stage2.c build/stage2 build/snapshot.c
-# the seed named in bootstrap/SEED builds this compiler from source, and the compiler it
+# the seed beside this tree builds this compiler from source, and the compiler it
 # builds emits the same C for itself as the snapshot-built one: the seed stays a real start.
 # (Only this host's target is compared: the seed emits C for its host alone.)
 if [ -x ../luce-seed/build/lucb ]; then
-    echo "== seed $(cat bootstrap/SEED)"
+    echo "== seed $(git -C ../luce-seed rev-parse HEAD 2>/dev/null || echo ../luce-seed)"
     # the seed carries `numerals` verbatim, so a field lays out alike in what it builds
     cmp src/std/numerals.lucb ../luce-seed/std/numerals.lucb || { echo "FAIL ../luce-seed/std/numerals.lucb is not src/std/numerals.lucb"; exit 1; }
     ../luce-seed/build/lucb build src/main.lucb --release -o build/seed-stage0

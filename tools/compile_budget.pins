@@ -1,5 +1,0 @@
-# The programs the compile budget builds (tools/compile_budget.py), each a package at a
-# commit, bumped deliberately: `name commit entry`, the entry a path inside the package.
-# tools/budget_packages.py clones each, then every package its bootstrap/PACKAGES pins.
-luce-browser-engine 233d1f5d4520e56a87e449d60b79806acb152ead src/web/module.lucb
-luce-js 5a580e74ac093387c1efe36a8f6ef48760c732c0 tests/ljs.lucb

@@ -27,7 +27,7 @@ natively. A host that lacks something a check needs (SDL3, `pkg-config`, a Metal
 fails the default local gate and says what to install. Hosted CI explicitly permits a
 missing Metal device and records that missing hardware evidence; it does not replace a
 release check on a GPU-equipped Mac. Metal is inapplicable on non-macOS hosts. The tree builds itself through both backends to the same C and assembly, and the
-seed named in `bootstrap/SEED` builds it to the same C.
+seed beside it (`../luce-seed`, at main) builds it to the same C.
 
 ## The matrix
 

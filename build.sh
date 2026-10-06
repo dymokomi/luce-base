@@ -11,19 +11,18 @@ set -eu
 cd "$(dirname "$0")"
 mkdir -p build
 # the compiler's package depends on luce-std (package.prisma): the checkout beside this one
-# when there is one, else the commit bootstrap/STD names, fetched once into .luc/deps (by identifier) where
-# the compiler looks when the checkout is absent
+# when there is one, else its main, cloned once into .luc/deps (by identifier) where the
+# compiler looks when the checkout is absent
 if [ ! -d ../luce-std ] && [ ! -d .luc/deps/luce_std ]; then
-    git clone --quiet https://github.com/dymokomi/luce-std .luc/deps/luce_std
-    git -C .luc/deps/luce_std checkout --quiet "$(cat bootstrap/STD)"
+    git clone --quiet --depth 1 https://github.com/dymokomi/luce-std .luc/deps/luce_std
 fi
 python3 tools/embed_version.py > /dev/null
 CC=${CC:-cc}
 host=$(tools/host.sh)
 snapshot=bootstrap/luce-base-$host.c
 if [ -n "${LUCB:-}" ]; then
-    # LUCB is an explicit compiler override. CI obtains the exact source commit
-    # in bootstrap/SEED; compiling this tree checks the override's capabilities.
+    # LUCB is an explicit compiler override (CI builds luce-seed's main); compiling
+    # this tree checks the override's capabilities.
     "$LUCB" build src/main.lucb --release -o build/stage0
 else
     if [ ! -f "$snapshot" ]; then

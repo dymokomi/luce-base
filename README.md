@@ -11,8 +11,8 @@ luce-base  (this tree, Base)     compiles itself and programs natively by defaul
 luce       (Base)                compiles full Luce
 ```
 
-`luce-seed` built this tree until this tree built itself. The seed is pinned
-at the commit named in `bootstrap/SEED`: `LUCB=../luce-seed/build/lucb
+`luce-seed` built this tree until this tree built itself. The seed's main,
+checked out beside this tree as `../luce-seed`: `LUCB=../luce-seed/build/lucb
 ./build.sh` still starts from it, the gate proves the compiler it builds
 agrees with the snapshot-built one, and the compiler's own sources stay
 within what the seed provides. `bootstrap/luce-base-HOST.c` is the compiler's
@@ -105,7 +105,7 @@ native code generation, C emission and shared target definitions), and `src/supp
 The whole of Base (base.md §3 to §17, §19, §21) through two backends: C for the
 host C compiler, and native assembly for arm64-macos, arm64-linux, x86_64-linux and x86_64-windows, with no
 C in the native path. The compiler builds itself through both to the same C and
-the same assembly, and the seed pinned in `bootstrap/SEED` builds it to the
+the same assembly, and the seed (`../luce-seed`, at main) builds it to the
 same C. [`docs/STATUS.md`](docs/STATUS.md) is the one current matrix of what is
 verified, what is limited and where, and what is planned; it is rewritten, not
 appended, when the picture changes.

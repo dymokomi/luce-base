@@ -37,16 +37,11 @@ jobs:
         with:
           path: luce-base
           fetch-depth: 0
-      - name: Read the library pin
-        id: pins
-        run: echo "std=$(cat bootstrap/STD)" >> "$GITHUB_OUTPUT"
-      # the compiler's own package depends on luce-std beside it
-      - uses: actions/checkout@v7
-        with:
-          repository: dymokomi/luce-std
-          ref: ${{ steps.pins.outputs.std }}
-          path: luce-std
-      - name: Build pinned seed and install SDL3
+      # every dependency at main, beside this tree (docs/CI.md): luce-std, the packages
+      # the tests' manifests name
+      - name: Check out dependencies at main
+        run: python3 tools/checkout_main.py .
+      - name: Build the seed and install SDL3
         run: bash tools/ci_dependencies.sh
       - name: Install Linux font backend and valgrind
         if: runner.os == 'Linux'
@@ -110,19 +105,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: luce-base
-      - name: Read the library pin
-        id: pins
-        run: echo "std=$(cat bootstrap/STD)" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v7
-        with:
-          repository: dymokomi/luce-std
-          ref: ${{ steps.pins.outputs.std }}
-          path: luce-std
-      # the programs at the commits tools/compile_budget.pins names, and every package
-      # their own bootstrap/PACKAGES pins, beside them where their path dependencies look
+      - name: Check out dependencies at main
+        run: python3 tools/checkout_main.py .
+      # the budget's programs at main, and every package they depend on, beside them
       - name: Fetch the packages the budget builds
         run: python3 tools/budget_packages.py > "$RUNNER_TEMP/budget-entries"
-      - name: Build pinned seed
+      - name: Build the seed
         run: bash tools/ci_dependencies.sh
       - name: Select Clang for generated C
         run: |
