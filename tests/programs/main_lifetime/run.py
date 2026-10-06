@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Main's argument storage is released on success/failure and raw argv stays borrowed."""
 from pathlib import Path
+import os
 import platform
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -36,6 +38,48 @@ pub func main(arguments: c.str[]) -> i32:
 ''', 7, False),
 ]
 
+
+def children_of(pid):
+    """The PIDs whose parent is `pid`, as ps lists them now."""
+    listing = subprocess.run(['ps', '-axo', 'pid=,ppid='], capture_output=True, text=True).stdout
+    return [int(p) for p, parent in (line.split() for line in listing.splitlines()) if int(parent) == pid]
+
+
+def reap(pids):
+    """End each process by PID: `leaks --atExit` can leave its target stopped at exit, an
+    orphan that keeps a hosted runner from ending its job."""
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def checked(command):
+    """Run `command` to its end and answer it with its output; under leaks, the target
+    leaks names, and any child still left when leaks is done, are ended by PID."""
+    # Diagnostic helper processes can inherit pipes after leaks exits.
+    # Files keep the wait tied to the checker PID, not descendant EOF.
+    with tempfile.TemporaryFile() as standard, tempfile.TemporaryFile() as diagnostic:
+        child = subprocess.Popen(command, stdout=standard, stderr=diagnostic)
+        targets = []
+        try:
+            child.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            targets = children_of(child.pid)
+            child.kill()
+            child.wait()
+            raise
+        finally:
+            standard.seek(0)
+            diagnostic.seek(0)
+            out = standard.read()
+            err = diagnostic.read()
+            targets += [int(pid) for pid in re.findall(rb'Process (\d+):', out + err)]
+            reap(targets)
+        return subprocess.CompletedProcess(command, child.returncode, out, err)
+
+
 with tempfile.TemporaryDirectory(prefix='base-main-lifetime-') as temporary:
     directory = Path(temporary)
     for name, program, expected, fails in CASES:
@@ -52,14 +96,7 @@ with tempfile.TemporaryDirectory(prefix='base-main-lifetime-') as temporary:
             checking_leaks = platform.system() == 'Darwin'
             if checking_leaks:
                 command = ['/usr/bin/leaks', '--quiet', '--noContent', '--atExit', '--', *command]
-            # Diagnostic helper processes can inherit pipes after leaks exits.
-            # Files keep the wait tied to the checker PID, not descendant EOF.
-            with tempfile.TemporaryFile() as standard, tempfile.TemporaryFile() as diagnostic:
-                result = subprocess.run(command, stdout=standard, stderr=diagnostic, timeout=30)
-                standard.seek(0)
-                diagnostic.seek(0)
-                result.stdout = standard.read()
-                result.stderr = diagnostic.read()
+            result = checked(command)
             output = result.stdout + result.stderr
             # leaks reports its own success status rather than the child's.
             assert result.returncode == (0 if checking_leaks else expected), (command, result.returncode, output)
