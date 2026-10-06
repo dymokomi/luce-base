@@ -1,0 +1,75 @@
+# What the gate runs on each platform (tools/gate.py, docs/CI.md). Steps run in order in
+# this checkout under bash, with LUCE_BASE naming the compiler the gate built from this
+# commit. luce-seed is the oracle test.sh requires; luc goes into the release archive.
+tools = ["luce-seed", "luce-luc"]
+
+[macos]
+steps = [
+    "(cd ../luce-seed && ./build.sh)",
+    "./test.sh",
+]
+
+[linux]
+steps = [
+    "(cd ../luce-seed && ./build.sh)",
+    "./test.sh",
+    # real programs built for every target within a time and a memory
+    "python3 tools/compile_budget.py --seconds 240 --megabytes 4096 $(python3 tools/budget_packages.py)",
+]
+# every fuzzing generator for a bounded time (gate.py --extended)
+extended = [
+    "./build.sh",
+    "python3 tools/fuzz.py --seed $RANDOM --minutes 20 --mutations 400 --programs 60 --trap-programs 40 --packages 12 --mem-programs 24 --atomic-programs 12 --litmus-programs 8 --width-programs 60",
+]
+
+[windows]
+steps = [
+    # the gate built build/luce-base.exe with tools/build_windows.py (native self-hosting);
+    # the C++ seed bootstraps the same compiler from scratch
+    "cmake -S ../luce-seed -B ../luce-seed/build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release > /dev/null && cmake --build ../luce-seed/build-windows -j 8",
+    "python tools/build_windows.py --seed ../luce-seed/build-windows/lucb.exe",
+    # every module's tests through both backends, as test.sh runs them on Unix
+    """
+    ./build/luce-base.exe test src/main.lucb --backend=c | tail -1
+    ./build/luce-base.exe test src/main.lucb --native | tail -1
+    for f in tests/programs/*/*.lucb; do
+        if grep -rq '^test "' "$f"; then
+            echo "== test $f"
+            ./build/luce-base.exe test "$f" --backend=c | tail -1
+            ./build/luce-base.exe test "$f" --native | tail -1
+        fi
+    done
+    """,
+    "python tools/test_validation_process.py && python tools/test_platform_boundaries.py",
+    "python tests/programs/termination/run.py build/luce-base.exe",
+    """
+    python tools/test_windows_arguments.py --compiler build/luce-base.exe
+    python tools/test_windows_native.py
+    python tools/test_windows_debug.py
+    python tests/programs/external_storage/run.py build/luce-base.exe
+    python tests/programs/strings_floats/run.py build/luce-base.exe
+    """,
+    "python tools/test_windows.py --suite conformance --c",
+    "python tools/test_windows.py --suite samples --c && python tools/fuzz.py --gate",
+    "python benchmarks/native_vs_c/run.py --cc gcc --verify-only",
+    """
+    python tools/test_windows_publish.py build/luce-base.exe
+    python tools/test_windows_parameters.py build/luce-base.exe
+    python tools/test_module_batches.py build/luce-base.exe
+    python tools/test_package_tests.py build/luce-base.exe
+    """,
+    # real programs, checked out with CRLF line endings as Git for Windows does
+    "python tools/compile_budget.py --compiler build/luce-base.exe --seconds 240 --megabytes 4096 $(python tools/budget_packages.py --crlf)",
+]
+extended = [
+    "python tools/fuzz.py --seed $RANDOM --minutes 15 --mutations 200 --programs 30 --trap-programs 20 --packages 6 --mem-programs 12 --atomic-programs 6 --litmus-programs 4 --width-programs 30",
+]
+
+# after a pass on every platform: the archive the installers download, proved where it is
+# unpacked, kept for tools/release.py
+[release]
+steps = [
+    "tools/package.sh build/release",
+    "tools/install_smoke.sh build/release/luce-base-$(tr -d '[:space:]' < VERSION)-$LUCE_GATE_HOST.tar.gz build/smoke",
+]
+files = ["build/release/luce-base-*"]

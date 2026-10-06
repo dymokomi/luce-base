@@ -81,6 +81,6 @@ calling conventions and Vulkan SDK layouts; Windows GDB checks source breakpoint
 typed locals and backtraces. Each platform also checks fresh Seed bootstrap and
 native self-hosting.
 
-Hosted CPU/SDK checks do not establish graphics-driver behavior. Actual Metal
-rendering is exercised locally with the UI and 3D demos. Windows Vulkan rendering
-requires a Vulkan-capable machine; its SDK ABI checks run in hosted CI.
+CPU and SDK checks do not establish graphics-driver behavior. Actual Metal rendering is
+exercised with the UI and 3D demos; Windows Vulkan rendering on the gate's Windows
+machine, in its logged-in desktop session.

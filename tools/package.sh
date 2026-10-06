@@ -9,7 +9,7 @@
 #
 # The compiler finds the library beside its `bin` directory (base.md §16.6), so the tree
 # runs from wherever it is unpacked; a program it builds compiles what it reaches of it and
-# needs nothing from the tree at run time. Runs on macOS, Linux, and Windows in an MSYS2
+# needs nothing from the tree at run time. Runs on macOS, Linux, and Windows in Git's
 # shell, after ./build.sh or tools/build_windows.py.
 set -eu
 cd "$(dirname "$0")/.."

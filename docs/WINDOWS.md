@@ -8,7 +8,7 @@ linker, CRT and pthread library. `--backend=c` is the comparison backend.
 ## Build
 
 Install Python 3 and MinGW-w64 GCC with pthread support, and put `python`, `gcc`,
-`ar` and `nm` on PATH. MSYS2 UCRT64 is used by the Windows CI workflow. In PowerShell:
+`ar` and `nm` on PATH (the gate's Windows machine uses a standalone MinGW-w64 GCC). In PowerShell:
 
 ```powershell
 python tools/build_windows.py
@@ -97,7 +97,7 @@ performance tuning and broader GPU feature coverage remain future work.
 From `luce-demos`, `python tools/build.py --help` describes the UI and sphere
 builds. `python tests/run.py --gui` creates real windows and exercises both demos
 at all four native optimization levels. These checks need an interactive desktop
-and a Vulkan-capable driver; hosted CI runs the CPU contracts separately.
+and a Vulkan-capable driver; the gate runs them in the logged-in desktop session.
 
 ## Validation
 

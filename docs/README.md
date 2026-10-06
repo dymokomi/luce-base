@@ -19,7 +19,7 @@
 - [Package descriptions](PACKAGE-DESCRIPTION.md) — the current compiler-to-compiler
   API format, its records and executable adapter limits.
 - [Debugging](DEBUGGING.md) — native source debugging.
-- [CI](CI.md) — the hosted gate.
+- [CI](CI.md) — the three-platform gate and the release script.
 - [Library](LIBRARY.md) — the runtime's public surface (core, memory, io, os, thread,
   sync, strings, …), generated from its source. Everything else a program imports is a
   package: `luce-std` (files, paths, processes, networking, math, UTF-8, Unicode, crash
