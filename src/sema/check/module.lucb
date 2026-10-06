@@ -156,6 +156,10 @@ pub struct Checker:
     ## The target of the build (§19.5): what the `target` module says and what the backends
     ## emit for.
     pub var build_target: targets.Target
+    ## The package the program is built from, as `platform.program` gives it (§19.5).
+    pub var program: str = "app"
+    ## That package's version, as `platform.program_version` gives it.
+    pub var program_version: str = ""
     ## The module being checked, as an index into `modules`.
     var current: usize
     var current_func: ast.Node*?

@@ -143,17 +143,39 @@ debugger are the compiler's internal names, which include the module, for exampl
 
 A program that is not run from a terminal, such as a desktop application, has nowhere to print
 a trap. The `crash` module of `luce-std` turns on crash reports: each crash writes a file to
-`~/.luce/crashes` with the program, its version, the trap or signal, and a stack trace, and
-the next run can read it back:
+`~/.luce/crashes` with the program, its version, the trap or signal, and a stack trace. The
+program is named after its package and version in `package.prisma` (the compiler puts them in
+`platform.program` and `platform.program_version`), or after its executable when it is built
+outside a package; `enable` can be given others.
 
 <!-- fragment -->
 ```luce
 from luce_std import crash
 
 pub func main(arguments: str[]) -> i32!:
-    try crash.enable("my-app", "1.2.0")
+    try crash.enable()
     ...
 ```
+
+The next run can read the newest report back with `crash.take_report(name)`. A program can
+also ask for two things to follow a crash, much as macOS's crash reporter does for apps:
+
+- `crash.on_crash(hook)` runs `hook`, an `interop.Callback[unit, unit]`, after a trap and
+  before the process ends, on the thread that trapped. It is the place to save what can be
+  saved: write it under `crash.recovery_directory()` (`~/.luce/recovery/<program>`), never over
+  the user's own file, and call `crash.note_recovery(path)` so the report says where it is.
+  The hooks get five seconds in all; a trap inside one is added to the report and the hooks
+  after it are skipped. A fatal signal (a segmentation fault, say) runs no hooks, since almost
+  nothing is safe inside a signal handler: a program that must not lose work saves it as it
+  goes and looks in the recovery directory when it starts.
+- `crash.relaunch_on_crash()` starts the program again once the report is written, with no
+  arguments and `LUCE_CRASH_REPORT` naming the report; `crash.report_to_show()` answers that
+  path in the new process. The crashed process draws nothing; the new one shows the report.
+  luce-ui does this for every UI application, so a Base or Luce program with a window gets a
+  crash window without writing any of it.
+
+Nothing is sent anywhere: the reports stay in `~/.luce/crashes`. Under `--backend=c` a trap
+goes through the C runtime and writes no report; build with the native backend, the default.
 
 ### Looking at the generated code
 

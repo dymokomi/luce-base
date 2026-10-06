@@ -190,6 +190,11 @@ var crash_registers: usize[1024]
 var crash_windows_context: u8[1280]
 ## The interrupted context of the fatal signal being reported, when there is one.
 var crash_context: const void*? = none
+## Whether this process has written a report: a later trap, one in a crash handler,
+## is added to it rather than replacing it.
+var crash_reported: bool = false
+## What runs once a report is written, before the process ends (`set_crash_handler`).
+var crash_handler: (func(i32) -> unit)? = none
 
 ## Turn crash reports on: a trap from now on also writes `header` and the trap
 ## to the file at `path` (created then, replaced if present), with a native
@@ -208,23 +213,39 @@ pub func set_crash_report(path: str, header: str):
 pub func crash_reports_enabled() -> bool:
     return crash_path[0] != 0
 
+## Run `handler` once a crash report is written, before the process ends: with 0 after
+## a trap, on the thread that trapped, where the program may still do ordinary work;
+## with the signal's number after a fatal signal, inside the signal handler, where only
+## async-signal-safe calls are allowed. The process ends when the handler returns. A
+## trap inside the handler is added to the report and runs the handler again.
+pub func set_crash_handler(handler: (func(i32) -> unit)?):
+    crash_handler = handler
+
 ## Open the report, if reports are on and it is not open yet, and write its header.
 func begin_crash_report():
     if crash_file >= 0 or crash_path[0] == 0 or platform.wasm32:
         return
     let path = (c.str)&crash_path[0]
+    # write, create, and truncate the first time; append after
     if platform.windows:
-        crash_file = windows_open(path, 1 | 256 | 512 | 32768, 420)
+        crash_file = windows_open(path, 1 | 256 | (8 if crash_reported else 512) | 32768, 420)
     elif platform.macos:
-        crash_file = posix_open(path, 1 | 512 | 1024, 420)
+        crash_file = posix_open(path, 1 | 512 | (8 if crash_reported else 1024), 420)
     else:
-        crash_file = posix_open(path, 1 | 64 | 512, 420)
-    if crash_file >= 0:
+        crash_file = posix_open(path, 1 | 64 | (1024 if crash_reported else 512), 420)
+    if crash_file < 0:
+        return
+    if crash_reported:
+        write_all(crash_file, "\n(and while the program handled that crash)\n".bytes)
+    else:
         write_all(crash_file, crash_header[..<crash_header_length])
+    crash_reported = true
 
-## Finish a trap: the stack into the report, close it, and exit.
+## Finish a trap: the stack into the report, close it, the crash handler, and exit.
 func finish_trap() -> never:
     finish_crash_report(trap_registers())
+    if let handler = crash_handler:
+        handler(0)
     c_exit(1)
 
 ## Where a fault left the program: its instruction, its frame pointer and, on
@@ -552,6 +573,8 @@ pub func report_fatal_signal_in(name: str, number: i32, context: const void*?) -
         finish_crash_report(context_registers(interrupted))
     else:
         finish_crash_report(FaultRegisters())
+    if let handler = crash_handler:
+        handler(number)
     c_quick_exit(128 + number)
 
 ## The buffer `format` and f"..." fill: the bytes, their capacity, and the count used.

@@ -1816,6 +1816,8 @@ A Base executable links a startup shim and a trap reporter and no Luce runtime (
 
 `luce build --target NAME` compiles for a target; without `--target` the host is the target. The compiler writes the `platform` standard module for the build, whose constants `os` re-exports, so `if os.linux and os.x86_64:` is decided at compile time and the other arms are pruned (§19.6): one source covers every target, and each target links only what it uses. The standard library is written that way: a constant whose value differs by target is a conditional of constants, `6 if platform.macos else 1`, and a call whose shape differs is an `if` over the target's arms. The native backend emits arm64-macos, arm64-linux, x86_64-linux and x86_64-windows from any host (§19.3); another target's program, x86_64-macos or wasm32, is written as C with `--emit=c` and compiled there.
 
+The same module names the program: `platform.program` is the name of the package the entry belongs to as its `package.prisma` spells it (`luced-2d`), `app` for a program outside any package, and `platform.program_version` is that manifest's `version`, empty when it has none. They are how a crash report (`crash` in luce-std) names the program without being told.
+
 | `--target` | `asm` name | Pointer width | `c.long` | `c.char` | Calling convention |
 | --- | --- | --- | --- | --- | --- |
 | `x86_64-linux` | `x86_64` | 64 | 64 | signed | SysV |

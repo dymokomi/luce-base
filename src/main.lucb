@@ -304,6 +304,9 @@ func checked(path: c.str, test_build: bool = false, whole_package: bool = false)
     checker.debug_locals = debug_backend
     checker.package_name = m.name
     checker.build_target = build_target()
+    if m.written_name.length > 0:
+        checker.program = m.written_name
+    checker.program_version = m.version
     checker.test_build = test_build
     checker.whole_package = whole_package
     try checker.add_prelude()

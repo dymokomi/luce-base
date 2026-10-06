@@ -139,10 +139,27 @@ pub struct Target:
 
     ## The `platform` standard module for this target: constants the standard library and,
     ## through `os`, a program branch on. A top-level `let` is a constant (§6.4), so the
-    ## branches prune (§19.6).
-    pub func module_text(buffer: u8[]) -> str!:
+    ## branches prune (§19.6). `program` and `version` name the package the program is
+    ## built from, as its manifest spells them.
+    pub func module_text(buffer: u8[], program: str = "app", version: str = "") -> str!:
         let socket_type = "isize" if self.os == Os.windows else "i32"
-        return try strings.format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let wasm32: bool = {self.arch == Arch.wasm32}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n")
+        var program_room: u8[96]
+        var version_room: u8[96]
+        let named = literal_safe(program, program_room)
+        let versioned = literal_safe(version, version_room)
+        return try strings.format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let wasm32: bool = {self.arch == Arch.wasm32}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n## The package this program is built from, as its manifest names it; `app` outside any package.\npub let program: str = \"{named}\"\n## That package's version, empty when its manifest gives none.\npub let program_version: str = \"{versioned}\"\n")
+
+## `text` as it may stand inside a string literal: printable ASCII but quotes and
+## backslashes, cut to fit `buffer`.
+func literal_safe(text: str, buffer: u8[]) -> str:
+    var used: usize = 0
+    for byte in text.bytes:
+        if used == buffer.length:
+            break
+        if byte >= 32 and byte < 127 and byte != '"' and byte != '\\':
+            buffer[used] = byte
+            used += 1
+    return (str)buffer[..<used]
 
 # mark: Sections and names ====================================================================
 

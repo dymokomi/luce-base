@@ -42,6 +42,7 @@ pub struct Setting:
 ## rest of the compiler reads one shape:
 ##
 ##   def package "n" {                              [package] name = n   (n as an identifier)
+##                                                  [package] written name = n   (as spelled)
 ##     str k = "v"                                  [package] k = v
 ##     def dependency "n" { str path = "p" }        [dependencies] n = p, or .luc/deps/n without a path
 ##     str[] public = ["m", "n.o"]                  [package] public = ["m", "n.o"]
@@ -90,7 +91,8 @@ pub func settings(text: str, path: str) -> Setting[]!:
                 if word != "package":
                     try at.refuse(0, "package.prisma starts with `def package`")
                 out[count] = Setting(section = "[package]", key = "name", value = try identifier_of(name))
-                count += 1
+                out[count + 1] = Setting(section = "[package]", key = "written name", value = name)
+                count += 2
             elif keys.depth == 2:
                 kind = word
                 element = try identifier_of(name) if word == "dependency" else name
@@ -209,8 +211,13 @@ func count_lines(text: str) -> usize:
 
 ## What the manifest says; the lists hold NUL-terminated text, ready for a tool's arguments.
 pub struct Manifest:
-    ## The package's name.
+    ## The package's name, as an identifier.
     pub var name: str
+    ## The package's name as `def package` spells it (`luce-ui`), empty without a
+    ## manifest; the program a build makes carries it (`platform.program`).
+    pub var written_name: str
+    ## The manifest's `version`, empty when it gives none (`platform.program_version`).
+    pub var version: str
     ## The directory holding `package.prisma`, with its trailing slash; empty when none was found.
     pub var root: str
     ## The prefix put before exported C symbols, or empty.
@@ -248,7 +255,7 @@ func read_if_present(path: c.str) -> u8[]?:
 
 ## The manifest `text` describes, for the package rooted at `root`.
 pub func parse(text: str, root: str) -> Manifest!:
-    var m = Manifest(name = "app", root = root, symbol_prefix = "", sources = try no_items(), libraries = try no_items(),
+    var m = Manifest(name = "app", written_name = "", version = "", root = root, symbol_prefix = "", sources = try no_items(), libraries = try no_items(),
                      link_search = try no_items(), frameworks = try no_items(), pkg_config = try no_items())
     var room = try new u8[root.length + 16] ---
     for setting in try settings(text, try strings.format(room, f"{root}package.prisma")):
@@ -258,6 +265,10 @@ pub func parse(text: str, root: str) -> Manifest!:
         if section == "[package]":
             if key == "name":
                 m.name = value
+            elif key == "written name":
+                m.written_name = value
+            elif key == "version":
+                m.version = value
             elif key == "symbol_prefix":
                 m.symbol_prefix = value
         elif section == "[native]":
@@ -465,8 +476,9 @@ test "a manifest names the package, the prefix, and the native inputs":
     var backing: u8[8192]
     var arena = memory.FixedBuffer.over(backing)
     with arena:
-        let m = try parse("#prisma 4.0\ndef package \"wid-gets\" {\n    str symbol_prefix = \"wg_\"\n    def native \"inputs\" {\n        str[] sources = [\"vendor/a.c\", \"shims.c\"]\n        str[] libraries = [\"m\"]\n        str[] frameworks = [\"Metal\"]\n    }\n}\n", "pkg/")
+        let m = try parse("#prisma 4.0\ndef package \"wid-gets\" {\n    str version = \"1.2.3\"\n    str symbol_prefix = \"wg_\"\n    def native \"inputs\" {\n        str[] sources = [\"vendor/a.c\", \"shims.c\"]\n        str[] libraries = [\"m\"]\n        str[] frameworks = [\"Metal\"]\n    }\n}\n", "pkg/")
         assert(m.name == "wid_gets")
+        assert(m.written_name == "wid-gets" and m.version == "1.2.3")
         assert(m.symbol_prefix == "wg_")
         assert(m.root == "pkg/")
         assert(m.sources.length == 2)
@@ -476,6 +488,7 @@ test "a manifest names the package, the prefix, and the native inputs":
         assert(m.pkg_config.length == 0)
         let none_at_all = try parse("", "")
         assert(none_at_all.name == "app")
+        assert(none_at_all.written_name == "" and none_at_all.version == "")
         assert(none_at_all.sources.length == 0)
 
 test "every element becomes settings under its section; luc's own elements are skipped":
@@ -483,15 +496,16 @@ test "every element becomes settings under its section; luc's own elements are s
     var arena = memory.FixedBuffer.over(backing)
     with arena:
         let found = try settings("#prisma 4.0\ndef package \"w\" {\n    str kind = \"package\"\n    str source = 'lib'\n    str[] public = [\"ui\", \"widgets.button\"]\n    def dependency \"luce-ui\" {\n        str owner = \"dymokomi\"\n        str path = \"../luce-ui\"\n    }\n    def dependency \"luce-json\" {\n        str version = \"^0.2.0\"\n    }\n    def task \"ci\" {\n        str cmd = \"luc test\"\n    }\n}\n", "w/package.prisma")
-        assert(found.length == 6)
+        assert(found.length == 7)
         assert(found[0].section == "[package]" and found[0].key == "name" and found[0].value == "w")
-        assert(found[1].key == "kind" and found[1].value == "package")
-        assert(found[2].key == "source" and found[2].value == "lib")
-        assert(found[3].key == "public")
-        let public = try strings_of(found[3].value)
+        assert(found[1].key == "written name" and found[1].value == "w")
+        assert(found[2].key == "kind" and found[2].value == "package")
+        assert(found[3].key == "source" and found[3].value == "lib")
+        assert(found[4].key == "public")
+        let public = try strings_of(found[4].value)
         assert(public.length == 2 and public[0] == "ui" and public[1] == "widgets.button")
-        assert(found[4].section == "[dependencies]" and found[4].key == "luce_ui" and found[4].value == "../luce-ui")
-        assert(found[5].section == "[dependencies]" and found[5].key == "luce_json" and found[5].value == ".luc/deps/luce_json")
+        assert(found[5].section == "[dependencies]" and found[5].key == "luce_ui" and found[5].value == "../luce-ui")
+        assert(found[6].section == "[dependencies]" and found[6].key == "luce_json" and found[6].value == ".luc/deps/luce_json")
         let exported = settings("def package \"w\" {\n    def export \"ui\" {\n        str module = \"ui\"\n    }\n}\n", "w/package.prisma") catch failure:
             recover found[..<0]
         assert(exported.length == 0)
@@ -520,7 +534,7 @@ test "a key set twice in one element is refused where it is set again":
         assert(refused)
         # the same key in different elements, and in the package around them, is no repeat
         let fine = try settings("def package \"w\" {\n    str version = \"1\"\n    def dependency \"a\" {\n        str version = \"^1.0.0\"\n    }\n    def dependency \"b\" {\n        str version = \"^1.0.0\"\n    }\n    str owner = \"o\"\n}\n", "p")
-        assert(fine.length == 5)
+        assert(fine.length == 6)
 
 test "native elements apply by operating system or exact target":
     set_target("arm64-macos")

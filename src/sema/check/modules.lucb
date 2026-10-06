@@ -47,7 +47,7 @@ extend Checker:
                 let name = (str)order[start..<i]
                 if name == "platform":
                     let buffer = try new u8[1024] ---
-                    let text = try self.build_target.module_text(buffer)
+                    let text = try self.build_target.module_text(buffer, self.program, self.program_version)
                     try self.add_module(name, try source.Source.over(name, text.bytes), true)
                 else:
                     var path_bytes = try new u8[directory.length + name.length + 8] ---
