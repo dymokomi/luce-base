@@ -57,7 +57,8 @@ def clone(owner, directory, git_config=()):
 
 
 def check_out(roots, git_config=()):
-    """Clone what roots[0] (every manifest) and roots[1:] (top-level manifests) depend on."""
+    """Clone what roots[0] (every manifest) and roots[1:] (top-level manifests) depend on;
+    the set of dependency directories, cloned or already there."""
     workspace = roots[0].parent
     pending = [(BASE, False)]
     for index, root in enumerate(roots):
@@ -65,6 +66,7 @@ def check_out(roots, git_config=()):
             clone("dymokomi", root, git_config)
         pending.append((root, index == 0))
     seen = set()
+    found = set()
     while pending:
         repository, everywhere = pending.pop()
         if (repository, everywhere) in seen:
@@ -75,7 +77,9 @@ def check_out(roots, git_config=()):
                 sibling = workspace / name
                 if not sibling.exists():
                     clone(owner, sibling, git_config)
+                found.add(sibling)
                 pending.append((sibling, False))
+    return found
 
 
 def main(arguments):
