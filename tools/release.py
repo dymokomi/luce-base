@@ -7,8 +7,8 @@ Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run]
      with its newest registry release: a package whose sources changed since that
      release's commit is to be released. Its checkout must be main, clean and pushed.
   2. Each one runs its own tests with the development toolchain (tools/toolchain.py):
-     `luc test` in the package; `./test.sh` for luce-base, luce and luce-luc. One failure
-     stops the release before anything is published.
+     its ./test.sh when it has one, otherwise `luc test`. One failure stops the release
+     before anything is published.
   3. Each version is bumped (patch, unless package.prisma already moved past the
      registry's), committed, pushed and published with `luc publish`, dependencies
      first, independent packages in parallel.
@@ -92,13 +92,14 @@ def newer(a, b):
 
 
 def run_tests(directory):
-    """The package's own tests: ./test.sh for the toolchain's repositories, `luc test`
-    for every other package, in a scratch LUC_HOME."""
-    command = ["./test.sh"] if directory.name in TOOLCHAIN else ["luc", "test"]
+    """The package's own tests: its ./test.sh when it has one (most packages keep test
+    programs under tests/ that only test.sh runs), otherwise `luc test`; a scratch LUC_HOME."""
+    command = ["./test.sh"] if (directory / "test.sh").exists() else ["luc", "test"]
     with tempfile.TemporaryDirectory(prefix="luce-test-") as scratch:
         environment = dict(os.environ, LUC_HOME=str(Path(scratch) / ".luce"))
         result = subprocess.run(command, cwd=directory, env=environment, capture_output=True, text=True)
     if result.returncode != 0:
+        print(f"release: {directory.name}: {' '.join(command)} failed")
         print(result.stdout[-3000:] + result.stderr[-3000:])
     return result.returncode == 0
 
