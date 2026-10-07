@@ -39,7 +39,17 @@ luce-base, luce and luce-seed, are tested with their own `./test.sh` instead.
 The compilers' `./test.sh --quick` skips their slowest parts. Run them when the compiler or the
 standard library changes; on Linux and Windows too when the change touches code generation,
 the runtime or anything platform-specific. The other machines are reachable as `luce-linux`
-and `luce-windows` (`~/.ssh/config`).
+and `luce-windows` (`~/.ssh/config`):
+
+- On `luce-linux`, start with `. ~/Dev/gate/gate-env.sh`. It puts SDL3, MinGW-w64, valgrind and
+  the WASI SDK on the paths without installing them system-wide; without it the compilers'
+  gui, pkgconfig and wasm checks fail. Window and GPU tests also need `DISPLAY=:0`,
+  `XDG_RUNTIME_DIR=/run/user/1000` and, for X11, the session's `XAUTHORITY`
+  (`/run/user/1000/.mutter-Xwaylandauth.*`).
+- On `luce-windows` the SSH shell is Windows PowerShell; run scripts through Git's bash,
+  `C:\scoop\apps\git\current\bin\bash.exe`, since `bash` on the path is WSL's launcher. SSH runs
+  outside the desktop session, so a test that must show a window runs from a scheduled task
+  in the logged-in session.
 
 ## Releasing
 
