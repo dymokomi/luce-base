@@ -13,6 +13,7 @@ From a workspace of checkouts side by side:
 python3 ../luce-base/tools/gate.py                # the current directory's HEAD
 python3 ../luce-base/tools/gate.py ../luce-ui     # another checkout
 python3 tools/gate.py --only windows              # one platform again
+python3 ../luce-base/tools/gate.py --full         # everything, before a toolchain release
 ```
 
 `tools/gate.py` tests one commit on all three platforms at once: macOS on this Mac, Linux
@@ -33,9 +34,20 @@ workspace alone (a second gate waits). On each machine:
 3. **Steps.** The repository's `gate.toml` lists, per platform, bash commands run in the
    checkout in order (Git's bash on Windows); the first to fail fails the platform. A step
    that runs two hours has hung and its process tree is killed.
-4. **Release archives.** A `[release]` section's steps run after a pass, and the files it
-   names are kept for `tools/release.py` (under `~/luce-gate/artifacts/`, fetched to this
-   Mac).
+4. **Dependents.** The checkouts beside the repository on this Mac whose manifest depends
+   on it by path, and whose gate.toml has `quick` steps, are checked out at main on each
+   machine and their quick steps run, four at once (`--no-dependents` skips them).
+5. **Release archives.** With `--full`, a `[release]` section's steps run after a pass, and
+   the files it names are kept for `tools/release.py` (under `~/luce-gate/artifacts/`,
+   fetched to this Mac).
+
+There are two levels. The default runs each platform's `steps`: the build and the
+repository's own tests, minutes for a library or an application. `--full` adds each
+platform's `full` steps and tells the steps `LUCE_GATE_LEVEL=full`: the sanitizers,
+valgrind, ThreadSanitizer, the fuzzers, the compile budget, the DWARF check and the seed's
+fresh bootstrap. A change to luce-base, luce or luc needs a full gate, as does every
+toolchain release. A suite of many small cases runs them at once, as many as the machine
+has cores (`LUCE_JOBS` overrides).
 
 The three platforms run in parallel; their output is streamed here with a `[platform]`
 prefix and kept in `~/luce-gate/logs/`. The gate exits non-zero if any platform failed.
@@ -50,25 +62,25 @@ steps = ["./test.sh", "python3 tests/gpu.py"]
 
 [linux]
 steps = ["./test.sh"]
-extended = ["python3 tools/fuzz.py --minutes 15"]   # with --extended only
+full = ["python3 tools/fuzz.py --minutes 5"]        # with --full only
+quick = ["./test.sh"]             # what a dependency's gate runs here
 
 [windows]
 steps = ["python tests/run.py"]   # an empty list: the platform does not apply
 
-[release]                         # luce-base and luce: the installers' archives
+[release]                         # luce-base and luce: the installers' archives (--full)
 steps = ["tools/package.sh build/release"]
 files = ["build/release/luce-*"]
 ```
 
 `[windows] autocrlf = false` checks the repository out without CRLF conversion (Git for
-Windows converts by default). `--extended` adds each platform's `extended` steps: the long
-differential fuzzing runs, which a release batch or a compiler change warrants.
+Windows converts by default).
 
 ### The record
 
 A gate writes a git note on the commit, `refs/notes/gate`, and pushes it to origin: one line
-per platform with `PASS`, `FAIL` or `NONE` (no steps there), the time, the duration and the
-toolchain commits. `--only` replaces its platforms' lines and keeps the others. Read it
+per platform with `PASS`, `FAIL` or `NONE` (no steps there), the level (`default` or
+`full`), the time, the duration and the toolchain commits. `--only` replaces its platforms' lines and keeps the others. Read it
 with `git fetch origin refs/notes/gate:refs/notes/gate && git notes --ref=gate show`.
 
 ### The machines
@@ -116,15 +128,16 @@ workspace of clean checkouts at origin/main:
 
 1. Every registry package with a checkout is compared with its newest release on
    pkg.luciaos.com; one whose sources changed since that release's commit is released.
-2. Its commit must carry a gate note with every platform passing (`--gate` runs the gate
-   where the note is missing).
+2. Its commit must carry a gate note with every platform passing: the default level for a
+   package, `--full` for luce-base, luce and luc (`--gate` runs the gate where the note is
+   missing).
 3. Its version is bumped (patch, unless package.prisma already moved past the registry's),
    committed with the gate note carried over, pushed, and published with `luc publish`,
    dependencies first and independent packages in parallel. Dependencies name no version,
    so they take the newest release and nothing else moves.
 4. When luce-base, luce or luc changed since the last `luce-VERSION` tag, luce-base and
    luce get new versions (luce's installers `tools/install.sh` and `install.ps1` too), each
-   commit is gated, and the archives the gate built become the GitHub releases
+   commit is gated with `--full`, and the archives the gate built become the GitHub releases
    `luce-base-VERSION` and `luce-VERSION`, tagged on the gated commits. The installers are
    copied to luce.luciaos.com (`install.sh`, `install.ps1`, `install/VERSION/`), and both
    documentation sites are rebuilt with `tools/site.py` and deployed, replacing only each

@@ -5,8 +5,13 @@
 # rejects every program under tests/samples/errors. The C and native backends are the
 # two executions that must agree. The gate runs on every host with a native backend
 # (arm64-macos, x86_64-linux); what depends on the target is under tests/platform.
+# `./test.sh --quick` is the gate's default level (tools/gate.py): everything but the
+# instrumented runs, which `./test.sh` (gate.py --full) adds: the sanitizers, the other C
+# compilers, valgrind, ThreadSanitizer and the fuzzer under valgrind.
 set -eu
 cd "$(dirname "$0")"
+full=true
+[ "${1:-}" = --quick ] && full=false
 # the gate's builds share a cache of this tree's own, not the user's (§19.7)
 export LUCE_CACHE="$PWD/build/cache"
 if [ ! -x ../luce-seed/build/lucb ]; then
@@ -221,24 +226,24 @@ tests/conformance/run.sh
 tests/platform/run.sh
 # the sanitizer suite: the positive programs through the C backend under the address and
 # undefined-behaviour sanitizers, at -O0 and -O2 (tests/sanitize/run.sh)
-tests/sanitize/run.sh
+$full && tests/sanitize/run.sh
 # the other C compilers a release meets compile the emitted C here first: GNU GCC on the
 # host's snapshot, MinGW-w64 GCC on the Windows one (tools/cross_c.sh)
-tools/cross_c.sh
+$full && tools/cross_c.sh
 # the seed's program corpus, built natively: every `# answer: N` program prints N
 tools/native_check.sh
 # the native backend under valgrind's memcheck where valgrind is present (Linux): every
 # positive program runs clean at -O0 and -O3, catching memory faults in the native machine
 # code that the C-backend sanitizers cannot reach (tools/valgrind_native.sh)
-if command -v valgrind > /dev/null 2>&1; then tools/valgrind_native.sh; else echo "skip valgrind_native: no valgrind on this host"; fi
+if $full && command -v valgrind > /dev/null 2>&1; then tools/valgrind_native.sh; else echo "skip valgrind_native: no valgrind on this host, or --quick"; fi
 # the standard library's own test binaries under valgrind (tools/valgrind_std.sh)
-if command -v valgrind > /dev/null 2>&1; then tools/valgrind_std.sh; else echo "skip valgrind_std: no valgrind on this host"; fi
+if $full && command -v valgrind > /dev/null 2>&1; then tools/valgrind_std.sh; else echo "skip valgrind_std: no valgrind on this host, or --quick"; fi
 # the threaded concurrency programs under ThreadSanitizer where it can run (Linux, ASLR off):
 # a data race between threads is a finding no other check sees; the script self-skips where
 # TSan is unavailable or cannot map (tools/tsan_concurrency.sh)
-tools/tsan_concurrency.sh
+$full && tools/tsan_concurrency.sh
 # the fuzzer's short run, the same on every host: mutated programs are accepted or
 # rejected with a positioned diagnostic, never a fault, and generated programs agree
 # across the C, C -O2, native, and seed executions (tools/fuzz.py --minutes M runs longer)
-python3 tools/fuzz.py --gate --valgrind
+if $full; then python3 tools/fuzz.py --gate --valgrind; else python3 tools/fuzz.py --gate; fi
 echo "ok"

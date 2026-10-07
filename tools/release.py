@@ -7,7 +7,8 @@ Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run] [--ga
      with its newest registry release: a package whose sources changed since that
      release's commit is to be released. Its checkout must be main, clean and pushed.
   2. Each such commit needs a gate note (tools/gate.py) showing arm64-macos,
-     x86_64-linux and x86_64-windows passing; --gate runs the gate where one is missing.
+     x86_64-linux and x86_64-windows passing: the default level for a package, --full
+     for luce-base, luce and luc; --gate runs the gate where one is missing.
   3. Each version is bumped (patch, unless package.prisma already moved past the
      registry's), committed and pushed with the gate note carried over, and published
      with `luc publish`, dependencies first, independent packages in parallel.
@@ -90,12 +91,19 @@ def newer(a, b):
     return tuple(map(int, a.split("."))) > tuple(map(int, b.split(".")))
 
 
-def gate_status(directory, commit):
-    """(passed, the note's text) for the commit, from origin's notes."""
+def gate_status(directory, commit, level="default"):
+    """(passed, the note's text) for the commit, from origin's notes: every platform
+    passing at `level` ("full" passes "default" too)."""
     git(directory, "fetch", "-q", "origin", f"+{NOTES}:{NOTES}", check=False)
     note = git(directory, "notes", "--ref=gate", "show", commit, check=False)
-    results = {line.split()[0]: line.split()[1] for line in note.splitlines() if len(line.split()) > 1}
-    return all(results.get(host) in ("PASS", "NONE") for host in HOSTS), note
+    results = {}
+    for line in note.splitlines():
+        words = line.split()
+        if len(words) > 2 and words[0] in HOSTS:
+            results[words[0]] = (words[1], words[2] if words[2] in ("default", "full") else "default")
+    good = lambda host: host in results and results[host][0] in ("PASS", "NONE") and \
+        (level == "default" or results[host][1] == "full")
+    return all(good(host) for host in HOSTS), note
 
 
 # mark: the packages
@@ -123,7 +131,9 @@ class Package:
         if self.changed:
             self.target = self.version if self.released is None or newer(self.version, self.released) \
                 else bump(self.released)
-        self.gated, self.note = gate_status(directory, self.head) if self.changed else (True, "")
+        # the toolchain's own packages need the full gate, the others the default one
+        self.level = "full" if self.repository in TOOLCHAIN else "default"
+        self.gated, self.note = gate_status(directory, self.head, self.level) if self.changed else (True, "")
 
     def has_changed(self):
         known = subprocess.run(["git", "cat-file", "-e", f"{self.released_commit}^{{commit}}"],
@@ -244,10 +254,10 @@ def set_version(directory, version):
     git(directory, "commit", "-q", "-a", "-m", f"{directory.name} {version}: batch release")
 
 
-def gate(directory):
+def gate(directory, level="default"):
     """Run the gate on HEAD; its note decides."""
-    subprocess.run([sys.executable, str(GATE), str(directory)], check=False)
-    passed, note = gate_status(directory, git(directory, "rev-parse", "HEAD"))
+    subprocess.run([sys.executable, str(GATE), str(directory), *(["--full"] if level == "full" else [])], check=False)
+    passed, note = gate_status(directory, git(directory, "rev-parse", "HEAD"), level)
     if not passed:
         raise SystemExit(f"release: the gate did not pass on {directory.name}:\n{note}")
 
@@ -323,7 +333,7 @@ def main():
     print("\nPackages to release, dependencies first:")
     for number, layer in enumerate(layers(changed), 1):
         for package in layer:
-            state = "; ".join(package.problems) or ("gated" if package.gated else "NOT GATED")
+            state = "; ".join(package.problems) or (f"gated ({package.level})" if package.gated else f"NOT GATED ({package.level})")
             print(f"  layer {number}: {package.name:28} {str(package.released):>9} -> {package.target:9} "
                   f"{package.head[:12]}  {state}")
     unchanged = len(packages) - len(changed)
@@ -351,7 +361,7 @@ def main():
         return 1
     for package in ungated:
         if arguments.gate:
-            gate(package.directory)
+            gate(package.directory, package.level)
             package.gated = True
         else:
             return 1
@@ -368,7 +378,7 @@ def main():
         if entry["version"] != entry["target"]:
             set_version(directory, entry["target"])
             push(directory)
-        gate(directory)
+        gate(directory, "full")
         github_release(directory, entry["target"])
         if name == "luce":
             deploy_installers(directory, entry["target"])

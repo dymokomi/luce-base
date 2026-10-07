@@ -1310,25 +1310,6 @@ typedef struct LinuxMetadata {
     NativeFileTime changed;
     lb_a_i64_0a3 reserved;
 } LinuxMetadata;
-typedef struct lb_a_i32_0a2 { int32_t d[2]; } lb_a_i32_0a2;
-typedef struct LinuxArm64Metadata {
-    uint64_t device;
-    uint64_t inode;
-    uint32_t mode;
-    uint32_t links;
-    uint32_t user;
-    uint32_t group;
-    uint64_t special_device;
-    uint64_t padding;
-    int64_t size;
-    int32_t block_size;
-    int32_t padding2;
-    int64_t blocks;
-    NativeFileTime accessed;
-    NativeFileTime modified;
-    NativeFileTime changed;
-    lb_a_i32_0a2 reserved;
-} LinuxArm64Metadata;
 typedef struct WasiMetadata {
     uint64_t device;
     uint64_t inode;
@@ -3200,6 +3181,7 @@ typedef struct lb_t_0T2_u64_i32 { uint64_t a0; int32_t a1; } lb_t_0T2_u64_i32;
 typedef struct lb_t_0T2_u32_i32 { uint32_t a0; int32_t a1; } lb_t_0T2_u32_i32;
 LB_RES(lb_span, lb_r_5c_str_0o_0s);
 LB_RES(lb_span, lb_r_void_0p_0o_0s);
+typedef struct lb_a_i32_0a2 { int32_t d[2]; } lb_a_i32_0a2;
 LB_RES(struct lb_14luce_std_owned_Storage*, lb_r_14luce_std_owned_Storage_0p);
 LB_RES(lb_span, lb_r_10sema_check_Module_0s);
 LB_RES(lb_span, lb_r_u32_0s);
@@ -4117,34 +4099,6 @@ extern void lb_x_14luce_std_files_12fstatat_wasi(void) LB_SYMBOL("fstatat");
 #else
 extern int32_t lb_x_14luce_std_files_12fstatat_wasi(int32_t, char*, struct WasiMetadata*, int32_t) LB_SYMBOL("fstatat");
 #define lb_c_14luce_std_files_12fstatat_wasi lb_x_14luce_std_files_12fstatat_wasi
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_16stat_linux_arm64(void) LB_SYMBOL("stat");
-#define lb_c_14luce_std_files_16stat_linux_arm64 ((int32_t (*)(char*, struct LinuxArm64Metadata*))lb_x_14luce_std_files_16stat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_16stat_linux_arm64(char*, struct LinuxArm64Metadata*) LB_SYMBOL("stat");
-#define lb_c_14luce_std_files_16stat_linux_arm64 lb_x_14luce_std_files_16stat_linux_arm64
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_17lstat_linux_arm64(void) LB_SYMBOL("lstat");
-#define lb_c_14luce_std_files_17lstat_linux_arm64 ((int32_t (*)(char*, struct LinuxArm64Metadata*))lb_x_14luce_std_files_17lstat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_17lstat_linux_arm64(char*, struct LinuxArm64Metadata*) LB_SYMBOL("lstat");
-#define lb_c_14luce_std_files_17lstat_linux_arm64 lb_x_14luce_std_files_17lstat_linux_arm64
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_17fstat_linux_arm64(void) LB_SYMBOL("fstat");
-#define lb_c_14luce_std_files_17fstat_linux_arm64 ((int32_t (*)(int32_t, struct LinuxArm64Metadata*))lb_x_14luce_std_files_17fstat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_17fstat_linux_arm64(int32_t, struct LinuxArm64Metadata*) LB_SYMBOL("fstat");
-#define lb_c_14luce_std_files_17fstat_linux_arm64 lb_x_14luce_std_files_17fstat_linux_arm64
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_19fstatat_linux_arm64(void) LB_SYMBOL("fstatat");
-#define lb_c_14luce_std_files_19fstatat_linux_arm64 ((int32_t (*)(int32_t, char*, struct LinuxArm64Metadata*, int32_t))lb_x_14luce_std_files_19fstatat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_19fstatat_linux_arm64(int32_t, char*, struct LinuxArm64Metadata*, int32_t) LB_SYMBOL("fstatat");
-#define lb_c_14luce_std_files_19fstatat_linux_arm64 lb_x_14luce_std_files_19fstatat_linux_arm64
 #endif
 #if defined(__clang__) && !defined(__wasm__)
 extern void lb_x_14luce_std_files_10stat_macos(void) LB_SYMBOL("stat");
@@ -31075,26 +31029,26 @@ static __attribute__((unused)) lb_r_14luce_std_files_Metadata lb_14luce_std_file
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
         {
-            lb_pos = "luce_std/src/files/metadata.lucb:225:13";
+            lb_pos = "luce_std/src/files/metadata.lucb:195:13";
             MacMetadata lb_raw __attribute__((unused)) = {};
-            lb_pos = "luce_std/src/files/metadata.lucb:226:13";
+            lb_pos = "luce_std/src/files/metadata.lucb:196:13";
             for (;;) {
-                lb_pos = "luce_std/src/files/metadata.lucb:226:13";
+                lb_pos = "luce_std/src/files/metadata.lucb:196:13";
                 if (!(true)) break;
                 {
-                    lb_pos = "luce_std/src/files/metadata.lucb:227:17";
+                    lb_pos = "luce_std/src/files/metadata.lucb:197:17";
                     int32_t lb_result __attribute__((unused)) = (lb_follow_symlinks ? lb_c_14luce_std_files_10stat_macos(lb_path, &(lb_raw)) : lb_c_14luce_std_files_11lstat_macos(lb_path, &(lb_raw)));
-                    lb_pos = "luce_std/src/files/metadata.lucb:228:17";
+                    lb_pos = "luce_std/src/files/metadata.lucb:198:17";
                     if (!!((lb_result == 0LL))) 
                     {
-                        lb_pos = "luce_std/src/files/metadata.lucb:229:21";
+                        lb_pos = "luce_std/src/files/metadata.lucb:199:21";
                         lb_14luce_std_files_Metadata _lb_ret4923 = lb_14luce_std_files_12mac_metadata(lb_raw);
                         return ((lb_r_14luce_std_files_Metadata){ .value = _lb_ret4923, .failed = false });
                     }
-                    lb_pos = "luce_std/src/files/metadata.lucb:230:17";
+                    lb_pos = "luce_std/src/files/metadata.lucb:200:17";
                     if (!!(({ int32_t _lb_sq4924 __attribute__((unused)) = lb_c_errno(); int32_t _lb_sq4925 __attribute__((unused)) = lb_c_interrupted; (!(_lb_sq4924 == _lb_sq4925)); }))) 
                     {
-                        lb_pos = "luce_std/src/files/metadata.lucb:231:21";
+                        lb_pos = "luce_std/src/files/metadata.lucb:201:21";
                         lb_error _lb_err4926 = { .code = (int32_t)(lb_14luce_std_files_14classify_error(lb_c_errno())), .message = ((lb_str){"file metadata could not be read", 31}) };
                         lb_r_14luce_std_files_Metadata _lb_err4927 = ((lb_r_14luce_std_files_Metadata){ .error = _lb_err4926, .failed = true });
                         return _lb_err4927;
@@ -49058,7 +49012,7 @@ static __attribute__((unused)) lb_r_unit lb_14support_pieces_14assemble_piece(st
 }
 static __attribute__((unused)) lb_14luce_std_files_Metadata lb_14luce_std_files_12mac_metadata(MacMetadata lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "luce_std/src/files/metadata.lucb:185:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:162:5";
     lb_14luce_std_files_Metadata _lb_ret9219 = ({ uint8_t _lb_sq9220 __attribute__((unused)) = lb_14luce_std_files_9file_kind(((uint32_t)lb_conv_u((uint64_t)(lb_value.mode), 16, 0, 32, 0, 1))); uint32_t _lb_sq9221 __attribute__((unused)) = ((uint32_t)(((uint32_t)lb_conv_u((uint64_t)(lb_value.mode), 16, 0, 32, 0, 1)) & 4095ULL)); int64_t _lb_sq9222 __attribute__((unused)) = lb_value.size; uint64_t _lb_sq9223 __attribute__((unused)) = ((uint64_t)lb_conv_u((uint64_t)(((uint32_t)lb_conv_s((int64_t)(lb_value.device), 32, 1, 32, 0, 1))), 32, 0, 64, 0, 1)); uint64_t _lb_sq9224 __attribute__((unused)) = lb_value.inode; uint64_t _lb_sq9225 __attribute__((unused)) = ((uint64_t)lb_conv_u((uint64_t)(lb_value.links), 16, 0, 64, 0, 1)); uint32_t _lb_sq9226 __attribute__((unused)) = lb_value.user; uint32_t _lb_sq9227 __attribute__((unused)) = lb_value.group; int64_t _lb_sq9228 __attribute__((unused)) = lb_value.blocks; lb_14luce_std_files_FileTime _lb_sq9229 __attribute__((unused)) = lb_14luce_std_files_9file_time(lb_value.accessed); lb_14luce_std_files_FileTime _lb_sq9230 __attribute__((unused)) = lb_14luce_std_files_9file_time(lb_value.modified); lb_14luce_std_files_FileTime _lb_sq9231 __attribute__((unused)) = lb_14luce_std_files_9file_time(lb_value.changed); lb_o_14luce_std_files_FileTime _lb_sq9232 __attribute__((unused)) = ((lb_o_14luce_std_files_FileTime){ .value = lb_14luce_std_files_9file_time(lb_value.created), .present = true }); ((lb_14luce_std_files_Metadata){.kind = _lb_sq9220, .permissions = _lb_sq9221, .size = _lb_sq9222, .device = _lb_sq9223, .inode = _lb_sq9224, .links = _lb_sq9225, .user = _lb_sq9226, .group = _lb_sq9227, .blocks_512 = _lb_sq9228, .accessed = _lb_sq9229, .modified = _lb_sq9230, .changed = _lb_sq9231, .created = _lb_sq9232}); });
     return _lb_ret9219;
     lb_trap("unreachable");
@@ -77303,65 +77257,65 @@ static __attribute__((unused)) void* lb_thread_trampoline(void* lb_raw) {
 }
 static __attribute__((unused)) uint8_t lb_14luce_std_files_9file_kind(uint32_t lb_mode) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "luce_std/src/files/metadata.lucb:164:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:141:5";
     uint32_t lb_kind __attribute__((unused)) = ((uint32_t)(lb_mode & 61440ULL));
-    lb_pos = "luce_std/src/files/metadata.lucb:165:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:142:5";
     if (!!((lb_kind == 32768ULL))) 
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:166:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:143:9";
         uint8_t _lb_ret15821 = ((uint8_t)1u);
         return _lb_ret15821;
     }
-    lb_pos = "luce_std/src/files/metadata.lucb:167:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:144:5";
     if (!!((lb_kind == 16384ULL))) 
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:168:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:145:9";
         uint8_t _lb_ret15822 = ((uint8_t)2u);
         return _lb_ret15822;
     }
-    lb_pos = "luce_std/src/files/metadata.lucb:169:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:146:5";
     if (!!((lb_kind == 40960ULL))) 
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:170:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:147:9";
         uint8_t _lb_ret15823 = ((uint8_t)3u);
         return _lb_ret15823;
     }
-    lb_pos = "luce_std/src/files/metadata.lucb:171:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:148:5";
     if (!!((lb_kind == 4096ULL))) 
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:172:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:149:9";
         uint8_t _lb_ret15824 = ((uint8_t)4u);
         return _lb_ret15824;
     }
-    lb_pos = "luce_std/src/files/metadata.lucb:173:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:150:5";
     if (!!((lb_kind == 49152ULL))) 
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:174:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:151:9";
         uint8_t _lb_ret15825 = ((uint8_t)5u);
         return _lb_ret15825;
     }
-    lb_pos = "luce_std/src/files/metadata.lucb:175:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:152:5";
     if (!!((lb_kind == 24576ULL))) 
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:176:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:153:9";
         uint8_t _lb_ret15826 = ((uint8_t)6u);
         return _lb_ret15826;
     }
-    lb_pos = "luce_std/src/files/metadata.lucb:177:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:154:5";
     if (!!((lb_kind == 8192ULL))) 
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:178:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:155:9";
         uint8_t _lb_ret15827 = ((uint8_t)7u);
         return _lb_ret15827;
     }
-    lb_pos = "luce_std/src/files/metadata.lucb:179:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:156:5";
     uint8_t _lb_ret15828 = ((uint8_t)0u);
     return _lb_ret15828;
     lb_trap("unreachable");
 }
 static __attribute__((unused)) lb_14luce_std_files_FileTime lb_14luce_std_files_9file_time(NativeFileTime lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "luce_std/src/files/metadata.lucb:182:5";
+    lb_pos = "luce_std/src/files/metadata.lucb:159:5";
     lb_14luce_std_files_FileTime _lb_ret15829 = ((lb_14luce_std_files_FileTime){.seconds = lb_value.seconds, .nanoseconds = ((uint32_t)lb_conv_s((int64_t)(lb_value.nanoseconds), 64, 1, 32, 0, 1))});
     return _lb_ret15829;
     lb_trap("unreachable");

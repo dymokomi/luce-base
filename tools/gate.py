@@ -15,18 +15,25 @@ its own workspace (~/luce-gate on every machine):
   2. the toolchain is luce-base, luce-std and luce at GitHub's main (or at the commit, for
      one of them) and is built once per triple of commits, then reused from a cache;
   3. gate.toml's steps for that platform run in the checkout, in order, under bash (Git's
-     bash on Windows), with LUCE_BASE, LUCE and PATH naming the toolchain;
-  4. a [release] section's steps build release archives after a pass, kept for
-     tools/release.py.
+     bash on Windows), with LUCE_BASE, LUCE and PATH naming the toolchain: its `steps`,
+     and its `full` steps too with --full (LUCE_GATE_LEVEL says which);
+  4. the `quick` steps of the checkouts beside this one that depend on it by path run,
+     several at once;
+  5. with --full, a [release] section's steps build release archives after a pass, kept
+     for tools/release.py.
 
 The result is a git note on the commit (refs/notes/gate, pushed to origin): one line per
-platform with PASS or FAIL, the time, the duration and the toolchain commits.
+platform with PASS or FAIL, the level (default or full), the time, the duration and the
+toolchain commits.
 tools/release.py publishes only commits whose note shows all three platforms passing.
 
 Options:
   --commit REV     test REV instead of HEAD
   --only P[,P]     only these platforms (macos, linux, windows); the note keeps the others
-  --extended       also run the steps gate.toml lists under `extended` (long fuzzing)
+  --full           also run each platform's `full` steps (sanitizers, valgrind, fuzzing,
+                   the compile budget): required for luce-base, luce and luc, and for a
+                   toolchain release
+  --no-dependents  skip the quick steps of the repositories that depend on this one
   --clean          wipe the checkout's ignored files (build/ caches) before testing
   --no-record      do not write or push the note
 """
@@ -35,6 +42,7 @@ import concurrent.futures
 import datetime
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -58,6 +66,7 @@ HOME = "luce-gate"          # the workspace on every machine, relative to the ho
 NOTES = "refs/notes/gate"
 STEP_SECONDS = 2 * 60 * 60  # a step that runs longer has hung
 KEEP_TOOLCHAINS = 8
+DEPENDENT_JOBS = 4          # dependents tested at once on a machine
 WINDOWS = os.name == "nt"
 
 
@@ -82,11 +91,11 @@ def say(message):
 
 
 def read_config(text):
-    """gate.toml's tables: tools, per-platform steps, extended steps, release steps."""
+    """gate.toml's tables: tools, per-platform steps (default, full, quick), release steps."""
     config = tomllib.loads(text)
     for platform in PLATFORMS:
         section = config.get(platform, {})
-        for key in ("steps", "extended"):
+        for key in ("steps", "full", "quick"):
             if not isinstance(section.get(key, []), list):
                 raise SystemExit(f"gate.toml: [{platform}] {key} must be a list of commands")
     return config
@@ -110,7 +119,10 @@ class Agent:
         self.source = arguments.source
         self.pins = dict(item.split("=", 1) for item in arguments.pin)
         self.clean = arguments.clean
-        self.extended = arguments.extended
+        self.full = arguments.full
+        self.dependents = arguments.dependent
+        self.desktop_jobs = 0
+        self.desktop_lock = threading.Lock()
         self.synced = set()
 
     # mark: sources
@@ -168,7 +180,8 @@ class Agent:
                 future.result()
 
     def sync_all(self):
-        """The repository, the toolchain, the tools gate.toml names and every dependency."""
+        """The repository, the toolchain, the tools gate.toml names, every dependency and
+        the dependents whose quick steps run."""
         self.refresh()
         repository = self.sync_repository()
         pinned = {name: self.pins.get(name) for name in TOOLCHAIN}
@@ -177,7 +190,7 @@ class Agent:
         for name in TOOLCHAIN:
             if name != self.repository:
                 self.sync(name, pinned[name])
-        tools = [self.src / name for name in self.config.get("tools", [])]
+        tools = [self.src / name for name in [*self.config.get("tools", []), *self.dependents]]
         # the dependencies' manifests can name more dependencies once they are at main
         specification = importlib.util.spec_from_file_location(
             "checkout_main", self.src / "luce-base" / "tools" / "checkout_main.py")
@@ -260,6 +273,7 @@ class Agent:
         environment["PATH"] = os.pathsep.join(paths + [environment.get("PATH", "")])
         environment.update(LUCE_BASE=str(base), LUCE_BASE_COMPILER=str(base), LUCE=str(luce),
                            LUCE_GATE="1", LUCE_GATE_HOST=self.host, LUCE_CI_HOST=self.host,
+                           LUCE_GATE_LEVEL="full" if self.full else "default",
                            # every machine has the owner's desktop: window and GPU tests run
                            LUCE_TEST_WINDOW="required", LUCE_TEST_GPU="required")
         machine = self.home / "machine.sh"
@@ -287,30 +301,34 @@ class Agent:
         if self.spawn(command, cwd, self.environment(extra)) != 0:
             raise StepFailed(" ".join(map(str, command)))
 
-    def step(self, command, cwd):
+    def step(self, command, cwd, sink=sys.stdout):
         """One gate.toml command under bash, after the machine's settings (machine.sh)."""
-        say(f"\n== {command}")
+        sink.write(f"\n== {command}\n")
         script = 'set -eo pipefail\n[ -z "$LUCE_GATE_MACHINE" ] || . "$LUCE_GATE_MACHINE"\n' + command
         started = time.time()
         if WINDOWS:
-            status = self.on_desktop([self.bash(), "-c", script], cwd, self.environment())
+            status = self.on_desktop([self.bash(), "-c", script], cwd, self.environment(), sink)
         else:
-            status = self.spawn([self.bash(), "-c", script], cwd, self.environment())
-        say(f"== {'ok' if status == 0 else f'FAILED (status {status})'} in {time.time() - started:.0f}s: {command}")
+            status = spawn([self.bash(), "-c", script], cwd, self.environment(), sink)
+        sink.write(f"== {'ok' if status == 0 else f'FAILED (status {status})'} in {time.time() - started:.0f}s: {command}\n")
+        sink.flush()
         if status != 0:
             raise StepFailed(command)
 
-    def on_desktop(self, command, cwd, environment):
+    def on_desktop(self, command, cwd, environment, sink):
         """Run a step in the owner's logged-in Windows session, where windows and the GPU
         work (an SSH session has neither): a scheduled task runs this script's bridge there,
         which writes the output to a file this streams; the task is deleted afterwards."""
-        job = self.home / "bridge"
+        with self.desktop_lock:
+            self.desktop_jobs += 1
+            number = self.desktop_jobs
+        job = self.home / "bridge" / str(number)
         shutil.rmtree(job, ignore_errors=True)
         job.mkdir(parents=True)
         (job / "job.json").write_text(json.dumps({"command": command, "cwd": str(cwd), "env": environment}))
-        script = self.home / "bridge.cmd"
+        script = job / "bridge.cmd"
         script.write_text(f'@"{sys.executable}" "{Path(__file__).resolve()}" --bridge "{job}"\r\n')
-        task = "luce-gate-step"
+        task = f"luce-gate-step-{number}"
         user = os.environ.get("USERNAME", "")
         subprocess.run(["schtasks", "/create", "/tn", task, "/tr", f'"{script}"', "/sc", "once", "/st", "23:59",
                         "/ru", user, "/it", "/f"], check=True, capture_output=True)
@@ -324,20 +342,53 @@ class Agent:
                         log.seek(position)
                         chunk = log.read()
                         position += len(chunk)
-                        sys.stdout.write(chunk.decode("utf-8", "replace"))
-                        sys.stdout.flush()
+                        sink.write(chunk.decode("utf-8", "replace"))
+                        sink.flush()
                 elif time.time() - started > 60:
-                    say(f"gate: FAIL: the step did not start in {user}'s desktop session; is the owner logged in?")
+                    sink.write(f"gate: FAIL: the step did not start in {user}'s desktop session; is the owner logged in?\n")
                     return 1
                 if done:
                     return int(status.read_text().strip() or 1)
                 if time.time() - started > STEP_SECONDS + 300:
-                    say("gate: FAIL: the desktop step outlived its deadline")
+                    sink.write("gate: FAIL: the desktop step outlived its deadline\n")
                     return 1
                 time.sleep(0.5)
         finally:
             subprocess.run(["schtasks", "/end", "/tn", task], capture_output=True)
             subprocess.run(["schtasks", "/delete", "/tn", task, "/f"], capture_output=True)
+            shutil.rmtree(job, ignore_errors=True)
+
+    def run_dependents(self):
+        """The quick steps of each repository that depends on this one, several at once,
+        each one's output printed whole when it ends; any failure fails the gate."""
+        quick = []
+        for name in self.dependents:
+            text = (self.src / name / "gate.toml").read_text() if (self.src / name / "gate.toml").exists() else ""
+            commands = read_config(text).get(self.platform, {}).get("quick", []) if text else []
+            if commands:
+                quick.append((name, commands))
+        if not quick:
+            return
+        say(f"\n== the quick steps of {len(quick)} dependents: {', '.join(name for name, _ in quick)}")
+
+        def check(name, commands):
+            sink = io.StringIO()
+            try:
+                for command in commands:
+                    self.step(command, self.src / name, sink)
+                return name, True, sink.getvalue()
+            except StepFailed:
+                return name, False, sink.getvalue()
+
+        failed = []
+        with concurrent.futures.ThreadPoolExecutor(DEPENDENT_JOBS) as pool:
+            for future in concurrent.futures.as_completed([pool.submit(check, *item) for item in quick]):
+                name, passed, output = future.result()
+                say("".join(f"[{name}] {line}\n" for line in output.splitlines() if line))
+                if not passed:
+                    failed.append(name)
+        if failed:
+            raise StepFailed("dependents: " + ", ".join(failed))
 
     def release(self, directory):
         """Build the [release] archives and keep them under artifacts/REPOSITORY/COMMIT."""
@@ -369,13 +420,15 @@ class Agent:
                 directory = self.src / self.repository
                 section = self.config.get(self.platform, {})
                 commands = list(section.get("steps", []))
-                if self.extended:
-                    commands += section.get("extended", [])
+                if self.full:
+                    commands += section.get("full", [])
                 if not commands:
                     status = "NONE"
                 for command in commands:
                     self.step(command, directory)
-                if commands:
+                self.run_dependents()
+                if commands and self.full:
+                    # the release archives come from a full gate, which a release requires
                     self.release(directory)
             except StepFailed as failure:
                 say(f"gate: failed: {failure}")
@@ -476,6 +529,19 @@ def remote_toolchain():
     return pins
 
 
+def dependents(repository, name):
+    """The checkouts beside `repository` whose top-level manifest depends on it by path
+    and that have quick steps in gate.toml: what the gate also runs."""
+    found = []
+    for sibling in sorted(repository.parent.iterdir()):
+        manifest, config = sibling / "package.prisma", sibling / "gate.toml"
+        if sibling == repository or not manifest.exists() or not config.exists():
+            continue
+        if f'"../{name}"' in manifest.read_text(errors="replace") and "quick" in config.read_text(errors="replace"):
+            found.append(sibling.name)
+    return found
+
+
 def on_github(repository, commit):
     git("fetch", "-q", "origin", cwd=repository, check=False)
     return bool(git("branch", "-r", "--contains", commit, cwd=repository, check=False, quiet=True))
@@ -538,7 +604,7 @@ class Platform(threading.Thread):
         self.seconds = time.time() - started
 
 
-def record(repository, commit, results):
+def record(repository, commit, results, level):
     """Merge this run's lines into the commit's note and push it."""
     git("fetch", "-q", "origin", f"+{NOTES}:{NOTES}-origin", cwd=repository, check=False)
     if git("rev-parse", "-q", "--verify", f"{NOTES}-origin", cwd=repository, check=False, quiet=True):
@@ -553,7 +619,7 @@ def record(repository, commit, results):
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for result in results:
         host = PLATFORMS[result.platform][0]
-        lines[host] = f"{host} {result.status} {now} {result.ran:.0f}s {result.toolchain}".rstrip()
+        lines[host] = f"{host} {result.status} {level} {now} {result.ran:.0f}s {result.toolchain}".rstrip()
     text = "\n".join(lines[host] for host, _ in PLATFORMS.values() if host in lines)
     git("notes", "--ref=gate", "add", "-f", "-m", text, commit, cwd=repository)
     for _ in range(3):
@@ -595,7 +661,10 @@ def orchestrate(arguments):
     for key, value in pins.items():
         common += ["--pin", f"{key}={value}"]
     common += ["--clean"] if arguments.clean else []
-    common += ["--extended"] if arguments.extended else []
+    common += ["--full"] if arguments.full else []
+    if not arguments.no_dependents:
+        for dependent in dependents(repository, name):
+            common += ["--dependent", dependent]
     runs = []
     for platform in platforms:
         ssh = PLATFORMS[platform][1]
@@ -622,7 +691,7 @@ def orchestrate(arguments):
         if run.status == "PASS" and run.ssh:
             fetch_artifacts(run.ssh, name, commit, local)
     if not arguments.no_record:
-        record(repository, commit, runs)
+        record(repository, commit, runs, "full" if arguments.full else "default")
     return 1 if failed else 0
 
 
@@ -646,13 +715,15 @@ def main():
     parser.add_argument("repository", nargs="?")
     parser.add_argument("--commit", default="HEAD")
     parser.add_argument("--only")
-    parser.add_argument("--extended", action="store_true")
+    parser.add_argument("--full", action="store_true")
+    parser.add_argument("--no-dependents", action="store_true")
     parser.add_argument("--clean", action="store_true")
     parser.add_argument("--no-record", action="store_true")
     # the agent's own arguments, which the orchestrator passes
     parser.add_argument("--agent", dest="platform", help=argparse.SUPPRESS)
     parser.add_argument("--name", help=argparse.SUPPRESS)
     parser.add_argument("--pin", action="append", default=[], help=argparse.SUPPRESS)
+    parser.add_argument("--dependent", action="append", default=[], help=argparse.SUPPRESS)
     parser.add_argument("--artifacts", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--bridge", help=argparse.SUPPRESS)
     parser.add_argument("--bundle", help=argparse.SUPPRESS)

@@ -1310,25 +1310,6 @@ typedef struct LinuxMetadata {
     NativeFileTime changed;
     lb_a_i64_0a3 reserved;
 } LinuxMetadata;
-typedef struct lb_a_i32_0a2 { int32_t d[2]; } lb_a_i32_0a2;
-typedef struct LinuxArm64Metadata {
-    uint64_t device;
-    uint64_t inode;
-    uint32_t mode;
-    uint32_t links;
-    uint32_t user;
-    uint32_t group;
-    uint64_t special_device;
-    uint64_t padding;
-    int64_t size;
-    int32_t block_size;
-    int32_t padding2;
-    int64_t blocks;
-    NativeFileTime accessed;
-    NativeFileTime modified;
-    NativeFileTime changed;
-    lb_a_i32_0a2 reserved;
-} LinuxArm64Metadata;
 typedef struct WasiMetadata {
     uint64_t device;
     uint64_t inode;
@@ -4121,34 +4102,6 @@ extern void lb_x_14luce_std_files_12fstatat_wasi(void) LB_SYMBOL("fstatat");
 #else
 extern int32_t lb_x_14luce_std_files_12fstatat_wasi(int32_t, char*, struct WasiMetadata*, int32_t) LB_SYMBOL("fstatat");
 #define lb_c_14luce_std_files_12fstatat_wasi lb_x_14luce_std_files_12fstatat_wasi
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_16stat_linux_arm64(void) LB_SYMBOL("stat");
-#define lb_c_14luce_std_files_16stat_linux_arm64 ((int32_t (*)(char*, struct LinuxArm64Metadata*))lb_x_14luce_std_files_16stat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_16stat_linux_arm64(char*, struct LinuxArm64Metadata*) LB_SYMBOL("stat");
-#define lb_c_14luce_std_files_16stat_linux_arm64 lb_x_14luce_std_files_16stat_linux_arm64
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_17lstat_linux_arm64(void) LB_SYMBOL("lstat");
-#define lb_c_14luce_std_files_17lstat_linux_arm64 ((int32_t (*)(char*, struct LinuxArm64Metadata*))lb_x_14luce_std_files_17lstat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_17lstat_linux_arm64(char*, struct LinuxArm64Metadata*) LB_SYMBOL("lstat");
-#define lb_c_14luce_std_files_17lstat_linux_arm64 lb_x_14luce_std_files_17lstat_linux_arm64
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_17fstat_linux_arm64(void) LB_SYMBOL("fstat");
-#define lb_c_14luce_std_files_17fstat_linux_arm64 ((int32_t (*)(int32_t, struct LinuxArm64Metadata*))lb_x_14luce_std_files_17fstat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_17fstat_linux_arm64(int32_t, struct LinuxArm64Metadata*) LB_SYMBOL("fstat");
-#define lb_c_14luce_std_files_17fstat_linux_arm64 lb_x_14luce_std_files_17fstat_linux_arm64
-#endif
-#if defined(__clang__) && !defined(__wasm__)
-extern void lb_x_14luce_std_files_19fstatat_linux_arm64(void) LB_SYMBOL("fstatat");
-#define lb_c_14luce_std_files_19fstatat_linux_arm64 ((int32_t (*)(int32_t, char*, struct LinuxArm64Metadata*, int32_t))lb_x_14luce_std_files_19fstatat_linux_arm64)
-#else
-extern int32_t lb_x_14luce_std_files_19fstatat_linux_arm64(int32_t, char*, struct LinuxArm64Metadata*, int32_t) LB_SYMBOL("fstatat");
-#define lb_c_14luce_std_files_19fstatat_linux_arm64 lb_x_14luce_std_files_19fstatat_linux_arm64
 #endif
 #if defined(__clang__) && !defined(__wasm__)
 extern void lb_x_14luce_std_files_10stat_macos(void) LB_SYMBOL("stat");
@@ -31122,26 +31075,26 @@ static __attribute__((unused)) lb_r_u8_0s lb_strings_17terminated_buffer(size_t 
 static __attribute__((unused)) lb_r_14luce_std_files_Metadata lb_14luce_std_files_metadata(char* lb_path, bool lb_follow_symlinks) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "luce_std/src/files/metadata.lucb:220:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:190:9";
         void* lb_handle __attribute__((unused)) = (({ lb_r_void_0p _lb_r4954 = lb_14luce_std_files_19windows_path_handle(lb_path, lb_follow_symlinks, false); if (_lb_r4954.failed) {
             return ((lb_r_14luce_std_files_Metadata){ .error = _lb_r4954.error, .failed = true });
         } _lb_r4954.value; }));
-        lb_pos = "luce_std/src/files/metadata.lucb:221:9";
-        lb_pos = "luce_std/src/files/metadata.lucb:222:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:191:9";
+        lb_pos = "luce_std/src/files/metadata.lucb:192:9";
         lb_14luce_std_files_Metadata _lb_ret4955 = (({ lb_r_14luce_std_files_Metadata _lb_r4956 = lb_14luce_std_files_16windows_metadata(lb_handle, lb_follow_symlinks); if (_lb_r4956.failed) {
             {
-                lb_pos = "luce_std/src/files/metadata.lucb:221:9";
+                lb_pos = "luce_std/src/files/metadata.lucb:191:9";
                 (void)(lb_x_11windows_abi_CloseHandle(lb_handle));
             }
             return ((lb_r_14luce_std_files_Metadata){ .error = _lb_r4956.error, .failed = true });
         } _lb_r4956.value; }));
         {
-            lb_pos = "luce_std/src/files/metadata.lucb:221:9";
+            lb_pos = "luce_std/src/files/metadata.lucb:191:9";
             (void)(lb_x_11windows_abi_CloseHandle(lb_handle));
         }
         return ((lb_r_14luce_std_files_Metadata){ .value = _lb_ret4955, .failed = false });
         {
-            lb_pos = "luce_std/src/files/metadata.lucb:221:9";
+            lb_pos = "luce_std/src/files/metadata.lucb:191:9";
             (void)(lb_x_11windows_abi_CloseHandle(lb_handle));
         }
     }

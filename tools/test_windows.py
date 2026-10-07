@@ -3,6 +3,7 @@
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -62,7 +63,8 @@ def main():
     parser.add_argument("--opt", nargs="+", type=int, choices=range(4), default=list(range(4)))
     parser.add_argument("--c", action="store_true")
     parser.add_argument("--c-only", action="store_true")
-    parser.add_argument("--jobs", type=int, default=2)
+    # every case is its own build and run in its own directory: as many at once as cores
+    parser.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
     parser.add_argument("--match", default="")
     args = parser.parse_args()
     flags = [["--native", "--opt", str(level)] for level in args.opt]

@@ -9,88 +9,31 @@
 set -eu
 cd "$(dirname "$0")/../.."
 # a program whose output names the host has one expectation per host, `NAME.HOST.expect`
-host=$(tools/host.sh)
 seed=../luce-seed/build/lucb
 [ -x "$seed" ] || { echo "FAIL: conformance requires the seed oracle at $seed"; exit 1; }
 run() { python3 tools/run_case.py -- "$@"; }
-reject() { python3 tools/run_case.py --expected 1 -- "$@"; }
-programs=0
-rejections=0
+# every case, as `KIND FILE` lines, runs at once in its own directory (case.sh): as many as
+# the machine has cores
+mkdir -p build/cases
+cases=build/cases/list
+: > "$cases"
 for dir in tests/conformance/[0-9]*/; do
     for f in "$dir"*.expect; do
         [ -e "$f" ] || continue
         case "$f" in *.*-*.expect) continue;; esac
-        [ -e "${f%.expect}.$host.expect" ] && f="${f%.expect}.$host.expect"
-        src="${f%%.*}.lucb"
-        # a package of several modules: `NAME/main.lucb` beside `NAME.expect`
-        [ -e "$src" ] || src="${f%%.*}/main.lucb"
-        echo "== $src"
-        echo "   C"
-        run ./build/luce-base build "$src" --backend=c -o build/conformance
-        run ./build/conformance > build/conformance.out
-        cmp build/conformance.out "$f"
-        # the C the host compiler optimises must mean the same as the C it does not (§12.6)
-        echo "   C release"
-        run ./build/luce-base build "$src" --backend=c --release -o build/conformance
-        run ./build/conformance > build/conformance.out
-        cmp build/conformance.out "$f"
-        for level in 0 1 2 3; do
-            echo "   native --opt $level"
-            run ./build/luce-base build "$src" --native --opt "$level" -o build/conformance
-            run ./build/conformance > build/conformance.out
-            cmp build/conformance.out "$f"
-        done
-        if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$src"; then
-            run "$seed" eval "$src" > build/conformance.out
-            cmp build/conformance.out "$f"
-        fi
-        # `# tests: true`: the program's `test` declarations run under both backends and pass;
-        # beside a `NAME.tests`, its package's tests (`--package`) print that report, and the
-        # status is 1 when it counts a failure
-        if grep -q '^# tests: true' "$src"; then
-            report="${f%%.*}.tests"
-            if [ -e "$report" ]; then
-                if grep -q ' failed$' "$report"; then status=1; else status=0; fi
-                for backend in --backend=c --native; do
-                    python3 tools/run_case.py --expected "$status" -- ./build/luce-base test "$src" --package $backend > build/conformance.out && rc=0 || rc=$?
-                    [ "$rc" -eq "$status" ] || { echo "FAIL $src ($backend): status $rc, expected $status"; exit 1; }
-                    cmp build/conformance.out "$report"
-                done
-            else
-                run ./build/luce-base test "$src" --backend=c > build/conformance.out
-                run ./build/luce-base test "$src" --native > build/conformance.out
-            fi
-        fi
-        programs=$((programs + 1))
+        echo "expect $f" >> "$cases"
     done
-    # a program beside a `.trap` file must stop with a trap naming that text, in every execution
     for f in "$dir"*.trap; do
-        [ -e "$f" ] || continue
-        src="${f%.trap}.lucb"
-        [ -e "$src" ] || src="${f%.trap}/main.lucb"
-        want=$(cat "$f")
-        echo "== $src (traps)"
-        for flags in "--backend=c" "--backend=c --release" "--opt 0" "--opt 1" "--opt 2" "--opt 3"; do
-            run ./build/luce-base build "$src" $flags -o build/conformance
-            if reject ./build/conformance > build/conformance.out 2> build/conformance.err; then
-                echo "FAIL $src: expected a trap, the program finished"; exit 1
-            else
-                rc=$?
-                [ "$rc" -eq 1 ] || { echo "FAIL $src: unexpected status $rc"; exit 1; }
-            fi
-            grep -q "$want" build/conformance.err || { echo "FAIL $src: expected [$want], got [$(cat build/conformance.err)]"; exit 1; }
-        done
-        if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$src"; then
-            if reject "$seed" eval "$src" > build/conformance.out 2> build/conformance.err; then
-                echo "FAIL $src: expected a trap, the seed finished"; exit 1
-            else
-                rc=$?
-                [ "$rc" -eq 1 ] || { echo "FAIL $src: unexpected status $rc"; exit 1; }
-            fi
-            grep -q "$want" build/conformance.err || { echo "FAIL $src: the seed said [$(cat build/conformance.err)]"; exit 1; }
-        fi
-        programs=$((programs + 1))
+        [ -e "$f" ] && echo "trap $f" >> "$cases"
     done
+    for f in "$dir"errors/*.lucb; do
+        [ -e "$f" ] && echo "error $f" >> "$cases"
+    done
+done
+programs=$(grep -c -v '^error ' "$cases")
+rejections=$(grep -c '^error ' "$cases")
+xargs -P "$(tools/jobs.sh)" -n 2 sh tests/conformance/case.sh < "$cases" || { echo "FAIL conformance: the cases above"; exit 1; }
+for dir in tests/conformance/[0-9]*/; do
     # a module under `describe/` prints the description beside it (§17.7)
     for f in "$dir"describe/*.lucb; do
         [ -e "$f" ] || continue
@@ -98,47 +41,10 @@ for dir in tests/conformance/[0-9]*/; do
         run ./build/luce-base describe "$f" > build/conformance.out
         cmp build/conformance.out "${f%.lucb}.describe"
     done
-    for f in "$dir"errors/*.lucb; do
-        [ -e "$f" ] || continue
-        want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
-        # a rejection is a normal exit of 1 with a diagnostic: a crash (a signal's exit, 128 or
-        # more) or an acceptance is a failure whatever the text says
-        got=$(reject ./build/luce-base check "$f" 2>&1) && rc=0 || rc=$?
-        if [ "$rc" -eq 0 ]; then
-            echo "FAIL $f: this compiler accepts it"; exit 1
-        fi
-        if [ "$rc" -ne 1 ]; then
-            echo "FAIL $f: the checker stopped with status $rc: [$got]"; exit 1
-        fi
-        # an empty `# error:` asks only for a rejection; a fragment must appear in the message
-        if [ -z "$got" ]; then
-            echo "FAIL $f: rejected without a diagnostic"; exit 1
-        fi
-        # every diagnostic names its place: `file:line:column: message`
-        case "$got" in
-            *.lucb:[0-9]*:[0-9]*:\ *) ;;
-            *) echo "FAIL $f: a diagnostic without a position: [$got]"; exit 1;;
-        esac
-        case "$got" in
-            *"$want"*) ;;
-            *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;
-        esac
-        if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$f"; then
-            reject "$seed" check "$f" > /dev/null 2>&1 && seed_rc=0 || seed_rc=$?
-            if [ "$seed_rc" -eq 0 ]; then
-                echo "FAIL $f: the seed accepts what this compiler rejects"; exit 1
-            fi
-            if [ "$seed_rc" -ne 1 ]; then
-                echo "FAIL $f: the seed's checker stopped with status $seed_rc"; exit 1
-            fi
-        fi
-        rejections=$((rejections + 1))
-    done
     # a chapter about the driver proves its points by a script beside the programs
     if [ -e "$dir"driver.sh ]; then
         sh "$dir"driver.sh
     fi
-    echo "== $dir $(ls "$dir"*.expect "$dir"*.trap 2>/dev/null | wc -l | tr -d ' ') programs, $(ls "$dir"errors/*.lucb 2>/dev/null | wc -l | tr -d ' ') rejections"
 done
-rm -f build/conformance build/conformance.out build/conformance.err
+rm -rf build/conformance build/conformance.out build/conformance.err build/cases
 echo "ok conformance: $programs programs, $rejections rejections"

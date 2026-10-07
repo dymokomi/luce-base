@@ -20,7 +20,27 @@ host=$(tools/host.sh)
 # switch to another stack and leaves the new frame unaddressable, so every access to it is
 # reported as an "invalid write ... on thread N's stack" although the stack is real.
 vg="valgrind --error-exitcode=99 --leak-check=no --track-origins=yes --max-stackframe=8388608 -q"
-n=0
+# one program in a directory of its own: `valgrind_native.sh --case SRC`
+if [ "${1:-}" = --case ]; then
+    src=$2
+    profile=""
+    grep -q '^# profile: diagnostic' "$src" && profile="--profile diagnostic"
+    work=$(mktemp -d build/vg-cases/case.XXXXXX)
+    for opt in 0 3; do
+        ./build/luce-base build "$src" --native --opt "$opt" $profile -o "$work/program"
+        $vg "$work/program" > /dev/null 2> "$work/err" && rc=0 || rc=$?
+        if [ "$rc" = "99" ]; then
+            echo "FAIL valgrind: $src --opt $opt found a memory error"; cat "$work/err"; exit 1
+        fi
+        if [ "$rc" != "0" ]; then
+            echo "FAIL valgrind: $src --opt $opt trapped under valgrind (status $rc); if it is float-sensitive add '# valgrind: skip'"; exit 1
+        fi
+    done
+    rm -rf "$work"
+    exit 0
+fi
+# every program at once, as many as the machine has cores
+mkdir -p build/vg-cases
 for f in tests/conformance/[0-9]*/*.expect tests/robustness/*/*.expect; do
     [ -e "$f" ] || continue
     case "$f" in *.*-*.expect) continue;; esac
@@ -30,19 +50,9 @@ for f in tests/conformance/[0-9]*/*.expect tests/robustness/*/*.expect; do
     [ -e "$src" ] || continue
     grep -q '^# sanitize: skip' "$src" && continue
     grep -q '^# valgrind: skip' "$src" && continue
-    profile=""
-    grep -q '^# profile: diagnostic' "$src" && profile="--profile diagnostic"
-    for opt in 0 3; do
-        ./build/luce-base build "$src" --native --opt "$opt" $profile -o build/vgprog
-        $vg ./build/vgprog > /dev/null 2> build/vg.err && rc=0 || rc=$?
-        if [ "$rc" = "99" ]; then
-            echo "FAIL valgrind: $src --opt $opt found a memory error"; cat build/vg.err; exit 1
-        fi
-        if [ "$rc" != "0" ]; then
-            echo "FAIL valgrind: $src --opt $opt trapped under valgrind (status $rc); if it is float-sensitive add '# valgrind: skip'"; exit 1
-        fi
-    done
-    n=$((n + 1))
-done
-rm -f build/vgprog build/vg.err
+    echo "$src"
+done > build/vg-cases/list
+n=$(wc -l < build/vg-cases/list | tr -d ' ')
+xargs -P "$(tools/jobs.sh)" -n 1 sh tools/valgrind_native.sh --case < build/vg-cases/list
+rm -rf build/vg-cases
 echo "ok valgrind: $n native programs clean under memcheck at --opt 0 and --opt 3"
