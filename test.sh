@@ -135,10 +135,8 @@ for f in tests/std/*.lucb; do
     ./build/luce-base test "$f" --backend=c > /dev/null
     ./build/luce-base test "$f" --native > /dev/null
 done
-# the proving programs build natively and are driven from outside
-for f in tests/programs/*/check.sh; do
-    "$f"
-done
+# the proving programs build natively and are driven from outside, at once
+tools/program_checks.sh
 # the bootstrap: the compiler built from source builds itself again, and both
 # generations must emit the same C for the compiler; the snapshot is only
 # reported when it has drifted

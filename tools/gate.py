@@ -131,12 +131,13 @@ class Agent:
         """Check out `name` under src/ at `commit`, or at GitHub's main; returns its directory."""
         directory = self.src / name
         if not directory.exists():
-            git("clone", "-q", "--filter=blob:none", f"{GITHUB}/{name}.git", str(directory), cwd=self.src)
+            git("-c", "core.autocrlf=false", "clone", "-q", "--filter=blob:none", f"{GITHUB}/{name}.git", str(directory), cwd=self.src)
         elif (directory / ".git" / "shallow").exists():
             git("fetch", "-q", "--unshallow", "origin", cwd=directory)
-        configured = self.config.get(self.platform, {})
-        if "autocrlf" in configured:
-            git("config", "core.autocrlf", str(configured["autocrlf"]).lower(), cwd=directory)
+        if WINDOWS:
+            # every checkout as committed, LF, on every platform: Git for Windows' default
+            # conversion would make a formatting check fail on Windows alone
+            git("config", "core.autocrlf", "false", cwd=directory)
         if commit is None:
             git("fetch", "-q", "origin", "main", cwd=directory)
             commit = git("rev-parse", "FETCH_HEAD", cwd=directory)
@@ -144,6 +145,12 @@ class Agent:
                             capture_output=True).returncode != 0:
             git("fetch", "-q", "origin", commit, cwd=directory)
         git("checkout", "-q", "-f", "--detach", commit, cwd=directory)
+        marker = directory / ".git" / "luce-gate-lf"
+        if WINDOWS and not marker.exists():
+            # once: a checkout an earlier converting clone wrote, written again as committed
+            git("rm", "-rq", "--cached", ".", cwd=directory)
+            git("reset", "-q", "--hard", cwd=directory)
+            marker.touch()
         git("clean", "-q", "-ffdx" if (self.clean and name == self.repository) else "-ffd", cwd=directory)
         self.synced.add(name)
         return directory
@@ -152,7 +159,7 @@ class Agent:
         """The commit under test: from the local checkout (macOS), a bundle, or GitHub."""
         directory = self.src / self.repository
         if not directory.exists():
-            git("clone", "-q", "--filter=blob:none", f"{GITHUB}/{self.repository}.git", str(directory), cwd=self.src)
+            git("-c", "core.autocrlf=false", "clone", "-q", "--filter=blob:none", f"{GITHUB}/{self.repository}.git", str(directory), cwd=self.src)
         if self.source:
             git("fetch", "-q", self.source, self.commit, cwd=directory)
         elif self.bundle:
@@ -588,7 +595,8 @@ class Platform(threading.Thread):
                                            stdin=subprocess.DEVNULL)
                 for raw in iter(process.stdout.readline, b""):
                     line = raw.decode("utf-8", "replace").rstrip("\r\n")
-                    log.write(line + "\n")
+                    # the log keeps each line's time since the start, for finding the slow steps
+                    log.write(f"{time.time() - started:7.1f} {line}\n")
                     log.flush()
                     if line.startswith("GATE-RESULT "):
                         self.status, self.ran = line.split()[1], float(line.split()[2])

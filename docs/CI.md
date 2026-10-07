@@ -73,8 +73,9 @@ steps = ["tools/package.sh build/release"]
 files = ["build/release/luce-*"]
 ```
 
-`[windows] autocrlf = false` checks the repository out without CRLF conversion (Git for
-Windows converts by default).
+On Windows every checkout is as committed, without Git for Windows' CRLF conversion, so a
+formatting check means the same everywhere; the compiler's CRLF handling has checks of its
+own (the compile budget checks out its programs with CRLF).
 
 ### The record
 
