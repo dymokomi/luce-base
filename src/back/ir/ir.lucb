@@ -842,6 +842,12 @@ pub struct Global:
     ## A standard global's initialiser, a function of its own that `lb_init_globals`
     ## calls, so the pruner keeps it with the global; empty for the rest.
     pub var init_function: str = ""
+    ## The bytes the global starts with, when its initialiser is literals laid out at
+    ## compile time (`Lowerer.static_data`): the object holds them and no code stores them.
+    ## None for storage that starts zero or is given its value by an initialiser.
+    pub var data: u8[]? = none
+    ## Whether `data` is a top-level `let`'s, which the object keeps read-only.
+    pub var read_only: bool = false
 
 ## A witness table: the symbol and the functions it points at, in requirement order.
 pub struct WitnessTable:

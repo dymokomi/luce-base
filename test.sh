@@ -37,6 +37,7 @@ python3 tools/test_cached_pieces.py
 python3 tools/test_windows_publish.py
 python3 tools/test_inline_frames.py
 python3 tools/test_small_copies.py
+python3 tools/test_static_data.py
 python3 tools/test_fmt_comments.py
 python3 tools/test_c_prototypes.py
 # the guide: every complete program in docs/guide compiles, runs and prints what the page

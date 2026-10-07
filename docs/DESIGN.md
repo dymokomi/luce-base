@@ -260,6 +260,11 @@ Globals initialise in module order, the standard modules first in `ORDER`, so
 a module's are set before those of any module that imports it; a constant the
 checker can evaluate to a literal (`platform.windows`, `os.name`,
 `6 if platform.macos else 1`) is written as that literal by both backends.
+A global array of literals (integers, floats, `bool`s, arrays of them: embedded
+SPIR-V words, glyph tables) runs no initialiser at all: the lowerer lays its
+bytes out (`static_data`) and the object holds them, a `let`'s in the
+read-only section (`__TEXT,__const`, `.rodata`, `.rdata`), a `var`'s in the
+writable data section; the C emitter writes such a `let` `const`.
 Three things stay with the backend because no Base body can spell them: `atomic.fence`, the `luce` facts about the use site, and the C
 standard streams. Every C name is qualified by its module (`lb_files_read`,
 `lb_memory_allocator`, `lb_io_Location`), so two modules may declare the same

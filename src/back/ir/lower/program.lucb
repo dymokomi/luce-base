@@ -67,7 +67,21 @@ extend Lowerer:
         let name = try self.global_name(d)
         let used = ast.has_attribute(d, "used")
         let standard = check.is_library_module(names.module_of(d))
-        try self.program_unit.globals.push(ir.Global(name = name, standard = standard, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = used, section = section_of(d), external = ast.is_linked(d)))
+        var global = ir.Global(name = name, standard = standard, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = used, section = section_of(d), external = ast.is_linked(d))
+        if let data = try self.static_data(d):
+            _ = try self.laid_out.add(name, self.program_unit.globals.count)
+            # storage that starts zero needs no bytes: it stays zero-filled
+            if not all_zero(data):
+                global.data = data
+                global.read_only = d.kind == ast.Kind.constant
+        try self.program_unit.globals.push(global)
+
+    ## Whether `d`'s initialiser runs as code: it has one, and it was not laid out as the
+    ## global's bytes (`static_data`).
+    func runs_initialiser(d: ast.Node*) -> bool!:
+        if not initialised(d):
+            return false
+        return not self.laid_out.has(try self.global_name(d))
 
     ## `lb_init_globals`, every top-level initialiser in module order: the standard modules
     ## first, in `ORDER`, then the program's, so a module's globals are set before those of
@@ -79,7 +93,7 @@ extend Lowerer:
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if initialised(d) and check.is_library_module(names.module_of(d)):
+                if (try self.runs_initialiser(d)) and check.is_library_module(names.module_of(d)):
                     try self.global_initialiser(d)
                 cursor = d.next
             i += 1
@@ -98,7 +112,7 @@ extend Lowerer:
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if initialised(d) and not d.has(ast.flag_thread_local):
+                if (try self.runs_initialiser(d)) and not d.has(ast.flag_thread_local):
                     if check.is_library_module(names.module_of(d)):
                         _ = try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
                     elif let init = d.left:
@@ -419,6 +433,90 @@ extend Lowerer:
                 req = r.next
             try self.program_unit.tables.push(table)
             i += 1
+
+    # mark: Static data =======================================================================
+
+    ## A global's starting bytes, when its initialiser is literals the object file can hold
+    ## as they are: an array, of arrays, of integers, `bool`s and floats, each a constant the
+    ## checker folds exactly (§6.4). Embedded SPIR-V words, glyphs or tables then cost their
+    ## size in data, not a store instruction per element run before `main`. None for
+    ## anything else, a thread-local, a weak global or one in a named section, which keep
+    ## their initialiser.
+    func static_data(d: ast.Node*) -> u8[]?!:
+        let init = d.left else return none
+        if not initialised(d) or d.has(ast.flag_thread_local) or ast.has_attribute(d, "weak") or section_of(d).length > 0:
+            return none
+        let t = d.type_id
+        if not self.is_array(t) or self.size(t) == 0:
+            return none
+        let data = try new u8[(usize)self.size(t)]
+        var laid = false
+        defer:
+            if not laid:
+                free(data)
+        if not self.lay_out(init, t, data, 0):
+            return none
+        laid = true
+        return data
+
+    ## Write constant `e` of type `t` into `data` at `offset`, as the target holds it in
+    ## memory (little-endian on every native target); false when `e` is not one this lays out.
+    func lay_out(e: ast.Node*, t: u32, data: u8[], offset: u64) -> bool:
+        if self.is_array(t):
+            if e.kind != ast.Kind.array_lit:
+                return false
+            let et = self.elem(t)
+            let stride = self.c.table.size_of(et)
+            var at = offset
+            var cursor = e.body
+            while let m = cursor:
+                if not self.lay_out(m, et, data, at):
+                    return false
+                at += stride
+                cursor = m.next
+            return true
+        let size = self.c.table.size_of(t)
+        var bits: u64 = 0
+        if t == types.bool_id:
+            let truth = self.c.constant_bool(e) else return false
+            bits = 1 if truth else 0
+        elif self.is_int(t):
+            let v = self.c.exact_integer(e, size * 8, self.is_signed(t)) else return false
+            bits = (u64)v
+        elif t == types.f16_id or t == types.f32_id or t == types.f64_id:
+            bits = float_constant(e, u32(size * 8)) else return false
+        else:
+            return false
+        for k in 0..<size:
+            data[offset + k] = (u8)((bits >> (8 * k)) & 255)
+        return true
+
+## The IEEE bits at `width` of a float literal, negated or in parentheses; none for any
+## other expression, which its initialiser computes.
+func float_constant(e: ast.Node*, width: u32) -> u64?:
+    match e.kind:
+        .literal:
+            if not literals.is_float_literal(e.text):
+                return none
+            return decimal.bits(literals.literal_body(e.text), width)
+        .group:
+            let inner = e.left else return none
+            return float_constant(inner, width)
+        .unary:
+            let inner = e.left else return none
+            if e.text != "-":
+                return none
+            let v = float_constant(inner, width) else return none
+            return v ^ ((u64)1 << (u64)(width - 1))
+        _:
+            return none
+
+## Whether every byte of `data` is zero.
+func all_zero(data: const u8[]) -> bool:
+    for b in data:
+        if b != 0:
+            return false
+    return true
 
 ## Whether a top-level declaration has an initialiser this unit runs.
 func initialised(d: ast.Node*) -> bool:

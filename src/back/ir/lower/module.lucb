@@ -35,6 +35,7 @@ import sema.check
 import sema.types
 import support.buffer
 import support.decimal
+import support.hashed
 import support.list
 import support.literals
 ## The native backend does not support the build's target (§19.5).
@@ -212,6 +213,9 @@ pub struct Lowerer:
     pub var target: targets.Target
     ## The line of the allocation being lowered, for the diagnostic profile's record.
     var site_line: u32
+    ## The globals whose initialiser was laid out as their bytes (`static_data`), by name:
+    ## no initialiser function stores them.
+    var laid_out: hashed.Table[str]
 
     ## A lowerer for `entry`, checked by `c`.
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
@@ -224,7 +228,7 @@ pub struct Lowerer:
                        defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
                        catch_done = 0, catch_scope = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
                        match_type = 0, src_file = entry.text, at_file = entry.text, at_line = 0, at_column = 0, at_text = 0, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0,
-                       grown = try list.List[u32].create(8))
+                       grown = try list.List[u32].create(8), laid_out = try hashed.Table[str].create(64))
 
     ## Stop lowering with a diagnostic naming the file and line of `node`, and its text when
     ## it has one.

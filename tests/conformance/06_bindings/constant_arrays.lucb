@@ -1,0 +1,38 @@
+## §6.3, §6.4: a top-level array of literals holds its value from the start, whatever its
+## element type: integers of every width and sign, floats, `bool`s, arrays of arrays, and
+## elements named by other constants. A `let` reads the same through indexing, `.length`,
+## a span and a pointer; a `var` starts as its literal and changes like any storage.
+let words: u32[6] = [0x07230203, 0x00010000, 0, 1, 0x7fffffff, 0xffffffff]
+let small: i8[4] = [-128, -1, 0, 127]
+let wide: i64[3] = [-9223372036854775807 - 1, -2, 9223372036854775807]
+let halfs: u16[3] = [0, 1, 65535]
+let grid: u8[2][3] = [[1, 2, 3], [4, 5, 6]]
+let base: u32 = 40
+let named: u32[3] = [base, base + 2, (u32)-1]
+let singles: f32[4] = [1.5, -2.25, 0.1, -0.0]
+let doubles: f64[3] = [3.141592653589793, -1e300, 0.5]
+let flags: bool[3] = [true, false, true]
+let zeros: u64[4] = [0, 0, 0, 0]
+var counts: i16[3] = [-1, 2, -32768]
+let odd: u8[11] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+func total(values: const u32[]) -> u64:
+    var s: u64 = 0
+    for v in values:
+        s += (u64)v
+    return s
+
+func row_sum(row: u8[3]) -> u32:
+    return (u32)row[0] + (u32)row[1] + (u32)row[2]
+
+pub func main(arguments: str[]) -> i32:
+    let middle: const u8* = &grid[1][1]
+    print(f"{words.length} {words[0]} {words[5]} {total(words)} {total(words[1..<4])}")
+    print(f"{small[0]} {small[1]} {small[3]} {wide[0]} {wide[1]} {wide[2]} {halfs[2]}")
+    print(f"{grid[0][2]} {grid[1][0]} {row_sum(grid[1])} {*middle} {named[0]} {named[1]} {named[2]}")
+    print(f"{singles[0]} {singles[1]} {singles[2]} {singles[3]} {doubles[0]} {doubles[1]} {doubles[2]}")
+    print(f"{flags[0]} {flags[1]} {flags[2]} {zeros[3]} {odd[10]} {odd.length}")
+    counts[1] += 5
+    counts[2] += 1
+    print(f"{counts[0]} {counts[1]} {counts[2]}")
+    return 0

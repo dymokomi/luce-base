@@ -265,7 +265,9 @@ pub struct Format:
                 continue
             let size = (u64)g.size if g.size > 0 else 1
             let align = assembly.alignment_power((u64)g.align if g.align > 0 else 1)
-            if self.apple:
+            if let data = g.data:
+                try self.data_global(out, g, data, align)
+            elif self.apple:
                 try self.macho_global(out, g, size, align)
             else:
                 try self.global(out, g, size, align)
@@ -348,6 +350,32 @@ pub struct Format:
         try out.put_u64(size)
         try out.put("\n")
 
+    ## A global that starts with bytes laid out at compile time (`ir.Global.data`): a
+    ## `let`'s in the read-only section beside the text literals, a `var`'s in the writable
+    ## data section, so no code runs to give either its value.
+    func data_global(out: buffer.Buffer*, g: ir.Global, data: const u8[], align: u64) -> !:
+        if g.read_only:
+            try self.read_only(out)
+        elif self.apple:
+            try out.put("\n    .section __DATA,__data\n")
+        else:
+            try out.put("\n    .data\n")
+        try self.global_symbol(out, g.name, false, g.used)
+        if self.elf():
+            try self.elf_type(out, g.name, "%object")
+        try out.put("    .p2align ")
+        try out.put_u64(align)
+        try out.put("\n")
+        try self.symbol(out, g.name)
+        try out.put(":")
+        try put_data(out, data)
+        if self.elf():
+            try out.put("    .size ")
+            try self.symbol(out, g.name)
+            try out.put(", ")
+            try out.put_u64((u64)data.length)
+            try out.put("\n")
+
     ## ELF's `.type name, kind`.
     func elf_type(out: buffer.Buffer*, name: str, kind: str) -> !:
         try out.put("    .type ")
@@ -355,6 +383,32 @@ pub struct Format:
         try out.put(", ")
         try out.put(kind)
         try out.put("\n")
+
+## `data` as assembler directives: eight bytes to a little-endian `.quad`, four to a line,
+## the bytes past the last whole eight as `.byte`s.
+func put_data(out: buffer.Buffer*, data: const u8[]) -> !:
+    let whole = data.length - data.length % 8
+    var at: usize = 0
+    while at < whole:
+        try out.put("\n    .quad " if at % 32 == 0 else ", ")
+        var word: u64 = 0
+        for k in 0..<(usize)8:
+            word |= (u64)data[at + k] << (u64)(8 * k)
+        try put_hex(out, word)
+        at += 8
+    while at < data.length:
+        try out.put("\n    .byte ")
+        try out.put_u64((u64)data[at])
+        at += 1
+    try out.put("\n")
+
+## `value` as `0x` and sixteen hexadecimal digits.
+func put_hex(out: buffer.Buffer*, value: u64) -> !:
+    try out.put("0x")
+    var shift: u64 = 64
+    while shift > 0:
+        shift -= 4
+        try out.put_byte("0123456789abcdef".bytes[(usize)((value >> shift) & 15)])
 
 ## The unit's module-level asm blocks, verbatim, in the text section (§8.9).
 pub func module_asm(writer: assembly.Text*, program_unit: ir.Unit*) -> !:

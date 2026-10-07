@@ -173,6 +173,8 @@ extend Emitter:
                 try self.put("extern ")
             if d.has(ast.flag_thread_local):
                 try self.put("_Thread_local ")
+            if self.read_only_global(d):
+                try self.put("const ")
             try self.put_type(d.type_id)
             try self.put(" ")
             try self.put_global_name(d)
@@ -366,6 +368,8 @@ extend Emitter:
         try self.attribute_prefix(d, false)
         if d.has(ast.flag_thread_local):
             try self.put("_Thread_local ")
+        if self.read_only_global(d):
+            try self.put("const ")
         let t = d.type_id
         try self.put_type(t)
         try self.put(" ")
@@ -389,6 +393,17 @@ extend Emitter:
         else:
             try self.zero_value(t)
         try self.put(";")
+
+    ## A top-level `let` of an array whose value runs no code (`static_value`), such as
+    ## embedded SPIR-V words: `const`, so the C compiler keeps it with the read-only data,
+    ## where the native backend lays it out too.
+    func read_only_global(d: ast.Node*) -> bool:
+        if d.kind != ast.Kind.constant or ast.is_linked(d) or d.has(ast.flag_thread_local) or d.has(ast.flag_uninit) or d.attrs != none:
+            return false
+        if self.c.table.kind(d.type_id) != types.Kind.array:
+            return false
+        let init = d.left else return false
+        return self.c.static_value(init)
 
     ## `lb_init_runtime_globals`: every top-level `let` whose value runs code, given it in
     ## module order before `main` runs.
