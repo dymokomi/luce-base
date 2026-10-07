@@ -199,11 +199,14 @@ tests/
 ```
 
 `luc test` finds every directory `tests/<name>/` with a `main`, as pytest finds `test_*.py`
-files, builds it with the package's dependencies and runs it from its own directory, so a
-fixture beside it opens by its bare name. It passes when it exits with status 0 and, if its
-directory has an `expected` file, when its standard output is exactly that file. Programs run
-in parallel, each with `LUC_HOME` set to a scratch directory and `LUCE` and `LUCE_BASE`
-naming the compilers `luc test` uses, and build into `build/tests/<name>/`.
+files, builds it with the package's dependencies and runs it from the package root, as `luc
+test` itself runs; `LUC_TEST_DIR` names its own directory, for the fixtures beside it. It
+passes when it exits with status 0 and, if its directory has an `expected` file, when its
+standard output is exactly that file; one that exits 0 after printing a line `skip: reason`
+is skipped. Programs run in parallel, each with `HOME` and `LUC_HOME` pointing at a fresh
+scratch directory, removed afterwards, so a test never touches your own settings or
+keychain, and with `LUCE` and `LUCE_BASE` naming the compilers `luc test` uses. They build
+into `build/tests/<name>/`.
 
 ```text
 ok    push then pop gives the value back
@@ -212,8 +215,8 @@ ok    tests/roundtrip
 total: 2 passed, 0 failed (1 test block, 1 program)
 ```
 
-A program imports the package's modules by their module names, `import parse`, as code
-inside `src/` does, and a helper beside it by its own name. One with a `package.prisma` of
+A program imports any module of the package, private ones too, by its module name, `import
+parse`, as code inside `src/` does, and a helper beside it by its own name. One with a `package.prisma` of
 its own is a separate package, for dependencies only the test needs, and imports the
 package's public modules as any dependent does. A directory under `tests/` without a `main`
 is data, and a directory with a `TESTS` file holds test fragments, as above. `luc test
