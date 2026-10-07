@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """Cut a batch release from a workspace of checkouts side by side (docs/CI.md).
 
-Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run] [--gate]
+Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run]
 
   1. Every package on pkg.luciaos.com that has a checkout in the workspace is compared
      with its newest registry release: a package whose sources changed since that
      release's commit is to be released. Its checkout must be main, clean and pushed.
-  2. Each such commit needs a gate note (tools/gate.py) showing arm64-macos,
-     x86_64-linux and x86_64-windows passing: the default level for a package, --full
-     for luce-base, luce and luc; --gate runs the gate where one is missing.
+  2. Each one runs its own tests with the development toolchain (tools/toolchain.py):
+     `luc test` in the package; `./test.sh` for luce-base, luce and luce-luc. One failure
+     stops the release before anything is published.
   3. Each version is bumped (patch, unless package.prisma already moved past the
-     registry's), committed and pushed with the gate note carried over, and published
-     with `luc publish`, dependencies first, independent packages in parallel.
+     registry's), committed, pushed and published with `luc publish`, dependencies
+     first, independent packages in parallel.
   4. Every application on the registry is resolved again: `luc lock` in a clone of its
      registry repository, with a scratch HOME, so nothing is installed.
-  5. The toolchain: when luce-base, luce or luc changed since the last luce-VERSION
-     tag, luce-base and luce get new versions (luce's installers too), each commit is
-     gated, and the gate's own release archives become the GitHub releases
-     luce-base-VERSION and luce-VERSION. The installers are copied to
-     luce.luciaos.com and both documentation sites are rebuilt (tools/site.py) and
-     deployed, replacing only each site's own entries.
+  5. The toolchain: when luce-base, luce or luc changed since the last luce-VERSION tag,
+     luce-base and luce get new versions (luce's installers too); tools/toolchain.py
+     builds the release archive on this Mac and over SSH on `luce-linux` and
+     `luce-windows`; the three become the GitHub release luce-VERSION; the installers are
+     copied to luce.luciaos.com and both documentation sites are rebuilt and deployed,
+     replacing only each site's own entries.
 
 --dry-run prints the plan and changes nothing.
 """
@@ -36,15 +36,15 @@ import urllib.error
 import urllib.request
 
 REGISTRY = "https://pkg.luciaos.com"
-HOSTS = ("arm64-macos", "x86_64-linux", "x86_64-windows")
-NOTES = "refs/notes/gate"
+# the release archive's machines: (host, SSH alias, None for this one)
+MACHINES = (("arm64-macos", None), ("x86_64-linux", "luce-linux"), ("x86_64-windows", "luce-windows"))
+GIT_BASH = r"C:\scoop\apps\git\current\bin\bash.exe"
 EDGE = ["ssh", "-i", os.path.expanduser("~/.ssh/lightsail-apps-edge.pem"), "-o", "BatchMode=yes",
         "ubuntu@35.153.110.211"]
 SITES = {"luce": "/opt/apps/luce_docs", "luce-base": "/opt/apps/luce_base_docs"}
 # what the toolchain release bundles: luce, with luce-base and luc beside it
 TOOLCHAIN = ("luce-base", "luce", "luce-luc")
-IGNORED = (":!gate.toml", ":!.github")
-GATE = Path(__file__).resolve().parent / "gate.py"
+TOOLCHAIN_SCRIPT = Path(__file__).resolve().parent / "toolchain.py"
 
 
 # mark: helpers
@@ -91,19 +91,16 @@ def newer(a, b):
     return tuple(map(int, a.split("."))) > tuple(map(int, b.split(".")))
 
 
-def gate_status(directory, commit, level="default"):
-    """(passed, the note's text) for the commit, from origin's notes: every platform
-    passing at `level` ("full" passes "default" too)."""
-    git(directory, "fetch", "-q", "origin", f"+{NOTES}:{NOTES}", check=False)
-    note = git(directory, "notes", "--ref=gate", "show", commit, check=False)
-    results = {}
-    for line in note.splitlines():
-        words = line.split()
-        if len(words) > 2 and words[0] in HOSTS:
-            results[words[0]] = (words[1], words[2] if words[2] in ("default", "full") else "default")
-    good = lambda host: host in results and results[host][0] in ("PASS", "NONE") and \
-        (level == "default" or results[host][1] == "full")
-    return all(good(host) for host in HOSTS), note
+def run_tests(directory):
+    """The package's own tests: ./test.sh for the toolchain's repositories, `luc test`
+    for every other package, in a scratch LUC_HOME."""
+    command = ["./test.sh"] if directory.name in TOOLCHAIN else ["luc", "test"]
+    with tempfile.TemporaryDirectory(prefix="luce-test-") as scratch:
+        environment = dict(os.environ, LUC_HOME=str(Path(scratch) / ".luce"))
+        result = subprocess.run(command, cwd=directory, env=environment, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stdout[-3000:] + result.stderr[-3000:])
+    return result.returncode == 0
 
 
 # mark: the packages
@@ -131,19 +128,17 @@ class Package:
         if self.changed:
             self.target = self.version if self.released is None or newer(self.version, self.released) \
                 else bump(self.released)
-        # the toolchain's own packages need the full gate, the others the default one
-        self.level = "full" if self.repository in TOOLCHAIN else "default"
-        self.gated, self.note = gate_status(directory, self.head, self.level) if self.changed else (True, "")
 
     def has_changed(self):
         known = subprocess.run(["git", "cat-file", "-e", f"{self.released_commit}^{{commit}}"],
                                cwd=self.directory, capture_output=True).returncode == 0
         if not known:
             return True
-        return bool(git(self.directory, "diff", "--name-only", self.released_commit, "HEAD", "--", ".", *IGNORED))
+        # what users get: the sources and the manifest (tests, docs and tooling don't ship)
+        return bool(git(self.directory, "diff", "--name-only", self.released_commit, "HEAD", "--", "src", "package.prisma"))
 
     def publish(self, dry_run):
-        """Bump, commit, push (with the gate note) and `luc publish`."""
+        """Bump, commit, push and `luc publish`."""
         print(f"release: {self.name} {self.released} -> {self.target}")
         if dry_run:
             return
@@ -151,22 +146,34 @@ class Package:
         text = path.read_text()
         path.write_text(re.sub(r'str version = "[^"]+"', f'str version = "{self.target}"', text, count=1))
         git(self.directory, "commit", "-q", "-m", f"{self.name} {self.target}: batch release", "package.prisma")
-        carry_note(self.directory, self.head)
         push(self.directory)
         subprocess.run(["luc", "publish", "-m", f"{self.name} {self.target}: batch release"],
                        cwd=self.directory, check=True)
 
 
-def carry_note(directory, gated):
-    """The gate note of `gated` on HEAD, a commit that changed only version lines."""
-    note = git(directory, "notes", "--ref=gate", "show", gated)
-    git(directory, "notes", "--ref=gate", "add", "-f", "-m", f"{note}\nbump-of {gated}", "HEAD")
-
-
 def push(directory):
     git(directory, "pull", "-q", "--ff-only", "origin", "main")
     git(directory, "push", "-q", "origin", "HEAD:main")
-    git(directory, "push", "-q", "origin", f"{NOTES}:{NOTES}")
+
+
+# a package whose GitHub repository is named differently
+REPOSITORIES = {"luc": "luce-luc"}
+
+
+def prepare_workspace(workspace, registered):
+    """Every registered package checked out on main in the workspace, up to date."""
+    workspace.mkdir(parents=True, exist_ok=True)
+    def one(owner, name):
+        directory = workspace / REPOSITORIES.get(name, name)
+        if not (directory / ".git").exists():
+            subprocess.run(["git", "clone", "-q", f"https://github.com/{owner}/{directory.name}.git", str(directory)],
+                           check=True)
+        else:
+            git(directory, "checkout", "-q", "main")
+            git(directory, "pull", "-q", "--ff-only", "origin", "main")
+    with concurrent.futures.ThreadPoolExecutor(16) as pool:
+        for future in [pool.submit(one, owner, name) for owner, name in registered]:
+            future.result()
 
 
 def registry_names(page):
@@ -227,7 +234,7 @@ def toolchain_plan(workspace, packages):
         git(directory, "fetch", "-q", "--tags", "origin")
         tag = last_tag(directory, prefix)
         version = (directory / "VERSION").read_text().strip()
-        changed = tag is None or bool(git(directory, "diff", "--name-only", tag, "HEAD", "--", ".", *IGNORED))
+        changed = tag is None or bool(git(directory, "diff", "--name-only", tag, "HEAD"))
         plan[directory.name] = {"tag": tag, "version": version, "changed": changed}
     luc = next((package for package in packages if package.repository == "luce-luc"), None)
     plan["luce-luc"] = {"changed": bool(luc and luc.changed)}
@@ -254,29 +261,44 @@ def set_version(directory, version):
     git(directory, "commit", "-q", "-a", "-m", f"{directory.name} {version}: batch release")
 
 
-def gate(directory, level="default"):
-    """Run the gate on HEAD; its note decides."""
-    subprocess.run([sys.executable, str(GATE), str(directory), *(["--full"] if level == "full" else [])], check=False)
-    passed, note = gate_status(directory, git(directory, "rev-parse", "HEAD"), level)
-    if not passed:
-        raise SystemExit(f"release: the gate did not pass on {directory.name}:\n{note}")
+def build_archives(version, out):
+    """luce-VERSION-HOST.tar.gz (and .sha256) for every machine, built from main by
+    tools/toolchain.py there and copied into out."""
+    out.mkdir(parents=True, exist_ok=True)
+    for host, alias in MACHINES:
+        if alias is None:
+            subprocess.run([sys.executable, str(TOOLCHAIN_SCRIPT), "--archive", str(out)], check=True)
+            continue
+        remote = "luce-release-out"
+        setup = ("mkdir -p ~/.local/luce-dev/src && cd ~/.local/luce-dev/src && "
+                 "{ [ -d luce-base ] || git clone -q https://github.com/dymokomi/luce-base.git; } && "
+                 "git -C luce-base pull -q --ff-only && cd ~ && rm -rf " + remote + " && "
+                 "python3 ~/.local/luce-dev/src/luce-base/tools/toolchain.py --archive ~/" + remote)
+        if host == "x86_64-windows":
+            command = ["ssh", alias, f"& '{GIT_BASH}' -lc \"{setup.replace('python3', 'python')}\""]
+        else:
+            command = ["ssh", alias, f"bash -lc '. ~/Dev/gate/gate-env.sh 2>/dev/null; {setup}'"]
+        subprocess.run(command, check=True)
+        subprocess.run(["scp", "-q", f"{alias}:{remote}/luce-{version}-{host}.tar.gz*", str(out)], check=True)
+    archives = sorted(out.glob(f"luce-{version}-*.tar.gz"))
+    expected = sorted(f"luce-{version}-{host}.tar.gz" for host, _ in MACHINES)
+    if [path.name for path in archives] != expected:
+        raise SystemExit(f"release: archives {[path.name for path in archives]}, expected {expected}")
+    return sorted(out.glob(f"luce-{version}-*"))
 
 
-def github_release(directory, version):
-    """Tag the gated commit and upload the gate's archives as the GitHub release."""
-    name = directory.name
-    commit = git(directory, "rev-parse", "HEAD")
-    tag = f"{name}-{version}"
-    artifacts = Path(os.environ.get("LUCE_GATE_HOME", "~/luce-gate")).expanduser() / "artifacts" / name / commit
-    files = sorted(artifacts.glob(f"{name}-{version}-*"))
-    archives = [path for path in files if path.name.endswith(".tar.gz")]
-    if sorted(path.name for path in archives) != sorted(f"{name}-{version}-{host}.tar.gz" for host in HOSTS):
-        raise SystemExit(f"release: the gate kept {[path.name for path in archives]} under {artifacts}, not one archive per host")
-    git(directory, "tag", "-a", tag, "-m", tag)
-    git(directory, "push", "-q", "origin", tag)
-    notes = {"luce": f"luce {version} with its Base compiler and luc bundled: one archive per host, installed by https://luce.luciaos.com.",
-             "luce-base": f"luce-base {version}: one archive per host."}[name]
-    subprocess.run(["gh", "release", "create", tag, "--repo", f"dymokomi/{name}", "--title", tag,
+def tag(directory, version):
+    name = f"{directory.name}-{version}"
+    git(directory, "tag", "-a", name, "-m", name)
+    git(directory, "push", "-q", "origin", name)
+    return name
+
+
+def github_release(directory, version, files):
+    """The luce release: one archive per machine, luce-base and luc bundled inside."""
+    name = tag(directory, version)
+    notes = f"luce {version} with its Base compiler and luc bundled: one archive per host, installed by https://luce.luciaos.com."
+    subprocess.run(["gh", "release", "create", name, "--repo", f"dymokomi/{directory.name}", "--title", name,
                     "--notes", notes, *map(str, files)], check=True)
 
 
@@ -306,17 +328,19 @@ def deploy_site(directory):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--workspace", type=Path, default=Path(__file__).resolve().parents[2])
+    parser.add_argument("--workspace", type=Path, default=Path.home() / ".local" / "luce-dev" / "release")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--gate", action="store_true", help="run the gate where a note is missing")
     arguments = parser.parse_args()
     workspace = arguments.workspace.resolve()
+    subprocess.run([sys.executable, str(TOOLCHAIN_SCRIPT)], check=True)
+    registered = registry_names("/")
+    # the compilers are not registry packages, but the toolchain release needs them
+    prepare_workspace(workspace, registered + [("dymokomi", "luce-base"), ("dymokomi", "luce")])
 
     checkouts = {}
     for path in sorted(workspace.iterdir()):
         if (path / "package.prisma").exists() and (path / ".git").exists():
             checkouts[manifest(path)[0]] = path
-    registered = registry_names("/")
     print(f"release: {len(registered)} packages on {REGISTRY}; checkouts in {workspace}")
     with concurrent.futures.ThreadPoolExecutor(16) as pool:
         futures = {name: pool.submit(Package, owner, checkouts[name]) for owner, name in registered if name in checkouts}
@@ -327,13 +351,12 @@ def main():
 
     changed = [package for package in packages if package.changed]
     blocked = [package for package in changed if package.problems]
-    ungated = [package for package in changed if not package.gated and not package.problems]
     toolchain = toolchain_plan(workspace, packages)
 
     print("\nPackages to release, dependencies first:")
     for number, layer in enumerate(layers(changed), 1):
         for package in layer:
-            state = "; ".join(package.problems) or (f"gated ({package.level})" if package.gated else f"NOT GATED ({package.level})")
+            state = "; ".join(package.problems) or "ready"
             print(f"  layer {number}: {package.name:28} {str(package.released):>9} -> {package.target:9} "
                   f"{package.head[:12]}  {state}")
     unchanged = len(packages) - len(changed)
@@ -342,15 +365,12 @@ def main():
     for name in ("luce-base", "luce"):
         entry = toolchain[name]
         if entry["changed"]:
-            print(f"  {name}: {entry['tag']} -> {name}-{entry['target']} (bump, gate with release archives, "
-                  f"tag, GitHub release{', installers, site' if name == 'luce' else ', site'})")
+            print(f"  {name}: {entry['tag']} -> {name}-{entry['target']} (bump, tag"
+                  f"{', archives on 3 machines, GitHub release, installers, site' if name == 'luce' else ', site'})")
         else:
             print(f"  {name}: unchanged since {entry['tag']}")
     if blocked:
         print("\nBlocked (fix the checkout first): " + ", ".join(package.name for package in blocked))
-    if ungated:
-        print("Not gated on their exact commit: " + ", ".join(package.repository for package in ungated)
-              + ("" if arguments.gate else "\n  gate them with tools/gate.py, or rerun with --gate"))
 
     if arguments.dry_run:
         print()
@@ -359,12 +379,11 @@ def main():
         return 0
     if blocked:
         return 1
-    for package in ungated:
-        if arguments.gate:
-            gate(package.directory, package.level)
-            package.gated = True
-        else:
-            return 1
+    print("\nrelease: running each package's own tests")
+    failed = [package.name for package in changed if not run_tests(package.directory)]
+    if failed:
+        print("release: tests failed, nothing published: " + ", ".join(failed))
+        return 1
 
     for layer in layers(changed):
         with concurrent.futures.ThreadPoolExecutor(len(layer)) as pool:
@@ -378,10 +397,12 @@ def main():
         if entry["version"] != entry["target"]:
             set_version(directory, entry["target"])
             push(directory)
-        gate(directory, "full")
-        github_release(directory, entry["target"])
         if name == "luce":
+            files = build_archives(entry["target"], workspace / "luce" / "build" / "release-archives")
+            github_release(directory, entry["target"], files)
             deploy_installers(directory, entry["target"])
+        else:
+            tag(directory, entry["target"])
         deploy_site(directory)
     return 0 if verify_applications(False) else 1
 

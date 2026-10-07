@@ -44,9 +44,9 @@ needs the host's C toolchain (`cc`, `as`, `ar`, `nm`: the Xcode command line
 tools, a Linux `gcc`/`clang` package, or a MinGW-w64 GCC), which the
 compiler drives for assembling and linking. A program it builds links the
 standard library statically and needs nothing from the installation to run.
-The archives are built by the gate on each host (`gate.toml`'s release steps), each proved
-by `tools/install_smoke.sh`, and published by `tools/release.py`; `tools/package.sh` writes
-the same archive from a local build.
+Releases ship luce-base inside the Luce archive, built on each host by
+`tools/toolchain.py --archive` and published by `tools/release.py` (docs/CI.md);
+`tools/package.sh` writes luce-base's own archive from a local build.
 
 `luce-base fmt FILE` prints a module in the canonical layout (`--write` puts it back,
 `--check` reports drift); every source under `src/` is a fixpoint of it, and the gate
@@ -89,8 +89,8 @@ Test material lives under `tests/samples` (programs and expected output),
 `tests/programs` (integration checks), and `tests/conformance` (accepted and
 rejected language cases checked through both backends and the Seed oracle).
 
-The gate (`tools/gate.py`, [docs/CI.md](docs/CI.md)) runs on arm64 macOS, x86_64 Linux and
-x86_64 Windows: `./test.sh` on the Unix hosts, the Windows checks of `gate.toml` on Windows.
+`./test.sh` runs on arm64 macOS and x86_64 Linux; on x86_64 Windows the checks are
+`tools/build_windows.py` and `tools/test_windows.py` ([docs/CI.md](docs/CI.md)).
 `tests/platform` holds what depends on the target. A bootstrap snapshot that has drifted is
 reported as a failure, and `tools/snapshot.sh` writes every host's snapshot from any host.
 

@@ -5,9 +5,9 @@
 # rejects every program under tests/samples/errors. The C and native backends are the
 # two executions that must agree. The gate runs on every host with a native backend
 # (arm64-macos, x86_64-linux); what depends on the target is under tests/platform.
-# `./test.sh --quick` is the gate's default level (tools/gate.py): everything but the
-# instrumented runs, which `./test.sh` (gate.py --full) adds: the sanitizers, the other C
-# compilers, valgrind, ThreadSanitizer and the fuzzer under valgrind.
+# `./test.sh --quick` runs everything but the instrumented runs, which `./test.sh` adds:
+# the sanitizers, the other C compilers, valgrind, ThreadSanitizer and the fuzzer under
+# valgrind (docs/CI.md).
 set -eu
 cd "$(dirname "$0")"
 full=true
