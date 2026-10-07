@@ -1,0 +1,76 @@
+#==============================================================================================
+#
+#   macos_platform - The platform version a macOS program records
+#
+#   DESCRIPTION:
+#       A Mach-O program's LC_BUILD_VERSION names the oldest macOS it runs on and the SDK
+#       it was linked against. AppKit keys modern behaviour on the SDK (the dark appearance,
+#       title bars that follow it): a program that names none runs as a pre-Mojave app.
+#       Apple's `ld` writes both from `-platform_version macos MIN SDK`: the minimum is the
+#       one the assembler already recorded in the object, the SDK's version is the one in
+#       its SDKSettings.json.
+#
+#==============================================================================================
+
+import c
+import luce_std.files
+import strings
+
+## Mach-O's 64-bit magic, and the load commands that carry a minimum macOS.
+let magic_64: u32 = 0xfeedfacf
+let build_version: u32 = 0x32
+let version_min_macos: u32 = 0x24
+
+## The version of the SDK at `sdk` from its SDKSettings.json (`"Version": "26.2"`), or none
+## when the SDK has no such file or the file names no version.
+pub func sdk_version(sdk: str) -> str?!:
+    let room = try new u8[sdk.length + 32] ---
+    let path = try strings.format(room, f"{sdk}/SDKSettings.json")
+    if not files.exists((c.str)path):
+        return none
+    let settings = try files.read((c.str)path, 4194304)
+    defer settings.release()
+    let text = (str)settings.value
+    let key = strings.find(text, "\"Version\"") else return none
+    # past the key, the colon and any spaces, to the value's opening quote
+    let open = strings.find_from(text, "\"", key + 9) else return none
+    let close = strings.find_from(text, "\"", open + 1) else return none
+    return try strings.copy((str)text.bytes[open + 1..<close])
+
+## The minimum macOS the object at `object` was assembled for, as `major.minor` (with
+## `.patch` when it has one), or none when the object records none.
+pub func minimum(object: str) -> str?!:
+    let contents = try files.read((c.str)object)
+    defer contents.release()
+    let bytes = contents.value
+    if bytes.length < 32 or word(bytes, 0) != magic_64:
+        return none
+    let count = word(bytes, 16)
+    var at: usize = 32
+    for _ in 0..<count:
+        if at + 16 > bytes.length:
+            return none
+        let command = word(bytes, at)
+        if command == build_version:
+            return try dotted(word(bytes, at + 12))
+        if command == version_min_macos:
+            return try dotted(word(bytes, at + 8))
+        let size = (usize)word(bytes, at + 4)
+        if size == 0:
+            return none
+        at += size
+    return none
+
+## The little-endian word at `at`.
+func word(bytes: const u8[], at: usize) -> u32:
+    return (u32)bytes[at] + ((u32)bytes[at + 1] << 8) + ((u32)bytes[at + 2] << 16) + ((u32)bytes[at + 3] << 24)
+
+## A Mach-O version, `xxxx.yy.zz` in fields of 16, 8 and 8 bits, as text.
+func dotted(version: u32) -> str!:
+    let major = version >> 16
+    let minor = (version >> 8) & 255
+    let patch = version & 255
+    let room = try new u8[32] ---
+    if patch != 0:
+        return try strings.format(room, f"{major}.{minor}.{patch}")
+    return try strings.format(room, f"{major}.{minor}")

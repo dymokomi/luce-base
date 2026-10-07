@@ -66,6 +66,7 @@ subdirectory keeps a generated module of its own beside it.
 | `back.target` | the targets of §19.5: symbols, streams, libraries, the `platform` module, section names |
 | `support.pieces` | a large program's assembly cut where its functions choose, each piece from the build cache when an earlier build assembled the same text, the rest assembled in parallel, joined with `ld -r` |
 | `support.cache` | the build cache (§19.7): the key of a build and of a piece, objects kept and found |
+| `support.macos_platform` | the `-platform_version` Apple's `ld` records: the object's minimum macOS and the SDK's version, without which AppKit treats a program as older than Mojave |
 | `support.hashed` | `Table[K]`: keys to the indexes they were added with, by hash, for whatever would walk a list per question (texts, functions, globals, declarations, resolved paths, label tags) |
 | `support.list` | a growable array over the current allocator |
 | `support.buffer` | growable text the backends stream into |

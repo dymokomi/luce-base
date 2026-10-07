@@ -46,6 +46,7 @@ import support.runtime
 import support.version
 import support.host_tools
 import support.pieces
+import support.macos_platform
 import support.in_arena
 
 func usage(out: io.Writer) -> !:
@@ -719,6 +720,14 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
     try ld_args.add((c.str)sdk)
     try ld_args.add("-o")
     try ld_args.add((c.str)exe)
+    # the SDK in the program's build version: AppKit treats a program that names none as
+    # older than Mojave (no dark appearance); the minimum stays the assembler's
+    if let minimum = try macos_platform.minimum(object_path):
+        if let sdk_version = try macos_platform.sdk_version(sdk):
+            try ld_args.add("-platform_version")
+            try ld_args.add("macos")
+            try ld_args.add((c.str)minimum)
+            try ld_args.add((c.str)sdk_version)
     # a package's declared frameworks and libraries cost nothing where the program
     # names none of their symbols
     try ld_args.add("-dead_strip_dylibs")
