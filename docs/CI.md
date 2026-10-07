@@ -24,17 +24,19 @@ that needs one.
 
 ## Testing a package
 
-A package's tests are its own: in the package, run `./test.sh` when it has one, otherwise
+A package's tests are its own: in the package, run
 
 ```sh
 luc test
 ```
 
 `luc test` builds the package with the toolchain above and runs the `test` blocks of every
-module in it, Luce and Base alike. A package whose checks are programs under `tests/`
-(fixtures, GPU pixels, sample files) runs them from its `./test.sh`, which usually calls
-`luc test` too. Dependencies are the checkouts beside it (the `path` entries of
-package.prisma), at main. The compilers' `./test.sh --quick` skips their slowest parts. Run them when the compiler or the
+module in it, Luce and Base alike, and every test program under `tests/` (a directory
+`tests/<name>/` with a `main.luc` or `main.lucb`, for checks that need fixtures, a server,
+GPU pixels or a reference tool). It fails a package with no test at all. Dependencies are the
+checkouts beside it (the `path` entries of package.prisma), at main. Only the compilers,
+luce-base, luce and luce-seed, are tested with their own `./test.sh` instead.
+The compilers' `./test.sh --quick` skips their slowest parts. Run them when the compiler or the
 standard library changes; on Linux and Windows too when the change touches code generation,
 the runtime or anything platform-specific. The other machines are reachable as `luce-linux`
 and `luce-windows` (`~/.ssh/config`).
@@ -55,7 +57,7 @@ The script
    `~/.local/luce-dev/release`;
 2. finds the packages whose sources (`src/`, package.prisma) changed since their newest
    registry release;
-3. runs each one's own tests (`./test.sh` when it has one, otherwise `luc test`) and stops
+3. runs each one's tests (`luc test`; `./test.sh` for luce-base and luce) and stops
    before publishing anything if one fails;
 4. bumps each version (patch, unless package.prisma already moved past the registry's),
    pushes, and publishes with `luc publish`, dependencies first;

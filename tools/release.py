@@ -7,8 +7,8 @@ Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run]
      with its newest registry release: a package whose sources changed since that
      release's commit is to be released. Its checkout must be main, clean and pushed.
   2. Each one runs its own tests with the development toolchain (tools/toolchain.py):
-     its ./test.sh when it has one, otherwise `luc test`. One failure stops the release
-     before anything is published.
+     `luc test` (a compiler, ./test.sh). One failure stops the release before anything
+     is published.
   3. Each version is bumped (patch, unless package.prisma already moved past the
      registry's), committed, pushed and published with `luc publish`, dependencies
      first, independent packages in parallel.
@@ -91,10 +91,13 @@ def newer(a, b):
     return tuple(map(int, a.split("."))) > tuple(map(int, b.split(".")))
 
 
+# Tested with their own ./test.sh rather than `luc test` (docs/CI.md).
+COMPILERS = {"luce-base", "luce", "luce-seed"}
+
+
 def run_tests(directory):
-    """The package's own tests: its ./test.sh when it has one (most packages keep test
-    programs under tests/ that only test.sh runs), otherwise `luc test`; a scratch LUC_HOME."""
-    command = ["./test.sh"] if (directory / "test.sh").exists() else ["luc", "test"]
+    """The package's tests: `luc test` (a compiler's ./test.sh), with a scratch LUC_HOME."""
+    command = ["./test.sh"] if directory.name in COMPILERS else ["luc", "test"]
     with tempfile.TemporaryDirectory(prefix="luce-test-") as scratch:
         environment = dict(os.environ, LUC_HOME=str(Path(scratch) / ".luce"))
         result = subprocess.run(command, cwd=directory, env=environment, capture_output=True, text=True)

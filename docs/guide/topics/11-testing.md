@@ -156,8 +156,9 @@ ok    in extra
 `luce-base test src/main.lucb --package` does the same outside `luc`. A library with no
 `src/main.lucb` and no module named after the package is tested the same way, from its first
 module. When the package also has Luce modules (`.luc`), `luc test` runs their tests with
-`luce test --package` as well and prints one total for both, so a test in either language is
-never left out.
+`luce test --package` as well, so a test in either language is never left out. `luc test`
+then runs the package's test programs (below) and ends with one total. A package with no
+test at all, no `test` block and no test program, fails with "no tests found".
 
 ## Tests in their own files
 
@@ -185,6 +186,35 @@ For a module that is a directory of files, `src/mime/parse/`, the tests go in
 
 ### Test programs
 
-Other files under `tests/`, such as programs that exercise the package from outside, import
-the package's modules by their module names, `import parse`, as code inside `src/` does. A
-helper under `tests/` is imported by its own name.
+A check that needs a process of its own, fixtures read from disk, a server, a window, the
+GPU or a comparison with another tool, is a program instead: a directory under `tests/`
+holding a `main.lucb` (or a Luce `main.luc`) with `pub func main`.
+
+```text
+tests/
+  roundtrip/
+    main.lucb      pub func main(arguments: str[]) -> i32
+    sample.bin
+    expected       what main prints, exactly
+```
+
+`luc test` finds every directory `tests/<name>/` with a `main`, as pytest finds `test_*.py`
+files, builds it with the package's dependencies and runs it from its own directory, so a
+fixture beside it opens by its bare name. It passes when it exits with status 0 and, if its
+directory has an `expected` file, when its standard output is exactly that file. Programs run
+in parallel, each with `LUC_HOME` set to a scratch directory and `LUCE` and `LUCE_BASE`
+naming the compilers `luc test` uses, and build into `build/tests/<name>/`.
+
+```text
+ok    push then pop gives the value back
+1 passed
+ok    tests/roundtrip
+total: 2 passed, 0 failed (1 test block, 1 program)
+```
+
+A program imports the package's modules by their module names, `import parse`, as code
+inside `src/` does, and a helper beside it by its own name. One with a `package.prisma` of
+its own is a separate package, for dependencies only the test needs, and imports the
+package's public modules as any dependent does. A directory under `tests/` without a `main`
+is data, and a directory with a `TESTS` file holds test fragments, as above. `luc test
+--list` names the programs and the test blocks without running them.
