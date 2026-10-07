@@ -50,8 +50,6 @@ pub let failed: ErrorCode = ErrorCode.package(12)
 pub let arm64: bool = platform.arm64
 ## Whether the target architecture is x86-64.
 pub let x86_64: bool = platform.x86_64
-## Whether the target architecture is wasm32.
-pub let wasm32: bool = platform.wasm32
 ## Whether the target operating system is macOS.
 pub let macos: bool = platform.macos
 ## Whether the target operating system is Linux.

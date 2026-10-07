@@ -30,7 +30,7 @@ describes the two conversion forms.
 | --- | --- | --- |
 | `i8`, `i16`, `i32`, `i64` | 1, 2, 4, 8 bytes | signed, two's complement |
 | `u8`, `u16`, `u32`, `u64` | 1, 2, 4, 8 bytes | unsigned |
-| `isize`, `usize` | a pointer's size | 8 bytes on 64-bit targets, 4 on WebAssembly |
+| `isize`, `usize` | a pointer's size | 8 bytes |
 | `f16`, `f32`, `f64` | 2, 4, 8 bytes | IEEE 754 floats |
 
 `usize` is the type of lengths, indices and sizes: `array.length`, `memory.size_of(T)` and

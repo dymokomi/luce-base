@@ -41,9 +41,9 @@ standard library changes; on Linux and Windows too when the change touches code 
 the runtime or anything platform-specific. The other machines are reachable as `luce-linux`
 and `luce-windows` (`~/.ssh/config`):
 
-- On `luce-linux`, start with `. ~/Dev/gate/gate-env.sh`. It puts SDL3, MinGW-w64, valgrind and
-  the WASI SDK on the paths without installing them system-wide; without it the compilers'
-  gui, pkgconfig and wasm checks fail. Window and GPU tests also need `DISPLAY=:0`,
+- On `luce-linux`, start with `. ~/Dev/gate/gate-env.sh`. It puts SDL3, MinGW-w64 and valgrind on
+  the paths without installing them system-wide; without it the compilers' gui and pkgconfig
+  checks fail. Window and GPU tests also need `DISPLAY=:0`,
   `XDG_RUNTIME_DIR=/run/user/1000` and, for X11, the session's `XAUTHORITY`
   (`/run/user/1000/.mutter-Xwaylandauth.*`).
 - On `luce-windows` the SSH shell is Windows PowerShell; run scripts through Git's bash,

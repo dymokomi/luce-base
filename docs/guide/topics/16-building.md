@@ -72,8 +72,6 @@ of the program.
 | `arm64-macos` | Apple Silicon |
 | `x86_64-linux` | |
 | `x86_64-windows` | with a MinGW-w64 GCC |
-| `x86_64-macos` | through the C backend: `--emit=c`, compiled on an Intel Mac |
-| `wasm32` | through the C backend and a WASI toolchain; runs under wasmtime |
 
 `luce-base build file.lucb --target` with no name lists the targets and marks the one this
 compiler runs on. The compiler can write another target's code anywhere (`--emit=asm

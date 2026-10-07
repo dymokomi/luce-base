@@ -282,7 +282,7 @@ Everything else is written.
 | `unit` | the single value `()` of a function that returns nothing |
 | `never` | the type of an expression that cannot complete: `error(...)`, `trap(...)`, a function that never returns |
 
-`usize` and `isize` are the types of `memory.size_of`, `memory.align_of`, `memory.offset_of`, span lengths, array indices, and pointer differences. Their width is that of the target: 64 bits on the native targets, 32 on WebAssembly (§19.5). The compiler always compiles for one target, so a `usize` expression built from literals, `memory.size_of`, and arithmetic is a constant: it may be a top-level `let`, an array length, and the condition of a module-level `assert` (§11.6). The shared intermediate representation carries such a constant symbolically and the backend folds it, so the representation stays target-neutral while the source does not have to.
+`usize` and `isize` are the types of `memory.size_of`, `memory.align_of`, `memory.offset_of`, span lengths, array indices, and pointer differences. Their width is that of the target: 64 bits on every target (§19.5). The compiler always compiles for one target, so a `usize` expression built from literals, `memory.size_of`, and arithmetic is a constant: it may be a top-level `let`, an array length, and the condition of a module-level `assert` (§11.6). The shared intermediate representation carries such a constant symbolically and the backend folds it, so the representation stays target-neutral while the source does not have to.
 
 `never` coerces to any type because the value never exists. Operands before a `never` operand are still evaluated, left to right.
 
@@ -758,7 +758,7 @@ rows: for y in 0..<height:
 
 Base has no `goto`, and the word is an ordinary name. Should a later revision admit a jump, it follows Go's rules: targets within the same function; a jump may leave scopes, running their deferred calls, but may not enter a scope it is not already inside; it may not skip a binding's declaration; no computed targets; no jumps into or out of `match` arms.
 
-**Why.** The compiler's intermediate representation is structured, with blocks, loops, and branches to an enclosing region, and it was built that way so that the WebAssembly backend never has to reconstruct structure from a jump graph. An unrestricted `goto` would force that reconstruction into the compiler. Every use of `goto` in C is one of: retry (a `while`), error exit (`defer` and `errdefer`), leaving nested loops (labels), or a hand-written state machine. A state machine is written `while true: match state:` at the cost of one branch per transition; Zig, Odin, C3, and Hare have no `goto` and their users write it this way. A jump can be admitted later, under a word of its own, if interpreter-style Base code shows the cost is justified; reserving the word in the meantime would only keep it from programs.
+**Why.** The compiler's intermediate representation is structured, with blocks, loops, and branches to an enclosing region, and it was built that way so that a backend for a structured target never has to reconstruct structure from a jump graph. An unrestricted `goto` would force that reconstruction into the compiler. Every use of `goto` in C is one of: retry (a `while`), error exit (`defer` and `errdefer`), leaving nested loops (labels), or a hand-written state machine. A state machine is written `while true: match state:` at the cost of one branch per transition; Zig, Odin, C3, and Hare have no `goto` and their users write it this way. A jump can be admitted later, under a word of its own, if interpreter-style Base code shows the cost is justified; reserving the word in the meantime would only keep it from programs.
 
 ### 8.7 `return`
 
@@ -829,7 +829,7 @@ func ticks() -> u64:
 - The text is the target assembler's, passed as written: GNU AT&T syntax on x86-64, standard syntax on ARM64. A block may begin with `.intel_syntax noprefix` and end with `.att_syntax prefix`.
 - `naked func` (§9.8) declares a function whose body is exactly one `asm` block per architecture, with no prologue or epilogue generated: the block owns the stack and registers, which is how an interrupt entry, a context switch, and a `_start` are written.
 - A module-level `asm ARCH:` block with no operand list places raw assembly at file scope: symbols, sections, data.
-- The WebAssembly target rejects `asm`. The compiler's reference interpreter rejects programs containing it, so such programs are proven by the compiled backends only.
+- The compiler's reference interpreter rejects programs containing `asm`, so such programs are proven by the compiled backends only.
 
 **Why this syntax.** GCC's constraint strings encode operand kinds and registers in single characters; Zig adopted them. Named operands with the register in quotes, as in Rust, are easier to read and let the block name the registers a syscall or a calling convention requires. The per-architecture block replaces `#ifdef __x86_64__` without a preprocessor.
 
@@ -1376,7 +1376,7 @@ A load or store through `volatile T*` is an observable effect: never elided, mer
 
 ### 15.3 Threads
 
-Base has no thread syntax. Threads are the standard `thread` module over the host's threads: POSIX threads, Windows threads, and WebAssembly workers where the host enables them.
+Base has no thread syntax. Threads are the standard `thread` module over the host's threads: POSIX threads and Windows threads.
 
 ```luce
 import thread
@@ -1481,7 +1481,7 @@ The language depends on these modules by name. Their full surfaces are in the li
 | --- | --- |
 | `memory` | `allocator` (thread-local current allocator), `heap` (the initial allocator), `exhausted` and `unset` (error codes), `allocate` (§12.2), `size_of`, `align_of`, `offset_of` (§5.11), `read`, `write`, `copy`, `move`, `set`, `grow`, `frame` (§12.7), `page_size()` |
 | `io` | `stdout()` and `stderr()` as `Writer`s; `path.user()`, `path.home()`, `path.temp()`, `path.config()` for the process's directories |
-| `os` | the target as constants: `arm64`, `x86_64`, `wasm32`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`, `cpu_level` (§19.5); `cpu_level_running()`, `cpus()`, `page_size()`, `random_bytes`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
+| `os` | the target as constants: `arm64`, `x86_64`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`, `cpu_level` (§19.5); `cpu_level_running()`, `cpus()`, `page_size()`, `random_bytes`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
 | `thread` | `spawn`, `Handle`, `current`, `pause`, `yield`, `sleep` |
 | `sync` | `Mutex`, `Condition`, `Once`, `Semaphore`, `Cancellation` |
 | `atomic` | `fence`, `Ordering` |
@@ -1566,7 +1566,7 @@ extern union Event:
 
 The linter asks for an explicit `c.long` or `c.char` when a value of one of the distinct `c` types is intended and a Base-width integer was written. Base functions cannot be declared variadic in this revision.
 
-**Why the literal rule.** `printf("%d", 5)` must pass an `int`. In a variadic position there is no parameter type for a literal to adapt to, so the default would have been `i64`, which happens to work on 64-bit targets because every variadic slot is eight bytes, and breaks on wasm32 and every ILP32 target. Naming C's own default type for the literal is the only rule under which `printf("%d", 5)` is correct on every target.
+**Why the literal rule.** `printf("%d", 5)` must pass an `int`. In a variadic position there is no parameter type for a literal to adapt to, so the default would have been `i64`, which happens to work on the 64-bit targets Luce has because every variadic slot is eight bytes, and breaks on every ILP32 target. Naming C's own default type for the literal is the only rule under which `printf("%d", 5)` is correct on every target.
 
 ### 17.3 Using the results
 
@@ -1591,7 +1591,7 @@ def native "macos" {
 }
 ```
 
-A `def native` element of `package.prisma` applies by its name: `inputs` (or `all`) to every target, an operating system (`macos`, `linux`, `windows`, `wasi`) to each of its architectures, an exact target (`x86_64-windows`) to that one; the elements that apply add up. A search directory that begins with `$NAME` takes the environment variable's value there, and is left out where it is not set. `sources` are compiled with the host C compiler the build already uses for assembly and linking, and linked into the artifact. `libraries`, `link_search`, `frameworks`, and `pkg_config` are passed to the linker. There is no inline C inside a `.lucb` file: the formatter, the language server, and the test runner would each need a C parser, and a sidecar `.c` file gives the same power with the tooling intact.
+A `def native` element of `package.prisma` applies by its name: `inputs` (or `all`) to every target, an operating system (`macos`, `linux`, `windows`) to each of its architectures, an exact target (`x86_64-windows`) to that one; the elements that apply add up. A search directory that begins with `$NAME` takes the environment variable's value there, and is left out where it is not set. `sources` are compiled with the host C compiler the build already uses for assembly and linking, and linked into the artifact. `libraries`, `link_search`, `frameworks`, and `pkg_config` are passed to the linker. There is no inline C inside a `.lucb` file: the formatter, the language server, and the test runner would each need a C parser, and a sidecar `.c` file gives the same power with the tooling intact.
 
 ### 17.5 `luce bind`
 
@@ -1817,21 +1817,17 @@ A Base executable links a startup shim and a trap reporter and no Luce runtime (
 
 ### 19.5 Targets
 
-`luce build --target NAME` compiles for a target; without `--target` the host is the target. The compiler writes the `platform` standard module for the build, whose constants `os` re-exports, so `if os.linux and os.x86_64:` is decided at compile time and the other arms are pruned (§19.6): one source covers every target, and each target links only what it uses. The standard library is written that way: a constant whose value differs by target is a conditional of constants, `6 if platform.macos else 1`, and a call whose shape differs is an `if` over the target's arms. The native backend emits arm64-macos, x86_64-linux and x86_64-windows from any host (§19.3); another target's program, x86_64-macos or wasm32, is written as C with `--emit=c` and compiled there.
+`luce build --target NAME` compiles for a target; without `--target` the host is the target. The compiler writes the `platform` standard module for the build, whose constants `os` re-exports, so `if os.linux and os.x86_64:` is decided at compile time and the other arms are pruned (§19.6): one source covers every target, and each target links only what it uses. The standard library is written that way: a constant whose value differs by target is a conditional of constants, `6 if platform.macos else 1`, and a call whose shape differs is an `if` over the target's arms. The native backend emits arm64-macos, x86_64-linux and x86_64-windows from any host (§19.3); the C backend writes C for any of them with `--emit=c`. These three are the only targets.
 
 The same module names the program: `platform.program` is the name of the package the entry belongs to as its `package.prisma` spells it (`luced-2d`), `app` for a program outside any package, and `platform.program_version` is that manifest's `version`, empty when it has none. They are how a crash report (`crash` in luce-std) names the program without being told.
 
 | `--target` | `asm` name | Pointer width | `c.long` | `c.char` | Calling convention |
 | --- | --- | --- | --- | --- | --- |
 | `x86_64-linux` | `x86_64` | 64 | 64 | signed | SysV |
-| `x86_64-macos` | `x86_64` | 64 | 64 | signed | SysV |
 | `x86_64-windows` | `x86_64` | 64 | 32 | signed | Windows x64 |
 | `arm64-macos` | `arm64` | 64 | 64 | signed | Apple arm64 |
-| `wasm32` | none | 32 | 32 | signed | WebAssembly C ABI |
 
 A target has an **instruction-set level** beyond its family's baseline: on x86-64, `v1` (SSE2), `v2` (SSE4.2, POPCNT), `v3` (AVX2, FMA, BMI2), and `v4` (AVX-512); on arm64, `neon` and `sve`. Without `--cpu`, a build for the host is for the level of the processor it is built on, and a build for another target is for the baseline; `--cpu NAME` chooses the level, `--cpu v1` for a program that must run anywhere. A program compiled for a level runs only on processors that have it; the compiler emits the level's instructions where it has forms for them, and the baseline's elsewhere, so the level never changes what a program means. `os.cpu_level` is the level the program was compiled for; `os.cpu_level_running()` is the level of the processor it runs on, for a program that dispatches at run time.
-
-**wasm32.** No machine is a wasm32 host, and there is no native generator for it: a build for `--target wasm32` is the C backend's output, compiled and linked by a WASI toolchain on any host, and the program runs under a WebAssembly runtime such as wasmtime. The toolchain is a wasi-sdk named by `WASI_SDK`, else Homebrew's llvm, lld, wasi-libc and wasi-runtimes; the standard library is built for it once, beside the compiler as for any target. What WASI has, the program has: the standard streams, files and directories, time, the environment, and exit. `thread`, `net`, `process`, and the graphics modules compile but their calls do not link; a wasm32 program is one thread. A `char` is signed, `long` is 32 bits, and every pointer is four bytes, so `usize` is `u32`'s width and a constant that needs the whole of it is written `~(usize)0`. WASI numbers its errors its own way, and the standard library carries its numbers as it carries Windows' (§16.6).
 
 ### 19.6 Tooling
 

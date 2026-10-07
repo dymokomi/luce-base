@@ -16,7 +16,7 @@ checked out beside this tree as `../luce-seed`: `LUCB=../luce-seed/build/lucb
 ./build.sh` still starts from it, the gate proves the compiler it builds
 agrees with the snapshot-built one, and the compiler's own sources stay
 within what the seed provides. `bootstrap/luce-base-HOST.c` is the compiler's
-own C for each host it runs on natively, arm64-macos, x86_64-linux and x86_64-windows, plus wasm32 through the C backend and a WASI toolchain, and
+own C for each host it runs on natively, arm64-macos, x86_64-linux and x86_64-windows, and
 only this compiler moves. `build/luce-base` is the compiler built by
 itself through the native backend, with no C in its path; `build.sh` checks
 that it reproduces its own assembly. The language is

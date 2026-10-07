@@ -3,8 +3,8 @@
 # (the host snapshot plus runtime) with gcov instrumentation, runs `check` over every test
 # program and `build` over the samples, then reports line and branch coverage and the count of
 # fully-cold functions grouped by module. Cold code is where a bug can hide untested -- aim
-# fuzzing there. Read the cold list with judgement: the other-target backends (x86_64, wasm)
-# are cold on an arm64 host because they run on their own targets, and a generic type's methods
+# fuzzing there. Read the cold list with judgement: the other-target backend (x86_64)
+# is cold on an arm64 host because it runs on its own targets, and a generic type's methods
 # read cold per instantiation when a program never calls them. Needs gcov (a GCC/Clang
 # toolchain); runs on Linux. Usage: tools/coverage.sh
 set -eu

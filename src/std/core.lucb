@@ -246,7 +246,7 @@ func end_trapped_test():
     _ = test_summary()
 
 func begin_crash_report():
-    if crash_file >= 0 or crash_path[0] == 0 or platform.wasm32:
+    if crash_file >= 0 or crash_path[0] == 0:
         return
     let path = (c.str)&crash_path[0]
     # write, create, and truncate the first time; append after
@@ -296,9 +296,9 @@ func finish_crash_report(at: FaultRegisters):
     if unwound:
         close_crash_report()
         return
-    if at.fp != 0 and not platform.wasm32:
+    if at.fp != 0:
         write_walked_stack(crash_file, at)
-    elif platform.posix and not platform.wasm32:
+    elif platform.posix:
         # Pointer-sized slots: the addresses backtrace fills in.
         var frames: usize[64]
         let depth = backtrace((void**)&frames[0], 64)
@@ -306,8 +306,6 @@ func finish_crash_report(at: FaultRegisters):
             backtrace_symbols_fd((const void**)&frames[0], depth, crash_file)
     elif platform.windows:
         write_windows_stack(crash_file)
-    else:
-        write_all(crash_file, "(not captured on this platform)\n".bytes)
     close_crash_report()
 
 func close_crash_report():
@@ -321,7 +319,7 @@ func close_crash_report():
 ## native backend leaves out of release builds; zeros elsewhere (macOS's
 ## backtrace follows frame pointers, Windows' the SEH tables).
 func trap_registers() -> FaultRegisters:
-    if platform.linux and not platform.wasm32:
+    if platform.linux:
         if getcontext((void*)&crash_registers[0]) != 0:
             return FaultRegisters()
         return context_registers((const void*)&crash_registers[0])
@@ -440,7 +438,7 @@ func write_frame(file: i32, index: usize, address: usize, link: bool):
     used += 1
     if platform.windows:
         used = put_windows_module(line, used, address)
-    elif platform.posix and not platform.wasm32:
+    elif platform.posix:
         var info: DlInfo = ---
         info.file = none
         info.symbol = none

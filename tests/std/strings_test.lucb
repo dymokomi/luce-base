@@ -10,7 +10,7 @@ test "search finds what is there and reports what is not":
     assert(strings.find_from("abcabc", "abc", 1) == 3)
     assert(strings.find_last("abcabc", "abc") == 3)
     assert(strings.last("a/b/c", '/') == 3)
-    assert(strings.contains("wasm runs base", "runs") and not strings.contains("", "x"))
+    assert(strings.contains("luce runs base", "runs") and not strings.contains("", "x"))
 
 test "trim, join, copy and case changes":
     assert(strings.trim("  padded\t\n") == "padded" and strings.trim("") == "")

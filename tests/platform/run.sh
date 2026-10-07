@@ -10,8 +10,8 @@
 # system, run only there. Then every target of §19.5 is emitted from this host: the C
 # backend writes the C for each (`--target NAME --emit=c`), and where the target's
 # operating system is this host's the C must also compile, since the same headers
-# describe it; the native backend writes the assembly for the targets it has generators
-# for, whatever the host; and the C for the host target is the C the plain build emits.
+# describe it; the native backend writes the assembly for every target, whatever the
+# host; and the C for the host target is the C the plain build emits.
 set -eu
 cd "$(dirname "$0")/../.."
 host=$(tools/host.sh)
@@ -51,27 +51,24 @@ for f in tests/platform/"$os"/*.lucb; do
 done
 # every target, from this host
 targets=0
-for target in x86_64-linux x86_64-macos x86_64-windows arm64-macos wasm32; do
+for target in x86_64-linux x86_64-windows arm64-macos; do
     target_os=$(echo "$target" | sed 's/.*-//')
     for f in tests/platform/common/*.lucb; do
         ./build/luce-base build "$f" --target "$target" --emit=c -o build/platform.c
         if [ "$target_os" = "$os" ]; then
             cc -std=gnu11 -Wall -Werror -Wno-format -fsyntax-only -I runtime build/platform.c
         fi
-        # the native backend writes the assembly for every target it has a generator for,
-        # and clang's integrated assembler, which knows every target, assembles it: the
-        # syntax and the relocations of each object format are checked on every host
+        # the native backend writes the assembly for every target, and clang's integrated
+        # assembler, which knows every target, assembles it: the syntax and the relocations
+        # of each object format are checked on every host
         case "$target" in
             arm64-macos) triple=arm64-apple-macos;;
             x86_64-linux) triple=x86_64-unknown-linux-gnu;;
             x86_64-windows) triple=x86_64-w64-windows-gnu;;
-            *) triple="";;
         esac
-        if [ -n "$triple" ]; then
-            ./build/luce-base build "$f" --target "$target" --native --emit=asm -o build/platform.s
-            if command -v clang > /dev/null 2>&1; then
-                clang --target="$triple" -c build/platform.s -o build/platform.o
-            fi
+        ./build/luce-base build "$f" --target "$target" --native --emit=asm -o build/platform.s
+        if command -v clang > /dev/null 2>&1; then
+            clang --target="$triple" -c build/platform.s -o build/platform.o
         fi
     done
     targets=$((targets + 1))
@@ -80,9 +77,8 @@ done
 ./build/luce-base build tests/platform/common/identity.lucb --emit=c -o build/platform-host.c
 cmp build/platform.c build/platform-host.c
 # a program for another target is written as C or assembly here and built there: a native
-# build for it is refused, and says so (wasm32, which no machine is a host of, is built
-# here through the C backend and a WASI toolchain: `tests/programs/wasm`)
-for target in x86_64-linux x86_64-macos x86_64-windows arm64-macos; do
+# build for it is refused, and says so
+for target in x86_64-linux x86_64-windows arm64-macos; do
     [ "$target" = "$host" ] && continue
     if ./build/luce-base build tests/platform/common/identity.lucb --target "$target" -o build/platform 2> build/platform.err; then
         echo "FAIL: a native build for $target was accepted on $host"; exit 1

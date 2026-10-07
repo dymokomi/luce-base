@@ -25,14 +25,11 @@ pub enum Os as u8:
     macos = 1
     linux = 2
     windows = 3
-    ## WASI, the WebAssembly system interface: the target no machine is a host of.
-    wasi = 4
 
 ## The processor architecture a target runs on.
 pub enum Arch as u8:
     arm64 = 1
     x86_64 = 2
-    wasm32 = 3
 
 ## How a target's executable is linked from the assembled object: Apple's `ld` against the
 ## SDK `xcrun` finds, or the C driver, which knows the start files, the C library and the
@@ -45,12 +42,11 @@ pub enum Linker as u8:
 pub func arch_name(arch: Arch) -> str:
     if arch == Arch.arm64:
         return "arm64"
-    return "x86_64" if arch == Arch.x86_64 else "wasm32"
+    return "x86_64"
 
 let macos_libraries: str[1] = ["-lSystem"]
 let linux_libraries: str[2] = ["-lm", "-lpthread"]
 let windows_libraries: str[4] = ["-lm", "-lsynchronization", "-lbcrypt", "-Wl,--stack,16777216"]
-let wasi_libraries: str[1] = ["-lm"]
 
 # mark: Targets ===============================================================================
 
@@ -69,7 +65,7 @@ pub struct Target:
     ## that arithmetic at level 1 as well. A generator emits the forms of its level and the
     ## levels below.
     pub var level: u32
-    ## The width of a pointer in bits: 64, or 32 on wasm32.
+    ## The width of a pointer in bits.
     pub var pointer_bits: u32
     ## What the assembler and the linker put before a C symbol: `_` on macOS, nothing on
     ## Linux and 64-bit Windows.
@@ -93,8 +89,8 @@ pub struct Target:
 
     ## The target `name` of §19.5 spells, or none.
     pub static func named(name: str) -> Target?:
-        if name == "arm64-macos" or name == "x86_64-macos":
-            return Target(name = name, os = Os.macos, arch = Arch.arm64 if name == "arm64-macos" else Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "_",
+        if name == "arm64-macos":
+            return Target(name = name, os = Os.macos, arch = Arch.arm64, level = 1, pointer_bits = 64, symbol_prefix = "_",
                           stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", linker = Linker.macho, system_libraries = macos_libraries)
         if name == "x86_64-linux":
             return Target(name = name, os = Os.linux, arch = Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
@@ -102,10 +98,6 @@ pub struct Target:
         if name == "x86_64-windows":
             return Target(name = name, os = Os.windows, arch = Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
                           stdin_symbol = "__acrt_iob_func", stdout_symbol = "__acrt_iob_func", stderr_symbol = "__acrt_iob_func", linker = Linker.c_driver, system_libraries = windows_libraries)
-        if name == "wasm32":
-            # no native generator: the C backend and a WASI toolchain (§19.5)
-            return Target(name = name, os = Os.wasi, arch = Arch.wasm32, level = 1, pointer_bits = 32, symbol_prefix = "",
-                          stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", linker = Linker.c_driver, system_libraries = wasi_libraries)
         return none
 
     ## Whether this target is the one the compiler is running on.
@@ -115,8 +107,6 @@ pub struct Target:
     ## The level `--cpu NAME` spells for this architecture, or none: `v1` to `v4` on
     ## x86-64, `neon` or `sve` on arm64.
     pub func level_named(name: str) -> u32?:
-        if self.arch == Arch.wasm32:
-            return none
         if self.arch == Arch.x86_64:
             if name == "v1":
                 return 1
@@ -147,7 +137,7 @@ pub struct Target:
         var version_room: u8[96]
         let named = literal_safe(program, program_room)
         let versioned = literal_safe(version, version_room)
-        return try strings.format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let wasm32: bool = {self.arch == Arch.wasm32}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n## The package this program is built from, as its manifest names it; `app` outside any package.\npub let program: str = \"{named}\"\n## That package's version, empty when its manifest gives none.\npub let program_version: str = \"{versioned}\"\n")
+        return try strings.format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n## The package this program is built from, as its manifest names it; `app` outside any package.\npub let program: str = \"{named}\"\n## That package's version, empty when its manifest gives none.\npub let program_version: str = \"{versioned}\"\n")
 
 ## `text` as it may stand inside a string literal: printable ASCII but quotes and
 ## backslashes, cut to fit `buffer`.
@@ -185,4 +175,4 @@ pub func section_name(name: str, is_func: bool, os: Os) -> str:
     return (str)copy
 
 ## Every target name, for `--target` with no argument (§19.6).
-pub let names: str[5] = ["x86_64-linux", "x86_64-macos", "x86_64-windows", "arm64-macos", "wasm32"]
+pub let names: str[3] = ["x86_64-linux", "x86_64-windows", "arm64-macos"]

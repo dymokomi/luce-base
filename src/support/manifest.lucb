@@ -299,7 +299,7 @@ pub func set_target(name: str):
     target_name = name
 
 ## Whether a `def native "NAME"` element applies to the target: `inputs` (or `all`)
-## everywhere, an operating system (`macos`, `linux`, `windows`, `wasi`) on each of its
+## everywhere, an operating system (`macos`, `linux`, `windows`) on each of its
 ## architectures, or one exact target (`x86_64-windows`).
 pub func applies(name: str) -> bool:
     if name == "inputs" or name == "all":
@@ -539,7 +539,7 @@ test "a key set twice in one element is refused where it is set again":
 test "native elements apply by operating system or exact target":
     set_target("arm64-macos")
     assert(applies("inputs") and applies("all") and applies("macos") and applies("arm64-macos"))
-    assert(not applies("windows") and not applies("linux") and not applies("x86_64-macos"))
+    assert(not applies("windows") and not applies("linux") and not applies("x86_64-linux"))
     set_target("x86_64-windows")
     assert(applies("windows") and not applies("macos"))
     let m = try parse("def package \"p\" {\n    def native \"inputs\" {\n        list libraries = [\"m\"]\n    }\n    def native \"windows\" {\n        list libraries = [\"user32\"]\n    }\n    def native \"macos\" {\n        list frameworks = [\"AppKit\"]\n    }\n}\n", "")

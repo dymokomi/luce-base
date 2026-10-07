@@ -154,7 +154,7 @@ paths; Base owns manifest parsing and Luce delegates that policy to it. There is
 no copied raw-TOML adapter or separate Luce limitation on source/search inputs.
 
 A `def native "NAME"` element applies by target: `inputs` (or `all`) everywhere, an
-operating system (`macos`, `linux`, `windows`, `wasi`) on each of its architectures, or
+operating system (`macos`, `linux`, `windows`) on each of its architectures, or
 one exact target (`x86_64-windows`). A package declares the libraries and frameworks its
 platform code calls, per OS, in its own manifest; the linker keeps only those the program
 actually uses (`-dead_strip_dylibs` on macOS, `--as-needed` on Linux, PE imports on

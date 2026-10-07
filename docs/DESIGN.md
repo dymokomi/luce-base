@@ -198,15 +198,6 @@ before it needs to be thorough.
 
 ## The C backend
 
-wasm32 is the C backend's target alone: no machine is a host of it, so `main` picks the C
-toolchain by target (`tools_for`), a wasi-sdk named by `WASI_SDK` or Homebrew's llvm,
-lld, wasi-libc and wasi-runtimes, and gives every compile and link its `--target` and
-sysroot flags; `ar` and `nm` are that toolchain's `llvm-ar` and `llvm-nm`. The type
-table takes the target's word (four bytes) and C's `long` width from the target, the
-renamed externs get typed declarations, since WebAssembly checks every call's signature,
-and the standard library carries WASI's own numbers for open flags, errors, `stat`,
-directory entries and clocks the way it carries Windows'.
-
 Base evaluates left to right, always (§7.1); C promises no order for a call's
 arguments, and GCC takes them right to left where clang takes them left to
 right. A call with more than one argument, any of which may have an effect (a

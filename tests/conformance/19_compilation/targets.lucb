@@ -1,4 +1,4 @@
-## §19.5, §19.6: `build --target` with no argument lists the six targets and the `asm`
+## §19.5, §19.6: `build --target` with no argument lists the three targets and the `asm`
 ## architectures the program covers.
 export naked func spin():
     asm arm64:
