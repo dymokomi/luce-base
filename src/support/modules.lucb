@@ -353,8 +353,10 @@ func named_package(package: Package, head: str) -> Package?!:
 ## A module named behind a package's identifier (§16.3): `luce_ui.painter`, module `painter`
 ## of `luce_ui`, which the importer's package depends on, or the importer's own package
 ## spelled out. Another package's module must be among its `public` ones. None when the
-## first part names no package: the import is the importer's package's own module.
-## `building` is the package being built, which names its modules bare.
+## first part names no package, or names the importer's own package alone and the package
+## has a module of its name (`import mylib` inside mylib, its starter module): the import
+## is the importer's package's own module. `building` is the package being built, which
+## names its modules bare.
 pub func package_import(importer: str, name: str, building: str, base_only: bool = true) -> Resolution?!:
     if not identifier(name):
         error(invalid, "an import must name a dotted module")
@@ -362,7 +364,11 @@ pub func package_import(importer: str, name: str, building: str, base_only: bool
     let package = try enclosing(input) else return none
     let (head, module) = split_package(name)
     let owner = try named_package(package, head) else return none
-    if try source_file(package.source, head, base_only) != none:
+    let own_named = try source_file(package.source, head, base_only) != none
+    if owner.name == package.name:
+        if module.length == 0 and own_named:
+            return none
+    elif own_named:
         error(invalid, "a module of this package takes the name of a package it imports from")
     if module.length == 0:
         error(invalid, "a package is not a module: import one of its modules, `import pkg.module` or `from pkg import module` (§16.3)")
@@ -375,7 +381,9 @@ pub func package_import(importer: str, name: str, building: str, base_only: bool
 ## Whether the names `from name import ...` brings are modules (§16.3): `name` is a package,
 ## the importer's own or one it depends on (`from luce_ui import ui`), or a directory of
 ## modules in one (`from luce_geocore.core import parallel`) or in the importer's own source
-## (`from core import parallel`), rather than a module whose declarations they would be.
+## (`from core import parallel`), rather than a module whose declarations they would be. The
+## importer's own package's module of the package's name is a module (`from mylib import x`
+## inside mylib brings its declaration `x`).
 pub func names_modules(importer: str, name: str) -> bool!:
     let package = try enclosing(try canonical(importer)) else return false
     let (head, rest) = split_package(name)
@@ -383,6 +391,8 @@ pub func names_modules(importer: str, name: str) -> bool!:
     var path = name
     if let named = try named_package(package, head):
         if rest.length == 0:
+            if named.name == package.name and try present(package.source):
+                return try source_file(try canonical(package.source), head, false) == none
             return true
         owner = named
         path = rest

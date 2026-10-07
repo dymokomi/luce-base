@@ -14,7 +14,9 @@ def package "luce-ui" {
 ```
 
 Inside the package a module is imported by its path, `import layout`; any module may import
-any other, public or not. A consumer declares the dependency, relative to its own manifest:
+any other, public or not. A module named like the package, `src/luce_ui.lucb`, is the
+package's starter module: inside the package (its tests too) `import luce_ui` imports it,
+and `from luce_ui import Button` brings its declarations. A consumer declares the dependency, relative to its own manifest:
 
 ```text
 #prisma 4.0
@@ -54,8 +56,8 @@ of their own, which resolve relative to that package. Builds fetch nothing from 
 In a build, the modules of the package being built keep their bare names and every other
 package's modules carry its identifier, `luce_ui.layout`, so two packages' `ui` are two
 modules, and a module reached both ways, `import layout` inside luce-ui and
-`import luce_ui.layout`, is one. A local module may not take the name of a package the
-package imports from. Source paths are canonicalized, so symlinks cannot load one file
+`import luce_ui.layout`, is one. A local module may not take the name of another package
+the package imports from. Source paths are canonicalized, so symlinks cannot load one file
 twice.
 
 `import io` and the other standard modules in Luce use Base's canonical embedded

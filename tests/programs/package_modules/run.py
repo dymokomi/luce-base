@@ -59,7 +59,22 @@ with tempfile.TemporaryDirectory(prefix='base-package-modules-') as temporary:
     assert report.startswith(b'luce-base-dependencies-v4\0') and b'source\0internal\0' in report, report
     assert run(compiler, 'describe', '--standard', 'strings').stdout.startswith(b'description 9\nmodule strings\n')
     assert b'unknown standard' in run(compiler, 'describe', '--standard', 'missing', expected=1).stderr
+    # the package's own module of its name, its starter module, imports by that name inside
+    # the package and from its tests, as a module and with `from`
+    starter = write(root, 'consumer/src/consumer.lucb', 'pub func answer() -> i32:\n    return 42\n')
+    own = write(root, 'consumer/src/own.lucb', 'import consumer\nfrom consumer import answer\npub func main(arguments: str[]) -> i32:\n    return consumer.answer() - answer()\n')
+    run(compiler, 'build', own, '-o', root / 'own-bin')
+    run(root / 'own-bin')
+    tested = write(root, 'consumer/tests/starter.lucb', 'import consumer\npub func main(arguments: str[]) -> i32:\n    return consumer.answer() - 42\n')
+    run(compiler, 'build', tested, '-o', root / 'starter-bin')
+    run(root / 'starter-bin')
+    starter.unlink()
+    own.unlink()
+    tested.unlink()
     # what the rules refuse
+    taken = write(root, 'consumer/src/luce_ui.lucb', 'pub func nothing() -> i64:\n    return 0\n')
+    assert b'takes the name of a package it imports from' in run(compiler, 'check', entry, expected=1).stderr
+    taken.unlink()
     private = write(root, 'consumer/src/private.lucb', 'import luce_ui.internal\npub func main(arguments: str[]) -> i32:\n    return 0\n')
     assert b'public' in run(compiler, 'check', private, expected=1).stderr
     whole = write(root, 'consumer/src/whole.lucb', 'import luce_ui\npub func main(arguments: str[]) -> i32:\n    return 0\n')
@@ -73,4 +88,4 @@ with tempfile.TemporaryDirectory(prefix='base-package-modules-') as temporary:
     library_manifest.write_text('#prisma 4.0\ndef package "luce-ui" {\n    str[] public = ["ui"]\n}\n')
     manifest.write_text(manifest.read_text().replace('def dependency "luce-ui"', 'def dependency "wrong"'))
     assert b'match its package name' in run(compiler, 'check', entry, expected=1).stderr
-print('PASS package modules: bare inside, behind the identifier outside, public only, `from pkg import module`, directories and aliases; six modes')
+print("PASS package modules: bare inside, behind the identifier outside, public only, `from pkg import module`, directories and aliases, the package's own module of its name; six modes")

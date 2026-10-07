@@ -206,7 +206,8 @@ standard output is exactly that file; one that exits 0 after printing a line `sk
 is skipped. Programs run in parallel, each with `HOME` and `LUC_HOME` pointing at a fresh
 scratch directory, removed afterwards, so a test never touches your own settings or
 keychain, and with `LUCE` and `LUCE_BASE` naming the compilers `luc test` uses. They build
-into `build/tests/<name>/`.
+into `build/luc-test/<name>/`; `build/tests/<name>/` is the program's own scratch space,
+which luc makes a directory and otherwise leaves alone.
 
 ```text
 ok    push then pop gives the value back
