@@ -6,11 +6,37 @@
 #       Shapes of call the checker leaves for the backends to recognise: the core `error`
 #       and `trap`, the receiver a formatted field's `display` writes, the `indexed()` a
 #       `for` walks by index, the argument a call gives each parameter, and the fields a
-#       record literal supplies, and an atomic call's arguments and orderings. The C backend and the IR lowering ask the same questions
-#       here, so they agree on the answers.
+#       record literal supplies, an atomic call's arguments and orderings, and an extern
+#       that binds one of the C library's float functions. The C backend and the IR
+#       lowering ask the same questions here, so they agree on the answers.
 #
 #==============================================================================================
+import back.ir.ir
+import back.isa
+import back.names
 import front.ast
+import sema.types
+
+## The C library float function extern `d` binds (`isa.float_function`) when it is declared
+## with that function's C types: `f32` or `f64` throughout, one argument (three for `fma`),
+## none `out`. None for any other declaration, which is called as declared.
+pub func float_function(table: types.Table*, d: ast.Node*) -> isa.FloatFunction?:
+    if d.kind != ast.Kind.extern_func:
+        return none
+    let found = isa.float_function(names.c_symbol(d)) else return none
+    let want = types.f32_id if found.single else types.f64_id
+    let ft = table.get(d.type_id)
+    if ft.variadic or ft.elem != want or ft.args.length != (3 if found.op == ir.Op.fma else 1):
+        return none
+    for a in ft.args:
+        if a != want:
+            return none
+    var param = d.right
+    while let p = param:
+        if p.has(ast.flag_out):
+            return none
+        param = p.next
+    return found
 
 ## `error(...)`, the core function rather than a declaration of that name.
 pub func is_error_call(e: ast.Node*) -> bool:

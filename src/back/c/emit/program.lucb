@@ -273,14 +273,19 @@ extend Emitter:
         try self.put(") LB_SYMBOL(")
         try self.put_c_string(names.c_symbol(d))
         try self.put(");")
-        # the C library's memory routines are the compiler's builtins, under whatever name
-        # the binding gives them: clang and GCC expand a copy of a known size into a load
-        # and a store (`memory.read[u32]`) only through the builtin, not through an asm
-        # label; a call keeps the builtin's own conversions, and taking the address still
-        # names the extern
+        # the C library's memory routines and its float functions (`calls.float_function`,
+        # where `isa.has_float_builtin`) are the compiler's builtins, under whatever name the binding gives them: clang
+        # and GCC expand a copy of a known size into a load and a store (`memory.read[u32]`)
+        # and `floorf` into `frintm` only through the builtin, not through an asm label; a
+        # call keeps the builtin's own conversions, and taking the address still names the
+        # extern
         let symbol = names.c_symbol(d)
         let ft = self.c.table.get(d.type_id)
-        if (symbol == "memcpy" or symbol == "memmove" or symbol == "memset" or symbol == "memcmp") and ft.args.length == 3 and not ft.variadic and not has_out_params(d):
+        let memory_routine = (symbol == "memcpy" or symbol == "memmove" or symbol == "memset" or symbol == "memcmp") and ft.args.length == 3 and not ft.variadic and not has_out_params(d)
+        var float_builtin = false
+        if let found = calls.float_function(&self.c.table, d):
+            float_builtin = isa.has_float_builtin(self.c.build_target, found.op)
+        if memory_routine or float_builtin:
             try self.line("#define ")
             try self.put_extern_name(d)
             try self.put("(...) __builtin_")

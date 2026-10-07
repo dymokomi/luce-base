@@ -61,6 +61,7 @@ struct Region:
 func speculable(op: ir.Op) -> bool:
     match op:
         .copy, .addr, .add, .sub, .mul, .and_, .or_, .xor, .shl, .lshr, .ashr, .neg: return true
+        .fsqrt, .ffloor, .fceil, .ftrunc, .fround, .fabs: return true
         .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge: return true
         .extsb, .extub, .extsh, .extuh, .extsw, .extuw, .exts, .truncd, .cast: return true
         .swtof, .uwtof, .sltof, .ultof: return true

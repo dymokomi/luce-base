@@ -73,6 +73,8 @@ extend Generator:
                     try self.arithmetic(n)
             .neg:
                 try self.negate(n)
+            .fsqrt, .ffloor, .fceil, .ftrunc, .fabs:
+                try self.float_function(n)
             .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
                 if ir.is_float_class(n.cls):
                     try self.float_comparison(n)
@@ -391,6 +393,33 @@ extend Generator:
             try self.writer.line3("movd %eax, ", d, "")
         try self.finish(n.dst, cls, d)
 
+    ## The C library's float functions this target computes itself (`isa.has_float`): the
+    ## square root, the magnitude (the sign bit cleared, a NaN's payload kept), and from
+    ## x86-64-v2 SSE4.1's `roundss` toward negative infinity (mode 9), positive infinity (10)
+    ## or zero (11), bit 3 suppressing the inexact exception as C's `floor` does.
+    func float_function(n: ir.Instr) -> !:
+        let cls = n.cls
+        let double = cls == ir.Class.d
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        match n.op:
+            .fabs:
+                if double:
+                    try self.writer.line3("movq ", v, ", %rax")
+                    try self.writer.line("btrq $63, %rax")
+                    try self.writer.line3("movq %rax, ", d, "")
+                else:
+                    try self.writer.line3("movd ", v, ", %eax")
+                    try self.writer.line("andl $2147483647, %eax")
+                    try self.writer.line3("movd %eax, ", d, "")
+            .fsqrt:
+                try self.writer.line4("sqrtsd " if double else "sqrtss ", v, ", ", d)
+            _:
+                let mode = "$9, " if n.op == ir.Op.ffloor else ("$10, " if n.op == ir.Op.fceil else "$11, ")
+                try self.writer.line4("roundsd " if double else "roundss ", mode, v, ", ")
+                try self.writer.put(d)
+        try self.finish(n.dst, cls, d)
+
     ## `switch`: the value less the table's first is the entry, when it is below the
     ## table's count; the entry is its label's distance from the table, which follows the
     ## jump in the text, so the table needs no relocation. rax holds the entry, rcx the
@@ -689,7 +718,9 @@ extend Generator:
         try self.finish(n.dst, n.cls, r)
 
     ## `fma` (x86-64-v3, `isa.has_fma`): FMA3 accumulates into its destination, so the addend
-    ## goes to xmm10 and `vfmadd231` adds the product of the other two to it.
+    ## goes to xmm10 and `vfmadd231` adds the product of the other two to it. Of two NaN
+    ## operands the instruction returns its second operand's, then its third's, so `b` goes
+    ## second and `a` third: `b`'s NaN before `a`'s, the one the C libraries' `fma` returns.
     func fused(n: ir.Instr) -> !:
         let addend = self.f.args.get((usize)n.extra2).value
         let a = try self.source(n.a, n.cls, "%xmm8")
@@ -699,9 +730,9 @@ extend Generator:
             try self.writer.line4("movaps ", c, ", ", "%xmm10")
         let wide = n.cls == ir.Class.d or (n.cls == ir.Class.v and ir.lane_bits(n.extra) == 64)
         let form = ("pd" if wide else "ps") if n.cls == ir.Class.v else ("sd" if wide else "ss")
-        try self.writer.line4("vfmadd231", form, " ", b)
+        try self.writer.line4("vfmadd231", form, " ", a)
         try self.writer.put(", ")
-        try self.writer.put(a)
+        try self.writer.put(b)
         try self.writer.put(", %xmm10")
         let d = self.target(n.dst, n.cls, "%xmm10")
         if d != "%xmm10":

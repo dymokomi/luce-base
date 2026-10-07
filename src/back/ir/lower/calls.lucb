@@ -246,6 +246,9 @@ extend Lowerer:
         if d.kind == ast.Kind.extern_func and names.c_symbol(d) == "memcpy":
             if let copied = try self.small_copy(e):
                 return copied
+        if let found = calls.float_function(&self.c.table, d):
+            if let computed = try self.float_call(e, found):
+                return computed
         if d.kind == ast.Kind.extern_func:
             callee = ir.function_ref(names.c_symbol(d))
         else:
@@ -265,6 +268,36 @@ extend Lowerer:
             try self.trap_with("null_foreign")
             try self.f.place_label(ok)
         return v
+
+    ## A call of an extern binding one of the C library's float functions, `floorf(x)`
+    ## (`calls.float_function`): the instruction computing it where the target has one
+    ## (`isa.has_float`), with the library's bits; none, with nothing evaluated, to call it.
+    func float_call(e: ast.Node*, found: isa.FloatFunction) -> LowerValue?!:
+        if not isa.has_float(self.target, found.op):
+            return none
+        var count: usize = 0
+        var cursor = e.body
+        while let a = cursor:
+            if a.text.length > 0 or a.left == none:
+                # a named argument: the declared call places it
+                return none
+            count += 1
+            cursor = a.next
+        if count != (3 if found.op == ir.Op.fma else 1):
+            return none
+        let t = types.f32_id if found.single else types.f64_id
+        let cls = self.class_of(t)
+        var operands: ir.Ref[3] = [ir.none_ref(), ir.none_ref(), ir.none_ref()]
+        var k: usize = 0
+        cursor = e.body
+        while let a = cursor:
+            let v = a.left else return none
+            operands[k] = (try self.value(v, t)).ref
+            k += 1
+            cursor = a.next
+        if found.op == ir.Op.fma:
+            return LowerValue(ref = try self.fused(cls, operands[0], operands[1], operands[2], 0), type_id = t, in_memory = false)
+        return LowerValue(ref = try self.f.unary(found.op, cls, operands[0]), type_id = t, in_memory = false)
 
     ## `memcpy(target, source, n)` with `n` known here, `memory.size_of(T)` or a literal, and at most
     ## `small_copy_limit` bytes: the copy itself, the loads and stores the generators inline

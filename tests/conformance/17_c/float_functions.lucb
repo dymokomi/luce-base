@@ -1,0 +1,159 @@
+## §7.2, §17.1: an extern binding the C library's `sqrt`, `floor`, `ceil`, `trunc`, `round`,
+## `fabs` or `fma` (or the `f` form) is computed by the instruction where the target has one,
+## with the library's bits: each call here is compared, bit for bit, with the same function
+## called through a function value, which always reaches the library. The values sweep
+## every class of float: zeros, subnormals, halfway cases, the largest integers, the
+## infinities and NaNs of both signs, quiet and signaling, and products whose fused and
+## unfused sums differ.
+# oracle: none
+extern func c_sqrtf as "sqrtf"(x: f32) -> f32
+extern func c_floorf as "floorf"(x: f32) -> f32
+extern func c_ceilf as "ceilf"(x: f32) -> f32
+extern func c_truncf as "truncf"(x: f32) -> f32
+extern func c_roundf as "roundf"(x: f32) -> f32
+extern func c_fabsf as "fabsf"(x: f32) -> f32
+extern func c_fmaf as "fmaf"(x: f32, y: f32, z: f32) -> f32
+extern func c_sqrt as "sqrt"(x: f64) -> f64
+extern func c_floor as "floor"(x: f64) -> f64
+extern func c_ceil as "ceil"(x: f64) -> f64
+extern func c_trunc as "trunc"(x: f64) -> f64
+extern func c_round as "round"(x: f64) -> f64
+extern func c_fabs as "fabs"(x: f64) -> f64
+extern func c_fma as "fma"(x: f64, y: f64, z: f64) -> f64
+
+## The library's functions, reached through function values rather than a direct call.
+struct Library:
+    var sqrtf: func(f32) -> f32
+    var floorf: func(f32) -> f32
+    var ceilf: func(f32) -> f32
+    var truncf: func(f32) -> f32
+    var roundf: func(f32) -> f32
+    var fabsf: func(f32) -> f32
+    var fmaf: func(f32, f32, f32) -> f32
+    var sqrt: func(f64) -> f64
+    var floor: func(f64) -> f64
+    var ceil: func(f64) -> f64
+    var trunc: func(f64) -> f64
+    var round: func(f64) -> f64
+    var fabs: func(f64) -> f64
+    var fma: func(f64, f64, f64) -> f64
+
+## The number of values whose direct call and library call differ in any bit.
+func single(lib: Library*, b: u32) -> u64:
+    let x = f32.bits(b)
+    var wrong: u64 = 0
+    if c_sqrtf(x).bits() != (lib.sqrtf)(x).bits():
+        wrong += 1
+    if c_floorf(x).bits() != (lib.floorf)(x).bits():
+        wrong += 1
+    if c_ceilf(x).bits() != (lib.ceilf)(x).bits():
+        wrong += 1
+    if c_truncf(x).bits() != (lib.truncf)(x).bits():
+        wrong += 1
+    if c_roundf(x).bits() != (lib.roundf)(x).bits():
+        wrong += 1
+    if c_fabsf(x).bits() != (lib.fabsf)(x).bits():
+        wrong += 1
+    return wrong
+
+func double(lib: Library*, b: u64) -> u64:
+    let x = f64.bits(b)
+    var wrong: u64 = 0
+    if c_sqrt(x).bits() != (lib.sqrt)(x).bits():
+        wrong += 1
+    if c_floor(x).bits() != (lib.floor)(x).bits():
+        wrong += 1
+    if c_ceil(x).bits() != (lib.ceil)(x).bits():
+        wrong += 1
+    if c_trunc(x).bits() != (lib.trunc)(x).bits():
+        wrong += 1
+    if c_round(x).bits() != (lib.round)(x).bits():
+        wrong += 1
+    if c_fabs(x).bits() != (lib.fabs)(x).bits():
+        wrong += 1
+    return wrong
+
+func fused_single(lib: Library*, x: f32, y: f32, z: f32) -> u64:
+    return 0 if c_fmaf(x, y, z).bits() == (lib.fmaf)(x, y, z).bits() else 1
+
+func fused_double(lib: Library*, x: f64, y: f64, z: f64) -> u64:
+    return 0 if c_fma(x, y, z).bits() == (lib.fma)(x, y, z).bits() else 1
+
+## xorshift64: the sweep's pseudo-random bits, the same on every run.
+func next(state: u64*) -> u64:
+    var s = *state
+    s ^= s << 13
+    s ^= s >> 7
+    s ^= s << 17
+    *state = s
+    return s
+
+let special32: u32[16] = [0x00000000, 0x80000000, 0x00000001, 0x80000001, 0x007fffff, 0x807fffff, 0x7f800000, 0xff800000, 0x7fc00000, 0xffc00000, 0x7f800001, 0xff800001, 0x7fa00000, 0x7fffffff, 0x4b000000, 0x4affffff]
+let special64: u64[16] = [0x0000000000000000, 0x8000000000000000, 0x0000000000000001, 0x8000000000000001, 0x000fffffffffffff, 0x800fffffffffffff, 0x7ff0000000000000, 0xfff0000000000000, 0x7ff8000000000000, 0xfff8000000000000, 0x7ff0000000000001, 0xfff0000000000001, 0x7ff4000000000000, 0x7fffffffffffffff, 0x4330000000000000, 0x432fffffffffffff]
+
+pub func main(arguments: str[]) -> i32:
+    var lib = Library(sqrtf = c_sqrtf, floorf = c_floorf, ceilf = c_ceilf, truncf = c_truncf, roundf = c_roundf, fabsf = c_fabsf, fmaf = c_fmaf, sqrt = c_sqrt, floor = c_floor, ceil = c_ceil, trunc = c_trunc, round = c_round, fabs = c_fabs, fma = c_fma)
+    var wrong: u64 = 0
+    var count: u64 = 0
+    # singles: the specials, every 7919th bit pattern, and each halfway point between
+    # integers below 2^23 with its neighbours, of both signs
+    for b in special32:
+        wrong += single(&lib, b)
+        count += 1
+    var at: u64 = 0
+    while at < 4294967296:
+        wrong += single(&lib, (u32)at)
+        count += 1
+        at += 7919
+    for k in 0..<4096:
+        let half = f32(k) + 0.5
+        for delta in [-1, 0, 1]:
+            let b = (u32)((i64)half.bits() + delta)
+            wrong += single(&lib, b)
+            wrong += single(&lib, b | 0x80000000)
+            count += 2
+    # doubles: the specials, the halfway points, and pseudo-random bit patterns
+    for b in special64:
+        wrong += double(&lib, b)
+        count += 1
+    for k in 0..<4096:
+        let half = f64(k * 1021) + 0.5
+        for delta in [-1, 0, 1]:
+            let b = (u64)((i64)half.bits() + delta)
+            wrong += double(&lib, b)
+            wrong += double(&lib, b | 0x8000000000000000)
+            count += 2
+    var state: u64 = 0x9e3779b97f4a7c15
+    for _ in 0..<200000:
+        let b = next(&state)
+        wrong += double(&lib, b)
+        # and a value of moderate size, where rounding has digits to drop
+        wrong += double(&lib, (b & 0x800fffffffffffff) | ((1023 + (b >> 52) % 64) << 52))
+        count += 2
+    # fused multiply-add: products near one less a rounded product, where the fused sum is
+    # the product's error and the unfused one is zero, and pseudo-random bits
+    var differs: u64 = 0
+    for _ in 0..<100000:
+        let r = next(&state)
+        let x = f32.bits(0x3f800000 | (u32)(r & 0x7fffff))
+        let y = f32.bits(0x3f800000 | (u32)((r >> 23) & 0x7fffff))
+        let z = -(x * y)
+        wrong += fused_single(&lib, x, y, z)
+        wrong += fused_single(&lib, f32.bits((u32)(r >> 32)), f32.bits((u32)r), f32.bits((u32)(next(&state) >> 32)))
+        if c_fmaf(x, y, z).bits() != (x * y + z).bits():
+            differs += 1
+        let dx = f64.bits(0x3ff0000000000000 | (r & 0xfffffffffffff))
+        let dy = f64.bits(0x3ff0000000000000 | (next(&state) & 0xfffffffffffff))
+        let dz = -(dx * dy)
+        wrong += fused_double(&lib, dx, dy, dz)
+        wrong += fused_double(&lib, f64.bits(r), f64.bits(next(&state)), f64.bits(next(&state)))
+        if c_fma(dx, dy, dz).bits() != (dx * dy + dz).bits():
+            differs += 1
+        count += 4
+    for b in special32:
+        for c in special32:
+            wrong += fused_single(&lib, f32.bits(b), f32.bits(c), f32.bits(b))
+            wrong += fused_double(&lib, f64.bits(special64[0]), f64.bits(special64[(usize)(c % 16)]), f64.bits(special64[(usize)(b % 16)]))
+    print(f"{wrong} of {count} values differ")
+    print(f"fused differs from unfused: {differs > 100000}")
+    return 0

@@ -261,6 +261,7 @@ func width(op: ir.Op) -> i64:
 func movable(op: ir.Op) -> bool:
     match op:
         .copy, .addr, .add, .sub, .mul, .and_, .or_, .xor, .shl, .lshr, .ashr, .neg: return true
+        .fsqrt, .ffloor, .fceil, .ftrunc, .fround, .fabs: return true
         .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge: return true
         .extsb, .extub, .extsh, .extuh, .extsw, .extuw, .cast, .exth, .exts, .truncs, .truncd: return true
         _: return false

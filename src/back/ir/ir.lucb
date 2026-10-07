@@ -172,6 +172,16 @@ pub enum Op as u8:
     lshr = 21
     ashr = 22
     neg = 23
+    ## the float functions of the C library a target computes in one instruction
+    ## (`isa.float_function`), on the single or double `cls`, bit for bit as the library:
+    ## the square root, rounding toward negative infinity, toward positive infinity, toward
+    ## zero, to nearest with halves away from zero (C's `round`), and the magnitude
+    fsqrt = 24
+    ffloor = 25
+    fceil = 26
+    ftrunc = 27
+    fround = 28
+    fabs = 29
     ## comparisons: `dst` is `w`, 1 or 0; the class on the instruction is the operands'
     ceq = 30
     cne = 31

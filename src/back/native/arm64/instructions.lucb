@@ -86,6 +86,12 @@ extend Generator:
                 try self.writer.put(", ")
                 try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
+            .fsqrt, .ffloor, .fceil, .ftrunc, .fround, .fabs:
+                # the C library's float functions, each one instruction (`isa.has_float`)
+                let v = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
+                let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
+                try self.writer.line4(float_function_mnemonic(n.op), d, ", ", v)
+                try self.finish(n.dst, n.cls, d)
             .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
                 if self.role() & (flags.first | flags.either | flags.both) != 0:
                     try self.chained(n, self.role())
@@ -671,3 +677,15 @@ extend Generator:
     func call_trap() -> !:
         try self.writer.line("bl ")
         try self.symbol(self.program_unit.trap_function)
+
+## The instruction of a C library float function (`isa.has_float`): `frintm` rounds toward
+## negative infinity, `frintp` toward positive, `frintz` toward zero, and `frinta` to nearest
+## with halves away from zero, as `floor`, `ceil`, `trunc` and `round` do.
+func float_function_mnemonic(op: ir.Op) -> str:
+    match op:
+        .fsqrt: return "fsqrt "
+        .ffloor: return "frintm "
+        .fceil: return "frintp "
+        .ftrunc: return "frintz "
+        .fround: return "frinta "
+        _: return "fabs "
