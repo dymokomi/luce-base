@@ -83,6 +83,39 @@ extend Canvas:
 """
         self.assertEqual(self.fmt(canonical), canonical)
 
+    def test_comments_stay_attached(self):
+        # a comment right above a statement or a declaration stays right above it, and a
+        # blank line the source put above a comment block stays above the block
+        canonical = """\
+# right above the constant
+let limit: i64 = 3
+
+# right above the function, after a blank line
+func f(x: i64) -> i64:
+    let a = x
+    # right above a binding
+    let b = a
+    # right above an assignment
+    _ = g(b)
+    # right above a call
+    g(a)
+
+    # after a blank line, two lines
+    # right above the return
+    return b
+
+struct S:
+    var n: i64
+
+    # right above a method
+    func get() -> i64:
+        return self.n
+"""
+        self.assertEqual(self.fmt(canonical), canonical)
+        # a blank line between a comment block and its statement is the author's, and stays
+        detached = "func f() -> i64:\n    let a: i64 = 1\n    # a note\n\n    return a\n"
+        self.assertEqual(self.fmt(detached), detached)
+
     def test_idempotent(self):
         once = self.fmt(CANONICAL)
         self.assertEqual(self.fmt(once), once)
