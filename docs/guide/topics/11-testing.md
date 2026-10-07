@@ -153,7 +153,11 @@ ok    in extra
 3 passed
 ```
 
-`luce-base test src/main.lucb --package` does the same outside `luc`.
+`luce-base test src/main.lucb --package` does the same outside `luc`. A library with no
+`src/main.lucb` and no module named after the package is tested the same way, from its first
+module. When the package also has Luce modules (`.luc`), `luc test` runs their tests with
+`luce test --package` as well and prints one total for both, so a test in either language is
+never left out.
 
 ## Tests in their own files
 
