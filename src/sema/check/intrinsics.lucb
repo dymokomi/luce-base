@@ -165,7 +165,7 @@ extend Checker:
         return try self.table.fallible(types.str_id)
 
     ## `error(code, message)`: leaves a fallible function or a handler with that failure;
-    ## the message must outlive the function.
+    ## the message is copied as it is raised (§11.3), so it may view a local.
     func error_type(e: ast.Node*) -> u32!:
         if self.in_defer and not self.fallible and not self.expression_effect:
             return try self.fail(e, "a failure cannot escape a deferred block (§8.8)")
@@ -177,8 +177,6 @@ extend Checker:
         let second = first.next else return try self.fail(e, "`error(code, message)` takes two arguments")
         let mv = second.left else return try self.fail(e, "empty argument")
         _ = try self.expect(mv, types.str_id)
-        if is_local_value(mv):
-            try self.fail(mv, "an error message must not name a local; format into a buffer that outlives the function")
         return types.never_id
 
     ## `memory.offset_of(T, field)`: a struct's field, resolved on the name, at a `usize`

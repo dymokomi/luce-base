@@ -74,6 +74,7 @@ extend Checker:
                     try self.fail(s, "`recover` belongs in a `catch` handler")
                 let v = s.left else return try self.fail(s, "`recover` needs a value")
                 _ = try self.expect(v, self.catch_result)
+                try self.handled_recovered(v)
             .free_:
                 let v = s.left else return try self.fail(s, "`free` needs a value")
                 let got = try self.check_expr(v, types.none_id)
@@ -268,6 +269,10 @@ extend Checker:
         if let init = s.left:
             if is_local_value(init) and s.text != "_":
                 self.set_from_local(s.text, true)
+            # `let text = failure.message`: the name views the handled message too (§11.3)
+            let held = self.handled_view(init)
+            if held > 0:
+                self.set_handled(s.text, held)
 
     func check_assign(s: ast.Node*) -> !:
         let place = s.left else return try self.fail(s, "missing place")
@@ -284,6 +289,7 @@ extend Checker:
             if is_local_value(value) and self.escapes(pt) and self.place_outlives(place):
                 # §6.6: a local's address may not be stored in a global or through a pointer
                 try self.fail(value, "this pointer or view names a local and must not be stored where it outlives the function")
+            try self.handled_stored(place, value, pt)
             return
         let target = self.table.get(pt).elem if self.table.kind(pt) == types.Kind.atomic else pt
         # `p += n` and `p -= n` move a pointer by elements, as `p = p + n` does (§7.7)
@@ -477,6 +483,7 @@ extend Checker:
         _ = try self.expect(v, want)
         if is_local_value(v) and self.escapes(want):
             try self.fail(v, "this pointer or view names a local and must not escape the function")
+        try self.handled_leaves(v, want, "returned")
 
     ## `match` as a statement (`is_expr` false) or an expression yielding a type.
     func match_type(m: ast.Node*, hint: u32, is_expr: bool) -> u32!:

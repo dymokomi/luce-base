@@ -1,0 +1,51 @@
+## §11.3: a caught failure's message is read, passed down, bound and raised again inside its
+## handler, and copied to be kept past it; a message made in a local buffer is raised whole.
+import strings
+
+let refused = ErrorCode.package(1)
+
+struct Stack[T]:
+    var items: T[4]
+    var count: usize = 0
+
+    func push(item: T):
+        self.items[self.count] = item
+        self.count += 1
+
+func check(n: i64) -> !:
+    var buffer: u8[32]
+    error(refused, try strings.format(buffer, f"refused {n}"))
+
+func spell() -> !:
+    var bytes: u8[4] = ['o', 'o', 'p', 's']
+    error(refused, (str)bytes)
+
+func wrap(n: i64) -> !:
+    check(n) catch failure:
+        error(failure.code, failure.message)
+
+func label(n: i64) -> str!:
+    try check(n)
+    return "accepted"
+
+func show(text: str):
+    print(text)
+
+pub func main(arguments: str[]) -> i32!:
+    var kept = Stack[str]()
+    for n in 0..<3:
+        wrap(n) catch failure:
+            show(failure.message)
+            let text = failure.message
+            var mine = Stack[str]()
+            mine.push(text)
+            kept.push(try strings.copy(mine.items[0]))
+    spell() catch failure:
+        # the outer handler's message, recovered by an inner handler, stays in the outer one
+        let first = label(7) catch inner:
+            recover failure.message
+        print(first)
+    for i in 0..<kept.count:
+        print(kept.items[i])
+        strings.release(kept.items[i])
+    return 0

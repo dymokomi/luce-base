@@ -106,8 +106,9 @@ chapter that explains it.
 - **A `catch` handler's `recover` value must have the type of the expression.** For a call
   that returns nothing, the handler needs no `recover`.
 - **One `try` covers the whole expression after it**, every fallible call inside it.
-- **An error message cannot point into a local buffer**; it must outlive the function. A
-  string literal always does. [Errors](08-errors.md#error-messages)
+- **A caught failure's message lasts until its handler finishes.** Read it, pass it on or
+  raise it again inside the handler; to keep it, store `strings.copy(failure.message)`.
+  [Errors](08-errors.md#error-messages)
 - **A trap cannot be caught**, and `defer` does not run on a trap.
 - **`defer` sees variables as they are when it runs**, at the end of the block, not when it
   was written (unlike Go's argument evaluation). [Control flow](04-control-flow.md#defer-and-errdefer)

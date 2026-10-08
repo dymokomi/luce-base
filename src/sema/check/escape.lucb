@@ -100,7 +100,8 @@ extend Checker:
             at = b.shadowed
 
     ## The escape rule (§6.6): a pointer, span, or `str` that names a local must not leave,
-    ## alone or as a component of a tuple, an array, a struct, or an optional.
+    ## alone or as a component of a tuple, an array, a struct, or an optional; an `Error`
+    ## holds a `str`, its message.
     func escapes(id: u32) -> bool:
         let t = self.table.get(id)
         match t.kind:
@@ -122,7 +123,7 @@ extend Checker:
                     cursor = f.next
                 return false
             _:
-                return id == types.str_id
+                return id == types.str_id or id == types.error_value_id
 
     # mark: Places =============================================================================
 

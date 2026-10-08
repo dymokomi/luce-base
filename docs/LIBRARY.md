@@ -592,6 +592,8 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 
 - `func copy(text: str) -> str!` — A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`; `release` gives it back.
 
+- `func copy_into(buffer: u8[], text: str) -> str` — As much of `text` as fits in `buffer`, copied there and cut at a character's start; the result views `buffer`. A caught failure's message is kept past its handler so, or with `copy` (§11.3).
+
 - `func to_upper(text: str) -> str!` — ASCII case folding; other bytes pass through. NUL-terminated in the current allocator; `release` gives the text back.
 
 - `func to_lower(text: str) -> str!` — ASCII lowercase; other bytes pass through unchanged. The result is a NUL-terminated current-allocator allocation released with release.

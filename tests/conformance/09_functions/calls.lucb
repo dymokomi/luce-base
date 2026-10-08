@@ -63,7 +63,8 @@ pub func main(arguments: str[]) -> i32:
         return 1
     var checked = "passed"
     check(false) catch failure:
-        checked = failure.message
+        if failure.message == "unchecked":
+            checked = "unchecked"
     let (q, r) = divide(17, 5)
     let inc = apply((x) => x + 1, 41)
     let value: i64 = 5 if plain > 0 else halt()

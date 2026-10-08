@@ -150,9 +150,17 @@ test "a module-level assert is decided at compile time":
     try expect_error("import memory\n\nassert(memory.size_of(i64) == 4, \"a word\")\nfunc f() -> i64:\n    return 0\n", "`assert` failed: a word")
     try expect_error("assert(not (1 < 2 and true))\nfunc f() -> i64:\n    return 0\n", "`assert` failed")
 
-test "a message formatted on a local buffer is local through try and let":
-    try expect_error("import strings\n\nlet code = ErrorCode.package(1)\nfunc fail(n: i64) -> !:\n    var buffer: u8[64]\n    let text = try strings.format(buffer, f\"bad {n}\")\n    error(code, text)\n", "must not name a local")
+test "an error message may be formatted on a local buffer: error copies it":
+    try expect_ok("import strings\n\nlet code = ErrorCode.package(1)\nfunc fail(n: i64) -> !:\n    var buffer: u8[64]\n    let text = try strings.format(buffer, f\"bad {n}\")\n    error(code, text)\n")
     try expect_ok("import strings\n\nlet code = ErrorCode.package(1)\nfunc fail(n: i64, buffer: u8[]) -> !:\n    let text = try strings.format(buffer, f\"bad {n}\")\n    error(code, text)\n")
+
+test "a caught failure's message stays in its handler unless copied":
+    let raises = "import strings\n\nlet code = ErrorCode.package(1)\nfunc g() -> i64!:\n    error(code, \"no\")\n"
+    var text: u8[512]
+    try expect_error(try strings.format(text, f"{raises}func f() -> str:\n    _ = g() catch failure:\n        return failure.message\n    return \"\"\n"), "must not be returned")
+    try expect_error(try strings.format(text, f"{raises}var last: str = \"\"\nfunc f():\n    _ = g() catch failure:\n        last = failure.message\n        recover 0\n"), "must not be stored")
+    try expect_ok(try strings.format(text, f"{raises}func f() -> str!:\n    _ = g() catch failure:\n        return try strings.copy(failure.message)\n    return \"\"\n"))
+    try expect_ok(try strings.format(text, f"{raises}func f() -> !:\n    _ = g() catch failure:\n        let m = failure.message\n        error(failure.code, m)\n"))
 
 test "two constants of one package do not share an error code":
     try expect_error("let first = ErrorCode.package(1)\nlet second = ErrorCode.package(1)\nfunc f() -> i64:\n    return 0\n", "share this error code")

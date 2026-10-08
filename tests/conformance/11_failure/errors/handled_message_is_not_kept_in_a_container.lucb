@@ -1,0 +1,21 @@
+# error: must not be kept in a container that outlives the handler
+## §11.3: a generic container's method taking its element keeps the view.
+let bad = ErrorCode.package(1)
+
+struct Stack[T]:
+    var items: T[4]
+    var count: usize = 0
+
+    func push(item: T):
+        self.items[self.count] = item
+        self.count += 1
+
+func check(n: i64) -> !:
+    error(bad, "refused")
+
+pub func main(arguments: str[]) -> i32:
+    var messages = Stack[str]()
+    for n in 0..<3:
+        check(n) catch failure:
+            messages.push(failure.message)
+    return 0

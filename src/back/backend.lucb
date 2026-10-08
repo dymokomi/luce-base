@@ -240,7 +240,7 @@ func per_function_task(context: void*?, index: usize):
     let job = (PerFunction*)(context else return)
     with memory.heap:
         job.task(&job.program.functions.items[index]) catch failure:
-            job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+            job.failures[index] = parallel.failed(failure.code, failure.message)
 
 ## After the second inlining pass: every function tidied, not only those it changed.
 func tidy_task(f: ir.Function*) -> !:
@@ -268,7 +268,7 @@ func optimise_task(context: void*?, index: usize):
         if index >= marked.length or not marked[index]:
             return
     optimise_function(&job.program.functions.items[index], job.level) catch failure:
-        job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+        job.failures[index] = parallel.failed(failure.code, failure.message)
 
 ## The optimiser's passes over `f` at `level`.
 func optimise_function(f: ir.Function*, level: u32) -> !:

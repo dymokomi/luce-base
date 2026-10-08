@@ -583,17 +583,26 @@ extend Checker:
         self.push_scope()
         if e.text.length > 0:
             try self.bind(e, e.text, types.error_value_id, e, false)
+            self.set_handled(e.text, self.depth)  # its message lives as long as the handler
         let saved_in = self.in_catch
         let saved_result = self.catch_result
+        let saved_node = self.catch_node
+        let saved_depth = self.catch_depth
         self.in_catch = true
         self.catch_result = result
+        self.catch_node = e
+        self.catch_depth = self.depth
         self.check_block(body) catch failure:
             self.in_catch = saved_in
             self.catch_result = saved_result
+            self.catch_node = saved_node
+            self.catch_depth = saved_depth
             self.pop_scope()
             error(failure.code, failure.message)
         self.in_catch = saved_in
         self.catch_result = saved_result
+        self.catch_node = saved_node
+        self.catch_depth = saved_depth
         self.pop_scope()
         # a handler for a value recovers one or leaves; one for `unit`, or for a value `_ =`
         # drops, may fall through (§7.9, §11.4)

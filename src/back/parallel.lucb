@@ -16,6 +16,7 @@
 import memory
 import os
 import platform
+import strings
 import thread
 
 extern func sysconf(name: i32) -> i64
@@ -100,6 +101,8 @@ pub struct Failure:
     pub var code: ErrorCode
     ## The error's message.
     pub var message: str
+    ## Whether `message` is a heap copy, which `check` gives back.
+    pub var owned: bool
 
 ## `count` failures, none failed yet, from the current allocator.
 pub func failures(count: usize) -> Failure[]!:
@@ -108,8 +111,25 @@ pub func failures(count: usize) -> Failure[]!:
         made[index].failed = false
     return made
 
-## The first failure of `kept`, if a task failed, as the caller's error.
+## A task's failure, kept past the handler that caught it: the message is copied to the
+## heap, since that handler gives the original back when it finishes (§11.3).
+pub func failed(code: ErrorCode, message: str) -> Failure:
+    with memory.heap:
+        let copy = strings.copy(message) catch:
+            return Failure(failed = true, code = code, message = "the task failed, and its message could not be kept", owned = false)
+        return Failure(failed = true, code = code, message = copy, owned = true)
+
+## The first failure of `kept`, if a task failed, as the caller's error; every kept
+## message is given back.
 pub func check(kept: const Failure[]) -> !:
+    defer release(kept)
     for failure in kept:
         if failure.failed:
             error(failure.code, failure.message)
+
+## Give back the messages `failed` copied.
+func release(kept: const Failure[]):
+    with memory.heap:
+        for failure in kept:
+            if failure.failed and failure.owned:
+                strings.release(failure.message)

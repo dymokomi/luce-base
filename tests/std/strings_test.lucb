@@ -1,5 +1,6 @@
 ## The `strings` module against its archive: search, transforms, splitting, numbers,
 ## floats and replacement, as their contracts in `docs/LIBRARY.md` say.
+import io
 import strings
 
 test "search finds what is there and reports what is not":
@@ -70,3 +71,28 @@ test "replacing every occurrence, some, or none":
     assert(longer == "long")
     let untouched = try strings.replace("abc", "z", "y")
     assert(untouched == "abc")
+
+test "copy_into keeps as much as fits, whole characters":
+    var room: u8[5]
+    assert(strings.copy_into(room, "abc") == "abc")
+    assert(strings.copy_into(room, "ééé") == "éé")
+    assert(strings.copy_into(room[..<0], "abc") == "")
+
+let refused = ErrorCode.package(1)
+
+## A writer that fails with a message made in its own frame.
+struct Refusing: io.Writer:
+    var attempts: i64 = 0
+
+    func write(data: const u8[]) -> usize!:
+        self.attempts += 1
+        var buffer: u8[64]
+        error(refused, try strings.format(buffer, f"refused write {self.attempts}"))
+
+test "a writer's failure reaches the caller of a formatted field whole":
+    var sink = Refusing()
+    let writer: io.Writer = &sink
+    strings.write_i64(writer, 42, "5") catch failure:
+        assert(failure.code == refused and failure.message == "refused write 1")
+        return
+    assert(false, "the write did not fail")

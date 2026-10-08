@@ -22,7 +22,7 @@ func generate_task(context: void*?, index: usize):
     var scratch = arenas.Arena(memory.heap, 1048576)
     defer scratch.destroy()
     generate_one(job, index, &scratch) catch failure:
-        job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+        job.failures[index] = parallel.failed(failure.code, failure.message)
 
 func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
     var generated: str = ""

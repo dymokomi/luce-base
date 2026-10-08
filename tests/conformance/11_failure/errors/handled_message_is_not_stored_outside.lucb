@@ -1,0 +1,17 @@
+# error: must not be stored where it outlives the handler
+## §11.3: a variable declared outside the handler outlives it; `continue` finishes the
+## handler and the next failure may take the message's storage.
+let bad = ErrorCode.package(1)
+
+func check(n: i64) -> !:
+    if n % 2 == 1:
+        error(bad, "odd")
+
+pub func main(arguments: str[]) -> i32:
+    var last = ""
+    for n in 0..<4:
+        check(n) catch failure:
+            last = failure.message
+            continue
+    print(last)
+    return 0

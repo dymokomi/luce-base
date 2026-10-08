@@ -19,58 +19,62 @@ pub func format(buffer: u8[], text: fmt) -> str!:
 
 # mark: Fields by specification ================================================================
 
-## A `Writer` as `numerals` writes into it, with the first failure it gave.
+## A `Writer` as `numerals` writes into it, with the first failure it gave: its code and
+## its message, copied, since the handler that caught it gives the original back (§11.3).
 struct Through:
     var writer: io.Writer
-    var failure: Error?
+    var failed: ErrorCode? = none
+    var message: u8[256]
+    var length: usize = 0
 
 ## Append `bytes` to the `Through` at `context`; false once the writer has failed.
 func write_through(context: void*, bytes: const u8[]) -> bool:
     let through = (Through*)context
     let written = through.writer.write(bytes) catch failure:
-        through.failure = failure
+        through.failed = failure.code
+        through.length = copy_into(through.message, failure.message).length
         return false
     return written == bytes.length
 
 ## The writer's failure after a layout that stopped, or a short write's.
-func stopped(through: Through) -> !:
-    if let failure = through.failure:
-        error(failure.code, failure.message)
+func stopped(through: const Through*) -> !:
+    if let code = through.failed:
+        error(code, (str)through.message[..<through.length])
     error(memory.exhausted, "the writer took fewer bytes than it was given")
 
 ## `value` laid out by format specification `spec` (§5.5), written to `sink`: what a
 ## formatted string's `{value:spec}` field writes. A `spec` that does not read traps.
 pub func write_i64(sink: io.Writer, value: i64, spec: str) -> !:
-    var through = Through(writer = sink, failure = none)
+    var through = Through(writer = sink)
     let negative = value < 0
     let magnitude = 0 -% (u64)value if negative else (u64)value
     if not numerals.lay_integer(numerals.Sink(context = (void*)&through, write = write_through), negative, magnitude, spec):
-        try stopped(through)
+        try stopped(&through)
 
 ## `value` laid out by format specification `spec` (§5.5), written to `sink`.
 pub func write_u64(sink: io.Writer, value: u64, spec: str) -> !:
-    var through = Through(writer = sink, failure = none)
+    var through = Through(writer = sink)
     if not numerals.lay_integer(numerals.Sink(context = (void*)&through, write = write_through), false, value, spec):
-        try stopped(through)
+        try stopped(&through)
 
 ## `value` laid out by format specification `spec` (§5.5), written to `sink`.
 pub func write_f64(sink: io.Writer, value: f64, spec: str) -> !:
-    var through = Through(writer = sink, failure = none)
+    var through = Through(writer = sink)
     if not numerals.lay_float(numerals.Sink(context = (void*)&through, write = write_through), value, false, spec):
-        try stopped(through)
+        try stopped(&through)
 
 ## `value` laid out by format specification `spec` (§5.5), written to `sink`: with neither
 ## a type nor a precision, the `f32`'s own shortest digits.
 pub func write_f32(sink: io.Writer, value: f32, spec: str) -> !:
-    var through = Through(writer = sink, failure = none)
+    var through = Through(writer = sink)
     if not numerals.lay_float(numerals.Sink(context = (void*)&through, write = write_through), f64(value), true, spec):
-        try stopped(through)
+        try stopped(&through)
 
 ## `text` laid out by format specification `spec` (§5.5), written to `sink`.
 pub func write_text(sink: io.Writer, text: str, spec: str) -> !:
-    var through = Through(writer = sink, failure = none)
+    var through = Through(writer = sink)
     if not numerals.lay_text(numerals.Sink(context = (void*)&through, write = write_through), text, spec):
-        try stopped(through)
+        try stopped(&through)
 
 ## `value`, its UTF-8, laid out by format specification `spec` (§5.5), written to `sink`.
 pub func write_char(sink: io.Writer, value: char, spec: str) -> !:

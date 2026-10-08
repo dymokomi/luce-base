@@ -1,0 +1,19 @@
+# error: must not be stored where it outlives the handler
+## §11.3: a name bound to the message views it too.
+let bad = ErrorCode.package(1)
+
+struct Report:
+    var text: str
+
+func check() -> !:
+    error(bad, "refused")
+
+func run(report: Report*):
+    check() catch failure:
+        let text = failure.message
+        report.text = text
+
+pub func main(arguments: str[]) -> i32:
+    var report = Report(text = "")
+    run(&report)
+    return 0

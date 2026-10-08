@@ -1,0 +1,177 @@
+#==============================================================================================
+#
+#   check/handled - A caught failure's message stays in its handler
+#
+#   DESCRIPTION:
+#       The message of a failure a `catch` handles lives in storage the thread keeps until
+#       that handler finishes (§11.3). A view of it may be read, passed down and raised
+#       again, but not returned, recovered or stored where it outlives the handler: a
+#       message kept is copied first.
+#
+#==============================================================================================
+extend Checker:
+    # mark: Views of a handled message =========================================================
+
+    ## The depth of the handler whose failure's message `e` views, 0 when it views none: the
+    ## failure, its message, a field, slice or address of either, a name bound to one, and
+    ## a tuple, array or construction holding one. Like §6.6's rule, it stops at calls.
+    func handled_view(e: ast.Node*) -> u32:
+        match e.kind:
+            .name:
+                let b = self.lookup(e.text) else return 0
+                return b.handled
+            .group, .cast, .propagate:
+                let inner = e.left else return 0
+                return self.handled_view(inner)
+            .catch_:
+                # the handled value, or what its handler recovers of an enclosing handler's
+                var deepest: u32 = 0
+                if let inner = e.left:
+                    deepest = self.handled_view(inner)
+                for r in self.recovered_views.span():
+                    if r.at == e and r.depth > deepest:
+                        deepest = r.depth
+                return deepest
+            .member, .index, .slice:
+                let owner = e.left else return 0
+                if self.table.kind(owner.type_id) == types.Kind.pointer:
+                    return 0  # what a pointer reaches is not the pointer
+                return self.handled_view(owner)
+            .unary:
+                let inner = e.left else return 0
+                return self.handled_view(inner) if e.text == "&" else 0
+            .conditional, .else_:
+                return self.either_handled(e.left, e.right)
+            .tuple, .array_lit:
+                return self.handled_in_list(e.body, false)
+            .call:
+                # a construction or an enum case holds its arguments; a call returns its own
+                let callee = e.left else return 0
+                var holds = callee.has(ast.flag_type_ref)
+                if let d = e.resolved:
+                    holds = holds or d.kind == ast.Kind.enum_case
+                return self.handled_in_list(e.body, true) if holds else 0
+            _:
+                return 0
+
+    func either_handled(a: ast.Node*?, b: ast.Node*?) -> u32:
+        var deepest: u32 = 0
+        if let x = a:
+            deepest = self.handled_view(x)
+        if let y = b:
+            let other = self.handled_view(y)
+            if other > deepest:
+                deepest = other
+        return deepest
+
+    ## The deepest handler a member of `members` views the message of; `arguments` when the
+    ## members are a call's arguments, each holding its value.
+    func handled_in_list(members: ast.Node*?, arguments: bool) -> u32:
+        var deepest: u32 = 0
+        var cursor = members
+        while let m = cursor:
+            var value: ast.Node*? = m
+            if arguments:
+                value = m.left
+            if let v = value:
+                let depth = self.handled_view(v)
+                if depth > deepest:
+                    deepest = depth
+            cursor = m.next
+        return deepest
+
+    ## Record that the binding `name` views the message of the handler at `depth`.
+    func set_handled(name: str, depth: u32):
+        let at = self.visible(name)
+        if at == 0:
+            return
+        var b = self.scope.get((usize)at - 1)
+        if depth > b.handled:
+            b.handled = depth
+            self.scope.set((usize)at - 1, b)
+
+    ## The local whose own storage `place` is part of: the variable itself, or one of its
+    ## fields or elements; `none` for a global, `self`, or what a pointer or view reaches.
+    func place_root(place: ast.Node*) -> Binding?:
+        match place.kind:
+            .name:
+                let b = self.lookup(place.text) else return none
+                if b.depth <= self.module_depth:
+                    return none
+                return b
+            .group:
+                let inner = place.left else return none
+                return self.place_root(inner)
+            .member, .index:
+                let owner = place.left else return none
+                let ok = self.table.kind(owner.type_id)
+                if ok == types.Kind.pointer or ok == types.Kind.span or ok == types.Kind.module or owner.type_id == types.str_id:
+                    return none
+                return self.place_root(owner)
+            _:
+                return none
+
+    # mark: Where the view may not go ==========================================================
+
+    ## `recover value`: a view of the handler's own message may not leave it; one of an
+    ## enclosing handler's message makes the `catch` expression's value view it too.
+    func handled_recovered(value: ast.Node*) -> !:
+        let depth = self.handled_view(value)
+        if depth == 0 or not self.escapes(self.catch_result):
+            return
+        if depth < self.catch_depth:
+            if let at = self.catch_node:
+                try self.recovered_views.push(RecoveredView(at = at, depth = depth))
+            return
+        try self.handled_leaves(value, self.catch_result, "recovered")
+
+    ## `return value` and `recover value`: both leave the handler, so a view of its message
+    ## may not go with them. `leaving` is "returned" or "recovered".
+    func handled_leaves(value: ast.Node*, want: u32, leaving: str) -> !:
+        if self.handled_view(value) > 0 and self.escapes(want):
+            var text: u8[256]
+            try self.fail(value, said(text, f"a caught failure's message lives until its handler finishes and must not be {leaving}; {copy_hint}"))
+
+    ## `place = value`: a view of a handled message is stored only in a local declared in
+    ## its handler, which then views it too.
+    func handled_stored(place: ast.Node*, value: ast.Node*, want: u32) -> !:
+        let depth = self.handled_view(value)
+        if depth == 0 or not self.escapes(want):
+            return
+        if let root = self.place_root(place):
+            if root.depth > depth:
+                self.set_handled(root.name, depth)
+                return
+        var text: u8[256]
+        try self.fail(value, said(text, f"a caught failure's message lives until its handler finishes and must not be stored where it outlives the handler; {copy_hint}"))
+
+    ## `container.method(value)`: a generic type's method that changes its receiver and takes
+    ## its element, `T`, keeps the value, as `List[str].push` does; a view of a handled
+    ## message may go only into a container declared in its handler. `parameter` is the
+    ## method's own, unsubstituted.
+    func handled_kept(call: ast.Node*, method: ast.Node*, value: ast.Node*, parameter: u32, want: u32) -> !:
+        let depth = self.handled_view(value)
+        if depth == 0 or not method.has(ast.flag_mutating) or not self.is_element_parameter(parameter) or not self.escapes(want):
+            return
+        let callee = call.left else return
+        if callee.kind != ast.Kind.member or callee.has(ast.flag_static):
+            return
+        let receiver = callee.left else return
+        if self.table.kind(receiver.type_id) != types.Kind.pointer:
+            if let root = self.place_root(receiver):
+                if root.depth > depth:
+                    self.set_handled(root.name, depth)
+                    return
+        var text: u8[256]
+        try self.fail(value, said(text, f"a caught failure's message lives until its handler finishes and must not be kept in a container that outlives the handler; {copy_hint}"))
+
+    ## Whether a method parameter takes its generic type's element itself, `T` or `T?`, which
+    ## the method may keep; a `const T[]` is read and copied from, as `assign` does.
+    func is_element_parameter(parameter: u32) -> bool:
+        let t = self.table.get(parameter)
+        if t.kind == types.Kind.optional:
+            return self.table.kind(t.elem) == types.Kind.param
+        return t.kind == types.Kind.param
+
+## How a handler keeps a message past its end.
+let copy_hint: str = "copy it to keep it: `strings.copy(failure.message)` or an Owned str"

@@ -124,7 +124,7 @@ func assemble_task(context: void*?, index: usize):
     let job = (Assembling*)(context else return)
     with memory.heap:
         assemble_piece(job, index) catch failure:
-            job.failures[index] = parallel.Failure(failed = true, code = failure.code, message = failure.message)
+            job.failures[index] = parallel.failed(failure.code, failure.message)
 
 func assemble_piece(job: Assembling*, index: usize) -> !:
     if not job.pending[index]:

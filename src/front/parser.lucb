@@ -2193,13 +2193,14 @@ test "a syntax error names its position":
     var backing: u8[65536]
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
-    var where = ""
+    var failed = false
     with arena:
         let result = parse_text("func f(:\n", scratch) catch failure:
-            where = failure.message
+            assert(failure.message == "test:1:8: expected a name")
+            failed = true
             recover try ast.Node.make(ast.Kind.unit_, "", 0, 0)
         _ = result
-    assert(where == "test:1:8: expected a name")
+    assert(failed)
 
 test "uninitialised var":
     var backing: u8[65536]

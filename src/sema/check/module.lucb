@@ -70,12 +70,21 @@ struct Binding:
     ## Set when the binding was initialised from a local address, so a name that reads it
     ## carries the escape taint of §6.6.
     var from_local: bool
+    ## The depth of the `catch` handler whose failure's message the binding views, when it
+    ## views one: the view must not outlive that handler (§11.3); 0 for none.
+    var handled: u32 = 0
     ## The import that made this name visible, so a use of the name marks the import.
     var origin: ast.Node*?
     ## Some expression read or assigned the name; a local nothing used is pruned (§19.6).
     var used: bool
     ## The binding of the same name this one hides, as its scope index plus one; 0 for none.
     var shadowed: u32 = 0
+
+## A `catch` expression whose handler recovers a view of the message of the enclosing
+## handler at `depth`.
+struct RecoveredView:
+    var at: ast.Node*
+    var depth: u32
 
 ## Public package exports resolve to the canonical module which owns the type.
 pub struct ModuleAlias:
@@ -190,6 +199,12 @@ pub struct Checker:
     ## The member expression being checked is a call's callee: a method may stand there.
     var calling: bool
     var catch_result: u32
+    ## The `catch` whose handler is being checked, and the depth of its failure's binding.
+    var catch_node: ast.Node*? = none
+    var catch_depth: u32 = 0
+    ## The `catch` expressions whose handlers recover a view of an enclosing handler's
+    ## message, so their value views it too (§11.3).
+    var recovered_views: list.List[RecoveredView]
     ## Inside a generic declaration, where parameter types stand for themselves.
     var checking_template: bool
     ## Inside a top-level constant initialiser, where `ErrorCode.package` is allowed.
@@ -275,7 +290,8 @@ pub struct Checker:
                        module_decls = try hashed.Table[DeclName].create(1024), decl_nodes = try list.List[ast.Node*].create(1024),
                        decls_indexed = try hashed.Table[usize].create(64), by_canonical = try hashed.Table[str].create(256),
                        pending_changes = try list.List[PendingChange].create(16), read_only_uses = try list.List[ReadOnlyUse].create(16),
-                       use_forwards = try list.List[UseForward].create(16), pending_instances = try list.List[PendingInstance].create(16))
+                       use_forwards = try list.List[UseForward].create(16), pending_instances = try list.List[PendingInstance].create(16),
+                       recovered_views = try list.List[RecoveredView].create(4))
 
     # -- diagnostics ----------------------------------------------------------------------
 

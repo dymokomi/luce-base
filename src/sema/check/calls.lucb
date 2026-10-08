@@ -323,6 +323,9 @@ extend Checker:
                 let v = a.left else return try self.fail(a, "empty argument")
                 if v.type_id == types.none_id or v.type_id == types.untyped_int_id or v.type_id == types.untyped_float_id or self.mentions_param(want) == false:
                     _ = try self.coerce(v, v.type_id if v.type_id != types.none_id else try self.check_expr(v, want), want)
+                if owner_args.length > 0:
+                    if let d = decl:
+                        try self.handled_kept(e, d, v, self.table.get(d.type_id).args[i], want)
             i += 1
         var result = f.elem
         if let t = g.template:
@@ -339,7 +342,6 @@ extend Checker:
                     j += 1
                 e.ty = holder
         _ = owner
-        _ = owner_args
         _ = hint
         return result
 

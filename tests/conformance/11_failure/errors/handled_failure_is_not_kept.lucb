@@ -1,0 +1,12 @@
+# error: must not be stored where it outlives the handler
+## §11.3: the failure itself holds its message.
+let bad = ErrorCode.package(1)
+
+func check() -> !:
+    error(bad, "refused")
+
+pub func main(arguments: str[]) -> i32:
+    var saved: Error? = none
+    check() catch failure:
+        saved = failure
+    return 0

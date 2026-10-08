@@ -128,12 +128,17 @@ the number given to `ErrorCode.package`, and the exit status is 1.
 ### Error messages
 
 The message is a `str`. A string literal is the usual choice. To include details, format
-into a buffer the caller provides, or into memory from an arena that outlives the call; the
-compiler rejects a message that names a local buffer: "an error message must not name a local;
-format into a buffer that outlives the function".
+into a local buffer:
 
-`error` copies a message that is not a literal before any `defer` runs, much as a Python
-exception keeps its own message. So a message made from storage that cleanup frees is safe:
+```luce
+func open_layer(index: i64) -> !:
+    var buffer: u8[128]
+    error(missing, try strings.format(buffer, f"layer {index} does not exist"))
+```
+
+`error` copies a message that is not a literal before the function returns and before any
+`defer` runs, much as a Python exception keeps its own message. So a message made in the
+function's own buffer, or from storage that cleanup frees, is safe:
 
 ```luce
 func meshed(job: Job) -> Mesh!:
@@ -143,9 +148,25 @@ func meshed(job: Job) -> Mesh!:
 ```
 
 The copy lasts until the handler that catches the error finishes, when its `catch` block
-ends or its `else` takes the alternative. Inside the handler, `failure.message` can be passed on
-as it is or formatted into a new message. Keep a copy of your own if you need the text after
-the handler. Messages longer than 4 KiB are cut short with `…`.
+ends or its `else` takes the alternative. Inside the handler, `failure.message` can be read,
+passed to a function, bound to a name, or raised again as it is or formatted into a new
+message. It cannot leave the handler: the compiler rejects returning it, recovering it, and
+storing it, or a struct or tuple holding it, in a variable declared outside the handler, a
+global, a field reached through a pointer, or a container such as a list. Copy it to keep it:
+
+```luce
+var last_error: str = ""
+
+func remember(path: str) -> !:
+    load(path) catch failure:
+        if last_error.length > 0:
+            strings.release(last_error)
+        last_error = try strings.copy(failure.message)   # yours until you release it
+```
+
+Without the copy, the compiler says "a caught failure's message lives until its handler
+finishes and must not be stored where it outlives the handler". Messages longer than 4 KiB
+are cut short with `…`.
 
 ## Out of memory
 

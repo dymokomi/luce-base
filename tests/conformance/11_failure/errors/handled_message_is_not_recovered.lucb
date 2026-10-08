@@ -1,0 +1,12 @@
+# error: must not be recovered
+## §11.3: `recover` finishes the handler, so the value it gives may not view the message.
+let missing = ErrorCode.package(1)
+
+func read() -> str!:
+    error(missing, "no such file")
+
+pub func main(arguments: str[]) -> i32:
+    let text = read() catch failure:
+        recover failure.message
+    print(text)
+    return 0

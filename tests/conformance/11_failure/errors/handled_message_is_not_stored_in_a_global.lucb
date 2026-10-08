@@ -1,0 +1,12 @@
+# error: must not be stored where it outlives the handler
+## §11.3: a global outlives every handler.
+let bad = ErrorCode.package(1)
+var last_error: str = ""
+
+func check() -> !:
+    error(bad, "refused")
+
+pub func main(arguments: str[]) -> i32:
+    check() catch failure:
+        last_error = failure.message
+    return 0

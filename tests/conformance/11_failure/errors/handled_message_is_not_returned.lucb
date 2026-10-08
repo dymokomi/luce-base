@@ -1,0 +1,15 @@
+# error: must not be returned
+## §11.3: a caught failure's message lives until its handler finishes; returning it hands
+## out a view of storage the handler gives back.
+let missing = ErrorCode.package(1)
+
+func lookup() -> i64!:
+    error(missing, "no such key")
+
+func describe() -> str:
+    let n = lookup() catch failure:
+        return failure.message
+    return "found"
+
+pub func main(arguments: str[]) -> i32:
+    return 0

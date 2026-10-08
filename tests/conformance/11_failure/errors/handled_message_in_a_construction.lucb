@@ -1,0 +1,18 @@
+# error: must not be returned
+## §11.3: a struct built from the message holds the view.
+let bad = ErrorCode.package(1)
+
+struct Outcome:
+    var ok: bool
+    var text: str
+
+func check() -> !:
+    error(bad, "refused")
+
+func run() -> Outcome:
+    check() catch failure:
+        return Outcome(ok = false, text = failure.message)
+    return Outcome(ok = true, text = "")
+
+pub func main(arguments: str[]) -> i32:
+    return 0
