@@ -661,6 +661,8 @@ extend Emitter:
         let code = first.left else return
         let second = first.next else return
         let message = second.left else return
+        let else_replaced = self.else_replaced
+        self.else_replaced = 0
         let n = self.tmp()
         try self.line("lb_error ")
         try self.put_tmp("err", n)
@@ -669,7 +671,42 @@ extend Emitter:
         try self.put("), .message = ")
         try self.value(message, types.str_id)
         try self.put(" };")
+        # the message is copied into the thread's room before cleanup can free what it was
+        # made from, in place of a handled error's message the failure leaves behind (§11.3)
+        let handler = self.left_handler()
+        if calls.is_text_literal(message):
+            if handler != 0 or else_replaced != 0:
+                try self.line("lb_core_15message_handled(")
+                try self.put_replaced(handler, else_replaced)
+                try self.put(");")
+        else:
+            try self.line("")
+            try self.put_tmp("err", n)
+            try self.put(".message = lb_core_14message_raised(")
+            try self.put_tmp("err", n)
+            try self.put(".message, ")
+            try self.put_replaced(handler, else_replaced)
+            try self.put(");")
         try self.leave_failing(n)
+
+    ## 1 + the `fe` temporary of the outermost `catch` handler a failure raised here leaves,
+    ## whose message is the oldest it gives up; 0 when it leaves no handler.
+    func left_handler() -> u32:
+        let start = self.failure_scope if self.failure_target != 0 else 0
+        let handler = exits.outermost_handler(&self.scopes, start) else return 0
+        return handler.handled + 1
+
+    ## The message a raised error replaces: the left handler's, else the operand's of an
+    ## `else error(...)`, else none.
+    func put_replaced(handler: u32, else_replaced: u32) -> !:
+        if handler != 0:
+            try self.put_tmp("fe", handler - 1)
+            try self.put(".message")
+        elif else_replaced != 0:
+            try self.put_tmp("o", else_replaced - 1)
+            try self.put(".error.message")
+        else:
+            try self.put("(lb_str){ 0 }")
 
     ## Leave with the error in `err<n>`: to the enclosing handler, or out of the function as
     ## its failing result.

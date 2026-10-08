@@ -127,12 +127,25 @@ the number given to `ErrorCode.package`, and the exit status is 1.
 
 ### Error messages
 
-The message is a `str`, a view of text that must stay valid after the function has returned.
-A string literal always does, and is the usual choice. A message formatted into a local buffer
-would point into a function that no longer exists, so the compiler rejects it: "an error
-message must not name a local; format into a buffer that outlives the function". To include
-details, format into a buffer the caller provides, or into memory from an arena that outlives
-the call.
+The message is a `str`. A string literal is the usual choice. To include details, format
+into a buffer the caller provides, or into memory from an arena that outlives the call; the
+compiler rejects a message that names a local buffer: "an error message must not name a local;
+format into a buffer that outlives the function".
+
+`error` copies a message that is not a literal before any `defer` runs, much as a Python
+exception keeps its own message. So a message made from storage that cleanup frees is safe:
+
+```luce
+func meshed(job: Job) -> Mesh!:
+    let outcome = job.run()
+    defer outcome.release()        # frees the text of the failure's message
+    return try outcome.get()       # the caller still reads that message whole
+```
+
+The copy lasts until the handler that catches the error finishes, when its `catch` block
+ends or its `else` takes the alternative. Inside the handler, `failure.message` can be passed on
+as it is or formatted into a new message. Keep a copy of your own if you need the text after
+the handler. Messages longer than 4 KiB are cut short with `…`.
 
 ## Out of memory
 

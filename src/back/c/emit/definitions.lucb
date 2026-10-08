@@ -536,7 +536,8 @@ extend Emitter:
             cursor = p.next
         try self.put(");")
         if fallible:
-            try self.line("if (lb_r.failed) return lb_r.error.code;")
+            # the status carries the code alone: the message is given back (§11.3)
+            try self.line("if (lb_r.failed) { lb_core_15message_handled(lb_r.error.message); return lb_r.error.code; }")
             if payload != types.unit_id:
                 try self.line("*lb_out = lb_r.value;")
             try self.line("return 0;")
@@ -586,6 +587,12 @@ extend Emitter:
             try self.line("lb_memory_allocator = ")
             try self.put_tmp("as", sc.alloc_saved)
             try self.put(";")
+        # a handler finished: its error's message is given back to the thread's room; a
+        # failure leaving it has already taken its place
+        if sc.handler and not failing:
+            try self.line("lb_core_15message_handled(")
+            try self.put_tmp("fe", sc.handled)
+            try self.put(".message);")
 
     ## Unwind every scope from the innermost down to `from`, for an exit.
     func unwind_from(start: usize, failing: bool) -> !:

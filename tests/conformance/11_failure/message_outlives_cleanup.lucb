@@ -1,0 +1,24 @@
+## §11.3: an error's message stays readable until the handler that catches it finishes,
+## though the cleanup the failure ran on its way out freed the storage it was made from.
+import memory
+import strings
+let superseded = ErrorCode.package(1)
+var buffer: u8[64]
+func fail(text: u8[]) -> !:
+    error(superseded, (str)text)
+func job() -> !:
+    let text = try new u8[22] ---
+    memory.copy(text, "Computation superseded".bytes, 22)
+    defer free(text)
+    try fail(text)
+func wrap() -> !:
+    job() catch failure:
+        let message = strings.format(buffer, f"meshing: {failure.message}") catch:
+            recover failure.message
+        error(failure.code, message)
+pub func main(arguments: str[]) -> i32!:
+    job() catch failure:
+        print(failure.message)
+    wrap() catch failure:
+        print(failure.message)
+    return 0

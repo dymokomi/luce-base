@@ -1,0 +1,145 @@
+## An error's message outlives the storage it was made from (§11.3): `error(code, message)`
+## copies it into the thread's room before the cleanup the failure runs frees that storage,
+## and it stays readable until the handler that catches it finishes. `check.sh` runs these
+## tests again under the diagnostic profile, where a freed block reads 0xDD.
+import interop
+import memory
+import ownership
+import strings
+
+let superseded = ErrorCode.package(1)
+let wrapped = ErrorCode.package(2)
+
+## Text on the heap, the way an interop outcome holds a callback's failure.
+struct Held:
+    var bytes: u8[]
+
+    static func of(text: str) -> Held!:
+        let bytes = try new u8[text.length] ---
+        memory.copy(bytes, text.bytes, text.length)
+        return Held(bytes)
+
+    func release():
+        free(self.bytes)
+
+    func get() -> i32!:
+        error(superseded, (str)self.bytes)
+
+## The shape of luce-cad's face jobs: the outcome released by a `defer` while its failure
+## is on its way out.
+func job(text: str) -> i32!:
+    let outcome = try Held.of(text)
+    defer outcome.release()
+    return try outcome.get()
+
+## The failure passed on with more said, from a buffer the handler frees on its way out.
+func wrapping(text: str) -> i32!:
+    return job(text) catch failure:
+        let buffer = try new u8[256] ---
+        defer free(buffer)
+        let message = try strings.format(buffer, f"meshing failed: {failure.message}")
+        error(wrapped, message)
+
+## The failure passed on as it is.
+func passing(text: str) -> i32!:
+    return job(text) catch failure:
+        error(failure.code, failure.message)
+
+## Cleanup that fails and recovers inside itself while another failure is on its way out.
+func noisy_cleanup():
+    _ = job("cleanup's own failure") catch inner:
+        recover 0
+
+func failing_with_noisy_cleanup() -> i32!:
+    defer noisy_cleanup()
+    return try job("the first failure")
+
+## An `else` alternative that fails with a message of its own.
+var replacement: u8[64]
+
+func replacing(text: str) -> i32!:
+    let message = strings.format(replacement, f"replaced: {text}") else ""
+    return job(text) else error(wrapped, message)
+
+test "a message borrowed from storage a defer frees reads whole":
+    _ = job("Computation superseded") catch failure:
+        assert(failure.code == superseded)
+        assert(failure.message == "Computation superseded")
+        recover 0
+
+test "a handler can wrap the message it caught":
+    _ = wrapping("Computation superseded") catch failure:
+        assert(failure.code == wrapped)
+        assert(failure.message == "meshing failed: Computation superseded")
+        recover 0
+
+test "a handler can pass the error on as it is":
+    _ = passing("Computation superseded") catch failure:
+        assert(failure.message == "Computation superseded")
+        recover 0
+
+test "a failure leaving through cleanup that fails inside keeps its message":
+    _ = failing_with_noisy_cleanup() catch failure:
+        assert(failure.message == "the first failure")
+        recover 0
+
+test "errors raised and handled inside a handler leave its message alone":
+    _ = job("the outer failure") catch outer:
+        for i in 0..<10000:
+            _ = job("an inner failure, raised and handled many times over") catch inner:
+                assert(inner.message == "an inner failure, raised and handled many times over")
+                recover 0
+        assert(outer.message == "the outer failure")
+        recover 0
+
+test "an else alternative's error takes the place of the operand's":
+    _ = replacing("the operand's failure") catch failure:
+        assert(failure.code == wrapped)
+        assert(failure.message == "replaced: the operand's failure")
+        recover 0
+
+test "a very long message is cut at a character and ends in an ellipsis":
+    var long: u8[5000] = ---
+    for i in 0..<5000:
+        long[i] = 'x'
+    long[4092] = 0xC3
+    long[4093] = 0xA9
+    _ = job((str)long) catch failure:
+        assert(failure.message.length == 4095)
+        assert(failure.message.bytes[4091] == 'x')
+        assert(failure.message.bytes[4092] == 0xE2)
+        recover 0
+
+## A callback that fails as a superseded computation does in luced-3d.
+struct Reporter:
+    var calls: i64
+
+    func report(progress: f64) -> interop.Outcome[unit]:
+        _ = progress
+        let text = interop.copy_text("Computation superseded") catch failure: trap(failure.message)
+        return interop.Outcome[unit].failure(superseded, text)
+
+    func close():
+        self.calls = 0
+
+    func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        _ = visit
+        _ = context
+
+let reporter_type: interop.Type[Reporter] = interop.Type[Reporter]("superseded reporter", Reporter.close, Reporter.trace)
+
+## luce-cad's face jobs report progress this way: the outcome is released by a `defer`
+## while its failure, whose message is the outcome's text, is on its way out.
+func face_jobs(report: interop.Callback[f64, unit]) -> !:
+    let outcome = report.invoke(0.5)
+    defer outcome.release()
+    try outcome.get()
+
+test "a callback's failure reads whole after its outcome is released":
+    let owner = try interop.Reference[Reporter].adopt(new Reporter(calls = 0) in memory.heap, reporter_type, memory.heap)
+    defer owner.release()
+    let callback = try interop.Callback[f64, unit].bind(owner, Reporter.report)
+    defer callback.release()
+    face_jobs(callback) catch failure:
+        assert(failure.code == superseded)
+        assert(failure.message == "Computation superseded")

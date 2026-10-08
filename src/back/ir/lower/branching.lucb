@@ -55,6 +55,15 @@ extend Lowerer:
             try self.store_to(try self.slot_address(slot), inner)
         try self.f.jump(done)
         try self.f.place_label(absent_label)
+        if self.is_fail(lt):
+            # the operand's error is handled here: an `error` alternative takes its message's
+            # place, any other gives the message back (§11.3)
+            if calls.is_error_call(r):
+                let kept = try self.new_slot(types.str_id)
+                try self.f.copy_bytes(try self.slot_address(kept), (try self.failure_message()).ref, 16)
+                self.else_replaced = kept + 1
+            elif not calls.is_trap_call(r):
+                try self.message_handled(try self.failure_message())
         if leaves:
             if calls.is_error_call(r):
                 try self.error_return(r)
@@ -116,7 +125,7 @@ extend Lowerer:
         self.catch_scope = self.scopes.count
         self.catch_payload = result
         self.in_catch = true
-        try self.block(body)
+        try self.handler_block(body, error_slot)
         self.catch_slot = saved_slot
         self.catch_done = saved_done
         self.catch_scope = saved_scope
@@ -127,6 +136,21 @@ extend Lowerer:
         if not has_value:
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         return try self.load_from(try self.slot_address(slot), result)
+
+    ## A `catch` handler's body: a scope that gives back the message of the error in
+    ## `error_slot` on every exit but a failure's (§11.3).
+    func handler_block(b: ast.Node*, error_slot: u32) -> !:
+        try self.push_scope(false, "", 0, 0)
+        var sc = self.scopes.get(self.scopes.count - 1)
+        sc.handler = true
+        sc.handled = error_slot
+        self.scopes.set(self.scopes.count - 1, sc)
+        var cursor = b.body
+        while let s = cursor:
+            try self.stmt(s)
+            cursor = s.next
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
 
     # -- match ----------------------------------------------------------------------------
 

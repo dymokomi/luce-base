@@ -26,6 +26,16 @@ extend Emitter:
         try self.put_tmp("r", n)
         try self.put(".failed) {")
         self.indent += 1
+        # a failure leaving a handler takes the place of the handled error's message
+        let handler = self.left_handler()
+        if handler != 0:
+            try self.line("")
+            try self.put_tmp("r", n)
+            try self.put(".error.message = lb_core_14message_raised(")
+            try self.put_tmp("r", n)
+            try self.put(".error.message, ")
+            try self.put_replaced(handler, 0)
+            try self.put(");")
         if self.failure_target != 0:
             try self.line("")
             try self.put_tmp("fe", self.failure_target)
@@ -88,10 +98,19 @@ extend Emitter:
             try self.put("if (")
             try self.put_tmp("o", n)
             try self.put(" == ((void*)0)) ")
+        # a fallible operand's error is handled here: an `error` alternative takes its
+        # message's place, any other gives the message back (§11.3)
+        let gives_back = self.is_fail(lt) and not calls.is_error_call(r) and not calls.is_trap_call(r)
         if leaves:
             try self.put("{")
             self.indent += 1
+            if gives_back:
+                try self.line("lb_core_15message_handled(")
+                try self.put_tmp("o", n)
+                try self.put(".error.message);")
             if calls.is_error_call(r):
+                if self.is_fail(lt):
+                    self.else_replaced = n + 1
                 try self.error_return(r)
             elif r.kind == ast.Kind.return_:
                 try self.return_stmt(r)
@@ -105,6 +124,10 @@ extend Emitter:
             try self.line("} ")
         else:
             try self.put("{ ")
+            if gives_back:
+                try self.put("lb_core_15message_handled(")
+                try self.put_tmp("o", n)
+                try self.put(".error.message); ")
             if payload != types.unit_id:
                 try self.put_tmp("o", n)
                 if self.is_fail(lt):
@@ -183,7 +206,7 @@ extend Emitter:
         self.catch_scope = self.scopes.count
         self.catch_payload = result
         self.in_catch = true
-        try self.block(body)
+        try self.handler_block(body, n)
         self.catch_var = saved_var
         self.catch_done = saved_done
         self.catch_scope = saved_scope
@@ -198,6 +221,25 @@ extend Emitter:
             try self.put("; })")
         else:
             try self.put("(void)0; })")
+
+    ## A `catch` handler's body: a scope that gives back the message of the error in
+    ## `fe<n>` on every exit but a failure's (§11.3).
+    func handler_block(b: ast.Node*, n: u32) -> !:
+        try self.line("{")
+        self.indent += 1
+        try self.push_scope(false, "")
+        var sc = self.scopes.get(self.scopes.count - 1)
+        sc.handler = true
+        sc.handled = n
+        self.scopes.set(self.scopes.count - 1, sc)
+        var cursor = b.body
+        while let s = cursor:
+            try self.stmt(s)
+            cursor = s.next
+        try self.unwind(self.scopes.count - 1, false)
+        self.pop_scope()
+        self.indent -= 1
+        try self.line("}")
 
     # -- match ----------------------------------------------------------------------------
 

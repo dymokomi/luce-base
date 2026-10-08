@@ -224,6 +224,10 @@ extend Lowerer:
             let saved = try self.slot_address(sc.alloc_saved)
             let target = try self.allocator_global()
             try self.f.copy_bytes(target, saved, 16)
+        # a handler finished: its error's message is given back to the thread's room; a
+        # failure leaving it has already taken its place
+        if sc.handler and not failing:
+            try self.message_handled(LowerValue(ref = try self.offset_address(try self.slot_address(sc.handled), 8), type_id = types.str_id, in_memory = true))
 
     func unwind_from(start: usize, failing: bool) -> !:
         var i = self.scopes.count

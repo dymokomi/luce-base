@@ -504,8 +504,20 @@ extend Lowerer:
         let message = second.left else return
         # the code and the message first: reaching `core.failure` may set up the thread's
         # storage, which can change errno before a code computed from it is read
+        let else_replaced = self.else_replaced
+        self.else_replaced = 0
         let c = try self.value(code, types.error_code_id)
-        let m = try self.value(message, types.str_id)
+        var m = try self.value(message, types.str_id)
+        # the message is copied into the thread's room before cleanup can free what it was
+        # made from, in place of a handled error's message the failure leaves behind (§11.3)
+        var replaced = try self.replaced_message()
+        if replaced == none and else_replaced != 0:
+            replaced = LowerValue(ref = try self.slot_address(else_replaced - 1), type_id = types.str_id, in_memory = true)
+        if calls.is_text_literal(message):
+            if let old = replaced:
+                try self.message_handled(old)
+        else:
+            m = try self.message_raised(m, replaced)
         let err = try self.slot_address(self.failure_slot) if self.failure_target != 0 else try self.failure_address()
         try self.f.store(ir.Op.storew, c.ref, err)
         try self.f.copy_bytes(try self.offset_address(err, 8), m.ref, 16)
@@ -521,6 +533,11 @@ extend Lowerer:
     func propagate(source: ir.Ref, source_type: u32) -> !:
         _ = source
         _ = source_type
+        # a failure leaving a handler takes the place of the handled error's message
+        if let replaced = try self.replaced_message():
+            let message = try self.offset_address(try self.failure_address(), 8)
+            let moved = try self.message_raised(LowerValue(ref = message, type_id = types.str_id, in_memory = true), replaced)
+            try self.f.copy_bytes(try self.offset_address(try self.failure_address(), 8), moved.ref, 16)
         if self.failure_target != 0:
             try self.f.copy_bytes(try self.slot_address(self.failure_slot), try self.failure_address(), 24)
             try self.release_grown(self.failure_grown)
@@ -528,6 +545,32 @@ extend Lowerer:
             try self.f.jump(self.failure_target)
             return
         try self.leave(true)
+
+    ## The message of the error handled by the outermost `catch` handler a failure raised
+    ## here leaves, the oldest message it gives up, or `none` when it leaves no handler.
+    func replaced_message() -> LowerValue?!:
+        let start = self.failure_scope if self.failure_target != 0 else 0
+        let handler = exits.outermost_handler(&self.scopes, start) else return none
+        return LowerValue(ref = try self.offset_address(try self.slot_address(handler.handled), 8), type_id = types.str_id, in_memory = true)
+
+    ## `core.message_raised(message, replaces)`: the message copied into the thread's room,
+    ## over `replaces` when it is given (§11.3).
+    func message_raised(message: LowerValue, replaces: LowerValue?) -> LowerValue!:
+        let old = replaces else try self.span_of(ir.const_ref(0), ir.const_ref(0), types.str_id)
+        let start = u32(self.f.args.count)
+        try self.f.args.push(try self.arg_of(message))
+        try self.f.args.push(try self.arg_of(old))
+        return try self.call_aggregate("lb_core_14message_raised", start, 2, types.str_id)
+
+    ## `core.message_handled(message)`: a handled error's message given back to the room.
+    func message_handled(message: LowerValue) -> !:
+        let start = u32(self.f.args.count)
+        try self.f.args.push(try self.arg_of(message))
+        _ = try self.call_named("lb_core_15message_handled", start, 1, ir.Class.w, false, types.unit_id)
+
+    ## The message of the error in `core.failure`.
+    func failure_message() -> LowerValue!:
+        return LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
 
     func recover_stmt(s: ast.Node*) -> !:
         let v = s.left else return

@@ -591,7 +591,8 @@ extend Emitter:
             self.current_fn = t
             try self.put_c_string(try self.position_text(t))
             self.current_fn = saved
-            try self.put(", r.failed ? r.error.message : (lb_str){ 0 }); }")
+            # the runner handled the test's failure: its message is given back (§11.3)
+            try self.put(", r.failed ? r.error.message : (lb_str){ 0 }); if (r.failed) lb_core_15message_handled(r.error.message); }")
             i += 1
         try self.line("    return lb_core_12test_summary();")
         try self.line("}")

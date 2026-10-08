@@ -46,6 +46,7 @@ extern func malloc(size: usize) -> void*?
 extern func realloc(block: void*?, size: usize) -> void*?
 extern func c_free as "free"(block: void*?)
 extern func memcpy(target: void*, source: const void*, count: usize) -> void*
+extern func memmove(target: void*, source: const void*, count: usize) -> void*
 extern func memcmp(a: const void*, b: const void*, count: usize) -> i32
 extern func strlen(text: c.str) -> usize
 
@@ -802,6 +803,67 @@ func windows_arguments() -> c.str[]:
 ## pass it: a failing function leaves its error here and returns its flag set, and `try`
 ## passes the flag up with the error left where it is (§11.2's representation).
 pub local var failure: Error
+
+# mark: Messages in flight ==================================================================
+#
+# `error(code, message)` copies a message that is not a literal here, so the message stays
+# readable after the cleanup the failure runs has freed what it was made from (§11.3). The
+# room is a stack: a handler that finishes gives back its error's message and everything
+# raised after it (`message_handled`), and a failure that leaves a handler takes the place of
+# the handled message (`message_raised`'s `replaces`). A message that does not fit above the
+# top starts the room again at its beginning, so the room never grows and never allocates.
+
+## The room for the messages of the errors in flight on this thread, and its first free byte.
+local var raised_room: u8[16384]
+local var raised_top: usize = 0
+
+## The longest message the room keeps: a longer one is cut at a character and ends in `…`.
+let raised_most: usize = 4096
+
+## Where `text` starts in this thread's room, or `none` when it lies elsewhere.
+func in_room(text: str) -> usize?:
+    let base = (usize)&raised_room[0]
+    let at = (usize)text.bytes.data
+    if at < base or at > base + raised_room.length or text.length > base + raised_room.length - at:
+        return none
+    return at - base
+
+## The message of an error being raised, copied into this thread's room: a copy that lives
+## until the handler that catches the error finishes (§11.3). `replaces` is the message of the
+## error a handler is passing on a failure from, or empty: its place is reused when it is in
+## the room, the new message copied before the old one is given up, so a new message made
+## from the old one reads it whole.
+pub func message_raised(message: str, replaces: str) -> str:
+    var length = message.length
+    var cut = false
+    if length > raised_most:
+        length = raised_most - 3
+        while length > 0 and (message.bytes[length] & 0xC0) == 0x80:
+            length -= 1
+        cut = true
+    let total = length + (3 if cut else 0)
+    var at = raised_top
+    if let start = in_room(replaces):
+        if start <= raised_top and start + total <= raised_room.length:
+            at = start
+    if at + total > raised_room.length:
+        at = 0
+    let room = u8[](&raised_room[at], total)
+    if length > 0:
+        _ = memmove(room.data, message.bytes.data, length)
+    if cut:
+        room[length] = 0xE2
+        room[length + 1] = 0x80
+        room[length + 2] = 0xA6
+    raised_top = at + total
+    return (str)room
+
+## A handler finished with the error whose message is `message`: its place in the room and
+## everything raised after it are free again. A message elsewhere, a literal, frees nothing.
+pub func message_handled(message: str):
+    if let start = in_room(message):
+        if start < raised_top:
+            raised_top = start
 
 ## A failed `main`: its error on stderr, `error: message (code n)`, exit status 1. The code
 ## shown is the package's own number, `n` of `ErrorCode.package(n)`; the package identity

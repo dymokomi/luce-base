@@ -192,6 +192,8 @@ extend Lowerer:
         try self.f.branch(failed, bad, good)
         try self.f.place_label(bad)
         let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.failure_address())
+        # the status carries the code alone: the message is given back (§11.3)
+        try self.message_handled(try self.failure_message())
         try self.f.emit(ir.Op.ret, ir.Class.w, 0, code, ir.none_ref(), 0)
         try self.f.place_label(good)
         if payload != types.unit_id:

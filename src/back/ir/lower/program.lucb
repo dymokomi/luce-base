@@ -313,6 +313,8 @@ extend Lowerer:
         try self.f.args.push(ir.Arg(value = try self.f.address_of(place), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
         try self.f.args.push(try self.arg_of(message))
         _ = try self.call_named("lb_core_11test_report", s2, 3, ir.Class.w, false, types.unit_id)
+        # the runner handled the test's failure: its message is given back (§11.3)
+        try self.message_handled(try self.failure_message())
 
     ## `file:line:column` of test `t`, where it is reported when it fails by an error (§16.5).
     func test_place(t: ast.Node*) -> ir.Ref!:

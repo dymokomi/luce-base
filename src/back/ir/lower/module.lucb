@@ -175,6 +175,9 @@ pub struct Lowerer:
     var failure_target: u32 = 0
     var failure_slot: u32 = 0
     var failure_scope: usize = 0
+    ## While lowering the `error(...)` alternative of an `x else error(...)` over a fallible
+    ## `x`: 1 + the slot holding the message of `x`'s error, which the new one replaces.
+    var else_replaced: u32 = 0
     ## The growing format buffers (`core.format_grows`) of the calls whose arguments are
     ## being lowered, by slot: each call releases its own once it returns, and an exit
     ## taken from inside the arguments releases those it leaves behind.

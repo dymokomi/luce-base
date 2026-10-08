@@ -132,6 +132,9 @@ pub struct Emitter:
     ## A handler target is active only while its left expression is evaluated.
     var failure_target: u32 = 0
     var failure_scope: usize = 0
+    ## While writing the `error(...)` alternative of an `x else error(...)` over a fallible
+    ## `x`: 1 + the temporary `o<n>` whose error's message the new one replaces.
+    var else_replaced: u32 = 0
     var catch_payload: u32
     var match_result: u32
     var in_catch: bool

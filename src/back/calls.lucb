@@ -45,6 +45,13 @@ pub func is_error_call(e: ast.Node*) -> bool:
     let callee = e.left else return false
     return callee.kind == ast.Kind.name and callee.text == "error" and callee.resolved == none
 
+## A text literal, `"..."` or `r"..."`: text the program holds for its whole run.
+pub func is_text_literal(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.literal:
+        return false
+    let b = e.text.bytes
+    return (b.length > 0 and b[0] == '"') or (b.length > 1 and b[0] == 'r' and b[1] == '"')
+
 ## `trap(...)`, the core function rather than a declaration of that name.
 pub func is_trap_call(e: ast.Node*) -> bool:
     if e.kind != ast.Kind.call:
