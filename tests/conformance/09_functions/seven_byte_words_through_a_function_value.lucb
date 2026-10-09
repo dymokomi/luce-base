@@ -1,0 +1,39 @@
+## §9: arguments whose last word holds seven bytes pass through a function value, and the
+## call still reaches its callee: on x86-64 the callee waits in r11 while the arguments are
+## staged, and a seven-byte word is gathered with one helper register (rax), never r11.
+## Found by tools/fuzz.py's ABI programs (a segmentation fault on x86_64-linux).
+struct Fifteen:
+    var b: u8[15]
+
+struct Seven:
+    var b: u8[7]
+
+func fifteen(seed: u8) -> Fifteen:
+    var v: Fifteen = ---
+    for i in 0..<15:
+        v.b[i] = seed +% (u8)i
+    return v
+
+func seven(seed: u8) -> Seven:
+    var v: Seven = ---
+    for i in 0..<7:
+        v.b[i] = seed +% (u8)i
+    return v
+
+func spell(bytes: const u8[]) -> u64:
+    var h: u64 = 0
+    for b in bytes:
+        h = h * 256 % 1000000007 + (u64)b
+    return h
+
+noinline func take(first: i16, a: Fifteen, b: Fifteen, c: Seven, d: Seven, last: i8) -> u64:
+    return (u64)(i64)first +% spell(a.b) *% 3 +% spell(b.b) *% 5 +% spell(c.b) *% 7 +% spell(d.b) *% 11 +% (u64)(i64)last
+
+pub func main(arguments: str[]) -> i32:
+    let a = fifteen(1)
+    let b = fifteen(40)
+    let c = seven(80)
+    let d = seven(120)
+    let through: func(i16, Fifteen, Fifteen, Seven, Seven, i8) -> u64 = take
+    print(f"{through(-3, a, b, c, d, -5)} {take(-3, a, b, c, d, -5)}")
+    return 0

@@ -12,7 +12,9 @@ extend Generator:
 
     ## Exactly `width` bytes (1..8) at `offset(base)` into the 64-bit register `reg`, zero
     ## above; `%rax` helps with the odd widths, or `%r11` when `reg` is `%rax` itself, so an
-    ## argument's load leaves the callee parked in r11 alone.
+    ## argument's load leaves the callee parked in r11 alone. The three bytes above the low
+    ## four of a seven-byte width come from an overlapping four-byte load shifted down, not
+    ## in two pieces of their own, which would need a second helper (r11 again).
     func load_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
         let l = narrow_name(reg)
         if width == 8:
@@ -30,7 +32,14 @@ extend Generator:
         # 3, 5, 6, 7: the low part, then the rest shifted into place
         let low: u64 = 4 if width > 4 else 2
         let helper = "%r11" if reg == "%rax" else "%rax"
-        try self.load_bytes(helper, base, offset + low, width - low)
+        if width == 7:
+            try self.offset_move("movl ", offset + 3, "(")
+            try self.writer.put(base)
+            try self.writer.put("), ")
+            try self.writer.put(narrow_name(helper))
+            try self.writer.line3("shrl $8, ", narrow_name(helper), "")
+        else:
+            try self.load_bytes(helper, base, offset + low, width - low)
         try self.load_bytes(reg, base, offset, low)
         try self.writer.line("shlq $")
         try self.writer.put_u64(low * 8)
