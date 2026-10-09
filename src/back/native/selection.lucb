@@ -314,6 +314,20 @@ pub func branch(f: ir.Function*, at: usize, counts: u32[], floats: bool = false)
     let fuses = x.cls == ir.Class.w or x.cls == ir.Class.l or (floats and ir.is_float_class(x.cls))
     return ir.is_comparison(x.op) and fuses and x.dst != 0 and counts[x.dst] == 1 and next.op == ir.Op.jnz and next.a.kind == ir.RefKind.temp and next.a.index == x.dst
 
+## When the instruction at `at` loads a signed word whose only use is its widening right
+## after (`=w loadsw`, `=l extsw`): the load, its result the widening's, since the load
+## already sign-extends the word into the whole register.
+pub func widened_load(f: ir.Function*, at: usize, counts: u32[]) -> ir.Instr?:
+    if f.debug or f.symbols or at + 1 >= f.instrs.count:
+        return none
+    var x = f.instrs.get(at)
+    let next = f.instrs.get(at + 1)
+    if x.op != ir.Op.loadsw or x.dst == 0 or counts[x.dst] != 1 or next.op != ir.Op.extsw or next.cls != ir.Class.l or next.dst == 0 or not same_temp(next.a, ir.temp_ref(x.dst)):
+        return none
+    x.dst = next.dst
+    x.cls = ir.Class.l
+    return x
+
 ## When the instruction at `at` adds a constant (-256 to 32760) to an address and its only
 ## use is as the address of the load or store right after it: the base and the constant,
 ## which the access then addresses itself (`[base, #constant]`) while the base is still in

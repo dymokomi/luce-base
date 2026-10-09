@@ -117,16 +117,18 @@ extend Generator:
         try self.writer.put("]")
 
     ## Emit instructions `at` to `at + 2` as one scaled-index access when they are one
-    ## (`selection.scaled_access`); whether they were.
-    func scaled_access_at(at: usize, uses: u32[], index: usize) -> bool!:
-        let scaled = selection.scaled_access(self.f, at, uses) else return false
+    ## (`selection.scaled_access`), and the widening after when the access is a signed
+    ## word's load (`access_at`); how many instructions that was.
+    func scaled_access_at(at: usize, uses: u32[], index: usize) -> usize?!:
+        let scaled = selection.scaled_access(self.f, at, uses) else return none
         let (base, scaled_index, shift) = scaled
         if self.fr.is_rematerialised(self.f.instrs.get(at).dst) or self.fr.is_rematerialised(self.f.instrs.get(at + 1).dst):
-            return false
+            return none
         if let dw = self.dw:
             try dw.mark(&self.writer.out, self.f, &self.fr, index, at + 2)
-        try self.indexed_access(self.f.instrs.get(at + 2), base, scaled_index, shift)
-        return true
+        let (access, widened) = self.access_at(at + 2, uses)
+        try self.indexed_access(access, base, scaled_index, shift)
+        return 3 + widened
 
     ## `add d, other, x, lsl #shift` for a shift and the add of it after
     ## (`selection.shifted_add`).
@@ -142,16 +144,18 @@ extend Generator:
         try self.finish(n.dst, n.cls, d)
 
     ## Emit instructions `at` and `at + 1` as one register-offset access when they are one
-    ## (`selection.summed_access`); whether they were.
-    func summed_access_at(at: usize, uses: u32[], index: usize) -> bool!:
-        let summed = selection.summed_access(self.f, at, uses) else return false
+    ## (`selection.summed_access`), and the widening after as `scaled_access_at` does; how
+    ## many instructions that was.
+    func summed_access_at(at: usize, uses: u32[], index: usize) -> usize?!:
+        let summed = selection.summed_access(self.f, at, uses) else return none
         let (base, offset) = summed
         if self.fr.is_rematerialised(self.f.instrs.get(at).dst):
-            return false
+            return none
         if let dw = self.dw:
             try dw.mark(&self.writer.out, self.f, &self.fr, index, at + 1)
-        try self.indexed_access(self.f.instrs.get(at + 1), base, offset, 0)
-        return true
+        let (access, widened) = self.access_at(at + 1, uses)
+        try self.indexed_access(access, base, offset, 0)
+        return 2 + widened
 
     ## A load or store through `base + (index << shift)` (`selection.scaled_access`), the
     ## scaling and the sum done by the addressing: `ldr w0, [x1, x2, lsl #2]`.

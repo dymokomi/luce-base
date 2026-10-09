@@ -171,23 +171,36 @@ extend Generator:
             if not self.fr.is_rematerialised(self.f.instrs.get(i).dst):
                 if let dw = self.dw:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
-                try self.offset_access(self.f.instrs.get(i + 1), base, offset)
-                return 2
+                let (access, widened) = self.access_at(i + 1, uses)
+                try self.offset_access(access, base, offset)
+                return 2 + widened
         if let scaled = selection.scaled_access(self.f, i, uses):
             let (base, scaled_index, shift) = scaled
             if not self.fr.is_rematerialised(self.f.instrs.get(i).dst) and not self.fr.is_rematerialised(self.f.instrs.get(i + 1).dst):
                 if let dw = self.dw:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 2)
-                try self.indexed_access(self.f.instrs.get(i + 2), base, scaled_index, shift)
-                return 3
+                let (access, widened) = self.access_at(i + 2, uses)
+                try self.indexed_access(access, base, scaled_index, shift)
+                return 3 + widened
         if let summed = selection.summed_access(self.f, i, uses):
             let (base, offset) = summed
             if not self.fr.is_rematerialised(self.f.instrs.get(i).dst):
                 if let dw = self.dw:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
-                try self.indexed_access(self.f.instrs.get(i + 1), base, offset, 0)
-                return 2
+                let (access, widened) = self.access_at(i + 1, uses)
+                try self.indexed_access(access, base, offset, 0)
+                return 2 + widened
+        if let load = selection.widened_load(self.f, i, uses):
+            try self.instruction(load, selection.label_at(self.f, i + 2))
+            return 2
         return 0
+
+    ## The load or store at `at` a fused address reaches, and 1 when it is a signed word's
+    ## load whose widening after it it does as well (`selection.widened_load`), else 0.
+    func access_at(at: usize, uses: u32[]) -> (ir.Instr, usize):
+        if let load = selection.widened_load(self.f, at, uses):
+            return (load, 1)
+        return (self.f.instrs.get(at), 0)
 
     ## The comparison at `i` and the branch on it after, as one conditional jump.
     func branch_pair(i: usize, index: usize) -> !:
