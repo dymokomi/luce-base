@@ -139,3 +139,41 @@ export func grid_edge(rows: u64, width: u64, row: u64, column: u64) -> u64:
         if column < width:
             return row * width + column
     return 0
+
+## The vectorizer's counted shapes: a `for` over a range after an assert of the lengths,
+## and the same loops behind an early return that rules unequal lengths out.
+export func for_assert_floats(target: f32[], left: const f32[], right: const f32[]):
+    assert(left.length == target.length and right.length == target.length)
+    for index in 0..<target.length:
+        target[index] = left[index] + right[index]
+
+export func for_guard_floats(target: f32[], left: const f32[], right: const f32[]):
+    if left.length != target.length or right.length != target.length:
+        return
+    for index in 0..<target.length:
+        target[index] = left[index] + right[index]
+
+export func while_guard_floats(target: f32[], left: const f32[], right: const f32[]):
+    if left.length != target.length or right.length != target.length:
+        return
+    var index: usize = 0
+    while index < target.length:
+        target[index] = left[index] + right[index]
+        index += 1
+
+export func for_guard_doubles(target: f64[], first: const f64[], second: const f64[], third: const f64[]):
+    if not (first.length == target.length and second.length == target.length and third.length == target.length):
+        return
+    for index in 0..<target.length:
+        target[index] = first[index] * second[index] - third[index]
+
+export func for_assert_words(target: i32[], left: const i32[], right: const i32[]):
+    assert(left.length == target.length and right.length == target.length)
+    for index in 0..<target.length:
+        target[index] = left[index] +% right[index]
+
+export func for_sum_words(values: const u32[], initial: u32) -> u32:
+    var result = initial
+    for index in 0..<values.length:
+        result +%= values[index]
+    return result

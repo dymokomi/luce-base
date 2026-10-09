@@ -141,9 +141,11 @@ struct Analysis:
                     self.kinds[x.dst] = 2
                     self.bases[x.dst] = base
                     continue
-            if x.op == ir.Op.loadl or x.op == ir.Op.loaduw or x.op == ir.Op.loadd or x.op == ir.Op.loads:
+            if is_lane_load(x.op):
                 let width: u32 = 8 if x.op == ir.Op.loadl or x.op == ir.Op.loadd else 4
-                if self.kind(x.a) != 2 or (self.width != 0 and (self.width != width or self.cls != x.cls)):
+                # a 32-bit integer lane is the word as loaded, signed or not, never widened
+                let widened = (x.op == ir.Op.loaduw or x.op == ir.Op.loadsw) and x.cls != ir.Class.w
+                if widened or self.kind(x.a) != 2 or (self.width != 0 and (self.width != width or self.cls != x.cls)):
                     return false
                 self.width = width
                 self.cls = x.cls
@@ -194,7 +196,7 @@ struct Builder:
             let x = self.f.instrs.get(i)
             if x.dst == self.analysis.increment or x.op == ir.Op.jmp or (x.dst != 0 and self.analysis.kinds[x.dst] != 3):
                 continue
-            if x.op == ir.Op.loadl or x.op == ir.Op.loaduw or x.op == ir.Op.loadd or x.op == ir.Op.loads:
+            if is_lane_load(x.op):
                 let address = try self.address(x.a)
                 self.values[x.dst] = try result(self.f, &self.body, ir.Op.loadv, ir.Class.v, address, ir.none_ref(), self.shape)
             elif x.dst == 0:
@@ -429,6 +431,10 @@ func emit_phi(f: ir.Function*, out: list.List[ir.Instr]*, dst: ir.Ref, cls: ir.C
     try f.phi_args.push(ir.PhiArg(value = first, pred = first_label))
     try f.phi_args.push(ir.PhiArg(value = second, pred = second_label))
     try out.push(instruction(ir.Op.phi, cls, dst.index, ir.none_ref(), ir.none_ref(), start, 2))
+
+## Whether `op` loads one whole lane: 32 or 64 bits, integer or float.
+func is_lane_load(op: ir.Op) -> bool:
+    return op == ir.Op.loadl or op == ir.Op.loaduw or op == ir.Op.loadsw or op == ir.Op.loadd or op == ir.Op.loads
 
 func is_temp(value: ir.Ref, index: u32) -> bool:
     return value.kind == ir.RefKind.temp and value.index == index

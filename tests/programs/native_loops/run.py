@@ -60,6 +60,16 @@ with tempfile.TemporaryDirectory(prefix="luce-native-loops-") as temporary:
         assert "loadv " in body(name), name
     assert "vaddw " in body("safe_total")
     assert "storev " in body("map_doubles")
+    # a `for` over a range vectorizes like the `while` loop it means, after an assert of
+    # the lengths or behind an early return that rules unequal lengths out
+    for name in ("for_assert_floats", "for_guard_floats", "while_guard_floats",
+                 "for_guard_doubles", "for_assert_words", "for_sum_words"):
+        assert "loadv " in body(name), name
+        assert "bounds " not in body(name), name
+    for name in ("for_assert_floats", "for_guard_floats", "while_guard_floats",
+                 "for_guard_doubles", "for_assert_words"):
+        assert "storev " in body(name), name
+    assert "vaddw " in body("for_sum_words")
     assert "loadv " not in body("checked_total")
     assert "addo " in body("checked_total")
     assert "loadv " not in body("invariant_float")

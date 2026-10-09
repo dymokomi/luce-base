@@ -37,6 +37,67 @@ static void guard_pages(void) {
     assert(!munmap(storage, page * 2));
 }
 
+/* The `for` and early-return shapes: every length up to a few vector steps past a
+   multiple of the width, each view ending before an inaccessible page, the target also
+   the left operand, and unequal lengths leaving the guarded target as it was. */
+static void counted_shapes(void) {
+    size_t page = (size_t)sysconf(_SC_PAGESIZE);
+    unsigned char *storage = mmap(NULL, page * 2, PROT_READ | PROT_WRITE,
+                                  MAP_PRIVATE | MAP_ANON, -1, 0);
+    assert(storage != MAP_FAILED);
+    assert(!mprotect(storage + page, page, PROT_NONE));
+    float lf[67], rf[67], ef[67];
+    double first[67], second[67], third[67], ed[67];
+    int32_t li[67], ri[67], ei[67];
+    uint32_t words[67];
+    for (size_t i = 0; i < 67; ++i) {
+        lf[i] = (float)i * 0.75f - 3.0f;
+        rf[i] = 1.0f / (float)(i + 1);
+        first[i] = (double)i * 1.5 - 9.0;
+        second[i] = 1.0 / (double)(i + 3);
+        third[i] = (double)i * 0.1;
+        li[i] = INT32_MAX - (int32_t)i * 3;
+        ri[i] = (int32_t)i * 7 + 1;
+        words[i] = UINT32_MAX - (uint32_t)i * 5;
+    }
+    for (size_t n = 0; n <= 67; ++n) {
+        float *tf = (float *)(storage + page) - n;
+        for (size_t i = 0; i < n; ++i) ef[i] = lf[i] + rf[i];
+        memset(tf, 0, n * sizeof *tf);
+        for_assert_floats(tf, n, lf, n, rf, n);
+        assert(!memcmp(tf, ef, n * sizeof *tf));
+        memset(tf, 0, n * sizeof *tf);
+        for_guard_floats(tf, n, lf, n, rf, n);
+        assert(!memcmp(tf, ef, n * sizeof *tf));
+        memset(tf, 0, n * sizeof *tf);
+        while_guard_floats(tf, n, lf, n, rf, n);
+        assert(!memcmp(tf, ef, n * sizeof *tf));
+        memcpy(tf, lf, n * sizeof *tf);
+        for_guard_floats(tf, n, tf, n, rf, n);
+        assert(!memcmp(tf, ef, n * sizeof *tf));
+        if (n > 0) {
+            memset(tf, 0, n * sizeof *tf);
+            for_guard_floats(tf, n, lf, n - 1, rf, n);
+            while_guard_floats(tf, n, lf, n, rf, n - 1);
+            for (size_t i = 0; i < n; ++i) assert(tf[i] == 0.0f);
+        }
+        double *td = (double *)(storage + page) - n;
+        for (size_t i = 0; i < n; ++i) ed[i] = first[i] * second[i] - third[i];
+        for_guard_doubles(td, n, first, n, second, n, third, n);
+        assert(!memcmp(td, ed, n * sizeof *td));
+        int32_t *ti = (int32_t *)(storage + page) - n;
+        for (size_t i = 0; i < n; ++i) ei[i] = (int32_t)((uint32_t)li[i] + (uint32_t)ri[i]);
+        for_assert_words(ti, n, li, n, ri, n);
+        assert(!memcmp(ti, ei, n * sizeof *ti));
+        uint32_t *tw = (uint32_t *)(storage + page) - n;
+        memcpy(tw, words, n * sizeof *tw);
+        uint32_t sum = 11;
+        for (size_t i = 0; i < n; ++i) sum += words[i];
+        assert(for_sum_words(tw, n, 11) == sum);
+    }
+    assert(!munmap(storage, page * 2));
+}
+
 int main(int argc, char **argv) {
     uint64_t values[257];
     for (size_t i = 0; i < 257; ++i) values[i] = i * 17 + 3;
@@ -134,5 +195,6 @@ int main(int argc, char **argv) {
         else assert(!memcmp(special + i, expected_special + i, sizeof(double)));
     }
     guard_pages();
+    counted_shapes();
     puts("ok native loop semantics");
 }

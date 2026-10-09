@@ -450,10 +450,22 @@ struct Search:
         let index = self.definitions[branch.a.index]
         if index == 0:
             return
-        let comparison = self.f.instrs.get(index - 1)
+        var comparison = self.f.instrs.get(index - 1)
+        var yes = branch.extra == block.label
+        # `x == 0` or `x != 0` of a comparison `x`, as `if a != b or ...` and `not` lower
+        # before the negations fold: the edge decides the comparison inside, its sense
+        # flipped by `== 0`
+        var hops: u32 = 0
+        while (comparison.op == ir.Op.ceq or comparison.op == ir.Op.cne) and is_zero(comparison.b) and comparison.a.kind == ir.RefKind.temp and hops < 4:
+            let inner = self.definitions[comparison.a.index]
+            if inner == 0 or not ir.is_comparison(self.f.instrs.get(inner - 1).op):
+                break
+            if comparison.op == ir.Op.ceq:
+                yes = not yes
+            comparison = self.f.instrs.get(inner - 1)
+            hops += 1
         if comparison.cls != ir.Class.w and comparison.cls != ir.Class.l:
             return
-        let yes = branch.extra == block.label
         let a = comparison.a
         let b = comparison.b
         match comparison.op:
@@ -573,6 +585,9 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
 
 func is_unsigned_comparison(op: ir.Op) -> bool:
     return op == ir.Op.cult or op == ir.Op.cule or op == ir.Op.cugt or op == ir.Op.cuge
+
+func is_zero(value: ir.Ref) -> bool:
+    return value.kind == ir.RefKind.constant and value.value == 0
 
 func same(a: ir.Ref, b: ir.Ref) -> bool:
     return a.kind == b.kind and a.index == b.index and a.value == b.value and a.name == b.name

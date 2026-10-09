@@ -72,6 +72,69 @@ pub struct Natural:
     pub func release():
         free(self.members)
 
+# mark: Straight-line blocks =================================================================
+
+## Join each block entered only from the block just above it, by falling in or by that
+## block's one jump, to that block: a `for` loop's body and the step block its `continue`
+## names become one, the shape the vectorizer reads. Phis that named the joined block's
+## label as a predecessor name the block it joined. Whether any joined.
+pub func straighten(f: ir.Function*) -> bool!:
+    var g = try cfg.Graph.blocks_of(f)
+    defer g.release()
+    # how many jumps, branches and table entries name each label
+    var named = try new u32[(usize)f.labels + 1] ---
+    defer free(named)
+    var into = try new u32[(usize)f.labels + 1] ---
+    defer free(into)
+    for i in 0..<named.length:
+        named[i] = 0
+        into[i] = (u32)i
+    for x in f.instrs.span():
+        if x.op == ir.Op.jmp or x.op == ir.Op.jnz or x.op == ir.Op.switch_:
+            named[x.extra] += 1
+        if x.op == ir.Op.jnz:
+            named[x.extra2] += 1
+        if x.op == ir.Op.switch_:
+            for label in f.table_targets(x.extra2):
+                named[label] += 1
+    var dropped = try new bool[f.instrs.count] ---
+    defer free(dropped)
+    for i in 0..<dropped.length:
+        dropped[i] = false
+    var changed = false
+    for b in (u32)1..<(u32)g.count():
+        let block = g.blocks.get(b)
+        if block.label == 0 or block.preds.count != 1 or block.preds.get(0) != b - 1:
+            continue
+        let above = g.blocks.get(b - 1)
+        if above.succs.count != 1 or above.succ1 != b:
+            continue
+        let last = f.instrs.get(above.end - 1) if above.end > above.start else f.instrs.get(block.start - 1)
+        let jumps = above.end > above.start and last.op == ir.Op.jmp
+        if (above.end > above.start and ir.is_terminator(last.op) and not jumps) or named[block.label] != (1 if jumps else 0):
+            continue
+        if block.end > block.start and f.instrs.get(block.start).op == ir.Op.phi:
+            continue
+        dropped[block.start - 1] = true
+        if jumps:
+            dropped[above.end - 1] = true
+        into[block.label] = into[above.label]
+        changed = true
+    if not changed:
+        return false
+    for k in 0..<f.phi_args.count:
+        var arg = f.phi_args.get(k)
+        if into[arg.pred] != arg.pred:
+            arg.pred = into[arg.pred]
+            f.phi_args.set(k, arg)
+    var kept = try list.List[ir.Instr].create(f.instrs.count)
+    for i in 0..<f.instrs.count:
+        if not dropped[i]:
+            try kept.push(f.instrs.get(i))
+    f.instrs.destroy()
+    f.instrs = kept
+    return true
+
 # mark: Simplifying phis ======================================================================
 
 ## Mutually recursive load phis can all denote one value from before a loop.

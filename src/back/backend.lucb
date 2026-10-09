@@ -327,6 +327,7 @@ func optimise_function(f: ir.Function*, level: u32) -> !:
         _ = try addresses.run(f)
         if level >= 3:
             g3.release()
+            _ = try loops.straighten(f)
             try loops.run(f)
             try vectorize.run(f)
             g3 = try cfg.Graph.over(f)
