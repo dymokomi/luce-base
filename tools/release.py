@@ -11,7 +11,7 @@ Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run]
      is published.
   3. Each version is bumped (patch, unless package.prisma already moved past the
      registry's), committed, pushed and published with `luc publish`, dependencies
-     first, independent packages in parallel.
+     first, one at a time.
   4. Every application on the registry is resolved again: `luc lock` in a clone of its
      registry repository, with a scratch HOME, so nothing is installed.
   5. The toolchain: when luce-base, luce or luc changed since the last luce-VERSION tag,
@@ -394,10 +394,11 @@ def main():
         print("release: tests failed, nothing published: " + ", ".join(failed))
         return 1
 
+    # one at a time: each `luc publish` asks the registry for a write token, and several at
+    # once are refused (the push then has no credentials)
     for layer in layers(changed):
-        with concurrent.futures.ThreadPoolExecutor(len(layer)) as pool:
-            for future in [pool.submit(package.publish, False) for package in layer]:
-                future.result()
+        for package in layer:
+            package.publish(False)
     for name in ("luce-base", "luce"):
         entry = toolchain[name]
         if not entry["changed"]:
