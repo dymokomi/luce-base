@@ -148,6 +148,7 @@ extend Generator:
         try selection.canonical_labels(self.f)
         if not self.f.debug:
             try selection.traps_last(self.f)
+        try selection.sink_addresses(self.f)
         try self.fr.plan(self.f)
         self.crossing = 0
         var entry = try selection.entry_loads(self.f)
