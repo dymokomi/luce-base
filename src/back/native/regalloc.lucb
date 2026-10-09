@@ -16,9 +16,11 @@
 #       when the two do not overlap. A temporary that crosses a call takes a callee-saved
 #       register if one is free, else a caller-saved one that the generator saves to the
 #       temporary's frame home before each barrier it crosses and reloads after (`saved`).
-#       When every register is taken, the temporaries whose reads and writes weigh least,
-#       ten times as much in a loop as outside it (`cost`), go to the frame for their whole
-#       life; nothing is split, since the generators read a temporary from one place.
+#       When every register is taken, the temporaries whose reads and writes weigh least
+#       for the span of their lives, ten times as much in a loop as outside it (`cost`,
+#       `density`), go to the frame for their whole life: a value read at once keeps its
+#       register before one read rarely across a long stretch. Nothing is split, since the
+#       generators read a temporary from one place.
 #
 #==============================================================================================
 
@@ -396,6 +398,16 @@ pub struct Lives:
             u = use.next
         return total + self.writes[(usize)t]
 
+    ## What keeping `t` in the frame costs for each position of its life it holds a register
+    ## (`cost` over its span, scaled): a value read often in a short life weighs more than one
+    ## read as often over a long one, which would hold the register through other lives.
+    func density(t: u32) -> u64:
+        let total = self.cost(t)
+        if self.start[(usize)t] == no_position:
+            return total
+        let span = (u64)(self.end[(usize)t] - self.start[(usize)t]) + 2
+        return total * 65536 // span
+
     ## The most temporaries of each class live at one position: integers, then floats.
     pub func pressure(f: ir.Function*) -> (u32, u32)!:
         let m = 2 * f.instrs.count + 3
@@ -458,11 +470,12 @@ pub struct Lives:
         defer free(free_until)
         var holders_cost = try new u64[codes + 1] ---
         defer free(holders_cost)
-        # what each temporary would cost in the frame, once: eviction asks it of every holder
+        # what each temporary would cost in the frame for its span, once: eviction asks it of
+        # every holder
         var costs = try new u64[n + 1] ---
         defer free(costs)
         for each in 1..<costs.length:
-            costs[each] = self.cost(u32(each))
+            costs[each] = self.density(u32(each))
         var used: u64 = 0
         for i in 0..<alive:
             let cur = order[i]
@@ -594,9 +607,10 @@ pub struct Lives:
             if meet != no_position and meet < free_until[r]:
                 free_until[r] = meet
 
-    ## Every register is taken: the one whose holders would cost least in the frame (a
-    ## read or write in a loop ten times one outside it, `cost`) goes to `cur` when they
-    ## cost less than it would, its holders moving to the frame; 0 when `cur` should.
+    ## Every register is taken: the one whose holders would cost least in the frame for the
+    ## span they hold it (a read or write in a loop ten times one outside it, `density`) goes
+    ## to `cur` when they cost less than it would, its holders moving to the frame; 0 when
+    ## `cur` should.
     func evict(scan: Scan*, regs: u8[], cur: u32, ranges: Ranges, held: u64, costs: u64[], holders_cost: u64[]) -> usize:
         for c in 1..<holders_cost.length:
             holders_cost[c] = 0
@@ -872,5 +886,38 @@ test "no temporary holds a register across an instruction that overwrites it its
         assert(regs[(usize)t1 - 1] == 1)
         assert(regs[(usize)t2 - 1] == 2)
         assert(regs[(usize)t3 - 1] == 2)
+        lives.release()
+        g.release()
+
+test "a short life read at once keeps the register a long one read rarely gives up":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var f = try ir.Function.create("t")
+        # long = 1; short = 2; a few unrelated steps; long read three times far apart, short
+        # once at once: by cost alone long (4) outweighs short (2) and keeps the one register;
+        # by cost over its span short does
+        _ = try f.slot(8, 8)
+        let long = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.copy, ir.Class.l, long, ir.const_ref(1), ir.none_ref(), 0)
+        let early = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.add, ir.Class.l, early, ir.temp_ref(long), ir.const_ref(1), 0)
+        try f.emit(ir.Op.storel, ir.Class.l, 0, ir.temp_ref(early), ir.slot_ref(0), 0)
+        let short = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.copy, ir.Class.l, short, ir.const_ref(2), ir.none_ref(), 0)
+        try f.emit(ir.Op.storel, ir.Class.l, 0, ir.temp_ref(short), ir.slot_ref(0), 0)
+        for _ in 0..<8:
+            try f.emit(ir.Op.storel, ir.Class.l, 0, ir.const_ref(3), ir.slot_ref(0), 0)
+        let late = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.add, ir.Class.l, late, ir.temp_ref(long), ir.temp_ref(long), 0)
+        try f.emit(ir.Op.ret, ir.Class.l, 0, ir.temp_ref(late), ir.none_ref(), 0)
+        var g = try cfg.Graph.over(&f)
+        var lives = try Lives.over(&f, &g)
+        assert(lives.cost(long) > lives.cost(short))
+        var regs: u8[8]
+        let pools = Pools(callee_ints = 1, callee_floats = 0, scratch_ints = 0, scratch_floats = 0)
+        _ = try lives.allocate(&f, pools, 0, regs[..<5], no_fixed[0..<0])
+        assert(regs[(usize)short - 1] == 1)
+        assert(regs[(usize)long - 1] == 0)
         lives.release()
         g.release()
