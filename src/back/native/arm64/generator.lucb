@@ -118,7 +118,7 @@ pub struct Generator:
     ## A generator for `program_unit`, targeting `os` with the given C symbol prefix.
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 2), writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
-                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024))
+                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 13)), text_count = 0, descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024))
 
     # -- output ---------------------------------------------------------------------------
 

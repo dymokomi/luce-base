@@ -818,7 +818,8 @@ let abbreviations: str = r"""
 
 ## The DWARF register number of an allocator code, by the generators' name tables: arm64's
 ## x19–x28 (codes 1–10) are 19–28, d8–d15 (11–18) are 72–79, the pooled x14, x15, x12, x13
-## and x7 down to x0 (19–30) are their numbers, and d24–d31 (31–38) are 88–95; x86-64's rbx
+## and x7 down to x0 (19–30) are their numbers, d24–d31 (31–38) are 88–95, and d19–d23
+## (39–43) are 83–87, the d registers' numbers being 64 more than their own; x86-64's rbx
 ## is 3, r12–r15 are 12–15, r8 and r9 are 8 and 9, rsi and rdi are 4 and 5, and
 ## xmm12–xmm15 (10–13) are 29–32.
 func dwarf_register(arch: targets.Arch, code: u8) -> u32:
@@ -830,7 +831,9 @@ func dwarf_register(arch: targets.Arch, code: u8) -> u32:
         if code <= 30:
             let pooled: u32[12] = [14, 15, 12, 13, 7, 6, 5, 4, 3, 2, 1, 0]
             return pooled[(usize)code - 19]
-        return 57 + (u32)code
+        if code <= 38:
+            return 57 + (u32)code
+        return 44 + (u32)code
     if code == 1:
         return 3
     if code <= 5:
