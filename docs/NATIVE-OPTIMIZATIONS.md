@@ -62,6 +62,13 @@ implicit call-result storage and debug-described locals remain allocated. Local
 selection combines single-use integer comparisons with branches, omits jumps to
 the next label, and uses ARM64 immediate arithmetic and direct register addresses.
 
+A check that fails (an index out of bounds, an overflow) branches to a path after the
+function's body that reports it, so the code that passes falls through each check
+with one compare and one branch not taken, and a loop holds no trap's instructions.
+A block that only traps (a slice's `start <= end` failing) moves there too when
+nothing falls into it. A `--debug` build keeps each trap where its check is.
+A `--release --debug` build gives each moved trap its line.
+
 A `match` on an integer, integer enum, `char` or `bool` with four or more constant
 values and no guards dispatches on the scrutinee where it is, never stored. Where the
 values are dense (at least 40 % of the range between the least and the greatest name

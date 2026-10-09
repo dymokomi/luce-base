@@ -244,9 +244,7 @@ extend Generator:
                 let b = try self.source(n.b, ir.Class.l, "x10")
                 try self.writer.line3("cmp ", a, ", ")
                 try self.writer.put(b)
-                try self.writer.line("b.ls 1f" if n.extra == 1 else "b.lo 1f")
-                try self.trap_text("index out of bounds", n.extra2)
-                try self.writer.put("\n1:")
+                try self.check_failure("b.ls " if n.extra == 1 else "b.lo ", "b.hi " if n.extra == 1 else "b.hs ", "index out of bounds", n)
             .addo, .subo, .mulo:
                 try self.checked(n)
             .asm_:
@@ -617,23 +615,22 @@ extend Generator:
                     try self.writer.line3("mov w10, ", b, "")
                     try self.writer.line("mul x9, x9, x10")
                     try self.writer.line("cmp x9, w9, uxtw")
-                try self.writer.line("b.eq 1f")
+                try self.check_failure("b.eq ", "b.ne ", "integer overflow", n)
             else:
+                # the high half first, then the product straight into the result's register,
+                # which may be an operand's: both have been read by then
+                let d = self.target(n.dst, n.cls, "x9")
+                try self.writer.line3("smulh x11, " if signed else "umulh x11, ", a, ", ")
+                try self.writer.put(b)
+                try self.writer.line5("mul ", d, ", ", a, ", ")
+                try self.writer.put(b)
                 if signed:
-                    try self.writer.line3("smulh x11, ", a, ", ")
-                    try self.writer.put(b)
-                    try self.writer.line3("mul x9, ", a, ", ")
-                    try self.writer.put(b)
-                    try self.writer.line("cmp x11, x9, asr #63")
-                    try self.writer.line("b.eq 1f")
+                    try self.writer.line3("cmp x11, ", d, ", asr #63")
+                    try self.check_failure("b.eq ", "b.ne ", "integer overflow", n)
                 else:
-                    try self.writer.line3("umulh x11, ", a, ", ")
-                    try self.writer.put(b)
-                    try self.writer.line3("mul x9, ", a, ", ")
-                    try self.writer.put(b)
-                    try self.writer.line("cbz x11, 1f")
-            try self.trap_text("integer overflow", n.extra2)
-            try self.writer.put("\n1:")
+                    try self.check_failure("cbz x11, ", "cbnz x11, ", "integer overflow", n)
+                try self.finish(n.dst, n.cls, d)
+                return
             try self.finish(n.dst, n.cls, scratch_register(n.cls, 0))
             return
         let add = n.op == ir.Op.addo
@@ -649,14 +646,45 @@ extend Generator:
         else:
             try self.writer.put(b)
         if signed:
-            try self.writer.line("b.vc 1f")
+            try self.check_failure("b.vc ", "b.vs ", "integer overflow", n)
         elif add:
-            try self.writer.line("b.cc 1f")
+            try self.check_failure("b.cc ", "b.cs ", "integer overflow", n)
         else:
-            try self.writer.line("b.cs 1f")
-        try self.trap_text("integer overflow", n.extra2)
-        try self.writer.put("\n1:")
+            try self.check_failure("b.cs ", "b.cc ", "integer overflow", n)
         try self.finish(n.dst, n.cls, d)
+
+    ## Where a check of `n` that fails goes, after the comparison that decides it: with
+    ## `--debug` to its trap inline, a branch on `pass` jumping over it; otherwise a branch
+    ## on `fail` to a path after the function's body (`finish_cold`), so the passing path
+    ## falls through and a loop's body holds no trap's instructions. `pass` and `fail` are
+    ## the branch before its label (`b.lo `, `cbz x11, `).
+    func check_failure(pass: str, fail: str, reason: str, n: ir.Instr) -> !:
+        if self.f.debug:
+            try self.writer.line2(pass, "1f")
+            try self.trap_text(reason, n.extra2)
+            try self.writer.put("\n1:")
+            return
+        self.cold_count += 1
+        try self.writer.line(fail)
+        try self.cold_label(self.cold_count)
+        # the trap goes to the cold paths' text, through the writer every emission uses
+        let body = self.writer.out
+        self.writer.out = self.cold
+        try self.writer.put("\n")
+        try self.cold_label(self.cold_count)
+        try self.writer.put(":")
+        if let dw = self.dw:
+            try dw.line_of(&self.writer.out, self.f, n)
+        try self.trap_text(reason, n.extra2)
+        self.cold = self.writer.out
+        self.writer.out = body
+
+    ## The function's cold paths (`check_failure`), after its body and before its end.
+    func finish_cold() -> !:
+        if self.cold.used > 0:
+            try self.writer.put(self.cold.view())
+            self.cold.clear()
+        self.cold_count = 0
 
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
     ## position plus one, which the reporter names first (§11.5).

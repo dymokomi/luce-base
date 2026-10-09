@@ -104,6 +104,16 @@ pub struct Emitter:
         if self.files.count > 0:
             try out.put("\n    .loc 1 0 0 is_stmt 0\n")
 
+    ## A line for code of an optimised function's instruction `x` written out of its place
+    ## (a check's trap after the body), which the line table then names `x`'s line.
+    pub func line_of(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
+        if not f.symbols or x.line == 0:
+            return
+        var format_room: u8[4096]
+        let path = self.program.files.get((usize)x.file - 1) if x.file != 0 else f.source
+        let file = try self.file(path)
+        try out.put(try strings.format(format_room, f"\n    .loc {file} {x.line} 0 is_stmt 1"))
+
     ## Emit the line, and for an optimised function the scope and value labels, at `instruction`.
     pub func mark(out: buffer.Buffer*, f: ir.Function*, fr: frame.Frame*, index: usize, instruction: usize) -> !:
         var format_room: u8[4096]

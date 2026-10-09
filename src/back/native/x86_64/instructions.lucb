@@ -206,9 +206,7 @@ extend Generator:
                 let a = try self.source(n.a, ir.Class.l, "%rax")
                 let b = try self.source(n.b, ir.Class.l, "%rcx")
                 try self.writer.line4("cmpq ", b, ", ", a)
-                try self.writer.line("jbe 1f" if n.extra == 1 else "jb 1f")
-                try self.trap_text("index out of bounds", n.extra2)
-                try self.writer.put("\n1:")
+                try self.check_failure("jbe " if n.extra == 1 else "jb ", "ja " if n.extra == 1 else "jae ", "index out of bounds", n)
             .addo, .subo, .mulo:
                 try self.checked(n)
             .asm_:
@@ -752,9 +750,7 @@ extend Generator:
             try self.operand(a, cls, n.a)
             let b = try self.source(n.b, cls, self.reg(cls, 1))
             try self.writer.line4("mul", suffix, " ", b)
-            try self.writer.line("jnc 1f")
-            try self.trap_text("integer overflow", n.extra2)
-            try self.writer.put("\n1:")
+            try self.check_failure("jnc ", "jc ", "integer overflow", n)
             try self.store_temp(a, cls, n.dst)
             return
         let b = try self.source(n.b, cls, self.reg(cls, 1))
@@ -769,14 +765,48 @@ extend Generator:
         if n.op == ir.Op.mulo:
             try self.writer.line5("imul", suffix, " ", b, ", ")
             try self.writer.put(d)
-            try self.writer.line("jno 1f")
+            try self.check_failure("jno ", "jo ", "integer overflow", n)
         else:
             try self.writer.line5("add" if n.op == ir.Op.addo else "sub", suffix, " ", b, ", ")
             try self.writer.put(d)
-            try self.writer.line("jno 1f" if signed else "jnc 1f")
-        try self.trap_text("integer overflow", n.extra2)
-        try self.writer.put("\n1:")
+            if signed:
+                try self.check_failure("jno ", "jo ", "integer overflow", n)
+            else:
+                try self.check_failure("jnc ", "jc ", "integer overflow", n)
         try self.finish(n.dst, cls, d)
+
+    ## Where a check of `n` that fails goes, after the comparison that decides it: with
+    ## `--debug` to its trap inline, a branch on `pass` jumping over it; otherwise a branch
+    ## on `fail` to a path after the function's body (`finish_cold`), so the passing path
+    ## falls through and a loop's body holds no trap's instructions. `pass` and `fail` are
+    ## the branch before its label (`jb `).
+    func check_failure(pass: str, fail: str, reason: str, n: ir.Instr) -> !:
+        if self.f.debug:
+            try self.writer.line2(pass, "1f")
+            try self.trap_text(reason, n.extra2)
+            try self.writer.put("\n1:")
+            return
+        self.cold_count += 1
+        try self.writer.line(fail)
+        try self.cold_label(self.cold_count)
+        # the trap goes to the cold paths' text, through the writer every emission uses
+        let body = self.writer.out
+        self.writer.out = self.cold
+        try self.writer.put("\n")
+        try self.cold_label(self.cold_count)
+        try self.writer.put(":")
+        if let dw = self.dw:
+            try dw.line_of(&self.writer.out, self.f, n)
+        try self.trap_text(reason, n.extra2)
+        self.cold = self.writer.out
+        self.writer.out = body
+
+    ## The function's cold paths (`check_failure`), after its body and before its end.
+    func finish_cold() -> !:
+        if self.cold.used > 0:
+            try self.writer.put(self.cold.view())
+            self.cold.clear()
+        self.cold_count = 0
 
     ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
     ## position plus one, which the reporter names first (§11.5).

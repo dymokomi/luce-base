@@ -10,6 +10,7 @@
 #==============================================================================================
 
 import back.ir.ir
+import support.list
 
 # mark: Uses and entry ========================================================================
 
@@ -194,6 +195,55 @@ pub func canonical_labels(f: ir.Function*) -> !:
         let label = f.jump_labels.get(k)
         if (usize)label < first.length:
             f.jump_labels.set(k, first[(usize)label])
+
+## Move each block that only traps (its labels and a `trap` of a fixed reason and position,
+## as a slice's `start <= end` fails) after the function's other blocks, when nothing falls
+## into it: the branch to it is then taken only when the trap is, and the code that passes
+## runs on without jumping over the trap's call. Blocks using temporaries stay, as their
+## values' lives would stretch over everything between.
+pub func traps_last(f: ir.Function*) -> !:
+    let n = f.instrs.count
+    var cold = false
+    for i in 1..<n:
+        if trap_block_end(f, i) != none:
+            cold = true
+            break
+    if not cold:
+        return
+    var kept = try list.List[ir.Instr].create(n)
+    var moved = try list.List[ir.Instr].create(16)
+    defer moved.destroy()
+    var i: usize = 0
+    while i < n:
+        if i > 0:
+            if let end = trap_block_end(f, i):
+                for k in i..<end:
+                    try moved.push(f.instrs.get(k))
+                i = end
+                continue
+        try kept.push(f.instrs.get(i))
+        i += 1
+    for x in moved.span():
+        try kept.push(x)
+    f.instrs.destroy()
+    f.instrs = kept
+
+## When a block that only traps begins at `at` with nothing falling into it: one past its
+## `trap`, which the next block's label follows (or the function's end).
+func trap_block_end(f: ir.Function*, at: usize) -> usize?:
+    if f.instrs.get(at).op != ir.Op.label or not ir.is_terminator(f.instrs.get(at - 1).op):
+        return none
+    var k = at
+    while k < f.instrs.count and f.instrs.get(k).op == ir.Op.label:
+        k += 1
+    if k >= f.instrs.count:
+        return none
+    let x = f.instrs.get(k)
+    if x.op != ir.Op.trap_ or x.a.kind == ir.RefKind.temp or x.b.kind == ir.RefKind.temp:
+        return none
+    if k + 1 < f.instrs.count and f.instrs.get(k + 1).op != ir.Op.label:
+        return none
+    return k + 1
 
 ## By label, whether a jump after it goes back to it: a loop's head, which a generator
 ## aligns so the loop's body does not straddle more fetch blocks than it must.

@@ -28,6 +28,7 @@ python3 tools/test_ranges_time.py
 python3 tools/test_inline_optimised.py
 python3 tools/test_inline_across_modules.py
 python3 tools/test_hot_loop_codegen.py
+python3 tools/test_gather_kernel.py
 python3 tools/test_index_ranges.py
 python3 tools/test_windows_parameters.py
 python3 tools/test_module_batches.py

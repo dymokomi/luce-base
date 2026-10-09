@@ -144,6 +144,8 @@ extend Generator:
         self.fr.reserved = 480 if self.convention.windows else 0
         self.reserve_asm_registers()
         try selection.canonical_labels(self.f)
+        if not self.f.debug:
+            try selection.traps_last(self.f)
         try self.fr.plan(self.f)
         self.windows_plan = 0
         if self.convention.windows:
@@ -237,6 +239,7 @@ extend Generator:
     ## After function `index`'s last instruction (`end`): its debug information, unwinding
     ## and Windows saves (its text began at `text_start`), then out of its section.
     func finish_function(index: usize, end: usize, text_start: usize) -> !:
+        try self.finish_cold()
         if let dw = self.dw:
             try dw.mark(&self.writer.out, self.f, &self.fr, index, end)
             if self.f.debug or self.f.symbols:
