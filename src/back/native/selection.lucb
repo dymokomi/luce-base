@@ -205,6 +205,10 @@ func retarget(f: ir.Function*, first: u32[]):
 ## expanded function's return point, say. Its block then runs on from the one before, so a
 ## comparison there and the branch on it after the label meet (`branch`).
 func drop_passed_labels(f: ir.Function*) -> !:
+    # a development build's scopes span instruction indices (`debug_scopes`), which leaving
+    # an instruction out would shift past their labels
+    if f.debug:
+        return
     var targeted = try new bool[(usize)f.labels + 1] ---
     defer free(targeted)
     for k in 0..<targeted.length:

@@ -167,6 +167,7 @@ extend Generator:
             try self.branch_pair(i, index)
             return 2
         if selection.compared_select(self.f, i, uses):
+            try self.mark_at(index, i + 1)
             try self.select_on(self.f.instrs.get(i), self.f.instrs.get(i + 1))
             return 2
         if let fused = selection.offset_access(self.f, i, uses):
@@ -175,6 +176,7 @@ extend Generator:
                 if let dw = self.dw:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
                 let (access, widened) = self.access_at(i + 1, uses)
+                try self.mark_widening(index, i + 1, widened)
                 try self.offset_access(access, base, offset)
                 return 2 + widened
         if let scaled = selection.scaled_access(self.f, i, uses):
@@ -183,6 +185,7 @@ extend Generator:
                 if let dw = self.dw:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 2)
                 let (access, widened) = self.access_at(i + 2, uses)
+                try self.mark_widening(index, i + 2, widened)
                 try self.indexed_access(access, base, scaled_index, shift)
                 return 3 + widened
         if let summed = selection.summed_access(self.f, i, uses):
@@ -191,12 +194,25 @@ extend Generator:
                 if let dw = self.dw:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
                 let (access, widened) = self.access_at(i + 1, uses)
+                try self.mark_widening(index, i + 1, widened)
                 try self.indexed_access(access, base, offset, 0)
                 return 2 + widened
         if let load = selection.widened_load(self.f, i, uses):
+            try self.mark_at(index, i + 1)
             try self.instruction(load, selection.label_at(self.f, i + 2))
             return 2
         return 0
+
+    ## The debug labels and lines of instruction `at`, which a fused selection consumes: a
+    ## scope may begin or end there, so its label must exist.
+    func mark_at(index: usize, at: usize) -> !:
+        if let dw = self.dw:
+            try dw.mark(&self.writer.out, self.f, &self.fr, index, at)
+
+    ## The same for the widening after the access at `at`, when the access took it as well.
+    func mark_widening(index: usize, at: usize, widened: usize) -> !:
+        if widened != 0:
+            try self.mark_at(index, at + 1)
 
     ## The load or store at `at` a fused address reaches, and 1 when it is a signed word's
     ## load whose widening after it it does as well (`selection.widened_load`), else 0.
