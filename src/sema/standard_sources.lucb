@@ -4639,9 +4639,15 @@ let text_16: str = r"""#========================================================
 #       Blocking synchronisation over the host's futex-like wait and wake: a mutex, a condition
 #       variable, a run-once gate, and a counting semaphore.
 #
+#       The host's sleep returns on wakes nothing here sent: Linux and macOS rarely, and
+#       Windows whenever an address 8 or 16 bytes away is woken. Every sleep below checks
+#       its own word again and sleeps again when it has not changed, so a neighbour's wake
+#       costs a context switch and is never seen by a caller.
+#
 #==============================================================================================
 
 import platform
+import time
 
 ## macOS: the `ulock` calls libSystem builds its own locks on.
 extern func __ulock_wait(operation: u32, address: void*, value: u64, timeout: u32) -> i32
@@ -4723,6 +4729,9 @@ pub struct Mutex:
             current = self.state.swap(2, .acquire)
         while current != 0:
             sleep_on((void*)&self.state, 2)
+            # still held with sleepers: not the holder's wake, so sleep again
+            if self.state.load(.relaxed) == 2:
+                continue
             current = self.state.swap(2, .acquire)
 
     ## Release the lock and wake one waiter.
@@ -4737,23 +4746,32 @@ pub struct Mutex:
         return taken
 
 ## A sequence number waiters watch; every signal advances it and wakes.
-## A condition variable: waiters sleep until signalled.
+## A condition variable: waiters sleep until signalled. As with every condition variable,
+## a waiter checks its predicate in a loop around `wait`: a signal says that something
+## changed, not what, and another thread may have acted on it first.
 pub struct Condition:
     var sequence: @u32
 
-    ## Release `mutex`, sleep until signalled, then reacquire it.
+    ## Release `mutex`, sleep until signalled, then reacquire it. A wake with no signal
+    ## since the call is not returned; a signal or broadcast meant for another waiter may be.
     pub func wait(mutex: Mutex*):
         let seen = self.sequence.load(.acquire)
         mutex.unlock()
-        sleep_on((void*)&self.sequence, seen)
+        while self.sequence.load(.acquire) == seen:
+            sleep_on((void*)&self.sequence, seen)
         mutex.lock()
 
-    ## `wait`, giving up after about `milliseconds`; it may also return early, without a
-    ## signal, so a caller rechecks its condition against its own deadline.
+    ## `wait`, giving up after about `milliseconds`; a caller tells a timeout from a signal
+    ## by checking its predicate.
     pub func wait_for(mutex: Mutex*, milliseconds: u64):
         let seen = self.sequence.load(.acquire)
         mutex.unlock()
-        sleep_on_for((void*)&self.sequence, seen, milliseconds)
+        let start = time.now()
+        var left = milliseconds
+        while left > 0 and self.sequence.load(.acquire) == seen:
+            sleep_on_for((void*)&self.sequence, seen, left)
+            let waited = time.since(start) // 1000000
+            left = milliseconds - waited if waited < milliseconds else 0
         mutex.lock()
 
     ## Wake one waiter.

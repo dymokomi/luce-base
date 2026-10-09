@@ -1,0 +1,103 @@
+## Wakes nothing sent (§16.6): a `Condition` 4, 8 and 16 bytes from a contended `Mutex`.
+## Eight threads wait on the condition while three lock and unlock the mutex, whose
+## unlocks wake its own address; on Windows WaitOnAddress also returns for neighbouring
+## addresses. No signal is sent until the end, so no wait may return before it.
+import sync
+import thread
+
+## The lock and the condition `gap` bytes apart, as fields of one struct are.
+struct Near:
+    var lock: sync.Mutex
+    var ready: sync.Condition
+    var stop: bool
+    var wakes: i64
+    var pairs: i64
+
+struct Eight:
+    var lock: sync.Mutex
+    var gap: u32
+    var ready: sync.Condition
+    var stop: bool
+    var wakes: i64
+    var pairs: i64
+
+struct Sixteen:
+    var lock: sync.Mutex
+    var gap: u32[3]
+    var ready: sync.Condition
+    var stop: bool
+    var wakes: i64
+    var pairs: i64
+
+## What the threads share: the lock, the condition and the counts, wherever they are.
+struct Case:
+    var lock: sync.Mutex*
+    var ready: sync.Condition*
+    var stop: bool*
+    var wakes: i64*
+    var pairs: i64*
+    var waiting: @i64
+
+let waiters: usize = 8
+let lockers: usize = 3
+let rounds: i64 = 40000
+
+## Wait until the stop; every return before it is a wake with no signal.
+func waiter(raw: void*?):
+    let c = (Case*)(raw else return)
+    c.lock.lock()
+    _ = c.waiting.add(1, .release)
+    while not *c.stop:
+        c.ready.wait(c.lock)
+        if not *c.stop:
+            *c.wakes += 1
+    c.lock.unlock()
+
+func locker(raw: void*?):
+    let c = (Case*)(raw else return)
+    var i: i64 = 0
+    while i < rounds:
+        c.lock.lock()
+        *c.pairs += 1
+        c.lock.unlock()
+        i += 1
+
+## Run the threads over one layout; the wakes before the broadcast and the pairs counted.
+func run(c: Case*) -> !:
+    var waiting: thread.Handle[8]
+    var locking: thread.Handle[3]
+    var k: usize = 0
+    while k < waiters:
+        waiting[k] = try thread.spawn(waiter, (void*)c)
+        k += 1
+    while c.waiting.load(.acquire) < (i64)waiters:
+        thread.yield()
+    k = 0
+    while k < lockers:
+        locking[k] = try thread.spawn(locker, (void*)c)
+        k += 1
+    k = 0
+    while k < lockers:
+        try locking[k].join()
+        k += 1
+    c.lock.lock()
+    *c.stop = true
+    c.lock.unlock()
+    c.ready.broadcast()
+    k = 0
+    while k < waiters:
+        try waiting[k].join()
+        k += 1
+    print(f"wakes {*c.wakes} pairs {*c.pairs}")
+
+pub func main(arguments: str[]) -> i32!:
+    var near = Near(lock = sync.Mutex(), ready = sync.Condition(), stop = false, wakes = 0, pairs = 0)
+    var case_near = Case(lock = &near.lock, ready = &near.ready, stop = &near.stop, wakes = &near.wakes, pairs = &near.pairs, waiting = 0)
+    try run(&case_near)
+    var eight = Eight(lock = sync.Mutex(), gap = 0, ready = sync.Condition(), stop = false, wakes = 0, pairs = 0)
+    var case_eight = Case(lock = &eight.lock, ready = &eight.ready, stop = &eight.stop, wakes = &eight.wakes, pairs = &eight.pairs, waiting = 0)
+    try run(&case_eight)
+    var sixteen = Sixteen(lock = sync.Mutex(), gap = [0, 0, 0], ready = sync.Condition(), stop = false, wakes = 0, pairs = 0)
+    var case_sixteen = Case(lock = &sixteen.lock, ready = &sixteen.ready, stop = &sixteen.stop, wakes = &sixteen.wakes, pairs = &sixteen.pairs, waiting = 0)
+    try run(&case_sixteen)
+    return 0

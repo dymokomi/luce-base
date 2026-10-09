@@ -411,7 +411,7 @@ A running thread; the zero value is no thread at all, so arrays of handles exist
 
 ## `sync`
 
-Blocking synchronisation over the host's futex-like wait and wake: a mutex, a condition variable, a run-once gate, and a counting semaphore.
+Blocking synchronisation over the host's futex-like wait and wake: a mutex, a condition variable, a run-once gate, and a counting semaphore. The host's sleep returns on wakes nothing here sent: Linux and macOS rarely, and Windows whenever an address 8 or 16 bytes away is woken. Every sleep below checks its own word again and sleeps again when it has not changed, so a neighbour's wake costs a context switch and is never seen by a caller.
 
 ### `Mutex` (struct)
 
@@ -423,10 +423,10 @@ A lock whose waiters sleep: zero is unlocked, so `var lock: Mutex` is ready to u
 
 ### `Condition` (struct)
 
-A sequence number waiters watch; every signal advances it and wakes. A condition variable: waiters sleep until signalled.
+A sequence number waiters watch; every signal advances it and wakes. A condition variable: waiters sleep until signalled. As with every condition variable, a waiter checks its predicate in a loop around `wait`: a signal says that something changed, not what, and another thread may have acted on it first.
 
-- `func wait(mutex: Mutex*)` — Release `mutex`, sleep until signalled, then reacquire it.
-- `func wait_for(mutex: Mutex*, milliseconds: u64)` — `wait`, giving up after about `milliseconds`; it may also return early, without a signal, so a caller rechecks its condition against its own deadline.
+- `func wait(mutex: Mutex*)` — Release `mutex`, sleep until signalled, then reacquire it. A wake with no signal since the call is not returned; a signal or broadcast meant for another waiter may be.
+- `func wait_for(mutex: Mutex*, milliseconds: u64)` — `wait`, giving up after about `milliseconds`; a caller tells a timeout from a signal by checking its predicate.
 - `func signal()` — Wake one waiter.
 - `func broadcast()` — Wake every waiter.
 
