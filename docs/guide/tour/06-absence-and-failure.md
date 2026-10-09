@@ -98,7 +98,8 @@ how the failure is handled. There are three ways:
   operator, or Swift's `try`. One `try` covers a whole expression:
   `try combine(read(), parse())` needs only one.
 - **`catch` handles it,** like Python's `except`. `expression catch failure:` runs the
-  block with the error, whose fields are `failure.code` and `failure.message`. The block
+  block with the error, whose fields are `failure.code`, `failure.message` and
+  `failure.at`, where it was raised. The block
   must end by giving a replacement value with `recover`, or by leaving: `return`,
   `error(...)` or `trap(...)`.
 - **`else` replaces it**, as it replaces a missing optional: `parse(text) else 0`.
@@ -132,10 +133,11 @@ pub func main(arguments: str[]) -> i32!:
 ```
 
 ```output
-error: a percentage is at most 100 (code 2)
+error: main.lucb:8:13: a percentage is at most 100 (code 2)
 ```
 
-The output above is standard error; `75%` went to standard output. `-> !` on `init` means
+The output above is standard error; `75%` went to standard output. `main.lucb:8:13` is the
+`error(...)` statement that raised the failure, as a Python traceback ends at the `raise`. `-> !` on `init` means
 "returns nothing, but may fail". The code printed is the number given to
 `ErrorCode.package`.
 

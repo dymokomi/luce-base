@@ -160,6 +160,15 @@ extend Lowerer:
             self.at_text = (try self.program_unit.text(text)) + 1
         return ir.text_ref(self.at_text - 1)
 
+    ## The `at` of the error at `err`, where it was raised (§11.3): the current statement's
+    ## position, the text a trap there names, as its distance from `core.origin_base`, in the
+    ## word after the code; `core.origin` reads it back.
+    func store_origin(err: ir.Ref) -> !:
+        let text = try self.f.address_of(try self.position_ref())
+        let base = try self.f.address_of(ir.global_ref("lb_core_11origin_base"))
+        let distance = try self.f.binary(ir.Op.sub, ir.Class.l, text, base)
+        try self.f.store(ir.Op.storew, distance, try self.offset_address(err, 4))
+
     ## The last instruction emitted, a `bounds` or a checked operation, names the current
     ## statement's position in `extra2` (index + 1) for the trap it may raise.
     func mark_position() -> !:

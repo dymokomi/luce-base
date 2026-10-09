@@ -655,26 +655,34 @@ extend Emitter:
         try self.unwind_from(0, false)
         try self.line("return ((lb_r_unit){ .failed = false });" if self.fn_fallible() else "return;")
 
-    ## `error(code, message)` as a statement: the failing result leaves the function.
+    ## `error(code, message)` as a statement, raised at the running statement (`lb_here`), and
+    ## `error(failure)`, a caught failure passed on whole: the failing result leaves the
+    ## function.
     func error_return(e: ast.Node*) -> !:
         let first = e.body else return
         let code = first.left else return
-        let second = first.next else return
-        let message = second.left else return
         let else_replaced = self.else_replaced
         self.else_replaced = 0
         let n = self.tmp()
         try self.line("lb_error ")
         try self.put_tmp("err", n)
-        try self.put(" = { .code = (int32_t)(")
-        try self.value(code, types.error_code_id)
-        try self.put("), .message = ")
-        try self.value(message, types.str_id)
-        try self.put(" };")
+        var literal = false
+        if let second = first.next:
+            let message = second.left else return
+            try self.put(" = { .code = (int32_t)(")
+            try self.value(code, types.error_code_id)
+            try self.put("), .message = ")
+            try self.value(message, types.str_id)
+            try self.put(", .at = lb_here() };")
+            literal = calls.is_text_literal(message)
+        else:
+            try self.put(" = ")
+            try self.value(code, types.error_value_id)
+            try self.put(";")
         # the message is copied into the thread's room before cleanup can free what it was
         # made from, in place of a handled error's message the failure leaves behind (§11.3)
         let handler = self.left_handler()
-        if calls.is_text_literal(message):
+        if literal:
             if handler != 0 or else_replaced != 0:
                 try self.line("lb_core_15message_handled(")
                 try self.put_replaced(handler, else_replaced)

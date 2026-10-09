@@ -56,6 +56,12 @@ extend Emitter:
             try self.expr(owner)
             try self.put("->length})" if through_ptr else ".length})")
             return
+        if raw == types.error_value_id and e.text == "at":
+            # where the error was raised, as text (`core.origin`)
+            try self.put("lb_core_origin((")
+            try self.expr(owner)
+            try self.put(")->at)" if through_ptr else ").at)")
+            return
         if raw == types.error_value_id:
             try self.put("(")
             try self.expr(owner)

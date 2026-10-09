@@ -246,7 +246,7 @@ extend Emitter:
         try self.put_type(result)
         try self.put("){ .error = { .code = ")
         try self.put_u64(check.exhausted_code())
-        try self.put(", .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true })")
+        try self.put(", .message = (lb_str){\"memory.exhausted\", 16}, .at = lb_here() }, .failed = true })")
 
     ## `new T`, `new T(args)`, `new T.case(...)`, and `new T[count]`: an allocation through
     ## the allocator in effect, initialised in place, as a statement expression giving the

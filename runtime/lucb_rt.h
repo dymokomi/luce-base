@@ -634,8 +634,11 @@ uint64_t lb_hash_bytes(uint64_t h, const void* p, size_t n);
 #define LB_FILES_MISSING 2
 #define LB_INVALID_UTF8 3
 
+// An `Error` (§11.3): its code; `at`, where it was raised, as its position text's distance
+// from `lb_core_11origin_base` (`core.origin` reads it); and its message.
 typedef struct lb_error {
     int32_t code;
+    int32_t at;
     lb_str message;
 } lb_error;
 
@@ -661,5 +664,9 @@ typedef struct lb_r_unit {
    vector as `str[]` (checked) or `c.str[]`, a failed `main`, and the test runner's
    report lines. */
 lb_span lb_arguments(int argc, char** argv, bool as_text);
-int lb_entry_failed(lb_error error);
+// A failed `main`: `error`, raised at `at`, on stderr; the exit status.
+int lb_entry_failed(lb_error error, lb_str at);
+// The `at` of an error raised at the running statement (`lb_pos`), which the generated code
+// defines beside `core` (§11.3).
+int32_t lb_here(void);
 

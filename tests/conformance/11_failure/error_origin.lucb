@@ -1,0 +1,56 @@
+# oracle: none
+## §11.3: an error records where it was raised, `at`, the statement's `file:line:column` as
+## a trap names it; `try` passes it up unchanged, `error(failure)` passes a caught failure on
+## with it, and `error(code, message)` in a handler raises anew where it stands. An error the
+## language raises (invalid UTF-8) is raised at the statement that asked. `at` lives as long
+## as the program, so it may be kept past its handler.
+let refused = ErrorCode.package(1)
+var kept: str = ""
+
+func check(n: i64) -> i64!:
+    if n < 0:
+        error(refused, "below zero")
+    return n
+
+func doubled(n: i64) -> i64!:
+    let v = try check(n)
+    return v * 2
+
+func quadrupled(n: i64) -> i64!:
+    return try doubled(try doubled(n))
+
+func passed_on(n: i64) -> i64!:
+    let v = check(n) catch failure:
+        error(failure)
+    return v
+
+func raised_again(n: i64) -> i64!:
+    let v = check(n) catch failure:
+        error(failure.code, failure.message)
+    return v
+
+func fallback(n: i64) -> i64!:
+    return check(n) else error(refused, "replaced")
+
+func text(bytes: u8[2]) -> str!:
+    return try str(bytes)
+
+func show(label: str, n: i64, run: func(i64) -> i64!):
+    let v = run(n) catch failure:
+        print(f"{label}: {failure.at}: {failure.message}")
+        kept = failure.at
+        recover 0
+    _ = v
+
+pub func main(arguments: str[]) -> i32:
+    show("check", -1, check)
+    show("doubled", -1, doubled)
+    show("quadrupled", -1, quadrupled)
+    show("passed on", -1, passed_on)
+    show("raised again", -1, raised_again)
+    show("fallback", -1, fallback)
+    _ = text([0xFF, 0xFE]) catch failure:
+        print(f"utf8: {failure.at}: {failure.message}")
+        recover ""
+    print(f"kept: {kept}")
+    return 0

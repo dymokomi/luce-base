@@ -1,0 +1,10 @@
+## A package that raises: origin_across_packages reads where (§11.3).
+pub let refused: ErrorCode = ErrorCode.package(7)
+
+pub func check(n: i64) -> i64!:
+    if n < 0:
+        error(refused, "below zero")
+    return n
+
+pub func passed_on(n: i64) -> i64!:
+    return try check(n)

@@ -1,0 +1,7 @@
+# error: `error` takes a code and a message, or a caught failure to pass on
+## §11.3: `error` with one argument passes on a caught failure, not a code.
+let refused = ErrorCode.package(1)
+
+pub func main(arguments: str[]) -> i32!:
+    error(refused)
+    return 0

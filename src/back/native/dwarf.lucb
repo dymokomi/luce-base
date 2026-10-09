@@ -553,6 +553,7 @@ pub struct Emitter:
             try self.member("failed", types.bool_id, error_at + 24)
         elif t.kind == types.Kind.error_value:
             try self.member("code", types.error_code_id, 0)
+            try self.member("at", types.i32_id, 4)
             try self.member("message", types.str_id, 8)
 
     ## A payload enum (§6.1): its `tag`, an enumeration of the case names in case order, and

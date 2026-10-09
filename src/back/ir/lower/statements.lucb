@@ -496,31 +496,47 @@ extend Lowerer:
         if self.f.debug:
             try self.debug_call("lb_debug_leave", u32(self.f.args.count), 0)
 
-    ## `error(code, message)`: the failing result leaves the function.
+    ## `error(code, message)`, raised here, and `error(failure)`, a caught failure passed on
+    ## whole: the failing result leaves the function.
     func error_return(e: ast.Node*) -> !:
         let first = e.body else return
         let code = first.left else return
-        let second = first.next else return
-        let message = second.left else return
         # the code and the message first: reaching `core.failure` may set up the thread's
         # storage, which can change errno before a code computed from it is read
         let else_replaced = self.else_replaced
         self.else_replaced = 0
-        let c = try self.value(code, types.error_code_id)
-        var m = try self.value(message, types.str_id)
+        var c = ir.none_ref()
+        var m = LowerValue(ref = ir.none_ref(), type_id = types.str_id, in_memory = true)
+        var literal = false
+        var passed_at: ir.Ref? = none
+        if let second = first.next:
+            let message = second.left else return
+            c = (try self.value(code, types.error_code_id)).ref
+            m = try self.value(message, types.str_id)
+            literal = calls.is_text_literal(message)
+        else:
+            let failure = try self.value(code, types.error_value_id)
+            c = try self.f.load(ir.Op.loadsw, ir.Class.w, failure.ref)
+            m = LowerValue(ref = try self.offset_address(failure.ref, 8), type_id = types.str_id, in_memory = true)
+            passed_at = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(failure.ref, 4))
         # the message is copied into the thread's room before cleanup can free what it was
         # made from, in place of a handled error's message the failure leaves behind (§11.3)
         var replaced = try self.replaced_message()
         if replaced == none and else_replaced != 0:
             replaced = LowerValue(ref = try self.slot_address(else_replaced - 1), type_id = types.str_id, in_memory = true)
-        if calls.is_text_literal(message):
+        if literal:
             if let old = replaced:
                 try self.message_handled(old)
         else:
             m = try self.message_raised(m, replaced)
         let err = try self.slot_address(self.failure_slot) if self.failure_target != 0 else try self.failure_address()
-        try self.f.store(ir.Op.storew, c.ref, err)
+        try self.f.store(ir.Op.storew, c, err)
         try self.f.copy_bytes(try self.offset_address(err, 8), m.ref, 16)
+        # where it was raised: this statement, or where the failure passed on was raised
+        if let raised = passed_at:
+            try self.f.store(ir.Op.storew, raised, try self.offset_address(err, 4))
+        else:
+            try self.store_origin(err)
         if self.failure_target != 0:
             try self.release_grown(self.failure_grown)
             try self.unwind_from(self.failure_scope, true)

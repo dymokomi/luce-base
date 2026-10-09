@@ -101,7 +101,8 @@ with tempfile.TemporaryDirectory(prefix='base-main-lifetime-') as temporary:
             # leaks reports its own success status rather than the child's.
             assert result.returncode == (0 if checking_leaks else expected), (command, result.returncode, output)
             if fails:
-                assert re.search(rb'error: argument-error \(code [0-9]+\)\n', result.stderr), result.stderr
+                # the report names where the error was raised (base.md §11.3)
+                assert re.search(rb'error: \S*failure\.lucb:[0-9]+:[0-9]+: argument-error \(code [0-9]+\)\n', result.stderr), result.stderr
             else:
                 assert not result.stderr, result.stderr
             if checking_leaks:

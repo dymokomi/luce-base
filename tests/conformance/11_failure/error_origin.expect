@@ -1,0 +1,8 @@
+check: tests/conformance/11_failure/error_origin.lucb:12:9: below zero
+doubled: tests/conformance/11_failure/error_origin.lucb:12:9: below zero
+quadrupled: tests/conformance/11_failure/error_origin.lucb:12:9: below zero
+passed on: tests/conformance/11_failure/error_origin.lucb:12:9: below zero
+raised again: tests/conformance/11_failure/error_origin.lucb:29:9: below zero
+fallback: tests/conformance/11_failure/error_origin.lucb:33:5: replaced
+utf8: tests/conformance/11_failure/error_origin.lucb:36:5: invalid_utf8
+kept: tests/conformance/11_failure/error_origin.lucb:33:5

@@ -36,6 +36,8 @@ extend Checker:
                 let owner = e.left else return 0
                 if self.table.kind(owner.type_id) == types.Kind.pointer:
                     return 0  # what a pointer reaches is not the pointer
+                if e.kind == ast.Kind.member and e.text == "at" and owner.type_id == types.error_value_id:
+                    return 0  # where the error was raised lives as long as the program
                 return self.handled_view(owner)
             .unary:
                 let inner = e.left else return 0

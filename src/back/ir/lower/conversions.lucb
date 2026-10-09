@@ -219,4 +219,5 @@ extend Lowerer:
         let data = try self.f.address_of(ir.text_ref(index))
         try self.f.store(ir.Op.storel, data, try self.offset_address(err, 8))
         try self.f.store(ir.Op.storel, ir.const_ref((i64)message.length), try self.offset_address(err, 16))
+        try self.store_origin(err)
         try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.failed_offset(result)))

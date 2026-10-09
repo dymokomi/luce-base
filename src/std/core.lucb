@@ -865,12 +865,34 @@ pub func message_handled(message: str):
         if start < raised_top:
             raised_top = start
 
-## A failed `main`: its error on stderr, `error: message (code n)`, exit status 1. The code
-## shown is the package's own number, `n` of `ErrorCode.package(n)`; the package identity
-## above it (§11.3) tells packages apart and means nothing to a reader.
-pub func main_failed(code: i32, message: str) -> i32:
+# mark: Where errors were raised ============================================================
+#
+# An error keeps where it was raised (§11.3), the position text of the statement a trap there
+# would name, in the word after its code: the text's distance from `origin_base`, a byte of
+# this program's own data, so the `Error` stays three words and a `T!` result does not grow.
+# The texts and the byte are in one image, well within 2 GiB of each other; 0 is no position.
+
+## The byte an error's `at` is counted from: generated code subtracts its address from the
+## position text's.
+pub var origin_base: u8 = 0
+
+## `failure.at`: the position text `raised` bytes from `origin_base`, `file:line:column`, or
+## empty when it is 0.
+pub func origin(raised: i32) -> str:
+    if raised == 0:
+        return ""
+    let text = (u8*)(usize)((isize)(usize)&origin_base + (isize)raised)
+    return (str)(c.str)text
+
+## A failed `main`: its error on stderr, `error: file:line:column: message (code n)`, the
+## place being where the error was raised, `at`; exit status 1. The code shown is the
+## package's own number, `n` of `ErrorCode.package(n)`; the package identity above it (§11.3)
+## tells packages apart and means nothing to a reader.
+pub func main_failed(code: i32, message: str, raised: i32) -> i32:
     var bytes: u8[1024] = ---
-    let line = strings.format(bytes, f"error: {message} (code {(u32)code & 0xFFFF})\n") catch:
+    let at = origin(raised)
+    let number = (u32)code & 0xFFFF
+    let line = strings.format(bytes, f"error: {at}: {message} (code {number})\n" if at.length > 0 else f"error: {message} (code {number})\n") catch:
         return 1
     _ = write(2, line.bytes.data, line.length)
     return 1

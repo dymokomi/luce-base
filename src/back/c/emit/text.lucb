@@ -476,7 +476,7 @@ extend Emitter:
         try self.put_tmp("out", n)
         try self.put(" = ((lb_r_str){ .error = { .code = ")
         try self.put_u64(check.exhausted_code())
-        try self.put(", .message = (lb_str){\"memory.exhausted: the formatted text does not fit its buffer\", 60} }, .failed = true }); } else { ")
+        try self.put(", .message = (lb_str){\"memory.exhausted: the formatted text does not fit its buffer\", 60}, .at = lb_here() }, .failed = true }); } else { ")
         try self.put_tmp("out", n)
         try self.put(" = ((lb_r_str){ .value = lb_fmtbuf_finish(&")
         try self.put_tmp("fb", n)

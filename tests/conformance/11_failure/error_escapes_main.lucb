@@ -1,0 +1,14 @@
+# oracle: none
+## §11.3: an error that escapes a fallible `main` is reported where it was raised:
+## `error: file:line:column: message (code n)`, exit status 1.
+let refused = ErrorCode.package(3)
+
+func check(n: i64) -> i64!:
+    if n > 1:
+        error(refused, "too many")
+    return n
+
+pub func main(arguments: str[]) -> i32!:
+    let n = try check(i64(arguments.length) + 1)
+    print(f"{n}")
+    return 0

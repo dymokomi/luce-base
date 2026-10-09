@@ -56,9 +56,10 @@ extend Checker:
         if id == types.error_value_id:
             if name == "code":
                 return types.error_code_id
-            if name == "message":
+            # `at`, where the error was raised, is static text, as a trap's position is
+            if name == "message" or name == "at":
                 return types.str_id
-            return try self.fail(e, "an `Error` has `code` and `message`")
+            return try self.fail(e, "an `Error` has `code`, `message` and `at`")
         if self.table.is_float(id) and name == "bits":
             return try self.builtin_method(e, id, name)
         if (id == types.f32_id or id == types.f64_id) and name == "mul_add":

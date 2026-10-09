@@ -60,6 +60,9 @@ extend Lowerer:
         if e.text == "data" and (record == types.str_id or self.is_span(record)):
             return base
         if record == types.error_value_id:
+            if e.text == "at":
+                # read as text (`member`), as `failure.at.length` reads it
+                return try self.address_of_value(try self.member(e))
             return try self.offset_address(base, 0 if e.text == "code" else 8)
         if self.kind(record) == types.Kind.tuple:
             let wanted = try literals.decode_integer(e.text)
@@ -248,6 +251,14 @@ extend Lowerer:
         if self.kind(ot) == types.Kind.module:
             return try self.module_member(e, ot)
         let record = self.elem(ot) if self.is_ptr(ot) else ot
+        if e.text == "at" and record == types.error_value_id:
+            # where the error was raised: its position text, the word after the code counting
+            # its distance from `core.origin_base`
+            let base = (try self.expr(owner)).ref if self.is_ptr(ot) else try self.place(owner)
+            let raised = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(base, 4))
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = raised, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+            return try self.call_aggregate("lb_core_origin", start, 1, types.str_id)
         if e.text == "length" and self.is_array(record):
             return LowerValue(ref = ir.const_ref((i64)self.c.table.get(record).length), type_id = types.usize_id, in_memory = false)
         if e.text == "bytes" and record == types.str_id:

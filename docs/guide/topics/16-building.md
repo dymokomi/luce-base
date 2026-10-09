@@ -121,7 +121,8 @@ trap: main.lucb:4:9: integer overflow
 ```
 
 The position is the statement that was running. An error that reaches the end of `main`
-prints `error: message (code n)` and also exits with status 1.
+prints `error: file:line:column: message (code n)`, the position being where the error was
+raised, and also exits with status 1.
 
 ### Debuggers
 

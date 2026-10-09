@@ -230,7 +230,7 @@ extend Emitter:
         try self.put_tmp("sr", n)
         try self.put(".failed = true; ")
         try self.put_tmp("sr", n)
-        try self.put(".error = (lb_error){ .code = LB_INVALID_UTF8, .message = (lb_str){\"invalid_utf8\", 12} }; } else { ")
+        try self.put(".error = (lb_error){ .code = LB_INVALID_UTF8, .message = (lb_str){\"invalid_utf8\", 12}, .at = lb_here() }; } else { ")
         try self.put_tmp("sr", n)
         try self.put(".failed = false; ")
         try self.put_tmp("sr", n)

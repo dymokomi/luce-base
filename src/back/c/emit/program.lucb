@@ -509,6 +509,8 @@ extend Emitter:
     ## in a C build writes the crash report and runs the crash handler as a native one does.
     func trap_entries() -> !:
         try self.line("#define LB_AT ((char*)(lb_pos != NULL ? lb_pos : \"\"))")
+        # an error's `at`: the running statement's position text from `core.origin_base` (§11.3)
+        try self.line("int32_t lb_here(void) { return lb_pos != NULL ? (int32_t)((const char*)lb_pos - (const char*)&lb_core_11origin_base) : 0; }")
         try self.line("void lb_trap(const char* message) { lb_core_7trap_at(LB_AT, (char*)message); __builtin_unreachable(); }")
         try self.line("void lb_trap_two(const char* message, const char* detail) { lb_core_11trap_two_at(LB_AT, (char*)message, (char*)detail); __builtin_unreachable(); }")
         try self.line("void lb_trap_text(lb_str message) { lb_core_12trap_text_at(LB_AT, message); __builtin_unreachable(); }")
@@ -538,7 +540,7 @@ extend Emitter:
             try self.line("    lb_r_i32 r = ")
             try self.put(call)
             try self.put(";")
-            try self.line("    if (r.failed) { (void)lb_entry_failed(r.error); }")
+            try self.line("    if (r.failed) { (void)lb_entry_failed(r.error, lb_core_origin(r.error.at)); }")
             try self.line("    int result = r.failed ? 1 : (int)r.value;")
         else:
             try self.line("    int result = (int)")
@@ -557,7 +559,7 @@ extend Emitter:
             return
         try self.line("int64_t lb_answer(void) {")
         try self.line("    lb_r_i64 r = lb_answer_impl();")
-        try self.line("    if (r.failed) { exit(lb_entry_failed(r.error)); }")
+        try self.line("    if (r.failed) { exit(lb_entry_failed(r.error, lb_core_origin(r.error.at))); }")
         try self.line("    return r.value;")
         try self.line("}")
 

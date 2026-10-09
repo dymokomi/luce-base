@@ -164,17 +164,22 @@ extend Checker:
             mark_local(e)
         return try self.table.fallible(types.str_id)
 
-    ## `error(code, message)`: leaves a fallible function or a handler with that failure;
-    ## the message is copied as it is raised (§11.3), so it may view a local.
+    ## `error(code, message)`: leaves a fallible function or a handler with that failure,
+    ## raised here; the message is copied as it is raised (§11.3), so it may view a local.
+    ## `error(failure)` passes a caught failure on whole, where it was raised included.
     func error_type(e: ast.Node*) -> u32!:
         if self.in_defer and not self.fallible and not self.expression_effect:
             return try self.fail(e, "a failure cannot escape a deferred block (§8.8)")
         if not self.fallible and not self.expression_effect:
             return try self.fail(e, "`error` is only valid in a fallible function, in a handler or not")
-        let first = e.body else return try self.fail(e, "`error(code, message)` takes two arguments")
+        let first = e.body else return try self.fail(e, "`error` takes a code and a message, or a caught failure to pass on")
         let cv = first.left else return try self.fail(e, "empty argument")
+        if first.next == none:
+            if try self.check_expr(cv, types.none_id) != types.error_value_id:
+                return try self.fail(cv, "`error` takes a code and a message, or a caught failure to pass on")
+            return types.never_id
         _ = try self.expect(cv, types.error_code_id)
-        let second = first.next else return try self.fail(e, "`error(code, message)` takes two arguments")
+        let second = first.next else return try self.fail(e, "`error` takes a code and a message, or a caught failure to pass on")
         let mv = second.left else return try self.fail(e, "empty argument")
         _ = try self.expect(mv, types.str_id)
         return types.never_id

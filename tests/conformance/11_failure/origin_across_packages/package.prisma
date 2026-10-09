@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "conformance_origin_across_packages" {
+    def dependency "origin-source" {
+        str path = "../origin_source"
+    }
+}

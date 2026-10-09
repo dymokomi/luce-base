@@ -73,8 +73,8 @@ a very long key: key longer than 8 bytes
   a variable, field or parameter cannot be `T!`. To keep an outcome for later, declare an
   enum with a success case and a failure case.
 - `T?!` is a function that may fail, and may also succeed with no value, as `lookup` above.
-- An error is an `Error` value with two fields: `code`, an `ErrorCode`, and `message`, a
-  `str`.
+- An error is an `Error` value with three fields: `code`, an `ErrorCode`; `message`, a
+  `str`; and `at`, where it was raised (see [below](#where-an-error-was-raised)).
 
 ### Handling a failure
 
@@ -93,12 +93,12 @@ whole expression after it: in `try combine(read(), parse())`, a failure of `read
 let text = settings_text(path) catch failure:
     if failure.code == files.missing:
         recover ""
-    error(failure.code, failure.message)
+    error(failure)
 ```
 
 The handler runs with the error named, and must end in one of: `recover value` (the value of
-the whole expression), `return`, `error(...)` (failing the function, possibly with the same
-error), `trap(...)`, or `break`/`continue` inside a loop. `catch:` without a name ignores the
+the whole expression), `return`, `error(...)` (failing the function: `error(failure)` passes
+the same error on, like a bare `raise` in Python's `except`), `trap(...)`, or `break`/`continue` inside a loop. `catch:` without a name ignores the
 error's details: `let n = parse(text) catch: recover 0`. When an optional is expected, the
 handler can `recover none`: `let n: i64? = parse(text) catch: recover none`.
 
@@ -122,8 +122,9 @@ may be used once per package, and the call is only allowed as a top-level consta
 codes with `==`: `failure.code == not_found`, or `failure.code == files.missing` for a code
 another package exports.
 
-A failure that reaches the end of `main` is printed as `error: message (code n)`, where `n` is
-the number given to `ErrorCode.package`, and the exit status is 1.
+A failure that reaches the end of `main` is printed as `error: file:line:column: message
+(code n)`, where the position is where it was raised and `n` is the number given to
+`ErrorCode.package`, and the exit status is 1.
 
 ### Error messages
 
@@ -167,6 +168,48 @@ func remember(path: str) -> !:
 Without the copy, the compiler says "a caught failure's message lives until its handler
 finishes and must not be stored where it outlives the handler". Messages longer than 4 KiB
 are cut short with `…`.
+
+### Where an error was raised
+
+`failure.at` names the statement that raised the error, as `file:line:column`, the same text
+a trap prints for a statement. It is the last line of a Python traceback, without the frames
+above it:
+
+```luce
+let refused = ErrorCode.package(1)
+
+func check(n: i64) -> i64!:
+    if n < 0:
+        error(refused, "below zero")
+    return n
+
+func doubled(n: i64) -> i64!:
+    return try check(n) * 2
+
+pub func main(arguments: str[]) -> i32:
+    let v = doubled(-1) catch failure:
+        print(f"{failure.at}: {failure.message}")
+        recover 0
+    print(f"{v}")
+    return 0
+```
+
+```output
+main.lucb:5:9: below zero
+0
+```
+
+- `try` and `error(failure)` pass the error on with its `at` unchanged. `error(failure.code,
+  failure.message)` raises a new error where it stands, so its `at` is the handler's line.
+- An error the language raises itself, `memory.exhausted` from `new` or `invalid_utf8` from
+  `str(bytes)`, names the statement that asked for it.
+- A position is relative to the project's root (the directory with `package.prisma`); a
+  `--debug` build keeps the full path.
+- `at` is static text that lives as long as the program, so, unlike `failure.message`, it may
+  be kept after the handler without a copy.
+- It is one position, not a stack trace: an error raised inside a library names the library's
+  line. To report your own line instead, raise anew with `error(failure.code,
+  failure.message)`.
 
 ## Out of memory
 
