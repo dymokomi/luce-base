@@ -148,7 +148,10 @@ defer result.close()
   inode and modification and change times. A file whose look moved is read, and when its
   bytes changed the kept modules are dropped and that check reads them again (and keeps
   them again); a file written again with the same bytes, or only touched, costs a read and
-  nothing more.
+  nothing more. A file written in the two seconds before the library looked is read at
+  each look until two seconds have passed: a second write in the same tick of the file
+  system's clock leaves the times as they were, and only the bytes tell. On Windows the
+  look is the size and the write time, which moves in steps of about 16 ms.
 - A dependency that does not load or check is not kept: each check reads it and reports
   its errors, as a check alone does, until it checks again.
 - The kept modules are per package, the directory holding the file's `package.prisma`. A
