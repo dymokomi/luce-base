@@ -15,6 +15,10 @@ extend Checker:
         p.allow_core_names = is_prelude
         let tree = try p.parse_module()
         try p.merge_extensions(tree)
+        try self.add_parsed(name, src, tree, is_prelude)
+
+    ## Add `tree`, parsed from `src`, as module `name`.
+    func add_parsed(name: str, src: source.Source, tree: ast.Node*, is_prelude: bool) -> !:
         tree.text = name
         if is_prelude:
             var cursor = tree.body
@@ -38,14 +42,18 @@ extend Checker:
         self.ready_table()
         var order_bytes = try new u8[directory.length + 8] ---
         let order = try in_arena.read((c.str)try strings.format(order_bytes, f"{directory}/ORDER"))
+        # every module read in order (each a build input), parsed in parallel, added in order
+        var names = try list.List[str].create(32)
+        var sources = try list.List[source.Source].create(32)
         var start: usize = 0
         var i: usize = 0
         while i <= order.length:
             let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
             if blank and i > start:
                 let name = (str)order[start..<i]
+                try names.push(name)
                 if name == "platform":
-                    try self.add_platform()
+                    try sources.push(try self.platform_source())
                 else:
                     var path_bytes = try new u8[directory.length + name.length + 8] ---
                     var path = try strings.format(path_bytes, f"{directory}/{name}.lucb")
@@ -53,10 +61,17 @@ extend Checker:
                         path = try strings.format(path_bytes, f"{directory}/{name}")
                     var src = try load_source((c.str)path, false)
                     try src.rebase(directory, "std")
-                    try self.add_module(name, src, true)
+                    try sources.push(src)
             if blank:
                 start = i + 1
             i += 1
+        let trees = try parse_all(sources.span(), true)
+        for k in 0..<names.count:
+            if let tree = trees[k]:
+                try self.add_parsed(names.get(k), sources.get(k), tree, true)
+            else:
+                # a module that does not parse is reported as the parser reports it
+                try self.add_module(names.get(k), sources.get(k), true)
 
     ## Add every standard module from text the caller carries, as an embedded checker does
     ## (`standard_sources`): `modules` in binding order, `firsts` where each one's fragments
@@ -93,9 +108,13 @@ extend Checker:
 
     ## The `platform` module, which the checker writes for the target (§19.5).
     func add_platform() -> !:
+        try self.add_module("platform", try self.platform_source(), true)
+
+    ## The source of the `platform` module for the target.
+    func platform_source() -> source.Source!:
         let buffer = try new u8[1024] ---
         let text = try self.build_target.module_text(buffer, self.program, self.program_version)
-        try self.add_module("platform", try source.Source.over("platform", text.bytes), true)
+        return try source.Source.over("platform", text.bytes)
 
     ## Load `path` and, first, every module it imports from the same directory.
     pub func load(path: c.str) -> !:
@@ -169,9 +188,10 @@ extend Checker:
         if self.sealed:
             try src.rebase(self.root, "")
         let canonical = try module_paths.canonical(text)
-        var p = try parser.Parser.over(src, self.scratch)
-        let tree = try p.parse_module()
-        try p.merge_extensions(tree)
+        # parsed ahead, on another thread, when its text is the text read now (`prefetch`)
+        var tree = self.parsed_ahead(text, &src) else try self.parse_loaded(&src)
+        if not (self.test_build and self.under_test(text)):
+            try self.loaded_paths.push(text)
         if is_standard_module(name):
             let half = self.scratch.length // 2
             let message = try strings.format(self.scratch[..<half], f"{text}:1:1: a module cannot take a standard module's name")
@@ -270,6 +290,13 @@ extend Checker:
         let owner = module_paths.package_of(path, self.package_name) catch:
             return false
         return owner == self.tested_package
+
+    ## Parse the source of a module being loaded.
+    func parse_loaded(src: source.Source*) -> ast.Node*!:
+        var p = try parser.Parser.over(*src, self.scratch)
+        let tree = try p.parse_module()
+        try p.merge_extensions(tree)
+        return tree
 
     ## Leave the active import path on success and on every loading error.
     func finish_load():
@@ -499,14 +526,24 @@ extend Checker:
 ## directory, assembled in order as one module whose positions name the fragment files.
 ## `with_tests` adds, after them, the test fragments the package keeps for this module
 ## under `tests/` (§16.5).
-func load_source(path: c.str, with_tests: bool) -> source.Source!:
+func load_source(path: c.str, with_tests: bool, noting: bool = true) -> source.Source!:
     let text = (str)path
     var names = try list.List[str].create(8)
     var texts = try list.List[str].create(8)
     var order_bytes = try new u8[text.length + 8] ---
-    let ordered = file_exists((c.str)try strings.format(order_bytes, f"{text}/ORDER"))
+    let order_path = try strings.format(order_bytes, f"{text}/ORDER")
+    # a lookup notes an absence for the build's key (`file_exists`), which only the thread
+    # loading in order may do
+    var ordered = false
+    if noting:
+        ordered = file_exists((c.str)order_path)
+    else:
+        ordered = files.exists((c.str)order_path)
     if ordered:
-        try add_fragments(text, "ORDER", &names, &texts)
+        try add_fragments(text, "ORDER", &names, &texts, noting)
+    elif not noting:
+        # read for parsing ahead (`prefetch`): the loading notes it
+        return try source.Source.over(text, try in_arena.read(path))
     elif not with_tests:
         return try source.Source.load(path)
     else:
@@ -530,13 +567,14 @@ func bind_standard() -> !:
 ## The fragments that the list file `listing` in `directory` names (`ORDER` for a module,
 ## `TESTS` for its test fragments), whitespace apart, added in order to `names` and their
 ## text to `texts`, unchecked until assembled; each is a build input, so an edit rebuilds.
-func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: list.List[str]*) -> !:
+func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: list.List[str]*, noting: bool = true) -> !:
     var order_bytes = try new u8[directory.length + listing.length + 2] ---
     let order_path = try strings.format(order_bytes, f"{directory}/{listing}")
     let listed = try files.read((c.str)order_path)
     defer listed.release()
     let order = listed.value
-    cache.note_input(directory, order, order_path)
+    if noting:
+        cache.note_input(directory, order, order_path)
     let before = names.count
     var start: usize = 0
     var i: usize = 0
@@ -548,7 +586,8 @@ func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: 
             let fragment = try strings.format(fragment_bytes, f"{directory}/{part}")
             try names.push(fragment)
             let bytes = try in_arena.read((c.str)fragment)
-            cache.note_input(fragment, bytes)
+            if noting:
+                cache.note_input(fragment, bytes)
             try texts.push((str)bytes)
         if blank:
             start = i + 1

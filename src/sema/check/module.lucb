@@ -282,6 +282,11 @@ pub struct Checker:
     var read_only_uses: list.List[ReadOnlyUse]
     var use_forwards: list.List[UseForward]
     var pending_instances: list.List[PendingInstance]
+    ## The modules parsed ahead (`prefetch`), and their index by path; the paths of the
+    ## modules loaded from files, in order, for the next build's list (`loaded_list`).
+    var ahead: list.List[Ahead]
+    var ahead_index: hashed.Table[str]
+    var loaded_paths: list.List[str]
 
     ## A fresh checker; `scratch` is a buffer for formatting diagnostics.
     pub static func create(scratch: u8[]) -> Checker!:
@@ -296,7 +301,8 @@ pub struct Checker:
                        decls_indexed = try hashed.Table[usize].create(64), by_canonical = try hashed.Table[str].create(256),
                        pending_changes = try list.List[PendingChange].create(16), read_only_uses = try list.List[ReadOnlyUse].create(16),
                        use_forwards = try list.List[UseForward].create(16), pending_instances = try list.List[PendingInstance].create(16),
-                       recovered_views = try list.List[RecoveredView].create(4))
+                       recovered_views = try list.List[RecoveredView].create(4), ahead = try list.List[Ahead].create(0),
+                       ahead_index = try hashed.Table[str].create(16), loaded_paths = try list.List[str].create(64))
 
     # -- diagnostics ----------------------------------------------------------------------
 

@@ -1,0 +1,114 @@
+#==============================================================================================
+#
+#   check/prefetch - The program's modules parsed ahead, in parallel
+#
+#   DESCRIPTION:
+#       Loading a module reads it, parses it, then loads what it imports, one module after
+#       another: a small program importing luce-geocore spent two thirds of its check
+#       there. The driver keeps the list of the modules a build loaded in the build cache;
+#       the next build parses them all at once, a module on each processor, before loading
+#       the program (`prefetch`). Loading takes a module's tree from there when the text it
+#       reads is the text that was parsed, and parses it itself otherwise: a stale or
+#       missing list costs time, never a different program. A module that would not parse
+#       is left to the loading, which reports it as it always did.
+#
+#==============================================================================================
+import back.parallel
+
+extend Checker:
+    # mark: Parsing ahead ======================================================================
+
+    ## Parse ahead every module the list `listed` names, one path per line, as an earlier
+    ## build's `loaded_list` wrote it.
+    pub func prefetch(listed: str) -> !:
+        var at: usize = 0
+        while at < listed.length:
+            var end = at
+            while end < listed.length and listed.bytes[end] != '\n':
+                end += 1
+            let path = try strings.copy((str)listed.bytes[at..<end])
+            at = end + 1
+            if path.length > 0 and not self.ahead_index.has(path):
+                try self.ahead.push(Ahead(path = path, bytes = "", tree = none))
+                _ = try self.ahead_index.add(path, self.ahead.count - 1)
+        with memory.heap:
+            try parallel.each(self.ahead.count, parse_ahead_task, (void*)&self.ahead)
+
+    ## The tree parsed ahead for the module at `path` whose text is `src`'s, when there is one.
+    func parsed_ahead(path: str, src: source.Source*) -> ast.Node*?:
+        let k = self.ahead_index.find(path) else return none
+        let ahead = self.ahead.get(k)
+        let tree = ahead.tree else return none
+        if (str)src.bytes != ahead.bytes:
+            return none
+        return tree
+
+    ## The modules this checker loaded from files, one path per line, for an `prefetch` of
+    ## the next build.
+    pub func loaded_list() -> str!:
+        var length: usize = 0
+        for path in self.loaded_paths.span():
+            length += path.length + 1
+        let out = try new u8[length + 1] ---
+        var at: usize = 0
+        for path in self.loaded_paths.span():
+            memory.copy(out[at..], path.bytes, path.length)
+            out[at + path.length] = '\n'
+            at += path.length + 1
+        return (str)out[..<at]
+
+## Each of `sources` parsed, on whichever thread takes it, as a standard module when
+## `prelude`; none for one that does not parse, which the caller parses again to report.
+func parse_all(sources: const source.Source[], prelude: bool) -> (ast.Node*?)[]!:
+    var job = Parsing(sources = sources, prelude = prelude, trees = try new (ast.Node*?)[sources.length] ---)
+    for k in 0..<sources.length:
+        job.trees[k] = none
+    with memory.heap:
+        try parallel.each(sources.length, parse_task, (void*)&job)
+    return job.trees
+
+## What the threads of `parse_all` share.
+struct Parsing:
+    var sources: const source.Source[]
+    var prelude: bool
+    var trees: (ast.Node*?)[]
+
+func parse_task(context: void*?, index: usize):
+    let job = (Parsing*)(context else return)
+    with memory.heap:
+        job.trees[index] = parse_one(job.sources[index], job.prelude) catch:
+            recover none
+
+func parse_one(src: source.Source, prelude: bool) -> ast.Node*?!:
+    let scratch = try new u8[4096] ---
+    var p = try parser.Parser.over(src, scratch)
+    p.allow_core_names = prelude
+    let tree = try p.parse_module()
+    try p.merge_extensions(tree)
+    return tree
+
+## A module parsed ahead: the path it was read at, its text, and its tree, none when it
+## could not be read or parsed.
+struct Ahead:
+    var path: str
+    var bytes: str
+    var tree: ast.Node*?
+
+## Read and parse module `index` of the list `context` points at, on whichever thread takes
+## it. Nothing is noted for the build cache here, neither a file read nor a lookup that
+## found nothing (`cache.note_absent`, whose list no other thread may grow): the loading
+## reads the file again, and notes it, in its own order.
+func parse_ahead_task(context: void*?, index: usize):
+    let ahead = (list.List[Ahead]*)(context else return)
+    with memory.heap:
+        parse_ahead(&ahead.items[index]) catch ignored:
+            _ = ignored
+
+func parse_ahead(ahead: Ahead*) -> !:
+    let src = try load_source((c.str)ahead.path, false, false)
+    let scratch = try new u8[4096] ---
+    var p = try parser.Parser.over(src, scratch)
+    let tree = try p.parse_module()
+    try p.merge_extensions(tree)
+    ahead.bytes = (str)src.bytes
+    ahead.tree = tree

@@ -332,7 +332,13 @@ func checked(path: c.str, test_build: bool = false, whole_package: bool = false)
     checker.test_build = test_build
     checker.whole_package = whole_package
     try checker.add_prelude()
+    # the modules the last build of this entry loaded, parsed ahead in parallel
+    # (`check.prefetch`), and the list kept again for the next
+    let listing = try cache.record_key(try strings.format(try new u8[((str)path).length + 16] ---, f"modules {(str)path}"))
+    if let listed = try cache.find(listing, "-m", true):
+        try checker.prefetch((str)(try in_arena.read((c.str)listed)))
     try checker.load(path)
+    cache.keep_bytes_as(listing, "-m", (try checker.loaded_list()).bytes)
     try checker.check_program()
     let inputs = try native_inputs(&checker)
     try inputs.apply(&package)
