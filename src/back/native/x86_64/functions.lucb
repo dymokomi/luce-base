@@ -11,14 +11,18 @@ extend Generator:
     # mark: Functions ==========================================================================
 
     ## Copy `size` bytes from (`origin`) to (`to`) with plain loads and stores: 16 at a
-    ## time through an SSE register, then 8, 4, 2, 1. Unaligned access is fine on this target.
+    ## time through the first float scratch register, then 8, 4, 2, 1 through rax.
+    ## Unaligned access is fine on this target.
     func inline_copy(origin: str, to: str, size: u64) -> !:
         var done: u64 = 0
-        # through xmm4 on Windows, where xmm8 is nonvolatile (`reg`)
-        let windows = self.convention.windows
+        let through = self.reg(ir.Class.v, 0)
         while size - done >= 16:
-            try self.based_move("movups ", done, origin, ", %xmm4" if windows else ", %xmm8")
-            try self.based_move("movups %xmm4, " if windows else "movups %xmm8, ", done, to, "")
+            try self.based_move("movups ", done, origin, ", ")
+            try self.writer.put(through)
+            try self.writer.line3("movups ", through, ", ")
+            try self.writer.put_u64(done)
+            try self.writer.put("(")
+            try self.put2(to, ")")
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
         let loads: str[4] = ["movq ", "movl ", "movzwl ", "movzbl "]
@@ -35,11 +39,14 @@ extend Generator:
     ## Zero `size` bytes at (`to`) the same way.
     func inline_zero(to: str, size: u64) -> !:
         var done: u64 = 0
-        let windows = self.convention.windows
+        let through = self.reg(ir.Class.v, 0)
         if size >= 16:
-            try self.writer.line("pxor %xmm4, %xmm4" if windows else "pxor %xmm8, %xmm8")
+            try self.writer.line4("pxor ", through, ", ", through)
         while size - done >= 16:
-            try self.based_move("movups %xmm4, " if windows else "movups %xmm8, ", done, to, "")
+            try self.writer.line3("movups ", through, ", ")
+            try self.writer.put_u64(done)
+            try self.writer.put("(")
+            try self.put2(to, ")")
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
         let stores: str[4] = ["movq $0, ", "movl $0, ", "movw $0, ", "movb $0, "]
@@ -65,12 +72,31 @@ extend Generator:
         try self.writer.put_u64(offset)
         try self.writer.put(rest)
 
+    ## Whether the function needs the third float scratch register (`reg(cls, 2)`): a fused
+    ## multiply-add, a checked vector sum or difference, or an aggregate passed or returned
+    ## whose last eightbyte may go between memory and an SSE register in part
+    ## (`load_eightbyte`).
+    func third_scratch() -> bool:
+        if self.f.has_result and partial_eightbyte(self.f.result_size):
+            return true
+        for n in self.f.instrs.span():
+            if n.op == ir.Op.fma or n.op == ir.Op.vaddo or n.op == ir.Op.vsubo:
+                return true
+            if n.op == ir.Op.call:
+                let info = self.f.calls.get((usize)n.extra)
+                if info.has_result and partial_eightbyte(info.result_size):
+                    return true
+                for k in 0..<info.args_count:
+                    if partial_eightbyte(self.f.args.get((usize)(info.args_start + k)).size):
+                        return true
+        return false
+
     ## A load from a promoted slot: the register, extended as the load would extend from
     ## memory, since a narrow store leaves the register's upper bits as they were.
     func load_promoted(op: ir.Op, k: u32, d: str) -> !:
-        let code = (usize)self.fr.slot_regs.get((usize)k - 1)
-        let q = q_names[code]
-        let l = l_names[code]
+        let code = self.fr.slot_regs.get((usize)k - 1)
+        let q = self.q_name(code)
+        let l = self.l_name(code)
         match op:
             .loadl:
                 if d != q:
@@ -79,27 +105,43 @@ extend Generator:
                 if d != l:
                     try self.writer.line4("movl ", l, ", ", d)
             .loadsw: try self.writer.line4("movslq ", l, ", ", d)
-            .loadub: try self.writer.line4("movzbl ", b_names[code], ", ", d)
-            .loadsb: try self.writer.line4("movsbl ", b_names[code], ", ", d)
-            .loaduh: try self.writer.line4("movzwl ", w_names[code], ", ", d)
-            .loadsh: try self.writer.line4("movswl ", w_names[code], ", ", d)
+            .loadub: try self.writer.line4("movzbl ", self.b_name(code), ", ", d)
+            .loadsb: try self.writer.line4("movsbl ", self.b_name(code), ", ", d)
+            .loaduh: try self.writer.line4("movzwl ", self.w_name(code), ", ", d)
+            .loadsh: try self.writer.line4("movswl ", self.w_name(code), ", ", d)
             _:
                 error(failed, "a float load from a promoted slot")
 
     ## A store into a promoted slot: the value's register `v` moves in.
     func store_promoted(op: ir.Op, k: u32, v: str) -> !:
-        let code = (usize)self.fr.slot_regs.get((usize)k - 1)
+        let code = self.fr.slot_regs.get((usize)k - 1)
         match op:
             .storel:
-                if v != q_names[code]:
-                    try self.writer.line4("movq ", v, ", ", q_names[code])
+                if v != self.q_name(code):
+                    try self.writer.line4("movq ", v, ", ", self.q_name(code))
             .storew:
-                if v != l_names[code]:
-                    try self.writer.line4("movl ", v, ", ", l_names[code])
-            .storeh: try self.writer.line4("movw ", word_name(v), ", ", w_names[code])
-            .storeb: try self.writer.line4("movb ", byte_name(v), ", ", b_names[code])
+                if v != self.l_name(code):
+                    try self.writer.line4("movl ", v, ", ", self.l_name(code))
+            .storeh: try self.writer.line4("movw ", word_name(v), ", ", self.w_name(code))
+            .storeb: try self.writer.line4("movb ", byte_name(v), ", ", self.b_name(code))
             _:
                 error(failed, "a float store into a promoted slot")
+
+    ## Emit the instructions from `i` that select as one, when they do (a comparison and
+    ## its branch, an address and its access): how many they were, or 0 when the one at `i`
+    ## selects alone.
+    func fused_at(i: usize, uses: u32[], index: usize) -> usize!:
+        if selection.branch(self.f, i, uses):
+            try self.branch_pair(i, index)
+            return 2
+        if let fused = selection.offset_access(self.f, i, uses):
+            let (base, offset) = fused
+            if not self.fr.is_rematerialised(self.f.instrs.get(i).dst):
+                if let dw = self.dw:
+                    try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
+                try self.offset_access(self.f.instrs.get(i + 1), base, offset)
+                return 2
+        return 0
 
     ## The comparison at `i` and the branch on it after, as one conditional jump.
     func branch_pair(i: usize, index: usize) -> !:
@@ -139,9 +181,11 @@ extend Generator:
     ## Function `index`'s text; on Windows with its save area holding `plan`, or the
     ## registers the allocator gave it (a debug build's, all of them) when none.
     func function_text(index: usize, plan: u16?) -> !:
-        # Windows keeps the argument-register codes 6–9 out of the pools (rsi and rdi are
+        # Windows keeps the argument-register codes 16–19 out of the pools (rsi and rdi are
         # nonvolatile there, and its arguments are staged through the shadow area)
-        self.fr.reserved = 480 if self.convention.windows else 0
+        self.fr.reserved = windows_reserved if self.convention.windows else 0
+        if self.third_scratch():
+            self.fr.reserve(third_scratch_code(self.convention.windows))
         self.reserve_asm_registers()
         try selection.canonical_labels(self.f)
         if not self.f.debug:
@@ -213,18 +257,10 @@ extend Generator:
             if received[i]:
                 i += 1
                 continue
-            if selection.branch(self.f, i, uses):
-                try self.branch_pair(i, index)
-                i += 2
+            let fused = try self.fused_at(i, uses, index)
+            if fused > 0:
+                i += fused
                 continue
-            if let fused = selection.offset_access(self.f, i, uses):
-                let (base, offset) = fused
-                if not self.fr.is_rematerialised(self.f.instrs.get(i).dst):
-                    if let dw = self.dw:
-                        try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
-                    try self.offset_access(self.f.instrs.get(i + 1), base, offset)
-                    i += 2
-                    continue
             try self.save_crossing(i)
             try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             try self.restore_crossing(i)

@@ -9,9 +9,9 @@
 #       these policies for System V on Linux and Microsoft x64 on Windows.
 #
 #       The shared frame planner and linear scan allocator assign temporaries and
-#       frame slots. Floating-point values stay in memory between instructions;
-#       Windows' additional nonvolatile registers are preserved when used by helpers.
-#       Half operations use F16C at v3, and conversion routines at lower CPU levels.
+#       frame slots, integers and floats alike (`registers_of`); Windows' nonvolatile
+#       registers are saved when the function's text names them. Half operations use
+#       F16C at v3, and conversion routines at lower CPU levels.
 #
 #       This fragment holds the `Generator` and its fields; each concern's methods are
 #       in a fragment of their own under `extend Generator:`, as `ORDER` lists them
@@ -108,7 +108,7 @@ pub struct Generator:
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 4), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
-                         fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024))
+                         fr = try frame.Frame.create(registers_of(os == build_target.Os.windows)), descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -186,7 +186,7 @@ pub struct Generator:
     static func like(model: Generator*) -> Generator!:
         var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, convention = model.convention, unwinding = model.unwinding, level = model.level, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
                              at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
-                             fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4)), descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024))
+                             fr = try frame.Frame.create(registers_of(model.convention.windows)), descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024))
         made.dw = none
         made.split = model.split
         made.function_tags = model.function_tags

@@ -71,10 +71,12 @@ extend Generator:
                 try self.based_move("movq " if width == 8 else "movd ", offset, base, ", ")
                 try self.writer.put(reg)
             else:
-                try self.writer.line("movq %rax, %xmm9")
+                # rax kept in the third float scratch register, which no argument takes
+                let keep = self.reg(ir.Class.d, 2)
+                try self.writer.line3("movq %rax, ", keep, "")
                 try self.load_bytes("%rax", base, offset, width)
                 try self.writer.line3("movq %rax, ", reg, "")
-                try self.writer.line("movq %xmm9, %rax")
+                try self.writer.line3("movq ", keep, ", %rax")
         else:
             try self.load_bytes(reg, base, offset, width)
 
@@ -177,14 +179,14 @@ extend Generator:
                 elif next_int < 6:
                     let source_name = argument_names[(usize)next_int] if p.cls == ir.Class.l else narrow_name(argument_names[(usize)next_int])
                     if code != 0:
-                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", source_name, ", ", class_name((u8)code, p.cls))
+                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", source_name, ", ", self.class_name((u8)code, p.cls))
                     else:
                         try self.frame_store(source_name, p.cls, home)
                     next_int += 1
                 else:
                     try self.stack_param_load("%rax", stack_offset)
                     if code != 0:
-                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", class_name((u8)code, p.cls))
+                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", self.class_name((u8)code, p.cls))
                     else:
                         try self.frame_store("%rax" if p.cls == ir.Class.l else "%eax", p.cls, home)
                     stack_offset += 8

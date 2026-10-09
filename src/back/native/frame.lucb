@@ -44,6 +44,11 @@ pub struct Registers:
     pub var scratch_ints: u8
     ## The number of caller-saved float (and vector) registers in the pool.
     pub var scratch_floats: u8
+    ## Whether the callee-saved float registers are the frame's: promoted slots may take
+    ## them, and `layout` gives each one used a save word. On x86-64 they are not: Windows'
+    ## nonvolatile xmm registers are saved whole by the generator itself, and no slot lives
+    ## in an xmm register.
+    pub var frame_floats: bool = true
 
     ## The allocator's register pools for this set.
     pub func pools() -> regalloc.Pools:
@@ -208,7 +213,8 @@ pub struct Frame:
                     lives.forget(u32(t))
             try self.note_spans(f, &g, &lives)
             let (ints, floats) = try lives.pressure(f)
-            try self.promote(f, budget(ints, self.registers.ints, self.registers.keep_ints), budget(floats, self.registers.floats, self.registers.keep_floats))
+            let float_budget = budget(floats, self.registers.floats, self.registers.keep_floats) if self.registers.frame_floats else 0
+            try self.promote(f, budget(ints, self.registers.ints, self.registers.keep_ints), float_budget)
             # the address of a slot promoted to a register is never formed at all
             for t in 1..<self.formed.count:
                 let k = self.formed.get(t)
@@ -252,8 +258,9 @@ pub struct Frame:
         if indirect_result:
             offset = round_up(offset, 8) + 8
             self.indirect_home = offset
-        # a save slot for each callee-saved register used; the caller-saved ones need none
-        let codes = (usize)self.registers.ints + (usize)self.registers.floats
+        # a save slot for each callee-saved register used; the caller-saved ones need none,
+        # nor the float ones a generator saves itself
+        let codes = (usize)self.registers.ints + ((usize)self.registers.floats if self.registers.frame_floats else 0)
         var c: usize = 1
         while c <= codes:
             if self.uses((u8)c):

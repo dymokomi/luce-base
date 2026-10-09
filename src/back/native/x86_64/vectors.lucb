@@ -9,35 +9,38 @@
 extend Generator:
     # mark: Vectors (§5.12) ====================================================================
 
-    ## A vector instruction on SSE2: the operands come from their homes into xmm8 and xmm9,
-    ## the result computes into xmm8 (xmm10 for a checked form) and goes to its home. An
-    ## eight-byte vector is the low half of the register, moved as a quadword; the upper
-    ## lanes then hold zeros, which no instruction here reads.
+    ## A vector instruction on SSE2: the operands come from their homes into the first two
+    ## scratch registers (`reg`), the result computes into the first (the third for a
+    ## checked form) and goes to its home. An eight-byte vector is the low half of the
+    ## register, moved as a quadword; the upper lanes then hold zeros, which no instruction
+    ## here reads.
     func vector(n: ir.Instr) -> !:
         let shape = n.extra
         let bytes = ir.vector_bytes(shape)
         let bits = ir.lane_bits(shape)
         let signed = ir.lanes_signed(shape)
+        let first = self.reg(ir.Class.v, 0)
+        let second = self.reg(ir.Class.v, 1)
         if bytes == 16:
             if n.op == ir.Op.loadv:
                 try self.address_operand("%r10", n.a)
-                let d = self.target(n.dst, ir.Class.v, "%xmm8")
+                let d = self.target(n.dst, ir.Class.v, first)
                 try self.writer.line3("movdqu (%r10), ", d, "")
                 try self.finish(n.dst, ir.Class.v, d)
                 return
             if n.op == ir.Op.storev:
-                let value = try self.source(n.a, ir.Class.v, "%xmm8")
+                let value = try self.source(n.a, ir.Class.v, first)
                 try self.address_operand("%r10", n.b)
                 try self.writer.line3("movdqu ", value, ", (%r10)")
                 return
             if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
-                let a = try self.source(n.a, ir.Class.v, "%xmm8")
-                let b = try self.source(n.b, ir.Class.v, "%xmm9")
-                var d = self.target(n.dst, ir.Class.v, "%xmm8")
+                let a = try self.source(n.a, ir.Class.v, first)
+                let b = try self.source(n.b, ir.Class.v, second)
+                var d = self.target(n.dst, ir.Class.v, first)
                 # SSE uses a destructive destination. Preserve a distinct right
                 # operand when the allocator gave its register to the result.
                 if d == b and d != a:
-                    d = "%xmm8"
+                    d = first
                 if a != d:
                     try self.writer.line4("movdqa ", a, ", ", d)
                 let mnemonic = "pmulld" if n.op == ir.Op.vmulw and bits == 32 else vector_mnemonic(n.op, shape)
@@ -48,30 +51,30 @@ extend Generator:
         match n.op:
             .loadv:
                 try self.address_operand("%r10", n.a)
-                try self.writer.line3(vector_move(bytes), "(%r10), ", "%xmm8")
-                try self.vector_result(n.dst, "%xmm8", bytes)
+                try self.writer.line3(vector_move(bytes), "(%r10), ", first)
+                try self.vector_result(n.dst, first, bytes)
             .storev:
-                try self.vector_source(n.a, "%xmm8", bytes)
+                try self.vector_source(n.a, first, bytes)
                 try self.address_operand("%r10", n.b)
-                try self.writer.line3(vector_move(bytes), "%xmm8, ", "(%r10)")
+                try self.writer.line4(vector_move(bytes), first, ", ", "(%r10)")
             .vsplat:
-                try self.splat(n, shape)
-                try self.vector_result(n.dst, "%xmm8", bytes)
+                try self.splat(n, shape, first)
+                try self.vector_result(n.dst, first, bytes)
             .vneg:
                 # the sign bit of every lane flipped
-                try self.vector_source(n.a, "%xmm8", bytes)
-                try self.writer.line4("xorps ", self.shared(".Lvsign64" if bits == 64 else ".Lvsign32"), "(%rip)", ", %xmm8")
-                try self.vector_result(n.dst, "%xmm8", bytes)
+                try self.vector_source(n.a, first, bytes)
+                try self.writer.line4("xorps ", self.shared(".Lvsign64" if bits == 64 else ".Lvsign32"), "(%rip), ", first)
+                try self.vector_result(n.dst, first, bytes)
             .vnot:
-                try self.vector_source(n.a, "%xmm8", bytes)
-                try self.writer.line("pcmpeqd %xmm9, %xmm9")
-                try self.writer.line("pxor %xmm9, %xmm8")
-                try self.vector_result(n.dst, "%xmm8", bytes)
+                try self.vector_source(n.a, first, bytes)
+                try self.writer.line4("pcmpeqd ", second, ", ", second)
+                try self.writer.line4("pxor ", second, ", ", first)
+                try self.vector_result(n.dst, first, bytes)
             .vshl, .vshr:
-                # the count, one scalar, in xmm9's low quadword
-                try self.vector_source(n.a, "%xmm8", bytes)
+                # the count, one scalar, in the second scratch register's low quadword
+                try self.vector_source(n.a, first, bytes)
                 try self.operand("%rax", ir.Class.l, n.b)
-                try self.writer.line("movq %rax, %xmm9")
+                try self.writer.line3("movq %rax, ", second, "")
                 var mnemonic = "psllw"
                 if n.op == ir.Op.vshl:
                     mnemonic = "psllw" if bits == 16 else ("pslld" if bits == 32 else "psllq")
@@ -79,38 +82,42 @@ extend Generator:
                     mnemonic = "psraw" if bits == 16 else "psrad"
                 else:
                     mnemonic = "psrlw" if bits == 16 else ("psrld" if bits == 32 else "psrlq")
-                try self.writer.line3(mnemonic, " %xmm9, ", "%xmm8")
-                try self.vector_result(n.dst, "%xmm8", bytes)
+                try self.writer.line5(mnemonic, " ", second, ", ", first)
+                try self.vector_result(n.dst, first, bytes)
             .vaddo, .vsubo:
                 try self.checked_lanes(n, shape)
             _:
-                try self.vector_source(n.a, "%xmm8", bytes)
-                try self.vector_source(n.b, "%xmm9", bytes)
+                try self.vector_source(n.a, first, bytes)
+                try self.vector_source(n.b, second, bytes)
                 if n.op == ir.Op.vmulw and bits == 32:
                     # x86-64-v2: the doubleword multiply of SSE4.1
-                    try self.writer.line("pmulld %xmm9, %xmm8")
+                    try self.writer.line4("pmulld ", second, ", ", first)
                 else:
-                    try self.writer.line3(vector_mnemonic(n.op, shape), " %xmm9, ", "%xmm8")
-                try self.vector_result(n.dst, "%xmm8", bytes)
+                    try self.writer.line5(vector_mnemonic(n.op, shape), " ", second, ", ", first)
+                try self.vector_result(n.dst, first, bytes)
 
-    ## `vaddo`/`vsubo`: the wrapping result in xmm10; a lane that overflowed traps. Bytes
-    ## and halfwords compare the wrapping result with the saturating one; doublewords read
-    ## the sign of the overflow test, `(a ^ r) & (b ^ r)` for an add, `(a ^ b) & (a ^ r)`
-    ## for a subtract, or the unsigned order of the operands through a sign flip.
+    ## `vaddo`/`vsubo`: the wrapping result in the third scratch register; a lane that
+    ## overflowed traps. With `a` and `b` in the first two: bytes and halfwords compare the
+    ## wrapping result with the saturating one; doublewords read the sign of the overflow
+    ## test, `(a ^ r) & (b ^ r)` for an add, `(a ^ b) & (a ^ r)` for a subtract, or the
+    ## unsigned order of the operands through a sign flip. `a` and `b` are spent on it.
     func checked_lanes(n: ir.Instr, shape: u32) -> !:
         let bytes = ir.vector_bytes(shape)
         let bits = ir.lane_bits(shape)
         let signed = ir.lanes_signed(shape)
         let add = n.op == ir.Op.vaddo
-        try self.vector_source(n.a, "%xmm8", bytes)
-        try self.vector_source(n.b, "%xmm9", bytes)
-        try self.writer.line("movdqa %xmm8, %xmm10")
-        try self.writer.line3(lane_mnemonic("padd" if add else "psub", bits), " %xmm9, ", "%xmm10")
+        let a = self.reg(ir.Class.v, 0)
+        let b = self.reg(ir.Class.v, 1)
+        let r = self.reg(ir.Class.v, 2)
+        try self.vector_source(n.a, a, bytes)
+        try self.vector_source(n.b, b, bytes)
+        try self.writer.line4("movdqa ", a, ", ", r)
+        try self.writer.line5(lane_mnemonic("padd" if add else "psub", bits), " ", b, ", ", r)
         if bits <= 16:
             let sat = ("padds" if signed else "paddus") if add else ("psubs" if signed else "psubus")
-            try self.writer.line3(lane_mnemonic(sat, bits), " %xmm9, ", "%xmm8")
-            try self.writer.line("pcmpeqb %xmm10, %xmm8")
-            try self.writer.line("pmovmskb %xmm8, %eax")
+            try self.writer.line5(lane_mnemonic(sat, bits), " ", b, ", ", a)
+            try self.writer.line4("pcmpeqb ", r, ", ", a)
+            try self.writer.line3("pmovmskb ", a, ", %eax")
             if bytes == 16:
                 try self.writer.line("cmpl $65535, %eax")
             else:
@@ -118,66 +125,68 @@ extend Generator:
                 try self.writer.line("cmpl $255, %eax")
             try self.writer.line("je 1f")
         elif signed:
-            # xmm8 = a, xmm9 = b, xmm10 = r: the overflow test's sign bits
-            try self.writer.line("movdqa %xmm8, %xmm11")
+            # the overflow test's sign bits, into `a`
             if add:
-                try self.writer.line("pxor %xmm10, %xmm11")
-                try self.writer.line("pxor %xmm10, %xmm9")
-                try self.writer.line("pand %xmm9, %xmm11")
+                try self.writer.line4("pxor ", r, ", ", a)
+                try self.writer.line4("pxor ", r, ", ", b)
             else:
-                try self.writer.line("pxor %xmm9, %xmm11")
-                try self.writer.line("pxor %xmm10, %xmm8")
-                try self.writer.line("pand %xmm8, %xmm11")
-            try self.writer.line("pmovmskb %xmm11, %eax")
+                try self.writer.line4("pxor ", a, ", ", b)
+                try self.writer.line4("pxor ", r, ", ", a)
+            try self.writer.line4("pand ", b, ", ", a)
+            try self.writer.line3("pmovmskb ", a, ", %eax")
             try self.writer.line("andl $34952, %eax" if bytes == 16 else "andl $136, %eax")
             try self.writer.line("je 1f")
         else:
-            # unsigned: an add overflowed where r < a, a subtract where a < b
-            try self.writer.line3("movdqa ", self.shared(".Lvsign32"), "(%rip), %xmm11")
-            try self.writer.line("pxor %xmm11, %xmm8")
+            # unsigned: an add overflowed where r < a, a subtract where a < b; the sign
+            # flip makes the signed compare an unsigned one
+            let sign = self.shared(".Lvsign32")
+            try self.writer.line4("pxor ", sign, "(%rip), ", a)
             if add:
-                try self.writer.line("pxor %xmm10, %xmm11")
-                try self.writer.line("pcmpgtd %xmm11, %xmm8")
+                # b = r with its signs flipped; a > b where r < a
+                try self.writer.line4("movdqa ", r, ", ", b)
+                try self.writer.line4("pxor ", sign, "(%rip), ", b)
+                try self.writer.line4("pcmpgtd ", b, ", ", a)
             else:
-                try self.writer.line("pxor %xmm9, %xmm11")
-                try self.writer.line("pcmpgtd %xmm8, %xmm11")
-                try self.writer.line("movdqa %xmm11, %xmm8")
-            try self.writer.line("pmovmskb %xmm8, %eax")
+                # b > a where a < b
+                try self.writer.line4("pxor ", sign, "(%rip), ", b)
+                try self.writer.line4("pcmpgtd ", a, ", ", b)
+                try self.writer.line4("movdqa ", b, ", ", a)
+            try self.writer.line3("pmovmskb ", a, ", %eax")
             try self.writer.line("andl $65535, %eax" if bytes == 16 else "andl $255, %eax")
             try self.writer.line("je 1f")
         try self.trap_text("integer overflow", n.extra2)
         try self.writer.put("\n1:")
-        try self.vector_result(n.dst, "%xmm10", bytes)
+        try self.vector_result(n.dst, r, bytes)
 
-    ## `T[N](x)`: the scalar into every lane of xmm8.
-    func splat(n: ir.Instr, shape: u32) -> !:
+    ## `T[N](x)`: the scalar into every lane of `into`.
+    func splat(n: ir.Instr, shape: u32, into: str) -> !:
         let bits = ir.lane_bits(shape)
         if ir.lanes_float(shape):
             if bits == 64:
-                try self.operand("%xmm8", ir.Class.d, n.a)
-                try self.writer.line("unpcklpd %xmm8, %xmm8")
+                try self.operand(into, ir.Class.d, n.a)
+                try self.writer.line4("unpcklpd ", into, ", ", into)
             else:
-                try self.operand("%xmm8", ir.Class.s, n.a)
-                try self.writer.line("shufps $0, %xmm8, %xmm8")
+                try self.operand(into, ir.Class.s, n.a)
+                try self.writer.line4("shufps $0, ", into, ", ", into)
             return
         if bits == 64:
             try self.operand("%rax", ir.Class.l, n.a)
-            try self.writer.line("movq %rax, %xmm8")
-            try self.writer.line("punpcklqdq %xmm8, %xmm8")
+            try self.writer.line3("movq %rax, ", into, "")
+            try self.writer.line4("punpcklqdq ", into, ", ", into)
             return
         try self.operand("%eax", ir.Class.w, n.a)
-        try self.writer.line("movd %eax, %xmm8")
+        try self.writer.line3("movd %eax, ", into, "")
         if bits == 8:
-            try self.writer.line("punpcklbw %xmm8, %xmm8")
+            try self.writer.line4("punpcklbw ", into, ", ", into)
         if bits <= 16:
-            try self.writer.line("punpcklwd %xmm8, %xmm8")
-        try self.writer.line("pshufd $0, %xmm8, %xmm8")
+            try self.writer.line4("punpcklwd ", into, ", ", into)
+        try self.writer.line4("pshufd $0, ", into, ", ", into)
 
     ## A vector temporary into `reg`: from the register it lives in, else from its home.
     func vector_source(r: ir.Ref, reg: str, bytes: u32) -> !:
         let code = self.fr.temp_regs.get((usize)r.index - 1)
         if code != 0:
-            try self.writer.line4("movdqa ", class_name(code, ir.Class.v), ", ", reg)
+            try self.writer.line4("movdqa ", self.class_name(code, ir.Class.v), ", ", reg)
             return
         try self.writer.line(vector_move(bytes))
         try self.frame_operand(self.temp_home(r.index))
@@ -190,7 +199,7 @@ extend Generator:
             return
         let code = self.fr.temp_regs.get((usize)dst - 1)
         if code != 0:
-            try self.writer.line4("movdqa ", reg, ", ", class_name(code, ir.Class.v))
+            try self.writer.line4("movdqa ", reg, ", ", self.class_name(code, ir.Class.v))
             return
         try self.writer.line3(vector_move(bytes), reg, ", ")
         try self.frame_operand(self.temp_home(dst))

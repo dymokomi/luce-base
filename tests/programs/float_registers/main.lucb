@@ -1,0 +1,129 @@
+## Float values in registers (x86-64's xmm0–xmm13, arm64's d8–d31): live across calls that
+## clobber every float register they may, moved into argument registers in an order that
+## needs a parallel move, received from C, passed to a variadic callee, mixed with halves
+## (the conversion routines below x86-64-v3) and kept in Windows x64's nonvolatile xmm6–xmm15
+## for a C caller that checks every bit of them after. Every build prints the same.
+extern func c_clobber(x: f64) -> f64
+extern func c_weigh(a: f64, b: f64, c: f64, d: f64, e: f64, f: f64, g: f64, h: f64) -> f64
+extern func c_weigh_single(a: f32, b: f64, c: f32, d: f64) -> f32
+extern func c_variadic(count: i32, ...) -> f64
+extern func c_calls_base() -> f64
+extern func c_preserves(result: f64*) -> i32
+
+## Base's side of `c_weigh`, for C to call: each argument weighed by its position.
+export func base_weigh(a: f64, b: f64, c: f64, d: f64, e: f64, f: f64, g: f64, h: f64) -> f64:
+    return a + 2.0 * b + 4.0 * c + 8.0 * d + 16.0 * e + 32.0 * f + 64.0 * g + 128.0 * h
+
+## Sixteen values live at once, more than the volatile registers hold: some live in the
+## nonvolatile ones on Windows x64, which a C caller checks.
+export func base_pressure(a: f64, b: f64) -> f64:
+    var v: f64[16] = ---
+    for k in 0..<16:
+        v[k] = a * (f64)k + b
+    var total: f64 = 0.0
+    for round in 0..<8:
+        let x0 = v[0] * 1.5 + v[1]
+        let x1 = v[1] * 1.25 + v[2]
+        let x2 = v[2] * 1.125 + v[3]
+        let x3 = v[3] * 0.5 + v[4]
+        let x4 = v[4] * 0.75 + v[5]
+        let x5 = v[5] * 0.875 + v[6]
+        let x6 = v[6] * 1.0625 + v[7]
+        let x7 = v[7] * 0.9375 + v[8]
+        let x8 = v[8] * 1.75 + v[9]
+        let x9 = v[9] * 0.625 + v[10]
+        let x10 = v[10] * 1.375 + v[11]
+        let x11 = v[11] * 0.3125 + v[12]
+        let x12 = v[12] * 1.5625 + v[13]
+        let x13 = v[13] * 0.1875 + v[14]
+        let x14 = v[14] * 1.8125 + v[15]
+        let x15 = v[15] * 0.0625 + v[0]
+        total = total + x0 - x1 + x2 - x3 + x4 - x5 + x6 - x7 + x8 - x9 + x10 - x11 + x12 - x13 + x14 - x15
+        v[0] = x15 * 0.5
+        v[1] = x0 * 0.5
+        v[2] = x1 * 0.5
+        v[3] = x2 * 0.5
+        v[4] = x3 * 0.5
+        v[5] = x4 * 0.5
+        v[6] = x5 * 0.5
+        v[7] = x6 * 0.5
+        v[8] = x7 * 0.5
+        v[9] = x8 * 0.5
+        v[10] = x9 * 0.5
+        v[11] = x10 * 0.5
+        v[12] = x11 * 0.5
+        v[13] = x12 * 0.5
+        v[14] = x13 * 0.5
+        v[15] = x14 * 0.5 + (f64)round
+    return total
+
+## Twelve values live across a call that clobbers every float register.
+noinline func across(seed: f64) -> f64:
+    let a = seed * 1.5
+    let b = seed * 2.25 + 1.0
+    let c = seed - 3.5
+    let d = seed * seed
+    let e = a + b
+    let f = c * d
+    let g = e - f
+    let h = a * c + 0.25
+    let i = b * d - 7.0
+    let j = g * 0.5 + h
+    let k = i * 0.125 - j
+    let l = a + k * 0.75
+    let clobbered = c_clobber(l)
+    let again = c_clobber(clobbered + a)
+    return a + 2.0 * b + 3.0 * c + 4.0 * d + 5.0 * e + 6.0 * f + 7.0 * g + 8.0 * h + 9.0 * i + 10.0 * j + 11.0 * k + 12.0 * l + clobbered + again
+
+## Eight floats rotated by one on their way to the callee, then swapped in pairs: each lands
+## in the register another arrived in.
+noinline func rotated(seed: f64) -> f64:
+    let a = seed + 1.0
+    let b = seed + 2.0
+    let c = seed + 3.0
+    let d = seed + 4.0
+    let e = seed + 5.0
+    let f = seed + 6.0
+    let g = seed + 7.0
+    let h = seed + 8.0
+    let first = c_weigh(h, a, b, c, d, e, f, g)
+    let second = c_weigh(b, a, d, c, f, e, h, g)
+    return first + second + base_weigh(g, h, e, f, c, d, a, b)
+
+## A single and a double, in alternate order through the argument registers.
+noinline func mixed(x: f32, y: f64) -> f32:
+    return c_weigh_single(x * 2.0, y * 3.0, x + 1.0, y - 1.0) + c_weigh_single((f32)y, (f64)x, (f32)(y * 0.5), (f64)x * 0.5)
+
+## Doubles through a variadic call, live in registers before it.
+noinline func variadic(seed: f64) -> f64:
+    let a = seed * 0.5
+    let b = seed + 0.25
+    let c = seed * seed
+    let d = c - a
+    return c_variadic(4, d, c, b, a) + a * b
+
+## Halves widened and narrowed among doubles kept in registers.
+noinline func halves(seed: f64) -> f64:
+    var total: f64 = 0.0
+    var h = (f16)0.5
+    let scale = seed * 0.0625
+    let shift = seed + 0.125
+    for k in 0..<64:
+        h = h * (f16)1.0625 + (f16)0.03125
+        if h > (f16)8.0:
+            h = h - (f16)7.5
+        total = total * 0.75 + (f64)h * scale + shift * (f64)k
+    return total
+
+pub func main(arguments: str[]) -> i32:
+    let seed = 1.25 + (f64)arguments.length * 0.0
+    print(f"across {across(seed)}")
+    print(f"rotated {rotated(seed)}")
+    print(f"mixed {mixed(1.5, seed)}")
+    print(f"variadic {variadic(seed)}")
+    print(f"halves {halves(seed)}")
+    print(f"from C {c_calls_base()}")
+    var result: f64 = 0.0
+    let kept = c_preserves(&result)
+    print(f"pressure {result} nonvolatile kept {kept == 1}")
+    return 0

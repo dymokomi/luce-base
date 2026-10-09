@@ -51,7 +51,6 @@ extend Generator:
         try self.writer.put(", ")
         try self.writer.put(reg)
 
-    ## `reg = rbp - offset`.
     ## Where a load or store by `op` through `address` reaches its bytes: a slot, or a
     ## frame address formed at its use (`remat`), addressed off the frame pointer
     ## directly, `below` it; any other address (or a half's access) into %r10 first.
@@ -65,10 +64,12 @@ extend Generator:
         try self.address_operand("%r10", address)
         return none
 
-    ## The parameters `receive_params` left in their argument registers (System V), moved
-    ## into their entry loads' results as one parallel copy (`incoming`); answers which
-    ## instructions that leaves with nothing to do. %r11 parks an argument to break a
-    ## cycle; %rax carries a value to a frame home, all written before any is parked.
+    ## The parameters `receive_params` left in their argument registers, moved into their
+    ## entry loads' results as parallel copies (`incoming`), one of the integer registers and
+    ## one of the float ones, since a result may live in another argument's register;
+    ## answers which instructions that leaves with nothing to do. %r11 parks an integer
+    ## argument to break a cycle, the first float scratch register a float one; %rax carries
+    ## a value to a frame home, all written before any is parked.
     func receive_directly(moves: list.List[incoming.Move]*, uses: const u32[]) -> bool[]!:
         var received = try new bool[self.f.instrs.count + 1] ---
         for k in 0..<received.length:
@@ -79,6 +80,13 @@ extend Generator:
         defer free(sources)
         var destinations = try new u8[moves.count + 1] ---
         defer free(destinations)
+        var float_sources = try new u8[moves.count + 1] ---
+        defer free(float_sources)
+        var float_destinations = try new u8[moves.count + 1] ---
+        defer free(float_destinations)
+        var float_moves = try new usize[moves.count + 1] ---
+        defer free(float_moves)
+        var floats: usize = 0
         for k in 0..<moves.count:
             let m = moves.get(k)
             received[(usize)m.at] = true
@@ -91,16 +99,18 @@ extend Generator:
                 continue
             let code = self.fr.temp_regs.get((usize)n.dst - 1)
             if m.float:
-                # no float argument register is ever a temporary's
-                let arrived = float_argument_names[(usize)m.argument]
                 if code != 0:
-                    try self.register_move(class_name(code, n.cls), arrived, n.cls, code)
+                    # the argument's xmm register is its number
+                    float_sources[floats] = m.argument
+                    float_destinations[floats] = xmm_number(self.class_name(code, n.cls))
+                    float_moves[floats] = k
+                    floats += 1
                 else:
-                    try self.frame_store(arrived, n.cls, self.temp_home(n.dst))
+                    try self.frame_store(float_argument_names[(usize)m.argument], n.cls, self.temp_home(n.dst))
                 continue
             sources[k] = m.argument
             if code != 0:
-                let home = class_name(code, ir.Class.l)
+                let home = self.class_name(code, ir.Class.l)
                 for a in 0..<names.length:
                     if names[a] == home:
                         destinations[k] = u8(a)
@@ -114,13 +124,27 @@ extend Generator:
                 try self.writer.line3("movq ", names[(usize)m.argument], ", %r11")
                 continue
             try self.receive_one(self.f.instrs.get((usize)m.at), "%r11" if step.parked else names[(usize)m.argument])
+        var float_steps = try incoming.sequence(float_sources[..<floats], float_destinations[..<floats])
+        defer float_steps.destroy()
+        let park = self.reg(ir.Class.v, 0)
+        for step in float_steps.span():
+            let k = (usize)step.index
+            let arrived = float_argument_names[(usize)float_sources[k]]
+            if step.park:
+                try self.writer.line4("movaps ", arrived, ", ", park)
+                continue
+            let n = self.f.instrs.get((usize)moves.get(float_moves[k]).at)
+            let home = xmm_names[(usize)float_destinations[k]]
+            let read = park if step.parked else arrived
+            if read != home:
+                try self.register_move(home, read, n.cls, 0)
         return received
 
     ## Entry load `n`'s result from the integer register `wide`: its argument's, or %r11;
     ## extended as the load from the parameter's slot would have.
     func receive_one(n: ir.Instr, wide: str) -> !:
         let code = self.fr.temp_regs.get((usize)n.dst - 1)
-        let d = class_name(code, n.cls) if code != 0 else ("%rax" if n.cls == ir.Class.l else "%eax")
+        let d = self.class_name(code, n.cls) if code != 0 else ("%rax" if n.cls == ir.Class.l else "%eax")
         let long = n.cls == ir.Class.l
         match n.op:
             .loadl:
@@ -180,6 +204,7 @@ extend Generator:
         try self.writer.put(a)
         try self.writer.put(b)
 
+    ## `reg = rbp - offset`.
     func frame_address(reg: str, offset: u64) -> !:
         try self.writer.line("leaq ")
         try self.frame_operand(offset)
@@ -196,7 +221,7 @@ extend Generator:
             let c = self.fr.crossings.get(k)
             let code = self.fr.temp_regs.get((usize)c.temp - 1)
             let cls = self.f.temp_class(c.temp)
-            try self.frame_store(class_name(code, cls), cls, self.temp_home(c.temp))
+            try self.frame_store(self.class_name(code, cls), cls, self.temp_home(c.temp))
             k += 1
 
     ## After it: each comes back from its home.
@@ -205,7 +230,7 @@ extend Generator:
             let c = self.fr.crossings.get(self.crossing)
             let code = self.fr.temp_regs.get((usize)c.temp - 1)
             let cls = self.f.temp_class(c.temp)
-            try self.frame_load(class_name(code, cls), cls, self.temp_home(c.temp))
+            try self.frame_load(self.class_name(code, cls), cls, self.temp_home(c.temp))
             self.crossing += 1
 
     func temp_home(t: u32) -> u64:
@@ -215,17 +240,48 @@ extend Generator:
         return self.fr.slot_home(s)
 
     ## The scratch register of class `cls` numbered `n` (0, 1, 2): rax, rcx, rdx for the
-    ## integers, xmm8, xmm9, xmm10 for the floats; r10 and r11 hold addresses. On Windows,
-    ## where xmm6–xmm15 are nonvolatile and a function using one saves it, the first two
-    ## float scratch registers are the volatile xmm4 and xmm5, which carry no argument there.
+    ## integers, xmm14, xmm15 and xmm13 for the floats and vectors; r10 and r11 hold
+    ## addresses. On Windows, where xmm6–xmm15 are nonvolatile and a function using one
+    ## saves it, the first two float scratch registers are the volatile xmm4 and xmm5, which
+    ## carry no argument there, and the third is xmm15. No temporary lives in any of them,
+    ## the third only in a function that needs it (`third_scratch`).
     func reg(cls: ir.Class, n: u32) -> str:
         if cls == ir.Class.w:
             return "%eax" if n == 0 else ("%ecx" if n == 1 else "%edx")
         if cls == ir.Class.l:
             return "%rax" if n == 0 else ("%rcx" if n == 1 else "%rdx")
-        if self.convention.windows and n < 2:
-            return "%xmm4" if n == 0 else "%xmm5"
-        return "%xmm8" if n == 0 else ("%xmm9" if n == 1 else "%xmm10")
+        if self.convention.windows:
+            return "%xmm4" if n == 0 else ("%xmm5" if n == 1 else "%xmm15")
+        return "%xmm14" if n == 0 else ("%xmm15" if n == 1 else "%xmm13")
+
+    ## Register code `code` viewed as class `cls`, under the target's convention.
+    func class_name(code: u8, cls: ir.Class) -> str:
+        if cls == ir.Class.w:
+            return self.l_name(code)
+        return self.q_name(code)
+
+    ## Register code `code`'s 64-bit name (an xmm register's only one).
+    func q_name(code: u8) -> str:
+        return windows_q[(usize)code] if self.convention.windows else sysv_q[(usize)code]
+
+    ## Register code `code`'s 32-bit name.
+    func l_name(code: u8) -> str:
+        return windows_l[(usize)code] if self.convention.windows else sysv_l[(usize)code]
+
+    ## Register code `code`'s 16-bit name.
+    func w_name(code: u8) -> str:
+        return windows_w[(usize)code] if self.convention.windows else sysv_w[(usize)code]
+
+    ## Register code `code`'s 8-bit name.
+    func b_name(code: u8) -> str:
+        return windows_b[(usize)code] if self.convention.windows else sysv_b[(usize)code]
+
+    ## Where temporary `r` lives in the frame, below the frame pointer, when it lives there
+    ## and is no frame address formed at its use; none otherwise.
+    func frame_home(r: ir.Ref) -> u64?:
+        if r.kind != ir.RefKind.temp or self.fr.temp_regs.get((usize)r.index - 1) != 0 or self.fr.is_rematerialised(r.index):
+            return none
+        return self.temp_home(r.index)
 
     ## The register holding `r` as class `cls` when `r` is a temporary living in one and the
     ## class is an integer one, else `scratch` after loading it there.
@@ -233,7 +289,7 @@ extend Generator:
         if r.kind == ir.RefKind.temp:
             let code = self.fr.temp_regs.get((usize)r.index - 1)
             if code != 0 and self.fr.float_code(code) == not is_int_class(cls):
-                return class_name(code, cls)
+                return self.class_name(code, cls)
         try self.operand(scratch, cls, r)
         return scratch
 
@@ -244,7 +300,7 @@ extend Generator:
             return scratch
         let code = self.fr.temp_regs.get((usize)dst - 1)
         if code != 0 and self.fr.float_code(code) == not is_int_class(cls):
-            return class_name(code, cls)
+            return self.class_name(code, cls)
         return scratch
 
     ## After a result landed in `reg`: nothing when that is the temporary's own register.
@@ -252,7 +308,7 @@ extend Generator:
         if dst == 0:
             return
         let code = self.fr.temp_regs.get((usize)dst - 1)
-        if code != 0 and class_name(code, cls) == reg:
+        if code != 0 and self.class_name(code, cls) == reg:
             return
         try self.store_temp(reg, cls, dst)
 
@@ -261,7 +317,7 @@ extend Generator:
     func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
         let code = self.fr.temp_regs.get((usize)t - 1)
         if code != 0:
-            let home = class_name(code, cls)
+            let home = self.class_name(code, cls)
             if home != reg:
                 try self.register_move(reg, home, cls, code)
             return
@@ -278,7 +334,7 @@ extend Generator:
     func store_temp(reg: str, cls: ir.Class, t: u32) -> !:
         let code = self.fr.temp_regs.get((usize)t - 1)
         if code != 0:
-            let home = class_name(code, cls)
+            let home = self.class_name(code, cls)
             if home != reg:
                 try self.register_move(home, reg, cls, code)
             return

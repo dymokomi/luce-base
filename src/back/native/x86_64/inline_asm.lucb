@@ -85,7 +85,7 @@ extend Generator:
             return
         var c: usize = 1
         while c <= 5:
-            if q_names[c] == reg and self.pending < 8:
+            if self.q_name((u8)c) == reg and self.pending < 8:
                 self.saved[self.pending] = reg
                 self.pending += 1
                 return

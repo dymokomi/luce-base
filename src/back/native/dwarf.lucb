@@ -263,7 +263,7 @@ pub struct Emitter:
                     until = e
                 let register = fr.temp_regs.get((usize)value.index - 1)
                 if register != 0:
-                    let number = dwarf_register(self.arch, register)
+                    let number = dwarf_register(self.arch, self.os, register)
                     if number < 32:
                         expression[0] = (u8)(80 + number)  # DW_OP_reg0 + n
                         length = 1
@@ -354,7 +354,7 @@ pub struct Emitter:
             self.serial += 1
             if register != 0:
                 # a promoted local lives in a callee-saved register for the whole function
-                let number = dwarf_register(self.arch, register)
+                let number = dwarf_register(self.arch, self.os, register)
                 if number < 32:
                     try o.put((try strings.format(format_room, f"    .uleb128 1\n    .byte {80 + number}\n")))
                 else:
@@ -819,10 +819,12 @@ let abbreviations: str = r"""
 ## The DWARF register number of an allocator code, by the generators' name tables: arm64's
 ## x19–x28 (codes 1–10) are 19–28, d8–d15 (11–18) are 72–79, the pooled x14, x15, x12, x13
 ## and x7 down to x0 (19–30) are their numbers, d24–d31 (31–38) are 88–95, and d19–d23
-## (39–43) are 83–87, the d registers' numbers being 64 more than their own; x86-64's rbx
-## is 3, r12–r15 are 12–15, r8 and r9 are 8 and 9, rsi and rdi are 4 and 5, and
-## xmm12–xmm15 (10–13) are 29–32.
-func dwarf_register(arch: targets.Arch, code: u8) -> u32:
+## (39–43) are 83–87, the d registers' numbers being 64 more than their own. x86-64's rbx
+## is 3 and r12–r15 are 12–15 on both conventions, xmmN is 17 + N; under System V r8, r9,
+## rsi and rdi (6–9) are 8, 9, 4 and 5, then come xmm8–xmm12, xmm7 down to xmm0 and xmm13
+## (10–23); on Windows xmm6–xmm15 (6–15), r8, r9, rsi and rdi (16–19), then xmm3 down to
+## xmm0 (20–23).
+func dwarf_register(arch: targets.Arch, os: targets.Os, code: u8) -> u32:
     if arch == targets.Arch.arm64:
         if code <= 10:
             return 18 + (u32)code
@@ -838,10 +840,20 @@ func dwarf_register(arch: targets.Arch, code: u8) -> u32:
         return 3
     if code <= 5:
         return 10 + (u32)code
+    let integers: u32[4] = [8, 9, 4, 5]
+    if os == targets.Os.windows:
+        if code <= 15:
+            return 17 + (u32)code
+        if code <= 19:
+            return integers[(usize)code - 16]
+        return 17 + 23 - (u32)code
     if code <= 9:
-        let pooled: u32[4] = [8, 9, 4, 5]
-        return pooled[(usize)code - 6]
-    return 19 + (u32)code
+        return integers[(usize)code - 6]
+    if code <= 14:
+        return 17 + (u32)code - 2
+    if code <= 22:
+        return 17 + 22 - (u32)code
+    return 17 + 13
 
 ## The instruction index the life ending at doubled position `end` of temporary `t` reaches:
 ## a last read at instruction `i` (position `2i`) keeps the value through the reads of `i`,

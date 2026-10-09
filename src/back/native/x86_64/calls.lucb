@@ -9,16 +9,14 @@
 extend Generator:
     # mark: Calls ==============================================================================
 
-    ## The save area's prediction: the xmm12–xmm15 the allocator handed out (codes 10–13),
-    ## nonvolatile on Windows; the text may name more (`settle_windows_saves`).
+    ## The save area's prediction: the nonvolatile xmm6–xmm15 the allocator handed out
+    ## (codes 6–15, `registers_of`), each the bit of its place in `windows_nonvolatile`; the
+    ## text may name more (`settle_windows_saves`).
     func allocated_saves() -> u16:
         var plan: u16 = 0
         for code in self.fr.temp_regs.span():
-            if code >= 10 and code <= 13:
-                plan = plan | (u16)(1 << (code - 2))
-        for code in self.fr.slot_regs.span():
-            if code >= 10 and code <= 13:
-                plan = plan | (u16)(1 << (code - 2))
+            if code >= 6 and code <= 15:
+                plan = plan | (u16)(1 << (code - 4))
         return plan
 
     ## Windows' nonvolatile registers beyond the allocator's (rdi, rsi and xmm6-xmm15, which
@@ -84,9 +82,10 @@ extend Generator:
 
     ## Windows x64: a scalar parameter among the first four that `straight_params` marks goes
     ## from its argument register straight to its entry load's result, by the parallel copy
-    ## `receive_directly` makes (no argument register is ever a temporary's here); every
-    ## other parameter is read from where the convention leaves it, the shadow area its
-    ## register was stored to or the caller's stack, into its slot or promoted register.
+    ## `receive_directly` makes (a result may live in xmm0–xmm3, another argument's
+    ## register); every other parameter is read from where the convention leaves it, the
+    ## shadow area its register was stored to first or the caller's stack, into its slot or
+    ## promoted register.
     func receive_windows(entry: u32[], moves: list.List[incoming.Move]*) -> !:
         let hidden: usize = 1 if self.f.has_result and self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private) else 0
         let straight = try self.straight_params(entry)
@@ -121,7 +120,7 @@ extend Generator:
                 else:
                     let code = self.fr.slot_regs.get((usize)p.slot)
                     if code != 0:
-                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", class_name((u8)code, p.cls))
+                        try self.writer.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", self.class_name((u8)code, p.cls))
                     else:
                         try self.frame_store("%rax" if p.cls == ir.Class.l else "%eax", p.cls, home)
             elif self.convention.in_memory(p.size, p.shape):
@@ -156,8 +155,9 @@ extend Generator:
             let offset = ((u64)i + first) * 8
             if a.size == 0:
                 if ir.is_float_class(a.cls):
-                    try self.operand("%xmm0", a.cls, a.value)
-                    try self.writer.line("movq %xmm0, %rax")
+                    # read where it lives: an argument register may hold another's value
+                    let v = try self.source(a.value, a.cls, self.reg(a.cls, 0))
+                    try self.writer.line3("movq ", v, ", %rax")
                 else:
                     try self.operand("%rax" if a.cls == ir.Class.l else "%eax", a.cls, a.value)
             elif self.convention.in_memory(a.size, a.shape):
@@ -213,6 +213,77 @@ extend Generator:
             try self.frame_address("%r10", self.slot_home(info.result_slot))
             try self.store_bytes("%rax", "%r10", 0, (u64)info.result_size)
 
+    ## The float register arguments (System V) as one parallel move: a float temporary may
+    ## live in another argument's register, xmm0–xmm7, so the scalars living in xmm
+    ## registers move together (`incoming.sequence`), the first float scratch register
+    ## parking one to break a cycle; then the rest, from the frame, from constants, and an
+    ## aggregate's eightbytes through its address, each writing its own register alone. The
+    ## integer arguments come after, from integer registers: none reads a float register.
+    func float_arguments(info: ir.CallInfo, placements: Placement[]) -> !:
+        let count = (usize)info.args_count
+        var sources = try new u8[count + 1] ---
+        var destinations = try new u8[count + 1] ---
+        var which = try new usize[count + 1] ---
+        var moved = try new bool[count + 1] ---
+        var moves: usize = 0
+        for i in 0..<count:
+            let a = self.f.args.get((usize)info.args_start + i)
+            let p = placements[i]
+            moved[i] = false
+            if p.where != 0:
+                continue
+            if p.sse == 0 or a.size > 0:
+                # an integer register argument: its value is in no float register
+                if a.size == 0 and self.float_register_of(a.value) < 16:
+                    error(failed, "an integer argument whose value lives in a float register")
+                continue
+            let held = self.float_register_of(a.value)
+            if held < 16:
+                sources[moves] = held
+                destinations[moves] = (u8)p.first_float
+                which[moves] = i
+                moves += 1
+                moved[i] = true
+        var steps = try incoming.sequence(sources[..<moves], destinations[..<moves])
+        defer steps.destroy()
+        let park = self.reg(ir.Class.v, 0)
+        for step in steps.span():
+            let k = (usize)step.index
+            let held = xmm_names[(usize)sources[k]]
+            if step.park:
+                try self.writer.line4("movaps ", held, ", ", park)
+                continue
+            let read = park if step.parked else held
+            let to = float_argument_names[(usize)destinations[k]]
+            if read != to:
+                try self.writer.line4("movaps ", read, ", ", to)
+        for i in 0..<count:
+            let a = self.f.args.get((usize)info.args_start + i)
+            let p = placements[i]
+            if p.where != 0 or p.sse == 0 or moved[i]:
+                continue
+            if a.size == 0:
+                try self.operand(float_argument_names[(usize)p.first_float], a.cls, a.value)
+                continue
+            let at = try self.source(a.value, ir.Class.l, "%r10")
+            var k: u32 = 0
+            var f = p.first_float
+            while k < p.words:
+                if (p.sse & (u8)(1 << k)) != 0:
+                    try self.load_eightbyte(float_argument_names[(usize)f], at, k, a.size, true)
+                    f += 1
+                k += 1
+
+    ## The number of the xmm register temporary `r` lives in, or 16 when it is no
+    ## temporary in a float register.
+    func float_register_of(r: ir.Ref) -> u8:
+        if r.kind != ir.RefKind.temp or self.fr.is_rematerialised(r.index):
+            return 16
+        let code = self.fr.temp_regs.get((usize)r.index - 1)
+        if code == 0 or not self.fr.float_code(code):
+            return 16
+        return xmm_number(self.q_name(code))
+
     ## The integer register arguments as one parallel move: an argument may live in an
     ## argument register another argument takes, so a move waits while its destination is
     ## still read by a pending one, a cycle breaks through r10 (the frame's address scratch,
@@ -231,7 +302,7 @@ extend Generator:
             if pending[i] and a.value.kind == ir.RefKind.temp:
                 let code = self.fr.temp_regs.get((usize)a.value.index - 1)
                 if code != 0 and not self.fr.float_code(code):
-                    reads[i] = class_name(code, ir.Class.l)
+                    reads[i] = self.class_name(code, ir.Class.l)
             i += 1
         var left = true
         while left:
@@ -338,23 +409,7 @@ extend Generator:
         if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
             try self.operand("%r11", ir.Class.l, n.a)
         # float registers, then integer ones, so loading the latter disturbs nothing
-        i = 0
-        while i < info.args_count:
-            let a = self.f.args.get((usize)(info.args_start + i))
-            let p = placements[i]
-            if p.where == 0 and p.sse != 0:
-                if a.size == 0:
-                    try self.operand(float_argument_names[(usize)p.first_float], a.cls, a.value)
-                else:
-                    let at = try self.source(a.value, ir.Class.l, "%r10")
-                    var k: u32 = 0
-                    var f = p.first_float
-                    while k < p.words:
-                        if (p.sse & (u8)(1 << k)) != 0:
-                            try self.load_eightbyte(float_argument_names[(usize)f], at, k, a.size, true)
-                            f += 1
-                        k += 1
-            i += 1
+        try self.float_arguments(info, placements)
         try self.integer_arguments(info, placements)
         if hidden:
             try self.frame_address("%rdi", self.slot_home(info.result_slot))
@@ -474,7 +529,7 @@ extend Generator:
             sources[count] = u8(w.extra)
             destinations[count] = incoming.no_argument
             for r in 0..<private_result_registers.length:
-                if private_result_registers[r] == q_names[(usize)code]:
+                if private_result_registers[r] == self.q_name(code):
                     destinations[count] = u8(r)
             targets[count] = code
             dsts[count] = w.dst
@@ -490,9 +545,9 @@ extend Generator:
             # a word of class w moves its low half, which zeroes the upper
             if self.f.temp_class(dsts[k]) == ir.Class.w:
                 let read = "%r11d" if step.parked else private_result_narrow[(usize)sources[k]]
-                try self.writer.line4("movl ", read, ", ", l_names[(usize)targets[k]])
+                try self.writer.line4("movl ", read, ", ", self.l_name(targets[k]))
                 continue
-            let to = q_names[(usize)targets[k]]
+            let to = self.q_name(targets[k])
             let read = "%r11" if step.parked else arrived
             if to != read:
                 try self.writer.line4("movq ", read, ", ", to)
@@ -510,7 +565,7 @@ extend Generator:
             if v.kind == ir.RefKind.temp and not self.fr.is_rematerialised(v.index):
                 let code = self.fr.temp_regs.get((usize)v.index - 1)
                 if code != 0 and not self.fr.float_code(code):
-                    reads[k] = q_names[(usize)code]
+                    reads[k] = self.q_name(code)
                     pending[k] = true
         var left = true
         while left:
@@ -580,17 +635,18 @@ extend Generator:
         try self.unwinding.end_epilogue(&self.writer.out)
 
     ## The callee-saved registers the function's asm blocks name as operands, `rbx` and
-    ## `r12`-`r15` in any width: reserved, so they are saved and restored like the allocator's.
+    ## `r12`-`r15` in any width, and on Windows the nonvolatile xmm6–xmm15: reserved, so no
+    ## value of the function lives in one, and they are saved and restored like the
+    ## allocator's.
     func reserve_asm_registers():
+        let callee = self.fr.registers.ints + self.fr.registers.floats
         for n in self.f.instrs.span():
             if n.op != ir.Op.set_reg and n.op != ir.Op.get_reg:
                 continue
             let reg = with_percent(self.program_unit.texts.get((usize)n.b.index).bytes)
-            var c: usize = 1
-            while c <= 5:
-                if reg == q_names[c] or reg == l_names[c] or reg == w_names[c] or reg == b_names[c]:
-                    self.fr.reserve((u8)c)
-                c += 1
+            for c in 1..<callee + 1:
+                if reg == self.q_name(c) or reg == self.l_name(c) or reg == self.w_name(c) or reg == self.b_name(c):
+                    self.fr.reserve(c)
 
     func save_callee_saved() -> !:
         if self.convention.windows:
@@ -599,8 +655,8 @@ extend Generator:
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
-                try self.frame_store(q_names[c], ir.Class.l, self.fr.save_offset[c])
-                try self.unwinding.saved_register(&self.writer.out, q_names[c], self.fr.size - self.fr.save_offset[c], false)
+                try self.frame_store(self.q_name((u8)c), ir.Class.l, self.fr.save_offset[c])
+                try self.unwinding.saved_register(&self.writer.out, self.q_name((u8)c), self.fr.size - self.fr.save_offset[c], false)
                 try self.unwinding.saved_cfi_register(&self.writer.out, 3 if c == 1 else (u64)c + 10, self.fr.save_offset[c] + 16)
             c += 1
 
@@ -611,7 +667,7 @@ extend Generator:
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
-                try self.frame_load(q_names[c], ir.Class.l, self.fr.save_offset[c])
+                try self.frame_load(self.q_name((u8)c), ir.Class.l, self.fr.save_offset[c])
             c += 1
 
 ## Whether a pending argument other than `i` reads a register argument `i` writes.

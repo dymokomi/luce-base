@@ -1,0 +1,6 @@
+#prisma 4.0
+def package "float_registers" {
+    def native "inputs" {
+        str[] sources = ["helper.c"]
+    }
+}

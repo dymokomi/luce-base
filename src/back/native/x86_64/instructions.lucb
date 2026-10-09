@@ -55,8 +55,8 @@ extend Generator:
                 try self.return_value(n)
             .copy:
                 if n.cls == ir.Class.v:
-                    let value = try self.source(n.a, ir.Class.v, "%xmm8")
-                    let d = self.target(n.dst, ir.Class.v, "%xmm8")
+                    let value = try self.source(n.a, ir.Class.v, self.reg(ir.Class.v, 0))
+                    let d = self.target(n.dst, ir.Class.v, self.reg(ir.Class.v, 0))
                     if value != d:
                         try self.writer.line4("movdqa ", value, ", ", d)
                     try self.finish(n.dst, ir.Class.v, d)
@@ -318,21 +318,15 @@ extend Generator:
         try self.writer.put(d)
         try self.finish(n.dst, cls, d)
 
-    ## Float arithmetic: singles and doubles directly, halves through single precision.
+    ## Float arithmetic: singles and doubles directly, into the result's own register when it
+    ## has one, in the three-operand AVX form from x86-64-v3; halves through single precision
+    ## in scratch registers.
     func float_arithmetic(n: ir.Instr) -> !:
         let cls = n.cls
         let a = try self.source(n.a, cls, self.reg(cls, 0))
-        let b = try self.source(n.b, cls, self.reg(cls, 1))
-        let d = self.reg(cls, 0)
-        if cls == ir.Class.h:
-            if a != d:
-                try self.writer.line4("movaps ", a, ", ", d)
-            try self.widen_half(d)
-            if b != self.reg(cls, 1):
-                try self.writer.line4("movaps ", b, ", ", self.reg(cls, 1))
-            try self.widen_half(self.reg(cls, 1))
-        elif a != d:
-            try self.writer.line4("movaps ", a, ", ", d)
+        var b = self.reg(cls, 1)
+        if cls == ir.Class.h or self.frame_home(n.b) == none:
+            b = try self.source(n.b, cls, b)
         var mnemonic = "add"
         match n.op:
             .add: mnemonic = "add"
@@ -340,13 +334,48 @@ extend Generator:
             .mul: mnemonic = "mul"
             .sdiv: mnemonic = "div"
             _: mnemonic = "add"
-        try self.writer.line(mnemonic)
-        try self.writer.put("sd " if cls == ir.Class.d else "ss ")
-        try self.writer.put(self.reg(cls, 1) if cls == ir.Class.h else b)
-        try self.writer.put(", ")
-        try self.writer.put(d)
+        let form = "sd " if cls == ir.Class.d else "ss "
         if cls == ir.Class.h:
+            let d = self.reg(cls, 0)
+            if a != d:
+                try self.writer.line4("movaps ", a, ", ", d)
+            try self.widen_half(d)
+            if b != self.reg(cls, 1):
+                try self.writer.line4("movaps ", b, ", ", self.reg(cls, 1))
+            try self.widen_half(self.reg(cls, 1))
+            try self.writer.line5(mnemonic, form, self.reg(cls, 1), ", ", d)
             try self.round_to_half(d)
+            try self.finish(n.dst, cls, d)
+            return
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        # a right operand kept in the frame is read there, by the instruction itself
+        let home = self.frame_home(n.b)
+        if self.level >= 3:
+            try self.writer.line3("v", mnemonic, form)
+            if let below = home:
+                try self.frame_operand(below)
+            else:
+                try self.writer.put(b)
+            try self.put2(", ", a)
+            try self.put2(", ", d)
+            try self.finish(n.dst, cls, d)
+            return
+        if let below = home:
+            if a != d:
+                try self.writer.line4("movaps ", a, ", ", d)
+            try self.writer.line2(mnemonic, form)
+            try self.frame_operand(below)
+            try self.put2(", ", d)
+            try self.finish(n.dst, cls, d)
+            return
+        # the destructive form must not overwrite a right operand that shares the result's
+        # register before reading it: `a - b` is not `a - a`
+        if b == d and a != d:
+            try self.writer.line4("movaps ", b, ", ", self.reg(cls, 1))
+            b = self.reg(cls, 1)
+        if a != d:
+            try self.writer.line4("movaps ", a, ", ", d)
+        try self.writer.line5(mnemonic, form, b, ", ", d)
         try self.finish(n.dst, cls, d)
 
     ## The single in `reg` rounded to a half in its low sixteen bits, zero above, so that a
@@ -572,7 +601,10 @@ extend Generator:
     func float_convert(n: ir.Instr) -> !:
         let src = ir.float_source_class(n.op)
         let v = try self.source(n.a, src, self.reg(src, 0))
-        let d = self.reg(n.cls, 0)
+        # a single and a double convert straight into the result's register; a half's
+        # widening and rounding work in scratch
+        let direct = n.op == ir.Op.exts or (n.op == ir.Op.truncd and n.cls != ir.Class.h)
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0)) if direct else self.reg(n.cls, 0)
         match n.op:
             .exth:
                 if v != d:
@@ -608,7 +640,7 @@ extend Generator:
         elif n.cls == ir.Class.w:
             try self.writer.line4(convert, v, ", ", wide_name(d))
         else:
-            let work = self.reg(src, 2)
+            let work = self.reg(src, 0)
             let bound = self.reg(src, 1)
             if v != work:
                 try self.writer.line4("movaps ", v, ", ", work)
@@ -635,7 +667,7 @@ extend Generator:
     ## `fcvtzs` and `core.f_to_s` answer (the least is already right below the range).
     func saturate(n: ir.Instr, src: ir.Class, v: str, d: str) -> !:
         let wide = n.cls == ir.Class.l
-        let bound = self.reg(src, 2)
+        let bound = self.reg(src, 1)
         if src == ir.Class.d:
             try self.load_immediate("%rcx", 4890909195324358656 if wide else 4746794007248502784)
             try self.writer.line3("movq %rcx, ", bound, "")
@@ -659,7 +691,7 @@ extend Generator:
     func int_to_float(n: ir.Instr) -> !:
         let src = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
         let v = try self.source(n.a, src, self.reg(src, 0))
-        let d = self.reg(n.cls, 0)
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0)) if n.cls != ir.Class.h else self.reg(n.cls, 0)
         let single = n.cls != ir.Class.d
         let convert = "cvtsi2ss" if single else "cvtsi2sd"
         if n.op == ir.Op.swtof:
@@ -689,15 +721,16 @@ extend Generator:
             try self.round_to_half(d)
         try self.finish(n.dst, n.cls, d)
 
-    ## `select`: both values read first (a move leaves the flags be), the condition word
-    ## tested, then a `cmov` into r11 for integers, a branch around the float's move.
+    ## `select`: the condition word tested, then a `cmov` into r11 for integers, both values
+    ## read first (a move leaves the flags be); a float's value when false goes into scratch
+    ## first, and a branch passes over the move of its value when true.
     func selected(n: ir.Instr) -> !:
         let other = self.f.args.get((usize)n.extra2).value
-        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
-        let e = try self.source(other, n.cls, self.reg(n.cls, 2))
         let wide = ir.Class.l if n.extra == 1 else ir.Class.w
-        let c = try self.source(n.a, wide, self.reg(wide, 0))
         if n.cls == ir.Class.w or n.cls == ir.Class.l:
+            let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+            let e = try self.source(other, n.cls, self.reg(n.cls, 2))
+            let c = try self.source(n.a, wide, self.reg(wide, 0))
             let long = n.cls == ir.Class.l
             let r = "%r11" if long else "%r11d"
             try self.writer.line4("movq " if long else "movl ", e, ", ", r)
@@ -705,10 +738,11 @@ extend Generator:
             try self.writer.line4("cmovneq " if long else "cmovnel ", t, ", ", r)
             try self.finish(n.dst, n.cls, r)
             return
-        let r = "%xmm8"
+        let r = self.reg(n.cls, 0)
+        try self.operand(r, n.cls, other)
+        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let c = try self.source(n.a, wide, self.reg(wide, 0))
         let move = "movaps " if n.cls == ir.Class.s else "movapd "
-        if e != r:
-            try self.writer.line4(move, e, ", ", r)
         try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
         try self.writer.line("je 1f")
         try self.writer.line4(move, t, ", ", r)
@@ -716,25 +750,28 @@ extend Generator:
         try self.finish(n.dst, n.cls, r)
 
     ## `fma` (x86-64-v3, `isa.has_fma`): FMA3 accumulates into its destination, so the addend
-    ## goes to xmm10 and `vfmadd231` adds the product of the other two to it. Of two NaN
-    ## operands the instruction returns its second operand's, then its third's, so `b` goes
-    ## second and `a` third: `b`'s NaN before `a`'s, the one the C libraries' `fma` returns.
+    ## goes to the third scratch register and `vfmadd231` adds the product of the other two
+    ## to it. Of two NaN operands the instruction returns its second operand's, then its
+    ## third's, so `b` goes second and `a` third: `b`'s NaN before `a`'s, the one the C
+    ## libraries' `fma` returns.
     func fused(n: ir.Instr) -> !:
         let addend = self.f.args.get((usize)n.extra2).value
-        let a = try self.source(n.a, n.cls, "%xmm8")
-        let b = try self.source(n.b, n.cls, "%xmm9")
-        let c = try self.source(addend, n.cls, "%xmm10")
-        if c != "%xmm10":
-            try self.writer.line4("movaps ", c, ", ", "%xmm10")
+        let sum = self.reg(n.cls, 2)
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let c = try self.source(addend, n.cls, sum)
+        if c != sum:
+            try self.writer.line4("movaps ", c, ", ", sum)
         let wide = n.cls == ir.Class.d or (n.cls == ir.Class.v and ir.lane_bits(n.extra) == 64)
         let form = ("pd" if wide else "ps") if n.cls == ir.Class.v else ("sd" if wide else "ss")
         try self.writer.line4("vfmadd231", form, " ", a)
         try self.writer.put(", ")
         try self.writer.put(b)
-        try self.writer.put(", %xmm10")
-        let d = self.target(n.dst, n.cls, "%xmm10")
-        if d != "%xmm10":
-            try self.writer.line4("movaps ", "%xmm10", ", ", d)
+        try self.writer.put(", ")
+        try self.writer.put(sum)
+        let d = self.target(n.dst, n.cls, sum)
+        if d != sum:
+            try self.writer.line4("movaps ", sum, ", ", d)
         try self.finish(n.dst, n.cls, d)
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width. A checked
