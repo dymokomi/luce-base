@@ -113,6 +113,11 @@ function whose slots take more than 1 KiB is not expanded unless it is declared
 `inline`: its slots would join the caller's frame for the caller's whole call (a
 once-called session with a 16 KiB buffer grew luce-server's `RouterState.dispatch`
 frame from 3 KB to 35 KB, which overflowed a macOS worker thread's stack).
+A function called from one place only is expanded there up to 256 instructions, and
+up to 1024 when that place is inside a loop, where the call's cost is paid at every
+turn. A small struct an expansion returns or takes apart stays in registers
+(`back.opt.split`), including an optional one: the value copied into the optional
+and out of it again, and the flag beside it, are fields of their own.
 
 The assembly-size suite now counts complete function bodies, including code after
 numeric trap labels. Its corrected limits were measured from the unchanged

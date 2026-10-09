@@ -498,7 +498,9 @@ callers, in a depth-first order over the call graph, so a function reaches
 its callers with its own calls opened out and is measured as it will stand.
 The policy is measured, not assumed: a callee of at most twenty-four
 instructions is expanded at every call; one called from one place only is
-expanded there up to two hundred and fifty-six instructions and, when nothing
+expanded there up to two hundred and fifty-six instructions, or up to a thousand
+and twenty-four when that place is in a loop (the lowerer writes a loop's body
+between its head's label and the jump back to it), and, when nothing
 else names it (a call, an address, a witness table, assembly text, the object
 file), dropped from the program. Wider policies were tried on the compiler
 itself and rejected: expanding bodies of up to sixty-four instructions at up

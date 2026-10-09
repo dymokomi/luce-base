@@ -37,6 +37,13 @@ import back.ir.ir
 ## tenth and made it no faster.
 let small: usize = 24
 let once: usize = 256
+## The most a function called from one place only may have when that place is in a loop:
+## the call's cost (saving registers, an aggregate result through memory, every value the
+## loop keeps reloaded after it) is paid at every turn. A face's normal and its fold test,
+## called once each from luce-geocore's loop over the faces, are 432 and 556 instructions
+## as lowered and ran 12 % faster expanded. For every once-called function, outside loops
+## too, 1024 made the compiler's own optimiser a quarter slower; in loops only, 4 %.
+let once_in_loop: usize = 1024
 ## The most instructions an `inline` function may have and still be expanded at every
 ## call: `inline` is C's always_inline, and this only stops a runaway body.
 let forced: usize = 1024
@@ -393,7 +400,16 @@ func post_order(program: ir.Unit*, index: Index*) -> usize[]!:
 ## Expand the expandable calls of function `fi`; whether there were any.
 func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> bool!:
     var f = &program.functions.items[fi]
-    if f.debug or not has_expandable_call(program, index, census, fi):
+    if f.debug:
+        return false
+    var looped: bool[]
+    if loops_matter(program, index, census, fi):
+        looped = try in_loops(f)
+    else:
+        looped = try new bool[f.instrs.count + 1] ---
+        clear_flags(looped)
+    defer free(looped)
+    if not has_expandable_call(program, index, census, fi, looped):
         return false
     var out = Sink(instrs = try list.List[ir.Instr].create(f.instrs.count + 64))
     var bases = try new u32[program.functions.count + 1] ---
@@ -406,7 +422,7 @@ func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> 
     while ix < f.instrs.count:
         let n = f.instrs.get(ix)
         ix += 1
-        if let gi = expandable_callee(program, index, census, fi, n):
+        if let gi = expandable_callee(program, index, census, fi, n, looped[ix - 1]):
             var expansion = Expansion.of(program, f, &program.functions.items[gi], n, bases[gi])
             try expansion.run(&out)
             bases[gi] = expansion.slot_base
@@ -435,18 +451,19 @@ func word_address(f: ir.Function*, out: Sink*, slot: u32, k: u32) -> ir.Ref!:
     return ir.temp_ref(at)
 
 ## Whether any call of function `fi` can be expanded, so functions without one are left alone.
-func has_expandable_call(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> bool:
+func has_expandable_call(program: ir.Unit*, index: Index*, census: Census*, fi: usize, looped: const bool[]) -> bool:
     let f = &program.functions.items[fi]
     var ix: usize = 0
     while ix < f.instrs.count:
-        if expandable_callee(program, index, census, fi, f.instrs.get(ix)) != none:
+        if expandable_callee(program, index, census, fi, f.instrs.get(ix), looped[ix]) != none:
             return true
         ix += 1
     return false
 
 ## The index of the function that call `n` in function `fi` may be expanded with: a small
-## function, or one this call alone reaches and nothing else names.
-func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: usize, n: ir.Instr) -> usize?:
+## function, or one this call alone reaches and nothing else names, larger when the call is
+## in a loop (`looped`).
+func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: usize, n: ir.Instr, looped: bool) -> usize?:
     if n.op != ir.Op.call or n.a.kind != ir.RefKind.function:
         return none
     let gi = index.find(n.a.name) else return none
@@ -463,9 +480,53 @@ func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: us
     let budget = census.small + (2 * aggregate_words(g) if census.leaves.length > 0 else 0)
     if size <= budget or (g.always_inline and size <= forced):
         return gi
-    if size <= census.once and census.calls[gi] == 1 and not census.pinned[gi]:
+    let alone = (census.once_in_loop if looped else census.once) if census.once > 0 else 0
+    if size <= alone and census.calls[gi] == 1 and not census.pinned[gi]:
         return gi
     return none
+
+## Whether a call of function `fi` may be expanded only if it is in a loop, so that the
+## function's loops are worth finding.
+func loops_matter(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> bool:
+    for x in program.functions.items[fi].instrs.span():
+        if x.op == ir.Op.call and expandable_callee(program, index, census, fi, x, true) != none and expandable_callee(program, index, census, fi, x, false) == none:
+            return true
+    return false
+
+## By instruction of `f`, whether it lies in a loop: between a label and a jump back to it
+## (the lowerer writes a loop's body after its head's label and before the jump back).
+func in_loops(f: ir.Function*) -> bool[]!:
+    let n = f.instrs.count
+    let looped = try new bool[n + 1] ---
+    clear_flags(looped)
+    var label_at = try new u32[(usize)f.labels + 1] ---
+    defer free(label_at)
+    for k in 0..<label_at.length:
+        label_at[k] = 0xFFFFFFFF
+    # how many loops open at each instruction, less how many closed before it
+    var depth = try new i32[n + 1] ---
+    defer free(depth)
+    for k in 0..<depth.length:
+        depth[k] = 0
+    for ix in 0..<n:
+        let x = f.instrs.get(ix)
+        if x.op == ir.Op.label and (usize)x.extra < label_at.length:
+            label_at[(usize)x.extra] = (u32)ix
+        elif x.op == ir.Op.jmp or x.op == ir.Op.jnz:
+            back_edge(label_at, depth, x.extra, ix)
+            if x.op == ir.Op.jnz:
+                back_edge(label_at, depth, x.extra2, ix)
+    var open: i32 = 0
+    for ix in 0..<n:
+        open += depth[ix]
+        looped[ix] = open > 0
+    return looped
+
+## A jump at `at` to `target`: when the label came before, a loop from it to the jump.
+func back_edge(label_at: const u32[], depth: i32[], target: u32, at: usize):
+    if (usize)target < label_at.length and label_at[(usize)target] != 0xFFFFFFFF:
+        depth[(usize)label_at[(usize)target]] += 1
+        depth[at + 1] -= 1
 
 ## The words of the aggregates a function takes by value and returns: each is copied through
 ## memory at every call (the argument into the callee's frame, the result out of it), which
@@ -613,6 +674,7 @@ struct Census:
     ## call (0: no such expansion).
     var small: usize
     var once: usize
+    var once_in_loop: usize
     ## For the second pass, which functions were leaves, calling nothing of the program
     ## (the C library aside), when it began: only those are expanded, so a caller that
     ## became a leaf by the pass's own expansions is not opened out in turn. Empty for the
@@ -623,7 +685,7 @@ struct Census:
     ## the functions that were leaves when it began.
     static func over(program: ir.Unit*, index: Index*, with_leaves: bool = false) -> Census!:
         let n = program.functions.count + 1
-        var c = Census(calls = try new u32[n] ---, pinned = try new bool[n] ---, expanded = try new bool[n] ---, sizes = try new u32[n] ---, small = small, once = once, leaves = try new bool[program.functions.count if with_leaves else 0] ---)
+        var c = Census(calls = try new u32[n] ---, pinned = try new bool[n] ---, expanded = try new bool[n] ---, sizes = try new u32[n] ---, small = small, once = once, once_in_loop = once_in_loop, leaves = try new bool[program.functions.count if with_leaves else 0] ---)
         for fi in 0..<c.leaves.length:
             c.leaves[fi] = not calls_the_program(&program.functions.items[fi], index)
         var z: usize = 0

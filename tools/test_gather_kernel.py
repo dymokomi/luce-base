@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """A loop over the faces of a mesh, as luce-geocore's position edit writes it, keeps only the
-checks the language asks for. A slice `values[start..<start + count]` is `count` long, so
-`ring[at]` and `ring[at + 1 if at + 1 < count else 0]` are not checked while `at < count`;
-`values[first..<first + rows * 3]` is `rows * 3` long, so `part[at * 3]` is not checked
-while `at < rows`. The points a face's corners name are gathered through them, which no
-fact bounds: those checks stay, and fail out of line, after the function's body, so the
-loop falls through every one that passes and holds no trap's call (arm64 and x86-64).
-Every build answers alike, and a corner out of range traps at the same place in each."""
+work the language asks for. Each face's corners are a slice `corners[start..<start + count]`,
+whose length is `count`, so `part[at]` and `part[at + 1 if at + 1 < count else 0]` are not
+checked while `at < count`; the face's triangles are `triangles[first..<first + n * 3]`, so
+`part[at * 3]` is not checked while `at < n`. The points a corner names are gathered through
+it, which no fact bounds: those checks stay, and fail out of line, after the function's body,
+so the loop falls through every one that passes and holds no trap's call (arm64 and
+x86-64). A helper called once, from inside the loop, is expanded there even when it is
+large, and the optional `Float3` it returns, built in a slot and copied out by parts (the
+value, then the flag), comes apart into registers: no copy or zero through memory is left.
+An expanded predicate's bool (`is_nan`) is branched on directly, with no `extub`. Every
+build answers alike, and a corner out of range traps at the same place in each."""
 from pathlib import Path
 import re, subprocess, sys, tempfile
 
@@ -201,6 +205,18 @@ with tempfile.TemporaryDirectory(prefix='gather-kernel-') as work:
     source.write_text(PROGRAM)
     ir_path = Path(work) / 'main.ir'
     subprocess.run([COMPILER, 'build', source, '--native', '--opt', '3', '--emit=ir', '-o', ir_path], check=True)
+    body = function_ir(ir_path.read_text(), 'normals')
+    for helper in ('area_normal', 'turned', 'larger', 'is_nan'):
+        if re.search(r'call \$lb_\w*' + helper + r'\(', body):
+            sys.exit(f'FAIL: {helper}, called once from the loop, is still a call')
+    if re.search(r'\n\s*(blit|zero) ', body):
+        sys.exit('FAIL: the optional Float3 still passes through memory')
+    if re.search(r'=w extub %t\d+\n\s*jnz', body):
+        sys.exit("FAIL: a branch on an expanded predicate's bool still extends it")
+    # what stays checked of the gathers: each point's coordinates through a corner, which
+    # no fact bounds
+    if not re.search(r'\n\s*bounds ', body):
+        sys.exit('FAIL: a gather through a corner is no longer checked')
     # only the slices' own checks stay (their start and end, one past the last)
     for name in ('ring_sum', 'row_sum'):
         checks = re.findall(r'\n\s*bounds [^\n]*', function_ir(ir_path.read_text(), name))
@@ -224,4 +240,4 @@ with tempfile.TemporaryDirectory(prefix='gather-kernel-') as work:
         sys.exit(f'FAIL: the builds answered differently: {answers}')
     if len(set(failures)) != 1:
         sys.exit(f'FAIL: the builds trapped at different places: {failures}')
-print('ok a gather loop: slice lengths and choices proved, failures out of line')
+print('ok a gather loop: slice lengths and choices proved, failures out of line, its helpers expanded into registers')

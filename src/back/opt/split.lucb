@@ -13,11 +13,15 @@
 #       zeroing, its three copies through memory and its reloads (scalar replacement of
 #       aggregates). Slots joined by a copy between them split alike, into the fields both
 #       are accessed by; bytes no access names (padding) become fields too, so a copy stays
-#       exact. A slot is left whole when its address escapes (a call, a store of it, a phi,
-#       any other use), when a call writes its aggregate result there, when a build with
-#       symbols describes it as a local, when an access overlaps another at a different
-#       width, when a zero or copy covers only part of it, and when it is larger than
-#       `largest` bytes or would need more than `most_fields` fields.
+#       exact. A copy of part of a slot (an optional's value into or out of the optional,
+#       whose flag follows it) copies the fields of that part: the fields either side
+#       accesses in the copied bytes are fields of both, and the copy splits when the two
+#       sides then cut those bytes alike, as a zero of part of a slot splits when no field
+#       crosses its ends. A slot is left whole when its address escapes (a call, a store of
+#       it, a phi, any other use), when a call writes its aggregate result there, when a
+#       build with symbols describes it as a local, when an access overlaps another at a
+#       different width, when a partial zero or copy cuts a field, and when it is larger
+#       than `largest` bytes or would need more than `most_fields` fields.
 #
 #==============================================================================================
 
@@ -34,6 +38,17 @@ struct Field:
     var width: u32
     var cls: ir.Class
 
+## The bytes a zero or copy covers of a slot, at `offset` for `bytes`, and for a copy the
+## other side's slot (`none_slot` when it is not a slot's) and offset.
+struct Range:
+    var slot: u32
+    var offset: u32
+    var bytes: u32
+    var other: u32
+    var other_offset: u32
+
+let none_slot: u32 = 0xFFFFFFFF
+
 ## Split the small aggregate slots of `f` whose addresses stay within the accesses this pass
 ## understands; whether it split any.
 pub func run(f: ir.Function*) -> bool!:
@@ -45,7 +60,10 @@ pub func run(f: ir.Function*) -> bool!:
     try plan.find_origins(f)
     try plan.check_uses(f)
     plan.join_copies(f)
+    try plan.share_copied_fields()
     if not try plan.lay_out(f):
+        return false
+    if not plan.check_ranges():
         return false
     try plan.rewrite(f)
     return true
@@ -64,9 +82,11 @@ struct Plan:
     ## Per temporary: how many instructions assign it.
     var defs: u32[]
     ## Every access seen: slot, offset, width, class.
-    var accesses: Field[]
-    var access_slot: u32[]
-    var access_count: usize
+    var accesses: list.List[Field]
+    var access_slot: list.List[u32]
+    ## Every zero or copy that covers part of a slot (`Range`), and each copy between two slots
+    ## of which one or both is covered in part.
+    var ranges: list.List[Range]
     ## Per group root: its fields, from `field_start` for `field_count`, in `fields`.
     var fields: Field[]
     var field_start: u32[]
@@ -78,8 +98,8 @@ struct Plan:
         let ns = f.slots.count
         let nt = f.temps.count + 1
         var plan = Plan(ok = try new bool[ns] ---, group = try new u32[ns] ---, origin = try new u32[nt] ---,
-                        offset_of = try new u32[nt] ---, defs = try new u32[nt] ---, accesses = try new Field[f.instrs.count + 1] ---,
-                        access_slot = try new u32[f.instrs.count + 1] ---, access_count = 0, fields = try new Field[0] ---,
+                        offset_of = try new u32[nt] ---, defs = try new u32[nt] ---, accesses = try list.List[Field].create(f.instrs.count + 1),
+                        access_slot = try list.List[u32].create(f.instrs.count + 1), ranges = try list.List[Range].create(8), fields = try new Field[0] ---,
                         field_start = try new u32[ns] ---, field_count = try new u32[ns] ---, new_slot = try new u32[0] ---)
         for s in 0..<ns:
             let size = f.slots.get(s).size
@@ -107,8 +127,9 @@ struct Plan:
         free(self.origin)
         free(self.offset_of)
         free(self.defs)
-        free(self.accesses)
-        free(self.access_slot)
+        self.accesses.destroy()
+        self.access_slot.destroy()
+        self.ranges.destroy()
         free(self.fields)
         free(self.field_start)
         free(self.field_count)
@@ -159,8 +180,8 @@ struct Plan:
         return none
 
     ## Every use of a slot's address: a load or store of a scalar at an offset is an access;
-    ## a zero or copy of the whole slot is kept for the rewrite; an address derived by
-    ## `add` or `copy` is followed; anything else leaves the slot whole.
+    ## a zero or copy is kept for the rewrite, and noted when it covers part of a slot; an
+    ## address derived by `add` or `copy` is followed; anything else leaves the slot whole.
     func check_uses(f: ir.Function*) -> !:
         for x in f.instrs.span():
             if x.dst != 0 and (usize)x.dst < self.origin.length and self.origin[(usize)x.dst] != 0:
@@ -169,17 +190,17 @@ struct Plan:
             if x.op == ir.Op.addr:
                 continue
             if is_load(x.op):
-                self.access(f, x.a, access_width(x.op), access_class(x.op))
+                try self.access(f, x.a, access_width(x.op), access_class(x.op))
                 self.escape(x.b)
             elif is_store(x.op):
                 self.escape(x.a)
-                self.access(f, x.b, access_width(x.op), ir.store_class(x.op))
+                try self.access(f, x.b, access_width(x.op), ir.store_class(x.op))
             elif x.op == ir.Op.zero:
-                self.whole(f, x.a, x.extra)
+                try self.cover(f, x.a, x.extra, ir.none_ref())
                 self.escape(x.b)
             elif x.op == ir.Op.blit:
-                self.whole(f, x.a, x.extra)
-                self.whole(f, x.b, x.extra)
+                try self.cover(f, x.a, x.extra, x.b)
+                try self.cover(f, x.b, x.extra, x.a)
             else:
                 self.escape(x.a)
                 self.escape(x.b)
@@ -203,21 +224,36 @@ struct Plan:
         if let found = self.address(r):
             self.ok[(usize)found.0] = false
 
-    func access(f: ir.Function*, r: ir.Ref, width: u32, cls: ir.Class):
+    func access(f: ir.Function*, r: ir.Ref, width: u32, cls: ir.Class) -> !:
         let found = self.address(r) else return
         let (s, offset) = found
         if width == 0 or offset + width > f.slots.get((usize)s).size:
             self.ok[(usize)s] = false
             return
-        self.accesses[self.access_count] = Field(offset = offset, width = width, cls = cls)
-        self.access_slot[self.access_count] = s
-        self.access_count += 1
+        try self.accesses.push(Field(offset = offset, width = width, cls = cls))
+        try self.access_slot.push(s)
 
-    func whole(f: ir.Function*, r: ir.Ref, bytes: u32):
+    ## A zero or a copy of `bytes` at `r`, copied to or from `other` (none for a zero): of a
+    ## whole slot, or of a part kept as a `Range`; reaching past the slot's end, or within one
+    ## slot, the slot stays whole.
+    func cover(f: ir.Function*, r: ir.Ref, bytes: u32, other: ir.Ref) -> !:
         let found = self.address(r) else return
         let (s, offset) = found
-        if offset != 0 or bytes != f.slots.get((usize)s).size:
+        let size = f.slots.get((usize)s).size
+        if bytes == 0 or offset + bytes > size:
             self.ok[(usize)s] = false
+            return
+        var other_slot = none_slot
+        var other_offset: u32 = 0
+        if let beside = self.address(other):
+            other_slot = beside.0
+            other_offset = beside.1
+        if other_slot == s:
+            self.ok[(usize)s] = false
+            return
+        let other_whole = other_slot == none_slot or (other_offset == 0 and bytes == f.slots.get((usize)other_slot).size)
+        if offset != 0 or bytes != size or not other_whole:
+            try self.ranges.push(Range(slot = s, offset = offset, bytes = bytes, other = other_slot, other_offset = other_offset))
 
     func root(s: u32) -> u32:
         var at = s
@@ -225,11 +261,11 @@ struct Plan:
             at = self.group[(usize)at]
         return at
 
-    ## Slots copied into each other split alike: one group, one layout. A copy between a slot
-    ## that may split and one that may not (a parameter's, one whose address escapes) splits
-    ## the one and leaves the other whole: the copy becomes a load and a store a field, at the
-    ## field's offset in the whole one (a span parameter's copy that an expansion made).
-    ## A copy between slots of different sizes leaves both whole.
+    ## Slots copied whole into each other split alike: one group, one layout. A copy between a
+    ## slot that may split and one that may not (a parameter's, one whose address escapes)
+    ## splits the one and leaves the other whole: the copy becomes a load and a store a field,
+    ## at the field's offset in the whole one (a span parameter's copy that an expansion made).
+    ## A copy of part of a slot joins nothing (`share_copied_fields`).
     func join_copies(f: ir.Function*):
         var changed = true
         while changed:
@@ -245,15 +281,57 @@ struct Plan:
                     continue
                 let ra = self.root(a)
                 let rb = self.root(b)
-                if f.slots.get((usize)a).size != f.slots.get((usize)b).size:
-                    if self.ok[(usize)a] or self.ok[(usize)b]:
-                        self.ok[(usize)a] = false
-                        self.ok[(usize)b] = false
-                        changed = true
-                elif self.ok[(usize)a] != self.ok[(usize)b]:
+                let size = f.slots.get((usize)a).size
+                if found_a.1 != 0 or found_b.1 != 0 or x.extra != size or size != f.slots.get((usize)b).size:
                     continue
-                elif ra != rb:
+                if self.ok[(usize)a] != self.ok[(usize)b]:
+                    continue
+                if ra != rb:
                     self.group[(usize)ra] = rb
+
+    ## The fields a copy of part of a slot moves are fields of both its sides: each access of
+    ## one side's group in the copied bytes becomes an access of the other's at the same place
+    ## in its own bytes, until no group gains one. A few rounds settle every chain of copies
+    ## a function makes; a field shared too late cuts the other side unlike this one, which
+    ## `check_ranges` finds, and the two stay whole.
+    func share_copied_fields() -> !:
+        if self.ranges.count == 0:
+            return
+        let ns = self.ok.length
+        # by group root and byte: the widths (1, 2, 4, 8 as bits 0 to 3) accessed there
+        let known = try new u8[ns * (usize)largest] ---
+        defer free(known)
+        for k in 0..<known.length:
+            known[k] = 0
+        for k in 0..<self.accesses.count:
+            self.note_known(known, self.access_slot.get(k), self.accesses.get(k))
+        for round in 0..<4:
+            var gained = false
+            for range in self.ranges.span():
+                if range.other == none_slot or not self.ok[(usize)range.slot] or not self.ok[(usize)range.other]:
+                    continue
+                let source_group = self.root(range.other)
+                let n = self.accesses.count
+                for k in 0..<n:
+                    let a = self.accesses.get(k)
+                    if self.root(self.access_slot.get(k)) != source_group or a.offset < range.other_offset or a.offset + a.width > range.other_offset + range.bytes:
+                        continue
+                    let shared = Field(offset = a.offset - range.other_offset + range.offset, width = a.width, cls = a.cls)
+                    if self.note_known(known, range.slot, shared):
+                        try self.accesses.push(shared)
+                        try self.access_slot.push(range.slot)
+                        gained = true
+            if not gained:
+                break
+
+    ## Note that `slot`'s group has `field` among its accesses: whether it was new.
+    func note_known(known: u8[], slot: u32, field: Field) -> bool:
+        let at = (usize)self.root(slot) * (usize)largest + (usize)field.offset
+        let bit = width_bit(field.width)
+        if at >= known.length or bit == 0 or known[at] & bit != 0:
+            return false
+        known[at] |= bit
+        return true
 
     ## Each group's fields: every access of every member, sorted by offset, no two
     ## overlapping unless alike, and the bytes between them filled; a group that cannot be
@@ -267,20 +345,20 @@ struct Plan:
         for s in 0..<ns:
             if not self.ok[(usize)self.root((u32)s)]:
                 self.ok[s] = false
-        var all = try new Field[self.access_count + ns * most_fields + 1] ---
+        var all = try new Field[self.accesses.count + ns * most_fields + 1] ---
         var used: usize = 0
         var splits = false
-        var scratch = try new Field[self.access_count + 1] ---
+        var scratch = try new Field[self.accesses.count + 1] ---
         defer free(scratch)
         for r in 0..<ns:
             if self.root((u32)r) != (u32)r or not self.ok[r]:
                 continue
             # the group's accesses, deduplicated and sorted by offset
             var n: usize = 0
-            for k in 0..<self.access_count:
-                if self.root(self.access_slot[k]) != (u32)r:
+            for k in 0..<self.accesses.count:
+                if self.root(self.access_slot.get(k)) != (u32)r:
                     continue
-                let a = self.accesses[k]
+                let a = self.accesses.get(k)
                 var seen = false
                 for j in 0..<n:
                     if scratch[j].offset == a.offset and scratch[j].width == a.width:
@@ -338,6 +416,60 @@ struct Plan:
         self.fields = all
         return splits
 
+    ## Whether the zeros and copies of parts of slots split, and with them any group: a part
+    ## must begin and end between two fields of its slot, and a copy's two sides cut the
+    ## copied bytes alike. A part that does not leaves its group whole, and its other side's;
+    ## then the parts are checked again, as a copy into a whole slot splits only one side.
+    func check_ranges() -> bool:
+        var changed = true
+        while changed:
+            changed = false
+            for range in self.ranges.span():
+                if not self.ok[(usize)range.slot]:
+                    continue
+                var fits = self.tiles(range.slot, range.offset, range.bytes)
+                if fits and range.other != none_slot and self.ok[(usize)range.other]:
+                    fits = self.cut_alike(range)
+                if not fits:
+                    self.keep_whole(range.slot)
+                    if range.other != none_slot:
+                        self.keep_whole(range.other)
+                    changed = true
+        for ok in self.ok:
+            if ok:
+                return true
+        return false
+
+    ## Whether no field of `slot` crosses either end of the `bytes` at `start`.
+    func tiles(slot: u32, start: u32, bytes: u32) -> bool:
+        let r = (usize)self.root(slot)
+        for k in 0..<(usize)self.field_count[r]:
+            let field = self.fields[(usize)self.field_start[r] + k]
+            let end = field.offset + field.width
+            if (field.offset < start and end > start) or (field.offset < start + bytes and end > start + bytes):
+                return false
+        return true
+
+    ## Whether each field of a copy's slot in the copied bytes is a field of the other side's
+    ## slot at the same place in its bytes, as wide and of the same class.
+    func cut_alike(range: Range) -> bool:
+        let r = (usize)self.root(range.slot)
+        for k in 0..<(usize)self.field_count[r]:
+            let field = self.fields[(usize)self.field_start[r] + k]
+            if field.offset < range.offset or field.offset >= range.offset + range.bytes:
+                continue
+            let other = self.field_of(range.other, field.offset - range.offset + range.other_offset) else return false
+            if other.1.width != field.width or other.1.cls != field.cls:
+                return false
+        return true
+
+    ## Leave every member of `slot`'s group whole.
+    func keep_whole(slot: u32):
+        let r = self.root(slot)
+        for s in 0..<self.ok.length:
+            if self.root((u32)s) == r:
+                self.ok[s] = false
+
     ## Give every member of a split group a slot per field, then rebuild the instructions.
     func rewrite(f: ir.Function*) -> !:
         let ns = f.slots.count
@@ -358,11 +490,16 @@ struct Plan:
 
     ## The field of slot `s` at `offset`, as its new slot and its layout.
     func field_at(s: u32, offset: u32) -> (u32, Field)?:
+        let found = self.field_of(s, offset) else return none
+        return (self.new_slot[(usize)s * most_fields + found.0], found.1)
+
+    ## The field of slot `s`'s layout at `offset`: its index in the layout, and itself.
+    func field_of(s: u32, offset: u32) -> (usize, Field)?:
         let r = (usize)self.root(s)
         for k in 0..<(usize)self.field_count[r]:
             let field = self.fields[(usize)self.field_start[r] + k]
             if field.offset == offset:
-                return (self.new_slot[(usize)s * most_fields + k], field)
+                return (k, field)
         return none
 
     func split_address(r: ir.Ref) -> (u32, u32)?:
@@ -390,10 +527,12 @@ struct Plan:
                 return
         elif x.op == ir.Op.zero:
             if let found = self.split_address(x.a):
-                let s = found.0
+                let (s, start) = found
                 let r = (usize)self.root(s)
                 for k in 0..<(usize)self.field_count[r]:
                     let field = self.fields[(usize)self.field_start[r] + k]
+                    if field.offset < start or field.offset >= start + x.extra:
+                        continue
                     let value = try zero_of(f, x, field.cls)
                     let target = try slot_address(f, x, self.new_slot[(usize)s * most_fields + k])
                     try push(f, x, ir.store_op((u64)field.width, ir.is_float_class(field.cls)), ir.Class.l, 0, value, target, 0)
@@ -402,24 +541,34 @@ struct Plan:
             let target_of = self.split_address(x.a)
             let source_of = self.split_address(x.b)
             if target_of != none or source_of != none:
+                # the fields of a split side in the copied bytes, each to or from the other
+                # side's field at the same place, or its bytes there when it stays whole
                 var s: u32 = 0
+                var start: u32 = 0
                 if let known = target_of:
                     s = known.0
+                    start = known.1
                 elif let known = source_of:
                     s = known.0
+                    start = known.1
                 let r = (usize)self.root(s)
                 for k in 0..<(usize)self.field_count[r]:
                     let field = self.fields[(usize)self.field_start[r] + k]
+                    if field.offset < start or field.offset >= start + x.extra:
+                        continue
+                    let along = field.offset - start
                     var source = x.b
                     if let known = source_of:
-                        source = try slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
+                        let other = self.field_at(known.0, known.1 + along) else trap("split: a copy between fields")
+                        source = try slot_address(f, x, other.0)
                     else:
-                        source = try offset_address(f, x, x.b, field.offset)
+                        source = try offset_address(f, x, x.b, along)
                     var target = x.a
                     if let known = target_of:
-                        target = try slot_address(f, x, self.new_slot[(usize)known.0 * most_fields + k])
+                        let other = self.field_at(known.0, known.1 + along) else trap("split: a copy between fields")
+                        target = try slot_address(f, x, other.0)
                     else:
-                        target = try offset_address(f, x, x.a, field.offset)
+                        target = try offset_address(f, x, x.a, along)
                     let value = try f.temp(field.cls)
                     try push(f, x, ir.load_op((u64)field.width, false, ir.is_float_class(field.cls)), field.cls, value, source, ir.none_ref(), 0)
                     try push(f, x, ir.store_op((u64)field.width, ir.is_float_class(field.cls)), ir.Class.l, 0, ir.temp_ref(value), target, 0)
@@ -466,6 +615,15 @@ func is_load(op: ir.Op) -> bool:
 
 func is_store(op: ir.Op) -> bool:
     return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+## A width's bit in `share_copied_fields`'s table: 1, 2, 4 and 8 bytes as bits 0 to 3.
+func width_bit(width: u32) -> u8:
+    match width:
+        1: return 1
+        2: return 2
+        4: return 4
+        8: return 8
+        _: return 0
 
 ## The bytes a load or store moves.
 func access_width(op: ir.Op) -> u32:
