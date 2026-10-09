@@ -259,7 +259,9 @@ if $full && command -v valgrind > /dev/null 2>&1; then tools/valgrind_std.sh; el
 # TSan is unavailable or cannot map (tools/tsan_concurrency.sh)
 $full && tools/tsan_concurrency.sh
 # the fuzzer's short run, the same on every host: mutated programs are accepted or
-# rejected with a positioned diagnostic, never a fault, and generated programs agree
-# across the C, C -O2, native, and seed executions (tools/fuzz.py --minutes M runs longer)
+# rejected with a positioned diagnostic, never a fault, and generated programs (ABI shapes
+# among them) agree across the C, C -O2, native, native --debug and seed executions, a cached
+# rebuild links what a fresh one does, and a --debug build for any target defines its labels
+# (tools/fuzz.py --minutes M runs longer)
 if $full; then python3 tools/fuzz.py --gate --valgrind; else python3 tools/fuzz.py --gate; fi
 echo "ok"

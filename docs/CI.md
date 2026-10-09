@@ -75,9 +75,22 @@ powershell -ExecutionPolicy Bypass -File tools\fuzz_task.ps1         # start
 powershell -ExecutionPolicy Bypass -File tools\fuzz_task.ps1 -Stop   # stop it
 ```
 
+A round is aimed, not broad (`fuzz.py --aim 7`): the compiler source the last week of
+commits touched weighs the kinds of program it generates. A change to the x86-64 or arm64
+generators brings more ABI programs (structs of the sizes where calling conventions change
+their minds, passed and returned beside scalars of every width) and width programs; one to
+instruction selection or the optimiser, denser generated programs; one to the build cache
+or function reuse, programs built, edited and rebuilt through a cache, which must link
+what a fresh build links byte for byte. Every program is built every way, `--debug`
+included, and a `--debug` build for each other target must define every label its debug
+information names. On Windows, where the seed's interpreter does not run, the C backend is
+the oracle.
+
 Each round adds a line to `build/fuzz/rounds.log`; a round that finds something keeps its
-reproducers under `build/fuzz/kept/`. A finding becomes a conformance or regression test
-with the fix.
+reproducers under `build/fuzz/kept/`.
+`tools/reduce.py FINDING` cuts one down, dropping blocks, lines, parameters and fields while
+the native build still disagrees with the C one (or while `--check COMMAND` holds), and it
+becomes a conformance or regression test with the fix.
 
 ## Releasing
 

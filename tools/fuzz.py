@@ -24,35 +24,64 @@
             linked list built and released, a `FixedBuffer` arena through `in` and `with`,
             a heap expression tree built under `errdefer`, and a fallible allocator with
             `errdefer` caught by its caller) that print a checksum, and each is
-            run seven ways: the C backend, the C backend at -O2, the native backend at its
-            default level and at --opt 0, 1 and 3, and the seed's interpreter. The outputs must agree; a disagreement, a crash, or a
-            hang is a finding. Nothing generated traps: checked operands are masked, every
-            index is in range, every divisor is non-zero, every float stays finite.
+            run eight ways: the C backend, the C backend at -O2, the native backend at its
+            default level, at --opt 0, 1 and 3 and as a development build (--debug), and the
+            seed's interpreter; without the seed (Windows) the C backend at -O0 is the
+            oracle. The outputs must agree; a disagreement, a crash, or a hang is a finding,
+            and so is a --debug build for another target whose debug information names a
+            label it does not define (it would not link there). Nothing generated traps:
+            checked operands are masked, every index is in range, every divisor is non-zero,
+            every float stays finite.
             Trap programs and width programs may trap, and every execution must reach the
             same value or the same trap: width programs (width_program) mix integer widths,
             narrowing shifted, divided and masked 64-bit values and comparing them at the
             edges of the narrow width, where the optimiser's range facts must keep each
             value's class apart.
+            ABI programs (tools/fuzz_abi.py) aim at the calling conventions: structs of 1-24,
+            32, 64, 127-129 and 256 bytes by value and by pointer beside scalars of every
+            width, in calls of up to 14 arguments staged from the caller's own parameters.
+            Cache programs build a program into a cache of its own, edit it, and compare
+            the build through the cache with a fresh one, byte for byte.
 
 Usage:
   tools/fuzz.py [--seed N] [--mutations N] [--programs N] [--trap-programs N]
-                [--width-programs N] [--minutes M] [--gate]
+                [--width-programs N] [--packages N] [--mem-programs N] [--atomic-programs N]
+                [--litmus-programs N] [--abi-programs N] [--cache-programs N]
+                [--aim DAYS] [--parallel N] [--minutes M] [--gate] [--valgrind]
 
 `--gate` is the gate's short run: a fixed seed and a small count, so it is the same on
-every host. `--minutes` runs until the budget is spent, printing findings as they come.
+every host. `--minutes` runs until the budget is spent, printing findings as they come; such
+a long run has 30 ABI and 4 cache programs a round and is aimed at the last 7 days unless
+told otherwise. `--aim DAYS` weighs the kinds by the compiler source the last DAYS days of
+git log touched (AIMS): the x86-64 or arm64 generators give more ABI and width programs,
+instruction selection or the optimiser more and denser generated programs, the cache or
+function reuse more cache programs. `--parallel N` builds a program N ways at once.
+A finding becomes a test once tools/reduce.py has made it small.
 Exit status is the number of findings, capped at 100.
 """
+from concurrent.futures import ThreadPoolExecutor
 import os, random, re, subprocess, sys, time, pathlib, signal
 
 root = pathlib.Path(__file__).resolve().parent.parent
 os.chdir(root)
-compiler = pathlib.Path(os.environ.get("LUCE_BASE_COMPILER", root / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base")))
+sys.path.insert(0, str(root / "tools"))
+from fuzz_abi import abi_program
+compiler = pathlib.Path(os.environ.get("LUCE_BASE_COMPILER", root / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base"))).resolve()
 seed_binary = root.parent / "luce-seed" / "build" / "lucb"
 out = root / "build" / "fuzz"
 # every program is built these ways and must answer alike: the native backend at its
-# default level and at the others, the C backend and the C backend optimised
+# default level, at the others and as a development build (--debug), the C backend and the
+# C backend optimised. Without the seed's interpreter (Windows) the C backend is the oracle.
 BUILDS = (("native", []), ("native-opt0", ["--opt", "0"]), ("native-opt1", ["--opt", "1"]),
-          ("native-opt3", ["--opt", "3"]), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"]))
+          ("native-opt3", ["--opt", "3"]), ("debug", ["--native", "--debug"]),
+          ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"]))
+TARGETS = ("arm64-macos", "x86_64-linux", "x86_64-windows")
+HOST = {"darwin": "arm64-macos", "win32": "x86_64-windows"}.get(sys.platform, "x86_64-linux")
+EXE = ".exe" if os.name == "nt" else ""
+# the labels a --debug assembly defines, and the ones its debug information names
+debug_defined = re.compile(r"^(Ldw_\w+):", re.M)
+debug_named = re.compile(r"\b(Ldw_(?:pc|v|sc)_\d+_\d+)\b")
+parallel = max(1, min(8, (os.cpu_count() or 2) // 2))   # builds of one program at once (--parallel)
 memcheck = None   # the valgrind command when --valgrind is on and valgrind exists; else None
 out.mkdir(parents=True, exist_ok=True)
 
@@ -223,10 +252,15 @@ class Gen:
     functions with `try`, `catch` and `recover`; optionals with `if let` and `else`; a
     backed enum under `match`; generic functions; an interface dispatched statically;
     function values and lambdas; `defer`; and text. Nothing traps: every operand a checked
-    operator sees is masked first, every index is in range, every divisor is non-zero."""
+    operator sees is masked first, every index is in range, every divisor is non-zero.
 
-    def __init__(self, rng):
+    A `dense` program, for a change to instruction selection or the optimiser (`--aim`), nests
+    deeper, writes more statements to a block, prefers branches, loops and `let` locals, and
+    has more functions of more parameters: more values live at once across more blocks."""
+
+    def __init__(self, rng, dense=False):
         self.rng = rng
+        self.dense = dense
         self.funcs = []   # (name, params)
         self.loops = 0
         self.locals = []  # (name, type) locals in scope of the statement being written
@@ -366,8 +400,10 @@ class Gen:
         lines = []
         self.pad = "    " * indent
         saved_locals = list(self.locals)
-        for _ in range(r.randint(1, 4)):
+        for _ in range(r.randint(2, 5) if self.dense else r.randint(1, 4)):
             k = r.randrange(52)
+            if self.dense and r.random() < 0.35:
+                k = r.choice([11, 13, 16, 18, 20, 20, 21, 22, 22, 22, 30])
             if self.in_arena and k in (32, 33, 34, 35, 36, 37, 38, 39, 40, 41):
                 # a fixed buffer reclaims only its last allocation: nothing else allocates
                 # inside its suite, so the one object it holds is freed in order
@@ -712,8 +748,8 @@ class Gen:
                 "    acc = acc *% 31 +% ((i64)(d0 * 8.0) & 65535) +% ((i64)(d1 * 8.0) & 65535) +% (o0 else -1) +% (i64)s0.length +% box0.w +% tri0.b",
                 "    acc = acc *% 31 +% shape_area(sh0) +% pr0.a +% pr0.b +% (i64)(v0 & 255).sum() +% (i64)v1.max() +% (i64)v0.min()",
                 "    return acc *% 31 +% sumspan(table) +% deferred(acc)", ""]
-        for k in range(r.randint(0, 3)):
-            n = r.randint(1, 3)
+        for k in range(r.randint(2, 6) if self.dense else r.randint(0, 3)):
+            n = r.randint(1, 6) if self.dense else r.randint(1, 3)
             params = ", ".join(f"n{i}: i64" for i in range(n))
             self.locals = [(f"n{i}", "i64") for i in range(n)]
             body = self.expr(3)
@@ -758,43 +794,98 @@ class Gen:
         text.append("    for j in 0..<3:")
         text.append("        qs[j] = makeq((i64)j -% 1)")
         self.locals = []
-        text += self.statements(3, 1)
+        text += self.statements(4 if self.dense else 3, 1)
         text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]} {shape_area(sh0)} {pr0.a} {v0[1]} {(v1 & 255).sum()} {u0.a} {gf0} {gf1} {gf0.bits()} {hf0.bits()} {f64(hf0)} {i64(n8)} {i64(n16)} {us0} {is0} {area_dyn(&box0)} {area_dyn(&tri0)} {memory.size_of(Packed)} {memory.size_of(Aligned)} {memory.align_of(Aligned)} {memory.offset_of(Aligned, value)} {i64(pk0.a)} {pk0.b} {i64(pk0.c)} {al0.value} {fv0[0]} {fv0.sum()} {dv0[1]} {i64(sv0.max())} {i64((sv0 & 15).sum())}")')
         text.append("    return 0")
         return "\n".join(text) + "\n"
 
 
-def differential(text, timeout, findings, label):
-    path = out / "generated.lucb"
-    path.write_text(text)
-    exe = out / "generated"
-    outputs = {}
-    for name, flags in BUILDS:
-        status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
+def executions(source, timeout, findings, prefix, text, label, outcome=None, seed=True, valgrind=False):
+    """Build `source` every way of BUILDS, `parallel` builds at a time, and run each program;
+    run it on the seed's interpreter too, where there is one and `seed` allows. Meanwhile a
+    --debug build for each other target must name only labels it defines: a debug scope past
+    its function's labels (3502412) failed only the link, so the assembly shows it from any host.
+    {way: result}, where a result is the program's output, or `outcome(status, out, err)` when
+    given (trap programs). A way that fails to build or to run is reported (kinds
+    `prefix`build-..., `prefix`run-..., `prefix`seed, `prefix`debug-TARGET) and left out, so
+    one broken way does not hide a disagreement among the others; None when no two remain.
+    `valgrind` runs the native program under memcheck too, when --valgrind is on (not for
+    threads that spin on each other, which valgrind runs one at a time)."""
+    work = source.parent
+
+    def build(way):
+        name, flags = way
+        exe = work / f"{source.stem}-{name}"
+        return run([str(compiler), "build", str(source), *flags, "-o", str(exe)], timeout * 4) + (exe,)
+
+    def labels(target):
+        asm = work / f"{source.stem}-{target}.s"
+        status, so, se = run([str(compiler), "build", str(source), "--native", "--debug", "--target", target, "--emit=asm", "-o", str(asm)], timeout * 4)
         if status != 0:
-            findings.report("build-" + name, text.encode(), f"{label}: the build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
-            return
+            return f"the --debug build failed: {(so + se).decode('utf-8', 'replace')[:300]!r}"
+        listing = asm.read_text(encoding="utf-8", errors="replace")
+        asm.unlink()
+        missing = sorted(set(debug_named.findall(listing)) - set(debug_defined.findall(listing)))
+        return f"its debug information names undefined labels {missing[:5]}" if missing else None
+
+    def interpret():
+        return run([str(seed_binary), "eval", str(source)], timeout * 4)
+
+    others = [t for t in TARGETS if t != HOST]
+    with ThreadPoolExecutor(parallel) as pool:
+        interpreted = pool.submit(interpret) if seed and seed_binary.exists() else None
+        built = list(pool.map(build, BUILDS))
+        crossed = list(pool.map(labels, others))
+        interpreted = interpreted.result() if interpreted else None
+    for target, problem in zip(others, crossed):
+        if problem:
+            findings.report(f"{prefix}debug-{target}", text.encode(), f"{label}: for {target}, {problem}")
+    results = {}
+    for (name, _), (status, so, se, exe) in zip(BUILDS, built):
+        if status != 0:
+            findings.report(f"{prefix}build-{name}", text.encode(), f"{label}: the build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
+            continue
         status, so, se = run([str(exe)], timeout)
+        if outcome:
+            results[name] = outcome(status, so, se)
+            continue
         if status != 0:
-            findings.report("run-" + name, text.encode(), f"{label}: the program ({name}) stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
-            return
-        outputs[name] = so
-        if memcheck and name == "native":
+            findings.report(f"{prefix}run-{name}", text.encode(), f"{label}: the program ({name}) stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
+            continue
+        results[name] = so
+        if valgrind and memcheck and name == "native":
             # frames up to a thread's 8 MiB stack are real frames, not stack switches (tools/valgrind_std.sh)
             vstatus, vout, verr = run([memcheck, "--error-exitcode=99", "--leak-check=no", "--max-stackframe=8388608", "-q", str(exe)], timeout * 8)
             if vstatus == 99:
-                findings.report("valgrind", text.encode(), f"{label}: valgrind found a memory error in the native binary: {verr.decode('utf-8', 'replace')[:400]!r}")
-                return
-    if seed_binary.exists():
-        status, so, se = run([str(seed_binary), "eval", str(path)], timeout * 4)
-        if status != 0:
-            findings.report("seed", text.encode(), f"{label}: the seed stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
-            return
-        outputs["seed"] = so
-    values = set(outputs.values())
-    if len(values) > 1:
+                findings.report(f"{prefix}valgrind", text.encode(), f"{label}: valgrind found a memory error in the native binary: {verr.decode('utf-8', 'replace')[:400]!r}")
+    if interpreted:
+        status, so, se = interpreted
+        if outcome:
+            results["seed"] = outcome(status, so, se)
+        elif status != 0:
+            findings.report(f"{prefix}seed", text.encode(), f"{label}: the seed stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
+        else:
+            results["seed"] = so
+    return results if len(results) > 1 else None
+
+
+def disagreeing(results):
+    """The ways whose result differs from the oracle's: the seed's interpreter where it runs,
+    else the C backend at -O0 (Windows has no seed); and the oracle's name."""
+    oracle = next((k for k in ("seed", "c", "release") if k in results), next(iter(results)))
+    return [k for k, v in results.items() if v != results[oracle]], oracle
+
+
+def differential(text, timeout, findings, label, name="generated.lucb"):
+    path = out / name
+    path.write_text(text)
+    outputs = executions(path, timeout, findings, "", text, label, valgrind=True)
+    if outputs is None:
+        return
+    wrong, oracle = disagreeing(outputs)
+    if wrong:
         detail = "; ".join(f"{k}: {v.decode('utf-8', 'replace').strip()}" for k, v in outputs.items())
-        findings.report("disagree", text.encode(), f"{label}: the executions disagree: {detail}")
+        findings.report("disagree", text.encode(), f"{label}: {', '.join(wrong)} disagree with {oracle}: {detail}")
 
 
 def trap_program(rng):
@@ -802,7 +893,7 @@ def trap_program(rng):
     remainder by a possibly-zero divisor, an out-of-range index, and narrowing casts.
     Operands come from an opaque runtime seed mixed with WRAPPING arithmetic, so the
     compiler cannot fold them to a constant and reject at compile time. The same program is
-    run four ways; every execution must agree on the outcome -- the same printed value, or a
+    run every way; every execution must agree on the outcome -- the same printed value, or a
     trap at the same position with the same message (`trap_outcome` / `differential_trap`)."""
     lines = ["pub func main(arguments: str[]) -> i32!:",
              "    var s: i64 = 1",
@@ -955,29 +1046,23 @@ def trap_outcome(status, so, se):
 
 
 def differential_trap(text, timeout, findings, label):
-    """Build and run a maybe-trapping program four ways; every execution must reach the same
+    """Build and run a maybe-trapping program every way; every execution must reach the same
     outcome. A build failure, a crash (non-zero without a positioned trap), or any
     value-vs-trap or position/message disagreement is a finding."""
     path = out / "generated.lucb"
     path.write_text(text)
-    exe = out / "generated"
-    results = {}
-    for name, flags in BUILDS:
-        status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
-        if status != 0:
-            findings.report("trap-build-" + name, text.encode(), f"{label}: the build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
-            return
-        results[name] = trap_outcome(*run([str(exe)], timeout))
-    if seed_binary.exists():
-        results["seed"] = trap_outcome(*run([str(seed_binary), "eval", str(path)], timeout * 4))
+    results = executions(path, timeout, findings, "trap-", text, label, outcome=trap_outcome)
+    if results is None:
+        return
     crashed = {k: v for k, v in results.items() if v[0] == "crash"}
     if crashed:
         detail = "; ".join(f"{k}: {v[1].decode('utf-8', 'replace')}" for k, v in crashed.items())
         findings.report("trap-crash", text.encode(), f"{label}: an execution crashed without a positioned trap: {detail}")
         return
-    if len(set(results.values())) > 1:
+    wrong, oracle = disagreeing(results)
+    if wrong:
         detail = "; ".join(f"{k}={v[0]}:{v[1].decode('utf-8', 'replace')}" for k, v in results.items())
-        findings.report("trap-disagree", text.encode(), f"{label}: the executions disagree on the trap/value: {detail}")
+        findings.report("trap-disagree", text.encode(), f"{label}: {', '.join(wrong)} disagree with {oracle} on the trap/value: {detail}")
 
 
 def gen_package(rng):
@@ -1045,7 +1130,7 @@ def gen_package(rng):
 
 
 def differential_package(files, timeout, findings, label):
-    """Build and run a generated package four ways; every execution must print the same line."""
+    """Build and run a generated package every way; every execution must print the same line."""
     import shutil
     d = out / "genpkg"
     shutil.rmtree(d, ignore_errors=True)
@@ -1053,27 +1138,13 @@ def differential_package(files, timeout, findings, label):
     for name, content in files.items():
         (d / name).write_text(content)
     combined = "\n".join(f"# ===== {n} =====\n{files[n]}" for n in ("geo.lucb", "num.lucb", "main.lucb"))
-    exe = d / "prog"
-    outputs = {}
-    for name, flags in BUILDS:
-        status, so, se = run([str(compiler), "build", str(d / "main.lucb"), *flags, "-o", str(exe)], timeout * 4)
-        if status != 0:
-            findings.report("pkg-build-" + name, combined.encode(), f"{label}: the package build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")
-            return
-        status, so, se = run([str(exe)], timeout)
-        if status != 0:
-            findings.report("pkg-run-" + name, combined.encode(), f"{label}: the package ({name}) stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
-            return
-        outputs[name] = so
-    if seed_binary.exists():
-        status, so, se = run([str(seed_binary), "eval", str(d / "main.lucb")], timeout * 4)
-        if status != 0:
-            findings.report("pkg-seed", combined.encode(), f"{label}: the seed stopped with {status}: {se.decode('utf-8', 'replace')[:200]!r}")
-            return
-        outputs["seed"] = so
-    if len(set(outputs.values())) > 1:
+    outputs = executions(d / "main.lucb", timeout, findings, "pkg-", combined, label)
+    if outputs is None:
+        return
+    wrong, oracle = disagreeing(outputs)
+    if wrong:
         detail = "; ".join(f"{k}: {v.decode('utf-8', 'replace').strip()}" for k, v in outputs.items())
-        findings.report("pkg-disagree", combined.encode(), f"{label}: the package executions disagree: {detail}")
+        findings.report("pkg-disagree", combined.encode(), f"{label}: {', '.join(wrong)} disagree with {oracle}: {detail}")
 
 
 MEM_PRELUDE = """import memory
@@ -1183,32 +1254,18 @@ def mem_program(rng):
 
 
 def differential_mem(text, timeout, findings, label):
-    """Build and run a balanced allocation program four ways. Every execution must agree, AND the
+    """Build and run a balanced allocation program every way. Every execution must agree, AND the
     shared result must balance: allocations == frees and live == 0. A shared imbalance (a runtime
     or ARC leak, or a double free) is a finding the output-only checks miss."""
     path = out / "generated.lucb"
     path.write_text(text)
-    exe = out / "generated"
-    outputs = {}
-    for name, flags in BUILDS:
-        status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
-        if status != 0:
-            findings.report("mem-build-" + name, text.encode(), "%s: the build (%s) failed: %r" % (label, name, (so + se).decode("utf-8", "replace")[:300]))
-            return
-        status, so, se = run([str(exe)], timeout)
-        if status != 0:
-            findings.report("mem-run-" + name, text.encode(), "%s: the program (%s) stopped with %d: %r" % (label, name, status, se.decode("utf-8", "replace")[:200]))
-            return
-        outputs[name] = so
-    if seed_binary.exists():
-        status, so, se = run([str(seed_binary), "eval", str(path)], timeout * 4)
-        if status != 0:
-            findings.report("mem-seed", text.encode(), "%s: the seed stopped with %d: %r" % (label, status, se.decode("utf-8", "replace")[:200]))
-            return
-        outputs["seed"] = so
-    if len(set(outputs.values())) > 1:
+    outputs = executions(path, timeout, findings, "mem-", text, label)
+    if outputs is None:
+        return
+    wrong, oracle = disagreeing(outputs)
+    if wrong:
         detail = "; ".join("%s: %s" % (k, v.decode("utf-8", "replace").strip()) for k, v in outputs.items())
-        findings.report("mem-disagree", text.encode(), "%s: the executions disagree: %s" % (label, detail))
+        findings.report("mem-disagree", text.encode(), "%s: %s disagree with %s: %s" % (label, ", ".join(wrong), oracle, detail))
         return
     parts = next(iter(outputs.values())).decode("utf-8", "replace").split()
     if len(parts) >= 3 and (parts[0] != parts[1] or parts[2] != "0"):
@@ -1336,61 +1393,122 @@ def differential_litmus(text, timeout, findings, label):
     non-zero count, a disagreement, or a hang (a deadlock) is a memory-model finding."""
     path = out / "generated.lucb"
     path.write_text(text)
-    exe = out / "generated"
-    outputs = {}
-    for name, flags in BUILDS:
-        status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
-        if status != 0:
-            findings.report("litmus-build-" + name, text.encode(), "%s: the build (%s) failed: %r" % (label, name, (so + se).decode("utf-8", "replace")[:300]))
-            return
-        status, so, se = run([str(exe)], timeout)
-        if status != 0:
-            findings.report("litmus-run-" + name, text.encode(), "%s: the program (%s) stopped with %d (a deadlock or trap): %r" % (label, name, status, se.decode("utf-8", "replace")[:200]))
-            return
-        outputs[name] = so
-    if len(set(outputs.values())) > 1:
+    outputs = executions(path, timeout, findings, "litmus-", text, label, seed=False)
+    if outputs is None:
+        return
+    wrong, oracle = disagreeing(outputs)
+    if wrong:
         detail = "; ".join("%s: %s" % (k, v.decode("utf-8", "replace").strip()) for k, v in outputs.items())
-        findings.report("litmus-disagree", text.encode(), "%s: the executions disagree: %s" % (label, detail))
+        findings.report("litmus-disagree", text.encode(), "%s: %s disagree with %s: %s" % (label, ", ".join(wrong), oracle, detail))
         return
     result = next(iter(outputs.values())).decode("utf-8", "replace").strip()
     if result != "0":
         findings.report("litmus-stale", text.encode(), "%s: %s stale reads -- release/acquire did not order the payload (a memory-model bug)" % (label, result))
 
 
+# the integer literals an edit may change: two digits or more, not part of a name or a float
+literal = re.compile(r"(?<![\w.])(\d{2,})(?![\w.])")
+
+
+def edit_literals(text, rng):
+    """`text` with one to three integer literals of its indented lines changed."""
+    lines = text.split("\n")
+    spots = [(i, m.span()) for i, line in enumerate(lines) if line.startswith("    ") for m in literal.finditer(line)]
+    for i, (a, b) in rng.sample(spots, min(len(spots), rng.randint(1, 3))):
+        line = lines[i]
+        if line[a:b] != line[a:b].strip() or not line[a:b].isdigit():
+            continue
+        lines[i] = line[:a] + str(int(line[a:b]) + rng.randint(1, 9)) + line[b:]
+    return "\n".join(lines)
+
+
+def differential_cache(text, rng, timeout, findings, label):
+    """A build that takes again what an earlier build generated (support/cache.lucb,
+    back/reuse.lucb) must link the program a build without a cache links, byte for byte. The
+    program is built once into a cache of its own, then edited twice -- a few literals changed
+    each time -- and each edited build through the cache is compared with one built afresh.
+    An edit that leaves a program both builds reject is skipped."""
+    import shutil
+    d = out / "cached"
+    shutil.rmtree(d, ignore_errors=True)
+    d.mkdir(parents=True)
+    source = d / "main.lucb"
+    # the native builds a link makes the same twice (a --debug link names its objects' temporary
+    # paths, and a C compiler's link may stamp its own)
+    flags = rng.choice([["--native"], ["--native", "--release"], ["--native", "--opt", "0"], ["--native", "--opt", "1"], ["--native", "--opt", "3"]])
+    history = [text]
+
+    def build(where, cache):
+        (d / where).mkdir(exist_ok=True)
+        status, so, se = run([str(compiler), "build", str(source), *flags, "--cache-dir", cache, "-o", str(d / where / "prog")], timeout * 4)
+        exe = d / where / ("prog" + EXE)
+        return status, (so + se).decode("utf-8", "replace")[:300], exe.read_bytes() if status == 0 and exe.exists() else b""
+
+    def report(kind, detail):
+        steps = "\n".join(f"# ===== {'the first build' if n == 0 else f'edit {n}'} =====\n{step}" for n, step in enumerate(history))
+        findings.report(kind, steps.encode(), f"{label} ({' '.join(flags)}): {detail}")
+
+    source.write_text(text)
+    status, message, _ = build("first", str(d / "cache"))
+    if status != 0:
+        report("cache-build", f"the first build failed: {message!r}")
+        return
+    for n in (1, 2):
+        text = edit_literals(text, rng)
+        history.append(text)
+        source.write_text(text)
+        cached = build(f"cached{n}", str(d / "cache"))
+        fresh = build(f"fresh{n}", "none")
+        if cached[0] != 0 and fresh[0] != 0:
+            continue
+        if cached[0] != 0 or fresh[0] != 0:
+            report("cache-status", f"after edit {n} the build through the cache {'failed' if cached[0] else 'passed'} and the fresh one {'failed' if fresh[0] else 'passed'}: {cached[1] or fresh[1]!r}")
+            return
+        if cached[2] != fresh[2]:
+            report("cache-differs", f"after edit {n} the program built through the cache differs from the one built afresh")
+            return
+
+
+# the compiler source a change lands in, and the kind of program aimed at it (`--aim`)
+AIMS = ((("src/back/native/x86_64/", "src/back/native/arm64/"), ("abi", "width")),
+        (("src/back/native/selection.lucb", "src/back/opt/"), ("dense",)),
+        (("src/support/cache.lucb", "src/back/reuse.lucb"), ("cache",)))
+
+
+def aim(days):
+    """A weight for each aimed kind, from 1 to 4, by the commits of the last `days` days of the
+    compiler's git log that touched the kind's area: 1 for an area none touched, 4 for the
+    one touched most, and the others in proportion."""
+    log = subprocess.run(["git", "log", f"--since={days} days ago", "--name-only", "--format=tformat:@", "--", "src/"],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace")
+    commits = [set(chunk.split()) for chunk in log.stdout.split("@") if chunk.strip()]
+    touched = {kind: sum(1 for files in commits if any(f.startswith(paths) for f in files)) for paths, kinds in AIMS for kind in kinds}
+    most = max(touched.values()) or 1
+    weights = {kind: 1 + 3 * n / most for kind, n in touched.items()}
+    print(f"fuzz: aimed at {len(commits)} commits to src/ in {days} days: " + ", ".join(f"{k} x{w:.1f}" for k, w in weights.items()), flush=True)
+    return weights
+
+
 def main():
     args = sys.argv[1:]
-    seed = 1
-    mutations = 300
-    programs = 40
-    trap_programs = 0
-    packages = 0
-    mem_programs = 0
-    atomic_programs = 0
-    litmus_programs = 0
-    width_programs = 0
-    minutes = 0.0
+
+    def option(name, default):
+        return type(default)(args[args.index(name) + 1]) if name in args else default
+
+    minutes = option("--minutes", 0.0)
+    seed = option("--seed", 1)
+    mutations, programs = option("--mutations", 300), option("--programs", 40)
+    trap_programs, packages = option("--trap-programs", 0), option("--packages", 0)
+    mem_programs, atomic_programs = option("--mem-programs", 0), option("--atomic-programs", 0)
+    litmus_programs, width_programs = option("--litmus-programs", 0), option("--width-programs", 0)
+    # a long run has the kinds added since the runner's round was written, and is aimed at
+    # the last week unless told otherwise
+    abi_programs = option("--abi-programs", 30 if minutes else 0)
+    cache_programs = option("--cache-programs", 4 if minutes else 0)
+    days = option("--aim", 7 if minutes else 0)
+    global parallel
+    parallel = option("--parallel", parallel)
     gate = "--gate" in args
-    for i, a in enumerate(args):
-        if a == "--seed":
-            seed = int(args[i + 1])
-        elif a == "--mutations":
-            mutations = int(args[i + 1])
-        elif a == "--programs":
-            programs = int(args[i + 1])
-        elif a == "--trap-programs":
-            trap_programs = int(args[i + 1])
-        elif a == "--packages":
-            packages = int(args[i + 1])
-        elif a == "--mem-programs":
-            mem_programs = int(args[i + 1])
-        elif a == "--atomic-programs":
-            atomic_programs = int(args[i + 1])
-        elif a == "--litmus-programs":
-            litmus_programs = int(args[i + 1])
-        elif a == "--width-programs":
-            width_programs = int(args[i + 1])
-        elif a == "--minutes":
-            minutes = float(args[i + 1])
     if "--valgrind" in args:
         import shutil
         global memcheck
@@ -1399,6 +1517,16 @@ def main():
             print("fuzz: --valgrind requested but valgrind is not installed; running without memory checks", flush=True)
     if gate:
         seed, mutations, programs, trap_programs, packages, mem_programs, atomic_programs, litmus_programs, width_programs = 7, 120, 12, 12, 6, 8, 6, 4, 12
+        abi_programs, cache_programs, days = 12, 2, 0
+    dense_share = 0.0
+    if days:
+        weights = aim(days)
+        abi_programs = round(abi_programs * weights["abi"])
+        width_programs = round(width_programs * weights["width"])
+        cache_programs = round(cache_programs * weights["cache"])
+        # as many plain programs as before, and the dense ones on top
+        dense_share = 1 - 1 / weights["dense"]
+        programs = round(programs * weights["dense"])
     rng = random.Random(seed)
     findings = Findings()
     files = corpus()
@@ -1406,72 +1534,63 @@ def main():
         print("no corpus")
         return 1
     deadline = time.time() + minutes * 60 if minutes > 0 else None
-    done_m = done_p = done_t = done_k = done_x = done_a = done_l = done_w = 0
+    done = dict.fromkeys(["mutations", "programs", "trap", "packages", "mem", "atomic", "litmus", "width", "abi", "cache"], 0)
+
+    def tally():
+        return (f"{done['mutations']} mutations, {done['programs']} generated programs, {done['trap']} trap-programs, "
+                f"{done['packages']} packages, {done['mem']} mem-programs, {done['atomic']} atomic-programs, "
+                f"{done['litmus']} litmus-programs, {done['width']} width-programs")
+
+    def kind(name, count, one):
+        """`count` of a kind, each `one(n)` for the n-th; false once the deadline passed."""
+        for _ in range(count):
+            done[name] += 1
+            one(done[name])
+            if deadline and time.time() > deadline:
+                return False
+        return True
+
+    def mutated(n):
+        name, source = rng.choice(files)
+        check_one(mutate(source, rng), 20, findings, f"mutation {n} of {name} (seed {seed})")
+
+    def generated(n):
+        dense = dense_share > 0 and rng.random() < dense_share
+        text = Gen(random.Random(rng.randrange(1 << 30)), dense).program()
+        differential(text, 20, findings, f"{'dense ' if dense else ''}program {n} (seed {seed})")
+        fmt_check(text, 20, findings, f"fmt of program {n} (seed {seed})")
+
+    def cached(n):
+        make = abi_program if n % 2 else (lambda r: Gen(r).program())
+        text = make(random.Random(rng.randrange(1 << 30)))
+        differential_cache(text, random.Random(rng.randrange(1 << 30)), 20, findings, f"cache-program {n} (seed {seed})")
+
     round_ = 0
     while True:
         round_ += 1
         if deadline and round_ > 1:
             # a long run says where it is, through a pipe or a file as well as a terminal
             left = max(0, int(deadline - time.time()))
-            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {done_w} width-programs, {findings.count} findings, {left // 60} min left", flush=True)
-        for k in range(mutations):
-            name, source = rng.choice(files)
-            text = mutate(source, rng)
-            check_one(text, 20, findings, f"mutation {done_m + 1} of {name} (seed {seed})")
-            done_m += 1
-            if deadline and time.time() > deadline:
-                break
-        for k in range(programs):
-            text = Gen(random.Random(rng.randrange(1 << 30))).program()
-            differential(text, 20, findings, f"program {done_p + 1} (seed {seed})")
-            fmt_check(text, 20, findings, f"fmt of program {done_p + 1} (seed {seed})")
-            done_p += 1
-            if deadline and time.time() > deadline:
-                break
-        for k in range(trap_programs):
-            text = trap_program(random.Random(rng.randrange(1 << 30)))
-            differential_trap(text, 20, findings, f"trap-program {done_t + 1} (seed {seed})")
-            done_t += 1
-            if deadline and time.time() > deadline:
-                break
-        for k in range(width_programs):
-            text = width_program(random.Random(rng.randrange(1 << 30)))
-            differential_trap(text, 20, findings, f"width-program {done_w + 1} (seed {seed})")
-            done_w += 1
-            if deadline and time.time() > deadline:
-                break
-        for k in range(packages):
-            # its own name: `files` is the mutation corpus the next round draws from
-            package_files = gen_package(random.Random(rng.randrange(1 << 30)))
-            differential_package(package_files, 20, findings, f"package {done_k + 1} (seed {seed})")
-            done_k += 1
-            if deadline and time.time() > deadline:
-                break
-        for k in range(mem_programs):
-            text = mem_program(random.Random(rng.randrange(1 << 30)))
-            differential_mem(text, 20, findings, f"mem-program {done_x + 1} (seed {seed})")
-            done_x += 1
-            if deadline and time.time() > deadline:
-                break
-        for k in range(atomic_programs):
-            text = atomic_program(random.Random(rng.randrange(1 << 30)))
-            differential(text, 30, findings, f"atomic-program {done_a + 1} (seed {seed})")
-            done_a += 1
-            if deadline and time.time() > deadline:
-                break
-        for k in range(litmus_programs):
-            text = litmus_program(random.Random(rng.randrange(1 << 30)))
-            differential_litmus(text, 25, findings, f"litmus-program {done_l + 1} (seed {seed})")
-            done_l += 1
-            if deadline and time.time() > deadline:
-                break
+            print(f"fuzz: round {round_}, {tally()}, {done['abi']} abi-programs, {done['cache']} cache-programs, {findings.count} findings, {left // 60} min left", flush=True)
+        # the kinds an aim weighs come first, so a slow host reaches them within its budget
+        _ = (kind("mutations", mutations, mutated)
+             and kind("programs", programs, generated)
+             and kind("abi", abi_programs, lambda n: differential(abi_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"abi-program {n} (seed {seed})"))
+             and kind("width", width_programs, lambda n: differential_trap(width_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"width-program {n} (seed {seed})"))
+             and kind("cache", cache_programs, cached)
+             and kind("trap", trap_programs, lambda n: differential_trap(trap_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"trap-program {n} (seed {seed})"))
+             # its own name: `files` is the mutation corpus the next round draws from
+             and kind("packages", packages, lambda n: differential_package(gen_package(random.Random(rng.randrange(1 << 30))), 20, findings, f"package {n} (seed {seed})"))
+             and kind("mem", mem_programs, lambda n: differential_mem(mem_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"mem-program {n} (seed {seed})"))
+             and kind("atomic", atomic_programs, lambda n: differential(atomic_program(random.Random(rng.randrange(1 << 30))), 30, findings, f"atomic-program {n} (seed {seed})"))
+             and kind("litmus", litmus_programs, lambda n: differential_litmus(litmus_program(random.Random(rng.randrange(1 << 30))), 25, findings, f"litmus-program {n} (seed {seed})")))
         if not deadline or time.time() > deadline:
             break
-    for name in ("current.lucb", "generated.lucb", "generated"):
-        p = out / name
-        if p.exists():
-            p.unlink()
-    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {done_t} trap-programs, {done_k} packages, {done_x} mem-programs, {done_a} atomic-programs, {done_l} litmus-programs, {done_w} width-programs, {findings.count} findings (seed {seed})", flush=True)
+    import shutil
+    for p in list(out.glob("generated*")) + list(out.glob("current.lucb")) + [out / "cached"]:
+        shutil.rmtree(p) if p.is_dir() else p.unlink(missing_ok=True)
+    # the counts the runner has always read come first; the later kinds follow the seed
+    print(f"fuzz: {tally()}, {findings.count} findings (seed {seed}); {done['abi']} abi-programs, {done['cache']} cache-programs", flush=True)
     return min(findings.count, 100)
 
 

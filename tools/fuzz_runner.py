@@ -4,7 +4,8 @@
 Each round brings this checkout (and `../luce-std`, and `../luce-seed` where it is built) to
 GitHub's main, rebuilds the compiler when the sources changed, and runs `tools/fuzz.py` for
 `--minutes` at a fresh seed: generated programs weighted over mutations, since the backends
-are where the risk is. The runner and everything it starts run at the lowest priority, and
+are where the risk is, and aimed (`--aim`) at what the last week of commits changed. When
+main brings a new version of this runner, the runner starts again as it. The runner and everything it starts run at the lowest priority, and
 the compiler on one or two threads (`LUCE_BASE_JOBS`), so the machine stays free for work.
 
 What it keeps, under build/fuzz/:
@@ -34,9 +35,10 @@ LOG = FUZZ / "rounds.log"
 WINDOWS = os.name == "nt"
 # per round of fuzz.py: generated programs first, the parser's mutations least
 COUNTS = ["--mutations", "40", "--programs", "60", "--trap-programs", "20", "--width-programs", "20",
-          "--packages", "10", "--mem-programs", "20", "--atomic-programs", "10", "--litmus-programs", "4"]
-SUMMARY = re.compile(r"^fuzz: (\d+) mutations, (\d+) generated programs, (\d+) trap-programs, (\d+) packages, "
-                     r"(\d+) mem-programs, (\d+) atomic-programs, (\d+) litmus-programs, (\d+) width-programs, (\d+) findings")
+          "--packages", "10", "--mem-programs", "20", "--atomic-programs", "10", "--litmus-programs", "4",
+          "--abi-programs", "30", "--cache-programs", "4", "--aim", "7", "--parallel", "2"]
+SUMMARY = re.compile(r"^fuzz: (\d+) mutations, (.*), (\d+) findings \(seed \d+\)(.*)$")
+SOURCE = Path(__file__).read_bytes()   # this runner as it started: a different one on disk is newer
 
 
 def option(name, default):
@@ -101,6 +103,9 @@ def run(minutes, jobs):
         moved = to_main(ROOT)
         moved = to_main(ROOT.parent / "luce-std") or moved
         seed_moved = (ROOT.parent / "luce-seed").exists() and to_main(ROOT.parent / "luce-seed")
+        if Path(__file__).read_bytes() != SOURCE:
+            # main brought a new runner: start again as it, in this process's place
+            os.execv(sys.executable, [sys.executable, *sys.argv])
         if moved or seed_moved or not built:
             built = rebuild(seed_moved)
         commit = git(ROOT, "rev-parse", "--short", "HEAD").stdout.strip()
@@ -119,16 +124,15 @@ def run(minutes, jobs):
         if not found:
             note(f"{stamp} {commit} seed={seed} fuzz.py ended without its summary (status {done.returncode})")
             continue
-        counts = [int(x) for x in found.groups()]
-        programs = sum(counts[1:8])
-        findings = counts[8]
+        programs = sum(int(n) for n in re.findall(r"(\d+) [\w-]+", found.group(2) + found.group(4)))
+        findings = int(found.group(3))
         if findings:
             kept = FUZZ / "kept" / f"{stamp.replace(':', '')}-{seed}"
             kept.mkdir(parents=True, exist_ok=True)
             for finding in FUZZ.glob("finding-*"):
                 finding.rename(kept / finding.name)
             (kept / "fuzz.out").write_text(done.stdout, encoding="utf-8")
-        note(f"{stamp} {commit} seed={seed} mutations={counts[0]} programs={programs} findings={findings}")
+        note(f"{stamp} {commit} seed={seed} mutations={found.group(1)} programs={programs} findings={findings}")
 
 
 def stop():
