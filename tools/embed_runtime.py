@@ -37,5 +37,8 @@ if "--check" in sys.argv:
         print("src/support/runtime.lucb is not what runtime/ says; run tools/embed_runtime.py")
         sys.exit(1)
     sys.exit(0)
-target.write_bytes((text).encode("utf-8"))
-print("wrote src/support/runtime.lucb")
+# unchanged, it is left alone: a Windows checkout holds it with CRLF line ends, which
+# read_text folds, so rewriting it would only leave the tree dirty
+if target.read_text(encoding="utf-8") != text:
+    target.write_bytes(text.encode("utf-8"))
+    print("wrote src/support/runtime.lucb")

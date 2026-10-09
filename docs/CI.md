@@ -51,6 +51,35 @@ and `luce-windows` (`~/.ssh/config`):
   outside the desktop session, so a test that must show a window runs from a scheduled task
   in the logged-in session.
 
+## Fuzzing the compiler
+
+`./test.sh` ends with a short fuzz run at a fixed seed. Longer runs go on in the background
+on each machine: `tools/fuzz_runner.py` moves its checkout to main, rebuilds the compiler
+when it changed, and runs `tools/fuzz.py` an hour at a time at a new seed, at the lowest
+priority and with the compiler on two threads. Each runs in a checkout of its own, beside
+`luce-std` (and `luce-seed` where it builds), never one being edited:
+`~/.local/luce-dev/fuzz` on the Mac and `luce-linux`, `C:\Users\Dennis Sedov\scratch\fuzz` on
+`luce-windows`.
+
+```sh
+nohup python3 tools/fuzz_runner.py > build/fuzz/runner.out 2>&1 &   # start (Mac, Linux)
+python3 tools/fuzz_runner.py --report                               # the last day in one line
+python3 tools/fuzz_runner.py --stop                                 # stop it
+```
+
+On Windows the runner lives in a scheduled task, so it outlives the SSH session that starts
+it, and stopping it removes the task:
+
+```powershell
+schtasks /Create /TN LuceFuzz /SC ONCE /ST 00:00 /F /TR "python \"C:\Users\Dennis Sedov\scratch\fuzz\luce-base\tools\fuzz_runner.py\""
+schtasks /Run /TN LuceFuzz
+python tools\fuzz_runner.py --stop; schtasks /Delete /TN LuceFuzz /F   # stop it
+```
+
+Each round adds a line to `build/fuzz/rounds.log`; a round that finds something keeps its
+reproducers under `build/fuzz/kept/`. A finding becomes a conformance or regression test
+with the fix.
+
 ## Releasing
 
 Changes land on main without version bumps. A release is a batch, cut when it is worth

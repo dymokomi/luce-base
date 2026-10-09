@@ -23,5 +23,8 @@ if "--check" in sys.argv:
         print("src/support/version.lucb is not VERSION; run tools/embed_version.py")
         sys.exit(1)
     sys.exit(0)
-target.write_bytes((text).encode("utf-8"))
-print(f"wrote src/support/version.lucb ({version})")
+# unchanged, it is left alone: a Windows checkout holds it with CRLF line ends, which
+# read_text folds, so rewriting it would only leave the tree dirty
+if target.read_text(encoding="utf-8") != text:
+    target.write_bytes(text.encode("utf-8"))
+    print(f"wrote src/support/version.lucb ({version})")
