@@ -380,6 +380,40 @@ pub struct Instr:
     ## function's own body) the instruction came from, the same way.
     pub var site: u32
 
+## `words` in ascending order: a bottom-up merge sort, n log n, in the heap (the compiler's
+## sources keep to what the seed's library has, which has no sort).
+func sort_words(words: u64[]) -> !:
+    let n = words.length
+    with memory.heap:
+        var other = try new u64[n] ---
+        defer free(other)
+        var source = words
+        var target = other
+        var width: usize = 1
+        while width < n:
+            var start: usize = 0
+            while start < n:
+                let middle = start + width if start + width < n else n
+                let end = start + 2 * width if start + 2 * width < n else n
+                var i = start
+                var j = middle
+                var k = start
+                while k < end:
+                    if i < middle and (j >= end or source[i] <= source[j]):
+                        target[k] = source[i]
+                        i += 1
+                    else:
+                        target[k] = source[j]
+                        j += 1
+                    k += 1
+                start = end
+            let swap = source
+            source = target
+            target = swap
+            width *= 2
+        if source.data != words.data:
+            memory.copy(words, source, n)
+
 ## One scalar member of an aggregate, wherever it lies: what a calling convention reads to
 ## classify the aggregate. A union's members overlap; padding has no leaf.
 pub struct Leaf:
@@ -900,6 +934,23 @@ pub struct Unit:
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
                     init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "", text_index = try hashed.Table[str].create(64))
+
+    ## The first `n` functions, the most instructions first (by index among equals), in
+    ## the heap: the order threads take them in (`parallel.each_ordered`), so that no
+    ## large one starts last and keeps one thread busy after the others are done.
+    pub func largest_first(n: usize) -> usize[]!:
+        with memory.heap:
+            var keys = try new u64[n] ---
+            defer free(keys)
+            for i in 0..<n:
+                let size = self.functions.items[i].instrs.count
+                let clamped = (u64)size if size < 0xFFFFFFFF else 0xFFFFFFFF
+                keys[i] = ((0xFFFFFFFF - clamped) << 32) | (u64)i
+            try sort_words(keys)
+            var order = try new usize[n] ---
+            for i in 0..<n:
+                order[i] = (usize)(keys[i] & 0xFFFFFFFF)
+            return order
 
     ## The index of a source file in `files`, adding it when new; 1-based.
     pub func file_index(path: str) -> u32!:

@@ -27,7 +27,9 @@ grep -q '^luce-base: cache hit ' "$work/report" || { echo "FAIL tests/programs/c
 printf '\n# an edit\n' >> "$work/main.lucb"
 run --native > /dev/null
 grep -q '^luce-base: cache miss ' "$work/report" || { echo "FAIL tests/programs/cache: an edited source hit"; cat "$work/report"; exit 1; }
-[ "$(ls "$work/cache" | wc -l | tr -d ' ')" = 3 ] || { echo "FAIL tests/programs/cache: expected three kept objects"; ls "$work/cache"; exit 1; }
+# three builds kept: two native ones, each a list of its assembly's pieces (`-n.m`), and the
+# C one's object; the pieces themselves are kept beside them
+[ "$(ls "$work/cache" | grep -c -e '-n\.m$' -e '-n\.o$' -e '-c\.o$')" = 3 ] || { echo "FAIL tests/programs/cache: expected three kept builds"; ls "$work/cache"; exit 1; }
 "$compiler" build "$work/main.lucb" --native --cache-dir none --cache-report -o "$work/program" 2> "$work/report"
 [ ! -s "$work/report" ] || { echo "FAIL tests/programs/cache: --cache-dir none reported"; cat "$work/report"; exit 1; }
 [ "$("$work/program")" = "cached true" ]

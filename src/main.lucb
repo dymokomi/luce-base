@@ -349,6 +349,7 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
         split_starts = native.starts
         split_ending = native.ending
         split_tags = native.tags
+        split_whole = native.module_asm
         return text
     var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile, position_root)
     let target: backend.Backend = &host_c
@@ -359,6 +360,8 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
 var split_starts: usize[]
 var split_ending: usize = 0
 var split_tags: u64[]
+## Whether that text is assembled whole, one piece: it has module-level assembly.
+var split_whole: bool = false
 
 ## Native assembly by default; generated C only when explicitly requested.
 var native_backend: bool
@@ -604,8 +607,31 @@ func finish_debug(exe: str) -> !:
     var attach: c.str[3] = ["--strip-debug", (c.str)link, (c.str)exe]
     try run_tool("objcopy", attach, "could not attach the ELF debug file")
 
-## `as` over the assembly, then the target's linker (§19.5): Apple's `ld` against the
-## Whether this build's assembly may be split into pieces: native code for macOS or Linux
+## The objects that make the program, from the cache or by translating and assembling:
+## a split assembly's pieces (`support.pieces`), in order, or one object.
+func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str) -> str[]!:
+    if splittable():
+        if let listed = try pieces.cached(key):
+            return listed
+        let text = try translate(checker, entry, mode, true)
+        let t = build_target()
+        return try pieces.assemble(dir, text, split_starts, split_tags, split_ending, key, t.os == targets.Os.macos, t.arch_name(), split_whole)
+    let asm_path = try strings.format(name_bytes[..<512], f"{dir}/gen.s")
+    let object_path = try strings.format(name_bytes[512..<1024], f"{dir}/gen.o")
+    if let cached = try cache.find(key, "-n.o"):
+        let object = try files.read((c.str)cached)
+        defer object.release()
+        try files.write((c.str)object_path, object.value)
+    else:
+        let text = try translate(checker, entry, mode)
+        try files.write((c.str)asm_path, text.bytes)
+        try assemble_one(dir)
+        cache.keep(key, "-n.o", object_path)
+    let one = try new str[1] ---
+    one[0] = object_path
+    return one
+
+## Whether this build's assembly is split into pieces: native code for macOS or Linux
 ## without debug information (whose DWARF lines run through the whole text), and not
 ## Windows, whose weak declarations each piece would repeat.
 func splittable() -> bool:
@@ -623,33 +649,14 @@ func assemble_one(dir: str) -> !:
         try io.stderr().write(assembled.value.error_output)
         error(build_failed, "the assembler rejected the generated code")
 
-## system library found through `xcrun`, or the C driver, which knows where the C library,
-## its start files, and the dynamic loader are.
+## The program's objects (`program_objects`), then the target's linker (§19.5): Apple's
+## `ld` against the system library found through `xcrun`, or the C driver, which knows
+## where the C library, its start files, and the dynamic loader are.
 func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str, exe: str) -> !:
-    let asm_path = try strings.format(name_bytes[..<512], f"{dir}/gen.s")
-    let object_path = try strings.format(name_bytes[512..<1024], f"{dir}/gen.o")
-    if let cached = try cache.find(key, "-n.o"):
-        let object = try files.read((c.str)cached)
-        defer object.release()
-        try files.write((c.str)object_path, object.value)
-    elif splittable():
-        # a large program's assembly in pieces, assembled in parallel and joined
-        let text = try translate(checker, entry, mode, true)
-        let t = build_target()
-        if split_starts[split_starts.length - 1] - split_starts[0] >= 4194304:
-            try pieces.assemble(dir, text, split_starts, split_tags, split_ending, object_path, t.os == targets.Os.macos, t.arch_name())
-        else:
-            try files.write((c.str)asm_path, text.bytes)
-            try assemble_one(dir)
-        cache.keep(key, "-n.o", object_path)
-    else:
-        let text = try translate(checker, entry, mode)
-        try files.write((c.str)asm_path, text.bytes)
-        try assemble_one(dir)
-        cache.keep(key, "-n.o", object_path)
+    let objects = try program_objects(dir, name_bytes, checker, entry, mode, key)
     let t = build_target()
     if t.linker == targets.Linker.c_driver:
-        try link_with_driver(dir, object_path, exe, t)
+        try link_with_driver(dir, objects, exe, t)
         return
     let sdk_args: c.str[1] = ["--show-sdk-path"]
     let found = try process.run("xcrun", sdk_args)
@@ -666,7 +673,7 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
     try ld_args.add((c.str)exe)
     # the SDK in the program's build version: AppKit treats a program that names none as
     # older than Mojave (no dark appearance); the minimum stays the assembler's
-    if let minimum = try macos_platform.minimum(object_path):
+    if let minimum = try macos_platform.minimum(objects[0]):
         if let sdk_version = try macos_platform.sdk_version(sdk):
             try ld_args.add("-platform_version")
             try ld_args.add("macos")
@@ -675,7 +682,8 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
     # a package's declared frameworks and libraries cost nothing where the program
     # names none of their symbols
     try ld_args.add("-dead_strip_dylibs")
-    try ld_args.add((c.str)object_path)
+    for object in objects:
+        try ld_args.add((c.str)object)
     for library in t.system_libraries:
         try ld_args.add((c.str)library)
     if freestanding:
@@ -714,11 +722,12 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
 ## the libraries of the build, and the target's system libraries. A freestanding program
 ## links no start files and enters at its own `_start`, the C library still beside it as
 ## on macOS; `-framework` names nothing here.
-func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -> !:
+func link_with_driver(dir: str, objects: const str[], exe: str, t: targets.Target) -> !:
     var cc_args = try Arguments.create()
     try cc_args.add("-o")
     try cc_args.add((c.str)exe)
-    try cc_args.add((c.str)object_path)
+    for object in objects:
+        try cc_args.add((c.str)object)
     if freestanding:
         try cc_args.add("-nostartfiles")
     if t.os == targets.Os.linux:
@@ -734,6 +743,8 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
         try cc_args.add("-Wl,-Bstatic")
         try cc_args.add("-lwinpthread")
         try cc_args.add("-Wl,-Bdynamic")
+        # no link time in the header: the same objects link to the same bytes (§19.7)
+        try cc_args.add("-Wl,--no-insert-timestamp")
     # the manifest's C sources (§17.4), each compiled to an object beside the assembly
     try compile_sources(dir, &cc_args)
     for search in package.link_search:

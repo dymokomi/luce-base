@@ -241,6 +241,12 @@ pub func relative(path: str) -> str:
         return (str)path.bytes[root.length..]
     return path
 
+## Whether this build has a cache at all.
+pub func on() -> bool!:
+    if lost:
+        return false
+    return (try directory()) != none
+
 ## The hash of the running compiler's file, read once: a different compiler is a
 ## different build.
 func compiler() -> u64!:
@@ -313,6 +319,17 @@ pub func piece_key(prelude: str, middle: str, closing: str, arch: str) -> str!:
     h = mix(h, closing.bytes)
     h = mix(h, arch.bytes)
     return try digits_of(h)
+
+## Keep `bytes` under the key `entry` and `suffix`, as `keep` keeps an object's.
+pub func keep_bytes_as(entry: str, suffix: str, bytes: const u8[]):
+    keep_named(entry, suffix, bytes) catch ignored:
+        _ = ignored
+
+func keep_named(entry: str, suffix: str, bytes: const u8[]) -> !:
+    if lost:
+        return
+    let dir = try directory() else return
+    try keep_bytes(dir, entry, suffix, bytes)
 
 ## Keep `object` under the key `entry` and `suffix`: written beside its place, then renamed, so a
 ## reader never sees a partial file. A cache that cannot be written is no cache.

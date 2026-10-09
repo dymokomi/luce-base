@@ -57,27 +57,36 @@ struct Run:
     var context: void*?
     var count: usize
     var next: @usize
+    ## The order the indices are taken in, when not their own.
+    var order: const usize[]
 
 ## Take indices from `run` until none are left.
 func work(argument: void*?):
     let run = (Run*)(argument else return)
     while true:
-        let index = run.next.add(1, .relaxed)
-        if index >= run.count:
+        let taken = run.next.add(1, .relaxed)
+        if taken >= run.count:
             return
-        run.body(run.context, index)
+        run.body(run.context, run.order[taken] if run.order.length > 0 else taken)
 
 ## Call `body(context, i)` for every `i` in `0..<count`, on `workers()` threads at most,
 ## and return when every call has. The calls must not depend on one another's order. With
 ## one worker, or a count too small to share, they run here in order.
 pub func each(count: usize, body: func(void*?, usize) -> unit, context: void*?) -> !:
+    let unused: usize[1] = [0]
+    try each_ordered(count, body, context, unused[..<0])
+
+## `each`, the threads taking the indices in `order` (all of `0..<count`, once each)
+## instead of their own: the largest tasks first, so that none of them starts last and
+## keeps one thread busy after the others are done.
+pub func each_ordered(count: usize, body: func(void*?, usize) -> unit, context: void*?, order: const usize[]) -> !:
     let wanted = (usize)workers()
     let threads = wanted if wanted < count else count
     if threads <= 1:
         for index in 0..<count:
             body(context, index)
         return
-    var run = Run(body = body, context = context, count = count, next = 0)
+    var run = Run(body = body, context = context, count = count, next = 0, order = order)
     with memory.heap:
         var handles = try new thread.Handle[threads - 1] ---
         defer free(handles)

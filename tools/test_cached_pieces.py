@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""A large program's assembly is assembled in pieces (support/pieces.lucb), and a piece an
-earlier build assembled comes from the build cache. The compiler's own source is large
-enough: build a copy of it, edit one function's text literal, and build again. Most
+"""A program's assembly is assembled in pieces (support/pieces.lucb), and a piece an
+earlier build assembled comes from the build cache. Build a copy of the compiler's own
+source, edit one function's text literal, and build again. Most
 pieces must come from the cache, since labels are named by what they label
 (back/native/stable_names.lucb) and the cuts by the functions around them; and the
 program built so must be the one a build without a cache makes, byte for byte.

@@ -94,6 +94,9 @@ pub struct NativeBackend: Backend:
     pub var tags: u64[]
     ## After `compile`: where the format's closing directives begin.
     pub var ending: usize = 0
+    ## After `compile`: whether the program has module-level assembly (§8.9), whose labels
+    ## its functions may name as labels local to the one file.
+    pub var module_asm: bool = false
 
     ## A native backend that lowers `entry` to IR and generates the target's assembly.
     ## Positions name a source under `position_root` relative to it (`lower.Lowerer`).
@@ -139,6 +142,7 @@ pub struct NativeBackend: Backend:
                 else:
                     try each_function(&self.lowerer.program_unit, sweep_task)
             try note(&at, 7)
+        self.module_asm = self.lowerer.program_unit.module_asm.count > 0
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
         # each function's allocation and frame working memory goes back to the heap once
@@ -217,7 +221,9 @@ func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?
     with memory.heap:
         var job = Optimising(program = program, level = level, only = only, failures = try parallel.failures(n))
         defer free(job.failures)
-        try parallel.each(n, optimise_task, (void*)&job)
+        let order = try program.largest_first(n)
+        defer free(order)
+        try parallel.each_ordered(n, optimise_task, (void*)&job, order)
         try parallel.check(job.failures)
 
 ## Run `task` over every function of `program` on whichever thread takes it; the first
@@ -227,7 +233,9 @@ func each_function(program: ir.Unit*, task: func(ir.Function*) -> unit!) -> !:
     with memory.heap:
         var job = PerFunction(program = program, task = task, failures = try parallel.failures(n))
         defer free(job.failures)
-        try parallel.each(n, per_function_task, (void*)&job)
+        let order = try program.largest_first(n)
+        defer free(order)
+        try parallel.each_ordered(n, per_function_task, (void*)&job, order)
         try parallel.check(job.failures)
 
 ## What the threads running one task over a program's functions share.

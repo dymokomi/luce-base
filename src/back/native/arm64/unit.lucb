@@ -62,7 +62,9 @@ extend Generator:
                 for k in 0..<n:
                     if job.texts[k].length > 0:
                         free(job.texts[k].bytes)
-            try parallel.each(n, generate_task, (void*)&job)
+            let order = try self.program_unit.largest_first(n)
+            defer free(order)
+            try parallel.each_ordered(n, generate_task, (void*)&job, order)
             try parallel.check(job.failures)
             for k in 0..<n:
                 self.starts[k] = self.writer.out.used
