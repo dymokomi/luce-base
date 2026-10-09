@@ -152,6 +152,10 @@ defer result.close()
   each look until two seconds have passed: a second write in the same tick of the file
   system's clock leaves the times as they were, and only the bytes tell. On Windows the
   look is the size and the write time, which moves in steps of about 16 ms.
+- A check asks the system whether a path is there once, and answers each later lookup of
+  that path from the first (`cache.remembering`): resolving a script's imports asks about
+  the same manifests and modules thousands of times, 6800 lookups of 250 paths for the
+  script above. The next check asks again.
 - A dependency that does not load or check is not kept: each check reads it and reports
   its errors, as a check alone does, until it checks again.
 - The kept modules are per package, the directory holding the file's `package.prisma`. A

@@ -26,6 +26,8 @@ import memory
 import os
 import luce_std.paths
 import support.buffer
+import support.hashed
+import support.list
 import support.in_arena
 import strings
 
@@ -86,12 +88,19 @@ pub func note_input(path: str, bytes: const u8[], read_as: str = ""):
         noted_bytes[noted_count] = digest(bytes)
         noted_count += 1
 
-## Whether a file is at `path`, for a lookup: an absence is noted (`note_absent`).
+## Whether a file is at `path`, for a lookup: an absence is noted (`note_absent`). While
+## `remembering`, the answer is the first one for the path since `forget_lookups`.
 pub func exists(path: c.str) -> bool:
-    if files.exists(path):
-        return true
-    note_absent((str)path)
-    return false
+    var found = false
+    if let known = remembered(path):
+        found = known
+    else:
+        found = files.exists(path)
+        if remembering:
+            remember_lookup(path, found)
+    if not found:
+        note_absent((str)path)
+    return found
 
 ## Note that a lookup found nothing at `path` (a module, a manifest, an `ORDER`): a file
 ## that appears there later could change what the lookup finds, so a record that saw it
@@ -265,6 +274,64 @@ func compiler() -> u64!:
     defer bytes.release()
     compiler_hash = mix(14695981039346656037, bytes.value)
     return compiler_hash
+
+# mark: Lookups remembered ===================================================================
+
+## Whether a lookup's answer is kept for the lookups of the same path after it, until
+## `forget_lookups`. A host's check (`embed.Library`) asks whether the same manifests and
+## modules are there thousands of times: 6800 lookups of 250 paths for a script importing
+## luce-geocore, each a call to the system, 13 µs on Windows. A check takes the files as it
+## first finds them, as a build does.
+pub var remembering: bool = false
+
+## A path a lookup asked about while `remembering`, and whether a file was there.
+struct Lookup:
+    var path: str
+    var found: bool
+
+## The lookups remembered, in the heap, and an index from path to place in that list; made
+## at the first.
+var lookups: list.List[Lookup]? = none
+var lookup_index: hashed.Table[str]? = none
+
+## The answer remembered for `path`, when there is one.
+func remembered(path: c.str) -> bool?:
+    if not remembering:
+        return none
+    let index = lookup_index else return none
+    let found = lookups else return none
+    let at = index.find((str)path) else return none
+    return found.get(at).found
+
+## Keep `found` as the answer for `path`; a memo that cannot grow keeps nothing, which costs
+## time only.
+func remember_lookup(path: c.str, found: bool):
+    with memory.heap:
+        keep_lookup((str)path, found) catch ignored:
+            _ = ignored
+
+func keep_lookup(path: str, found: bool) -> !:
+    var kept = lookups else try list.List[Lookup].create(256)
+    var index = lookup_index else try hashed.Table[str].create(256)
+    let copy = try strings.copy(path)
+    try kept.push(Lookup(path = copy, found = found))
+    _ = try index.add(copy, kept.count - 1)
+    lookups = kept
+    lookup_index = index
+
+## Forget every lookup remembered: the next lookup of each path asks the system again.
+pub func forget_lookups():
+    with memory.heap:
+        if let index = lookup_index:
+            var held = index
+            held.destroy()
+        if let kept = lookups:
+            var held = kept
+            for lookup in held.span():
+                strings.release(lookup.path)
+            held.destroy()
+    lookup_index = none
+    lookups = none
 
 # mark: Objects in the cache ==================================================================
 

@@ -63,6 +63,8 @@ pub struct Library:
         cache.noting = false
         defer cache.noting = noting
         check.forget_library_modules()
+        remember_lookups()
+        defer forget_lookups()
         let arena = try new_arena(self.parent)
         errdefer destroy_arena(arena)
         with arena:
@@ -101,6 +103,8 @@ pub struct Library:
     ## the answer is none: the caller checks again, on top of them.
     func attempt(path: str, grow: bool) -> Checked?!:
         check.forget_library_modules()
+        remember_lookups()
+        defer forget_lookups()
         let arena = try new_arena(self.parent)
         errdefer destroy_arena(arena)
         with arena:
@@ -168,6 +172,17 @@ pub struct Library:
                 release_kept(kept)
                 module_paths.forget_manifests()
                 return
+
+## Answer each lookup of a path the same through the check, asking the system once
+## (`cache.remembering`): the check sees the files as it first finds them.
+func remember_lookups():
+    cache.forget_lookups()
+    cache.remembering = true
+
+## Ask the system again from here on.
+func forget_lookups():
+    cache.remembering = false
+    cache.forget_lookups()
 
 ## The file at `path` and its imports, loaded.
 func load_file(checker: check.Checker*, path: str) -> str!:
