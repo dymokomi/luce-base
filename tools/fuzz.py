@@ -47,7 +47,7 @@ Usage:
   tools/fuzz.py [--seed N] [--mutations N] [--programs N] [--trap-programs N]
                 [--width-programs N] [--packages N] [--mem-programs N] [--atomic-programs N]
                 [--litmus-programs N] [--abi-programs N] [--cache-programs N]
-                [--aim DAYS] [--parallel N] [--minutes M] [--gate] [--valgrind]
+                [--aim DAYS] [--parallel N] [--coverage] [--minutes M] [--gate] [--valgrind]
 
 `--gate` is the gate's short run: a fixed seed and a small count, so it is the same on
 every host. `--minutes` runs until the budget is spent, printing findings as they come; such
@@ -56,6 +56,7 @@ told otherwise. `--aim DAYS` weighs the kinds by the compiler source the last DA
 git log touched (AIMS): the x86-64 or arm64 generators give more ABI and width programs,
 instruction selection or the optimiser more and denser generated programs, the cache or
 function reuse more cache programs. `--parallel N` builds a program N ways at once.
+`--coverage` reports which compiler functions the run reached (tools/fuzz_coverage.py).
 A finding becomes a test once tools/reduce.py has made it small.
 Exit status is the number of findings, capped at 100.
 """
@@ -66,6 +67,7 @@ root = pathlib.Path(__file__).resolve().parent.parent
 os.chdir(root)
 sys.path.insert(0, str(root / "tools"))
 from fuzz_abi import abi_program
+from fuzz_coverage import Coverage
 compiler = pathlib.Path(os.environ.get("LUCE_BASE_COMPILER", root / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base"))).resolve()
 seed_binary = root.parent / "luce-seed" / "build" / "lucb"
 out = root / "build" / "fuzz"
@@ -83,6 +85,7 @@ debug_defined = re.compile(r"^(Ldw_\w+):", re.M)
 debug_named = re.compile(r"\b(Ldw_(?:pc|v|sc)_\d+_\d+)\b")
 parallel = max(1, min(8, (os.cpu_count() or 2) // 2))   # builds of one program at once (--parallel)
 memcheck = None   # the valgrind command when --valgrind is on and valgrind exists; else None
+coverage = None   # a Coverage when --coverage is on and the instrumented compiler builds
 out.mkdir(parents=True, exist_ok=True)
 
 position = re.compile(r"[^ :]+\.lucb:\d+:\d+: ")
@@ -837,6 +840,8 @@ def executions(source, timeout, findings, prefix, text, label, outcome=None, see
         built = list(pool.map(build, BUILDS))
         crossed = list(pool.map(labels, others))
         interpreted = interpreted.result() if interpreted else None
+    if coverage:
+        coverage.reach(source, timeout)
     for target, problem in zip(others, crossed):
         if problem:
             findings.report(f"{prefix}debug-{target}", text.encode(), f"{label}: for {target}, {problem}")
@@ -1506,8 +1511,11 @@ def main():
     abi_programs = option("--abi-programs", 30 if minutes else 0)
     cache_programs = option("--cache-programs", 4 if minutes else 0)
     days = option("--aim", 7 if minutes else 0)
-    global parallel
+    global parallel, coverage
     parallel = option("--parallel", parallel)
+    if "--coverage" in args:
+        coverage = Coverage(root, HOST)
+        coverage = coverage if coverage.prepare() else None
     gate = "--gate" in args
     if "--valgrind" in args:
         import shutil
@@ -1589,6 +1597,8 @@ def main():
     import shutil
     for p in list(out.glob("generated*")) + list(out.glob("current.lucb")) + [out / "cached"]:
         shutil.rmtree(p) if p.is_dir() else p.unlink(missing_ok=True)
+    if coverage:
+        print(coverage.report(), flush=True)
     # the counts the runner has always read come first; the later kinds follow the seed
     print(f"fuzz: {tally()}, {findings.count} findings (seed {seed}); {done['abi']} abi-programs, {done['cache']} cache-programs", flush=True)
     return min(findings.count, 100)

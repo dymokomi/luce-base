@@ -9,7 +9,9 @@ main brings a new version of this runner, the runner starts again as it. The run
 the compiler on one or two threads (`LUCE_BASE_JOBS`), so the machine stays free for work.
 
 What it keeps, under build/fuzz/:
-  rounds.log     one line a round: when, the commit, the seed, what ran, the findings
+  rounds.log     one line a round: when, the commit, the seed, what ran, the findings, and
+                 how many compiler functions the round reached, how many for the first time
+  coverage/      every function any round reached, and the backend's never reached (cold.txt)
   kept/<when>-<seed>/   the reproducers of a round that found something
   runner.pid     the running runner's process, which `--stop` ends
 
@@ -36,7 +38,7 @@ WINDOWS = os.name == "nt"
 # per round of fuzz.py: generated programs first, the parser's mutations least
 COUNTS = ["--mutations", "40", "--programs", "60", "--trap-programs", "20", "--width-programs", "20",
           "--packages", "10", "--mem-programs", "20", "--atomic-programs", "10", "--litmus-programs", "4",
-          "--abi-programs", "30", "--cache-programs", "4", "--aim", "7", "--parallel", "2"]
+          "--abi-programs", "30", "--cache-programs", "4", "--aim", "7", "--parallel", "2", "--coverage"]
 SUMMARY = re.compile(r"^fuzz: (\d+) mutations, (.*), (\d+) findings \(seed \d+\)(.*)$")
 SOURCE = Path(__file__).read_bytes()   # this runner as it started: a different one on disk is newer
 
@@ -132,7 +134,9 @@ def run(minutes, jobs):
             for finding in FUZZ.glob("finding-*"):
                 finding.rename(kept / finding.name)
             (kept / "fuzz.out").write_text(done.stdout, encoding="utf-8")
-        note(f"{stamp} {commit} seed={seed} mutations={found.group(1)} programs={programs} findings={findings}")
+        reach = re.search(r"^coverage: (\d+) of \d+ compiler functions reached, (\d+) for the first time", done.stdout, re.M)
+        reached = f" reached={reach.group(1)} new={reach.group(2)}" if reach else ""
+        note(f"{stamp} {commit} seed={seed} mutations={found.group(1)} programs={programs} findings={findings}{reached}")
 
 
 def stop():

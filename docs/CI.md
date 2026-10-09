@@ -86,8 +86,10 @@ included, and a `--debug` build for each other target must define every label it
 information names. On Windows, where the seed's interpreter does not run, the C backend is
 the oracle.
 
-Each round adds a line to `build/fuzz/rounds.log`; a round that finds something keeps its
-reproducers under `build/fuzz/kept/`.
+Each round adds a line to `build/fuzz/rounds.log`, with how many compiler functions the
+round reached and how many no round had reached before (`--coverage`: a gcov build of the
+host's snapshot); `build/fuzz/coverage/cold.txt` lists the backend functions none has
+reached. A round that finds something keeps its reproducers under `build/fuzz/kept/`.
 `tools/reduce.py FINDING` cuts one down, dropping blocks, lines, parameters and fields while
 the native build still disagrees with the C one (or while `--check COMMAND` holds), and it
 becomes a conformance or regression test with the fix.
