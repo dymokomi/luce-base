@@ -1,8 +1,8 @@
 # oracle: none
-## §11.3: `called_at` is the first call into another package, by a function's or a method's
-## name, that an error came out of: the `try` or the handler's operand at that call. `try`
-## and `error(failure)` further up keep it, and so does a failure leaving a handler; a
-## nested package's call comes first. An error that never left its package, one raised
+## §11.3: `called_at` is the outermost call into another package, by a function's or a
+## method's name, that an error came out of: the `try` or the handler's operand at that call.
+## `try` and `error(failure)` further up keep it, and so does a failure leaving a handler; a
+## call into the package that called a nested one replaces the nested call. An error that never left its package, one raised
 ## anew, and one that came only through a function value have `called_at` equal to `at`.
 import origin_source.raise
 import called_middle.middle

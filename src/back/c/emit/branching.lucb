@@ -28,9 +28,7 @@ extend Emitter:
         self.indent += 1
         if e.has(ast.flag_crossing):
             # the error comes into this package out of another's function (§11.3)
-            try self.line("if (")
-            try self.put_tmp("r", n)
-            try self.put(".error.m.called == 0) ")
+            try self.line("")
             try self.put_tmp("r", n)
             try self.put(".error.m.called = lb_here();")
         # a failure leaving a handler takes the place of the handled error's message

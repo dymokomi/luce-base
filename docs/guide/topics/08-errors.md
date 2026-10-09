@@ -212,8 +212,8 @@ main.lucb:5:9: below zero
   line. `called_at`, below, names yours.
 
 An error raised in a library is mostly wanted at the line that called the library.
-`failure.called_at` is that line: the first call into another package that the error came
-out of. Here the standard `strings` module raises, and `called_at` names the `try` in this
+`failure.called_at` is that line: the outermost call into another package that the error
+came out of. Here the standard `strings` module raises, and `called_at` names the `try` in this
 program:
 
 ```luce
@@ -243,8 +243,9 @@ called at main.lucb:4:5
 - The call counts when it names a function or method of another package, by `try` or as a
   handler's operand. A call through a function value or an interface names no package and
   is passed over.
-- Only the first such call is kept: when a library calls another library that raises, it
-  is the first library's line. `try` and `error(failure)` further up keep it.
+- The outermost such call is kept: when your code calls a library that calls another
+  library that raises, it is your line. `try` and `error(failure)` further up keep it
+  until another package's caller replaces it.
 - An error that never came out of another package, and one raised anew with
   `error(failure.code, failure.message)`, has `called_at` equal to `at`.
 - An error that escapes a fallible `main` prints `called_at` on a second line when it

@@ -172,19 +172,12 @@ extend Lowerer:
     func store_origin(err: ir.Ref) -> !:
         try self.f.store(ir.Op.storew, try self.origin_distance(), try self.offset_address(err, 4))
 
-    ## The `called_at` of the error at `err`, unless it has one: the current statement, a call
-    ## into another package that the error came out of (§11.3). It is the word above the
-    ## message's 32-bit length, which writing a new message clears.
+    ## The `called_at` of the error at `err`: the current statement, a call into another
+    ## package that the error came out of (§11.3). The outermost such call is kept, so each
+    ## one replaces the last. It is the word above the message's 32-bit length, which writing
+    ## a new message clears.
     func store_called(err: ir.Ref) -> !:
-        let word = try self.offset_address(err, 20)
-        let called = try self.f.load(ir.Op.loadsw, ir.Class.w, word)
-        let unset = self.f.label()
-        let done = self.f.label()
-        try self.f.branch(called, done, unset)
-        try self.f.place_label(unset)
         try self.f.store(ir.Op.storew, try self.origin_distance(), try self.offset_address(err, 20))
-        try self.f.jump(done)
-        try self.f.place_label(done)
 
     ## The message of the error at `err` as a `str`, in a slot of its own: the length is the
     ## error's 32 bits, without `called_at` above them (§11.3).
