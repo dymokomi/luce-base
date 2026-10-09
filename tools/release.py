@@ -15,7 +15,9 @@ Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run]
   4. Every application on the registry is resolved again: `luc lock` in a clone of its
      registry repository, with a scratch HOME, so nothing is installed.
   5. The toolchain: when luce-base, luce or luc changed since the last luce-VERSION tag,
-     luce-base and luce get new versions (luce's installers too); tools/toolchain.py
+     luce-base and luce get new versions (luce's installers too), and luce-base is
+     published to the registry at its version, for packages that import its checker
+     (luce-kernel); tools/toolchain.py
      builds the release archive on this Mac and over SSH on `luce-linux` and
      `luce-windows`; the three become the GitHub release luce-VERSION; the installers are
      copied to luce.luciaos.com and both documentation sites are rebuilt and deployed,
@@ -347,7 +349,10 @@ def main():
             checkouts[manifest(path)[0]] = path
     print(f"release: {len(registered)} packages on {REGISTRY}; checkouts in {workspace}")
     with concurrent.futures.ThreadPoolExecutor(16) as pool:
-        futures = {name: pool.submit(Package, owner, checkouts[name]) for owner, name in registered if name in checkouts}
+        # luce-base is on the registry too (luce-kernel imports its checker), but its version is
+        # the toolchain's, set and published below
+        futures = {name: pool.submit(Package, owner, checkouts[name]) for owner, name in registered
+                   if name in checkouts and name not in ("luce-base", "luce")}
         packages = [future.result() for future in futures.values()]
     missing = [name for _, name in registered if name not in checkouts]
     if missing:
@@ -407,6 +412,9 @@ def main():
             deploy_installers(directory, entry["target"])
         else:
             tag(directory, entry["target"])
+            # its public modules (embed, front.*, sema.*) as a registry package
+            subprocess.run(["luc", "publish", "-m", f"luce-base {entry['target']}: batch release"],
+                           cwd=directory, check=True)
         deploy_site(directory)
     return 0 if verify_applications(False) else 1
 
