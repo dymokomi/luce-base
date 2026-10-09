@@ -39,9 +39,24 @@ pub func text_tags(program: ir.Unit*) -> u64[]!:
         tags[i] = try claim(&used, program.texts.get(i).bytes)
     return tags
 
-## What names function `index`'s own labels: its index, or under `split` its tag.
-pub func put_function_label(out: buffer.Buffer*, index: usize, tags: const u64[], split: bool) -> !:
-    if split:
+## Whether every tag is its name's first (`claim`): no two names clashed, so each tag is
+## the same in every build that has its name, whatever else the build holds.
+pub func first_tags(program: ir.Unit*, functions: const u64[], texts: const u64[]) -> bool:
+    for i in 0..<functions.length:
+        if functions[i] != first(program.functions.items[i].name):
+            return false
+    for i in 0..<texts.length:
+        if texts[i] != first(program.texts.get(i).bytes):
+            return false
+    return true
+
+## The tag `claim` gives `name` when no other name took it.
+func first(name: str) -> u64:
+    return name_hash(14695981039346656037, name) & 0xFFFFFFFFFFFF
+
+## What names function `index`'s own labels: its index, or when `stable` its tag.
+pub func put_function_label(out: buffer.Buffer*, index: usize, tags: const u64[], stable: bool) -> !:
+    if stable:
         try put_tag(out, tags[index])
     else:
         try out.put_u64((u64)index)

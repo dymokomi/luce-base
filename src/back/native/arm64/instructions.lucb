@@ -467,7 +467,7 @@ extend Generator:
     ## The label of jump table `n` of the function.
     func table_name(n: u32) -> !:
         try self.writer.out.put(self.object_format.local_label)
-        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_jt")
         try self.writer.out.put_u64((u64)n)
 

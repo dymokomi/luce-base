@@ -1,0 +1,251 @@
+#==============================================================================================
+#
+#   digest - A function's content as a hash, for reusing what an earlier build generated
+#
+#   DESCRIPTION:
+#       The generated text of a function is decided by the function as the inliner left it,
+#       the functions it calls (the second inlining pass opens small leaves out once they
+#       are optimised), and the build's settings (`back.reuse`). This hashes the first: every
+#       field of the function that the optimiser and the generators read, by content, never
+#       by a number the unit gives out in the order it met things. A text is hashed by its
+#       bytes, an aggregate's shape by its leaves, a source file by its path; a type's number,
+#       which only the debugging information reads, not at all (no function is reused in a
+#       build that writes it). Two 64-bit lanes, mixed apart, make the 128-bit digest.
+#
+#       A field added to `ir.Function` or to what it holds is a field the digest must read,
+#       or a build would reuse a function whose text that field changed.
+#
+#==============================================================================================
+
+import back.ir.ir
+
+# mark: The digest ============================================================================
+
+## A 128-bit hash in two lanes.
+pub struct Digest:
+    ## The first lane.
+    pub var low: u64
+    ## The second lane.
+    pub var high: u64
+
+    ## A digest of nothing yet, under `seed`.
+    pub static func start(seed: u64) -> Digest:
+        return Digest(low = 0x9e3779b97f4a7c15 ^ seed, high = 0xc2b2ae3d27d4eb4f ^ (seed *% 0x100000001b3))
+
+    ## Mix in one word.
+    pub func word(w: u64):
+        self.low = mixed(self.low ^ w, 0x9fb21c651e98df25)
+        self.high = mixed(self.high ^ (w *% 0xff51afd7ed558ccd), 0xc4ceb9fe1a85ec53)
+
+    ## Mix in `text`: its length, then its bytes eight at a time.
+    pub func text(text: str):
+        self.word((u64)text.length)
+        var w: u64 = 0
+        var k: usize = 0
+        for b in text.bytes:
+            w = w | ((u64)b << (u64)(8 * (k & 7)))
+            k += 1
+            if k & 7 == 0:
+                self.word(w)
+                w = 0
+        if k & 7 != 0:
+            self.word(w)
+
+    ## Mix in another digest.
+    pub func digest(other: Digest):
+        self.word(other.low)
+        self.word(other.high)
+
+    ## A flag as a word.
+    pub func flag(b: bool):
+        self.word(1 if b else 0)
+
+func mixed(h: u64, multiplier: u64) -> u64:
+    var r = h *% multiplier
+    r = r ^ (r >> 31)
+    r = r *% 0xbf58476d1ce4e5b9
+    return r ^ (r >> 27)
+
+# mark: A function ============================================================================
+
+## The digest of function `f` of `program`, as `digest` says.
+pub func function(program: ir.Unit*, f: ir.Function*) -> Digest:
+    var d = Digest.start(0x6c75636566756e63)
+    header(&d, program, f)
+    debugging(&d, program, f)
+    frame(&d, program, f)
+    body(&d, program, f)
+    return d
+
+## Its name, linkage, flags and result.
+func header(d: Digest*, program: ir.Unit*, f: ir.Function*):
+    d.text(f.name)
+    d.flag(f.exported)
+    d.flag(f.standard)
+    d.text(f.package)
+    d.flag(f.debug)
+    d.flag(f.symbols)
+    d.word((u64)f.at_line)
+    file(d, program, f.at_file)
+    d.word((u64)f.at_scope)
+    d.text(f.source)
+    d.text(f.source_name)
+    d.word((u64)f.source_line)
+    d.word((u64)f.labels)
+    d.word((u64)f.dynamic_levels)
+    d.flag(f.allocates_frame)
+    d.flag(f.has_result)
+    d.word((u64)f.result_cls)
+    d.word((u64)f.result_size)
+    d.word((u64)f.result_align)
+    shape(d, program, f.result_shape)
+    d.flag(f.result_private)
+    d.flag(f.variadic)
+    d.flag(f.naked)
+    d.flag(f.weak)
+    d.flag(f.used)
+    d.text(f.section)
+    d.flag(f.noinline)
+    d.flag(f.always_inline)
+
+## What it tells a debugger: its lines, scopes, inlined subroutines and locals.
+func debugging(d: Digest*, program: ir.Unit*, f: ir.Function*):
+    d.word((u64)f.points.count)
+    for p in f.points.span():
+        d.word((u64)p.instruction)
+        d.text(p.file)
+        d.word((u64)p.line)
+        d.word((u64)p.column)
+    d.word((u64)f.debug_scopes.count)
+    for s in f.debug_scopes.span():
+        d.word((u64)s.parent)
+        d.word((u64)s.start)
+        d.word((u64)s.end)
+        d.word((u64)s.site)
+    d.word((u64)f.sites.count)
+    for s in f.sites.span():
+        d.text(s.name)
+        d.text(s.source)
+        d.word((u64)s.line)
+        d.word((u64)s.call_line)
+        file(d, program, s.call_file)
+        d.word((u64)s.scope)
+        d.word((u64)s.parent)
+    d.word((u64)f.locals.count)
+    for l in f.locals.span():
+        d.text(l.name)
+        d.word((u64)l.slot)
+        d.text(l.kind)
+        d.word((u64)l.size)
+        d.word((u64)l.line)
+        d.flag(l.parameter)
+        d.word((u64)l.scope)
+        d.word((u64)l.site)
+
+## Its parameters, slots and temporaries.
+func frame(d: Digest*, program: ir.Unit*, f: ir.Function*):
+    d.word((u64)f.params.count)
+    for p in f.params.span():
+        d.word((u64)p.cls)
+        d.word((u64)p.size)
+        d.word((u64)p.align)
+        d.word((u64)p.slot)
+        shape(d, program, p.shape)
+        d.word((u64)p.scalar_width)
+        d.flag(p.scalar_signed)
+    d.word((u64)f.slots.count)
+    for s in f.slots.span():
+        d.word((u64)s.size)
+        d.word((u64)s.align)
+        d.word((u64)s.level)
+        d.word((u64)s.offset)
+    d.word((u64)f.temps.count)
+    for t in f.temps.span():
+        d.word((u64)t)
+
+## Its instructions and what they refer to: call arguments, calls, phis, jump tables.
+func body(d: Digest*, program: ir.Unit*, f: ir.Function*):
+    d.word((u64)f.instrs.count)
+    for x in f.instrs.span():
+        instruction(d, program, x)
+    d.word((u64)f.args.count)
+    for a in f.args.span():
+        reference(d, program, a.value)
+        d.word((u64)a.cls)
+        d.word((u64)a.size)
+        d.word((u64)a.align)
+        shape(d, program, a.shape)
+        d.word((u64)a.scalar_width)
+    d.word((u64)f.calls.count)
+    for c in f.calls.span():
+        d.word((u64)c.args_start)
+        d.word((u64)c.args_count)
+        d.word((u64)c.fixed_count)
+        d.flag(c.variadic)
+        d.word((u64)c.result_cls)
+        d.flag(c.has_result)
+        d.word((u64)c.result_size)
+        d.word((u64)c.result_align)
+        d.word((u64)c.result_slot)
+        shape(d, program, c.result_shape)
+        d.flag(c.result_private)
+        d.flag(c.result_words)
+    d.word((u64)f.phi_args.count)
+    for p in f.phi_args.span():
+        reference(d, program, p.value)
+        d.word((u64)p.pred)
+    d.word((u64)f.jump_tables.count)
+    for t in f.jump_tables.span():
+        d.word((u64)t.low)
+        d.word((u64)t.start)
+        d.word((u64)t.count)
+    d.word((u64)f.jump_labels.count)
+    for label in f.jump_labels.span():
+        d.word((u64)label)
+
+## One instruction: a positioned check names its statement's text (`ir.positioned`) by
+## the text's bytes, its source file by path.
+func instruction(d: Digest*, program: ir.Unit*, x: ir.Instr):
+    d.word((u64)x.op)
+    d.word((u64)x.cls)
+    d.word((u64)x.dst)
+    reference(d, program, x.a)
+    reference(d, program, x.b)
+    d.word((u64)x.extra)
+    if ir.positioned(x):
+        d.word(1)
+        d.text(program.texts.get((usize)x.extra2 - 1).bytes)
+    else:
+        d.word(0)
+        d.word((u64)x.extra2)
+    d.word((u64)x.line)
+    file(d, program, x.file)
+    d.word((u64)x.scope)
+    d.word((u64)x.site)
+
+## An operand; a text by its bytes.
+func reference(d: Digest*, program: ir.Unit*, r: ir.Ref):
+    d.word((u64)r.kind)
+    if r.kind == ir.RefKind.text:
+        d.text(program.texts.get((usize)r.index).bytes)
+    else:
+        d.word((u64)r.index)
+    d.word((u64)r.value)
+    d.text(r.name)
+
+## Shape `index` (1-based, 0 none) by its leaves.
+func shape(d: Digest*, program: ir.Unit*, index: u32):
+    let leaves = program.leaves_of(index)
+    d.word((u64)leaves.length if index > 0 else 0xFFFFFFFFFFFFFFFF)
+    for leaf in leaves:
+        d.word((u64)leaf.offset)
+        d.word((u64)leaf.size)
+        d.word((u64)leaf.cls)
+
+## Source file `index` of the unit (1-based, 0 none) by its path.
+func file(d: Digest*, program: ir.Unit*, index: u32):
+    if index == 0 or (usize)index > program.files.count:
+        d.word(0)
+        return
+    d.word(1)
+    d.text(program.files.get((usize)index - 1))

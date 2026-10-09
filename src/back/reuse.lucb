@@ -1,0 +1,200 @@
+#==============================================================================================
+#
+#   reuse - Functions an earlier build generated, taken again instead of generated
+#
+#   DESCRIPTION:
+#       An edit to a small program that imports a large package changes a few of its
+#       functions; the optimiser and the generator ran again over all of them. With labels
+#       named by what they label (`stable_names`), a function's text is decided by three
+#       things: the function as the inliner left it, the functions it calls (the second
+#       inlining pass opens out a small leaf once it is optimised, and whether a callee is
+#       a leaf depends on whether its own callees are in the program), and the build's
+#       settings. Each function's key hashes those (`digest`); a function whose key the
+#       previous build of the program generated takes that build's text, skipping its
+#       optimisation and generation. Its callees are still optimised when a function that
+#       is generated calls them, so what that function opens out is what a build from
+#       nothing opens out.
+#
+#       The texts are kept in one file per program and settings in the build cache, every
+#       function of the last build under its key, read whole at the start and replaced at
+#       the end. A key that does not match generates its function; a file that is missing,
+#       damaged or of another version is no reuse, never a failure.
+#
+#==============================================================================================
+
+import back.ir.digest
+import back.ir.ir
+import back.parallel
+import c
+import io
+import luce_std.files
+import memory
+import support.buffer
+import support.cache
+import support.hashed
+import support.list
+import strings
+
+# mark: Keys ==================================================================================
+
+## Each function's key: the build's `settings`, the function's digest, and for each call it
+## makes, the callee's name and, when the program has it, its digest and whether each of its
+## own calls names a function of the program.
+pub func keys(program: ir.Unit*, settings: digest.Digest) -> digest.Digest[]!:
+    let n = program.functions.count
+    var job = Keying(program = program, settings = settings, own = try new digest.Digest[n] ---, keys = try new digest.Digest[n] ---, names = try hashed.Table[str].create(n))
+    for i in 0..<n:
+        _ = try job.names.add(program.functions.items[i].name, i)
+    with memory.heap:
+        try parallel.each(n, own_task, (void*)&job)
+        try parallel.each(n, key_task, (void*)&job)
+    job.names.destroy()
+    return job.keys
+
+## What the threads computing the keys share.
+struct Keying:
+    var program: ir.Unit*
+    var settings: digest.Digest
+    var own: digest.Digest[]
+    var keys: digest.Digest[]
+    var names: hashed.Table[str]
+
+func own_task(context: void*?, index: usize):
+    let job = (Keying*)(context else return)
+    job.own[index] = digest.function(job.program, &job.program.functions.items[index])
+
+func key_task(context: void*?, index: usize):
+    let job = (Keying*)(context else return)
+    var d = digest.Digest.start(0x6b6579)
+    d.digest(job.settings)
+    d.digest(job.own[index])
+    for x in job.program.functions.items[index].instrs.span():
+        if x.op != ir.Op.call or x.a.kind != ir.RefKind.function:
+            continue
+        d.text(x.a.name)
+        if let g = job.names.find(x.a.name):
+            d.word(1)
+            d.digest(job.own[g])
+            for y in job.program.functions.items[g].instrs.span():
+                if y.op == ir.Op.call:
+                    d.word(1 if y.a.kind != ir.RefKind.function or job.names.find(y.a.name) != none else 0)
+        else:
+            d.word(0)
+    job.keys[index] = d
+
+# mark: The texts of the last build ===========================================================
+
+## The file's first line; then each function: its key (two little-endian words), the
+## generator's flags (a byte), its text's length (a word), and its text.
+let header: str = "luce-base-functions-v1\n"
+let entry_header: usize = 25
+
+## The texts the last build of this program with these settings generated, by key.
+pub struct Kept:
+    var by_key: hashed.Table[u64]
+    var entries: list.List[Entry]
+
+    ## The kept texts under `name` in the build cache when `wanted`, in the current
+    ## allocator; none kept when there are none, or the file is not one this version wrote
+    ## whole.
+    pub static func load(name: str, wanted: bool) -> Kept!:
+        var kept = Kept(by_key = try hashed.Table[u64].create(64), entries = try list.List[Entry].create(64))
+        if not wanted:
+            return kept
+        let path = try cache.find(name, "-f.pack", true) else return kept
+        let read = files.read((c.str)path) catch:
+            return kept
+        defer read.release()
+        let copy = try new u8[read.value.length + 1] ---
+        memory.copy(copy, read.value, read.value.length)
+        if not try kept.index(copy[..<read.value.length]):
+            kept.entries.count = 0
+            kept.by_key.destroy()
+            kept.by_key = try hashed.Table[u64].create(64)
+        return kept
+
+    ## Index the entries of `b`, which they borrow; false when it is not a whole file of
+    ## this version.
+    func index(b: const u8[]) -> bool!:
+        if b.length < header.length or (str)b[..<header.length] != header:
+            return false
+        var at = header.length
+        while at < b.length:
+            if at + entry_header > b.length:
+                return false
+            let low = word64(b, at)
+            let high = word64(b, at + 8)
+            let flags = b[at + 16]
+            let length = (usize)word64(b, at + 17)
+            at += entry_header
+            if length > b.length - at:
+                return false
+            try self.entries.push(Entry(low = low, high = high, flags = flags, text = (str)b[at..<at + length]))
+            _ = try self.by_key.add(low, self.entries.count - 1)
+            at += length
+        return true
+
+    ## The kept text of `key`, and its flags, when there is one.
+    pub func find(key: digest.Digest) -> Entry?:
+        let k = self.by_key.find(key.low) else return none
+        let e = self.entries.get(k)
+        if e.high != key.high:
+            return none
+        return e
+
+## One kept function.
+pub struct Entry:
+    ## Its key's first word (`digest.Digest`).
+    pub var low: u64
+    ## Its key's second word.
+    pub var high: u64
+    ## The generator's flags for it (`Generator.function_flags`).
+    pub var flags: u8
+    ## Its text.
+    pub var text: str
+
+## Keep each function's text, `text[starts[i]..<starts[i + 1]]`, and its `flags` under its
+## key, as the texts of this build under `name`.
+pub func store(name: str, function_keys: const digest.Digest[], text: str, starts: const usize[], flags: const u8[]):
+    store_texts(name, function_keys, text, starts, flags) catch ignored:
+        _ = ignored
+
+func store_texts(name: str, function_keys: const digest.Digest[], text: str, starts: const usize[], flags: const u8[]) -> !:
+    let n = function_keys.length
+    with memory.heap:
+        var out = try buffer.Buffer.create(header.length + (starts[n] - starts[0]) + entry_header * n)
+        defer out.destroy()
+        try out.put(header)
+        for i in 0..<n:
+            let piece = (str)text.bytes[starts[i]..<starts[i + 1]]
+            try put_word64(&out, function_keys[i].low)
+            try put_word64(&out, function_keys[i].high)
+            try out.put_byte(flags[i] if i < flags.length else 0)
+            try put_word64(&out, (u64)piece.length)
+            try out.put(piece)
+        cache.keep_bytes_as(name, "-f.pack", out.bytes())
+
+## The little-endian word at `at`.
+func word64(b: const u8[], at: usize) -> u64:
+    var w: u64 = 0
+    for k in 0..<8:
+        w = w | ((u64)b[at + (usize)k] << (u64)(8 * k))
+    return w
+
+func put_word64(out: buffer.Buffer*, w: u64) -> !:
+    for k in 0..<8:
+        try out.put_byte((u8)((w >> (u64)(8 * k)) & 255))
+
+## The name the texts of a program are kept under: its settings' digest, its package and
+## its entry as the command spelled it, so programs sharing a cache keep apart.
+pub func pack_name(settings: digest.Digest, package_name: str, entry: str) -> str!:
+    var d = digest.Digest.start(0x7061636b)
+    d.digest(settings)
+    d.text(package_name)
+    d.text(entry)
+    let room = try new u8[32] ---
+    let hex = "0123456789abcdef"
+    for k in 0..<16:
+        room[k] = hex.bytes[(usize)((d.low >> (u64)(60 - 4 * k)) & 15)]
+        room[16 + k] = hex.bytes[(usize)((d.high >> (u64)(60 - 4 * k)) & 15)]
+    return (str)room

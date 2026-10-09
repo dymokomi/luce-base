@@ -95,16 +95,29 @@ pub struct Generator:
     ## labels functions share (text literals, the sign masks, the half routines) are hidden
     ## global symbols, not labels local to one file, so every piece can name them.
     pub var split: bool = false
+    ## Labels and literals named by what they label (`stable_names`), as with `split`, but
+    ## local to the one assembly: a function's text is then the same in every build that
+    ## has it, which `reuse` needs, on a target whose assembly is not split.
+    pub var stable: bool = false
     ## Where each function's text begins in the output, and after them, where the rest
     ## (module asm, literals, tables, globals) begins: `functions.count + 1` offsets.
     pub var starts: usize[]
     ## Where the format's closing directives begin; every piece of a split assembly ends
     ## with them.
     pub var ending: usize = 0
-    ## With `split`: each function's tag and each text literal's (`stable_names`), which
-    ## name their labels in place of their indexes.
+    ## With `split` or `stable`: each function's tag and each text literal's
+    ## (`stable_names`), which name their labels in place of their indexes.
     pub var function_tags: u64[]
-    var text_tags: u64[]
+    ## With `split` or `stable`: each text literal's tag.
+    pub var text_tags: u64[]
+    ## The texts the last build generated, by function, taken instead of generating them
+    ## (`reuse`); empty where a function is generated.
+    pub var reused: str[]
+    ## The generator's flags for each reused text (bit 0, it calls the half routines).
+    pub var reused_flags: u8[]
+    ## After `generate`: the generator's flags for each function, which `reuse` keeps with
+    ## its text.
+    pub var function_flags: u8[]
 
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
@@ -122,33 +135,33 @@ pub struct Generator:
     ## `.L<function>_<label>`: local to the object, as the assembler treats `.L` names.
     func label_name(n: u32) -> !:
         try self.writer.out.put(".L")
-        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_")
         try self.writer.out.put_u64((u64)n)
 
     ## The label of the function's cold path `n` (`check_failure`).
     func cold_label(n: u32) -> !:
         try self.writer.out.put(".L")
-        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_c")
         try self.writer.out.put_u64((u64)n)
 
     ## The label of entry `n` of the function's literal pool (`constant`).
     func pool_label(n: u32) -> !:
         try self.writer.out.put(".L")
-        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_k")
         try self.writer.out.put_u64((u64)n)
 
     ## The label of jump table `n` of the function.
     func table_name(n: u32) -> !:
         try self.writer.out.put(".L")
-        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_jt")
         try self.writer.out.put_u64((u64)n)
 
     func text_label(n: u32) -> !:
-        try self.object_format.text_name(&self.writer.out, self.split, self.text_tags, n)
+        try self.object_format.text_name(&self.writer.out, self.split, self.stable, self.text_tags, n)
 
     ## A label functions share, as this assembly spells it: local to the file (`.Lname`), or
     ## with `split` the hidden symbol `lb_name` every piece can name.
@@ -187,9 +200,11 @@ pub struct Generator:
             defer free(order)
             try parallel.each_ordered(n, generate_task, (void*)&job, order)
             try parallel.check(job.failures)
+            self.function_flags = try new u8[n] --- in memory.heap
             for k in 0..<n:
                 self.starts[k] = self.writer.out.used
                 try self.writer.put(job.texts[k])
+                self.function_flags[k] = 1 if job.halves[k] else 0
                 if job.halves[k]:
                     self.half_routines = true
 
@@ -201,6 +216,7 @@ pub struct Generator:
                              fr = try frame.Frame.create(registers_of(model.convention.windows)), descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024), pool = try list.List[u64].create(8))
         made.dw = none
         made.split = model.split
+        made.stable = model.stable
         made.function_tags = model.function_tags
         made.text_tags = model.text_tags
         return made

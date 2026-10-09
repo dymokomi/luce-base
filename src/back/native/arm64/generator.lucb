@@ -76,16 +76,29 @@ pub struct Generator:
     ## For an assembly the driver splits into pieces it assembles in parallel: text literals
     ## are hidden global symbols, not labels local to one file, so every piece can name them.
     pub var split: bool = false
+    ## Labels and literals named by what they label (`stable_names`), as with `split`, but
+    ## local to the one assembly: a function's text is then the same in every build that
+    ## has it, which `reuse` needs, on a target whose assembly is not split.
+    pub var stable: bool = false
     ## Where each function's text begins in the output, and after them, where the rest
     ## (module asm, literals, tables, globals) begins: `functions.count + 1` offsets.
     pub var starts: usize[]
     ## Where the format's closing directives begin; every piece of a split assembly ends
     ## with them.
     pub var ending: usize = 0
-    ## With `split`: each function's tag and each text literal's (`stable_names`), which
-    ## name their labels in place of their indexes.
+    ## With `split` or `stable`: each function's tag and each text literal's
+    ## (`stable_names`), which name their labels in place of their indexes.
     pub var function_tags: u64[]
-    var text_tags: u64[]
+    ## With `split` or `stable`: each text literal's tag.
+    pub var text_tags: u64[]
+    ## The texts the last build generated, by function, taken instead of generating them
+    ## (`reuse`); empty where a function is generated.
+    pub var reused: str[]
+    ## The generator's flags for each reused text (none on arm64).
+    pub var reused_flags: u8[]
+    ## After `generate`: the generator's flags for each function, which `reuse` keeps with
+    ## its text.
+    pub var function_flags: u8[]
     ## By temporary, in the function being emitted: a `w` value whose register's upper half
     ## is zero (`selection.zero_extended`), which an `extuw` in the same register leaves be.
     var zero_upper: bool[]
@@ -129,24 +142,24 @@ pub struct Generator:
 
     func label_name(n: u32) -> !:
         try self.writer.out.put(self.object_format.local_label)
-        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_")
         try self.writer.out.put_u64((u64)n)
 
     ## The label of the function's cold path `n` (`check_failure`).
     func cold_label(n: u32) -> !:
         try self.writer.out.put(self.object_format.local_label)
-        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_c")
         try self.writer.out.put_u64((u64)n)
 
     func text_label(n: u32) -> !:
-        try self.object_format.text_name(&self.writer.out, self.split, self.text_tags, n)
+        try self.object_format.text_name(&self.writer.out, self.split, self.stable, self.text_tags, n)
 
     ## The text literal's label as text, for an address the format spells.
     func text_label_name(n: u32) -> str!:
         var name = try buffer.Buffer.create(32)
-        try self.object_format.text_name(&name, self.split, self.text_tags, n)
+        try self.object_format.text_name(&name, self.split, self.stable, self.text_tags, n)
         return name.view()
 
     ## The assembly emitted so far.

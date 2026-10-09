@@ -25,6 +25,14 @@ func generate_task(context: void*?, index: usize):
 
 func generate_one(job: Generating*, index: usize, scratch: arenas.Arena*) -> !:
     var generated: str = ""
+    if index < job.model.reused.length and job.model.reused[index].length > 0:
+        # the last build's text of this function as it stands now (`reuse`)
+        let text = job.model.reused[index]
+        with memory.heap:
+            var kept = try new u8[text.length] ---
+            memory.copy(kept, text.bytes, text.length)
+            job.texts[index] = (str)kept
+        return
     with scratch:
         var g = try Generator.like(job.model)
         try g.function(index)

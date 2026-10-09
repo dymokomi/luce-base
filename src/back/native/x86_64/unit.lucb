@@ -19,7 +19,7 @@ extend Generator:
         # generated: the functions only read the texts, whichever thread generates them
         for reason in trap_reasons:
             _ = try self.program_unit.text(reason)
-        if self.split:
+        if self.split or self.stable:
             self.function_tags = try stable_names.function_tags(self.program_unit)
             self.text_tags = try stable_names.text_tags(self.program_unit)
         var i: usize = 0
@@ -41,7 +41,7 @@ extend Generator:
         try self.writer.put("    .long 2147483648, 2147483648, 2147483648, 2147483648\n")
         try self.shared_label(".Lvsign64")
         try self.writer.put("    .quad -9223372036854775808, -9223372036854775808\n")
-        try self.object_format.texts(&self.writer, self.program_unit, self.split, self.text_tags)
+        try self.object_format.texts(&self.writer, self.program_unit, self.split, self.stable, self.text_tags)
         # witness tables and frame descriptors hold addresses, which a position-independent
         # image relocates when it loads
         try self.object_format.witness_tables(&self.writer, self.program_unit)

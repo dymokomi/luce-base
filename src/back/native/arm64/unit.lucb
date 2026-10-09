@@ -17,7 +17,7 @@ extend Generator:
         # generated: the functions only read the texts, whichever thread generates them
         for reason in trap_reasons:
             _ = try self.program_unit.text(reason)
-        if self.split:
+        if self.split or self.stable:
             self.function_tags = try stable_names.function_tags(self.program_unit)
             self.text_tags = try stable_names.text_tags(self.program_unit)
         var i: usize = 0
@@ -34,7 +34,7 @@ extend Generator:
         try self.object_format.initializer(&self.writer.out, self.program_unit.init_function)
         # text literals
         try self.object_format.read_only(&self.writer.out)
-        try self.object_format.texts(&self.writer, self.program_unit, self.split, self.text_tags)
+        try self.object_format.texts(&self.writer, self.program_unit, self.split, self.stable, self.text_tags)
         try self.object_format.witness_tables(&self.writer, self.program_unit)
         # frame descriptors, when `--debug` asked for them
         if self.descriptors.used > 0:
@@ -66,9 +66,12 @@ extend Generator:
             defer free(order)
             try parallel.each_ordered(n, generate_task, (void*)&job, order)
             try parallel.check(job.failures)
+            # no flags on arm64: a function's text is all `reuse` keeps of it
+            self.function_flags = try new u8[n] --- in memory.heap
             for k in 0..<n:
                 self.starts[k] = self.writer.out.used
                 try self.writer.put(job.texts[k])
+                self.function_flags[k] = 0
 
     ## A generator for one function like `model`: the same target and settings, its own
     ## frame and output, from the current allocator.
@@ -77,6 +80,7 @@ extend Generator:
                              fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 13)), text_count = 0, descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024))
         made.dw = none
         made.split = model.split
+        made.stable = model.stable
         made.function_tags = model.function_tags
         made.text_tags = model.text_tags
         return made

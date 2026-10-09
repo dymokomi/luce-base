@@ -14,6 +14,8 @@ import os
 import c
 import interop
 import back.backend
+import back.ir.digest
+import back.reuse
 import bind.command as bind_command
 import back.target as targets
 import platform
@@ -253,6 +255,13 @@ func settle_mode(entry: ast.Node*, path: c.str, mode: u32) -> u32!:
 ## The key of this build (§19.7): the sources the checker read, the target and its level,
 ## the backend, the flags, the package, and the compiler itself.
 func build_key(mode: u32, release: bool) -> str!:
+    let settings = try build_settings(mode, release)
+    # a debug or symbol build records the project root, and a C object is built by path:
+    # those keep the root in their key; a plain native object names sources relative to it
+    return try cache.key(settings, debug_backend or symbols_backend or not native_backend)
+
+## The settings of this build as text: everything but the sources that decides its object.
+func build_settings(mode: u32, release: bool) -> str!:
     let t = build_target()
     var settings = try buffer.Buffer.create(256)
     try settings.put(t.name)
@@ -278,9 +287,7 @@ func build_key(mode: u32, release: bool) -> str!:
         if let extra = os.env("LUCE_CFLAGS"):
             try settings.put(" ")
             try settings.put(extra)
-    # a debug or symbol build records the project root, and a C object is built by path:
-    # those keep the root in their key; a plain native object names sources relative to it
-    return try cache.key(settings.view(), debug_backend or symbols_backend or not native_backend)
+    return settings.view()
 
 ## `--lib`: the program as a library with no entry, and the header of its exports (§17.6).
 func generate_library(path: c.str) -> (str, str)!:
@@ -332,8 +339,11 @@ func checked(path: c.str, test_build: bool = false, whole_package: bool = false)
     try report_warnings(&checker)
     return checker
 
-## The checked program through the backend the command chose.
-func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool = false) -> str!:
+## The checked program through the backend the command chose. With `split` the native
+## assembly is cut into pieces (`support.pieces`); with `stable` its labels are named by what
+## they label, as a split one's are, in one file. Either takes again the texts of the last
+## build's functions that stand as they did (`back.reuse`), unless not `reusing`.
+func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool = false, stable: bool = false, reusing: bool = true) -> str!:
     if native_backend:
         # positions name a source relative to the project root, as the cache key does,
         # except in a debug or symbol build, which names (and keys) sources as they were read
@@ -344,8 +354,26 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
         native.opt_count = opt_count
         native.report = opt_report
         native.split = split
+        native.stable = stable
+        if (split or stable) and reusing and try cache.on():
+            # the texts are kept under the program's name and the build's settings
+            var settings = digest.Digest.start(0x73657474696e6773)
+            settings.text(try build_settings(mode, release_build))
+            settings.word(try cache.compiler_digest())
+            native.reuse_settings = settings
+            native.reuse_name = try reuse.pack_name(settings, package.name, entry_spelling)
         let target: backend.Backend = &native
-        let text = try target.compile(mode)
+        var stale = false
+        let text = target.compile(mode) catch failure:
+            if failure.code != backend.stale:
+                error(failure.code, failure.message)
+            stale = true
+            recover ""
+        if stale:
+            # a label's tag changed under a reused text (`NativeBackend.keep_texts`)
+            return try translate(checker, entry, mode, split, stable, false)
+        if cache.report and native.reuse_settings != none:
+            try io.stderr().write(f"luce-base: {native.reused_count} functions from the last build\n")
         split_starts = native.starts
         split_ending = native.ending
         split_tags = native.tags
@@ -354,6 +382,11 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
     var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile, position_root)
     let target: backend.Backend = &host_c
     return try target.compile(mode)
+
+## Whether the build is `--release`, and its entry as the command spelled it: the settings
+## and the name a program's function texts are kept under (`back.reuse`).
+var release_build: bool = false
+var entry_spelling: str = ""
 
 ## After a native translation: where each function's text began, then the rest, and where
 ## the closing directives began (`support.pieces`).
@@ -623,7 +656,8 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
         defer object.release()
         try files.write((c.str)object_path, object.value)
     else:
-        let text = try translate(checker, entry, mode)
+        # labels named by what they label, so the next build may reuse functions (`back.reuse`)
+        let text = try translate(checker, entry, mode, false, not debug_backend and not symbols_backend)
         try files.write((c.str)asm_path, text.bytes)
         try assemble_one(dir)
         cache.keep(key, "-n.o", object_path)
@@ -802,6 +836,8 @@ func build_file(path: c.str, options: Options) -> !:
             error(build_failed, "a freestanding program is built natively: add `--native`")
         freestanding = options.freestanding
         diagnostic_profile = options.diagnostic
+        release_build = options.release
+        entry_spelling = (str)path
         var checker = try checked(path)
         let entry = checker.modules.get(checker.modules.count - 1).tree
         used_mode = try settle_mode(entry, path, 4 if options.freestanding else (1 if options.run_tests else 0))

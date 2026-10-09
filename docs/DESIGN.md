@@ -62,7 +62,9 @@ subdirectory keeps a generated module of its own beside it.
 | `back.native.arm64` | IR to arm64 assembly: frames, Apple's calling convention, atomics; arm64-macos; fragments per concern beside `arm64/object` |
 | `back.native.arm64.object` | Mach-O and ELF for arm64: sections, symbols, relocations, thread-locals, and where Apple's convention differs from AAPCS64 (variadic and stack arguments) |
 | `back.native.x86_64` | IR to x86_64 assembly for Linux and Windows: the System V and Microsoft x64 conventions, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level; fragments per concern beside `x86_64/{abi,object,unwind}` |
-| `back.native.stable_names` | with `split`, labels named by a tag of what they label (a function's symbol, a literal's bytes) instead of its index, so an edit leaves the other pieces' text alone |
+| `back.native.stable_names` | with `split` or `stable`, labels named by a tag of what they label (a function's symbol, a literal's bytes) instead of its index, so an edit leaves the other pieces' text, and every other function's, alone |
+| `back.ir.digest` | a function's content as a 128-bit hash: every field the optimiser and the generators read, texts by their bytes, shapes by their leaves, never a number the unit gave out in order |
+| `back.reuse` | each function's key (its digest, its callees', and the build's settings) and the texts the last build of the program generated under theirs, taken again for the functions whose key is unchanged: their optimisation and generation are skipped |
 | `back.target` | the targets of §19.5: symbols, streams, libraries, the `platform` module, section names |
 | `support.pieces` | a program's assembly cut where its functions choose, into pieces of a size that grows with the program, each piece from the build cache when an earlier build assembled the same text, the rest assembled in parallel; the pieces are what the program links, and their list is kept under the build's key |
 | `support.cache` | the build cache (§19.7): the key of a build and of a piece, objects kept and found |

@@ -37,10 +37,26 @@ import back.opt.inline
 import back.parallel
 import back.ir.ir
 import back.ir.irtext
+import back.ir.digest
+import back.reuse
+import back.native.stable_names
 import back.ir.lower
 import back.opt.opt
 import front.ast
 import sema.check
+
+## What a build takes from the last one (`NativeBackend.take_reused`): each function's key,
+## the text taken for it and its generator's flags (empty where it is generated), and
+## which functions are generated.
+struct Taken:
+    var keys: digest.Digest[]
+    var texts: str[]
+    var flags: u8[]
+    var generated: bool[]
+
+## A build took a function's text from the last one, but its labels were named otherwise
+## this time (`NativeBackend.keep_texts`): the driver translates again without reuse.
+pub let stale: ErrorCode = ErrorCode.package(57)
 
 # mark: Backends ==============================================================================
 
@@ -87,6 +103,9 @@ pub struct NativeBackend: Backend:
     ## Whether the driver will assemble the text in pieces (`support.pieces`): the
     ## generator then names the labels functions share as hidden symbols.
     pub var split: bool = false
+    ## Labels and literals named by what they label without splitting (`Generator.stable`):
+    ## what `reuse` needs on a target whose assembly is one file.
+    pub var stable: bool = false
     ## After `compile`: where each function's text begins, then where the rest begins.
     pub var starts: usize[]
     ## After `compile` with `split`: each function's tag (`stable_names`), which places the
@@ -97,6 +116,13 @@ pub struct NativeBackend: Backend:
     ## After `compile`: whether the program has module-level assembly (§8.9), whose labels
     ## its functions may name as labels local to the one file.
     pub var module_asm: bool = false
+    ## With `split` or `stable`, a build that may take its functions' texts from the last
+    ## build of the program (`reuse`): the digest of its settings.
+    pub var reuse_settings: digest.Digest? = none
+    ## The name the program's texts are kept under (`reuse.pack_name`).
+    pub var reuse_name: str = ""
+    ## After `compile`: how many functions were taken from the last build.
+    pub var reused_count: usize = 0
 
     ## A native backend that lowers `entry` to IR and generates the target's assembly.
     ## Positions name a source under `position_root` relative to it (`lower.Lowerer`).
@@ -120,27 +146,38 @@ pub struct NativeBackend: Backend:
         with memory.heap:
             try self.lowerer.program(mode)
         try note(&at, 0)
+        # what the last build generated of each function as it stands now, taken again
+        # (`reuse`): empty where the function is generated
+        var taken: Taken
         # the expansions, the optimiser and the tidying rebuild each function's lists: from the
         # heap, the copies they replace go back to it, where the driver's arena would keep
         # them all until the build ends
         with memory.heap:
             try inline.expand(&self.lowerer.program_unit)
             try note(&at, 1)
-            try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, none)
+            # the functions the last build generated as they stand now are taken again; the
+            # rest, and what they call, are optimised (`reuse`)
+            taken = try self.take_reused()
+            let n = self.lowerer.program_unit.functions.count
+            let generated = taken.generated
+            let optimised = try self.lowerer.program_unit.called_by(generated)
+            try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, optimised)
             # small leaf functions measured as optimised, expanded where they are called; the
             # callers that gained bodies are optimised again and tidied
             if not self.debug and self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
                 let changed = try inline.expand_small(&self.lowerer.program_unit, optimised_small)
                 defer free(changed)
+                for i in 0..<n:
+                    changed[i] = changed[i] and generated[i]
                 try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed)
                 # every function tidied, not only those this pass changed: the first pass's
                 # expansions leave parameter stores and unreached blocks behind as well
-                try each_function(&self.lowerer.program_unit, tidy_task)
+                try each_function(&self.lowerer.program_unit, tidy_task, generated)
             if not self.debug:
                 if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
-                    try each_function(&self.lowerer.program_unit, clean_task)
+                    try each_function(&self.lowerer.program_unit, clean_task, generated)
                 else:
-                    try each_function(&self.lowerer.program_unit, sweep_task)
+                    try each_function(&self.lowerer.program_unit, sweep_task, generated)
             try note(&at, 7)
         self.module_asm = self.lowerer.program_unit.module_asm.count > 0
         if self.dump_ir:
@@ -156,25 +193,74 @@ pub struct NativeBackend: Backend:
                     generator.dw = &dw
                 generator.level = t.level
                 generator.split = self.split
+                generator.stable = self.stable
+                generator.reused = taken.texts
+                generator.reused_flags = taken.flags
                 try generator.generate()
                 text = generator.text()
                 self.starts = generator.starts
                 self.ending = generator.ending
                 self.tags = generator.function_tags
+                try self.keep_texts(taken.keys, text, generator.function_flags, generator.function_tags, generator.text_tags)
             else:
                 var generator = try arm64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
                 if self.debug or self.lowerer.symbols:
                     generator.dw = &dw
                 generator.split = self.split
+                generator.stable = self.stable
+                generator.reused = taken.texts
+                generator.reused_flags = taken.flags
                 try generator.generate()
                 text = generator.text()
                 self.starts = generator.starts
                 self.ending = generator.ending
                 self.tags = generator.function_tags
+                try self.keep_texts(taken.keys, text, generator.function_flags, generator.function_tags, generator.text_tags)
         try note(&at, 8)
         if self.report:
             try print_report()
         return text
+
+    ## The texts of the last build taken for the functions that stand as they did, by
+    ## their keys (`reuse_keys`, none when this build reuses nothing).
+    func take_reused() -> Taken!:
+        let keys = try self.reuse_keys()
+        let n = self.lowerer.program_unit.functions.count
+        var kept = try reuse.Kept.load(self.reuse_name, keys.length > 0)
+        var taken = Taken(keys = keys, texts = try new str[keys.length] ---, flags = try new u8[keys.length] ---, generated = try new bool[n] ---)
+        for i in 0..<n:
+            taken.generated[i] = true
+        for i in 0..<keys.length:
+            taken.texts[i] = ""
+            taken.flags[i] = 0
+            if let entry = kept.find(keys[i]):
+                taken.texts[i] = entry.text
+                taken.flags[i] = entry.flags
+                taken.generated[i] = false
+                self.reused_count += 1
+        return taken
+
+    ## Each function's key (`reuse.keys`) when this build may reuse the last one's texts:
+    ## with labels named by what they label (`split` or `stable`), at the default
+    ## optimisation, and with no debugging information; none otherwise.
+    func reuse_keys() -> digest.Digest[]!:
+        let settings = self.reuse_settings else return try new digest.Digest[0] ---
+        if not (self.split or self.stable) or self.debug or self.lowerer.symbols or self.dump_ir or self.report or self.opt_level != 3 or self.opt_count != 0xFFFFFFFF:
+            return try new digest.Digest[0] ---
+        return try reuse.keys(&self.lowerer.program_unit, settings)
+
+    ## Keep this build's function texts for the next (`reuse.store`). A text taken from the
+    ## last build was generated with every label named by its first tag (`stable_names`):
+    ## when a clash between names gave one a later tag, the build is made again without
+    ## reuse (`stale`), and its texts are not kept.
+    func keep_texts(keys: const digest.Digest[], text: str, flags: const u8[], function_tags: const u64[], text_tags: const u64[]) -> !:
+        if keys.length == 0:
+            return
+        if not stable_names.first_tags(&self.lowerer.program_unit, function_tags, text_tags):
+            if self.reused_count > 0:
+                error(stale, "a function's labels clashed with another's; the build is made again")
+            return
+        reuse.store(self.reuse_name, keys, text, self.starts, flags)
 
 # mark: Optimisation pipeline =================================================================
 
@@ -226,12 +312,12 @@ func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?
         try parallel.each_ordered(n, optimise_task, (void*)&job, order)
         try parallel.check(job.failures)
 
-## Run `task` over every function of `program` on whichever thread takes it; the first
-## function's failure, if any failed, is the call's.
-func each_function(program: ir.Unit*, task: func(ir.Function*) -> unit!) -> !:
+## Run `task` over the functions of `program` that `only` marks, each on whichever thread
+## takes it; the first function's failure, if any failed, is the call's.
+func each_function(program: ir.Unit*, task: func(ir.Function*) -> unit!, only: const bool[]) -> !:
     let n = program.functions.count
     with memory.heap:
-        var job = PerFunction(program = program, task = task, failures = try parallel.failures(n))
+        var job = PerFunction(program = program, task = task, only = only, failures = try parallel.failures(n))
         defer free(job.failures)
         let order = try program.largest_first(n)
         defer free(order)
@@ -242,10 +328,14 @@ func each_function(program: ir.Unit*, task: func(ir.Function*) -> unit!) -> !:
 struct PerFunction:
     var program: ir.Unit*
     var task: func(ir.Function*) -> unit!
+    ## Which functions the task runs over.
+    var only: const bool[]
     var failures: parallel.Failure[]
 
 func per_function_task(context: void*?, index: usize):
     let job = (PerFunction*)(context else return)
+    if not job.only[index]:
+        return
     with memory.heap:
         job.task(&job.program.functions.items[index]) catch failure:
             job.failures[index] = parallel.failed(failure.code, failure.message)

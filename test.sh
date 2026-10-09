@@ -43,6 +43,7 @@ python3 tools/test_module_batches.py
 python3 tools/test_package_tests.py
 python3 tools/test_numerals_python.py
 python3 tools/test_cached_pieces.py
+python3 tools/test_function_reuse.py
 python3 tools/test_windows_publish.py
 python3 tools/test_inline_frames.py
 python3 tools/test_small_copies.py

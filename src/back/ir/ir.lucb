@@ -380,6 +380,12 @@ pub struct Instr:
     ## function's own body) the instruction came from, the same way.
     pub var site: u32
 
+## Whether `instruction`, a `bounds` or checked operation, names its statement's position
+## text in `extra2` (the text's index + 1) for the trap it may raise; 0 names none.
+pub func positioned(instruction: Instr) -> bool:
+    let op = instruction.op
+    return (op == Op.bounds or op == Op.addo or op == Op.subo or op == Op.mulo or op == Op.vaddo or op == Op.vsubo) and instruction.extra2 > 0
+
 ## `words` in ascending order: a bottom-up merge sort, n log n, in the heap (the compiler's
 ## sources keep to what the seed's library has, which has no sort).
 func sort_words(words: u64[]) -> !:
@@ -934,6 +940,27 @@ pub struct Unit:
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
                     init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "", text_index = try hashed.Table[str].create(64))
+
+    ## Which functions `marked` marks or one of those calls: the functions whose optimised
+    ## bodies the marked ones' expansions read (`inline.expand_small`), in the heap.
+    pub func called_by(marked: const bool[]) -> bool[]!:
+        let n = self.functions.count
+        with memory.heap:
+            var names = try hashed.Table[str].create(n)
+            defer names.destroy()
+            for i in 0..<n:
+                _ = try names.add(self.functions.items[i].name, i)
+            var reached = try new bool[n] ---
+            for i in 0..<n:
+                reached[i] = marked[i]
+            for i in 0..<n:
+                if not marked[i]:
+                    continue
+                for x in self.functions.items[i].instrs.span():
+                    if x.op == Op.call and x.a.kind == RefKind.function:
+                        if let g = names.find(x.a.name):
+                            reached[g] = true
+            return reached
 
     ## The first `n` functions, the most instructions first (by index among equals), in
     ## the heap: the order threads take them in (`parallel.each_ordered`), so that no

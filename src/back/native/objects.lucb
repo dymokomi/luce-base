@@ -214,11 +214,16 @@ pub struct Format:
 
     # mark: Data both generators lay out ======================================================
 
-    ## The name of text literal `n`: the format's local text label and its index, or with
-    ## `split` the program's own symbol `lb_text_<tag>` every piece of the assembly can name.
-    pub func text_name(out: buffer.Buffer*, split: bool, tags: const u64[], n: u32) -> !:
+    ## The name of text literal `n`: the format's local text label and its index, or its
+    ## tag when `stable`, or with `split` the program's own symbol `lb_text_<tag>` every
+    ## piece of the assembly can name.
+    pub func text_name(out: buffer.Buffer*, split: bool, stable: bool, tags: const u64[], n: u32) -> !:
         if split:
             try self.symbol(out, "lb_text_")
+            try stable_names.put_tag(out, tags[(usize)n])
+        elif stable:
+            try out.put(self.text_label)
+            try out.put("t")
             try stable_names.put_tag(out, tags[(usize)n])
         else:
             try out.put(self.text_label)
@@ -226,11 +231,11 @@ pub struct Format:
 
     ## The unit's text literals, NUL-terminated, each under its `text_name`, after the
     ## read-only section is opened; with `split` each a hidden global the pieces share.
-    pub func texts(writer: assembly.Text*, program_unit: ir.Unit*, split: bool, tags: const u64[]) -> !:
+    pub func texts(writer: assembly.Text*, program_unit: ir.Unit*, split: bool, stable: bool, tags: const u64[]) -> !:
         for i in 0..<program_unit.texts.count:
             var name = try buffer.Buffer.create(32)
             defer name.destroy()
-            try self.text_name(&name, split, tags, u32(i))
+            try self.text_name(&name, split, stable, tags, u32(i))
             if split:
                 try self.hidden_global(&writer.out, name.view())
             try writer.put(name.view())

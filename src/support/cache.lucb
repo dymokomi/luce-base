@@ -241,6 +241,10 @@ pub func relative(path: str) -> str:
         return (str)path.bytes[root.length..]
     return path
 
+## The hash of the running compiler's file (`compiler`).
+pub func compiler_digest() -> u64!:
+    return try compiler()
+
 ## Whether this build has a cache at all.
 pub func on() -> bool!:
     if lost:

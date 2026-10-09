@@ -237,7 +237,7 @@ func drop_unused_texts(program: ir.Unit*) -> !:
         for instruction in function.instrs.span():
             note_text(used, instruction.a)
             note_text(used, instruction.b)
-            if positioned(instruction) and (usize)instruction.extra2 <= used.length:
+            if ir.positioned(instruction) and (usize)instruction.extra2 <= used.length:
                 used[instruction.extra2 - 1] = true
         for argument in function.args.span():
             note_text(used, argument.value)
@@ -255,19 +255,13 @@ func drop_unused_texts(program: ir.Unit*) -> !:
         for k in 0..<function.instrs.count:
             function.instrs.items[k].a = renumber_text(function.instrs.items[k].a, renumbered)
             function.instrs.items[k].b = renumber_text(function.instrs.items[k].b, renumbered)
-            if positioned(function.instrs.items[k]):
+            if ir.positioned(function.instrs.items[k]):
                 function.instrs.items[k].extra2 = renumbered[function.instrs.items[k].extra2 - 1] + 1
         for k in 0..<function.args.count:
             function.args.items[k].value = renumber_text(function.args.items[k].value, renumbered)
     program.texts.destroy()
     program.texts = kept
     try program.index_texts()
-
-## A `bounds` or checked operation names its statement's position text in `extra2`
-## (index + 1) for the trap it may raise; 0 names none.
-func positioned(instruction: ir.Instr) -> bool:
-    let op = instruction.op
-    return (op == ir.Op.bounds or op == ir.Op.addo or op == ir.Op.subo or op == ir.Op.mulo or op == ir.Op.vaddo or op == ir.Op.vsubo) and instruction.extra2 > 0
 
 func note_text(used: bool[], r: ir.Ref):
     if r.kind == ir.RefKind.text and (usize)r.index < used.length:
