@@ -39,6 +39,7 @@ python3 tools/test_checked_products.py
 python3 tools/test_sunk_addresses.py
 python3 tools/test_index_ranges.py
 python3 tools/test_windows_parameters.py
+python3 tools/test_windows_large_arguments.py
 python3 tools/test_module_batches.py
 python3 tools/test_package_tests.py
 python3 tools/test_numerals_python.py

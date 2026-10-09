@@ -1,0 +1,31 @@
+## §9: an aggregate argument too large for a register (here 144 bytes, past the size copied
+## inline) is passed beside arguments that live in registers, and every argument arrives:
+## copying the large one in the caller, or into its slot in the callee, leaves the others.
+struct Big:
+    var words: u64[18]
+
+struct Holder:
+    var big: Big
+    var seed: u64*
+
+## The caller stages a later argument from a register around the large one's copy.
+noinline func take(big: Big, seed: const u64*) -> u64:
+    return seed[0] + big.words[17]
+
+noinline func place(holder: const Holder*) -> u64:
+    return take(holder.big, holder.seed)
+
+## The callee copies the large parameter into its slot after storing the others.
+noinline func spread(first: u64, big: Big, third: u64, fourth: f64) -> f64:
+    return (f64)(first + big.words[0] + big.words[17] + third) + fourth
+
+pub func main(arguments: str[]) -> i32:
+    var value: u64 = 40
+    var holder = Holder(Big(), &value)
+    holder.big.words[17] = 2
+    print(f"{place(&holder)}")
+    var big = Big()
+    big.words[0] = 10
+    big.words[17] = 20
+    print(f"{spread(1, big, 300, 0.5)}")
+    return 0

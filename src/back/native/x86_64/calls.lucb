@@ -167,7 +167,9 @@ extend Generator:
                 try self.writer.line("leaq ")
                 try self.writer.put_u64(copy_offset)
                 try self.writer.put("(%rsp), %r11")
-                try self.copy_to_r11("%r10", (u64)a.size)
+                # inline whatever the size: a call of memcpy here would clobber the later
+                # arguments still living in caller-saved registers
+                try self.inline_copy("%r10", "%r11", (u64)a.size)
                 try self.writer.line("leaq ")
                 try self.writer.put_u64(copy_offset)
                 try self.writer.put("(%rsp), %rax")
