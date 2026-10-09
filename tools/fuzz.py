@@ -1550,7 +1550,7 @@ def main():
                 f"{done['litmus']} litmus-programs, {done['width']} width-programs")
 
     def kind(name, count, one):
-        """`count` of a kind, each `one(n)` for the n-th; false once the deadline passed."""
+        """`count` more of a kind, each `one(n)` for the n-th; false once the deadline passed."""
         for _ in range(count):
             done[name] += 1
             one(done[name])
@@ -1580,18 +1580,19 @@ def main():
             # a long run says where it is, through a pipe or a file as well as a terminal
             left = max(0, int(deadline - time.time()))
             print(f"fuzz: round {round_}, {tally()}, {done['abi']} abi-programs, {done['cache']} cache-programs, {findings.count} findings, {left // 60} min left", flush=True)
-        # the kinds an aim weighs come first, so a slow host reaches them within its budget
-        _ = (kind("mutations", mutations, mutated)
-             and kind("programs", programs, generated)
-             and kind("abi", abi_programs, lambda n: differential(abi_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"abi-program {n} (seed {seed})"))
-             and kind("width", width_programs, lambda n: differential_trap(width_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"width-program {n} (seed {seed})"))
-             and kind("cache", cache_programs, cached)
-             and kind("trap", trap_programs, lambda n: differential_trap(trap_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"trap-program {n} (seed {seed})"))
-             # its own name: `files` is the mutation corpus the next round draws from
-             and kind("packages", packages, lambda n: differential_package(gen_package(random.Random(rng.randrange(1 << 30))), 20, findings, f"package {n} (seed {seed})"))
-             and kind("mem", mem_programs, lambda n: differential_mem(mem_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"mem-program {n} (seed {seed})"))
-             and kind("atomic", atomic_programs, lambda n: differential(atomic_program(random.Random(rng.randrange(1 << 30))), 30, findings, f"atomic-program {n} (seed {seed})"))
-             and kind("litmus", litmus_programs, lambda n: differential_litmus(litmus_program(random.Random(rng.randrange(1 << 30))), 25, findings, f"litmus-program {n} (seed {seed})")))
+        # a round goes over the kinds in four slices, each a quarter of every kind's count, so
+        # a slow host that spends its budget early still had some of each
+        plan = [("mutations", mutations, mutated), ("programs", programs, generated),
+                ("abi", abi_programs, lambda n: differential(abi_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"abi-program {n} (seed {seed})")),
+                ("width", width_programs, lambda n: differential_trap(width_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"width-program {n} (seed {seed})")),
+                ("cache", cache_programs, cached),
+                ("trap", trap_programs, lambda n: differential_trap(trap_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"trap-program {n} (seed {seed})")),
+                # its own name: `files` is the mutation corpus the next round draws from
+                ("packages", packages, lambda n: differential_package(gen_package(random.Random(rng.randrange(1 << 30))), 20, findings, f"package {n} (seed {seed})")),
+                ("mem", mem_programs, lambda n: differential_mem(mem_program(random.Random(rng.randrange(1 << 30))), 20, findings, f"mem-program {n} (seed {seed})")),
+                ("atomic", atomic_programs, lambda n: differential(atomic_program(random.Random(rng.randrange(1 << 30))), 30, findings, f"atomic-program {n} (seed {seed})")),
+                ("litmus", litmus_programs, lambda n: differential_litmus(litmus_program(random.Random(rng.randrange(1 << 30))), 25, findings, f"litmus-program {n} (seed {seed})"))]
+        _ = all(kind(name, count * (s + 1) // 4 - count * s // 4, one) for s in range(4) for name, count, one in plan)
         if not deadline or time.time() > deadline:
             break
     import shutil
