@@ -260,17 +260,23 @@ extend Generator:
         if size <= 128:
             try self.inline_copy(origin, "%r11", size)
             return
-        try self.writer.line("movq %r11, %rdi")
-        try self.writer.line3("movq ", origin, ", %rsi")
-        try self.load_immediate("%rdx", (i64)size)
+        try self.writer.line3("movq ", origin, ", ")
+        try self.writer.put(self.c_argument(1))
+        try self.writer.line3("movq %r11, ", self.c_argument(0), "")
+        try self.load_immediate(self.c_argument(2), (i64)size)
         try self.call_symbol("memcpy")
 
+    ## The register of a C routine's integer argument `k` (0, 1, 2) under the convention:
+    ## rdi, rsi, rdx on System V; rcx, rdx, r8 on Windows.
+    func c_argument(k: u32) -> str:
+        if self.convention.windows:
+            return windows_arguments[(usize)k]
+        return argument_names[(usize)k]
+
+    ## A call of a C routine whose arguments are in place (`c_argument`): on Windows with the
+    ## shadow area its callee may write.
     func call_symbol(name: str) -> !:
         if self.convention.windows:
-            # Generator helpers use at most three integer arguments in SysV scratch names.
-            try self.writer.line("movq %rdx, %r8")
-            try self.writer.line("movq %rsi, %rdx")
-            try self.writer.line("movq %rdi, %rcx")
             try self.writer.line("subq $32, %rsp")
         try self.writer.line("call ")
         try self.symbol(name)

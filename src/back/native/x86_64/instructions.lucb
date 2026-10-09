@@ -166,25 +166,26 @@ extend Generator:
                     try self.inline_copy(origin, to, (u64)n.extra)
                 else:
                     # the origin first, through a scratch no value lives in: the destination's
-                    # address may live in %rdi, and the origin's in %rsi
+                    # address may live in the second argument's register, and the origin's
+                    # in the first's
                     try self.address_operand("%r10", n.b)
-                    try self.address_operand("%rdi", n.a)
-                    try self.writer.line("movq %r10, %rsi")
-                    try self.load_immediate("%rdx", (i64)n.extra)
+                    try self.address_operand(self.c_argument(0), n.a)
+                    try self.writer.line3("movq %r10, ", self.c_argument(1), "")
+                    try self.load_immediate(self.c_argument(2), (i64)n.extra)
                     try self.call_symbol("memcpy")
             .zero:
                 if n.extra <= regalloc.inline_block:
                     let to = try self.source(n.a, ir.Class.l, "%r11")
                     try self.inline_zero(to, (u64)n.extra)
                 else:
-                    try self.address_operand("%rdi", n.a)
-                    try self.writer.line("xorl %esi, %esi")
-                    try self.load_immediate("%rdx", (i64)n.extra)
+                    try self.address_operand(self.c_argument(0), n.a)
+                    try self.load_immediate(narrow_name(self.c_argument(1)), 0)
+                    try self.load_immediate(self.c_argument(2), (i64)n.extra)
                     try self.call_symbol("memset")
             .fill:
-                try self.address_operand("%rdi", n.a)
-                try self.load_immediate("%esi", n.b.value)
-                try self.load_immediate("%rdx", (i64)n.extra)
+                try self.address_operand(self.c_argument(0), n.a)
+                try self.load_immediate(narrow_name(self.c_argument(1)), n.b.value)
+                try self.load_immediate(self.c_argument(2), (i64)n.extra)
                 try self.call_symbol("memset")
             .call:
                 try self.call(n)
@@ -196,11 +197,11 @@ extend Generator:
             .trap_:
                 if n.b.kind == ir.RefKind.text:
                     # the position first, then the reason (§11.5)
-                    try self.address_operand("%rdi", n.b)
-                    try self.address_operand("%rsi", n.a)
+                    try self.address_operand(self.c_argument(0), n.b)
+                    try self.address_operand(self.c_argument(1), n.a)
                     try self.call_symbol(self.program_unit.trap_at_function)
                 else:
-                    try self.address_operand("%rdi", n.a)
+                    try self.address_operand(self.c_argument(0), n.a)
                     try self.call_symbol(self.program_unit.trap_function)
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "%rax")
@@ -275,6 +276,9 @@ extend Generator:
                 try self.writer.put(d)
             try self.finish(n.dst, cls, d)
             return
+        if n.b.kind == ir.RefKind.constant and n.b.value >= -2147483648 and n.b.value <= 2147483647:
+            try self.arithmetic_immediate(n, suffix)
+            return
         if n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr:
             # the count lives in cl
             try self.operand(self.reg(cls, 1), cls, n.b)
@@ -316,6 +320,58 @@ extend Generator:
         try self.writer.line4(mnemonic, suffix, " ", b)
         try self.writer.put(", ")
         try self.writer.put(d)
+        try self.finish(n.dst, cls, d)
+
+    ## `d = a op c` on the integer classes with a constant `c` that fits a sign-extended
+    ## 32-bit immediate, carried by the instruction: a multiply by 3, 5 or 9 as one `lea`, by
+    ## a power of two as a shift, by anything else as the three-operand `imul`; a shift by
+    ## its count's low bits, which is what the instruction reads; the rest in the
+    ## immediate form, after the value moved into `d`.
+    func arithmetic_immediate(n: ir.Instr, suffix: str) -> !:
+        let cls = n.cls
+        let c = n.b.value
+        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        var shift: i64 = -1
+        if n.op == ir.Op.mul:
+            if c == 3 or c == 5 or c == 9:
+                try self.writer.line5("lea", suffix, " (", wide_name(a), ",")
+                try self.writer.put(wide_name(a))
+                try self.writer.put(",")
+                try self.writer.put_i64(c - 1)
+                try self.put2("), ", d)
+                try self.finish(n.dst, cls, d)
+                return
+            if c > 1 and (c & (c - 1)) == 0:
+                shift = 0
+                while ((i64)1 << shift) != c:
+                    shift += 1
+            else:
+                try self.writer.line3("imul", suffix, " $")
+                try self.writer.put_i64(c)
+                try self.put2(", ", a)
+                try self.put2(", ", d)
+                try self.finish(n.dst, cls, d)
+                return
+        if a != d:
+            try self.writer.line5("mov", suffix, " ", a, ", ")
+            try self.writer.put(d)
+        var mnemonic = "add"
+        match n.op:
+            .add: mnemonic = "add"
+            .sub: mnemonic = "sub"
+            .and_: mnemonic = "and"
+            .or_: mnemonic = "or"
+            .xor: mnemonic = "xor"
+            .shl, .mul: mnemonic = "shl"
+            .lshr: mnemonic = "shr"
+            _: mnemonic = "sar"
+        let shifts = n.op == ir.Op.mul or n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr
+        if shifts and shift < 0:
+            shift = c & (63 if cls == ir.Class.l else 31)
+        try self.writer.line3(mnemonic, suffix, " $")
+        try self.writer.put_i64(shift if shifts else c)
+        try self.put2(", ", d)
         try self.finish(n.dst, cls, d)
 
     ## Float arithmetic: singles and doubles directly, into the result's own register when it
@@ -790,6 +846,9 @@ extend Generator:
             try self.check_failure("jnc ", "jc ", "integer overflow", n)
             try self.store_temp(a, cls, n.dst)
             return
+        if n.b.kind == ir.RefKind.constant and n.b.value >= -2147483648 and n.b.value <= 2147483647:
+            try self.checked_immediate(n, suffix)
+            return
         let b = try self.source(n.b, cls, self.reg(cls, 1))
         var d = self.target(n.dst, cls, self.reg(cls, 0))
         if d == b:
@@ -810,6 +869,35 @@ extend Generator:
                 try self.check_failure("jno ", "jo ", "integer overflow", n)
             else:
                 try self.check_failure("jnc ", "jc ", "integer overflow", n)
+        try self.finish(n.dst, cls, d)
+
+    ## A checked operation of `checked` whose right operand is a constant that fits a
+    ## sign-extended 32-bit immediate: a signed multiply in the three-operand `imul`, which
+    ## sets the overflow flag as the two-operand form does; a sum or a difference in the
+    ## immediate form, after the left operand moved into `d`.
+    func checked_immediate(n: ir.Instr, suffix: str) -> !:
+        let cls = n.cls
+        let signed = n.extra == 1
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        let a = try self.source(n.a, cls, d)
+        if n.op == ir.Op.mulo:
+            try self.writer.line3("imul", suffix, " $")
+            try self.writer.put_i64(n.b.value)
+            try self.put2(", ", a)
+            try self.put2(", ", d)
+            try self.check_failure("jno ", "jo ", "integer overflow", n)
+            try self.finish(n.dst, cls, d)
+            return
+        if a != d:
+            try self.writer.line3(move_of(cls), a, ", ")
+            try self.writer.put(d)
+        try self.writer.line3("add" if n.op == ir.Op.addo else "sub", suffix, " $")
+        try self.writer.put_i64(n.b.value)
+        try self.put2(", ", d)
+        if signed:
+            try self.check_failure("jno ", "jo ", "integer overflow", n)
+        else:
+            try self.check_failure("jnc ", "jc ", "integer overflow", n)
         try self.finish(n.dst, cls, d)
 
     ## Where a check of `n` that fails goes, after the comparison that decides it: with
@@ -852,9 +940,9 @@ extend Generator:
         # the threads generating them only read the unit's texts
         let index = self.program_unit.find_text(reason) else error(ir.missing_text, "a trap's reason is not among the unit's texts")
         if at > 0:
-            try self.address_operand("%rdi", ir.text_ref(at - 1))
-            try self.address_operand("%rsi", ir.text_ref(index))
+            try self.address_operand(self.c_argument(0), ir.text_ref(at - 1))
+            try self.address_operand(self.c_argument(1), ir.text_ref(index))
             try self.call_symbol(self.program_unit.trap_at_function)
             return
-        try self.address_operand("%rdi", ir.text_ref(index))
+        try self.address_operand(self.c_argument(0), ir.text_ref(index))
         try self.call_symbol(self.program_unit.trap_function)

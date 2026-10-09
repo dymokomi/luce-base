@@ -9,14 +9,16 @@
 extend Generator:
     # mark: Calls ==============================================================================
 
-    ## The save area's prediction: the nonvolatile xmm6–xmm15 the allocator handed out
-    ## (codes 6–15, `registers_of`), each the bit of its place in `windows_nonvolatile`; the
-    ## text may name more (`settle_windows_saves`).
+    ## The save area's prediction: the nonvolatile xmm6–xmm15, rsi and rdi the allocator
+    ## handed out (codes 6–15, 18 and 19, `registers_of`), each the bit of its place in
+    ## `windows_nonvolatile`; the text may name more (`settle_windows_saves`).
     func allocated_saves() -> u16:
         var plan: u16 = 0
         for code in self.fr.temp_regs.span():
             if code >= 6 and code <= 15:
                 plan = plan | (u16)(1 << (code - 4))
+            elif code == 18 or code == 19:
+                plan = plan | (u16)(1 << (19 - code))
         return plan
 
     ## Windows' nonvolatile registers beyond the allocator's (rdi, rsi and xmm6-xmm15, which
@@ -82,7 +84,7 @@ extend Generator:
 
     ## Windows x64: a scalar parameter among the first four that `straight_params` marks goes
     ## from its argument register straight to its entry load's result, by the parallel copy
-    ## `receive_directly` makes (a result may live in xmm0–xmm3, another argument's
+    ## `receive_directly` makes (a result may live in r8, r9, xmm0–xmm3, another argument's
     ## register); every other parameter is read from where the convention leaves it, the
     ## shadow area its register was stored to first or the caller's stack, into its slot or
     ## promoted register.
@@ -179,6 +181,11 @@ extend Generator:
         if hidden:
             try self.frame_address("%rax", self.slot_home(info.result_slot))
             try self.writer.line("movq %rax, (%rsp)")
+        # the callee into r11 while every register still holds what it held: its address
+        # may live in r8 or r9, which the arguments take
+        let indirect = n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant
+        if indirect:
+            try self.operand("%r11", ir.Class.l, n.a)
         for i in 0..<(count if count < 4 else 4):
             try self.writer.line("movq ")
             try self.writer.put_u64(i * 8)
@@ -188,8 +195,7 @@ extend Generator:
                 let a = self.f.args.get((usize)((u64)info.args_start + i - first))
                 if a.size == 0 and ir.is_float_class(a.cls):
                     try self.writer.line4("movq ", windows_arguments[i], ", ", float_argument_names[i])
-        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
-            try self.operand("%r11", ir.Class.l, n.a)
+        if indirect:
             try self.writer.line("call *%r11")
         else:
             try self.writer.line("call ")
@@ -610,15 +616,15 @@ extend Generator:
                 let sse = self.convention.sse_of(self.f.result_cls, self.f.result_size, self.f.result_shape)
                 try self.result_eightbytes(self.f.result_size, sse, false)
             else:
-                try self.address_operand("%rsi", n.a)
+                try self.address_operand(self.c_argument(1), n.a)
                 try self.writer.line("movq ")
                 try self.frame_operand(self.fr.indirect_home)
-                try self.writer.put(", %rdi")
+                try self.put2(", ", self.c_argument(0))
                 if self.f.result_size <= 128:
                     # a few words: loads and stores, not a call, on every return
-                    try self.inline_copy("%rsi", "%rdi", (u64)self.f.result_size)
+                    try self.inline_copy(self.c_argument(1), self.c_argument(0), (u64)self.f.result_size)
                 else:
-                    try self.load_immediate("%rdx", (i64)self.f.result_size)
+                    try self.load_immediate(self.c_argument(2), (i64)self.f.result_size)
                     try self.call_symbol("memcpy")
                 try self.writer.line("movq ")
                 try self.frame_operand(self.fr.indirect_home)

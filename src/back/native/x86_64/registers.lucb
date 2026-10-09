@@ -53,16 +53,22 @@ extend Generator:
 
     ## Where a load or store by `op` through `address` reaches its bytes: a slot, or a
     ## frame address formed at its use (`remat`), addressed off the frame pointer
-    ## directly, `below` it; any other address (or a half's access) into %r10 first.
-    func memory_place(address: ir.Ref, op: ir.Op) -> u64?!:
+    ## directly, `below` it; an address a temporary holds in an integer register, through
+    ## that register; any other address (or a half's access) into %r10 first. The base
+    ## register comes back with it, "" for the frame.
+    func memory_place(address: ir.Ref, op: ir.Op) -> (u64?, str)!:
         if op != ir.Op.loadhf and op != ir.Op.storehf:
             if address.kind == ir.RefKind.slot:
-                return self.slot_home(address.index)
-            if address.kind == ir.RefKind.temp and self.fr.temp_regs.get((usize)address.index - 1) == 0:
-                if let below = self.fr.rematerialised(address.index):
-                    return below
+                return (self.slot_home(address.index), "")
+            if address.kind == ir.RefKind.temp:
+                let code = self.fr.temp_regs.get((usize)address.index - 1)
+                if code == 0:
+                    if let below = self.fr.rematerialised(address.index):
+                        return (below, "")
+                elif not self.fr.float_code(code):
+                    return (none, self.q_name(code))
         try self.address_operand("%r10", address)
-        return none
+        return (none, "%r10")
 
     ## The parameters `receive_params` left in their argument registers, moved into their
     ## entry loads' results as parallel copies (`incoming`), one of the integer registers and
@@ -193,12 +199,48 @@ extend Generator:
         try self.writer.put(b)
         try self.writer.put(")")
 
-    ## The memory operand `memory_place` chose.
-    func put_place(place: u64?) -> !:
-        if let below = place:
+    ## A load or store through `base + (index << shift)` (`selection.scaled_access` and
+    ## `summed_access`), the scaling and the sum done by the addressing: `movl
+    ## (%rbx,%rcx,4), %eax`.
+    func indexed_access(n: ir.Instr, base: ir.Ref, index: ir.Ref, shift: u32) -> !:
+        if (u8)n.op <= (u8)ir.Op.loadd:
+            let lc = ir.load_class(n.op)
+            let d = self.target(n.dst, lc, self.reg(lc, 0))
+            let b = try self.source(base, ir.Class.l, "%r10")
+            let x = try self.source(index, ir.Class.l, "%r11")
+            try self.writer.line(load_mnemonic(n.op))
+            try self.put_indexed(b, x, shift)
+            try self.put2(", ", d)
+            try self.finish(n.dst, lc, d)
+            return
+        let cls = ir.store_class(n.op)
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(base, ir.Class.l, "%r10")
+        let x = try self.source(index, ir.Class.l, "%r11")
+        if n.op == ir.Op.storeb:
+            try self.writer.line3("movb ", byte_name(v), ", ")
+        elif n.op == ir.Op.storeh:
+            try self.writer.line3("movw ", word_name(v), ", ")
+        else:
+            try self.writer.line3(store_mnemonic(n.op), v, ", ")
+        try self.put_indexed(b, x, shift)
+
+    ## The memory operand `(base,index,2^shift)`.
+    func put_indexed(base: str, index: str, shift: u32) -> !:
+        try self.writer.put("(")
+        try self.put2(base, ",")
+        try self.put2(index, ",")
+        try self.writer.put_u64((u64)1 << (u64)shift)
+        try self.writer.put(")")
+
+    ## The memory operand `memory_place` chose: off the frame pointer, or through `base`.
+    func put_place(place: (u64?, str)) -> !:
+        let (frame_place, base) = place
+        if let below = frame_place:
             try self.frame_operand(below)
         else:
-            try self.writer.put("(%r10)")
+            try self.writer.put("(")
+            try self.put2(base, ")")
 
     func put2(a: str, b: str) -> !:
         try self.writer.put(a)

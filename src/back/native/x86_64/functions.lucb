@@ -141,6 +141,20 @@ extend Generator:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
                 try self.offset_access(self.f.instrs.get(i + 1), base, offset)
                 return 2
+        if let scaled = selection.scaled_access(self.f, i, uses):
+            let (base, scaled_index, shift) = scaled
+            if not self.fr.is_rematerialised(self.f.instrs.get(i).dst) and not self.fr.is_rematerialised(self.f.instrs.get(i + 1).dst):
+                if let dw = self.dw:
+                    try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 2)
+                try self.indexed_access(self.f.instrs.get(i + 2), base, scaled_index, shift)
+                return 3
+        if let summed = selection.summed_access(self.f, i, uses):
+            let (base, offset) = summed
+            if not self.fr.is_rematerialised(self.f.instrs.get(i).dst):
+                if let dw = self.dw:
+                    try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
+                try self.indexed_access(self.f.instrs.get(i + 1), base, offset, 0)
+                return 2
         return 0
 
     ## The comparison at `i` and the branch on it after, as one conditional jump.
@@ -181,9 +195,7 @@ extend Generator:
     ## Function `index`'s text; on Windows with its save area holding `plan`, or the
     ## registers the allocator gave it (a debug build's, all of them) when none.
     func function_text(index: usize, plan: u16?) -> !:
-        # Windows keeps the argument-register codes 16–19 out of the pools (rsi and rdi are
-        # nonvolatile there, and its arguments are staged through the shadow area)
-        self.fr.reserved = windows_reserved if self.convention.windows else 0
+        self.fr.reserved = 0
         if self.third_scratch():
             self.fr.reserve(third_scratch_code(self.convention.windows))
         self.reserve_asm_registers()
