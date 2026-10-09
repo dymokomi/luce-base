@@ -182,34 +182,54 @@ pub struct Lives:
                     # register when their live ranges do not overlap.
                     if l.hint[(usize)x.a.index] == 0:
                         l.hint[(usize)x.a.index] = x.dst
+        try l.mark_barriers(f)
+        return l
+
+    ## Which temporaries a call or an asm block clobbers (`crosses`), and which an asm block
+    ## binds (`asm_bound`).
+    func mark_barriers(f: ir.Function*) -> !:
+        let n = self.count
+        let m = f.instrs.count
         # what a call or an asm block clobbers: the caller-saved registers of every
         # temporary live across it; a copy, a zeroing, or a fill of many bytes is a call
         # to the C library's routine in either generator. The barriers' positions in
         # order, and each temporary's ranges searched for one inside
         var barriers = try list.List[u32].create(16)
         defer barriers.destroy()
+        # an asm block's operands go into the registers it names, any of them, one after
+        # another before it (`set_reg`), and its outputs are stored through their addresses
+        # (`get_reg`) after its text: what an operand reads, an output's address, and every
+        # value live across an operand's move stay out of the caller-saved registers
+        var operands = try list.List[u32].create(4)
+        defer operands.destroy()
         var p: usize = 0
         while p < m:
             let x = f.instrs.get(p)
+            if x.op == ir.Op.set_reg or x.op == ir.Op.get_reg:
+                self.mark_at(x.a, n)
+                if x.op == ir.Op.set_reg:
+                    try operands.push(u32(2 * p))
             if is_barrier(x):
                 try barriers.push(u32(2 * p))
                 # an asm block's operands are loaded into registers the lowerer chose from
                 # the same caller-saved set, in an order that may clobber an operand still
                 # to be read: a value the block reads or writes stays out of them
                 if x.op == ir.Op.asm_:
-                    l.mark_at(x.a, n)
-                    l.mark_at(x.b, n)
+                    self.mark_at(x.a, n)
+                    self.mark_at(x.b, n)
                     if x.dst != 0 and (usize)x.dst <= n:
-                        l.crosses[(usize)x.dst] = true
-                        l.asm_bound[(usize)x.dst] = true
+                        self.crosses[(usize)x.dst] = true
+                        self.asm_bound[(usize)x.dst] = true
             p += 1
         if barriers.count > 0:
             var t3: usize = 1
             while t3 <= n:
-                if not l.crosses[t3] and l.spans_barrier(u32(t3), barriers.span()):
-                    l.crosses[t3] = true
+                if not self.crosses[t3] and self.spans_barrier(u32(t3), barriers.span()):
+                    self.crosses[t3] = true
+                if operands.count > 0 and not self.asm_bound[t3] and self.spans_barrier(u32(t3), operands.span()):
+                    self.crosses[t3] = true
+                    self.asm_bound[t3] = true
                 t3 += 1
-        return l
 
     ## The temporary `r` names, when it is one, must survive an asm block.
     func mark_at(r: ir.Ref, n: usize):

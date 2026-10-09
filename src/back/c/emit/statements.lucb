@@ -911,11 +911,16 @@ extend Emitter:
         var label = ""
         if (place == "reg" or place.length == 0) and v.kind == ast.Kind.name:
             label = v.text
+        # a float lives in a vector register: C's `r` would let the compiler move it through
+        # an integer one, past the register the operand names
+        let kind = ("x" if s.text == "x86_64" else "w") if self.is_float(vt) else "r"
         if is_out:
             if ops.outs.used > 0:
                 try ops.outs.put(", ")
             try put_asm_label(&ops.outs, label)
-            try ops.outs.put("\"+r\"(" if is_in else "\"=r\"(")
+            try ops.outs.put("\"+" if is_in else "\"=")
+            try ops.outs.put(kind)
+            try ops.outs.put("\"(")
             try ops.outs.put("_lb_as")
             try ops.outs.put_u64((u64)n)
             try ops.outs.put(")")
@@ -925,6 +930,8 @@ extend Emitter:
             if ops.ins.used > 0:
                 try ops.ins.put(", ")
             try put_asm_label(&ops.ins, label)
-            try ops.ins.put("\"r\"(_lb_as")
+            try ops.ins.put("\"")
+            try ops.ins.put(kind)
+            try ops.ins.put("\"(_lb_as")
             try ops.ins.put_u64((u64)n)
             try ops.ins.put(")")
