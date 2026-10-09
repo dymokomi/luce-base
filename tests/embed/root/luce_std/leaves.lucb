@@ -1,0 +1,7 @@
+## A package module whose import names a module beside the root, which its package does
+## not hold either: the sealed check must not find it.
+import outside
+
+## Nothing.
+pub func nothing():
+    outside.nothing()

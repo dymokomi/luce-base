@@ -123,7 +123,7 @@ extend Checker:
         let half = self.scratch.length // 2
         self.root = module_paths.canonical(root) catch failure:
             error(unknown_name, try strings.format(self.scratch[..<half], f"{root}: cannot read the directory: {failure.message}"))
-        let found = module_paths.resolve_sealed(self.root, name) catch failure:
+        let found = module_paths.resolve_sealed(self.root, self.root, name) catch failure:
             error(unknown_name, try strings.format(self.scratch[..<half], f"{name}: {failure.message}"))
         try self.load_as((c.str)found.path, name)
         self.entry_index = self.modules.count - 1
@@ -254,13 +254,13 @@ extend Checker:
     ## every compiler resolves it (`module_paths.resolve`).
     func resolve_import(importer: str, name: str) -> module_paths.Resolution!:
         if self.sealed:
-            return try module_paths.resolve_sealed(self.root, name)
+            return try module_paths.resolve_sealed(self.root, importer, name)
         return try module_paths.resolve(importer, self.root, name, true, self.package_name)
 
     ## Whether the importer's package, or the sealed root, has a module named `name`.
     func has_local_module(importer: str, name: str) -> bool!:
         if self.sealed:
-            return try module_paths.sealed_has(self.root, name)
+            return try module_paths.sealed_has(self.root, importer, name)
         return try module_paths.has_local_module(importer, name)
 
     ## Whether the module at `path` is under test: one of the entry's package, never a
@@ -590,5 +590,5 @@ func packages_as_modules(tree: ast.Node*, importer: str, sealed: str) -> !:
 ## `sealed` when there is one.
 func names_modules(importer: str, name: str, sealed: str) -> bool!:
     if sealed.length > 0:
-        return try module_paths.sealed_names_modules(sealed, name)
+        return try module_paths.sealed_names_modules(sealed, importer, name)
     return try module_paths.names_modules(importer, name)

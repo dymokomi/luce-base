@@ -475,29 +475,64 @@ pub func resolve(importer: str, source_root: str, name: str, base_only: bool = f
 
 # mark: A sealed root ========================================================================
 
-## Where import `name` leads under a sealed root, an embedded checker's (docs/EMBEDDING.md):
-## the module at that path under `root`, a `.lucb` file or a directory of fragments, and
-## nowhere else. No manifest is read, and the module keeps its dotted name.
-pub func resolve_sealed(root: str, name: str) -> Resolution!:
+## Where import `name` of the file `importer` leads under a sealed root, an embedded
+## checker's (docs/EMBEDDING.md): the module at that path under `root`, a `.lucb` file or a
+## directory of fragments, and nowhere else. A directory directly under the root is a
+## package, as `luce_std/` is: its modules import each other by their paths in it first, as
+## a package's own modules do (`resolve`), and such a module is named by its path under the
+## root, `luce_std.math`, the name `from luce_std import math` gives it. No manifest is read.
+pub func resolve_sealed(root: str, importer: str, name: str) -> Resolution!:
     if not identifier(name):
         error(invalid, "an import must name a dotted module")
+    if let package = sealed_package(root, importer):
+        if let path = try source_file(try in_arena.join(root, package), name, true):
+            return Resolution(try strings.join([package, ".", name], ""), path, root)
     let path = try source_file(root, name, true) else error(invalid, "the checked directory has no module of this name")
     return Resolution(name, path, root)
 
-## Whether a sealed root holds module `name`.
-pub func sealed_has(root: str, name: str) -> bool!:
-    return identifier(name) and try source_file(root, name, true) != none
-
-## Whether `from name import ...` under a sealed root brings modules: `name` is a directory
-## of modules there (`from luce_kernel import lib`), not a module of its own.
-pub func sealed_names_modules(root: str, name: str) -> bool!:
-    if not identifier(name) or try source_file(root, name, true) != none:
+## Whether module `name`, as the file `importer` would import it, is in a sealed root: in
+## the importer's package there, or at its path under the root.
+pub func sealed_has(root: str, importer: str, name: str) -> bool!:
+    if not identifier(name):
         return false
+    if let package = sealed_package(root, importer):
+        if try source_file(try in_arena.join(root, package), name, true) != none:
+            return true
+    return try source_file(root, name, true) != none
+
+## Whether `from name import ...` in the file `importer` under a sealed root brings modules:
+## `name` is a directory of modules there (`from luce_kernel import lib`), not a module of
+## its own; in the importer's package first, as `resolve_sealed` looks.
+pub func sealed_names_modules(root: str, importer: str, name: str) -> bool!:
+    if not identifier(name):
+        return false
+    if let package = sealed_package(root, importer):
+        let own = try in_arena.join(root, package)
+        if try source_file(own, name, true) != none:
+            return false
+        if try present(try directory_of(own, name)):
+            return true
+    if try source_file(root, name, true) != none:
+        return false
+    return try present(try directory_of(root, name))
+
+## The package under a sealed root that the file `importer` belongs to: the directory
+## directly under `root` that holds it (`luce_std` for `root/luce_std/math32.lucb`); none
+## for a module at the root's top, or a file outside it.
+func sealed_package(root: str, importer: str) -> str?:
+    if not contained(importer, root) or importer.length == root.length:
+        return none
+    let relative = (str)importer.bytes[root.length + 1..]
+    let slash = strings.find(relative, "/") else return none
+    return (str)relative.bytes[..<slash]
+
+## The directory a dotted `name` spells under `root`: `root/core/parallel` for `core.parallel`.
+func directory_of(root: str, name: str) -> str!:
     var directory = try new u8[root.length + 1 + name.length] ---
     let spelled = try strings.format(directory, f"{root}/{name}")
     for i in root.length + 1..<spelled.length:
         if spelled.bytes[i] == '.': directory[i] = '/'
-    return try present(spelled)
+    return spelled
 
 ## `path`, a canonical module path, spelled as `importer` is: relative to the working
 ## directory when the importer's path is relative and `path` lies below it, else as is.

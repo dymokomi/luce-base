@@ -1,0 +1,5 @@
+# A snippet whose package module imports a module beside the root.
+from luce_std import leaves
+
+pub func point():
+    leaves.nothing()

@@ -1,0 +1,6 @@
+## A module at the root's top named like luce_std's `math`: a module of luce_std importing
+## `math` gets its sibling, never this one, whose `sin` takes no float.
+
+## Not a sine.
+pub func sin(x: bool) -> bool:
+    return not x

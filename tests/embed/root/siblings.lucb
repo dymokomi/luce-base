@@ -1,0 +1,5 @@
+# A snippet over a package in the root whose modules import each other by short name.
+from luce_std import math32
+
+pub func wave(x: f32) -> f32:
+    return math32.sin(x) * 0.5

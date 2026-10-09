@@ -53,6 +53,11 @@ What the call reads, and what it does not:
   the root does not hold is an error at the import.
 - `from luce_kernel import lib` works when `root/luce_kernel/` is a directory of modules,
   as in a package.
+- A directory directly under the root is a package to its own modules: they import each
+  other by their short names, as in a real package. luce-std's `math32.lucb` says
+  `import math`; copied to `root/luce_std/`, that import finds `root/luce_std/math.lucb`
+  first, the module `from luce_std import math` names, and only then a `math` at the
+  root's top. Nothing outside the root is looked at either way.
 - The standard modules (`memory`, `thread`, `c`, `io`, ...) are the copy the checker
   carries inside the binary (`sema/standard_sources.lucb`). Nothing is read from a
   toolchain install, no subprocess runs, and luc is not involved.

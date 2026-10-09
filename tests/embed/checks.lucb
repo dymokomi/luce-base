@@ -44,6 +44,25 @@ test "imports resolve under the root alone":
     assert(d.file == "escapes.lucb" and d.line == 2 and d.column == 1)
     assert(strings.starts_with(d.message, "cannot resolve module `outside`"))
 
+test "a package in the root imports its own modules by their short names":
+    # `luce_std/math32.lucb` says `import math`: its sibling, not the root's `math.lucb`
+    var result = try check_root(snippets, "siblings")
+    defer result.close()
+    assert(result.ok() and result.diagnostics.length == 0)
+    assert(result.checker.find_module("luce_std.math") != none)
+    # the package module checked as the entry resolves the same way
+    var entry = try check_root(snippets, "luce_std.math32")
+    defer entry.close()
+    assert(entry.ok() and entry.diagnostics.length == 0)
+
+test "a package in the root still imports nothing from outside it":
+    var result = try check_root(snippets, "leaving")
+    defer result.close()
+    assert(not result.ok())
+    let d = result.diagnostics[0]
+    assert(d.file == "luce_std/leaves.lucb" and d.line == 3 and d.column == 1)
+    assert(strings.starts_with(d.message, "cannot resolve module `outside`"))
+
 test "an entry the root does not hold is a diagnostic":
     var result = try check_root(snippets, "absent")
     defer result.close()

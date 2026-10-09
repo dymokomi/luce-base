@@ -1,0 +1,7 @@
+## A stand-in for luce-std's `math32`, as a host copies it into its root: it imports its
+## sibling `math` by its short name, as a module of luce-std does.
+import math
+
+## The sine of `x`, through `math`'s.
+pub func sin(x: f32) -> f32:
+    return (f32)math.sin((f64)x)
