@@ -363,7 +363,10 @@ extend Generator:
         try self.writer.put_u64(low * 8)
         try self.store_low("x17", "w17", offset + low, width - low)
 
-    ## Exactly `width` bytes from `[x16, #offset]` into `x`, zero above them.
+    ## Exactly `width` bytes from `[x16, #offset]` into `x`, zero above them. An odd width
+    ## comes in pieces: the bytes above the low four (or two) gathered in x17 first, then
+    ## the low ones in `x`. A tail of three bytes is two pieces itself, its half taken
+    ## through `x`, which is free until the low bytes are loaded last.
     func load_low(x: str, w: str, offset: u64, width: u64) -> !:
         if width == 8 or width == 4 or width == 2 or width == 1:
             try self.writer.line("ldr " if width >= 4 else ("ldrh " if width == 2 else "ldrb "))
@@ -373,13 +376,17 @@ extend Generator:
             try self.writer.put("]")
             return
         let low: u64 = 4 if width > 4 else 2
-        try self.load_low("x17", "w17", offset + low, width - low)
+        if width - low == 3:
+            try self.load_low("x17", "w17", offset + low + 2, 1)
+            try self.load_low(x, w, offset + low, 2)
+            try self.writer.line3("orr x17, ", x, ", x17, lsl #16")
+        else:
+            try self.load_low("x17", "w17", offset + low, width - low)
         try self.load_low(x, w, offset, low)
-        try self.writer.line("lsl x17, x17, #")
-        try self.writer.put_u64(low * 8)
         try self.writer.line3("orr ", x, ", ")
         try self.writer.put(x)
-        try self.writer.put(", x17")
+        try self.writer.put(", x17, lsl #")
+        try self.writer.put_u64(low * 8)
 
     ## sp below `count` levels of the dynamic area under the fixed frame (`ir.Op.reserve`),
     ## set from x29 whatever it was.

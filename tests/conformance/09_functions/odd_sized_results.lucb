@@ -1,0 +1,75 @@
+## §9: a struct result of an odd size up to sixteen bytes comes back in registers, and every
+## byte arrives: one of seven bytes (or fifteen) is gathered from a four-byte, a two-byte and
+## a one-byte piece, and none may take the place of another. Found by tools/fuzz.py's ABI
+## programs; arm64 lost the two-byte piece.
+struct Three:
+    var b: u8[3]
+
+struct Seven:
+    var b: u8[7]
+
+struct Eleven:
+    var b: u8[11]
+
+struct Fifteen:
+    var b: u8[15]
+
+## Seven bytes around a pair of two-byte structs, as a generated program had them.
+struct Pair:
+    var b: u8[2]
+
+struct Nested:
+    var first: u8
+    var second: i8
+    var pairs: Pair[2]
+    var last: u8
+
+noinline func three(seed: u8) -> Three:
+    var v: Three = ---
+    for i in 0..<3:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func seven(seed: u8) -> Seven:
+    var v: Seven = ---
+    for i in 0..<7:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func eleven(seed: u8) -> Eleven:
+    var v: Eleven = ---
+    for i in 0..<11:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func fifteen(seed: u8) -> Fifteen:
+    var v: Fifteen = ---
+    for i in 0..<15:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func nested(seed: u8) -> Nested:
+    var v: Nested = ---
+    v.first = seed
+    v.second = -2
+    for i in 0..<2:
+        v.pairs[i].b[0] = seed +% 10 +% (u8)i
+        v.pairs[i].b[1] = seed +% 20 +% (u8)i
+    v.last = seed +% 30
+    return v
+
+func spell(bytes: const u8[]) -> u64:
+    var h: u64 = 0
+    for b in bytes:
+        h = h * 256 % 1000000007 + (u64)b
+    return h
+
+pub func main(arguments: str[]) -> i32:
+    let a = three(1)
+    let b = seven(10)
+    let c = eleven(20)
+    let d = fifteen(40)
+    let e = nested(5)
+    print(f"{spell(a.b)} {spell(b.b)} {spell(c.b)} {spell(d.b)}")
+    print(f"{e.first} {e.second} {e.pairs[0].b[0]} {e.pairs[0].b[1]} {e.pairs[1].b[0]} {e.pairs[1].b[1]} {e.last}")
+    return 0
