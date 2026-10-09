@@ -8,8 +8,8 @@
 #       operator, class, and operands are in the table is a copy of the earlier result,
 #       one on constants is its constant, one with an identity (`x + 0`, `x & x`, `x == x`
 #       on integers) is its operand, an extension of a value already in the extended range
-#       (`extub` of a `loadub`) is the value, and a phi whose arguments all agree is that
-#       argument.
+#       (`extub` of a `loadub`) is the value, a sum less one of its operands is the other,
+#       and a phi whose arguments all agree is that argument.
 #       Every such instruction is dropped and its uses read the value it stood for. A
 #       branch (or a jump table) on a constant becomes a jump, and the blocks that no branch reaches any more
 #       go, their phis losing the arguments those blocks supplied. This is QBE's gvn.c
@@ -297,6 +297,12 @@ func number_block(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: b
                 f.instrs.set((usize)i, x)
                 i += 1
                 continue
+            if let same = undone_sum(f, table, x):
+                rep[(usize)x.dst] = same
+                dead[(usize)i] = true
+                f.instrs.set((usize)i, x)
+                i += 1
+                continue
             let found = table.find(x)
             if found != 0:
                 rep[(usize)x.dst] = ir.temp_ref(found)
@@ -391,7 +397,8 @@ func identity(x: ir.Instr) -> ir.Ref?:
     return none
 
 ## An extension of a value that is already what the extension would make of it: a byte
-## loaded by `loadub`, or extended by `extub` before, needs no `extub` again. An extension
+## loaded by `loadub`, extended by `extub` before, a comparison's, or a phi of byte constants,
+## needs no `extub` again. An extension
 ## reads only its operand's low bits, which a widening (`extuw`, `extsw`) keeps, so it
 ## looks through one to the word; the value stands for the extension when its class is
 ## the extension's.
@@ -406,12 +413,42 @@ func redundant_extension(f: ir.Function*, table: Table*, x: ir.Instr) -> ir.Ref?
         d = table.definition(f, source) else return none
     if source.kind != ir.RefKind.temp or f.temp_class(source.index) != x.cls:
         return none
-    let known = extension_kind(d.op)
+    # a comparison's 0 or 1 is a byte: the bool an expanded predicate (`math.is_nan`) hands
+    # its caller's branch; so is a phi of byte constants, an expanded optional's flag
+    let known = 1 if ir.is_comparison(d.op) or bytes_joined(f, d) else extension_kind(d.op)
     if known == 0:
         return none
     # kinds: 1 u8, 2 u16, 3 s8, 4 s16; what each wanted range contains
     let holds = known == wanted or (wanted == 2 and known == 1) or (wanted == 4 and (known == 1 or known == 3))
     return source if holds else none
+
+## The other operand of a sum less one of its operands: `(a + b) - a` is `b`, as the length
+## of `values[start..<start + count]` is `count`. A wrapping difference undoes a wrapping or
+## a checked sum, and a checked difference a checked sum of the same signedness, which it
+## cannot overflow once the sum has not; a checked difference of a wrapping sum stays.
+func undone_sum(f: ir.Function*, table: Table*, x: ir.Instr) -> ir.Ref?:
+    if (x.op != ir.Op.sub and x.op != ir.Op.subo) or (x.cls != ir.Class.w and x.cls != ir.Class.l):
+        return none
+    let sum = table.definition(f, x.a) else return none
+    if sum.cls != x.cls or not (sum.op == ir.Op.addo or (sum.op == ir.Op.add and x.op == ir.Op.sub)):
+        return none
+    if x.op == ir.Op.subo and sum.extra != x.extra:
+        return none
+    if same_ref(sum.a, x.b):
+        return sum.b
+    if same_ref(sum.b, x.b):
+        return sum.a
+    return none
+
+## Whether `x` is a phi whose every argument is a constant byte.
+func bytes_joined(f: ir.Function*, x: ir.Instr) -> bool:
+    if x.op != ir.Op.phi or x.extra2 == 0:
+        return false
+    for k in 0..<x.extra2:
+        let value = f.phi_args.get((usize)(x.extra + k)).value
+        if value.kind != ir.RefKind.constant or value.value < 0 or value.value > 255:
+            return false
+    return true
 
 ## The range an operation leaves its result in, as a kind: 1 an unsigned byte, 2 an
 ## unsigned half, 3 a signed byte, 4 a signed half; 0 for any other.

@@ -63,6 +63,8 @@ struct Search:
     var left_heads: u32[]
     var right_heads: u32[]
     var products: list.List[Product]
+    ## Per temporary a phi defines: 1 + the index of the phi's block; 0 for the others.
+    var join_of: u32[]
     var changed: bool = false
 
     ## The chain bucket of operand `r`: its own for a temporary, a shared one otherwise.
@@ -425,16 +427,65 @@ struct Search:
                 return true
         return false
 
+    ## Whether `index` is below `length` as a row-major index into a checked product:
+    ## `row * width + column`, or `row * width` alone (its column 0), below `rows * width`.
     func packed_bound(index: ir.Ref, length: ir.Ref) -> bool:
         if index.kind != ir.RefKind.temp or self.definitions[index.index] == 0:
             return false
         let sum = self.f.instrs.get(self.definitions[index.index] - 1)
-        if sum.cls != ir.Class.l or (sum.op != ir.Op.add and not (sum.op == ir.Op.addo and sum.extra == 0)):
+        if sum.cls != ir.Class.l:
             return false
+        let summed = sum.op == ir.Op.add or (sum.op == ir.Op.addo and sum.extra == 0)
         for product in self.products.span():
-            if product.cls == ir.Class.l and self.equal(length, product.value, ir.Class.l) and (self.packed(sum.a, sum.b, product) or self.packed(sum.b, sum.a, product)):
+            if product.cls != ir.Class.l or not self.equal(length, product.value, ir.Class.l):
+                continue
+            if summed and (self.packed(sum.a, sum.b, product) or self.packed(sum.b, sum.a, product)):
+                return true
+            if not summed and self.packed(index, ir.const_ref(0), product):
                 return true
         return false
+
+    ## Whether `index`, a phi joining a choice (`x if c else y`, before `ifconvert` makes it
+    ## a `select`), is below `length` (at most it, when not `strict`) whichever way the
+    ## choice went: each argument arrives from the block that branched on `c`, directly or
+    ## through a block of its own, and is bounded by the facts in scope here (which hold
+    ## whichever edge was taken) with the branch's sense on its edge assumed beside them.
+    ## A loop's head is no such join: an edge back into it leaves the choice's values behind.
+    func chosen_below(index: ir.Ref, length: ir.Ref, strict: bool) -> bool!:
+        if index.kind != ir.RefKind.temp or self.join_of[index.index] == 0:
+            return false
+        let phi = self.f.instrs.get(self.definitions[index.index] - 1)
+        let join = self.join_of[index.index] - 1
+        if phi.extra2 == 0 or phi.extra2 > 4:
+            return false
+        for k in 0..<phi.extra2:
+            let argument = self.f.phi_args.get((usize)(phi.extra + k))
+            let edge = self.g.block_of(argument.pred)
+            var choice = edge
+            var through = self.g.blocks.get(join).label
+            let own = self.g.blocks.get(edge)
+            let last = self.f.instrs.get(own.end - 1).op if own.end > own.start else ir.Op.jmp
+            if last == ir.Op.switch_:
+                return false
+            if last != ir.Op.jnz:
+                # a block of its own on the way: the choice was its one predecessor's
+                if own.preds.count != 1:
+                    return false
+                choice = own.preds.get(0)
+                through = own.label
+            let chooser = self.g.blocks.get(choice)
+            if chooser.end <= chooser.start or self.g.dominates(join, choice):
+                return false
+            let branch = self.f.instrs.get(chooser.end - 1)
+            if branch.op != ir.Op.jnz or branch.extra == branch.extra2 or (branch.extra != through and branch.extra2 != through):
+                return false
+            let mark = self.facts.count
+            try self.assume(branch.a, branch.extra == through)
+            let below = self.at_most(argument.value, length, ir.Class.l, strict)
+            self.truncate(mark)
+            if not below:
+                return false
+        return true
 
     ## A single predecessor makes this incoming edge unavoidable. This excludes
     ## joins and loop headers whose backedges could bypass the tested condition.
@@ -445,13 +496,19 @@ struct Search:
         if predecessor.end <= predecessor.start:
             return
         let branch = self.f.instrs.get(predecessor.end - 1)
-        if branch.op != ir.Op.jnz or branch.extra == branch.extra2 or branch.a.kind != ir.RefKind.temp:
+        if branch.op != ir.Op.jnz or branch.extra == branch.extra2:
             return
-        let index = self.definitions[branch.a.index]
+        try self.assume(branch.a, branch.extra == block.label)
+
+    ## The facts that `condition` being true (`yes`), or false, establishes.
+    func assume(condition: ir.Ref, yes_now: bool) -> !:
+        if condition.kind != ir.RefKind.temp:
+            return
+        let index = self.definitions[condition.index]
         if index == 0:
             return
         var comparison = self.f.instrs.get(index - 1)
-        var yes = branch.extra == block.label
+        var yes = yes_now
         # `x == 0` or `x != 0` of a comparison `x`, as `if a != b or ...` and `not` lower
         # before the negations fold: the edge decides the comparison inside, its sense
         # flipped by `== 0`
@@ -520,7 +577,7 @@ struct Search:
             elif instruction.op == ir.Op.bounds:
                 # below the bound, or at most it for a one-past-the-end bound (`extra` 1)
                 let strict = instruction.extra == 0
-                if self.at_most(instruction.a, instruction.b, ir.Class.l, strict) or self.packed_bound(instruction.a, instruction.b) or self.scaled_below(instruction.a, instruction.b, strict) or self.below_through_difference(instruction.a, instruction.b):
+                if self.at_most(instruction.a, instruction.b, ir.Class.l, strict) or self.packed_bound(instruction.a, instruction.b) or self.scaled_below(instruction.a, instruction.b, strict) or self.below_through_difference(instruction.a, instruction.b) or try self.chosen_below(instruction.a, instruction.b, strict):
                     # Keep graph instruction ranges stable until the walk ends.
                     instruction = ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0, scope = 0, site = 0)
                     self.f.instrs.set(at, instruction)
@@ -557,8 +614,17 @@ struct Search:
 ## definition. The caller rebuilds its graph when instructions were removed.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
     let buckets = f.temps.count + 1 + shared_buckets
-    var search = Search(f = f, g = g, definitions = try new u32[f.temps.count + 1] ---, facts = try list.List[Fact].create(32), left_heads = try new u32[buckets] ---, right_heads = try new u32[buckets] ---, products = try list.List[Product].create(8))
+    var search = Search(f = f, g = g, definitions = try new u32[f.temps.count + 1] ---, facts = try list.List[Fact].create(32), left_heads = try new u32[buckets] ---, right_heads = try new u32[buckets] ---, products = try list.List[Product].create(8), join_of = try new u32[f.temps.count + 1] ---)
     defer free(search.definitions)
+    defer free(search.join_of)
+    for index in 0..<search.join_of.length:
+        search.join_of[index] = 0
+    for b in 0..<g.count():
+        let block = g.blocks.get(b)
+        for at in block.start..<block.end:
+            let instruction = f.instrs.get((usize)at)
+            if instruction.op == ir.Op.phi and instruction.dst != 0:
+                search.join_of[instruction.dst] = (u32)b + 1
     defer free(search.left_heads)
     defer free(search.right_heads)
     for index in 0..<buckets:

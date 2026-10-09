@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""A loop over the faces of a mesh, as luce-geocore's position edit writes it, gathers each
-face's points through its corners, which no fact bounds: those checks stay, and fail out of
-line, after the function's body, so the loop falls through every one that passes and holds
-no trap's call (arm64 and x86-64). Every build answers alike, and a corner out of range
-traps at the same place in each."""
+"""A loop over the faces of a mesh, as luce-geocore's position edit writes it, keeps only the
+checks the language asks for. A slice `values[start..<start + count]` is `count` long, so
+`ring[at]` and `ring[at + 1 if at + 1 < count else 0]` are not checked while `at < count`;
+`values[first..<first + rows * 3]` is `rows * 3` long, so `part[at * 3]` is not checked
+while `at < rows`. The points a face's corners name are gathered through them, which no
+fact bounds: those checks stay, and fail out of line, after the function's body, so the
+loop falls through every one that passes and holds no trap's call (arm64 and x86-64).
+Every build answers alike, and a corner out of range traps at the same place in each."""
 from pathlib import Path
 import re, subprocess, sys, tempfile
 
@@ -196,6 +199,13 @@ def check_cold(asm, target):
 with tempfile.TemporaryDirectory(prefix='gather-kernel-') as work:
     source = Path(work) / 'main.lucb'
     source.write_text(PROGRAM)
+    ir_path = Path(work) / 'main.ir'
+    subprocess.run([COMPILER, 'build', source, '--native', '--opt', '3', '--emit=ir', '-o', ir_path], check=True)
+    # only the slices' own checks stay (their start and end, one past the last)
+    for name in ('ring_sum', 'row_sum'):
+        checks = re.findall(r'\n\s*bounds [^\n]*', function_ir(ir_path.read_text(), name))
+        if len(checks) != 2 or not all(check.endswith('one past') for check in checks):
+            sys.exit(f'FAIL: {name} checks an index its slice\'s length bounds: {checks}')
     for flags, target in ((['--emit=asm'], 'host'), (['--target', 'x86_64-linux', '--emit=asm'], 'x86_64-linux'), (['--target', 'arm64-macos', '--emit=asm'], 'arm64-macos')):
         asm_path = Path(work) / 'main.s'
         subprocess.run([COMPILER, 'build', source, '--native', '--opt', '3', *flags, '-o', asm_path], check=True)
@@ -214,4 +224,4 @@ with tempfile.TemporaryDirectory(prefix='gather-kernel-') as work:
         sys.exit(f'FAIL: the builds answered differently: {answers}')
     if len(set(failures)) != 1:
         sys.exit(f'FAIL: the builds trapped at different places: {failures}')
-print('ok a gather loop: failures out of line, every build alike')
+print('ok a gather loop: slice lengths and choices proved, failures out of line')

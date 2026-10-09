@@ -15,7 +15,17 @@ Checked multiplication also establishes a finite product. That permits smaller
 products and row-major indexes to be proved safe: `row < rows` and
 `column < width` imply `row * width + column < rows * width` when the dimension
 product has already passed its overflow check. Signed and otherwise uncertain
-arithmetic retains the original failure behavior.
+arithmetic retains the original failure behavior. A row alone, `row * width`, is
+the case `column = 0`.
+
+Value numbering makes a slice's length what the program wrote: the length of
+`values[start..<start + count]` is `(start + count) - start`, which is `count`, so
+`at < count` bounds an index into the slice. A choice of index,
+`ring[at + 1 if at + 1 < count else 0]`, joins its two values in a phi; each is
+proved against the length with the branch's sense on its edge assumed beside the
+facts that hold at the access, and the check goes when both are in range. A loop's
+head is no such join. An index read from memory (`points[corners[k]]`, a gather)
+has no fact and keeps its check.
 
 Level 3 additionally:
 

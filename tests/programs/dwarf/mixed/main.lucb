@@ -4,7 +4,7 @@ struct Point:
 
     pub func x_value() -> i64:
         let total = self.x + self.y
-        return total - 4 # BREAK_METHOD
+        return total * 2 - 11  # BREAK_METHOD
 
 struct Box[T]:
     var value: T
@@ -32,11 +32,11 @@ func inspect(value: i64) -> i64:
     let pair: (i32, i64) = (5, 6)
     let packed = Packed(first = 7, second = 123)
     let shape = Shape.rect(width = 8, height = 9)
-    var result = point.x + point.y # BREAK_INSPECT
+    var result = point.x + point.y  # BREAK_INSPECT
     if value > 0:
         let inner: i64 = 77
-        result += inner # BREAK_INNER
-    result += 1 # BREAK_AFTER
+        result += inner  # BREAK_INNER
+    result += 1  # BREAK_AFTER
     assert(point.x_value() == 3)
     return result
 
