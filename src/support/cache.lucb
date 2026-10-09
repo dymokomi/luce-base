@@ -42,6 +42,10 @@ pub var default_root: str = ""
 ## `--cache-report`: say on standard error whether the object came from the cache.
 pub var report: bool = false
 
+## Whether the sources read are noted at all. A checker embedded in another program builds
+## nothing and checks again and again, so it keeps no notes (`embed.check_root`).
+pub var noting: bool = true
+
 var compiler_hash: u64 = 0
 
 # mark: The key ===============================================================================
@@ -64,6 +68,8 @@ var absent_count: usize = 0
 ## source named by something other than the file read (a directory module, by its
 ## `ORDER`) gives the file as `read_as`, which a record reads again.
 pub func note_input(path: str, bytes: const u8[], read_as: str = ""):
+    if not noting:
+        return
     with memory.heap:
         if noted_count == noted_paths.length:
             grow_notes()
@@ -91,6 +97,8 @@ pub func exists(path: c.str) -> bool:
 ## that appears there later could change what the lookup finds, so a record that saw it
 ## absent is stale once it is not.
 pub func note_absent(path: str):
+    if not noting:
+        return
     with memory.heap:
         for i in 0..<absent_count:
             if absent_paths[i] == path:
@@ -108,6 +116,8 @@ pub func note_absent(path: str):
 ## A noted source the object shows by another name: a standard module's `std/...`, a
 ## dependency's `<package>/...` (`Source.rebase`). The key names it so too.
 pub func rename_input(path: str, shown_as: str):
+    if not noting:
+        return
     with memory.heap:
         for i in 0..<noted_count:
             if noted_paths[i] == path:

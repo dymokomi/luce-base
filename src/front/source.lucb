@@ -60,7 +60,7 @@ pub struct Source:
 
     ## The fragments a directory's `ORDER` lists, in order, as one source at `path`: each
     ## fragment is one segment, ending with a newline of its own.
-    pub static func assembled(path: str, names: str[], texts: u8[][]) -> Source!:
+    pub static func assembled(path: str, names: str[], texts: str[]) -> Source!:
         var total: usize = 0
         for text in texts:
             total += text.length + 1
@@ -73,7 +73,7 @@ pub struct Source:
         while k < names.length:
             paths[k] = names[k]
             starts[k] = line
-            let text = texts[k]
+            let text = texts[k].bytes
             memory.copy(data[at..], text, text.length)
             at += text.length
             for b in text:

@@ -1,0 +1,43 @@
+# Every construct of the kernel subset (luced-3d docs/research/CODE-NODE.md §4.4), once.
+import math32
+from luce_kernel.lib import Point, fit
+
+let scale: f32 = 4.0
+
+func wave(x: f32) -> f32:
+    return math32.sin(x * scale) * 0.1
+
+pub func point(p: Point*):
+    var height = p.P[1] + wave(p.P[0])
+    let big = p.area() > 0.01
+    height = height if big else -height
+    if height > 1.0:
+        height = 1.0
+    elif height < -1.0:
+        height = -1.0
+    else:
+        height *= 2.0
+    var count: i32 = 0
+    while count < 4:
+        count += 1
+        if count == 3:
+            break
+        continue
+    for i in 0..<4:
+        count = count +% (i32)i
+    let lanes: f32[4] = [1.0, 2.0, 3.0, 0.0]
+    for lane in lanes:
+        height += lane
+    match count:
+        0:
+            height = 0.0
+        _:
+            height = fit(height, 0.0, (f32)i16(count), -1.0, 1.0)
+    p.P[1] = height
+    p.P = p.P * 2.0
+    let bits = ((u32)count << 2) | 1
+    assert(bits > 0)
+    print(f"point {p.ptnum}: {height}\n")
+    if not big and count < 0:
+        trap("unreachable")
+    return

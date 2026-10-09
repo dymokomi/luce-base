@@ -222,6 +222,9 @@ pub struct Checker:
     ## loads several modules from their packages (`describe-closure --modules`) sets it to
     ## each one's source root before loading it.
     pub var root: str
+    ## Imports resolve under `root` alone and no manifest is read: a host's check of a
+    ## directory it supplies (`load_sealed`, docs/EMBEDDING.md).
+    pub var sealed: bool = false
     ## Imports on the active load path. Completed modules remain in dependency order;
     ## this separate stack detects cycles before recursive loading repeats a module.
     var loading: list.List[str]

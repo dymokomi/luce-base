@@ -1,0 +1,72 @@
+#==============================================================================================
+#
+#   tests/embed/checks - check_root over the snippet root in tests/embed/root
+#
+#==============================================================================================
+
+import sema.types
+
+## The snippet root the tests check, relative to the package root they run in.
+let snippets: str = "tests/embed/root"
+
+test "a type error in a snippet is a diagnostic at its line and column":
+    var result = try check_root(snippets, "broken")
+    defer result.close()
+    assert(not result.ok())
+    assert(result.diagnostics.length == 1)
+    let d = result.diagnostics[0]
+    assert(d.severity == Severity.error)
+    assert(d.file == "broken.lucb")
+    assert(d.line == 4 and d.column == 25)
+    assert(d.message == "expected `f32`, got `bool`")
+    # the tree is there, typed as far as the check got
+    assert(result.tree != none)
+
+test "a clean snippet has no diagnostics and a typed tree":
+    # twice: a host checks again and again, and the second check starts afresh
+    for round in 0..<2:
+        var result = try check_root(snippets, "clean")
+        defer result.close()
+        assert(result.ok() and result.diagnostics.length == 0)
+        let tree = result.tree else trap("the entry's tree")
+        assert(tree.kind == ast.Kind.module and tree.text == "clean")
+        let entry = check.find_decl(tree, "point") else trap("the entry point")
+        assert(entry.kind == ast.Kind.func_ and entry.type_id != 0)
+        assert(result.checker.table.kind(entry.type_id) == types.Kind.func_)
+        _ = round
+
+test "imports resolve under the root alone":
+    # `outside.lucb` is beside the root, where a build would find it
+    var result = try check_root(snippets, "escapes")
+    defer result.close()
+    assert(not result.ok())
+    let d = result.diagnostics[0]
+    assert(d.file == "escapes.lucb" and d.line == 2 and d.column == 1)
+    assert(strings.starts_with(d.message, "cannot resolve module `outside`"))
+
+test "an entry the root does not hold is a diagnostic":
+    var result = try check_root(snippets, "absent")
+    defer result.close()
+    assert(not result.ok() and result.tree == none)
+    assert(result.diagnostics.length == 1 and result.diagnostics[0].line == 0)
+
+test "the standard modules are listed by name":
+    var memory_seen = false
+    var thread_seen = false
+    var c_seen = false
+    for name in standard_modules():
+        memory_seen = memory_seen or name == "memory"
+        thread_seen = thread_seen or name == "thread"
+        c_seen = c_seen or name == "c"
+    assert(memory_seen and thread_seen and c_seen)
+
+test "diagnostic lines are taken apart at their position":
+    let failed = diagnostic("a/b.lucb:12:7: expected `f32`, got `bool`", Severity.error)
+    assert(failed.file == "a/b.lucb" and failed.line == 12 and failed.column == 7)
+    assert(failed.message == "expected `f32`, got `bool`")
+    let note = diagnostic("  note: a.lucb:3:1: the earlier binding", Severity.error)
+    assert(note.severity == Severity.note and note.line == 3 and note.message == "the earlier binding")
+    let warning = diagnostic("a.lucb:9:5: warning: unused import `io`", Severity.warning)
+    assert(warning.severity == Severity.warning and warning.message == "unused import `io`")
+    let bare = diagnostic("module import cycle involving a", Severity.error)
+    assert(bare.file == "" and bare.line == 0 and bare.message == "module import cycle involving a")

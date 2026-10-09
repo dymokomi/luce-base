@@ -1,0 +1,5 @@
+# `outside` is beside the root, not in it: the import must not find it.
+import outside
+
+pub func point():
+    outside.nothing()

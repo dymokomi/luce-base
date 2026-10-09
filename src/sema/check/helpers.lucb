@@ -337,6 +337,12 @@ pub func is_standard_module(name: str) -> bool:
 var library_modules: str[1024]
 var library_module_count: usize = 0
 
+## Start the list of library modules afresh for another compilation in the same process: a
+## host that checks again and again (`embed.check_root`) does not keep the last one's names,
+## which lived in its arena.
+pub func forget_library_modules():
+    library_module_count = 0
+
 ## A test build (§16.5) takes the file under test as library code too: its tests are the
 ## program, and what they do not reach is not compiled, as for any import.
 pub func test_as_library(entry_name: str) -> !:

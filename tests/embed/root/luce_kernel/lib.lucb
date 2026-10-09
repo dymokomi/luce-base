@@ -1,0 +1,17 @@
+## A stub of the API a kernel snippet runs against, as a host would put in its root: the
+## checker sees declarations, and what a body does matters only to the host.
+
+## One point of the geometry the kernel runs over.
+pub struct Point:
+    ## The position; lane 3 is padding.
+    pub var P: f32[4]
+    ## The point's number.
+    pub var ptnum: i64
+
+    ## The area the point stands for.
+    pub func area() -> f32:
+        return self.P[0] * self.P[1]
+
+## `x` mapped from the range `a`..`b` to `c`..`d`.
+pub func fit(x: f32, a: f32, b: f32, c: f32, d: f32) -> f32:
+    return c + (x - a) / (b - a) * (d - c)

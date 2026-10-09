@@ -35,8 +35,7 @@ extend Checker:
     ## Parse and add every standard module from its source under `directory`, in the order
     ## `directory/ORDER` lists, a module being `name.lucb` or the fragments of `name/`.
     pub func add_prelude_from(directory: str) -> !:
-        self.table.word = (u64)self.build_target.pointer_bits // 8
-        self.table.configure_c(self.build_target.os == targets.Os.windows)
+        self.ready_table()
         var order_bytes = try new u8[directory.length + 8] ---
         let order = try in_arena.read((c.str)try strings.format(order_bytes, f"{directory}/ORDER"))
         var start: usize = 0
@@ -46,9 +45,7 @@ extend Checker:
             if blank and i > start:
                 let name = (str)order[start..<i]
                 if name == "platform":
-                    let buffer = try new u8[1024] ---
-                    let text = try self.build_target.module_text(buffer, self.program, self.program_version)
-                    try self.add_module(name, try source.Source.over(name, text.bytes), true)
+                    try self.add_platform()
                 else:
                     var path_bytes = try new u8[directory.length + name.length + 8] ---
                     var path = try strings.format(path_bytes, f"{directory}/{name}.lucb")
@@ -60,6 +57,45 @@ extend Checker:
             if blank:
                 start = i + 1
             i += 1
+
+    ## Add every standard module from text the caller carries, as an embedded checker does
+    ## (`standard_sources`): `modules` in binding order, `firsts` where each one's fragments
+    ## begin in `sources` and `texts` (one entry more than `modules`), and each fragment's path
+    ## as positions name it and its source.
+    pub func add_prelude_texts(modules: const str[], firsts: const u32[], sources: const str[], texts: const str[]) -> !:
+        self.ready_table()
+        for i in 0..<modules.length:
+            let name = modules[i]
+            let first = (usize)firsts[i]
+            let end = (usize)firsts[i + 1]
+            # a module of one file, `std/core.lucb`, rather than a directory of fragments
+            var file_bytes = try new u8[name.length + 16] ---
+            let file = try strings.format(file_bytes, f"std/{name}.lucb")
+            if name == "platform":
+                try self.add_platform()
+            elif end == first + 1 and sources[first] == file:
+                try self.add_module(name, try source.Source.over(sources[first], texts[first].bytes), true)
+            else:
+                var names = try list.List[str].create(end - first)
+                var parts = try list.List[str].create(end - first)
+                for k in first..<end:
+                    try names.push(sources[k])
+                    try parts.push(texts[k])
+                var path_bytes = try new u8[name.length + 8] ---
+                let path = try strings.format(path_bytes, f"std/{name}")
+                try self.add_module(name, try source.Source.assembled(path, names.span(), parts.span()), true)
+
+    ## The table's word and C types follow the target, which is settled before the standard
+    ## modules are added: its word sizes the pointer-shaped types (§19.5).
+    func ready_table():
+        self.table.word = (u64)self.build_target.pointer_bits // 8
+        self.table.configure_c(self.build_target.os == targets.Os.windows)
+
+    ## The `platform` module, which the checker writes for the target (§19.5).
+    func add_platform() -> !:
+        let buffer = try new u8[1024] ---
+        let text = try self.build_target.module_text(buffer, self.program, self.program_version)
+        try self.add_module("platform", try source.Source.over("platform", text.bytes), true)
 
     ## Load `path` and, first, every module it imports from the same directory.
     pub func load(path: c.str) -> !:
@@ -78,6 +114,19 @@ extend Checker:
         self.entry_index = self.modules.count - 1
         if self.test_build and self.whole_package:
             try self.load_package_modules((str)path)
+
+    ## Load module `name` from the directory `root` and, first, every module it imports, all
+    ## from under `root` alone (`sealed`): no manifest is read and no package is searched.
+    ## Positions name the files relative to `root`.
+    pub func load_sealed(root: str, name: str) -> !:
+        self.sealed = true
+        let half = self.scratch.length // 2
+        self.root = module_paths.canonical(root) catch failure:
+            error(unknown_name, try strings.format(self.scratch[..<half], f"{root}: cannot read the directory: {failure.message}"))
+        let found = module_paths.resolve_sealed(self.root, name) catch failure:
+            error(unknown_name, try strings.format(self.scratch[..<half], f"{name}: {failure.message}"))
+        try self.load_as((c.str)found.path, name)
+        self.entry_index = self.modules.count - 1
 
     ## Every module of the entry's package that it does not import, in the order of their
     ## paths, each after the modules it imports; all are library code, as the entry is in
@@ -107,7 +156,7 @@ extend Checker:
         if let loaded = self.by_canonical.find(known):
             try self.module_alias(name, self.modules.get(loaded).name)
             return
-        let src = load_source(path, self.test_build and self.under_test(text)) catch failure:
+        var src = load_source(path, self.test_build and self.under_test(text)) catch failure:
             let half = self.scratch.length // 2
             # a located message (`path:line:column: ...`) stands as it is, copied into the
             # scratch that outlives the build's arena; only a file that cannot be opened is
@@ -117,6 +166,8 @@ extend Checker:
                 error(unknown_name, located)
             let message = try strings.format(self.scratch[..<half], f"cannot read {text}: {failure.message}")
             error(unknown_name, message)
+        if self.sealed:
+            try src.rebase(self.root, "")
         let canonical = try module_paths.canonical(text)
         var p = try parser.Parser.over(src, self.scratch)
         let tree = try p.parse_module()
@@ -131,11 +182,11 @@ extend Checker:
             error(unknown_name, message)
         if self.find_module(name) != none:
             error(unknown_name, "different source files use the same canonical module name")
-        try packages_as_modules(tree, text)
+        try packages_as_modules(tree, text, self.root if self.sealed else "")
         var cursor = tree.body
         while let d = cursor:
             if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
-                if is_standard_module(d.text) and try module_paths.has_local_module(text, d.text):
+                if is_standard_module(d.text) and try self.has_local_module(text, d.text):
                     # the standard module's name always names it: a package module of that
                     # name could never be imported, so it is an error where it is shadowed
                     let half = self.scratch.length // 2
@@ -143,7 +194,7 @@ extend Checker:
                     let message = try strings.format(self.scratch[half..], f"{file}:{line}:{column}: this package has a module `{d.text}`, which the standard module of that name hides; rename it (§16.6)")
                     error(unknown_name, message)
                 if not is_standard_module(d.text):
-                    let resolution = module_paths.resolve(text, self.root, d.text, true, self.package_name) catch failure:
+                    let resolution = self.resolve_import(text, d.text) catch failure:
                         let half = self.scratch.length // 2
                         let (file, line, column) = src.located(d.start)
                         let located = try strings.format(self.scratch[half..], f"{file}:{line}:{column}: cannot resolve module `{d.text}`: {failure.message}")
@@ -172,12 +223,24 @@ extend Checker:
                     self.root = saved_root
             cursor = d.next
         tree.text = name
-        let owner = try module_paths.package_of(text, self.package_name)
-        # a dependency's positions name `<package>/<path in it>`, the same on every machine,
-        # as a standard module's name `std/...`; its file stays `canonical`
+        let (owner, shown) = try self.owned_source(text, src)
+        try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner, tested = self.test_build and owner == self.tested_package))
+        _ = try self.by_canonical.add(canonical, self.modules.count - 1)
+        # Every imported module is library code, kept only where the program reaches it;
+        # the entry file alone is the program and keeps all it declares.
+        if self.loading.count > 1:
+            try note_library_module(name)
+
+    ## The package that owns the module at `path`, and its source `src` as positions name it:
+    ## a dependency's positions name `<package>/<path in it>`, the same on every machine, as
+    ## a standard module's name `std/...`. A sealed root is one package, the one checked.
+    func owned_source(path: str, src: source.Source) -> (str, source.Source)!:
+        if self.sealed:
+            return (self.package_name, src)
+        let owner = try module_paths.package_of(path, self.package_name)
         var shown = src
         if owner.length > 0 and owner != self.package_name:
-            if let found = try module_paths.owner_root(text):
+            if let found = try module_paths.owner_root(path):
                 let (package, root) = found
                 if package == owner:
                     try shown.rebase(root, owner)
@@ -185,12 +248,20 @@ extend Checker:
                     # a compiled workspace (luce's) holds every package's modules under one
                     # manifest, each package in its own directory: they name `<that>/...`
                     try shown.rebase(root, "")
-        try self.modules.push(Module(name = name, tree = tree, src = shown, is_prelude = false, canonical = canonical, package_name = owner, tested = self.test_build and owner == self.tested_package))
-        _ = try self.by_canonical.add(canonical, self.modules.count - 1)
-        # Every imported module is library code, kept only where the program reaches it;
-        # the entry file alone is the program and keeps all it declares.
-        if self.loading.count > 1:
-            try note_library_module(name)
+        return (owner, shown)
+
+    ## Where import `name` of the file `importer` leads: under the sealed root alone, or as
+    ## every compiler resolves it (`module_paths.resolve`).
+    func resolve_import(importer: str, name: str) -> module_paths.Resolution!:
+        if self.sealed:
+            return try module_paths.resolve_sealed(self.root, name)
+        return try module_paths.resolve(importer, self.root, name, true, self.package_name)
+
+    ## Whether the importer's package, or the sealed root, has a module named `name`.
+    func has_local_module(importer: str, name: str) -> bool!:
+        if self.sealed:
+            return try module_paths.sealed_has(self.root, name)
+        return try module_paths.has_local_module(importer, name)
 
     ## Whether the module at `path` is under test: one of the entry's package, never a
     ## dependency's (§16.5). A path that does not resolve is not, and the read that follows
@@ -430,7 +501,7 @@ extend Checker:
 func load_source(path: c.str, with_tests: bool) -> source.Source!:
     let text = (str)path
     var names = try list.List[str].create(8)
-    var texts = try list.List[u8[]].create(8)
+    var texts = try list.List[str].create(8)
     var order_bytes = try new u8[text.length + 8] ---
     let ordered = file_exists((c.str)try strings.format(order_bytes, f"{text}/ORDER"))
     if ordered:
@@ -441,7 +512,8 @@ func load_source(path: c.str, with_tests: bool) -> source.Source!:
         try names.push(text)
         let bytes = try in_arena.read(path)
         cache.note_input(text, bytes)
-        try texts.push(bytes)
+        # the text is checked as UTF-8 once assembled (`Source.over`)
+        try texts.push((str)bytes)
     if with_tests:
         if let tests = try module_paths.test_fragments_of(text):
             try add_fragments(tests, "TESTS", &names, &texts)
@@ -456,8 +528,8 @@ func bind_standard() -> !:
 
 ## The fragments that the list file `listing` in `directory` names (`ORDER` for a module,
 ## `TESTS` for its test fragments), whitespace apart, added in order to `names` and their
-## bytes to `texts`; each is a build input, so an edit rebuilds.
-func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: list.List[u8[]]*) -> !:
+## text to `texts`, unchecked until assembled; each is a build input, so an edit rebuilds.
+func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: list.List[str]*) -> !:
     var order_bytes = try new u8[directory.length + listing.length + 2] ---
     let order_path = try strings.format(order_bytes, f"{directory}/{listing}")
     let listed = try files.read((c.str)order_path)
@@ -476,7 +548,7 @@ func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: 
             try names.push(fragment)
             let bytes = try in_arena.read((c.str)fragment)
             cache.note_input(fragment, bytes)
-            try texts.push(bytes)
+            try texts.push((str)bytes)
         if blank:
             start = i + 1
         i += 1
@@ -485,12 +557,13 @@ func add_fragments(directory: str, listing: str, names: list.List[str]*, texts: 
 
 ## `from pkg import a, b` where `pkg` is a package, the importer's own or a dependency, imports
 ## its modules (§16.3): each becomes `import pkg.a as a`, in place, before anything resolves.
-func packages_as_modules(tree: ast.Node*, importer: str) -> !:
+## Under a sealed root, `sealed` names it, and `pkg` is a directory of modules there.
+func packages_as_modules(tree: ast.Node*, importer: str, sealed: str) -> !:
     var previous: ast.Node*? = none
     var cursor = tree.body
     while let d = cursor:
         cursor = d.next
-        if d.kind != ast.Kind.from_import or not try module_paths.names_modules(importer, d.text):
+        if d.kind != ast.Kind.from_import or not try names_modules(importer, d.text, sealed):
             previous = d
             continue
         var first: ast.Node*? = none
@@ -511,3 +584,10 @@ func packages_as_modules(tree: ast.Node*, importer: str) -> !:
         else:
             tree.body = first
         previous = end
+
+## Whether `from name import ...` in `importer` brings modules, under the sealed root
+## `sealed` when there is one.
+func names_modules(importer: str, name: str, sealed: str) -> bool!:
+    if sealed.length > 0:
+        return try module_paths.sealed_names_modules(sealed, name)
+    return try module_paths.names_modules(importer, name)

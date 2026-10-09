@@ -1,0 +1,5 @@
+## A module beside the snippet root, which a sealed check must not find.
+
+## Nothing.
+pub func nothing():
+    return

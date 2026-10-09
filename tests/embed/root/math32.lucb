@@ -1,0 +1,5 @@
+## A stand-in for luce-std's `math32`, which a host copies into its root.
+
+## The sine of `x`, roughly, for the tests.
+pub func sin(x: f32) -> f32:
+    return x - x * x * x / 6.0

@@ -86,6 +86,18 @@ pub func modules() -> str[]!:
         names = kept
         return kept.span()
 
+## Take `listed` as the standard modules instead of reading `ORDER`: an embedded checker
+## carries its library (`standard_sources`) and reads no directory. `listed` lives as long
+## as the program, as the embedded list does.
+pub func adopt(listed: const str[]) -> !:
+    if names != none:
+        return
+    with memory.heap:
+        var kept = try list.List[str].create(listed.length)
+        for name in listed:
+            try kept.push(name)
+        names = kept
+
 ## Whether `name` is a standard module's; no library at all means no name is.
 pub func is_module(name: str) -> bool:
     let known = modules() catch ignored: return false

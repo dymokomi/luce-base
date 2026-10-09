@@ -47,6 +47,7 @@ python3 tools/site.py build/site > /dev/null
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
 python3 tools/embed_runtime.py --check
+python3 tools/embed_std.py --check
 python3 tools/embed_version.py --check
 python3 tools/library_reference.py --check
 # the shape of the tree: header boxes, `# mark:` sections, function length and `##` docs
@@ -83,9 +84,12 @@ for f in tests/samples/*.expect; do
 done
 rm -f build/sample build/sample.out
 # every module's tests run through both backends: the two executions must agree. The
-# compiler's are its package's, which a test of its entry runs (§16.5); a module the entry
-# does not reach would leave the count short of the tests the sources declare
-declared=$(find src -type f -name '*.lucb' ! -path 'src/std/*' -exec grep -h '^test "' {} + | wc -l | tr -d ' ')
+# compiler's are its package's, which a test of its entry runs (§16.5), with the test
+# fragments a `tests/<module>/TESTS` lists; a module the entry does not reach would leave
+# the count short of the tests the sources declare (the embedded standard library's text
+# holds the standard modules' tests, which are not the compiler's)
+fragments=$(find tests -name TESTS | LC_ALL=C sort | while read -r listing; do for f in $(cat "$listing"); do echo "$(dirname "$listing")/$f"; done; done)
+declared=$( (find src -type f -name '*.lucb' ! -path 'src/std/*' ! -path src/sema/standard_sources.lucb; echo "$fragments") | grep . | xargs grep -h '^test "' | wc -l | tr -d ' ')
 for backend in --backend=c --native; do
     echo "== test src/main.lucb $backend"
     out=$(./build/luce-base test src/main.lucb $backend) || { printf '%s\n' "$out"; exit 1; }

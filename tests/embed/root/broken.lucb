@@ -1,0 +1,5 @@
+from luce_kernel.lib import Point
+
+pub func point(p: Point*):
+    let x: f32 = p.P[0] > 1.0
+    p.P[1] = x

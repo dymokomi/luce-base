@@ -1,0 +1,59 @@
+#==============================================================================================
+#
+#   tests/embed/walk - A walk over a checked snippet sees the kernel subset's node kinds
+#
+#==============================================================================================
+
+## Visit `node`, its children and the siblings after it, as a lowering walks the tree, and
+## mark each kind met in `seen`, by the kind's number.
+func visit(seen: bool[], node: ast.Node*?):
+    var cursor = node
+    while let n = cursor:
+        seen[(usize)(u8)n.kind] = true
+        visit(seen, n.ty)
+        visit(seen, n.left)
+        visit(seen, n.right)
+        visit(seen, n.body)
+        cursor = n.next
+
+test "a walk over a checked snippet sees every kind of the kernel subset":
+    var result = try check_root(snippets, "clean")
+    defer result.close()
+    assert(result.ok())
+    var seen: bool[128]
+    visit(seen, result.tree)
+    # what CODE-NODE.md §4.4 accepts: imports, constants, functions and their parameters,
+    # locals, assignment, branches and loops, match, calls and members, indexing, casts,
+    # the conditional, array literals, `print` with a formatted string
+    let subset: ast.Kind[36] = [ast.Kind.module, ast.Kind.import_, ast.Kind.from_import, ast.Kind.constant, ast.Kind.func_, ast.Kind.param, ast.Kind.type_, ast.Kind.block, ast.Kind.let_, ast.Kind.var_, ast.Kind.assign, ast.Kind.if_, ast.Kind.while_, ast.Kind.for_, ast.Kind.match_, ast.Kind.match_arm, ast.Kind.pattern, ast.Kind.return_, ast.Kind.break_, ast.Kind.continue_, ast.Kind.expr_stmt, ast.Kind.name, ast.Kind.literal, ast.Kind.unary, ast.Kind.binary, ast.Kind.call, ast.Kind.argument, ast.Kind.member, ast.Kind.index, ast.Kind.cast, ast.Kind.conditional, ast.Kind.array_lit, ast.Kind.group, ast.Kind.formatted, ast.Kind.format_text, ast.Kind.format_field]
+    for kind in subset:
+        if not seen[(usize)(u8)kind]:
+            print(f"the walk did not see `{ast.kind_name(kind)}`\n")
+        assert(seen[(usize)(u8)kind])
+    # `self` is in the API's methods, a module the walk reaches through the import
+    let api = result.checker.find_module("luce_kernel.lib") else trap("the stub module")
+    visit(seen, result.checker.modules.get(api).tree)
+    assert(seen[(usize)(u8)ast.Kind.self_] and seen[(usize)(u8)ast.Kind.struct_] and seen[(usize)(u8)ast.Kind.field])
+
+test "names, calls and members resolve to their declarations":
+    var result = try check_root(snippets, "clean")
+    defer result.close()
+    let tree = result.tree else trap("the entry's tree")
+    let wave = check.find_decl(tree, "wave") else trap("wave")
+    # `return math32.sin(x * scale) * 0.1`: a binary over a call of a module member
+    let returned = wave.body else trap("a body")
+    let statement = returned.body else trap("a statement")
+    let product = statement.left else trap("a value")
+    assert(product.kind == ast.Kind.binary and product.text == "*" and product.type_id == types.f32_id)
+    let call = product.left else trap("the call")
+    assert(call.kind == ast.Kind.call)
+    let sin = call.resolved else trap("the callee")
+    assert(sin.kind == ast.Kind.func_ and sin.text == "sin")
+    let argument = call.body else trap("the argument")
+    let scaled = argument.left else trap("its value")
+    let scale = scaled.right else trap("scale")
+    let constant = scale.resolved else trap("the constant")
+    assert(constant.kind == ast.Kind.constant and constant.text == "scale")
+    let x = scaled.left else trap("x")
+    let parameter = x.resolved else trap("the parameter")
+    assert(parameter.kind == ast.Kind.param and parameter.type_id == types.f32_id)

@@ -18,6 +18,8 @@
   canonical standard modules and relocatable source bundles.
 - [Package descriptions](PACKAGE-DESCRIPTION.md) — the current compiler-to-compiler
   API format, its records and executable adapter limits.
+- [Embedding](EMBEDDING.md) — checking Base from another program with
+  `embed.check_root`, and walking the typed tree for a backend of one's own.
 - [Debugging](DEBUGGING.md) — native source debugging.
 - [CI](CI.md) — the three-platform gate and the release script.
 - [Library](LIBRARY.md) — the runtime's public surface (core, memory, io, os, thread,

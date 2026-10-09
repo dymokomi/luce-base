@@ -37,6 +37,7 @@ import strings
 import sema.check
 import sema.standard as standard
 import sema.describe
+import embed
 import back.declarations
 import support.buffer
 import support.cache as cache
@@ -1013,15 +1014,16 @@ func checked_entry(path: c.str) -> check.Checker!:
     try checker.check_program()
     return checker
 
-## Check FILE and the modules it imports from its directory; silence means success. Whether
-## it printed warnings, which `-W` makes a failure.
-func check_file(path: c.str) -> bool!:
-    var arena = Arena(memory.heap)
-    defer arena.destroy()
-    with arena:
-        var checker = try checked_entry(path)
-        try report_warnings(&checker)
-        return show_warnings and checker.warnings.count > 0
+## Check FILE and the modules it imports; silence means success. The command's status: 1
+## when the check failed, or when it printed warnings and `-W` makes them a failure.
+func check_file(path: c.str) -> i32!:
+    var result = try embed.check_file(path, build_target())
+    defer result.close()
+    if not result.ok():
+        try report_failure(result.failure)
+        return 1
+    try report_warnings(&result.checker)
+    return 1 if show_warnings and result.checker.warnings.count > 0 else 0
 
 ## `check FILE --target NAME`: the checker sees NAME's platform constants, so the warnings
 ## that depend on them (a branch no target of the name reaches) are the target's (§19.5).
@@ -1570,10 +1572,10 @@ pub func main(arguments: c.str[]) -> i32!:
         if targeted != (positional == 5):
             try usage(io.stderr())
             return 2
-        let warned = check_file(arguments[2]) catch failure:
+        let code = check_file(arguments[2]) catch failure:
             try report_failure(failure.message)
-            return 1
-        return 1 if warned else 0
+            recover 1
+        return code
     if command == "describe-closure" and positional >= 5 and (str)arguments[2] == "--cache-dir":
         # the cache Luce keeps, where the closure's answer is recorded (`describe_closures`)
         cache.override = (str)arguments[3]

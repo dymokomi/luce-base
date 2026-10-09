@@ -473,6 +473,32 @@ pub func resolve(importer: str, source_root: str, name: str, base_only: bool = f
         return Resolution(name, path, here)
     error(invalid, "the module is neither this package's nor a public module of a package it depends on")
 
+# mark: A sealed root ========================================================================
+
+## Where import `name` leads under a sealed root, an embedded checker's (docs/EMBEDDING.md):
+## the module at that path under `root`, a `.lucb` file or a directory of fragments, and
+## nowhere else. No manifest is read, and the module keeps its dotted name.
+pub func resolve_sealed(root: str, name: str) -> Resolution!:
+    if not identifier(name):
+        error(invalid, "an import must name a dotted module")
+    let path = try source_file(root, name, true) else error(invalid, "the checked directory has no module of this name")
+    return Resolution(name, path, root)
+
+## Whether a sealed root holds module `name`.
+pub func sealed_has(root: str, name: str) -> bool!:
+    return identifier(name) and try source_file(root, name, true) != none
+
+## Whether `from name import ...` under a sealed root brings modules: `name` is a directory
+## of modules there (`from luce_kernel import lib`), not a module of its own.
+pub func sealed_names_modules(root: str, name: str) -> bool!:
+    if not identifier(name) or try source_file(root, name, true) != none:
+        return false
+    var directory = try new u8[root.length + 1 + name.length] ---
+    let spelled = try strings.format(directory, f"{root}/{name}")
+    for i in root.length + 1..<spelled.length:
+        if spelled.bytes[i] == '.': directory[i] = '/'
+    return try present(spelled)
+
 ## `path`, a canonical module path, spelled as `importer` is: relative to the working
 ## directory when the importer's path is relative and `path` lies below it, else as is.
 pub func spelled_like(path: str, importer: str) -> str!:
