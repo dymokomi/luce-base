@@ -337,7 +337,7 @@ extend Checker:
                     if d.kind == ast.Kind.enum_case:
                         return false
                 let owner = e.left else return false
-                if e.text == "at" and owner.type_id == types.error_value_id:
+                if (e.text == "at" or e.text == "called_at") and owner.type_id == types.error_value_id:
                     return false  # where an error was raised is text made when it is read
                 return self.is_place(owner) or self.table.kind(owner.type_id) == types.Kind.pointer
             _:

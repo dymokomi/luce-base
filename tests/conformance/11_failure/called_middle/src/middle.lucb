@@ -1,0 +1,6 @@
+## A package between called_at_across_packages and origin_source: its `try` is the first
+## call into another package a failure of origin_source's comes out of (§11.3).
+import origin_source.raise
+
+pub func through(n: i64) -> i64!:
+    return try raise.check(n)

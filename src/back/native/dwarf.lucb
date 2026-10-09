@@ -554,7 +554,10 @@ pub struct Emitter:
         elif t.kind == types.Kind.error_value:
             try self.member("code", types.error_code_id, 0)
             try self.member("at", types.i32_id, 4)
-            try self.member("message", types.str_id, 8)
+            # the message's data and its 32-bit length, `called_at` above it (§11.3)
+            try self.member("message", try checker.table.pointer(types.u8_id, true, false), 8)
+            try self.member("length", types.u32_id, 16)
+            try self.member("called_at", types.i32_id, 20)
 
     ## A payload enum (§6.1): its `tag`, an enumeration of the case names in case order, and
     ## `payload`, a union of one record per case with a payload, at the offset the lowerer

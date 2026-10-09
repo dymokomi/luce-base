@@ -30,9 +30,60 @@ extend Checker:
             e.ty = none
             e.resolved = none
             e.type_id = self.table.get(id).elem
+            if self.calls_another_package(inner):
+                e.flags |= ast.flag_crossing
             self.effect_count += 1
             return e.type_id
         return id
+
+    ## Whether `e` calls a function or method of another package by name, so that a failure
+    ## it passes comes into this package across the call (§11.3's `called_at`). A call through
+    ## a function value or an interface names no package and does not count.
+    func calls_another_package(e: ast.Node*) -> bool:
+        if e.kind != ast.Kind.call:
+            return false
+        let callee = e.left else return false
+        let d = callee.resolved else return false
+        if d.kind != ast.Kind.func_:
+            return false
+        # a top-level function knows its module; a method's is its type's
+        var tree = d.resolved
+        if let known = tree:
+            if known.kind != ast.Kind.module:
+                tree = none
+        if tree == none and callee.kind == ast.Kind.member:
+            let owner = callee.left else return false
+            var t = owner.type_id
+            if self.table.kind(t) == types.Kind.pointer:
+                t = self.table.get(t).elem
+            let k = self.table.kind(t)
+            if k != types.Kind.struct_ and k != types.Kind.enum_ and k != types.Kind.union_:
+                return false
+            let owner_decl = self.table.get(t).decl else return false
+            tree = owner_decl.resolved
+        let module = tree else return false
+        if module.kind != ast.Kind.module or self.current >= self.modules.count:
+            return false
+        if module == self.modules.get(self.current).tree:
+            return false
+        return self.package_of_tree(module) != self.package_of(self.current)
+
+    ## The package of module `index`: `luce` for the standard modules, as their error codes
+    ## are (§11.3).
+    func package_of(index: usize) -> str:
+        let m = self.modules.get(index)
+        if m.is_prelude:
+            return "luce"
+        return m.package_name if m.package_name.length > 0 else self.package_name
+
+    ## The package of the module whose tree is `tree`.
+    func package_of_tree(tree: ast.Node*) -> str:
+        var i: usize = 0
+        while i < self.modules.count:
+            if self.modules.get(i).tree == tree:
+                return self.package_of(i)
+            i += 1
+        return self.package_of(self.current)
 
     func expr_type(e: ast.Node*, hint: u32) -> u32!:
         match e.kind:

@@ -40,6 +40,25 @@ extend Lowerer:
                 let v = try self.expr(e)
                 return try self.address_of_value(v)
 
+    ## `message`, `at` or `called_at` of an `Error` (§11.3). The message is the data and the
+    ## 32-bit length after the code; `at` is the position text the word after the code counts
+    ## from `core.origin_base`, and `called_at` the one the word above the length counts, or
+    ## `at` when that word is 0 (`core.called`).
+    func error_member(e: ast.Node*, owner: ast.Node*, ot: u32) -> LowerValue!:
+        let base = (try self.expr(owner)).ref if self.is_ptr(ot) else try self.place(owner)
+        if e.text == "message":
+            return try self.message_of(base)
+        let raised = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(base, 4))
+        if e.text == "at":
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = raised, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+            return try self.call_aggregate("lb_core_origin", start, 1, types.str_id)
+        let called = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(base, 20))
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = raised, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = called, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        return try self.call_aggregate("lb_core_called", start, 2, types.str_id)
+
     func member_address(e: ast.Node*) -> ir.Ref!:
         let owner = e.left else return try self.fail(e, "no owner")
         if let d = e.resolved:
@@ -60,10 +79,11 @@ extend Lowerer:
         if e.text == "data" and (record == types.str_id or self.is_span(record)):
             return base
         if record == types.error_value_id:
-            if e.text == "at":
-                # read as text (`member`), as `failure.at.length` reads it
-                return try self.address_of_value(try self.member(e))
-            return try self.offset_address(base, 0 if e.text == "code" else 8)
+            if e.text == "code":
+                return base
+            # `at`, `called_at` and the message are read as text (`member`), as
+            # `failure.at.length` reads it
+            return try self.address_of_value(try self.member(e))
         if self.kind(record) == types.Kind.tuple:
             let wanted = try literals.decode_integer(e.text)
             var offset: u64 = 0
@@ -251,14 +271,8 @@ extend Lowerer:
         if self.kind(ot) == types.Kind.module:
             return try self.module_member(e, ot)
         let record = self.elem(ot) if self.is_ptr(ot) else ot
-        if e.text == "at" and record == types.error_value_id:
-            # where the error was raised: its position text, the word after the code counting
-            # its distance from `core.origin_base`
-            let base = (try self.expr(owner)).ref if self.is_ptr(ot) else try self.place(owner)
-            let raised = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(base, 4))
-            let start = u32(self.f.args.count)
-            try self.f.args.push(ir.Arg(value = raised, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-            return try self.call_aggregate("lb_core_origin", start, 1, types.str_id)
+        if record == types.error_value_id and e.text != "code":
+            return try self.error_member(e, owner, ot)
         if e.text == "length" and self.is_array(record):
             return LowerValue(ref = ir.const_ref((i64)self.c.table.get(record).length), type_id = types.usize_id, in_memory = false)
         if e.text == "bytes" and record == types.str_id:

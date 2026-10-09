@@ -623,6 +623,10 @@ extend Emitter:
             .unary: return e.text == "*"
             .member:
                 let owner = e.left else return false
+                # an `Error`'s message and positions are made when read (§11.3)
+                let raw = self.elem(owner.type_id) if self.is_ptr(owner.type_id) else owner.type_id
+                if raw == types.error_value_id and e.text != "code":
+                    return false
                 return self.is_ptr(owner.type_id) or self.kind(owner.type_id) == types.Kind.module or self.is_place(owner)
             _: return false
 

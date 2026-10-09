@@ -1,0 +1,7 @@
+#prisma 4.0
+def package "called-middle" {
+    str[] public = ["middle"]
+    def dependency "origin-source" {
+        str path = "../origin_source"
+    }
+}

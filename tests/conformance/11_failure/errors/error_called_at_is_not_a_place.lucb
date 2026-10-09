@@ -1,0 +1,12 @@
+# error: cannot take the address of a temporary
+## §11.3: `called_at` is text made when it is read, not a place: its address is not taken.
+let refused = ErrorCode.package(1)
+
+func check() -> !:
+    error(refused, "no")
+
+pub func main(arguments: str[]) -> i32:
+    check() catch failure:
+        let called = &failure.called_at
+        print(*called)
+    return 0

@@ -73,8 +73,9 @@ a very long key: key longer than 8 bytes
   a variable, field or parameter cannot be `T!`. To keep an outcome for later, declare an
   enum with a success case and a failure case.
 - `T?!` is a function that may fail, and may also succeed with no value, as `lookup` above.
-- An error is an `Error` value with three fields: `code`, an `ErrorCode`; `message`, a
-  `str`; and `at`, where it was raised (see [below](#where-an-error-was-raised)).
+- An error is an `Error` value with four fields: `code`, an `ErrorCode`; `message`, a
+  `str`; `at`, where it was raised; and `called_at`, the call in your code it came out of
+  (see [below](#where-an-error-was-raised)).
 
 ### Handling a failure
 
@@ -208,8 +209,49 @@ main.lucb:5:9: below zero
 - `at` is static text that lives as long as the program, so, unlike `failure.message`, it may
   be kept after the handler without a copy.
 - It is one position, not a stack trace: an error raised inside a library names the library's
-  line. To report your own line instead, raise anew with `error(failure.code,
-  failure.message)`.
+  line. `called_at`, below, names yours.
+
+An error raised in a library is mostly wanted at the line that called the library.
+`failure.called_at` is that line: the first call into another package that the error came
+out of. Here the standard `strings` module raises, and `called_at` names the `try` in this
+program:
+
+```luce
+import strings
+
+func cell_value(cell: str) -> f32!:
+    let x = try strings.parse_f32(cell)
+    return x * 2.0
+
+pub func main(arguments: str[]) -> i32:
+    let v = cell_value("1.5x") catch failure:
+        print(f"{failure.message}")
+        print(f"raised at {failure.at}")
+        print(f"called at {failure.called_at}")
+        recover 0.0
+    print(f"{v}")
+    return 0
+```
+
+```output
+the text goes on past the number
+raised at std/strings/floats.lucb:38:9
+called at main.lucb:4:5
+0.0
+```
+
+- The call counts when it names a function or method of another package, by `try` or as a
+  handler's operand. A call through a function value or an interface names no package and
+  is passed over.
+- Only the first such call is kept: when a library calls another library that raises, it
+  is the first library's line. `try` and `error(failure)` further up keep it.
+- An error that never came out of another package, and one raised anew with
+  `error(failure.code, failure.message)`, has `called_at` equal to `at`.
+- An error that escapes a fallible `main` prints `called_at` on a second line when it
+  differs: `error: std/strings/floats.lucb:38:9: the text goes on past the number (code 51)`,
+  then `  called at main.lucb:4:5`.
+- It costs a few instructions on the failure branch of a call into another package, and
+  nothing on any other path.
 
 ## Out of memory
 

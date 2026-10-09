@@ -8,3 +8,11 @@ pub func check(n: i64) -> i64!:
 
 pub func passed_on(n: i64) -> i64!:
     return try check(n)
+
+## A gauge whose reading fails below zero: a method of this package that
+## called_at_across_packages calls.
+pub struct Gauge:
+    pub var level: i64
+
+    pub func read() -> i64!:
+        return try check(self.level)

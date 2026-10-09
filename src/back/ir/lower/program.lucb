@@ -306,7 +306,7 @@ extend Lowerer:
         let r = try self.call_aggregate(try self.test_name(u32(i)), u32(self.f.args.count), 0, try self.c.table.fallible(types.unit_id))
         _ = try self.call_named("lb_testing_end", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
         let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
-        let message = LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
+        let message = try self.message_of(try self.failure_address())
         let place = try self.test_place(t)
         let s2 = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, shape = 0))
@@ -345,7 +345,7 @@ extend Lowerer:
         try self.f.place_label(bad)
         let s4 = u32(self.f.args.count)
         try self.push_error_pieces(try self.failure_address())
-        let code = try self.call_named("lb_core_11main_failed", s4, 3, ir.Class.w, true, types.i32_id)
+        let code = try self.call_named("lb_core_11main_failed", s4, 4, ir.Class.w, true, types.i32_id)
         try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
         # the label after the answer is printed, the next one made
         try self.f.jump(self.f.labels + 1)
@@ -383,7 +383,7 @@ extend Lowerer:
             try self.f.place_label(bad)
             let s7 = u32(self.f.args.count)
             try self.push_error_pieces(try self.failure_address())
-            let code = try self.call_named("lb_core_11main_failed", s7, 3, ir.Class.w, true, types.i32_id)
+            let code = try self.call_named("lb_core_11main_failed", s7, 4, ir.Class.w, true, types.i32_id)
             try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
             try self.f.jump(done)
             try self.f.place_label(ok)
@@ -402,14 +402,16 @@ extend Lowerer:
             try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
             _ = try self.call_named("free", release_start, 1, ir.Class.w, false, types.unit_id)
 
-    ## An error value's code, message and `at` as three arguments.
+    ## An error value's code, message, `at` and `called_at` as four arguments.
     func push_error_pieces(err: ir.Ref) -> !:
         let code = try self.f.load(ir.Op.loadsw, ir.Class.w, err)
-        try self.f.args.push(ir.Arg(value = code, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
-        let message = LowerValue(ref = try self.offset_address(err, 8), type_id = types.str_id, in_memory = true)
-        try self.f.args.push(try self.arg_of(message))
+        let message = try self.message_of(err)
         let at = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(err, 4))
+        let called = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(err, 20))
+        try self.f.args.push(ir.Arg(value = code, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(try self.arg_of(message))
         try self.f.args.push(ir.Arg(value = at, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
+        try self.f.args.push(ir.Arg(value = called, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, shape = 0))
 
     ## `answer()` programs print their result as the seed's `start.c` did.
     func print_answer(value: ir.Ref) -> !:

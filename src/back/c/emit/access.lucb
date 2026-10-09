@@ -9,6 +9,37 @@
 extend Emitter:
     # mark: Members, indexes, and slices =======================================================
 
+    ## `at`, `called_at` or the message of an `Error`, made when read (§11.3): the positions
+    ## by `core.origin` and `core.called`, the message by `lb_message_of`, its length being
+    ## 32 bits under `called_at`'s word.
+    func error_member(e: ast.Node*, owner: ast.Node*, through_ptr: bool) -> !:
+        if e.text == "at":
+            try self.put("lb_core_origin((")
+            try self.expr(owner)
+            try self.put(")->at)" if through_ptr else ").at)")
+            return
+        if e.text == "called_at":
+            let n = self.tmp()
+            try self.put("({ lb_error ")
+            try self.put_tmp("ce", n)
+            try self.put(" = ")
+            if through_ptr:
+                try self.put("*")
+            try self.put("(")
+            try self.expr(owner)
+            try self.put("); lb_core_called(")
+            try self.put_tmp("ce", n)
+            try self.put(".at, ")
+            try self.put_tmp("ce", n)
+            try self.put(".m.called); })")
+            return
+        try self.put("lb_message_of(")
+        if through_ptr:
+            try self.put("*")
+        try self.put("(")
+        try self.expr(owner)
+        try self.put("))")
+
     func member(e: ast.Node*) -> !:
         let owner = e.left else return
         if let d = e.resolved:
@@ -56,11 +87,8 @@ extend Emitter:
             try self.expr(owner)
             try self.put("->length})" if through_ptr else ".length})")
             return
-        if raw == types.error_value_id and e.text == "at":
-            # where the error was raised, as text (`core.origin`)
-            try self.put("lb_core_origin((")
-            try self.expr(owner)
-            try self.put(")->at)" if through_ptr else ").at)")
+        if raw == types.error_value_id and e.text != "code":
+            try self.error_member(e, owner, through_ptr)
             return
         if raw == types.error_value_id:
             try self.put("(")

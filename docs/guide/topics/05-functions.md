@@ -198,7 +198,8 @@ pub func main(arguments: str[]) -> i32:
   is not. A program that takes file paths should take `c.str[]` instead, because a path on
   macOS or Linux is a sequence of bytes and need not be UTF-8.
 - An error returned from an `i32!` `main` is printed to standard error as
-  `error: file:line:column: message (code n)`, naming where it was raised, and the exit
-  status is 1.
+  `error: file:line:column: message (code n)`, naming where it was raised, then
+  `  called at file:line:column` when it came out of a call into another package, and the
+  exit status is 1.
 
 The first argument is the program's name, as in C.

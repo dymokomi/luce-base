@@ -635,12 +635,32 @@ uint64_t lb_hash_bytes(uint64_t h, const void* p, size_t n);
 #define LB_INVALID_UTF8 3
 
 // An `Error` (§11.3): its code; `at`, where it was raised, as its position text's distance
-// from `lb_core_11origin_base` (`core.origin` reads it); and its message.
+// from `lb_core_11origin_base` (`core.origin` reads it); and its message, whose length is 32
+// bits, the word above it being `called`, where the error came out of a call into another
+// package, kept as `at` is (`called_at`; 0 for none). Writing `message` whole clears
+// `called`, since a length is below 2^32; `lb_message_of` reads the message back and
+// `lb_message_set` replaces it with `called` kept.
 typedef struct lb_error {
     int32_t code;
     int32_t at;
-    lb_str message;
+    union {
+        lb_str message;
+        struct {
+            const char* data;
+            uint32_t length;
+            int32_t called;
+        } m;
+    };
 } lb_error;
+
+static inline lb_str lb_message_of(lb_error e) {
+    return (lb_str){ e.m.data, e.m.length };
+}
+
+static inline void lb_message_set(lb_error* e, lb_str message) {
+    e->m.data = message.data;
+    e->m.length = (uint32_t)message.length;
+}
 
 #define LB_OPT(T, name)                                                                            \
     typedef struct name {                                                                          \
@@ -664,8 +684,9 @@ typedef struct lb_r_unit {
    vector as `str[]` (checked) or `c.str[]`, a failed `main`, and the test runner's
    report lines. */
 lb_span lb_arguments(int argc, char** argv, bool as_text);
-// A failed `main`: `error`, raised at `at`, on stderr; the exit status.
-int lb_entry_failed(lb_error error, lb_str at);
+// A failed `main`: `error`, raised at `at` and come out of the call at `called`, on stderr;
+// the exit status.
+int lb_entry_failed(lb_error error, lb_str at, lb_str called);
 // The `at` of an error raised at the running statement (`lb_pos`), which the generated code
 // defines beside `core` (§11.3).
 int32_t lb_here(void);

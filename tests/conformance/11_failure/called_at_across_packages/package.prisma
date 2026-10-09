@@ -1,0 +1,9 @@
+#prisma 4.0
+def package "conformance_called_at_across_packages" {
+    def dependency "origin-source" {
+        str path = "../origin_source"
+    }
+    def dependency "called-middle" {
+        str path = "../called_middle"
+    }
+}

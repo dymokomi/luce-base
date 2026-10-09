@@ -104,6 +104,10 @@ pub let flag_mutating: u32 = 2
 pub let flag_static: u32 = 4
 ## An `export` declaration, with C linkage.
 pub let flag_export: u32 = 8
+## Set by the checker on a propagation (`propagate`) whose operand calls a function or method
+## of another package by name: a failure it passes records the call as the error's
+## `called_at` (§11.3). It shares its bit with `flag_export`, which only a declaration carries.
+pub let flag_crossing: u32 = 8
 ## A `packed` struct.
 pub let flag_packed: u32 = 16
 ## Set by the checker on a call of `assert` written in a test's own body, a lambda's

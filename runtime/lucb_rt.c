@@ -207,15 +207,19 @@ lb_span lb_arguments(int argc, char** argv, bool as_text) {
     return args;
 }
 
-int lb_entry_failed(lb_error error, lb_str at) {
-    // as core.main_failed: where the error was raised, the message, then the package's own
-    // number of the code
+int lb_entry_failed(lb_error error, lb_str at, lb_str called) {
+    // as core.main_failed: where the error was raised, the message, the package's own number
+    // of the code, then the call into another package it came out of when that differs
+    lb_str message = lb_message_of(error);
     if (at.length > 0) {
         fprintf(stderr, "error: %.*s: ", (int)at.length, at.data);
     } else {
         fprintf(stderr, "error: ");
     }
-    fprintf(stderr, "%.*s (code %u)\n", (int)error.message.length, error.message.data, (unsigned)error.code & 0xFFFFu);
+    fprintf(stderr, "%.*s (code %u)\n", (int)message.length, message.data, (unsigned)error.code & 0xFFFFu);
+    if (called.length > 0 && (called.length != at.length || memcmp(called.data, at.data, at.length) != 0)) {
+        fprintf(stderr, "  called at %.*s\n", (int)called.length, called.data);
+    }
     return 1;
 }
 

@@ -1,0 +1,10 @@
+# oracle: none
+## §11.3: an error that escapes a fallible `main` out of a call into another package is
+## reported where it was raised, then on a line of its own where it came out of that call:
+## `  called at file:line:column`.
+import origin_source.raise
+
+pub func main(arguments: str[]) -> i32!:
+    let n = try raise.check(-1 - i64(arguments.length))
+    print(f"{n}")
+    return 0

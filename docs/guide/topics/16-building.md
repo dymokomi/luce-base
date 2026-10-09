@@ -122,7 +122,8 @@ trap: main.lucb:4:9: integer overflow
 
 The position is the statement that was running. An error that reaches the end of `main`
 prints `error: file:line:column: message (code n)`, the position being where the error was
-raised, and also exits with status 1.
+raised, then `  called at file:line:column` when it came out of a call into another package
+(its `called_at`), and also exits with status 1.
 
 ### Debuggers
 

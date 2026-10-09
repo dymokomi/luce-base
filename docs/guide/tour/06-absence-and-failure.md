@@ -99,7 +99,8 @@ how the failure is handled. There are three ways:
   `try combine(read(), parse())` needs only one.
 - **`catch` handles it,** like Python's `except`. `expression catch failure:` runs the
   block with the error, whose fields are `failure.code`, `failure.message` and
-  `failure.at`, where it was raised. The block
+  `failure.at`, where it was raised, with `failure.called_at`, the call in this code that
+  an error from a library came out of. The block
   must end by giving a replacement value with `recover`, or by leaving: `return`,
   `error(...)` or `trap(...)`.
 - **`else` replaces it**, as it replaces a missing optional: `parse(text) else 0`.

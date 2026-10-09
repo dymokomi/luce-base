@@ -688,13 +688,14 @@ extend Emitter:
                 try self.put_replaced(handler, else_replaced)
                 try self.put(");")
         else:
-            try self.line("")
+            # `lb_message_set` keeps the `called_at` of a failure passed on (none of a new one)
+            try self.line("lb_message_set(&")
             try self.put_tmp("err", n)
-            try self.put(".message = lb_core_14message_raised(")
+            try self.put(", lb_core_14message_raised(lb_message_of(")
             try self.put_tmp("err", n)
-            try self.put(".message, ")
+            try self.put("), ")
             try self.put_replaced(handler, else_replaced)
-            try self.put(");")
+            try self.put("));")
         try self.leave_failing(n)
 
     ## 1 + the `fe` temporary of the outermost `catch` handler a failure raised here leaves,
@@ -708,11 +709,13 @@ extend Emitter:
     ## `else error(...)`, else none.
     func put_replaced(handler: u32, else_replaced: u32) -> !:
         if handler != 0:
+            try self.put("lb_message_of(")
             try self.put_tmp("fe", handler - 1)
-            try self.put(".message")
+            try self.put(")")
         elif else_replaced != 0:
+            try self.put("lb_message_of(")
             try self.put_tmp("o", else_replaced - 1)
-            try self.put(".error.message")
+            try self.put(".error)")
         else:
             try self.put("(lb_str){ 0 }")
 

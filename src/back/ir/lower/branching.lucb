@@ -19,6 +19,9 @@ extend Lowerer:
         let bad = self.f.label()
         try self.f.branch(failed, bad, ok)
         try self.f.place_label(bad)
+        if e.has(ast.flag_crossing):
+            # the error comes into this package out of another's function (§11.3)
+            try self.store_called(try self.failure_address())
         try self.propagate(v.ref, ft)
         try self.f.place_label(ok)
         if payload == types.unit_id or payload == types.never_id:

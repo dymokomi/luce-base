@@ -1,0 +1,9 @@
+direct: raise.lucb:6:9 called at main.lucb:13:5: below zero 10
+passed: raise.lucb:6:9 called at main.lucb:13:5: below zero 10
+nested: raise.lucb:6:9 called at middle.lucb:6:5: below zero 10
+method: raise.lucb:6:9 called at main.lucb:25:5: below zero 10
+handled: raise.lucb:6:9 called at main.lucb:28:5: below zero 10
+leaving: raise.lucb:6:9 called at main.lucb:34:9: below zero 10
+own: main.lucb:39:9 called at main.lucb:39:9: own 3
+anew: main.lucb:47:9 called at main.lucb:47:9: below zero 10
+value: raise.lucb:6:9 called at raise.lucb:6:9: below zero 10

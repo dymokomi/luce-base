@@ -820,11 +820,13 @@ local var raised_top: usize = 0
 ## The longest message the room keeps: a longer one is cut at a character and ends in `…`.
 let raised_most: usize = 4096
 
-## Where `text` starts in this thread's room, or `none` when it lies elsewhere.
+## Where `text` starts in this thread's room, or `none` when it lies elsewhere. Only its
+## start is read: a message written here lies here whole, and the length an error passes in
+## carries its `called_at` above 32 bits (§11.3).
 func in_room(text: str) -> usize?:
     let base = (usize)&raised_room[0]
     let at = (usize)text.bytes.data
-    if at < base or at > base + raised_room.length or text.length > base + raised_room.length - at:
+    if at < base or at > base + raised_room.length:
         return none
     return at - base
 
@@ -871,6 +873,8 @@ pub func message_handled(message: str):
 # would name, in the word after its code: the text's distance from `origin_base`, a byte of
 # this program's own data, so the `Error` stays three words and a `T!` result does not grow.
 # The texts and the byte are in one image, well within 2 GiB of each other; 0 is no position.
+# `called_at`, the first call into another package the error came out of, is kept the same
+# way in the word above the message's length, which is 32 bits: a new message clears it.
 
 ## The byte an error's `at` is counted from: generated code subtracts its address from the
 ## position text's.
@@ -884,17 +888,28 @@ pub func origin(raised: i32) -> str:
     let text = (u8*)(usize)((isize)(usize)&origin_base + (isize)raised)
     return (str)(c.str)text
 
+## `failure.called_at`: the position text `crossed` bytes from `origin_base`, or `at` (from
+## `raised`) when the error came out of no call into another package (`crossed` is 0).
+pub func called(raised: i32, crossed: i32) -> str:
+    return origin(crossed if crossed != 0 else raised)
+
 ## A failed `main`: its error on stderr, `error: file:line:column: message (code n)`, the
-## place being where the error was raised, `at`; exit status 1. The code shown is the
+## place being where the error was raised, `at`, then `  called at file:line:column` when it
+## came out of a call into another package, `called_at`; exit status 1. The code shown is the
 ## package's own number, `n` of `ErrorCode.package(n)`; the package identity above it (§11.3)
 ## tells packages apart and means nothing to a reader.
-pub func main_failed(code: i32, message: str, raised: i32) -> i32:
+pub func main_failed(code: i32, message: str, raised: i32, crossed: i32) -> i32:
     var bytes: u8[1024] = ---
     let at = origin(raised)
     let number = (u32)code & 0xFFFF
     let line = strings.format(bytes, f"error: {at}: {message} (code {number})\n" if at.length > 0 else f"error: {message} (code {number})\n") catch:
         return 1
     _ = write(2, line.bytes.data, line.length)
+    let call = origin(crossed)
+    if call.length > 0 and call != at:
+        let second = strings.format(bytes, f"  called at {call}\n") catch:
+            return 1
+        _ = write(2, second.bytes.data, second.length)
     return 1
 
 ## The failure of a test whose `assert` was false (§16.5).

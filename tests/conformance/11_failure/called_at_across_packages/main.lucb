@@ -1,0 +1,78 @@
+# oracle: none
+## §11.3: `called_at` is the first call into another package, by a function's or a method's
+## name, that an error came out of: the `try` or the handler's operand at that call. `try`
+## and `error(failure)` further up keep it, and so does a failure leaving a handler; a
+## nested package's call comes first. An error that never left its package, one raised
+## anew, and one that came only through a function value have `called_at` equal to `at`.
+import origin_source.raise
+import called_middle.middle
+
+let refused = ErrorCode.package(2)
+
+func direct(n: i64) -> i64!:
+    return try raise.check(n)
+
+func passed(n: i64) -> i64!:
+    let v = direct(n) catch failure:
+        error(failure)
+    return v
+
+func nested(n: i64) -> i64!:
+    return try middle.through(n)
+
+func method(n: i64) -> i64!:
+    let gauge = raise.Gauge(level = n)
+    return try gauge.read()
+
+func handled(n: i64) -> i64!:
+    let v = raise.check(n) catch failure:
+        error(failure)
+    return v
+
+func leaving(n: i64) -> i64!:
+    let v = own(n) catch failure:
+        recover try raise.check(n)
+    return v
+
+func own(n: i64) -> i64!:
+    if n < 0:
+        error(refused, "own")
+    return n
+
+func through_own(n: i64) -> i64!:
+    return try own(n)
+
+func anew(n: i64) -> i64!:
+    let v = direct(n) catch failure:
+        error(failure.code, failure.message)
+    return v
+
+func through_value(n: i64) -> i64!:
+    let run: func(i64) -> i64! = raise.check
+    return try run(n)
+
+## The text after the last `/` or `\` of `path`: a source outside this package's root is
+## named by its whole path.
+func file_name(path: str) -> str:
+    var start: usize = 0
+    for i in 0..<path.length:
+        if path.bytes[i] == '/' or path.bytes[i] == '\\':
+            start = i + 1
+    return (str)path.bytes[start..]
+
+func show(label: str, run: func(i64) -> i64!):
+    _ = run(-1) catch failure:
+        print(f"{label}: {file_name(failure.at)} called at {file_name(failure.called_at)}: {failure.message} {failure.message.length}")
+        recover 0
+
+pub func main(arguments: str[]) -> i32:
+    show("direct", direct)
+    show("passed", passed)
+    show("nested", nested)
+    show("method", method)
+    show("handled", handled)
+    show("leaving", leaving)
+    show("own", through_own)
+    show("anew", anew)
+    show("value", through_value)
+    return 0

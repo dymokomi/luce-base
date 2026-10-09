@@ -540,7 +540,7 @@ extend Emitter:
             try self.line("    lb_r_i32 r = ")
             try self.put(call)
             try self.put(";")
-            try self.line("    if (r.failed) { (void)lb_entry_failed(r.error, lb_core_origin(r.error.at)); }")
+            try self.line("    if (r.failed) { (void)lb_entry_failed(r.error, lb_core_origin(r.error.at), lb_core_called(r.error.at, r.error.m.called)); }")
             try self.line("    int result = r.failed ? 1 : (int)r.value;")
         else:
             try self.line("    int result = (int)")
@@ -559,7 +559,7 @@ extend Emitter:
             return
         try self.line("int64_t lb_answer(void) {")
         try self.line("    lb_r_i64 r = lb_answer_impl();")
-        try self.line("    if (r.failed) { exit(lb_entry_failed(r.error, lb_core_origin(r.error.at))); }")
+        try self.line("    if (r.failed) { exit(lb_entry_failed(r.error, lb_core_origin(r.error.at), lb_core_called(r.error.at, r.error.m.called))); }")
         try self.line("    return r.value;")
         try self.line("}")
 
@@ -594,7 +594,7 @@ extend Emitter:
             try self.put_c_string(try self.position_text(t))
             self.current_fn = saved
             # the runner handled the test's failure: its message is given back (§11.3)
-            try self.put(", r.failed ? r.error.message : (lb_str){ 0 }); if (r.failed) lb_core_15message_handled(r.error.message); }")
+            try self.put(", r.failed ? lb_message_of(r.error) : (lb_str){ 0 }); if (r.failed) lb_core_15message_handled(lb_message_of(r.error)); }")
             i += 1
         try self.line("    return lb_core_12test_summary();")
         try self.line("}")

@@ -509,6 +509,7 @@ extend Lowerer:
         var m = LowerValue(ref = ir.none_ref(), type_id = types.str_id, in_memory = true)
         var literal = false
         var passed_at: ir.Ref? = none
+        var passed_called = ir.none_ref()
         if let second = first.next:
             let message = second.left else return
             c = (try self.value(code, types.error_code_id)).ref
@@ -517,8 +518,9 @@ extend Lowerer:
         else:
             let failure = try self.value(code, types.error_value_id)
             c = try self.f.load(ir.Op.loadsw, ir.Class.w, failure.ref)
-            m = LowerValue(ref = try self.offset_address(failure.ref, 8), type_id = types.str_id, in_memory = true)
+            m = try self.message_of(failure.ref)
             passed_at = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(failure.ref, 4))
+            passed_called = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(failure.ref, 20))
         # the message is copied into the thread's room before cleanup can free what it was
         # made from, in place of a handled error's message the failure leaves behind (§11.3)
         var replaced = try self.replaced_message()
@@ -532,9 +534,11 @@ extend Lowerer:
         let err = try self.slot_address(self.failure_slot) if self.failure_target != 0 else try self.failure_address()
         try self.f.store(ir.Op.storew, c, err)
         try self.f.copy_bytes(try self.offset_address(err, 8), m.ref, 16)
-        # where it was raised: this statement, or where the failure passed on was raised
+        # where it was raised: this statement, or where the failure passed on was raised and
+        # the call it came out of; a new message leaves `called_at` unset
         if let raised = passed_at:
             try self.f.store(ir.Op.storew, raised, try self.offset_address(err, 4))
+            try self.f.store(ir.Op.storew, passed_called, try self.offset_address(err, 20))
         else:
             try self.store_origin(err)
         if self.failure_target != 0:
@@ -549,11 +553,13 @@ extend Lowerer:
     func propagate(source: ir.Ref, source_type: u32) -> !:
         _ = source
         _ = source_type
-        # a failure leaving a handler takes the place of the handled error's message
+        # a failure leaving a handler takes the place of the handled error's message, its
+        # `called_at` kept
         if let replaced = try self.replaced_message():
-            let message = try self.offset_address(try self.failure_address(), 8)
-            let moved = try self.message_raised(LowerValue(ref = message, type_id = types.str_id, in_memory = true), replaced)
+            let called = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.offset_address(try self.failure_address(), 20))
+            let moved = try self.message_raised(try self.message_of(try self.failure_address()), replaced)
             try self.f.copy_bytes(try self.offset_address(try self.failure_address(), 8), moved.ref, 16)
+            try self.f.store(ir.Op.storew, called, try self.offset_address(try self.failure_address(), 20))
         if self.failure_target != 0:
             try self.f.copy_bytes(try self.slot_address(self.failure_slot), try self.failure_address(), 24)
             try self.release_grown(self.failure_grown)
@@ -567,6 +573,7 @@ extend Lowerer:
     func replaced_message() -> LowerValue?!:
         let start = self.failure_scope if self.failure_target != 0 else 0
         let handler = exits.outermost_handler(&self.scopes, start) else return none
+        # where the message starts is all `core.message_raised` reads of it
         return LowerValue(ref = try self.offset_address(try self.slot_address(handler.handled), 8), type_id = types.str_id, in_memory = true)
 
     ## `core.message_raised(message, replaces)`: the message copied into the thread's room,
@@ -585,6 +592,8 @@ extend Lowerer:
         _ = try self.call_named("lb_core_15message_handled", start, 1, ir.Class.w, false, types.unit_id)
 
     ## The message of the error in `core.failure`.
+    ## Its length word holds `called_at` too: `core.message_handled` and a `replaces` read
+    ## where the message starts and nothing else, and the rest reads it by `message_of`.
     func failure_message() -> LowerValue!:
         return LowerValue(ref = try self.offset_address(try self.failure_address(), 8), type_id = types.str_id, in_memory = true)
 

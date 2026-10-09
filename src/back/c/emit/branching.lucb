@@ -26,16 +26,23 @@ extend Emitter:
         try self.put_tmp("r", n)
         try self.put(".failed) {")
         self.indent += 1
+        if e.has(ast.flag_crossing):
+            # the error comes into this package out of another's function (§11.3)
+            try self.line("if (")
+            try self.put_tmp("r", n)
+            try self.put(".error.m.called == 0) ")
+            try self.put_tmp("r", n)
+            try self.put(".error.m.called = lb_here();")
         # a failure leaving a handler takes the place of the handled error's message
         let handler = self.left_handler()
         if handler != 0:
-            try self.line("")
+            try self.line("lb_message_set(&")
             try self.put_tmp("r", n)
-            try self.put(".error.message = lb_core_14message_raised(")
+            try self.put(".error, lb_core_14message_raised(lb_message_of(")
             try self.put_tmp("r", n)
-            try self.put(".error.message, ")
+            try self.put(".error), ")
             try self.put_replaced(handler, 0)
-            try self.put(");")
+            try self.put("));")
         if self.failure_target != 0:
             try self.line("")
             try self.put_tmp("fe", self.failure_target)
@@ -105,9 +112,9 @@ extend Emitter:
             try self.put("{")
             self.indent += 1
             if gives_back:
-                try self.line("lb_core_15message_handled(")
+                try self.line("lb_core_15message_handled(lb_message_of(")
                 try self.put_tmp("o", n)
-                try self.put(".error.message);")
+                try self.put(".error));")
             if calls.is_error_call(r):
                 if self.is_fail(lt):
                     self.else_replaced = n + 1
@@ -125,9 +132,9 @@ extend Emitter:
         else:
             try self.put("{ ")
             if gives_back:
-                try self.put("lb_core_15message_handled(")
+                try self.put("lb_core_15message_handled(lb_message_of(")
                 try self.put_tmp("o", n)
-                try self.put(".error.message); ")
+                try self.put(".error)); ")
             if payload != types.unit_id:
                 try self.put_tmp("o", n)
                 if self.is_fail(lt):
