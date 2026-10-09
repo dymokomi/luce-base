@@ -110,7 +110,7 @@ pub func copy_limit(source: Reader, destination: Writer, buffer: u8[], limit: us
         write_all(destination, buffer[..<count], &written) catch failure:
             if let progress = transferred:
                 *progress = done + written
-            error(failure.code, failure.message)
+            error(failure)
         done += written
         if let progress = transferred:
             *progress = done
@@ -228,7 +228,7 @@ pub struct BufferedWriter: Writer:
         write_all(self.destination, self.storage[..<self.used], &written) catch failure:
             self.used -= written
             memory.move(self.storage, self.storage[written..], self.used)
-            error(failure.code, failure.message)
+            error(failure)
         self.used = 0
 
     ## Accept up to the remaining capacity. A full buffer is drained before any

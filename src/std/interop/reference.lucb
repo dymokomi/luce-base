@@ -25,7 +25,7 @@ pub struct Reference[T]:
         let selected = allocator else memory.allocator
         var reservation = Reservation[T](declaration) catch failure:
             release_native(native, declaration, selected)
-            error(failure.code, failure.message)
+            error(failure)
         return reservation.publish(native, selected)
 
     ## Another strong reference to the same value.
