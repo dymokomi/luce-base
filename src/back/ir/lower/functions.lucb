@@ -23,6 +23,9 @@ extend Lowerer:
         self.f.noinline = ast.has_attribute(d, "noinline")
         self.f.always_inline = ast.has_attribute(d, "inline")
         self.f.section = section_of(d)
+        # an export that C reaches by its own name (§17.6) stays a function of its own,
+        # however Base calls it too; a wrapped one is reached through its wrapper
+        self.f.exported = d.has(ast.flag_export) and not names.export_wrapped(&self.c.table, d)
         # parameters: `self` first for methods, each in a slot
         if let o = inst.owner:
             if not d.has(ast.flag_static):
