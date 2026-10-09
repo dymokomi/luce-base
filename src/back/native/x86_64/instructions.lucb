@@ -844,6 +844,9 @@ extend Generator:
         let signed = n.extra == 1
         let cls = n.cls
         let suffix = "q" if cls == ir.Class.l else "l"
+        if n.op == ir.Op.mulo and not signed and constant_factor(n.b):
+            try self.checked_constant(n, suffix)
+            return
         if n.op == ir.Op.mulo and not signed:
             let a = self.reg(cls, 0)
             try self.operand(a, cls, n.a)
@@ -904,6 +907,37 @@ extend Generator:
             try self.check_failure("jno ", "jo ", "integer overflow", n)
         else:
             try self.check_failure("jnc ", "jc ", "integer overflow", n)
+        try self.finish(n.dst, cls, d)
+
+    ## An unsigned checked multiply by a constant `c` of `constant_factor`: the product
+    ## overflows exactly when the factor is above the class's greatest value divided by `c`,
+    ## which one comparison decides; the product is then the low half the three-operand
+    ## `imul` (or `lea` for 3, 5 and 9) leaves, with no rdx:rax.
+    func checked_constant(n: ir.Instr, suffix: str) -> !:
+        let cls = n.cls
+        let c = n.b.value
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        let a = try self.source(n.a, cls, d)
+        let limit = (i64)(0xFFFFFFFFFFFFFFFF // (u64)c) if cls == ir.Class.l else (i64)(0xFFFFFFFF // (u64)c)
+        if limit <= 2147483647:
+            try self.writer.line3("cmp", suffix, " $")
+            try self.writer.put_i64(limit)
+            try self.put2(", ", a)
+        else:
+            try self.load_immediate("%r11", limit)
+            try self.writer.line3("cmpq %r11, ", a, "")
+        try self.check_failure("jbe ", "ja ", "integer overflow", n)
+        if c == 3 or c == 5 or c == 9:
+            try self.writer.line5("lea", suffix, " (", wide_name(a), ",")
+            try self.writer.put(wide_name(a))
+            try self.writer.put(",")
+            try self.writer.put_i64(c - 1)
+            try self.put2("), ", d)
+        else:
+            try self.writer.line3("imul", suffix, " $")
+            try self.writer.put_i64(c)
+            try self.put2(", ", a)
+            try self.put2(", ", d)
         try self.finish(n.dst, cls, d)
 
     ## Where a check of `n` that fails goes, after the comparison that decides it: with

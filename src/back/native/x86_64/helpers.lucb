@@ -123,6 +123,11 @@ func fixed_code(windows: bool, rcx: bool) -> u8:
 func fits_immediate(r: ir.Ref) -> bool:
     return r.kind == ir.RefKind.constant and r.value >= -2147483648 and r.value <= 2147483647
 
+## Whether `r` is a factor an unsigned checked multiply takes as an immediate
+## (`checked_constant`): a constant from 2 up that fits one.
+func constant_factor(r: ir.Ref) -> bool:
+    return fits_immediate(r) and r.value >= 2
+
 ## Whether `bits` are a NaN's of float class `cls` (a single's in the low half).
 func is_nan_bits(bits: u64, cls: ir.Class) -> bool:
     if cls == ir.Class.s:

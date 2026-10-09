@@ -622,8 +622,7 @@ extend Generator:
                 let d = self.target(n.dst, n.cls, "x9")
                 try self.writer.line3("smulh x11, " if signed else "umulh x11, ", a, ", ")
                 try self.writer.put(b)
-                try self.writer.line5("mul ", d, ", ", a, ", ")
-                try self.writer.put(b)
+                try self.product(d, a, b, n.b)
                 if signed:
                     try self.writer.line3("cmp x11, ", d, ", asr #63")
                     try self.check_failure("b.eq ", "b.ne ", "integer overflow", n)
@@ -652,6 +651,27 @@ extend Generator:
         else:
             try self.check_failure("b.cs ", "b.cc ", "integer overflow", n)
         try self.finish(n.dst, n.cls, d)
+
+    ## `d = a * b`, the low half of a checked product whose high half decided the check: by
+    ## a constant 3, 5 or 9 an add of `a` shifted, by a power of two a shift, neither of
+    ## which waits on the multiplier; `factor` is the right operand as the IR names it.
+    func product(d: str, a: str, b: str, factor: ir.Ref) -> !:
+        let c = factor.value if factor.kind == ir.RefKind.constant else 0
+        if c == 3 or c == 5 or c == 9:
+            try self.writer.line5("add ", d, ", ", a, ", ")
+            try self.writer.put(a)
+            try self.writer.put(", lsl #")
+            try self.writer.put_u64(1 if c == 3 else (2 if c == 5 else 3))
+            return
+        if c > 1 and (c & (c - 1)) == 0:
+            var shift: u64 = 0
+            while ((i64)1 << (i64)shift) != c:
+                shift += 1
+            try self.writer.line5("lsl ", d, ", ", a, ", #")
+            try self.writer.put_u64(shift)
+            return
+        try self.writer.line5("mul ", d, ", ", a, ", ")
+        try self.writer.put(b)
 
     ## Where a check of `n` that fails goes, after the comparison that decides it: with
     ## `--debug` to its trap inline, a branch on `pass` jumping over it; otherwise a branch

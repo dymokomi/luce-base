@@ -92,8 +92,8 @@ extend Generator:
         return false
 
     ## The instructions that overwrite rdx or rcx, temporaries' registers, themselves
-    ## (`frame.Frame.fixed`): a division (rdx:rax), an unsigned checked multiply
-    ## (rdx:rax), a shift by a variable count (cl), an atomic operation
+    ## (`frame.Frame.fixed`): a division (rdx:rax), an unsigned checked multiply by other
+    ## than a constant (rdx:rax), a shift by a variable count (cl), an atomic operation
     ## retried in a loop (rdx), and below x86-64-v3 a half's conversion through the unit's
     ## routines, which use both. No temporary lives in those across them; their operands
     ## and results may, and each sequence moves them out of the way.
@@ -112,7 +112,7 @@ extend Generator:
                     if is_int_class(n.cls) and not fits_immediate(n.b):
                         codes = rcx
                 .mulo:
-                    if n.extra != 1:
+                    if n.extra != 1 and not constant_factor(n.b):
                         codes = rdx
                 .atomic_or, .atomic_xor, .atomic_and_not, .atomic_max, .atomic_min:
                     codes = rdx
