@@ -1,0 +1,82 @@
+## §9: a struct result whose last word holds three, five, six or seven bytes comes back in
+## registers word by word, and every word arrives: on x86-64 an odd-width word is gathered
+## with rax's help, so rax's own word must be loaded after it, not before. That holds for
+## a result in rax and rdx (System V, up to sixteen bytes) and for a fallible result in
+## rax, rdx, rcx and r8 (both conventions, up to thirty-two). Found by tools/fuzz.py's ABI
+## programs.
+struct Eleven:
+    var b: u8[11]
+
+struct Thirteen:
+    var b: u8[13]
+
+struct Fourteen:
+    var b: u8[14]
+
+## A float word beside an odd-width integer one (SSE in xmm0, INTEGER in rax).
+struct Mixed:
+    var f: f64
+    var b: u8[5]
+
+struct TwentySeven:
+    var b: u8[27]
+
+let odd = ErrorCode.package(1)
+
+noinline func eleven(seed: u8) -> Eleven:
+    var v: Eleven = ---
+    for i in 0..<11:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func thirteen(seed: u8) -> Thirteen:
+    var v: Thirteen = ---
+    for i in 0..<13:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func fourteen(seed: u8) -> Fourteen:
+    var v: Fourteen = ---
+    for i in 0..<14:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func mixed(seed: u8) -> Mixed:
+    var v: Mixed = ---
+    v.f = 2.5
+    for i in 0..<5:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func fallible_eleven(seed: u8) -> Eleven!:
+    if seed == 0:
+        error(odd, "zero")
+    return eleven(seed)
+
+noinline func fallible_twenty_seven(seed: u8) -> TwentySeven!:
+    if seed == 0:
+        error(odd, "zero")
+    var v: TwentySeven = ---
+    for i in 0..<27:
+        v.b[i] = seed +% (u8)i
+    return v
+
+noinline func spread(v: Eleven, w: Thirteen) -> u64:
+    return spell(v.b) +% spell(w.b)
+
+func spell(bytes: const u8[]) -> u64:
+    var h: u64 = 0
+    for b in bytes:
+        h = h * 256 % 1000000007 + (u64)b
+    return h
+
+pub func main(arguments: str[]) -> i32!:
+    let a = eleven(1)
+    let b = thirteen(20)
+    let c = fourteen(40)
+    let d = mixed(60)
+    print(f"{spell(a.b)} {spell(b.b)} {spell(c.b)} {d.f} {spell(d.b)}")
+    let e = try fallible_eleven(80)
+    let f = try fallible_twenty_seven(100)
+    print(f"{spell(e.b)} {spell(f.b)} {spread(eleven(5), thirteen(7))}")
+    return 0

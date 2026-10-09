@@ -459,39 +459,34 @@ extend Generator:
     ## The words of a fallible result of up to four words between (%r10) and rax, rdx, rcx
     ## and r8, the program's own convention on both System V and Windows (all four are
     ## caller-saved on both); `store` into the memory from the registers, else the reverse.
+    ## Loaded from the last word: an odd-width word takes rax to help (`load_bytes`), so
+    ## rax's own word comes last.
     func private_words(size: u32, store: bool) -> !:
-        var k: u32 = 0
-        while k * 8 < size:
+        let words = (size + 7) // 8
+        for j in 0..<words:
+            let k = j if store else words - 1 - j
             let reg = private_result_registers[(usize)k]
             if store:
                 try self.store_eightbyte(reg, k, size, false)
             else:
                 try self.load_eightbyte(reg, "%r10", k, size, false)
-            k += 1
 
     ## The eightbytes of a small aggregate result between (%r10) and rax/rdx and xmm0/xmm1,
-    ## `store` into the memory from the registers, else the reverse.
+    ## `store` into the memory from the registers, else the reverse, the last word first
+    ## as `private_words` loads them.
     func result_eightbytes(size: u32, sse: u8, store: bool) -> !:
         let words: u32 = 2 if size > 8 else 1
-        var next_int: u32 = 0
-        var next_float: u32 = 0
-        var k: u32 = 0
-        while k < words:
-            if (sse & (u8)(1 << k)) != 0:
-                let reg = "%xmm0" if next_float == 0 else "%xmm1"
-                next_float += 1
-                if store:
-                    try self.store_eightbyte(reg, k, size, true)
-                else:
-                    try self.load_eightbyte(reg, "%r10", k, size, true)
+        for j in 0..<words:
+            let k = j if store else words - 1 - j
+            let float = (sse & (u8)(1 << k)) != 0
+            # the second word takes the second register of its class only when the first
+            # word is of that class too
+            let second = k == 1 and ((sse & 1) != 0) == float
+            let reg = ("%xmm1" if second else "%xmm0") if float else ("%rdx" if second else "%rax")
+            if store:
+                try self.store_eightbyte(reg, k, size, float)
             else:
-                let reg = "%rax" if next_int == 0 else "%rdx"
-                next_int += 1
-                if store:
-                    try self.store_eightbyte(reg, k, size, false)
-                else:
-                    try self.load_eightbyte(reg, "%r10", k, size, false)
-            k += 1
+                try self.load_eightbyte(reg, "%r10", k, size, float)
 
     ## %rsp below `count` levels of the dynamic area under the fixed frame (`ir.Op.reserve`),
     ## set from %rbp whatever it was; on Windows a call's 32-byte shadow area stays below
