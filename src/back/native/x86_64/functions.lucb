@@ -249,6 +249,7 @@ extend Generator:
     ## registers the allocator gave it (a debug build's, all of them) when none.
     func function_text(index: usize, plan: u16?) -> !:
         self.fr.reserved = 0
+        self.pool.count = 0
         if self.third_scratch():
             self.fr.reserve(third_scratch_code(self.convention.windows))
         self.reserve_asm_registers()
@@ -356,3 +357,4 @@ extend Generator:
         if self.f.debug:
             try assembly.describe_frame(&self.descriptors, self.symbol_prefix, ".Ltext_", self.program_unit, self.f, &self.fr)
         try self.object_format.function_end(&self.writer.out, self.f)
+        try self.finish_pool()

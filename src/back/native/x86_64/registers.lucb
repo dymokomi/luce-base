@@ -364,6 +364,9 @@ extend Generator:
             if home != reg:
                 try self.register_move(reg, home, cls, code)
             return
+        if let bits = self.fr.constant_of(t):
+            try self.constant(reg, cls, bits)
+            return
         if let below = self.fr.rematerialised(t):
             # a frame address, formed here (`remat`)
             if is_int_class(cls):
@@ -437,6 +440,61 @@ extend Generator:
             try self.load_immediate(reg, r.value)
         else:
             try self.writer.line3("movq $0, ", reg, "")
+
+    # mark: Float constants ===================================================================
+
+    ## The float constant of `bits` formed in `reg` as class `cls` (`frame.Frame.constant_of`):
+    ## a zero by clearing the register, any other read from the function's literal pool; an
+    ## integer register (the constant's bits read as an integer) takes them as an immediate.
+    ## No form touches the flags, so a constant may be formed between a comparison and the
+    ## branch or `cmov` on it.
+    func constant(reg: str, cls: ir.Class, bits: u64) -> !:
+        if reg.bytes[1] != 'x':
+            try self.load_immediate(reg, (i64)bits)
+            return
+        if bits == 0:
+            try self.writer.line4("xorps ", reg, ", ", reg)
+            return
+        try self.writer.line("movsd " if cls == ir.Class.d else "movss ")
+        try self.pooled(bits)
+        try self.put2(", ", reg)
+
+    ## `label(%rip)`: the literal pool's entry for `bits`, added when it has none.
+    func pooled(bits: u64) -> !:
+        var k: usize = 0
+        while k < self.pool.count and self.pool.get(k) != bits:
+            k += 1
+        if k == self.pool.count:
+            try self.pool.push(bits)
+        try self.pool_label(u32(k))
+        try self.writer.put("(%rip)")
+
+    ## Whether `r` is a float constant read from the literal pool where it is used, which an
+    ## arithmetic instruction may then read itself; its bits.
+    func pooled_constant(r: ir.Ref) -> u64?:
+        if r.kind != ir.RefKind.temp:
+            return none
+        if let bits = self.fr.constant_of(r.index):
+            if bits != 0:
+                return bits
+        return none
+
+    ## After the function's end, which leaves the text section current: its literal pool,
+    ## eight bytes an entry (a single's in the low four), in read-only data, and the text
+    ## section again.
+    func finish_pool() -> !:
+        if self.pool.count == 0:
+            return
+        try self.object_format.read_only(&self.writer.out)
+        try self.writer.put("    .p2align 3")
+        for k in 0..<self.pool.count:
+            try self.writer.put("\n")
+            try self.pool_label(u32(k))
+            try self.writer.put(":\n    .quad ")
+            try self.writer.put_u64(self.pool.get(k))
+        try self.writer.put("\n")
+        try self.object_format.text_section(&self.writer.out)
+        self.pool.count = 0
 
 ## The move that carries a register of class `cls` to or from memory.
 func move_of(cls: ir.Class) -> str:

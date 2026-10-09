@@ -49,6 +49,9 @@ pub struct Registers:
     ## nonvolatile xmm registers are saved whole by the generator itself, and no slot lives
     ## in an xmm register.
     pub var frame_floats: bool = true
+    ## Whether a float constant is formed again at each use (`constant_of`) in a function
+    ## whose floats want more registers than the pools hold, rather than taking one.
+    pub var formed_constants: bool = false
 
     ## The allocator's register pools for this set.
     pub func pools() -> regalloc.Pools:
@@ -93,6 +96,10 @@ pub struct Frame:
     ## Per temporary (1-based), the frame address it is formed again as at each use
     ## (`remat.find`), 0 for none.
     var formed: list.List[u64]
+    ## Per temporary (1-based), whether it is a float constant formed again at each use
+    ## (`Registers.formed_constants`), and the constant's bits.
+    var constant_formed: list.List[bool]
+    var constant_bits: list.List[u64]
     ## Where each temporary's life ends (`regalloc.Lives.end`, a doubled position), for the
     ## DWARF emitter's location lists; 0 for a temporary with no life.
     pub var temp_ends: list.List[u32]
@@ -119,7 +126,7 @@ pub struct Frame:
     ## An empty frame for a target's register set.
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
-                      temp_regs = try list.List[u8].create(256), temp_saved = try list.List[bool].create(256), crossings = try list.List[Crossing].create(16), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64), fixed = try list.List[regalloc.Clobber].create(16),
+                      temp_regs = try list.List[u8].create(256), temp_saved = try list.List[bool].create(256), crossings = try list.List[Crossing].create(16), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64), fixed = try list.List[regalloc.Clobber].create(16), constant_formed = try list.List[bool].create(256), constant_bits = try list.List[u64].create(256),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
@@ -158,9 +165,16 @@ pub struct Frame:
     pub func uses(code: u8) -> bool:
         return (self.used_mask & ((u64)1 << (u64)(code - 1))) != 0
 
-    ## Whether temporary `t` is formed at each use (`remat`) rather than kept.
+    ## Whether temporary `t` is formed at each use (`remat`, `constant_of`) rather than kept.
     pub func is_rematerialised(t: u32) -> bool:
-        return (usize)t < self.formed.count and self.formed.get((usize)t) != 0
+        return ((usize)t < self.formed.count and self.formed.get((usize)t) != 0) or ((usize)t < self.constant_formed.count and self.constant_formed.get((usize)t))
+
+    ## The bits of the float constant temporary `t` is formed again as at each use, when it
+    ## is one: it takes no register and no home, and its definition emits nothing.
+    pub func constant_of(t: u32) -> u64?:
+        if (usize)t >= self.constant_formed.count or not self.constant_formed.get((usize)t):
+            return none
+        return self.constant_bits.get((usize)t)
 
     ## Where temporary `t` is formed at each use (`remat`): its slot and the byte offset
     ## within it, as the distance below the frame pointer; none when it lives as others do.
@@ -214,8 +228,9 @@ pub struct Frame:
                 try self.formed.push(found[t])
                 if found[t] != 0:
                     lives.forget(u32(t))
-            try self.note_spans(f, &g, &lives)
             let (ints, floats) = try lives.pressure(f)
+            try self.form_constants(f, &lives, floats)
+            try self.note_spans(f, &g, &lives)
             let float_budget = budget(floats, self.registers.floats, self.registers.keep_floats) if self.registers.frame_floats else 0
             try self.promote(f, budget(ints, self.registers.ints, self.registers.keep_ints), float_budget)
             # the address of a slot promoted to a register is never formed at all
@@ -224,6 +239,35 @@ pub struct Frame:
                 if k != 0 and self.slot_regs.get((usize)(k >> 32) - 1) != 0:
                     self.formed.set(t, 0)
             try self.allocate(f, &lives)
+
+    ## When the target forms float constants at their uses and `floats`, the most float
+    ## temporaries live at once, fill the float pools (`Registers.formed_constants`): every
+    ## temporary assigned once, a float constant, is formed at each use and needs no
+    ## register, which the values computed keep instead. A build a debugger reads keeps them.
+    func form_constants(f: ir.Function*, lives: regalloc.Lives*, floats: u32) -> !:
+        self.constant_formed.count = 0
+        self.constant_bits.count = 0
+        for _ in 0..<f.temps.count + 1:
+            try self.constant_formed.push(false)
+            try self.constant_bits.push(0)
+        let pool = (u32)self.registers.floats + (u32)self.registers.scratch_floats
+        if not self.registers.formed_constants or f.debug or f.symbols or f.naked or floats < pool:
+            return
+        var defs = try new u8[f.temps.count + 1] ---
+        defer free(defs)
+        for t in 0..<defs.length:
+            defs[t] = 0
+        for x in f.instrs.span():
+            if x.dst != 0 and defs[(usize)x.dst] < 2:
+                defs[(usize)x.dst] += 1
+            if x.op == ir.Op.dbg and x.a.kind == ir.RefKind.temp:
+                defs[(usize)x.a.index] = 2
+        for x in f.instrs.span():
+            let constant = (x.op == ir.Op.cast or x.op == ir.Op.copy) and x.a.kind == ir.RefKind.constant
+            if x.dst != 0 and defs[(usize)x.dst] == 1 and constant and (x.cls == ir.Class.d or x.cls == ir.Class.s) and not self.is_rematerialised(x.dst):
+                self.constant_formed.set((usize)x.dst, true)
+                self.constant_bits.set((usize)x.dst, (u64)x.a.value)
+                lives.forget(x.dst)
 
     ## Lay the frame out below `base` (what the prologue already pushed): the hidden result
     ## pointer's home when `indirect_result`, a word per callee-saved register used, every

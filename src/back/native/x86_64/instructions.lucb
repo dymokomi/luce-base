@@ -61,8 +61,14 @@ extend Generator:
                         try self.writer.line4("movdqa ", value, ", ", d)
                     try self.finish(n.dst, ir.Class.v, d)
                     return
-                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                if n.a.kind == ir.RefKind.temp:
+                    if let bits = self.fr.constant_of(n.a.index):
+                        # a float constant formed where it is used: straight into the copy
+                        try self.constant(d, n.cls, bits)
+                        try self.finish(n.dst, n.cls, d)
+                        return
+                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 if v != d:
                     try self.writer.line4(register_move(n.cls), v, ", ", d)
                 try self.finish(n.dst, n.cls, d)
@@ -401,11 +407,20 @@ extend Generator:
     ## Float arithmetic: singles and doubles directly, into the result's own register when it
     ## has one, in the three-operand AVX form from x86-64-v3; halves through single precision
     ## in scratch registers.
-    func float_arithmetic(n: ir.Instr) -> !:
+    func float_arithmetic(given: ir.Instr) -> !:
+        var n = given
+        if (n.op == ir.Op.add or n.op == ir.Op.mul) and n.cls != ir.Class.h and self.pooled_constant(n.b) == none:
+            if let bits = self.pooled_constant(n.a):
+                # a constant on the left of a sum or a product goes right, where the
+                # instruction reads it from the pool itself: the same value, as the
+                # constant is no NaN whose payload the order would choose
+                if not is_nan_bits(bits, n.cls):
+                    n.a = given.b
+                    n.b = given.a
         let cls = n.cls
         let a = try self.source(n.a, cls, self.reg(cls, 0))
         var b = self.reg(cls, 1)
-        if cls == ir.Class.h or self.frame_home(n.b) == none:
+        if cls == ir.Class.h or (self.frame_home(n.b) == none and self.pooled_constant(n.b) == none):
             b = try self.source(n.b, cls, b)
         var mnemonic = "add"
         match n.op:
@@ -428,23 +443,30 @@ extend Generator:
             try self.finish(n.dst, cls, d)
             return
         let d = self.target(n.dst, cls, self.reg(cls, 0))
-        # a right operand kept in the frame is read there, by the instruction itself
+        # a right operand kept in the frame, or a constant in the literal pool, is read
+        # there, by the instruction itself
         let home = self.frame_home(n.b)
+        let pooled = self.pooled_constant(n.b)
         if self.level >= 3:
             try self.writer.line3("v", mnemonic, form)
             if let below = home:
                 try self.frame_operand(below)
+            elif let bits = pooled:
+                try self.pooled(bits)
             else:
                 try self.writer.put(b)
             try self.put2(", ", a)
             try self.put2(", ", d)
             try self.finish(n.dst, cls, d)
             return
-        if let below = home:
+        if home != none or pooled != none:
             if a != d:
                 try self.writer.line4("movaps ", a, ", ", d)
             try self.writer.line2(mnemonic, form)
-            try self.frame_operand(below)
+            if let below = home:
+                try self.frame_operand(below)
+            elif let bits = pooled:
+                try self.pooled(bits)
             try self.put2(", ", d)
             try self.finish(n.dst, cls, d)
             return

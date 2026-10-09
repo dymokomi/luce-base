@@ -88,6 +88,9 @@ pub struct Generator:
     ## how many it has.
     var cold: buffer.Buffer
     var cold_count: u32 = 0
+    ## The bits of the float constants the function's text reads from its literal pool
+    ## (`constant`), which follows the function in read-only data (`finish_pool`).
+    var pool: list.List[u64]
     ## For an assembly the driver splits into pieces it assembles in parallel (ELF): the
     ## labels functions share (text literals, the sign masks, the half routines) are hidden
     ## global symbols, not labels local to one file, so every piece can name them.
@@ -108,7 +111,7 @@ pub struct Generator:
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 4), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
-                         fr = try frame.Frame.create(registers_of(os == build_target.Os.windows)), descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024))
+                         fr = try frame.Frame.create(registers_of(os == build_target.Os.windows)), descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024), pool = try list.List[u64].create(8))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -128,6 +131,13 @@ pub struct Generator:
         try self.writer.out.put(".L")
         try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
         try self.writer.out.put("_c")
+        try self.writer.out.put_u64((u64)n)
+
+    ## The label of entry `n` of the function's literal pool (`constant`).
+    func pool_label(n: u32) -> !:
+        try self.writer.out.put(".L")
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split)
+        try self.writer.out.put("_k")
         try self.writer.out.put_u64((u64)n)
 
     ## The label of jump table `n` of the function.
@@ -186,7 +196,7 @@ pub struct Generator:
     static func like(model: Generator*) -> Generator!:
         var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, convention = model.convention, unwinding = model.unwinding, level = model.level, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
                              at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
-                             fr = try frame.Frame.create(registers_of(model.convention.windows)), descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024))
+                             fr = try frame.Frame.create(registers_of(model.convention.windows)), descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024), pool = try list.List[u64].create(8))
         made.dw = none
         made.split = model.split
         made.function_tags = model.function_tags

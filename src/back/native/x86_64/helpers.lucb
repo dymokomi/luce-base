@@ -101,11 +101,12 @@ let windows_b: str[26] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%xmm6"
 
 ## The register set of each convention (`frame.Registers`), as the tables above number it.
 ## Floats live only in the frame's own registers on x86-64: no slot is promoted to an xmm
-## register, and Windows saves its nonvolatile ones itself.
+## register, and Windows saves its nonvolatile ones itself. Where floats want more registers
+## than there are, a float constant is formed at each use (`constant`) instead of keeping one.
 func registers_of(windows: bool) -> frame.Registers:
     if windows:
-        return frame.Registers(ints = 5, floats = 10, keep_ints = 2, keep_floats = 0, scratch_ints = 6, scratch_floats = 4, frame_floats = false)
-    return frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 6, scratch_floats = 14, frame_floats = false)
+        return frame.Registers(ints = 5, floats = 10, keep_ints = 2, keep_floats = 0, scratch_ints = 6, scratch_floats = 4, frame_floats = false, formed_constants = true)
+    return frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 6, scratch_floats = 14, frame_floats = false, formed_constants = true)
 
 ## The code of the third float scratch register, xmm13 on System V and xmm15 on Windows,
 ## which the pools give up in a function that needs it (`third_scratch`).
@@ -121,6 +122,12 @@ func fixed_code(windows: bool, rcx: bool) -> u8:
 ## Whether `r` is a constant an instruction carries as a sign-extended 32-bit immediate.
 func fits_immediate(r: ir.Ref) -> bool:
     return r.kind == ir.RefKind.constant and r.value >= -2147483648 and r.value <= 2147483647
+
+## Whether `bits` are a NaN's of float class `cls` (a single's in the low half).
+func is_nan_bits(bits: u64, cls: ir.Class) -> bool:
+    if cls == ir.Class.s:
+        return (bits & 0x7fffffff) > 0x7f800000
+    return (bits & 0x7fffffffffffffff) > 0x7ff0000000000000
 
 ## Whether an aggregate of `size` bytes ends in an eightbyte of other than four or eight.
 func partial_eightbyte(size: u32) -> bool:
