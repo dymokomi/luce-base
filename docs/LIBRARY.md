@@ -411,7 +411,7 @@ A running thread; the zero value is no thread at all, so arrays of handles exist
 
 ## `sync`
 
-Blocking synchronisation over the host's futex-like wait and wake: a mutex, a condition variable, a run-once gate, and a counting semaphore. The host's sleep returns on wakes nothing here sent: Linux and macOS rarely, and Windows whenever an address 8 or 16 bytes away is woken. Every sleep below checks its own word again and sleeps again when it has not changed, so a neighbour's wake costs a context switch and is never seen by a caller.
+Blocking synchronisation over the host's futex-like wait and wake: a mutex, a condition variable, a run-once gate, and a counting semaphore. The host's sleep returns on wakes nothing here sent: Linux and macOS rarely, and Windows often when a thread waiting on an address less than 32 bytes away is woken. Every sleep below checks its own word again and sleeps again when it has not changed, so such a wake costs a context switch and is never seen by a caller.
 
 ### `Mutex` (struct)
 
