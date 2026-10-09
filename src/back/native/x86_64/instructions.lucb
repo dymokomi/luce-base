@@ -118,10 +118,12 @@ extend Generator:
             .alloca:
                 # frame storage (`memory.frame`): rsp down by a multiple of sixteen, at most
                 # 4096, and the new bottom touched, so no guard page is stepped over; the
-                # fixed frame stays reached through rbp, and every epilogue resets rsp from it
+                # fixed frame stays reached through rbp, and every epilogue resets rsp from it.
+                # The touch keeps the word it reaches, which is the saved rbp when the count
+                # is zero and the function keeps nothing in its frame
                 let bytes = try self.source(n.a, ir.Class.l, "%rax")
                 try self.writer.line3("subq ", bytes, ", %rsp")
-                try self.writer.line("movq $0, (%rsp)")
+                try self.writer.line("orq $0, (%rsp)")
                 let d = self.target(n.dst, ir.Class.l, "%rax")
                 try self.writer.line3("movq %rsp, ", d, "")
                 try self.finish(n.dst, ir.Class.l, d)
@@ -205,7 +207,7 @@ extend Generator:
                     try self.call_symbol(self.program_unit.trap_function)
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "%rax")
-                let b = try self.source(n.b, ir.Class.l, "%rcx")
+                let b = try self.source(n.b, ir.Class.l, "%r11")
                 try self.writer.line4("cmpq ", b, ", ", a)
                 try self.check_failure("jbe " if n.extra == 1 else "jb ", "ja " if n.extra == 1 else "jae ", "index out of bounds", n)
             .addo, .subo, .mulo:
@@ -258,8 +260,13 @@ extend Generator:
         let cls = n.cls
         let suffix = "q" if cls == ir.Class.l else "l"
         if n.op == ir.Op.sdiv or n.op == ir.Op.udiv or n.op == ir.Op.srem or n.op == ir.Op.urem:
-            # the dividend in rax (and rdx), the divisor anywhere else
-            let b = try self.source(n.b, cls, self.reg(cls, 1))
+            # the dividend in rax (and rdx), the divisor anywhere else: out of rdx, a
+            # temporary's register the extension overwrites (`fixed_clobbers`), first
+            var b = try self.source(n.b, cls, self.reg(cls, 1))
+            if wide_name(b) == "%rdx":
+                try self.writer.line4("mov", suffix, " ", b)
+                try self.put2(", ", self.reg(cls, 1))
+                b = self.reg(cls, 1)
             try self.operand(self.reg(cls, 0), cls, n.a)
             if n.op == ir.Op.sdiv or n.op == ir.Op.srem:
                 try self.writer.line("cqto" if cls == ir.Class.l else "cltd")
@@ -268,7 +275,8 @@ extend Generator:
                 try self.writer.line("xorl %edx, %edx")
                 try self.writer.line3("div", suffix, " ")
             try self.writer.put(b)
-            let quotient = self.reg(cls, 0) if n.op == ir.Op.sdiv or n.op == ir.Op.udiv else self.reg(cls, 2)
+            let remainder = "%rdx" if cls == ir.Class.l else "%edx"
+            let quotient = self.reg(cls, 0) if n.op == ir.Op.sdiv or n.op == ir.Op.udiv else remainder
             let d = self.target(n.dst, cls, self.reg(cls, 0))
             if d != quotient:
                 try self.writer.line4("mov", suffix, " ", quotient)
@@ -280,19 +288,7 @@ extend Generator:
             try self.arithmetic_immediate(n, suffix)
             return
         if n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr:
-            # the count lives in cl
-            try self.operand(self.reg(cls, 1), cls, n.b)
-            let a = try self.source(n.a, cls, self.reg(cls, 0))
-            let d = self.target(n.dst, cls, self.reg(cls, 0))
-            if a != d:
-                try self.writer.line4("mov", suffix, " ", a)
-                try self.writer.put(", ")
-                try self.writer.put(d)
-            try self.writer.line("shl" if n.op == ir.Op.shl else ("shr" if n.op == ir.Op.lshr else "sar"))
-            try self.writer.put(suffix)
-            try self.writer.put(" %cl, ")
-            try self.writer.put(d)
-            try self.finish(n.dst, cls, d)
+            try self.variable_shift(n, suffix)
             return
         let a = try self.source(n.a, cls, self.reg(cls, 0))
         var b = try self.source(n.b, cls, self.reg(cls, 1))
@@ -319,6 +315,34 @@ extend Generator:
             _: mnemonic = "add"
         try self.writer.line4(mnemonic, suffix, " ", b)
         try self.writer.put(", ")
+        try self.writer.put(d)
+        try self.finish(n.dst, cls, d)
+
+    ## A shift by a count in a register, which the instruction reads from cl: rcx, which no
+    ## temporary keeps across it (`fixed_clobbers`), but the value, the count or the result
+    ## may live in. The value is read out of rcx before the count goes in, and the shift
+    ## happens in rax when the result's register is rcx.
+    func variable_shift(n: ir.Instr, suffix: str) -> !:
+        let cls = n.cls
+        let count_reg = "%rcx" if cls == ir.Class.l else "%ecx"
+        var a = try self.source(n.a, cls, self.reg(cls, 0))
+        let c = try self.source(n.b, cls, self.reg(cls, 1))
+        var d = self.target(n.dst, cls, self.reg(cls, 0))
+        if d == count_reg:
+            d = self.reg(cls, 0)
+        if c != count_reg:
+            if a == count_reg:
+                try self.writer.line5("mov", suffix, " ", a, ", ")
+                try self.writer.put(self.reg(cls, 2))
+                a = self.reg(cls, 2)
+            try self.writer.line5("mov", suffix, " ", c, ", ")
+            try self.writer.put(count_reg)
+        if a != d:
+            try self.writer.line5("mov", suffix, " ", a, ", ")
+            try self.writer.put(d)
+        try self.writer.line("shl" if n.op == ir.Op.shl else ("shr" if n.op == ir.Op.lshr else "sar"))
+        try self.writer.put(suffix)
+        try self.writer.put(" %cl, ")
         try self.writer.put(d)
         try self.finish(n.dst, cls, d)
 
@@ -505,7 +529,7 @@ extend Generator:
 
     ## `switch`: the value less the table's first is the entry, when it is below the
     ## table's count; the entry is its label's distance from the table, which follows the
-    ## jump in the text, so the table needs no relocation. rax holds the entry, rcx the
+    ## jump in the text, so the table needs no relocation. rax holds the entry, r11 the
     ## table's address.
     func jump_table(n: ir.Instr) -> !:
         let wide = n.cls == ir.Class.l
@@ -518,8 +542,8 @@ extend Generator:
                 try self.writer.put_i64(table.low)
                 try self.writer.put(", %rax")
             else:
-                try self.load_immediate("%rcx", table.low)
-                try self.writer.line("subq %rcx, %rax")
+                try self.load_immediate("%r11", table.low)
+                try self.writer.line("subq %r11, %rax")
         elif not wide:
             # the low bits are the whole value at the word's width, spelled signed
             let low = (i64)((u64)table.low & 0xFFFFFFFF)
@@ -535,10 +559,10 @@ extend Generator:
         try self.label_name(n.extra)
         try self.writer.line("leaq ")
         try self.table_name(n.extra2)
-        try self.writer.put("(%rip), %rcx")
+        try self.writer.put("(%rip), %r11")
         # a word's subtraction left the high half of rax zero
-        try self.writer.line("movslq (%rcx,%rax,4), %rax")
-        try self.writer.line("addq %rcx, %rax")
+        try self.writer.line("movslq (%r11,%rax,4), %rax")
+        try self.writer.line("addq %r11, %rax")
         try self.writer.line("jmp *%rax")
         try self.writer.line(".p2align 2")
         try self.writer.put("\n")
@@ -621,13 +645,13 @@ extend Generator:
             .ceq:
                 try self.writer.line4(mnemonic, b, ", ", a)
                 try self.writer.line("sete %al")
-                try self.writer.line("setnp %cl")
-                try self.writer.line("andb %cl, %al")
+                try self.writer.line("setnp %r11b")
+                try self.writer.line("andb %r11b, %al")
             _:
                 try self.writer.line4(mnemonic, b, ", ", a)
                 try self.writer.line("setne %al")
-                try self.writer.line("setp %cl")
-                try self.writer.line("orb %cl, %al")
+                try self.writer.line("setp %r11b")
+                try self.writer.line("orb %r11b, %al")
         let d = self.target(n.dst, ir.Class.w, "%eax")
         try self.writer.line3("movzbl %al, ", d, "")
         try self.finish(n.dst, ir.Class.w, d)
@@ -725,12 +749,12 @@ extend Generator:
         let wide = n.cls == ir.Class.l
         let bound = self.reg(src, 1)
         if src == ir.Class.d:
-            try self.load_immediate("%rcx", 4890909195324358656 if wide else 4746794007248502784)
-            try self.writer.line3("movq %rcx, ", bound, "")
+            try self.load_immediate("%r11", 4890909195324358656 if wide else 4746794007248502784)
+            try self.writer.line3("movq %r11, ", bound, "")
             try self.writer.line4("ucomisd ", bound, ", ", v)
         else:
-            try self.load_immediate("%ecx", 1593835520 if wide else 1325400064)
-            try self.writer.line3("movd %ecx, ", bound, "")
+            try self.load_immediate("%r11d", 1593835520 if wide else 1325400064)
+            try self.writer.line3("movd %r11d, ", bound, "")
             try self.writer.line4("ucomiss ", bound, ", ", v)
         # below the bound, or unordered
         try self.writer.line("jb 1f")
@@ -760,16 +784,16 @@ extend Generator:
             try self.writer.line3("movl ", v, ", %eax")
             try self.writer.line3(convert, "q %rax, ", d)
         else:
-            try self.writer.line3("movq ", v, ", %rcx")
-            try self.writer.line("testq %rcx, %rcx")
+            try self.writer.line3("movq ", v, ", %r11")
+            try self.writer.line("testq %r11, %r11")
             try self.writer.line("js 1f")
-            try self.writer.line3(convert, "q %rcx, ", d)
+            try self.writer.line3(convert, "q %r11, ", d)
             try self.writer.line("jmp 2f")
             try self.writer.put("\n1:")
-            try self.writer.line("movq %rcx, %rax")
+            try self.writer.line("movq %r11, %rax")
             try self.writer.line("shrq $1, %rax")
-            try self.writer.line("andl $1, %ecx")
-            try self.writer.line("orq %rcx, %rax")
+            try self.writer.line("andl $1, %r11d")
+            try self.writer.line("orq %r11, %rax")
             try self.writer.line3(convert, "q %rax, ", d)
             try self.writer.line4("addss " if single else "addsd ", d, ", ", d)
             try self.writer.put("\n2:")
@@ -777,20 +801,20 @@ extend Generator:
             try self.round_to_half(d)
         try self.finish(n.dst, n.cls, d)
 
-    ## `select`: the condition word tested, then a `cmov` into r11 for integers, both values
-    ## read first (a move leaves the flags be); a float's value when false goes into scratch
-    ## first, and a branch passes over the move of its value when true.
+    ## `select`: the condition word tested, then for integers the value when false moved
+    ## into r11 and a `cmov` of the value when true over it, both read after the test (a
+    ## move leaves the flags be); a float's value when false goes into scratch first, and a
+    ## branch passes over the move of its value when true.
     func selected(n: ir.Instr) -> !:
         let other = self.f.args.get((usize)n.extra2).value
         let wide = ir.Class.l if n.extra == 1 else ir.Class.w
         if n.cls == ir.Class.w or n.cls == ir.Class.l:
-            let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
-            let e = try self.source(other, n.cls, self.reg(n.cls, 2))
             let c = try self.source(n.a, wide, self.reg(wide, 0))
-            let long = n.cls == ir.Class.l
-            let r = "%r11" if long else "%r11d"
-            try self.writer.line4("movq " if long else "movl ", e, ", ", r)
             try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
+            let long = n.cls == ir.Class.l
+            let r = self.reg(n.cls, 1)
+            try self.operand(r, n.cls, other)
+            let t = try self.source(n.b, n.cls, self.reg(n.cls, 2))
             try self.writer.line4("cmovneq " if long else "cmovnel ", t, ", ", r)
             try self.finish(n.dst, n.cls, r)
             return

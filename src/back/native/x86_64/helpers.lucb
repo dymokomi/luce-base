@@ -77,36 +77,50 @@ func has_text_at(line: str, part: str, at: usize) -> bool:
 
 ## The registers the allocator hands out, by code, under each convention, in their four
 ## widths (an xmm register has one name). Codes 1–5 are the callee-saved rbx and r12–r15 on
-## both. System V: 6–9 the caller-saved argument registers r8, r9, rsi and rdi, for
-## integers that cross no call, which a call's parallel move fills last; 10–23 the
-## caller-saved xmm8–xmm12, xmm7 down to xmm0 (the argument registers last), and xmm13, for
-## floats and vectors. Windows x64: 6–15 the nonvolatile xmm6–xmm15, which the save area
-## holds whole (`settle_windows_saves`); 16–19 r8, r9, rsi and rdi, which the allocator
-## treats as a call's to clobber although rsi and rdi are nonvolatile (the save area holds
-## them too when the text names them); 20–23 the volatile xmm3 down to xmm0. The float scratch registers (`reg`) are no
-## temporary's: xmm14 and xmm15 on System V, xmm4 and xmm5 on Windows; the third, xmm13 or
-## xmm15, is kept out of the pools only in a function that needs it (`third_scratch`).
-let sysv_q: str[24] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r8", "%r9", "%rsi", "%rdi", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
-let sysv_l: str[24] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%r8d", "%r9d", "%esi", "%edi", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
-let sysv_w: str[24] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%r8w", "%r9w", "%si", "%di", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
-let sysv_b: str[24] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%r8b", "%r9b", "%sil", "%dil", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
-let windows_q: str[24] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8", "%r9", "%rsi", "%rdi", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
-let windows_l: str[24] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8d", "%r9d", "%esi", "%edi", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
-let windows_w: str[24] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8w", "%r9w", "%si", "%di", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
-let windows_b: str[24] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8b", "%r9b", "%sil", "%dil", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
+## both. System V: 6–11 the caller-saved r8, r9, rsi, rdi, rdx and rcx, for integers that
+## cross no call, which a call's parallel move fills last; 12–25 the caller-saved
+## xmm8–xmm12, xmm7 down to xmm0 (the argument registers last), and xmm13, for floats and
+## vectors. Windows x64: 6–15 the nonvolatile xmm6–xmm15, which the save area holds whole
+## (`settle_windows_saves`); 16–21 r8, r9, rdx, rcx, rsi and rdi, which the allocator treats
+## as a call's to clobber although rsi and rdi are nonvolatile (the save area holds them too
+## when the text names them); 22–25 the volatile xmm3 down to xmm0. rdx and rcx are a
+## temporary's except across an instruction that names them itself (`fixed_clobbers`): a
+## division, a shift by a variable count. rax, r10 and r11 are the generator's integer
+## scratch registers (`reg`), no temporary's. The float scratch registers are no
+## temporary's either: xmm14 and xmm15 on System V, xmm4 and xmm5 on Windows; the third,
+## xmm13 or xmm15, is kept out of the pools only in a function that needs it
+## (`third_scratch`).
+let sysv_q: str[26] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r8", "%r9", "%rsi", "%rdi", "%rdx", "%rcx", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
+let sysv_l: str[26] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%r8d", "%r9d", "%esi", "%edi", "%edx", "%ecx", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
+let sysv_w: str[26] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%r8w", "%r9w", "%si", "%di", "%dx", "%cx", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
+let sysv_b: str[26] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%r8b", "%r9b", "%sil", "%dil", "%dl", "%cl", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm7", "%xmm6", "%xmm5", "%xmm4", "%xmm3", "%xmm2", "%xmm1", "%xmm0", "%xmm13"]
+let windows_q: str[26] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8", "%r9", "%rdx", "%rcx", "%rsi", "%rdi", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
+let windows_l: str[26] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8d", "%r9d", "%edx", "%ecx", "%esi", "%edi", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
+let windows_w: str[26] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8w", "%r9w", "%dx", "%cx", "%si", "%di", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
+let windows_b: str[26] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15", "%r8b", "%r9b", "%dl", "%cl", "%sil", "%dil", "%xmm3", "%xmm2", "%xmm1", "%xmm0"]
 
 ## The register set of each convention (`frame.Registers`), as the tables above number it.
 ## Floats live only in the frame's own registers on x86-64: no slot is promoted to an xmm
 ## register, and Windows saves its nonvolatile ones itself.
 func registers_of(windows: bool) -> frame.Registers:
     if windows:
-        return frame.Registers(ints = 5, floats = 10, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 4, frame_floats = false)
-    return frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 4, scratch_floats = 14, frame_floats = false)
+        return frame.Registers(ints = 5, floats = 10, keep_ints = 2, keep_floats = 0, scratch_ints = 6, scratch_floats = 4, frame_floats = false)
+    return frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 6, scratch_floats = 14, frame_floats = false)
 
 ## The code of the third float scratch register, xmm13 on System V and xmm15 on Windows,
 ## which the pools give up in a function that needs it (`third_scratch`).
 func third_scratch_code(windows: bool) -> u8:
-    return 15 if windows else 23
+    return 15 if windows else 25
+
+## The code of rcx (`rcx`) or rdx under a convention, by the tables above.
+func fixed_code(windows: bool, rcx: bool) -> u8:
+    if windows:
+        return 19 if rcx else 18
+    return 11 if rcx else 10
+
+## Whether `r` is a constant an instruction carries as a sign-extended 32-bit immediate.
+func fits_immediate(r: ir.Ref) -> bool:
+    return r.kind == ir.RefKind.constant and r.value >= -2147483648 and r.value <= 2147483647
 
 ## Whether an aggregate of `size` bytes ends in an eightbyte of other than four or eight.
 func partial_eightbyte(size: u32) -> bool:

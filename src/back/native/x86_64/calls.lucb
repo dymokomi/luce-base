@@ -10,15 +10,15 @@ extend Generator:
     # mark: Calls ==============================================================================
 
     ## The save area's prediction: the nonvolatile xmm6–xmm15, rsi and rdi the allocator
-    ## handed out (codes 6–15, 18 and 19, `registers_of`), each the bit of its place in
+    ## handed out (codes 6–15, 20 and 21, `registers_of`), each the bit of its place in
     ## `windows_nonvolatile`; the text may name more (`settle_windows_saves`).
     func allocated_saves() -> u16:
         var plan: u16 = 0
         for code in self.fr.temp_regs.span():
             if code >= 6 and code <= 15:
                 plan = plan | (u16)(1 << (code - 4))
-            elif code == 18 or code == 19:
-                plan = plan | (u16)(1 << (19 - code))
+            elif code == 20 or code == 21:
+                plan = plan | (u16)(1 << (21 - code))
         return plan
 
     ## Windows' nonvolatile registers beyond the allocator's (rdi, rsi and xmm6-xmm15, which

@@ -1,0 +1,153 @@
+## Integer values in every register the allocator hands out, x86-64's rcx and rdx among
+## them, live across the instructions that name those registers themselves: divisions and
+## remainders (rdx:rax), shifts by a variable count (cl), unsigned checked products
+## (rdx:rax), atomic operations retried in a loop (rdx) and, below x86-64-v3, half
+## conversions (rcx and rdx). More values than registers stay live across each, so the
+## divisor, the count and the result land in those registers too. Every build prints the
+## same.
+
+## Twelve values carried round a loop across divisions, remainders and shifts of both
+## widths, each value read after them.
+noinline func mix(seed: u64, rounds: u32) -> u64:
+    var a0 = seed
+    var a1 = seed ^ 0x9e3779b97f4a7c15
+    var a2 = seed *% 3 +% 11
+    var a3 = seed >> 3
+    var a4 = seed ^ 0x5555
+    var a5 = seed +% 77
+    var a6 = seed *% 31
+    var a7 = ~seed
+    var a8 = seed ^ (seed >> 7)
+    var a9 = seed +% 0x1234567
+    var a10 = seed *% 0x2545f4914f6cdd1d
+    var a11 = seed ^ 0xabcdef
+    for _ in 0..<rounds:
+        let q = a0 // (a3 | 1)
+        let m = a1 % (a4 | 3)
+        let s = (i64)(a2 >> 1) // (i64)((a5 & 0xff) | 1)
+        let t = (i64)(a6 >> 2) % (i64)((a7 & 0xfff) + 7)
+        let sl = a9 << (a8 & 63)
+        let sr = a10 >> (a11 & 63)
+        let sa = (u64)((i64)a11 >> (i64)(a0 & 63))
+        let w = (u32)a1 // ((u32)a2 | 1)
+        let wr = (u32)a3 % ((u32)a4 | 5)
+        let ws = (u32)a5 << ((u32)a6 & 31)
+        let wa = (u32)((i32)(u32)a7 >> ((i32)(u32)a8 & 31))
+        a0 = a1 +% q
+        a1 = a2 ^ m
+        a2 = a3 +% (u64)s
+        a3 = a4 ^ (u64)t
+        a4 = a5 +% sl
+        a5 = a6 ^ sr
+        a6 = a7 +% sa
+        a7 = a8 ^ (u64)w
+        a8 = a9 +% (u64)wr
+        a9 = a10 ^ (u64)ws
+        a10 = a11 +% (u64)wa
+        a11 = a0 ^ q ^ m
+    return a0 ^ a1 ^ a2 ^ a3 ^ a4 ^ a5 ^ a6 ^ a7 ^ a8 ^ a9 ^ a10 ^ a11
+
+## A shift whose value, count and result share registers in every way: the value shifted
+## by itself, the count read after.
+noinline func shifts(values: const u64[]) -> u64:
+    var total: u64 = 0
+    for v in values:
+        let k = v & 63
+        let x = v << k
+        let y = k << (v & 7)
+        let z = (v >> k) ^ (x >> (y & 63))
+        total = total +% x +% y +% z +% k
+    return total
+
+## Divisions whose divisor is the value just computed, the quotient and remainder of the
+## same operands, and the dividend read again after.
+noinline func divisions(values: const u64[]) -> u64:
+    var total: u64 = 0
+    var previous: u64 = 1
+    for v in values:
+        let d = (v % 97) + 1
+        let q = v // d
+        let r = v % d
+        let back = q * d + r
+        let signed = (i64)(v >> 2) // -(i64)d
+        let wide = (u32)v % (u32)(d + 3)
+        total = total +% q +% r +% (back ^ v) +% (u64)signed +% (u64)wide +% previous
+        previous = d
+    return total
+
+## Unsigned checked products of two values, live with eleven others across them, and by
+## constants (3, 5 and 9 are `lea`s, 1000 an `imul`), which trap past the range.
+noinline func products(values: const u64[]) -> u64:
+    var total: u64 = 0
+    var keep0: u64 = 1
+    var keep1: u64 = 2
+    var keep2: u64 = 3
+    var keep3: u64 = 4
+    var keep4: u64 = 5
+    var keep5: u64 = 6
+    var keep6: u64 = 7
+    var keep7: u64 = 8
+    var keep8: u64 = 9
+    for v in values:
+        let small = v & 0xffffffff
+        let p = small * ((v >> 40) | 1)
+        let c = (v & 0xffff) * 3 + (v & 0xff) * 5 + (v & 0xfff) * 9 + (v & 0xfffff) * 1000
+        let w = (u32)(v & 0xffff) * (u32)((v >> 48) | 1)
+        keep0 = keep1 +% p
+        keep1 = keep2 ^ c
+        keep2 = keep3 +% (u64)w
+        keep3 = keep4 ^ keep0
+        keep4 = keep5 +% keep1
+        keep5 = keep6 ^ keep2
+        keep6 = keep7 +% keep3
+        keep7 = keep8 ^ keep4
+        keep8 = keep0 +% keep5
+        total = total +% p +% c +% (u64)w
+    return total ^ keep0 ^ keep1 ^ keep2 ^ keep3 ^ keep4 ^ keep5 ^ keep6 ^ keep7 ^ keep8
+
+var largest: @u64 = 0
+var bits: @u32 = 0
+
+## Atomic operations retried in a compare-and-swap loop (max, min, or, xor, clear), values
+## live across each.
+noinline func atomics(values: const u64[]) -> u64:
+    var total: u64 = 0
+    var smallest: @i64 = 1000000
+    for v in values:
+        let before = largest.max(v & 0xffffff, .relaxed)
+        let low = smallest.min((i64)(v & 0xfffff) - 500000, .seq_cst)
+        let set = bits.set((u32)v & 0xff, .relaxed)
+        let flipped = bits.flip((u32)(v >> 8) & 0xf0f, .acq_rel)
+        let cleared = bits.clear((u32)(v >> 16) & 0x3c, .relaxed)
+        total = total +% before +% (u64)low +% (u64)set +% (u64)flipped +% (u64)cleared +% v
+    return total +% largest.load(.relaxed) +% (u64)smallest.load(.relaxed) +% (u64)bits.load(.relaxed)
+
+## Halves converted with integers live across, which below x86-64-v3 go through the unit's
+## own routines.
+noinline func halves(values: const u64[]) -> u64:
+    var total: u64 = 0
+    var h = (f16)0.5
+    for v in values:
+        let k = v & 255
+        # one operation a statement: a C compiler may keep a half's sum of products wider
+        let step = (f16)k * (f16)0.0078125
+        h = h * (f16)1.0625
+        h = h + step
+        if h > (f16)8.0:
+            h = h - (f16)7.5
+        total = total +% k +% (u64)((f32)h * 1024.0) +% (v >> (k & 63))
+    return total
+
+pub func main(arguments: str[]) -> i32:
+    var values: u64[200] = ---
+    var state: u64 = 0x853c49e6748fea9b +% (u64)arguments.length
+    for k in 0..<200:
+        state = state *% 6364136223846793005 +% 1442695040888963407
+        values[k] = state ^ (state >> 29)
+    print(f"mix {mix(values[0], 300)}")
+    print(f"shifts {shifts(values[0..])}")
+    print(f"divisions {divisions(values[0..])}")
+    print(f"products {products(values[0..])}")
+    print(f"atomics {atomics(values[0..])}")
+    print(f"halves {halves(values[0..])}")
+    return 0

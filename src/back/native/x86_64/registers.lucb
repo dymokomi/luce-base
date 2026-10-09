@@ -281,17 +281,18 @@ extend Generator:
     func slot_home(s: u32) -> u64:
         return self.fr.slot_home(s)
 
-    ## The scratch register of class `cls` numbered `n` (0, 1, 2): rax, rcx, rdx for the
-    ## integers, xmm14, xmm15 and xmm13 for the floats and vectors; r10 and r11 hold
-    ## addresses. On Windows, where xmm6–xmm15 are nonvolatile and a function using one
-    ## saves it, the first two float scratch registers are the volatile xmm4 and xmm5, which
-    ## carry no argument there, and the third is xmm15. No temporary lives in any of them,
-    ## the third only in a function that needs it (`third_scratch`).
+    ## The scratch register of class `cls` numbered `n` (0, 1, 2): rax, r11, r10 for the
+    ## integers, xmm14, xmm15 and xmm13 for the floats and vectors. r10 and r11 also hold the
+    ## addresses of loads and stores, which use no other scratch but rax. On Windows, where
+    ## xmm6–xmm15 are nonvolatile and a function using one saves it, the first two float
+    ## scratch registers are the volatile xmm4 and xmm5, which carry no argument there, and
+    ## the third is xmm15. No temporary lives in any of them, the third float one only in a
+    ## function that needs it (`third_scratch`).
     func reg(cls: ir.Class, n: u32) -> str:
         if cls == ir.Class.w:
-            return "%eax" if n == 0 else ("%ecx" if n == 1 else "%edx")
+            return "%eax" if n == 0 else ("%r11d" if n == 1 else "%r10d")
         if cls == ir.Class.l:
-            return "%rax" if n == 0 else ("%rcx" if n == 1 else "%rdx")
+            return "%rax" if n == 0 else ("%r11" if n == 1 else "%r10")
         if self.convention.windows:
             return "%xmm4" if n == 0 else ("%xmm5" if n == 1 else "%xmm15")
         return "%xmm14" if n == 0 else ("%xmm15" if n == 1 else "%xmm13")

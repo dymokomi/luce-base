@@ -107,6 +107,9 @@ pub struct Frame:
     ## Codes the generator keeps for itself on this target, never handed to a temporary:
     ## bit `c - 1` for code `c`.
     pub var reserved: u64
+    ## The instructions that overwrite registers of the pools themselves, in order, which
+    ## the generator lists before `plan`: no temporary lives in one across them.
+    pub var fixed: list.List[regalloc.Clobber]
     ## The frame's size, rounded to 16, and the home of the hidden result pointer when the
     ## function returns through memory.
     pub var size: u64
@@ -116,7 +119,7 @@ pub struct Frame:
     ## An empty frame for a target's register set.
     pub static func create(registers: Registers) -> Frame!:
         var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
-                      temp_regs = try list.List[u8].create(256), temp_saved = try list.List[bool].create(256), crossings = try list.List[Crossing].create(16), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64),
+                      temp_regs = try list.List[u8].create(256), temp_saved = try list.List[bool].create(256), crossings = try list.List[Crossing].create(16), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), formed = try list.List[u64].create(256), temp_ends = try list.List[u32].create(256), temp_spans = try list.List[sharing.Span].create(256), slot_spans = try list.List[sharing.Span].create(64), fixed = try list.List[regalloc.Clobber].create(16),
                       used_mask = 0, reserved = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
         return f
 
@@ -462,7 +465,7 @@ pub struct Frame:
             return
         var codes = try new u8[n] ---
         defer free(codes)
-        let used = try lives.allocate(f, self.registers.pools(), taken, codes)
+        let used = try lives.allocate(f, self.registers.pools(), taken, codes, self.fixed.span())
         i = 0
         while i < n:
             # an address temporary of a promoted slot is never materialised

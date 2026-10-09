@@ -16,7 +16,7 @@ extend Generator:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
         let width = (u64)n.extra
         let suffix = width_suffix(n.extra)
-        let value = register_of_width("%rcx", width)
+        let value = register_of_width("%r11", width)
         let old = register_of_width("%rax", width)
         let fresh = register_of_width("%rdx", width)
         try self.operand(self.reg(cls, 1), cls, n.a)
@@ -52,20 +52,20 @@ extend Generator:
                 try self.writer.put(old)
                 try self.writer.line4("cmovl", suffix if cls == ir.Class.l else "l", " ", self.reg(cls, 1))
                 try self.writer.put(", ")
-                try self.writer.put(self.reg(cls, 2))
+                try self.writer.put(register_of_width("%rdx", 8 if cls == ir.Class.l else 4))
             .atomic_min:
                 try self.writer.line5("cmp", suffix, " ", value, ", ")
                 try self.writer.put(old)
                 try self.writer.line4("cmovg", suffix if cls == ir.Class.l else "l", " ", self.reg(cls, 1))
                 try self.writer.put(", ")
-                try self.writer.put(self.reg(cls, 2))
+                try self.writer.put(register_of_width("%rdx", 8 if cls == ir.Class.l else 4))
             _:
                 _ = fresh.length
         try self.writer.line5("lock cmpxchg", suffix, " ", fresh, ", (%r10)")
         try self.writer.line("jne 1b")
         try self.store_temp(self.reg(cls, 0), cls, n.dst)
 
-    ## `lock cmpxchg`: the expected value in rax, the desired one in rcx; rax holds what
+    ## `lock cmpxchg`: the expected value in rax, the desired one in r11; rax holds what
     ## memory held, which is the result.
     func compare_and_swap(n: ir.Instr) -> !:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
@@ -75,5 +75,5 @@ extend Generator:
         try self.operand(self.reg(cls, 0), cls, expected.value)
         try self.operand(self.reg(cls, 1), cls, desired.value)
         try self.address_operand("%r10", n.a)
-        try self.writer.line5("lock cmpxchg", width_suffix(n.extra), " ", register_of_width("%rcx", width), ", (%r10)")
+        try self.writer.line5("lock cmpxchg", width_suffix(n.extra), " ", register_of_width("%r11", width), ", (%r10)")
         try self.store_temp(self.reg(cls, 0), cls, n.dst)

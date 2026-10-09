@@ -17,8 +17,8 @@ that work. Native compilation remains the primary execution and hardening target
 
 1. **The generators' scratch registers.** The allocator gives each temporary one
    place for its whole life, and the generators keep fixed scratch registers for their
-   operands (x9–x11, x16, x17; r10, r11, xmm8–xmm11; on x86-64 no caller-saved integer
-   register is in any pool, since the rest carry arguments). Splitting a life at a call,
+   operands (x9–x11, x16, x17 on arm64; rax, r10, r11 and two or three xmm registers on
+   x86-64). Splitting a life at a call,
    a copy out before and a copy back after, was measured on the compiler itself and
    rejected: the generators already reload a frame temporary at each use, so a split
    adds a store per crossing and gained nothing. Reading operands and addresses where
@@ -26,10 +26,11 @@ that work. Native compilation remains the primary execution and hardening target
    the register-to-register moves in the compiler's own assembly; what is left of them
    is argument setup. On arm64 the argument registers x0–x7 are in the caller-saved pool
    and a call's integer arguments are placed by one parallel move (`integer_arguments`).
-   On x86-64 r8, r9, rsi and rdi are in the SysV pool the same way (rcx and rdx stay
-   scratch for the shifts and the divides; Windows reserves them, its arguments being
-   staged through the shadow area). What remains: a generator that chooses its scratch
-   around the operands' registers, so x9–x11 and r10, r11 could join too. Gate: the
+   On x86-64 r8, r9, rsi, rdi, rdx and rcx are in the pool under both conventions, rdx and
+   rcx kept from the temporaries live across the instructions that name them themselves (a
+   division, a shift by a variable count: `frame.Frame.fixed`). What remains: a generator
+   that chooses its scratch around the operands' registers, so x9–x11 and rax, r10, r11
+   could join too. Gate: the
    `tests/optimization` limits lowered again, the native fixpoint kept, the compiler's
    own assembly in `docs/STATUS.md` smaller again.
 2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines,

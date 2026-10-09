@@ -91,6 +91,38 @@ extend Generator:
                         return true
         return false
 
+    ## The instructions that overwrite rdx or rcx, temporaries' registers, themselves
+    ## (`frame.Frame.fixed`): a division (rdx:rax), an unsigned checked multiply
+    ## (rdx:rax), a shift by a variable count (cl), an atomic operation
+    ## retried in a loop (rdx), and below x86-64-v3 a half's conversion through the unit's
+    ## routines, which use both. No temporary lives in those across them; their operands
+    ## and results may, and each sequence moves them out of the way.
+    func fixed_clobbers() -> !:
+        self.fr.fixed.count = 0
+        let rdx = (u64)1 << (u64)(fixed_code(self.convention.windows, false) - 1)
+        let rcx = (u64)1 << (u64)(fixed_code(self.convention.windows, true) - 1)
+        for i in 0..<self.f.instrs.count:
+            let n = self.f.instrs.get(i)
+            var codes: u64 = 0
+            match n.op:
+                .sdiv, .udiv, .srem, .urem:
+                    if is_int_class(n.cls):
+                        codes = rdx
+                .shl, .lshr, .ashr:
+                    if is_int_class(n.cls) and not fits_immediate(n.b):
+                        codes = rcx
+                .mulo:
+                    if n.extra != 1:
+                        codes = rdx
+                .atomic_or, .atomic_xor, .atomic_and_not, .atomic_max, .atomic_min:
+                    codes = rdx
+                _:
+                    _ = 0
+            if self.level < 3 and (n.cls == ir.Class.h or n.op == ir.Op.exth):
+                codes = codes | rdx | rcx
+            if codes != 0:
+                try self.fr.fixed.push(regalloc.Clobber(at = u32(i), codes = codes))
+
     ## A load from a promoted slot: the register, extended as the load would extend from
     ## memory, since a narrow store leaves the register's upper bits as they were.
     func load_promoted(op: ir.Op, k: u32, d: str) -> !:
@@ -202,6 +234,7 @@ extend Generator:
         try selection.canonical_labels(self.f)
         if not self.f.debug:
             try selection.traps_last(self.f)
+        try self.fixed_clobbers()
         try self.fr.plan(self.f)
         self.windows_plan = 0
         if self.convention.windows:
