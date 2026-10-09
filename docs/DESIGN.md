@@ -56,7 +56,7 @@ subdirectory keeps a generated module of its own beside it.
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
 | `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract; a directory of fragments, one per concern (types, statements, operators, calls, …) |
 | `back.ir.ir` | the intermediate form: functions of blocks of typed instructions |
-| `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit`; a directory of fragments, one per concern |
+| `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit`; a directory of fragments, one per concern; only the functions the program reaches are lowered (`reach`) |
 | `back.native.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
 | `back.native.assembly` | the text both generators write: instruction lines, numbers, quoted strings, alignment powers, and the frame descriptors a debugger reads |
 | `back.native.arm64` | IR to arm64 assembly: frames, Apple's calling convention, atomics; arm64-macos; fragments per concern beside `arm64/object` |
@@ -247,7 +247,11 @@ internal linkage, so the host C compiler drops the rest; the lowerer gives every
 standard global an initialiser function of its own (`<global>_0init`, called by
 `lb_init_globals` in module order) and the IR pruner (`opt.inline`) keeps a
 standard function, global, initialiser, witness table or text only while
-retained code reaches it, so a hello program carries no Unicode tables.
+retained code reaches it, so a hello program carries no Unicode tables. The
+lowerer lowers only what can be reached in the first place (`lower/reach`): every
+function is registered, but a library function's body is lowered once the
+program's own functions, an export, an attribute, assembly text, or a lowered body
+names it, so a small program importing a large package lowers the part it uses.
 Globals initialise in module order, the standard modules first in `ORDER`, so
 a module's are set before those of any module that imports it; a constant the
 checker can evaluate to a literal (`platform.windows`, `os.name`,
@@ -497,7 +501,8 @@ store of the result and a jump to one exit. Callees are expanded before their
 callers, in a depth-first order over the call graph, so a function reaches
 its callers with its own calls opened out and is measured as it will stand.
 The policy is measured, not assumed: a callee of at most twenty-four
-instructions is expanded at every call; one called from one place only is
+instructions is expanded at every call; one called from one place only, in its
+own package (or in a function the lowerer made, an export's C face or the entry), is
 expanded there up to two hundred and fifty-six instructions, or up to a thousand
 and twenty-four when that place is in a loop (the lowerer writes a loop's body
 between its head's label and the jump back to it), and, when nothing

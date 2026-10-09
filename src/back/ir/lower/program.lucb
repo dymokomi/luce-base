@@ -10,8 +10,9 @@
 extend Lowerer:
     # mark: Program ============================================================================
 
-    ## Lower the whole program: every function of every module, then the instances
-    ## they needed, then the globals' initialiser, the entry, and the tables.
+    ## Lower the program: every function of every module registered, the globals'
+    ## initialiser, then the functions the program reaches, its tests, the entry, and the
+    ## tables.
     pub func program(mode: u32) -> !:
         self.mode = mode
         self.program_unit.trap_function = "lb_core_trap"
@@ -47,20 +48,19 @@ extend Lowerer:
                 cursor = d.next
             i += 1
         try self.globals_initialiser()
-        var next: usize = 0
-        var tests_done: usize = 0
-        while next < self.funcs.items.count or tests_done < self.tests.count:
-            while let inst = self.funcs.next_pending(&next):
-                try self.function(inst)
-                if names.export_wrapped(&self.c.table, inst.decl):
-                    try self.export_wrapper(inst)
-            while tests_done < self.tests.count and next >= self.funcs.items.count:
-                try self.test_body(self.tests.get(tests_done), u32(tests_done))
-                tests_done += 1
+        try self.note_initialisers()
+        for text in self.program_unit.module_asm.span():
+            try self.reach_asm.push(text.bytes)
+        # only what the program reaches is lowered (`lower_reached`)
+        try self.lower_reached()
+        for t in 0..<self.tests.count:
+            try self.test_body(self.tests.get(t), u32(t))
+            try self.lower_reached()
         if mode == 3:
             try self.library_init_function()
         elif mode != 4:
             try self.entry_function(mode)
+        try self.lower_reached()
         try self.witness_tables()
 
     func declare_global(d: ast.Node*) -> !:

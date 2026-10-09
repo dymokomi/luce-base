@@ -17,6 +17,7 @@ extend Lowerer:
         let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         try self.begin_function(name, d, inst)
         self.f.standard = check.is_library_module(names.module_of(inst.owner else d))
+        self.f.package = try self.package_of(inst.owner else d)
         self.f.naked = ast.has_attribute(d, "naked")
         self.f.weak = ast.has_attribute(d, "weak")
         self.f.used = ast.has_attribute(d, "used")
@@ -77,6 +78,7 @@ extend Lowerer:
         self.current_fn = none
         self.f.exported = true
         self.f.used = true
+        self.f.package = try self.package_of(inst.owner else d)
         let ft = self.c.table.get(try self.map(d.type_id))
         let fallible = d.has(ast.flag_fallible)
         let payload = self.elem(ft.elem) if fallible else ft.elem

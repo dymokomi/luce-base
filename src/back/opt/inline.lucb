@@ -14,8 +14,8 @@
 #       and the blocks that end in a trap, measured after its own calls were expanded:
 #       callees are visited before callers. A function declared `inline` is expanded at
 #       every call up to `forced` instructions, a guard against a runaway body only. A
-#       function called from one place only is expanded there whatever its size up to
-#       `once`, and a function expanded at every call, which nothing else names, is dropped
+#       function called from one place only, in its own package, is expanded there whatever
+#       its size up to `once`, and a function expanded at every call, which nothing else names, is dropped
 #       from the program. Not expanded: a variadic or naked function, one taking frame
 #       storage (`memory.frame`), one carrying inline assembly, atomics, or the debugger's hooks, a function calling itself, and one
 #       whose slots take more than `large_frame` bytes unless it is declared `inline`. The
@@ -461,8 +461,11 @@ func has_expandable_call(program: ir.Unit*, index: Index*, census: Census*, fi: 
     return false
 
 ## The index of the function that call `n` in function `fi` may be expanded with: a small
-## function, or one this call alone reaches and nothing else names, larger when the call is
-## in a loop (`looped`).
+## function, or one of the caller's own package that this call alone reaches and nothing
+## else names, larger when the call is in a loop (`looped`). Only the functions the program
+## reaches are lowered (`lower.reach`): a library function called once by the program may be
+## called from many places in its library, and expanding it into another package's code
+## would copy what the library shares.
 func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: usize, n: ir.Instr, looped: bool) -> usize?:
     if n.op != ir.Op.call or n.a.kind != ir.RefKind.function:
         return none
@@ -481,9 +484,15 @@ func expandable_callee(program: ir.Unit*, index: Index*, census: Census*, fi: us
     if size <= budget or (g.always_inline and size <= forced):
         return gi
     let alone = (census.once_in_loop if looped else census.once) if census.once > 0 else 0
-    if size <= alone and census.calls[gi] == 1 and not census.pinned[gi]:
+    if size <= alone and census.calls[gi] == 1 and not census.pinned[gi] and same_package(program.functions.items[fi].package, g.package):
         return gi
     return none
+
+## Whether a function of package `caller` may expand a function of package `callee` called
+## from one place only: one of its own package, or any when the lowerer made the caller of
+## its own (an export's C face, the entry, an initialiser), which no package shares.
+func same_package(caller: str, callee: str) -> bool:
+    return caller.length == 0 or caller == callee
 
 ## Whether a call of function `fi` may be expanded only if it is in a loop, so that the
 ## function's loops are worth finding.

@@ -606,6 +606,11 @@ pub struct Function:
     pub var exported: bool
     ## Optional standard modules must not impose link dependencies on every program.
     pub var standard: bool
+    ## The package its declaration belongs to (`(standard)` for the standard library's),
+    ## empty for a function the lowerer makes of its own: a function called from one place
+    ## only is expanded there when that place is in its own package, or in such a function
+    ## (`inline`).
+    pub var package: str = ""
     ## `--debug`: the source file, and every named local for the frame's descriptor.
     pub var debug: bool
     ## `--release --debug`: DWARF for the optimised function, lines on every instruction,

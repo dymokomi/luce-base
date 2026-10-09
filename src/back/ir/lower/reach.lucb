@@ -1,0 +1,198 @@
+#==============================================================================================
+#
+#   lower/reach - The functions the program reaches, lowered on demand
+#
+#   DESCRIPTION:
+#       Every function of every module is registered as an instance, but only those the
+#       program can reach are lowered: the program's own (its package's), what is exported
+#       or kept by an attribute, what assembly names, and then whatever a lowered body names.
+#       A program importing a large package uses a small part of it; lowering the rest only
+#       for the inliner's pruner (`inline.drop_unused_standard`) to drop it cost most of a
+#       build's time. The roots and the edges are the pruner's: a function's instructions
+#       and arguments naming a function, a witness table or a global, and a standard
+#       global's initialiser counting once its global is named. The order is the order of
+#       discovery, the same in every build of the same program.
+#
+#==============================================================================================
+extend Lowerer:
+    # mark: Reachable functions =================================================================
+
+    ## Lower every function the program reaches, until none is left to lower.
+    func lower_reached() -> !:
+        while true:
+            try self.name_instances()
+            try self.scan_functions()
+            if self.reach_next >= self.reach_queue.count:
+                return
+            let index = self.reach_queue.get(self.reach_next)
+            self.reach_next += 1
+            var inst = self.funcs.items.get(index)
+            if inst.done:
+                continue
+            inst.done = true
+            self.funcs.items.set(index, inst)
+            try self.function(inst)
+            if names.export_wrapped(&self.c.table, inst.decl):
+                try self.export_wrapper(inst)
+
+    ## Name the instances registered since the last call, and queue those that are roots.
+    func name_instances() -> !:
+        while self.reach_named < self.funcs.items.count:
+            let index = self.reach_named
+            self.reach_named += 1
+            let inst = self.funcs.items.get(index)
+            let name = try self.function_name(inst.decl, inst.args, inst.owner, inst.owner_args)
+            try self.reach_names.push(name)
+            _ = try self.reach_by_name.add(name, index)
+            if try self.is_root(inst, name):
+                try self.want(index)
+
+    ## Whether instance `inst`, named `name`, is lowered whether or not anything names it: the
+    ## program's own functions and those the pruner keeps for their linkage.
+    func is_root(inst: instances.Instance, name: str) -> bool!:
+        let d = inst.decl
+        if ast.is_linked(d):
+            return false
+        if not check.is_library_module(names.module_of(inst.owner else d)):
+            return true
+        if d.has(ast.flag_export) or ast.has_attribute(d, "used") or ast.has_attribute(d, "weak") or ast.has_attribute(d, "naked") or section_of(d).length > 0:
+            return true
+        if name == self.program_unit.trap_function or name == self.program_unit.trap_at_function or name == self.program_unit.trap_two_at_function:
+            return true
+        for text in self.reach_asm.span():
+            if contains_name(text, name):
+                return true
+        return false
+
+    ## Queue instance `index` for lowering, once.
+    func want(index: usize) -> !:
+        if self.reach_wanted.count <= index:
+            while self.reach_wanted.count <= index:
+                try self.reach_wanted.push(false)
+        if self.reach_wanted.get(index):
+            return
+        self.reach_wanted.set(index, true)
+        try self.reach_queue.push(index)
+
+    ## Follow the references of every function lowered since the last call, except the
+    ## standard globals' initialisers, which count only once their global is named.
+    func scan_functions() -> !:
+        while self.reach_scanned < self.program_unit.functions.count:
+            let fi = self.reach_scanned
+            self.reach_scanned += 1
+            let name = self.program_unit.functions.items[fi].name
+            if self.reach_initialisers.has(name):
+                continue
+            try self.scan_function(fi)
+
+    ## Follow the references of function `fi` of the unit.
+    func scan_function(fi: usize) -> !:
+        var k: usize = 0
+        while k < self.program_unit.functions.items[fi].instrs.count:
+            let instruction = self.program_unit.functions.items[fi].instrs.get(k)
+            k += 1
+            try self.follow(instruction.a)
+            try self.follow(instruction.b)
+            if instruction.op == ir.Op.asm_ and instruction.b.kind == ir.RefKind.text:
+                try self.note_asm(self.program_unit.texts.get((usize)instruction.b.index).bytes)
+        k = 0
+        while k < self.program_unit.functions.items[fi].args.count:
+            try self.follow(self.program_unit.functions.items[fi].args.get(k).value)
+            k += 1
+
+    ## What reference `r` reaches: a function instance, a witness table's methods, or a
+    ## standard global's initialiser.
+    func follow(r: ir.Ref) -> !:
+        if r.kind == ir.RefKind.function:
+            if let index = self.reach_by_name.find(r.name):
+                try self.want(index)
+            return
+        if r.kind != ir.RefKind.global:
+            return
+        try self.reach_table(r.name)
+        try self.reach_initialiser(r.name)
+
+    ## The methods of the witness table named `name`, when it is one.
+    func reach_table(name: str) -> !:
+        try self.name_tables()
+        let ti = self.reach_tables.find(name) else return
+        if self.reach_tables_done.get(ti):
+            return
+        self.reach_tables_done.set(ti, true)
+        let w = self.vtables.get(ti)
+        let d = self.decl_of(w.record) else return
+        let iface = self.decl_of(w.iface) else return
+        let t = self.c.table.get(w.record)
+        for m in (try instances.witnessed(d, iface)).span():
+            let index = try self.add_func(m, try types.no_args(), d, t.args)
+            try self.name_instances()
+            try self.want(index)
+
+    ## Name the witness tables noted since the last call.
+    func name_tables() -> !:
+        while self.reach_tables_done.count < self.vtables.count:
+            let ti = self.reach_tables_done.count
+            let w = self.vtables.get(ti)
+            try self.reach_tables_done.push(false)
+            let iface = self.decl_of(w.iface) else continue
+            let name = try self.vtable_name(w.record, iface)
+            _ = try self.reach_tables.add(name, ti)
+            for text in self.reach_asm.span():
+                if contains_name(text, name):
+                    try self.reach_table(name)
+                    break
+
+    ## The initialiser of the standard global `name`, once: its body counts from now on.
+    func reach_initialiser(global: str) -> !:
+        let fi = self.reach_global_inits.find(global) else return
+        let name = self.program_unit.functions.items[fi].name
+        if not self.reach_initialisers.has(name):
+            return
+        # scanned once: the name stays, marking it done, under a key no function has
+        if self.reach_inits_done.has(name):
+            return
+        _ = try self.reach_inits_done.add(name, fi)
+        try self.scan_function(fi)
+
+    ## The standard globals' initialisers `globals_initialiser` made, by their global's name.
+    func note_initialisers() -> !:
+        for g in 0..<self.program_unit.globals.count:
+            let global = self.program_unit.globals.get(g)
+            if global.init_function.length == 0:
+                continue
+            for fi in 0..<self.program_unit.functions.count:
+                if self.program_unit.functions.items[fi].name == global.init_function:
+                    _ = try self.reach_initialisers.add(global.init_function, fi)
+                    _ = try self.reach_global_inits.add(global.name, fi)
+                    break
+
+    ## Assembly text `text` of a lowered function: the functions and tables it spells are
+    ## reached.
+    func note_asm(text: str) -> !:
+        try self.reach_asm.push(text)
+        for index in 0..<self.reach_names.count:
+            if contains_name(text, self.reach_names.get(index)):
+                try self.want(index)
+        try self.name_tables()
+        for ti in 0..<self.vtables.count:
+            let w = self.vtables.get(ti)
+            let iface = self.decl_of(w.iface) else continue
+            let name = try self.vtable_name(w.record, iface)
+            if contains_name(text, name):
+                try self.reach_table(name)
+
+    ## The package declaration `d` belongs to, by its module (`check.Module.package_name`),
+    ## `(standard)` for a standard module's; empty when no module is known.
+    func package_of(d: ast.Node*) -> str!:
+        let m = d.resolved else return ""
+        if self.module_packages.count() == 0:
+            for k in 0..<self.c.modules.count:
+                _ = try self.module_packages.add(self.c.modules.get(k).tree.text, k)
+        let k = self.module_packages.find(m.text) else return ""
+        let package = self.c.modules.get(k).package_name
+        return package if package.length > 0 else "(standard)"
+
+## Whether `text` spells `name` anywhere, as the pruner asks of assembly
+## (`inline.named_in_asm`).
+func contains_name(text: str, name: str) -> bool:
+    return name.length > 0 and strings.find(text, name) != none
