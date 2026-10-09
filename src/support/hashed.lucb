@@ -64,6 +64,15 @@ pub struct Table[K: Hashable & Equatable]:
     pub func count() -> usize:
         return self.used
 
+    ## A copy in the current allocator, which its growth goes on using: what is added to one
+    ## is not in the other. The keys are borrowed by both.
+    pub func copied() -> Table[K]!:
+        let keys = try new K[self.keys.length] ---
+        let indexes = try new u32[self.indexes.length] ---
+        memory.copy(keys, self.keys, keys.length)
+        memory.copy(indexes, self.indexes, indexes.length)
+        return Table[K](keys = keys, indexes = indexes, used = self.used, allocator = memory.allocator)
+
     ## Release the slots.
     pub func destroy():
         free(self.keys) in self.allocator

@@ -222,6 +222,14 @@ pub struct Table:
             i += 1
         return t
 
+    ## A copy in the current allocator, which its growth goes on using: a type interned in
+    ## one is not in the other, and the types both hold keep their ids. The records' argument
+    ## lists are shared; no type changes once interned.
+    pub func copied() -> Table!:
+        let index = try new u32[self.index.length] ---
+        memory.copy(index, self.index, index.length)
+        return Table(types = try self.types.copied(), word = self.word, index = index, allocator = memory.allocator)
+
     ## C uses LLP64 on Windows: long is 32 bits and wchar_t is unsigned 16 bits (§5.2).
     ## Configure before interning any target-dependent compound types.
     pub func configure_c(windows: bool):

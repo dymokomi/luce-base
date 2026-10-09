@@ -15,7 +15,7 @@ may import (`package.prisma`, `public`):
 
 | Module | What it holds |
 |---|---|
-| `embed` | `check_root`, the `Checked` result, `Diagnostic`, `standard_modules` |
+| `embed` | `check_root`, `Library`, the `Checked` result, `Diagnostic`, `standard_modules` |
 | `front.ast` | `Node` and `Kind`, the one node shape of the tree, and `dump` |
 | `front.source` | `Source`, for turning a node's byte offset into a line and column |
 | `front.parser` | `Parser`, to parse without checking |
@@ -62,8 +62,51 @@ What the call reads, and what it does not:
 The call fails (`!`) only when memory runs out before there is a result. Everything the
 checker objects to comes back as a diagnostic; nothing is printed.
 
-A check takes about 12 ms on an M4 Max, almost all of it parsing and checking the
-standard modules, which every check does again.
+`check_root` parses and checks the standard modules for that one call, about 12 ms on an
+M4 Max. A host that checks again and again keeps a `Library` instead (next section).
+
+## Checking again and again: `Library`
+
+```
+pub struct Library:
+    pub static func create() -> Library!
+    pub func check(root: str, entry: str) -> Checked!
+    pub func close()
+```
+
+`Library.create` parses and checks the standard modules once, about 11 ms. Each
+`library.check(root, entry)` is the same check as `check_root(root, entry)`, with the same
+diagnostics, the same tree and the same type ids, but checks only the root's modules: about
+0.1 ms for the 50-line snippet of `tests/embed/root` on an M4 Max. A host makes one library
+when it starts, checks on every pause in typing, and closes the library when it is done:
+
+```
+var library = try embed.Library.create()       # once
+defer library.close()
+...
+var result = try library.check(root, "snippet")  # on every edit
+defer result.close()
+```
+
+What a check makes, the root's trees, the types they add and the diagnostics, is in the
+result's own arena, which its `close` frees; the standard modules' trees, which
+`result.checker.modules` lists first, are the library's and are shared. So:
+
+- Results may be open at once, an old one beside a new one, and closed in any order.
+- Close the library last, after every result it gave: they use its trees.
+- Nothing of one check reaches the next. A check copies the library's checker, its type
+  table and every list and table it keeps, and adds to the copy alone; it writes on the
+  trees of the modules it checks and never on the library's, whose declarations were
+  settled when the library was made. The library is the same after a check as before it,
+  so every check starts from the same state, whatever was checked before, and the memory a
+  check holds is gone at its `close`: thousands of checks hold no more than one
+  (`tests/embed/library.lucb` checks both).
+- The type ids of the standard modules' types are the library's and the same in every
+  result; a type a root adds takes the next id, the same in every check of that root.
+
+`tests/programs/embed_timing` measures a check alone and on a library:
+`./build/luce-base build tests/programs/embed_timing/main.lucb -o build/embed-timing`, then
+`./build/embed-timing [ROOT ENTRY [CHECKS]]` from the repository's root.
 
 ## The result
 
@@ -86,7 +129,8 @@ pub struct Checked:
 - `failure` is the error text as the command would print it, for a log.
 
 Everything in the result, the trees, the type table, the strings of the diagnostics,
-lives in one arena that `close` frees. Call `close` exactly once, whether the check
+lives in one arena that `close` frees (the standard modules' trees are a `Library`'s when
+the result is one of its checks; `check_root`'s result frees its own). Call `close` exactly once, whether the check
 passed or not, and use nothing from the result after it; a lowering that keeps anything
 copies it out first. The usual shape:
 
@@ -101,9 +145,10 @@ let tree = result.tree else return
 lower(&result.checker, tree)
 ```
 
-Two checks may not run at once on different threads: the checker keeps a few tables for
-the whole process (the paths it has resolved, the modules of the current compilation).
-One check after another on any thread is fine.
+Two checks may not run at once on different threads, on one library or on two: the
+checker keeps a few tables for the whole process (the paths it has resolved, the modules
+of the current compilation). One check after another on any thread is fine, and so is a
+result read on one thread while nothing checks.
 
 ### Diagnostics
 

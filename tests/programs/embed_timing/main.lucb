@@ -1,0 +1,68 @@
+## embed-timing: how long a host's check of a snippet takes, alone (`embed.check_root`,
+## which parses and checks the standard modules too) and on top of a kept `embed.Library`.
+##
+##     embed-timing [ROOT ENTRY [CHECKS]]
+##
+## The default is the 50-line snippet of the embedding tests, `tests/embed/root` `clean`,
+## checked 500 times. Times are in microseconds; run it from the repository's root.
+
+import embed
+import strings
+import time
+
+pub func main(arguments: str[]) -> i32!:
+    let root = arguments[1] if arguments.length > 2 else "tests/embed/root"
+    let entry = arguments[2] if arguments.length > 2 else "clean"
+    var checks: usize = 500
+    if arguments.length > 3:
+        let count = strings.parse_u64(arguments[3]) else return usage()
+        checks = (usize)count if count > 0 else 1
+    # alone, a few times: the first pays for the paths the process has not resolved yet
+    var alone = try new u64[5] ---
+    defer free(alone)
+    for i in 0..<alone.length:
+        let start = time.now()
+        var result = try embed.check_root(root, entry)
+        alone[i] = time.since(start)
+        if not result.ok():
+            print(f"{entry}: {result.failure}\n")
+            result.close()
+            return 1
+        result.close()
+    let start = time.now()
+    var library = try embed.Library.create()
+    defer library.close()
+    let made = time.since(start)
+    var warm = try new u64[checks] ---
+    defer free(warm)
+    for i in 0..<checks:
+        let at = time.now()
+        var result = try library.check(root, entry)
+        warm[i] = time.since(at)
+        result.close()
+    let first_alone = alone[0]
+    let first_warm = warm[0]
+    print(f"check_root alone:  {micro(median(alone))} us median of {alone.length}, first {micro(first_alone)}")
+    print(f"Library.create:    {micro(made)} us")
+    print(f"Library.check:     {micro(median(warm))} us median of {checks}, least {micro(warm[0])}, first {micro(first_warm)}")
+    return 0
+
+## Say how the tool is called; the exit status of a bad call.
+func usage() -> i32:
+    print("usage: embed-timing [ROOT ENTRY [CHECKS]]")
+    return 2
+
+## Nanoseconds as microseconds.
+func micro(nanoseconds: u64) -> u64:
+    return nanoseconds // 1000
+
+## The middle of `times`, sorted in place.
+func median(times: u64[]) -> u64:
+    for i in 1..<times.length:
+        var j = i
+        while j > 0 and times[j - 1] > times[j]:
+            let t = times[j]
+            times[j] = times[j - 1]
+            times[j - 1] = t
+            j -= 1
+    return times[times.length // 2]

@@ -1,0 +1,6 @@
+# A snippet that misuses the standard modules: an error that names their types.
+import strings
+
+pub func spell(count: i64) -> str!:
+    var buffer: u8[32]
+    return try strings.format_i64(buffer, count)

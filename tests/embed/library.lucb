@@ -1,0 +1,169 @@
+#==============================================================================================
+#
+#   tests/embed/library - Checks on top of one library: each the check alone, none kept
+#
+#==============================================================================================
+
+## The snippets the library tests check, one after another: clean ones, failing ones, one
+## that warns, one whose import leaves the root and one the root does not hold.
+let entries: str[7] = ["uses", "clean", "broken", "misuses", "escapes", "absent", "uses"]
+
+## An allocator over the heap that counts the bytes it has out, and the most it had.
+struct Counted: memory.Allocator:
+    var outstanding: usize = 0
+    var most: usize = 0
+
+    func allocate(size: usize, alignment: usize) -> u8[]?:
+        let block = memory.heap.allocate(size, alignment) else return none
+        self.outstanding += block.length
+        if self.outstanding > self.most:
+            self.most = self.outstanding
+        return block
+
+    func resize(block: u8[], size: usize) -> bool:
+        return false
+
+    func release(block: u8[]):
+        self.outstanding -= block.length
+        memory.heap.release(block)
+
+# mark: The same as alone =====================================================================
+
+## Whether two results say the same: the failure, every diagnostic, the modules, every type
+## and the entry's tree, node for node.
+func same_result(a: Checked*, b: Checked*) -> bool:
+    if a.failure != b.failure or a.diagnostics.length != b.diagnostics.length:
+        return false
+    for i in 0..<a.diagnostics.length:
+        let x = a.diagnostics[i]
+        let y = b.diagnostics[i]
+        if x.severity != y.severity or x.file != y.file or x.line != y.line or x.column != y.column or x.message != y.message:
+            return false
+    if a.checker.modules.count != b.checker.modules.count or not same_types(&a.checker.table, &b.checker.table):
+        return false
+    for i in 0..<a.checker.modules.count:
+        if a.checker.modules.get(i).name != b.checker.modules.get(i).name:
+            return false
+    return same_tree(a.tree, b.tree)
+
+## Whether two tables hold the same types under the same ids.
+func same_types(a: types.Table*, b: types.Table*) -> bool:
+    if a.count() != b.count():
+        return false
+    for id in 0..<a.count():
+        let x = a.get(id)
+        let y = b.get(id)
+        if x.kind != y.kind or x.elem != y.elem or x.length != y.length or x.is_const != y.is_const or x.name != y.name:
+            return false
+        if not types.same_args(x.args, y.args) or not same_node(x.decl, y.decl):
+            return false
+    return true
+
+## Whether two trees are the same, node for node, siblings included: kinds, texts, places,
+## flags and types, and declarations resolved alike.
+func same_tree(a: ast.Node*?, b: ast.Node*?) -> bool:
+    var x = a
+    var y = b
+    while let m = x:
+        let n = y else return false
+        if not same_node(m, n) or m.flags != n.flags or m.type_id != n.type_id or m.start != n.start or m.end != n.end:
+            return false
+        if not same_node(m.resolved, n.resolved):
+            return false
+        if not same_tree(m.ty, n.ty) or not same_tree(m.left, n.left) or not same_tree(m.right, n.right) or not same_tree(m.body, n.body):
+            return false
+        x = m.next
+        y = n.next
+    return y == none
+
+## Whether two nodes, of two checks, stand for the same: their kinds, texts and types.
+func same_node(a: ast.Node*?, b: ast.Node*?) -> bool:
+    let m = a else return b == none
+    let n = b else return false
+    return m.kind == n.kind and m.text == n.text and m.type_id == n.type_id and m.line == n.line
+
+test "a check on top of a library says what the check alone says":
+    var library = try Library.create()
+    defer library.close()
+    for round in 0..<2:
+        for entry in entries:
+            var shared = try library.check(snippets, entry)
+            defer shared.close()
+            var alone = try check_root(snippets, entry)
+            defer alone.close()
+            if not same_result(&shared, &alone):
+                print(f"round {round}: `{entry}` differs from its check alone\n")
+            assert(same_result(&shared, &alone))
+
+test "a check on top of a library finds the standard modules' types where they were":
+    var library = try Library.create()
+    defer library.close()
+    var result = try library.check(snippets, "uses")
+    defer result.close()
+    assert(result.ok() and result.diagnostics.length == 1)
+    assert(result.diagnostics[0].severity == Severity.warning and result.diagnostics[0].message == "unused local `left`")
+    for i in 0..<library.baseline.table.count():
+        assert(same_node(result.checker.table.get(i).decl, library.baseline.table.get(i).decl))
+    var failed = try library.check(snippets, "misuses")
+    defer failed.close()
+    assert(not failed.ok() and failed.diagnostics[0].message == "expected `i64`, got `u8[32]`")
+
+# mark: Nothing kept ==========================================================================
+
+## A hash of every node of the checker's modules, by address and by what it holds: any
+## field a check wrote changes it.
+func fingerprint(checker: check.Checker*) -> u64:
+    var h: u64 = 14695981039346656037
+    for m in checker.modules.span():
+        h = hash_tree(h, m.tree)
+    return mix(h, (u64)checker.table.count())
+
+func hash_tree(seed: u64, node: ast.Node*?) -> u64:
+    var h = seed
+    var cursor = node
+    while let n = cursor:
+        h = mix(h, (u64)(usize)n)
+        h = mix(h, (u64)n.flags << 32 | (u64)n.type_id)
+        h = mix(h, (u64)n.text.length)
+        if let r = n.resolved:
+            h = mix(h, (u64)(usize)r)
+        h = hash_tree(h, n.ty)
+        h = hash_tree(h, n.left)
+        h = hash_tree(h, n.right)
+        h = hash_tree(h, n.body)
+        cursor = n.next
+    return h
+
+func mix(h: u64, x: u64) -> u64:
+    return (h ^ x) *% 1099511628211
+
+test "a check leaves the library's trees and tables as they were":
+    var library = try Library.create()
+    defer library.close()
+    let before = fingerprint(&library.baseline)
+    let modules = library.baseline.modules.count
+    for round in 0..<3:
+        for entry in entries:
+            var result = try library.check(snippets, entry)
+            result.close()
+        _ = round
+    assert(fingerprint(&library.baseline) == before and library.baseline.modules.count == modules)
+
+test "two thousand checks hold no more memory than the first":
+    var counted = Counted()
+    var library = try Library.over(&counted)
+    defer library.close()
+    let kept = counted.outstanding
+    # what the first two rounds held at most, each check's own arena, is what any holds
+    var most: usize = 0
+    for i in 0..<(usize)2000:
+        var result = try library.check(snippets, entries[i % entries.length])
+        let held = counted.outstanding - kept
+        result.close()
+        # the check's arena is gone, and the library's is what it was
+        assert(counted.outstanding == kept)
+        if i < 2 * entries.length:
+            most = held if held > most else most
+        else:
+            assert(held <= most)
+    assert(counted.most - kept <= most)

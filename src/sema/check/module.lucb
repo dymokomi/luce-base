@@ -171,6 +171,8 @@ pub struct Checker:
     pub var program_version: str = ""
     ## The module being checked, as an index into `modules`.
     var current: usize
+    ## How many of `modules`, from the first, are checked (`check_program`).
+    var checked: usize = 0
     var current_func: ast.Node*?
     ## Whether the body being checked is a test's own, outside any lambda in it (§16.5).
     var in_test: bool = false

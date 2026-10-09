@@ -16,7 +16,8 @@ import memory
 ## The parent is retained by value; it must outlive this owner. Borrow the arena
 ## on one thread, and destroy exactly one owner. Reset reuses its chunks.
 pub struct Arena: memory.Allocator:
-    var parent: memory.Allocator
+    ## The allocator the chunks come from.
+    pub var parent: memory.Allocator
     var first: ArenaChunk*?
     var last: ArenaChunk*?
     var active: ArenaChunk*?

@@ -63,6 +63,15 @@ pub struct NameIndex:
                 return
             slot = (slot + 1) & mask
 
+    ## A copy in the current allocator, which its growth goes on using: a name set in one
+    ## is not set in the other.
+    pub func copied() -> NameIndex!:
+        let names = try new str[self.names.length] ---
+        let heads = try new u32[self.heads.length] ---
+        memory.copy(names, self.names, names.length)
+        memory.copy(heads, self.heads, heads.length)
+        return NameIndex(names = names, heads = heads, used = self.used, allocator = memory.allocator)
+
     func grow() -> !:
         let old_names = self.names
         let old_heads = self.heads

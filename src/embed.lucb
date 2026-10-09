@@ -59,10 +59,13 @@ pub struct Diagnostic:
 
 ## A finished check: the modules, the type table, the entry's tree and the diagnostics, all
 ## in one arena that `close` frees. Nothing in it may be used after `close`, and it must be
-## closed exactly once, whether the check passed or not.
+## closed exactly once, whether the check passed or not. The standard modules' trees are the
+## library's (`Library.check`), which must outlive it.
 pub struct Checked:
-    ## The arena, in the heap, that holds everything below.
+    ## The arena that holds everything below, in its own parent.
     var arena: Arena*
+    ## The library the result alone uses (`check_root`), closed with it.
+    var own_library: Library? = none
     ## The checker, which holds the type table (`checker.table`) and every module
     ## (`checker.modules`, the standard ones first, the entry last).
     pub var checker: check.Checker
@@ -82,11 +85,83 @@ pub struct Checked:
     ## Free the arena and with it everything the check made: the trees, the type table,
     ## the diagnostics.
     pub func close():
-        self.arena.destroy()
-        free(self.arena) in memory.heap
+        destroy_arena(self.arena)
+        if let library = self.own_library:
+            var owned = library
+            owned.close()
+            self.own_library = none
         self.tree = none
         self.diagnostics = Diagnostic[]((Diagnostic*)(usize)8, 0)
         self.failure = ""
+
+# mark: The library ===========================================================================
+
+## The standard modules, parsed and checked once, to check root after root on top of
+## (`check`): a host that checks again and again, as on every pause in typing, makes one
+## and keeps it. A check copies the library's checker and checks only the root's modules,
+## in an arena of its own; the library does not change, so each check starts from the same
+## state, whatever was checked before. Close it once, after every result it gave is closed.
+pub struct Library:
+    ## Where the arenas take their memory: the heap, or a test's counting allocator.
+    var parent: memory.Allocator
+    ## The arena that holds the standard modules' trees and the checker.
+    var arena: Arena*
+    ## The checker that checked the standard modules and nothing else.
+    var baseline: check.Checker
+
+    ## The standard modules the checker carries, parsed and checked for the host's target.
+    pub static func create() -> Library!:
+        return try Library.over(memory.heap)
+
+    ## A library whose arenas, its own and each check's, take their memory from `parent`.
+    static func over(parent: memory.Allocator) -> Library!:
+        # the carried arrays are passed as slices, `[0..]`: the seed that builds this
+        # compiler takes a global array as a span only so
+        try standard.adopt(standard_sources.modules[0..])
+        let arena = try new_arena(parent)
+        errdefer destroy_arena(arena)
+        with arena:
+            var checker = try check.Checker.create(try new u8[scratch_size] ---)
+            var texts = try new str[standard_sources.paths.length] ---
+            for k in 0..<texts.length:
+                texts[k] = standard_sources.text(k)
+            try checker.add_prelude_texts(standard_sources.modules[0..], standard_sources.firsts[0..], standard_sources.paths[0..], texts)
+            try checker.check_program()
+            try checker.settle_library()
+            return Library(parent = parent, arena = arena, baseline = checker)
+
+    ## Check module `entry` of the directory `root` on top of the library, as `check_root`
+    ## does. The result holds what this check made, in its own arena, and the library's
+    ## standard modules, which it shares.
+    pub func check(root: str, entry: str) -> Checked!:
+        # a host checks again and again: the reads are not build inputs, and the last
+        # check's library modules lived in its arena
+        let noting = cache.noting
+        cache.noting = false
+        defer cache.noting = noting
+        check.forget_library_modules()
+        let arena = try new_arena(self.parent)
+        errdefer destroy_arena(arena)
+        with arena:
+            var checker = try self.baseline.copied(try new u8[scratch_size] ---)
+            let message = load_and_check_root(&checker, root, entry) catch failure:
+                recover try strings.copy(failure.message)
+            return try finish(arena, checker, entry, message)
+
+    ## Free the standard modules and the checker. Every result `check` gave must be closed
+    ## first.
+    pub func close():
+        destroy_arena(self.arena)
+
+## An arena that takes its chunks from `parent`, and lives there itself.
+func new_arena(parent: memory.Allocator) -> Arena*!:
+    return try new Arena(parent) in parent
+
+## Destroy `arena` and free it from the parent it lives in.
+func destroy_arena(arena: Arena*):
+    let parent = arena.parent
+    arena.destroy()
+    free(arena) in parent
 
 # mark: Checking ==============================================================================
 
@@ -99,25 +174,15 @@ let scratch_size: usize = 65536
 ## standard modules (`standard_modules`) are the copy the checker carries. Nothing else is
 ## read, no manifest and no toolchain. Every error of the check is a diagnostic; the call
 ## itself fails only when memory runs out before there is a result to hold them.
+##
+## The standard modules are parsed and checked for this call alone; a host that checks
+## again and again keeps a `Library` and calls its `check`, which is the same check.
 pub func check_root(root: str, entry: str) -> Checked!:
-    # a host checks again and again: the reads are not build inputs, and the last check's
-    # library modules lived in its arena
-    let noting = cache.noting
-    cache.noting = false
-    defer cache.noting = noting
-    check.forget_library_modules()
-    # the carried arrays are passed as slices, `[0..]`: the seed that builds this compiler
-    # takes a global array as a span only so
-    try standard.adopt(standard_sources.modules[0..])
-    let arena = try new Arena(memory.heap) in memory.heap
-    errdefer:
-        arena.destroy()
-        free(arena) in memory.heap
-    with arena:
-        var checker = try check.Checker.create(try new u8[scratch_size] ---)
-        let message = load_and_check_root(&checker, root, entry) catch failure:
-            recover try strings.copy(failure.message)
-        return try finish(arena, checker, entry, message)
+    var library = try Library.create()
+    errdefer library.close()
+    var result = try library.check(root, entry)
+    result.own_library = library
+    return result
 
 ## The standard modules the checker carries, in binding order: `memory`, `thread`, `c`,
 ## `io` and the rest. A module of one of these names is always the standard one, and an
@@ -130,10 +195,8 @@ pub func standard_modules() -> const str[]:
 ## does: the standard library from its directory (`standard`), imports resolved as every
 ## build resolves them (§16.3), positions as the path is spelled.
 pub func check_file(path: c.str, target: targets.Target) -> Checked!:
-    let arena = try new Arena(memory.heap) in memory.heap
-    errdefer:
-        arena.destroy()
-        free(arena) in memory.heap
+    let arena = try new_arena(memory.heap)
+    errdefer destroy_arena(arena)
     with arena:
         var checker = try check.Checker.create(try new u8[scratch_size] ---)
         checker.build_target = target
@@ -141,12 +204,8 @@ pub func check_file(path: c.str, target: targets.Target) -> Checked!:
             recover try strings.copy(failure.message)
         return try finish(arena, checker, "", message)
 
-## The standard library from the carried text, then `entry` and its imports from `root`.
+## `entry` and its imports from `root`, checked on top of the standard modules.
 func load_and_check_root(checker: check.Checker*, root: str, entry: str) -> str!:
-    var texts = try new str[standard_sources.paths.length] ---
-    for k in 0..<texts.length:
-        texts[k] = standard_sources.text(k)
-    try checker.add_prelude_texts(standard_sources.modules[0..], standard_sources.firsts[0..], standard_sources.paths[0..], texts)
     try checker.load_sealed(root, entry)
     try checker.check_program()
     return ""

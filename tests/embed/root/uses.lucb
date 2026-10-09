@@ -1,0 +1,22 @@
+# A snippet that leans on the standard modules: their functions, generics, defaults and
+# interfaces, a formatted field with a spec, and a module no standard module imports, whose
+# function it names bare. `left` is unused, a warning.
+import atomic
+from atomic import fence
+import io
+import memory
+import strings
+from luce_kernel.lib import Point
+
+## The point's number, right-aligned, and its height, to standard output.
+pub func report(p: Point*) -> !:
+    var buffer: u8[64]
+    let number = try strings.format_i64(p.ptnum, buffer)
+    var copy: u8[64]
+    memory.copy(copy, buffer, number.length)
+    let left = 3
+    var line: u8[128]
+    let text = try strings.format(line, f"{(str)copy[..<number.length]:>8} {p.P[1]:.2}\n")
+    let out: io.Writer = io.stdout()
+    _ = try out.write(text.bytes)
+    fence(atomic.Ordering.release)

@@ -46,6 +46,13 @@ pub struct List[T]:
     pub func span() -> T[]:
         return self.items[..<self.count]
 
+    ## A copy with the same room, in the current allocator, which its growth goes on using:
+    ## what is pushed onto one is not in the other.
+    pub func copied() -> List[T]!:
+        let items = try new T[self.items.length] ---
+        memory.copy(items, self.items, self.count)
+        return List[T](items = items, count = self.count, allocator = memory.allocator)
+
     ## Release the storage.
     pub func destroy():
         free(self.items) in self.allocator

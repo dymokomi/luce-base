@@ -1,0 +1,70 @@
+#==============================================================================================
+#
+#   check/baseline - Checking on top of a checked library
+#
+#   DESCRIPTION:
+#       A host that checks one small program after another (`embed.Library`) checks the
+#       standard modules once and keeps that checker as its baseline. Each check takes a copy
+#       (`copied`) whose lists and tables are its own, in the check's allocator, adds the
+#       program's modules and checks only those (`check_program`); the baseline's own lists
+#       and tables do not change.
+#
+#       The baseline's trees are shared by every copy, and a check writes on the trees of
+#       the modules it checks, not on theirs: a library's declarations are settled when the
+#       library is checked. Two things a program's check would still write there are written
+#       first, by `settle_library`: each module's type, which an import otherwise makes on
+#       first use, and the mark of a function referenced, which a use of it sets.
+#
+#==============================================================================================
+extend Checker:
+    # mark: A baseline to check on top of =====================================================
+
+    ## Settle what a later check would otherwise write on the checked modules' trees, once
+    ## they are all checked: each module's type, so an import of one finds it made, and the
+    ## mark a use of a public function sets, so no check marks one first.
+    pub func settle_library() -> !:
+        for m in self.modules.span():
+            if m.tree.type_id == types.none_id:
+                m.tree.type_id = try self.table.nominal(types.Kind.module, m.tree, try types.no_args())
+            mark_public_functions(m.tree.body)
+
+    ## A copy of this checker that checks more modules on top of the ones it has checked:
+    ## every list and table is copied into the current allocator, where the copy's growth
+    ## goes, and `scratch` is the copy's room for its diagnostics. The modules' trees are
+    ## shared, so the copy must not outlive this checker's allocator.
+    pub func copied(scratch: u8[]) -> Checker!:
+        var copy = self
+        copy.scratch = scratch
+        copy.table = try self.table.copied()
+        copy.modules = try self.modules.copied()
+        copy.scope = try self.scope.copied()
+        copy.names = try self.names.copied()
+        copy.errors = try self.errors.copied()
+        copy.recovered_views = try self.recovered_views.copied()
+        copy.loading = try self.loading.copied()
+        copy.module_aliases = try self.module_aliases.copied()
+        copy.package_codes = try self.package_codes.copied()
+        copy.export_symbols = try self.export_symbols.copied()
+        copy.resolving = try self.resolving.copied()
+        copy.warnings = try self.warnings.copied()
+        copy.owners = try self.owners.copied()
+        copy.module_decls = try self.module_decls.copied()
+        copy.decl_nodes = try self.decl_nodes.copied()
+        copy.decls_indexed = try self.decls_indexed.copied()
+        copy.by_canonical = try self.by_canonical.copied()
+        copy.pending_changes = try self.pending_changes.copied()
+        copy.read_only_uses = try self.read_only_uses.copied()
+        copy.use_forwards = try self.use_forwards.copied()
+        copy.pending_instances = try self.pending_instances.copied()
+        return copy
+
+## Mark every public function and method from `first` on as referenced, as a use of one from
+## another module would.
+func mark_public_functions(first: ast.Node*?):
+    var cursor = first
+    while let d = cursor:
+        if d.kind == ast.Kind.func_ and d.has(ast.flag_pub):
+            d.flags |= ast.flag_referenced
+        if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.interface_:
+            mark_public_functions(d.body)
+        cursor = d.next

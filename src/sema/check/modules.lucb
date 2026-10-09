@@ -336,13 +336,14 @@ extend Checker:
                     try self.decl_nodes.push(d)
             cursor = d.next
 
-    ## Check every module in order: the prelude, then each program module.
+    ## Check every module not checked yet, in order: the prelude, then each program module.
+    ## A checker that checked the standard modules alone goes on to a program's this way
+    ## (`copied`).
     pub func check_program() -> !:
-        var i: usize = 0
-        while i < self.modules.count:
-            self.current = i
-            try self.check_module(i)
-            i += 1
+        while self.checked < self.modules.count:
+            self.current = self.checked
+            try self.check_module(self.checked)
+            self.checked += 1
 
     func check_module(index: usize) -> !:
         let m = self.modules.get(index)
