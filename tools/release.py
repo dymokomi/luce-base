@@ -297,7 +297,9 @@ def build_archives(version, out):
         remote = "luce-release-out"
         setup = ("mkdir -p ~/.local/luce-dev/src && cd ~/.local/luce-dev/src && "
                  "{ [ -d luce-base ] || git clone -q https://github.com/dymokomi/luce-base.git; } && "
-                 "git -C luce-base pull -q --ff-only && cd ~ && rm -rf " + remote + " && "
+                 # toolchain.py keeps its checkouts on main, detached, so no branch to pull
+                 "git -C luce-base fetch -q origin main && git -C luce-base checkout -q --detach FETCH_HEAD && "
+                 "cd ~ && rm -rf " + remote + " && "
                  "python3 ~/.local/luce-dev/src/luce-base/tools/toolchain.py --archive ~/" + remote)
         if host == "x86_64-windows":
             command = ["ssh", alias, f"& '{GIT_BASH}' -lc \"{setup.replace('python3', 'python')}\""]
@@ -314,9 +316,41 @@ def build_archives(version, out):
 
 def tag(directory, version):
     name = f"{directory.name}-{version}"
-    git(directory, "tag", "-a", name, "-m", name)
+    # a release run again after a failure finds its tag made
+    if not git(directory, "tag", "-l", name):
+        git(directory, "tag", "-a", name, "-m", name)
     git(directory, "push", "-q", "origin", name)
     return name
+
+
+# what a registry install of luce-base needs: its sources and manifest, not its history
+MIRRORED = ("src", "package.prisma", "README.md", "LICENSE", "LICENSE-APACHE", "LICENSE-MIT")
+
+
+def publish_mirror(directory, version):
+    """luce-base on the registry: its history, the bootstrap C rewritten in most commits,
+    is far past what one push may carry (64 MiB unpacked), so the registry gets a mirror
+    of what an install uses, a commit per release on top of the one before."""
+    mirror = directory.parent / ".registry-luce-base"
+    if not (mirror / ".git").exists():
+        mirror.mkdir(exist_ok=True)
+        git(mirror, "init", "-q", "-b", "main")
+    # the registry's main, which the commit goes on top of: fetched from the registry, or
+    # from the checkout when the registry has only luce-base's own history there
+    remote = git(mirror, "ls-remote", f"{REGISTRY}/git/dymokomi/luce-base", "refs/heads/main", check=False).split()
+    if remote:
+        if subprocess.run(["git", "fetch", "-q", f"{REGISTRY}/git/dymokomi/luce-base", "main"],
+                          cwd=mirror, capture_output=True).returncode != 0:
+            git(mirror, "fetch", "-q", str(directory), remote[0])
+        git(mirror, "reset", "-q", "--hard", remote[0])
+    for entry in mirror.iterdir():
+        if entry.name != ".git":
+            shutil.rmtree(entry) if entry.is_dir() else entry.unlink()
+    archive = subprocess.run(["git", "archive", "HEAD", *MIRRORED], cwd=directory, capture_output=True, check=True)
+    subprocess.run(["tar", "-x"], cwd=mirror, input=archive.stdout, check=True)
+    git(mirror, "add", "-A")
+    git(mirror, "commit", "-q", "-m", f"luce-base {version}", "--allow-empty")
+    subprocess.run(["luc", "publish", "-m", f"luce-base {version}: batch release"], cwd=mirror, check=True)
 
 
 def github_release(directory, version, files):
@@ -432,8 +466,7 @@ def main():
         else:
             tag(directory, entry["target"])
             # its public modules (embed, front.*, sema.*) as a registry package
-            subprocess.run(["luc", "publish", "-m", f"luce-base {entry['target']}: batch release"],
-                           cwd=directory, check=True)
+            publish_mirror(directory, entry["target"])
         deploy_site(directory)
     return 0 if verify_applications(False) else 1
 
