@@ -253,7 +253,7 @@ def toolchain_plan(workspace, packages):
     return plan
 
 
-def set_version(directory, version):
+def set_version(directory, version, commit=True):
     """VERSION, its generated copy, the manifest, and luce's installers."""
     (directory / "VERSION").write_text(version + "\n")
     subprocess.run([sys.executable, "tools/embed_version.py"], cwd=directory, check=True, capture_output=True)
@@ -264,7 +264,26 @@ def set_version(directory, version):
         path = directory / installer
         if directory.name == "luce" and path.exists():
             path.write_text(re.sub(pattern, spelling, path.read_text(), count=1, flags=re.M))
-    git(directory, "commit", "-q", "-a", "-m", f"{directory.name} {version}: batch release")
+    if commit:
+        git(directory, "commit", "-q", "-a", "-m", f"{directory.name} {version}: batch release")
+
+
+def bump_toolchain(directory, version):
+    """The version commit of luce-base or luce, made on main as it is when pushed: the
+    compilers' main moves while a release runs, so a bump that cannot go on top of it is
+    made again there. luce-base's bootstrap C names its version, so it is regenerated."""
+    for attempt in range(5):
+        git(directory, "fetch", "-q", "origin", "main")
+        git(directory, "reset", "-q", "--hard", "FETCH_HEAD")
+        set_version(directory, version, commit=directory.name != "luce-base")
+        if directory.name == "luce-base":
+            subprocess.run(["./build.sh"], cwd=directory, check=True, capture_output=True)
+            subprocess.run(["tools/snapshot.sh"], cwd=directory, check=True, capture_output=True)
+            git(directory, "commit", "-q", "-a", "-m", f"luce-base {version}: batch release")
+        if subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=directory).returncode == 0:
+            return
+        print(f"release: {directory.name}'s main moved; bumping again on top of it")
+    raise SystemExit(f"release: could not push {directory.name} {version}")
 
 
 def build_archives(version, out):
@@ -405,8 +424,7 @@ def main():
             continue
         directory = workspace / name
         if entry["version"] != entry["target"]:
-            set_version(directory, entry["target"])
-            push(directory)
+            bump_toolchain(directory, entry["target"])
         if name == "luce":
             files = build_archives(entry["target"], workspace / "luce" / "build" / "release-archives")
             github_release(directory, entry["target"], files)
