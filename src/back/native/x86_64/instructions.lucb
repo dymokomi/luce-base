@@ -585,19 +585,7 @@ extend Generator:
         else:
             let b = try self.source(n.b, cls, self.reg(cls, 1))
             try self.writer.line4("cmpq " if cls == ir.Class.l else "cmpl ", b, ", ", a)
-        var cond = "e"
-        match n.op:
-            .ceq: cond = "e"
-            .cne: cond = "ne"
-            .cslt: cond = "l"
-            .csle: cond = "le"
-            .csgt: cond = "g"
-            .csge: cond = "ge"
-            .cult: cond = "b"
-            .cule: cond = "be"
-            .cugt: cond = "a"
-            .cuge: cond = "ae"
-            _: cond = "e"
+        let cond = condition_of(n.op)
         if let jump = branch:
             try self.writer.line("j")
             try self.writer.put(cond)
@@ -800,34 +788,6 @@ extend Generator:
         if n.cls == ir.Class.h:
             try self.round_to_half(d)
         try self.finish(n.dst, n.cls, d)
-
-    ## `select`: the condition word tested, then for integers the value when false moved
-    ## into r11 and a `cmov` of the value when true over it, both read after the test (a
-    ## move leaves the flags be); a float's value when false goes into scratch first, and a
-    ## branch passes over the move of its value when true.
-    func selected(n: ir.Instr) -> !:
-        let other = self.f.args.get((usize)n.extra2).value
-        let wide = ir.Class.l if n.extra == 1 else ir.Class.w
-        if n.cls == ir.Class.w or n.cls == ir.Class.l:
-            let c = try self.source(n.a, wide, self.reg(wide, 0))
-            try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
-            let long = n.cls == ir.Class.l
-            let r = self.reg(n.cls, 1)
-            try self.operand(r, n.cls, other)
-            let t = try self.source(n.b, n.cls, self.reg(n.cls, 2))
-            try self.writer.line4("cmovneq " if long else "cmovnel ", t, ", ", r)
-            try self.finish(n.dst, n.cls, r)
-            return
-        let r = self.reg(n.cls, 0)
-        try self.operand(r, n.cls, other)
-        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
-        let c = try self.source(n.a, wide, self.reg(wide, 0))
-        let move = "movaps " if n.cls == ir.Class.s else "movapd "
-        try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
-        try self.writer.line("je 1f")
-        try self.writer.line4(move, t, ", ", r)
-        try self.writer.put("\n1:")
-        try self.finish(n.dst, n.cls, r)
 
     ## `fma` (x86-64-v3, `isa.has_fma`): FMA3 accumulates into its destination, so the addend
     ## goes to the third scratch register and `vfmadd231` adds the product of the other two

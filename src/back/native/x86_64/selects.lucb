@@ -1,0 +1,229 @@
+#==============================================================================================
+#
+#   x86_64/selects - Selects
+#
+#   DESCRIPTION:
+#       `select` on its own, and fused with the comparison right before it that is its only
+#       condition: a `cmov` on the comparison's flags for integers, `minsd` or `maxsd` where
+#       their answer is exactly the select's, and otherwise a branch over a float's move.
+#
+#==============================================================================================
+extend Generator:
+    # mark: Selects ============================================================================
+
+    ## `select`: the condition word tested, then for integers the value when false moved
+    ## into r11 and a `cmov` of the value when true over it, both read after the test (a
+    ## move leaves the flags be); a float's value when false goes into scratch first, and a
+    ## branch passes over the move of its value when true.
+    func selected(n: ir.Instr) -> !:
+        let other = self.f.args.get((usize)n.extra2).value
+        let wide = ir.Class.l if n.extra == 1 else ir.Class.w
+        if n.cls == ir.Class.w or n.cls == ir.Class.l:
+            let c = try self.source(n.a, wide, self.reg(wide, 0))
+            try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
+            let long = n.cls == ir.Class.l
+            let r = self.reg(n.cls, 1)
+            try self.operand(r, n.cls, other)
+            let t = try self.source(n.b, n.cls, self.reg(n.cls, 2))
+            try self.writer.line4("cmovneq " if long else "cmovnel ", t, ", ", r)
+            try self.finish(n.dst, n.cls, r)
+            return
+        let r = self.reg(n.cls, 0)
+        try self.operand(r, n.cls, other)
+        let t = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let c = try self.source(n.a, wide, self.reg(wide, 0))
+        let move = "movaps " if n.cls == ir.Class.s else "movapd "
+        try self.writer.line5("testq " if n.extra == 1 else "testl ", c, ", ", c, "")
+        try self.writer.line("je 1f")
+        try self.writer.line4(move, t, ", ", r)
+        try self.writer.put("\n1:")
+        try self.finish(n.dst, n.cls, r)
+
+    ## The comparison `c` and the `select` `s` on it right after (`selection.compared_select`):
+    ## the comparison's flags decide, with no condition word in between.
+    func select_on(c: ir.Instr, s: ir.Instr) -> !:
+        let other = self.f.args.get((usize)s.extra2).value
+        if ir.is_float_class(s.cls) and s.cls != ir.Class.h and c.cls == s.cls:
+            if let pick = extremum(c, s.b, other):
+                try self.min_or_max(s, pick)
+                return
+        let float = ir.is_float_class(c.cls)
+        if c.cls == ir.Class.h or s.cls == ir.Class.h or s.cls == ir.Class.v or (float and (c.op == ir.Op.ceq or c.op == ir.Op.cne)):
+            # parity joins the flags of a float equality, and halves compare in scratch
+            try self.comparison_alone(c)
+            try self.selected(s)
+            return
+        if is_int_class(s.cls):
+            try self.cmov_select(c, s, other)
+            return
+        # a float chosen by a branch over the move of its value when true, the value when
+        # false moved in after the comparison (a move leaves the flags be)
+        let cond = try self.compare_flags(c.op, c)
+        var r = self.target(s.dst, s.cls, self.reg(s.cls, 0))
+        if self.reads_register(s.b, r):
+            r = self.reg(s.cls, 0)
+        try self.operand(r, s.cls, other)
+        # unordered floats fail the comparison: below or equal for above, below for above or
+        # equal, which they take
+        let skip = (("be" if cond == "a" else "b") if float else condition_of(ir.negated(c.op)))
+        try self.writer.line2("j", skip)
+        try self.writer.put(" 1f")
+        let t = try self.source(s.b, s.cls, self.reg(s.cls, 1))
+        try self.writer.line4("movaps " if s.cls == ir.Class.s else "movapd ", t, ", ", r)
+        try self.writer.put("\n1:")
+        try self.finish(s.dst, s.cls, r)
+
+    ## An integer `select` on comparison `c`: the comparison, the value when false into the
+    ## result (its own register unless the value when true still reads that, else r11) and a
+    ## `cmov` of the value when true, the moves after the comparison leaving its flags be.
+    func cmov_select(c: ir.Instr, s: ir.Instr, other: ir.Ref) -> !:
+        let long = s.cls == ir.Class.l
+        let cond = try self.compare_flags(c.op, c)
+        var r = self.target(s.dst, s.cls, self.reg(s.cls, 1))
+        if self.reads_register(s.b, r):
+            r = self.reg(s.cls, 1)
+        try self.operand(r, s.cls, other)
+        let t = try self.source(s.b, s.cls, self.reg(s.cls, 0))
+        try self.writer.line4("cmov", cond, "q " if long else "l ", t)
+        try self.put2(", ", r)
+        try self.finish(s.dst, s.cls, r)
+
+    ## The flags of comparison `c` as `op` would decide on them: the comparison, and the
+    ## condition code that holds when `op` does. A float comparison is ordered: unordered
+    ## operands fail `<`, `<=`, `>` and `>=` (`ucomis` sets the carry for them), so its `op`
+    ## is `c`'s own, never a negation.
+    func compare_flags(op: ir.Op, c: ir.Instr) -> str!:
+        let cls = c.cls
+        if not ir.is_float_class(cls):
+            let a = try self.source(c.a, cls, self.reg(cls, 0))
+            if fits_immediate(c.b):
+                try self.writer.line("cmpq $" if cls == ir.Class.l else "cmpl $")
+                try self.writer.put_i64(c.b.value)
+                try self.put2(", ", a)
+            else:
+                let b = try self.source(c.b, cls, self.reg(cls, 2))
+                try self.writer.line4("cmpq " if cls == ir.Class.l else "cmpl ", b, ", ", a)
+            return condition_of(op)
+        let a = try self.source(c.a, cls, self.reg(cls, 0))
+        let b = try self.source(c.b, cls, self.reg(cls, 1))
+        let mnemonic = "ucomisd " if cls == ir.Class.d else "ucomiss "
+        match op:
+            .cslt, .csle:
+                try self.writer.line4(mnemonic, a, ", ", b)
+            _:
+                try self.writer.line4(mnemonic, b, ", ", a)
+        # `a < b` is `b > a`: above; its negation, `not (a < b)`, is below or equal, which
+        # unordered operands (zero and carry set) take too
+        match op:
+            .cslt, .csgt: return "a"
+            .csle, .csge: return "ae"
+            _: return "e"
+
+    ## `min` or `max` of the two compared floats as `pick` names them: the destination
+    ## operand, the source operand, and whether the larger. `maxsd s, d` answers `d > s ? d :
+    ## s`, `minsd s, d` answers `d < s ? d : s`: the source when either is a NaN or both are
+    ## zeros, as the select does.
+    func min_or_max(s: ir.Instr, pick: (ir.Ref, ir.Ref, bool)) -> !:
+        let (kept, given, larger) = pick
+        let double = s.cls == ir.Class.d
+        let form = ("maxsd " if double else "maxss ") if larger else ("minsd " if double else "minss ")
+        let a = try self.source(kept, s.cls, self.reg(s.cls, 0))
+        let b = try self.source(given, s.cls, self.reg(s.cls, 1))
+        var d = self.target(s.dst, s.cls, self.reg(s.cls, 0))
+        if self.level >= 3:
+            try self.writer.line5("v", form, b, ", ", a)
+            try self.put2(", ", d)
+            try self.finish(s.dst, s.cls, d)
+            return
+        if d == b and a != d:
+            d = self.reg(s.cls, 0)
+        if a != d:
+            try self.writer.line4("movaps " if s.cls == ir.Class.s else "movapd ", a, ", ", d)
+        try self.writer.line4(form, b, ", ", d)
+        try self.finish(s.dst, s.cls, d)
+
+    ## Float comparison `c` and the branch `jump` on it, `next` the label after them: the
+    ## jumps on its flags. Ordered comparisons jump when above (or equal), else fall or jump
+    ## to the other; equality also needs the parity clear, which an unordered pair sets.
+    func float_branch(c: ir.Instr, jump: ir.Instr, next: u32) -> !:
+        if c.cls == ir.Class.h:
+            # the condition is in al as well as in the result
+            try self.float_comparison(c)
+            try self.writer.line("testb %al, %al")
+            try self.label_jump("jne ", jump.extra)
+            if jump.extra2 != next:
+                try self.label_jump("jmp ", jump.extra2)
+            return
+        let cond = try self.compare_flags(c.op, c)
+        if c.op == ir.Op.ceq:
+            try self.label_jump("jp ", jump.extra2)
+            if next == jump.extra:
+                try self.label_jump("jne ", jump.extra2)
+                return
+            try self.label_jump("je ", jump.extra)
+        elif c.op == ir.Op.cne:
+            try self.label_jump("jp ", jump.extra)
+            if next == jump.extra:
+                try self.label_jump("je ", jump.extra2)
+                return
+            try self.label_jump("jne ", jump.extra)
+        else:
+            if next == jump.extra:
+                try self.label_jump("jbe " if cond == "a" else "jb ", jump.extra2)
+                return
+            try self.label_jump("ja " if cond == "a" else "jae ", jump.extra)
+        if jump.extra2 != next:
+            try self.label_jump("jmp ", jump.extra2)
+
+    ## `mnemonic label`.
+    func label_jump(mnemonic: str, label: u32) -> !:
+        try self.writer.line(mnemonic)
+        try self.label_name(label)
+
+    ## Whether `r` is a temporary living in register `reg` (in any width).
+    func reads_register(r: ir.Ref, reg: str) -> bool:
+        if r.kind != ir.RefKind.temp or self.fr.is_rematerialised(r.index):
+            return false
+        let code = self.fr.temp_regs.get((usize)r.index - 1)
+        return code != 0 and self.q_name(code) == wide_name(reg)
+
+    ## Comparison `c` on its own, its condition word in its result.
+    func comparison_alone(c: ir.Instr) -> !:
+        if ir.is_float_class(c.cls):
+            try self.float_comparison(c)
+        else:
+            try self.comparison(c)
+
+## The condition code of an integer comparison.
+func condition_of(op: ir.Op) -> str:
+    match op:
+        .ceq: return "e"
+        .cne: return "ne"
+        .cslt: return "l"
+        .csle: return "le"
+        .csgt: return "g"
+        .csge: return "ge"
+        .cult: return "b"
+        .cule: return "be"
+        .cugt: return "a"
+        .cuge: return "ae"
+        _: return "e"
+
+## When `select(c, t, e)` on a strict float comparison `c` of the same two values is their
+## least or greatest exactly as `minsd`/`maxsd` answer it: the destination operand, the
+## source operand, and whether the larger. `x > y ? x : y` is `maxsd y, x`; `x > y ? y : x`
+## is `minsd x, y`, and `<` the reverse. A non-strict comparison picks the other operand
+## of two equal zeros or of a NaN, which the instructions do not.
+func extremum(c: ir.Instr, t: ir.Ref, e: ir.Ref) -> (ir.Ref, ir.Ref, bool)?:
+    if c.op != ir.Op.cslt and c.op != ir.Op.csgt:
+        return none
+    let greater = c.op == ir.Op.csgt
+    if same_value(t, c.a) and same_value(e, c.b):
+        return (c.a, c.b, greater)
+    if same_value(t, c.b) and same_value(e, c.a):
+        return (c.b, c.a, not greater)
+    return none
+
+## Whether two references name the same temporary or the same constant.
+func same_value(a: ir.Ref, b: ir.Ref) -> bool:
+    return a.kind == b.kind and a.index == b.index and a.value == b.value and (a.kind == ir.RefKind.temp or a.kind == ir.RefKind.constant)

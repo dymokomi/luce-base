@@ -163,8 +163,11 @@ extend Generator:
     ## its branch, an address and its access): how many they were, or 0 when the one at `i`
     ## selects alone.
     func fused_at(i: usize, uses: u32[], index: usize) -> usize!:
-        if selection.branch(self.f, i, uses):
+        if selection.branch(self.f, i, uses, true):
             try self.branch_pair(i, index)
+            return 2
+        if selection.compared_select(self.f, i, uses):
+            try self.select_on(self.f.instrs.get(i), self.f.instrs.get(i + 1))
             return 2
         if let fused = selection.offset_access(self.f, i, uses):
             let (base, offset) = fused
@@ -215,6 +218,11 @@ extend Generator:
     func fused_branch(i: usize, next: u32) -> !:
         let branch = self.f.instrs.get(i + 1)
         var comparison = self.f.instrs.get(i)
+        if ir.is_float_class(comparison.cls):
+            # a float comparison's negation is no comparison of its own: unordered operands
+            # fail both
+            try self.float_branch(comparison, branch, next)
+            return
         if next == branch.extra:
             comparison.op = ir.negated(comparison.op)
         try self.comparison(comparison, branch, next)

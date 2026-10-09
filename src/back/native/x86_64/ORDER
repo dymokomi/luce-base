@@ -3,6 +3,7 @@ registers.lucb
 functions.lucb
 transfers.lucb
 instructions.lucb
+selects.lucb
 vectors.lucb
 inline_asm.lucb
 atomics.lucb

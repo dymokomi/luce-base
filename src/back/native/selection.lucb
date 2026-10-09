@@ -160,7 +160,8 @@ pub func zero_extended(f: ir.Function*, entry: u32[]) -> bool[]!:
 
 ## Send every jump to a label that shares its place with others (labels in a row, with
 ## only `dbg` between) to the first of the run, so a generator falling into the run finds
-## its target next (`label_at`) and leaves out the jump.
+## its target next (`label_at`) and leaves out the jump; then leave out the labels only
+## fallen into (`drop_passed_labels`).
 pub func canonical_labels(f: ir.Function*) -> !:
     if f.labels == 0:
         return
@@ -179,8 +180,12 @@ pub func canonical_labels(f: ir.Function*) -> !:
                 changed = true
         elif x.op != ir.Op.dbg:
             run = 0
-    if not changed:
-        return
+    if changed:
+        retarget(f, first)
+    try drop_passed_labels(f)
+
+## Every jump to label `k` sent to `first[k]` (`canonical_labels`).
+func retarget(f: ir.Function*, first: u32[]):
     for i in 0..<f.instrs.count:
         var x = f.instrs.get(i)
         if x.op == ir.Op.jmp or x.op == ir.Op.switch_:
@@ -195,6 +200,39 @@ pub func canonical_labels(f: ir.Function*) -> !:
         let label = f.jump_labels.get(k)
         if (usize)label < first.length:
             f.jump_labels.set(k, first[(usize)label])
+
+## Leave out each label nothing jumps to that only the instruction before it falls into: an
+## expanded function's return point, say. Its block then runs on from the one before, so a
+## comparison there and the branch on it after the label meet (`branch`).
+func drop_passed_labels(f: ir.Function*) -> !:
+    var targeted = try new bool[(usize)f.labels + 1] ---
+    defer free(targeted)
+    for k in 0..<targeted.length:
+        targeted[k] = false
+    for x in f.instrs.span():
+        if x.op == ir.Op.jmp or x.op == ir.Op.switch_:
+            aim(targeted, x.extra)
+        elif x.op == ir.Op.jnz:
+            aim(targeted, x.extra)
+            aim(targeted, x.extra2)
+    for label in f.jump_labels.span():
+        aim(targeted, label)
+    var kept: usize = 0
+    var before = ir.Op.label
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        let passed = x.op == ir.Op.label and i > 0 and (usize)x.extra < targeted.length and not targeted[(usize)x.extra] and before != ir.Op.label and not ir.is_terminator(before)
+        if x.op != ir.Op.dbg:
+            before = x.op
+        if passed:
+            continue
+        f.instrs.set(kept, x)
+        kept += 1
+    f.instrs.count = kept
+
+func aim(targeted: bool[], label: u32):
+    if (usize)label < targeted.length:
+        targeted[(usize)label] = true
 
 ## Move each block that only traps (its labels and a `trap` of a fixed reason and position,
 ## as a slice's `start <= end` fails) after the function's other blocks, when nothing falls
@@ -327,6 +365,15 @@ pub func widened_load(f: ir.Function*, at: usize, counts: u32[]) -> ir.Instr?:
     x.dst = next.dst
     x.cls = ir.Class.l
     return x
+
+## Whether the instruction at `at` is a comparison whose only use is the `select` right
+## after it, as its condition: the flags the comparison sets then choose by themselves.
+pub func compared_select(f: ir.Function*, at: usize, counts: u32[]) -> bool:
+    if f.debug or at + 1 >= f.instrs.count:
+        return false
+    let x = f.instrs.get(at)
+    let next = f.instrs.get(at + 1)
+    return ir.is_comparison(x.op) and x.dst != 0 and counts[x.dst] == 1 and next.op == ir.Op.select and same_temp(next.a, ir.temp_ref(x.dst))
 
 ## When the instruction at `at` adds a constant (-256 to 32760) to an address and its only
 ## use is as the address of the load or store right after it: the base and the constant,
