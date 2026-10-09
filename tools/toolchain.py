@@ -26,6 +26,7 @@ import argparse
 import glob
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -118,8 +119,10 @@ def install(destination):
 
 
 def prune():
+    # only builds, named by their four commits: anything else here (a release workspace,
+    # the fuzz runner's checkouts) is someone else's
     built = sorted((path for path in ROOT.iterdir()
-                    if path.is_dir() and path.name not in ("src", "current") and not path.name.endswith(".partial")),
+                    if path.is_dir() and re.fullmatch(r"[0-9a-f]{10}(-[0-9a-f]{10}){3}", path.name)),
                    key=lambda path: path.stat().st_mtime)
     for old in built[:-KEEP]:
         shutil.rmtree(old, ignore_errors=True)
