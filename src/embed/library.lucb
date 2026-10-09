@@ -1,0 +1,190 @@
+#==============================================================================================
+#
+#   embed/library - The standard modules checked once, then check after check on top
+#
+#   DESCRIPTION:
+#       A `Library` parses and checks the standard modules once and keeps that checker. A
+#       check copies it, its lists and tables and not its trees, adds the program's modules
+#       to the copy alone and checks them, in an arena of its own: the library is the same
+#       after a check as before it (`sema/check/baseline.lucb`).
+#
+#       `check` checks a module of a sealed root. `check_file` checks a file of a package,
+#       its imports resolved as a build resolves them, and keeps the modules of the other
+#       packages it imports checked (`packages.lucb`): a later check of a file of the same
+#       package copies those too and checks only the package's own modules.
+#
+#==============================================================================================
+
+# mark: The library ===========================================================================
+
+## The standard modules, parsed and checked once, to check root after root on top of
+## (`check`): a host that checks again and again, as on every pause in typing, makes one
+## and keeps it. A check copies the library's checker and checks only the root's modules,
+## in an arena of its own; the library does not change, so each check starts from the same
+## state, whatever was checked before. Close it once, after every result it gave is closed.
+pub struct Library:
+    ## Where the arenas take their memory: the heap, or a test's counting allocator.
+    var parent: memory.Allocator
+    ## The arena that holds the standard modules' trees and the checker.
+    var arena: Arena*
+    ## The checker that checked the standard modules and nothing else.
+    var baseline: check.Checker
+    ## The other packages' modules kept for each package `check_file` checked a file of.
+    var kept: list.List[Kept*]
+
+    ## The standard modules the checker carries, parsed and checked for the host's target.
+    pub static func create() -> Library!:
+        return try Library.over(memory.heap)
+
+    ## A library whose arenas, its own and each check's, take their memory from `parent`.
+    static func over(parent: memory.Allocator) -> Library!:
+        # the carried arrays are passed as slices, `[0..]`: the seed that builds this
+        # compiler takes a global array as a span only so
+        try standard.adopt(standard_sources.modules[0..])
+        let arena = try new_arena(parent)
+        errdefer destroy_arena(arena)
+        with arena:
+            var checker = try check.Checker.create(try new u8[scratch_size] ---)
+            var texts = try new str[standard_sources.paths.length] ---
+            for k in 0..<texts.length:
+                texts[k] = standard_sources.text(k)
+            try checker.add_prelude_texts(standard_sources.modules[0..], standard_sources.firsts[0..], standard_sources.paths[0..], texts)
+            try checker.check_program()
+            try checker.settle_library()
+            return Library(parent = parent, arena = arena, baseline = checker, kept = try list.List[Kept*].create(4))
+
+    ## Check module `entry` of the directory `root` on top of the library, as `check_root`
+    ## does. The result holds what this check made, in its own arena, and the library's
+    ## standard modules, which it shares.
+    pub func check(root: str, entry: str) -> Checked!:
+        # a host checks again and again: the reads are not build inputs, and the last
+        # check's library modules lived in its arena
+        let noting = cache.noting
+        cache.noting = false
+        defer cache.noting = noting
+        check.forget_library_modules()
+        let arena = try new_arena(self.parent)
+        errdefer destroy_arena(arena)
+        with arena:
+            var checker = try self.baseline.copied(try new u8[scratch_size] ---)
+            let message = load_and_check_root(&checker, root, entry) catch failure:
+                recover try strings.copy(failure.message)
+            return try finish(arena, &checker, entry_tree(&checker, entry), message)
+
+    ## Check the file at `path` as `luce-base check` does, on top of the library: its
+    ## imports resolve as a build of its package resolves them (§16.3), and positions name
+    ## the file as `path` spells it. The modules of other packages it imports are checked
+    ## the first time and kept, for every later check of a file of the same package, until
+    ## a file of theirs changes; the package's own modules are checked every time.
+    pub func check_file(path: str) -> Checked!:
+        let noting = cache.noting
+        cache.noting = false
+        defer cache.noting = noting
+        if let result = try self.attempt(path, true):
+            return result
+        # the check met other packages' modules not kept yet: kept now, it checks on them
+        if let result = try self.attempt(path, false):
+            return result
+        trap("a check that keeps nothing more has a result")
+
+    ## Free the standard modules, the checker and the packages' modules kept. Every result
+    ## `check` gave must be closed first; one `check_file` gave holds what it uses.
+    pub func close():
+        for kept in self.kept.span():
+            release_kept(kept)
+        destroy_arena(self.arena)
+
+    # mark: Checking a package's file ==========================================================
+
+    ## A check of the file `path` on top of the modules kept for its package. When `grow`
+    ## and the loading met other packages' modules not kept yet, they are kept instead and
+    ## the answer is none: the caller checks again, on top of them.
+    func attempt(path: str, grow: bool) -> Checked?!:
+        check.forget_library_modules()
+        let arena = try new_arena(self.parent)
+        errdefer destroy_arena(arena)
+        with arena:
+            let kept = try self.kept_for(path)
+            var checker = try kept.checker.copied(try new u8[scratch_size] ---)
+            if grow:
+                # other packages' modules are loaded where they are kept, ready to keep
+                checker.kept_in = kept.arena
+            let first = kept.checker.modules.count
+            var message = load_file(&checker, path) catch failure:
+                recover try strings.copy(failure.message)
+            # the copy uses the kept modules, and so does the result made of it
+            kept.users += 1
+            errdefer release_kept(kept)
+            if checker.kept_open > 0:
+                # a module of another package failed to load, part of it left where the
+                # kept ones are: this result holds them, and the library starts afresh
+                self.forget(kept)
+            elif grow:
+                let others = try others_loaded(&checker, first)
+                if others.length > 0:
+                    self.grow(kept, &checker, others)
+                    release_kept(kept)
+                    destroy_arena(arena)
+                    return none
+            if message.length == 0:
+                message = check_loaded(&checker) catch failure:
+                    recover try strings.copy(failure.message)
+            var result = try finish(arena, &checker, file_tree(&checker, path), message)
+            result.kept = kept
+            return result
+
+    ## The modules kept for the package of the file `path`, made when there are none, and
+    ## made again when a file they were read from changed.
+    func kept_for(path: str) -> Kept*!:
+        let project = project_of(path)
+        for i in 0..<self.kept.count:
+            let kept = self.kept.get(i)
+            if kept.project != project:
+                continue
+            if try kept.current():
+                return kept
+            self.forget(kept)
+            break
+        let made = try Kept.create(self.parent, &self.baseline, project)
+        errdefer release_kept(made)
+        with self.arena:
+            try self.kept.push(made)
+        return made
+
+    ## Keep `others`, modules of other packages that `loaded` loaded, in `kept`. When they
+    ## do not load or check there, the kept modules are dropped, and the checks that follow
+    ## load them each time, as a check alone does, until they load and check again.
+    func grow(kept: Kept*, loaded: const check.Checker*, others: const usize[]):
+        kept.grow(loaded, others) catch:
+            self.forget(kept)
+
+    ## Stop keeping `kept`; a result that uses it holds it until it is closed. The manifests
+    ## are read again from here on, in case one changed.
+    func forget(kept: Kept*):
+        for i in 0..<self.kept.count:
+            if self.kept.get(i) == kept:
+                self.kept.set(i, self.kept.get(self.kept.count - 1))
+                self.kept.count -= 1
+                release_kept(kept)
+                module_paths.forget_manifests()
+                return
+
+## The file at `path` and its imports, loaded.
+func load_file(checker: check.Checker*, path: str) -> str!:
+    try checker.load((c.str)try strings.copy(path))
+    return ""
+
+## Check what `checker` loaded and has not checked.
+func check_loaded(checker: check.Checker*) -> str!:
+    try checker.check_program()
+    return ""
+
+## An arena that takes its chunks from `parent`, and lives there itself.
+func new_arena(parent: memory.Allocator) -> Arena*!:
+    return try new Arena(parent) in parent
+
+## Destroy `arena` and free it from the parent it lives in.
+func destroy_arena(arena: Arena*):
+    let parent = arena.parent
+    arena.destroy()
+    free(arena) in parent

@@ -175,6 +175,24 @@ extend Checker:
         if let loaded = self.by_canonical.find(known):
             try self.module_alias(name, self.modules.get(loaded).name)
             return
+        # a module of another package, loaded where a library keeps such modules for the
+        # checks after this one (`kept_in`, `embed.Library.check_file`), with its name and
+        # path, which the importer's allocator holds
+        if let kept = self.kept_in:
+            let owner = module_paths.package_of(text, self.package_name) catch:
+                recover self.package_name
+            if owner != self.package_name:
+                self.kept_open += 1
+                with kept:
+                    try self.read_module((c.str)try strings.copy(text), try strings.copy(name))
+                self.kept_open -= 1
+                return
+        try self.read_module(path, name)
+
+    ## Read, parse and add module `name` from `path`, which is not loaded yet, after every
+    ## module it imports.
+    func read_module(path: c.str, name: str) -> !:
+        let text = (str)path
         var src = load_source(path, self.test_build and self.under_test(text)) catch failure:
             let half = self.scratch.length // 2
             # a located message (`path:line:column: ...`) stands as it is, copied into the
@@ -389,7 +407,7 @@ extend Checker:
             if d.kind == ast.Kind.extern_type and d.right != none:
                 try self.check_handle(d)
             decl = d.next
-        if index + 1 == self.modules.count:
+        if index + 1 == self.modules.count and not self.keeping:
             try self.check_entry(tree)
         # a declaration that fails is reported and the next is checked (§19.6): the scopes it
         # opened close and the function state resets first; the module's failures are one error
@@ -471,7 +489,7 @@ extend Checker:
         return self.modules.get(index).tree
 
     ## The index of the loaded module whose source is at `path`.
-    func module_at(path: str) -> usize?!:
+    pub func module_at(path: str) -> usize?!:
         return self.by_canonical.find(try module_paths.canonical(path))
 
     func bind_imports(tree: ast.Node*) -> !:

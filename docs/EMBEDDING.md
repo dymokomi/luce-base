@@ -15,7 +15,7 @@ may import (`package.prisma`, `public`):
 
 | Module | What it holds |
 |---|---|
-| `embed` | `check_root`, `Library`, the `Checked` result, `Diagnostic`, `standard_modules` |
+| `embed` | `check_root`, `Library` (`check`, `check_file`), the `Checked` result, `Diagnostic`, `standard_modules` |
 | `front.ast` | `Node` and `Kind`, the one node shape of the tree, and `dump` |
 | `front.source` | `Source`, for turning a node's byte offset into a line and column |
 | `front.parser` | `Parser`, to parse without checking |
@@ -76,6 +76,7 @@ M4 Max. A host that checks again and again keeps a `Library` instead (next secti
 pub struct Library:
     pub static func create() -> Library!
     pub func check(root: str, entry: str) -> Checked!
+    pub func check_file(path: str) -> Checked!     # next section
     pub func close()
 ```
 
@@ -112,6 +113,70 @@ result's own arena, which its `close` frees; the standard modules' trees, which
 `tests/programs/embed_timing` measures a check alone and on a library:
 `./build/luce-base build tests/programs/embed_timing/main.lucb -o build/embed-timing`, then
 `./build/embed-timing [ROOT ENTRY [CHECKS]]` from the repository's root.
+
+## Checking a package's files: `check_file`
+
+A script imports packages: `from luce_geocore.script import Cook` reaches 59 modules
+of luce-geocore, luce-std and luce-color, and checking those is nearly all of the check. A sealed root cannot hold them, and checking them again on every pause
+in typing would cost what `luc check` costs. `check_file` checks a file of a package the
+way `luce-base check` does, and keeps the other packages' modules checked:
+
+```
+var library = try embed.Library.create()       # once
+defer library.close()
+...
+# the host writes the script into a package of its own, say
+#   scripts/package.prisma      declares luce-geocore as a dependency (luc sync fetches it)
+#   scripts/src/script.lucb     the node's text
+var result = try library.check_file("/…/scripts/src/script.lucb")   # on every edit
+defer result.close()
+```
+
+- Imports resolve as a build of the file's package resolves them (§16.3): its own modules
+  by their paths under `src/`, a dependency's public modules behind its name, found where
+  the manifest says or under `.luc/deps/`. The standard modules are still the copy the
+  checker carries. Positions name the file as `path` spells it, and a dependency's file as
+  `<package>/<path in it>`, `luce_geocore/src/script/cook.lucb`.
+- The first check of a file that imports another package loads that package's modules,
+  checks them and keeps them, as the library keeps the standard modules: their trees and
+  types are settled and no later check writes on them. A later check of any file of the
+  same package copies them and checks only the package's own modules. A file that imports
+  a module not kept yet, `script2.lucb` importing `luce_geocore.splats`, adds it, and the
+  check after that is fast again.
+- Every file the kept modules were read from is watched, and the manifests of their
+  packages and of the file's own. Before each check the library looks at each: its size,
+  inode and modification and change times. A file whose look moved is read, and when its
+  bytes changed the kept modules are dropped and that check reads them again (and keeps
+  them again); a file written again with the same bytes, or only touched, costs a read and
+  nothing more.
+- A dependency that does not load or check is not kept: each check reads it and reports
+  its errors, as a check alone does, until it checks again.
+- The kept modules are per package, the directory holding the file's `package.prisma`. A
+  library checking files of three packages keeps three sets.
+
+What the result holds is as for `check`, with two differences. `tree` is the module read
+from `path`. `checker.modules` is the standard modules, then every module kept for the
+package, including those another of its files imported, then the file's own modules: walk
+the file's imports, not the list, to see what it reaches. A dependency's warnings (an
+unused local in luce-geocore) are not among the diagnostics; the file's own are.
+
+A result holds the kept modules it was made on: when a change drops them, a result made
+before the change still reads its trees, and they are freed when the last such result is
+closed.
+
+On an M4 Max, for `script.lucb` of a package depending on luce-geocore (59 modules of three
+packages, from 241 files) (`./build/embed-timing --file PATH`):
+
+| | |
+|---|---|
+| first check: loads, checks and keeps the dependencies | about 90 ms |
+| each later check, the script edited or not | about 0.3 ms |
+| of which looking at the 241 watched files | about 0.2 ms |
+
+`luce-base check` of the same file, a process of its own, takes 90 ms; `luc check` 0.14 s.
+The look at the files is the floor of a check on top of kept packages: about 0.6 µs a
+file, what the kernel takes to say a file's size and times. The check itself, copying the
+kept checker and loading and checking the script, is under 0.1 ms.
 
 ## The result
 

@@ -83,7 +83,7 @@ pub func note_input(path: str, bytes: const u8[], read_as: str = ""):
         read_paths[noted_count] = copied else return
         if read_as.length > 0:
             read_paths[noted_count] = try_copy(read_as) else return
-        noted_bytes[noted_count] = mix(1469598103934665603, bytes)
+        noted_bytes[noted_count] = digest(bytes)
         noted_count += 1
 
 ## Whether a file is at `path`, for a lookup: an absence is noted (`note_absent`).
@@ -172,6 +172,10 @@ func try_copy(text: str) -> str?:
         return none
     memory.copy(room, text.bytes, text.length)
     return (str)room
+
+## A hash of `bytes`, what the cache tells a source's contents by.
+pub func digest(bytes: const u8[]) -> u64:
+    return mix(1469598103934665603, bytes)
 
 ## `bytes` mixed into `h` eight at a time (a multiply and a shift per word, since a build
 ## hashes every source it reads), then the length, so two inputs never run together.
@@ -380,7 +384,7 @@ pub func recall(record: str) -> u8[]?!:
             let path = (str)line.bytes[19..]
             let bytes = files.read((c.str)try copy_terminated(path)) catch: return none
             defer bytes.release()
-            if (str)line.bytes[2..<18] != try digits_of(mix(1469598103934665603, bytes.value)):
+            if (str)line.bytes[2..<18] != try digits_of(digest(bytes.value)):
                 return none
         elif line.length > 2 and line.bytes[0] == 'a':
             if files.exists((c.str)try copy_terminated((str)line.bytes[2..])):

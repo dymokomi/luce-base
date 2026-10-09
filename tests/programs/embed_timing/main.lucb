@@ -2,15 +2,24 @@
 ## which parses and checks the standard modules too) and on top of a kept `embed.Library`.
 ##
 ##     embed-timing [ROOT ENTRY [CHECKS]]
+##     embed-timing --file PATH [CHECKS]
 ##
 ## The default is the 50-line snippet of the embedding tests, `tests/embed/root` `clean`,
-## checked 500 times. Times are in microseconds; run it from the repository's root.
+## checked 500 times. `--file` times `Library.check_file` of a package's file instead: the
+## first check, which checks and keeps the other packages' modules it imports, and the
+## checks after it. Times are in microseconds; run it from the repository's root.
 
 import embed
 import strings
 import time
 
 pub func main(arguments: str[]) -> i32!:
+    if arguments.length > 2 and arguments[1] == "--file":
+        var count: usize = 500
+        if arguments.length > 3:
+            let parsed = strings.parse_u64(arguments[3]) else return usage()
+            count = (usize)parsed if parsed > 0 else 1
+        return try time_file(arguments[2], count)
     let root = arguments[1] if arguments.length > 2 else "tests/embed/root"
     let entry = arguments[2] if arguments.length > 2 else "clean"
     var checks: usize = 500
@@ -47,9 +56,33 @@ pub func main(arguments: str[]) -> i32!:
     print(f"Library.check:     {micro(median(warm))} us median of {checks}, least {micro(warm[0])}, first {micro(first_warm)}")
     return 0
 
+## Time `checks` checks of the file at `path` on one library, the first apart.
+func time_file(path: str, checks: usize) -> i32!:
+    var library = try embed.Library.create()
+    defer library.close()
+    var warm = try new u64[checks] ---
+    defer free(warm)
+    var first: u64 = 0
+    for i in 0..<checks + 1:
+        let at = time.now()
+        var result = try library.check_file(path)
+        let took = time.since(at)
+        if not result.ok():
+            print(f"{path}: {result.failure}\n")
+            result.close()
+            return 1
+        result.close()
+        if i == 0:
+            first = took
+        else:
+            warm[i - 1] = took
+    print(f"Library.check_file first: {micro(first)} us")
+    print(f"Library.check_file:       {micro(median(warm))} us median of {checks}")
+    return 0
+
 ## Say how the tool is called; the exit status of a bad call.
 func usage() -> i32:
-    print("usage: embed-timing [ROOT ENTRY [CHECKS]]")
+    print("usage: embed-timing [ROOT ENTRY [CHECKS]] | --file PATH [CHECKS]")
     return 2
 
 ## Nanoseconds as microseconds.

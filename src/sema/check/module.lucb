@@ -48,6 +48,7 @@ import sema.name_index
 import sema.types
 import support.list
 import support.hashed
+from support.arena import Arena
 import support.in_arena
 import support.manifest
 import support.modules as module_paths
@@ -227,6 +228,16 @@ pub struct Checker:
     ## Imports resolve under `root` alone and no manifest is read: a host's check of a
     ## directory it supplies (`load_sealed`, docs/EMBEDDING.md).
     pub var sealed: bool = false
+    ## Whether this checker keeps package modules for later checks (`adopt`): no module it
+    ## checks is the program's entry.
+    var keeping: bool = false
+    ## Where modules of other packages than the one checked are loaded, when a library keeps
+    ## them for later checks (`embed.Library.check_file`, `adopt`); none loads them with
+    ## the rest.
+    pub var kept_in: Arena*? = none
+    ## How many loads into `kept_in` began and did not finish: one that failed left part of
+    ## a module there.
+    pub var kept_open: usize = 0
     ## Imports on the active load path. Completed modules remain in dependency order;
     ## this separate stack detects cycles before recursive loading repeats a module.
     var loading: list.List[str]

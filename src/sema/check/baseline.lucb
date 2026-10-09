@@ -15,15 +15,20 @@
 #       first, by `settle_library`: each module's type, which an import otherwise makes on
 #       first use, and the mark of a function referenced, which a use of it sets.
 #
+#       A library that also keeps other packages' modules (`embed.Library.check_file`) keeps
+#       a second checker of this kind per package checked: a copy of the standard one that
+#       takes the dependencies a check loaded (`adopt`), checks them and settles them.
+#
 #==============================================================================================
 extend Checker:
     # mark: A baseline to check on top of =====================================================
 
     ## Settle what a later check would otherwise write on the checked modules' trees, once
     ## they are all checked: each module's type, so an import of one finds it made, and the
-    ## mark a use of a public function sets, so no check marks one first.
-    pub func settle_library() -> !:
-        for m in self.modules.span():
+    ## mark a use of a public function sets, so no check marks one first. Modules before
+    ## `first` were settled before.
+    pub func settle_library(first: usize = 0) -> !:
+        for m in self.modules.span()[first..]:
             if m.tree.type_id == types.none_id:
                 m.tree.type_id = try self.table.nominal(types.Kind.module, m.tree, try types.no_args())
             mark_public_functions(m.tree.body)
@@ -56,7 +61,31 @@ extend Checker:
         copy.read_only_uses = try self.read_only_uses.copied()
         copy.use_forwards = try self.use_forwards.copied()
         copy.pending_instances = try self.pending_instances.copied()
+        copy.ahead = try self.ahead.copied()
+        copy.ahead_index = try self.ahead_index.copied()
+        copy.loaded_paths = try self.loaded_paths.copied()
+        copy.keeping = false
+        copy.kept_in = none
+        copy.kept_open = 0
         return copy
+
+    ## Take modules `which` of `loaded`, a copy of this checker that loaded them on top of it
+    ## into this checker's allocator (`kept_in`), as modules of this checker's own, to check
+    ## here (`check_program`): a checker that keeps them for later checks (`keeping`), so none
+    ## of them is the program's entry. They come in the order `loaded` has them, each after
+    ## the modules it imports, with the other names `loaded` knows them by.
+    pub func adopt(loaded: const Checker*, which: const usize[]) -> !:
+        self.keeping = true
+        for k in which:
+            let m = loaded.modules.get(k)
+            try self.modules.push(m)
+            _ = try self.by_canonical.add(m.canonical, self.modules.count - 1)
+        # an alias of a module kept here comes along; one of the package's own stays behind
+        for alias in loaded.module_aliases.span()[self.module_aliases.count..]:
+            for m in self.modules.span():
+                if m.name == alias.target:
+                    try self.module_alias(try strings.copy(alias.name), m.name)
+                    break
 
 ## Mark every public function and method from `first` on as referenced, as a use of one from
 ## another module would.

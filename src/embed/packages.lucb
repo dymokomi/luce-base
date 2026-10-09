@@ -1,0 +1,171 @@
+#==============================================================================================
+#
+#   embed/packages - The other packages' modules a library keeps checked
+#
+#   DESCRIPTION:
+#       A script imports packages: `from luce_geocore.script import Cook` loads a few
+#       hundred modules of luce-geocore, luce-std and the rest, and checking them is nearly
+#       all of the check. `Library.check_file` checks them once and keeps them, per package
+#       whose files it checks (`Kept`): a checker copied from the library's, which loaded the
+#       modules of other packages a check met (`load_kept`), checked them and settled them
+#       (`settle_library`), as the library did the standard modules. A check copies it and
+#       checks only the package's own modules.
+#
+#       Each file the kept modules were read from is watched: its size, place and times
+#       when it was read (`support/stamps.lucb`), and a hash of its bytes. Before a check, each is looked at again;
+#       one whose size or times moved is read, and when its bytes changed too the kept
+#       modules are dropped and the check reads them again. A touched file that says the
+#       same costs a read, never a check. The manifests of the packages are watched too.
+#
+#==============================================================================================
+
+# mark: Kept modules ==========================================================================
+
+## The modules of other packages kept for checks of the files of one package, and the files
+## they were read from.
+struct Kept:
+    ## The arena that holds the modules' trees, the checker and the watched files, in the
+    ## library's parent allocator, where this record lives too.
+    var arena: Arena*
+    ## The library's checker, with the kept modules loaded, checked and settled.
+    var checker: check.Checker
+    ## The root of the package whose files are checked on top: the directory holding its
+    ## `package.prisma`, canonical; empty for a file of no package.
+    var project: str
+    ## Every file the modules were read from, and the manifests.
+    var watched: list.List[Watched]
+    ## The library, and each result made on top that is not closed yet.
+    var users: usize
+
+    ## No modules yet, for the files of the package at `project`, on top of `baseline`.
+    static func create(parent: memory.Allocator, baseline: const check.Checker*, project: str) -> Kept*!:
+        let arena = try new_arena(parent)
+        errdefer destroy_arena(arena)
+        with arena:
+            let kept = try new Kept(arena = arena, checker = try baseline.copied(try new u8[scratch_size] ---), project = try strings.copy(project),
+                                    watched = try list.List[Watched].create(64), users = 1) in parent
+            errdefer free(kept) in parent
+            if project.length > 0:
+                # the manifest names the dependencies the package's files may import
+                try kept.watch(try in_arena.join(project, "package.prisma"))
+            return kept
+
+    ## Whether every file watched says what it said when it was read. A file whose size or
+    ## times moved is read again, and is current when its bytes did not change; so is one
+    ## written so lately that a write since could have left its times as they were.
+    func current() -> bool!:
+        let now = stamps.now()
+        for i in 0..<self.watched.count:
+            var w = self.watched.get(i)
+            let stamp = stamps.of((c.str)w.path) catch:
+                return false
+            if stamp.same(w.stamp) and not w.recent:
+                continue
+            let bytes = files.read((c.str)w.path) catch:
+                return false
+            defer bytes.release()
+            if cache.digest(bytes.value) != w.digest:
+                return false
+            w.stamp = stamp
+            w.recent = recent(stamp, now)
+            self.watched.set(i, w)
+        return true
+
+    ## Keep `others`, modules of other packages that `loaded` loaded into this arena
+    ## (`kept_in`), and check them here, settle them, and watch their files. Fails when one
+    ## does not check, and the checker is of no use after; the library drops it then.
+    func grow(loaded: const check.Checker*, others: const usize[]) -> !:
+        with self.arena:
+            let first = self.checker.modules.count
+            # the package's own modules are named so, as the check named them
+            self.checker.package_name = try strings.copy(loaded.package_name)
+            try self.checker.adopt(loaded, others)
+            try self.checker.check_program()
+            try self.checker.settle_library(first)
+            # another package's warnings are not the checked file's to show
+            self.checker.warnings.count = 0
+            for m in self.checker.modules.span()[first..]:
+                try self.watch_module(m.canonical)
+                if let owner = try module_paths.owner_root(m.canonical):
+                    let (_, root) = owner
+                    try self.watch(try in_arena.join(root, "package.prisma"))
+
+    ## Watch the files module `path` was read from: the file, or for a module of
+    ## fragments, a directory, its `ORDER` and each fragment the `ORDER` lists.
+    func watch_module(path: str) -> !:
+        if strings.ends_with(path, ".lucb"):
+            try self.watch(path)
+            return
+        let order = try in_arena.join(path, "ORDER")
+        try self.watch(order)
+        let listed = (str)try in_arena.read((c.str)order)
+        var start: usize = 0
+        for i in 0..<listed.length + 1:
+            if i < listed.length and not is_space(listed.bytes[i]):
+                continue
+            if i > start:
+                try self.watch(try in_arena.join(path, (str)listed.bytes[start..<i]))
+            start = i + 1
+
+    ## Watch the file at `path`, once.
+    func watch(path: str) -> !:
+        for w in self.watched.span():
+            if w.path == path:
+                return
+        let terminated = try strings.copy(path)
+        let stamp = try stamps.of((c.str)terminated)
+        let bytes = try in_arena.read((c.str)terminated)
+        try self.watched.push(Watched(path = terminated, stamp = stamp, digest = cache.digest(bytes), recent = recent(stamp, stamps.now())))
+
+## Let go of `kept` for one user, the library or a result; the last frees it.
+func release_kept(kept: Kept*):
+    kept.users -= 1
+    if kept.users > 0:
+        return
+    let arena = kept.arena
+    let parent = arena.parent
+    destroy_arena(arena)
+    free(kept) in parent
+
+# mark: Watched files =========================================================================
+
+## A file kept modules were read from: where, its stamp when it was read, and a hash of
+## its bytes then.
+struct Watched:
+    var path: str
+    var stamp: stamps.Stamp
+    var digest: u64
+    ## Whether it was written so lately when it was looked at that its bytes are read at
+    ## each look until it is not (`recent`).
+    var recent: bool
+
+## Whether a file stamped `stamp` was written less than two seconds before `now`, the Unix
+## time: a write in the same tick of the file system's clock leaves its times as they were
+## (a Windows write time moves in steps of about 16 ms, FAT's of two seconds), so only its
+## bytes tell, as git treats a "racily clean" file.
+func recent(stamp: stamps.Stamp, now: i64) -> bool:
+    return stamp.unix() + 2 >= now
+
+# mark: Which modules are kept ================================================================
+
+## The modules from `first` on that `checker` loaded from other packages than the one it
+## checks, by index, in the order they were loaded: each after the modules it imports.
+func others_loaded(checker: const check.Checker*, first: usize) -> usize[]!:
+    var found = try list.List[usize].create(16)
+    for k in first..<checker.modules.count:
+        let m = checker.modules.get(k)
+        if not m.is_prelude and m.canonical.length > 0 and m.package_name != checker.package_name:
+            try found.push(k)
+    return found.span()
+
+## The root of the package that owns the file at `path`, canonical: the directory holding
+## its `package.prisma`; empty for a file of no package or one that is not there.
+func project_of(path: str) -> str:
+    let found = module_paths.owner_root(path) catch:
+        return ""
+    let (_, root) = found else return ""
+    return root
+
+## Whether `byte` separates the names of an `ORDER`.
+func is_space(byte: u8) -> bool:
+    return byte == ' ' or byte == '\n' or byte == '\r' or byte == '\t'

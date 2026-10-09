@@ -1,0 +1,87 @@
+#==============================================================================================
+#
+#   stamps - What a file's metadata says, without reading the file
+#
+#   DESCRIPTION:
+#       A host that keeps checked modules (`embed.Library.check_file`) looks at every file
+#       they were read from before each check: one `stat` a file, a fraction of a
+#       microsecond, where reading the bytes again would take milliseconds for a package's
+#       sources. luce-std's `files.metadata` says the same, but the compiler's own sources
+#       stay within what the seed's library has, so the system is asked here: `stat` on
+#       macOS and Linux, read into a buffer at the offsets of the target's `struct stat`
+#       (the seed has no extern structs), and `GetFileAttributesExA` on Windows.
+#
+#==============================================================================================
+
+import c
+import memory
+import platform
+
+extern func stat(path: c.str, result: u8*) -> i32
+extern func GetFileAttributesExA(path: c.str, level: i32, result: u8*) -> i32
+extern func c_time as "time"(out_time: void*?) -> i64
+
+## The file's metadata could not be read: it is gone, or cannot be reached.
+pub let unreadable: ErrorCode = ErrorCode.package(29)
+
+## What a file's metadata says: its size, its place on the disk and its times. A write
+## moves the change time, which no program sets back; Windows has no change time and no
+## inode here, and its write time counts in 100 ns.
+pub struct Stamp:
+    ## The size in bytes.
+    pub var size: u64
+    ## The device the file is on; zero on Windows.
+    pub var device: u64
+    ## The file's inode on the device; zero on Windows.
+    pub var inode: u64
+    ## The modification time: seconds on macOS and Linux, 100 ns ticks on Windows.
+    pub var modified: u64
+    ## The nanoseconds of the modification time; zero on Windows.
+    pub var modified_fraction: u64
+    ## The change time, in seconds; zero on Windows.
+    pub var changed: u64
+    ## The nanoseconds of the change time; zero on Windows.
+    pub var changed_fraction: u64
+
+    ## The modification time in seconds since the Unix epoch.
+    pub func unix() -> i64:
+        if platform.windows:
+            # 100 ns ticks since 1601
+            return (i64)(self.modified // 10000000) - 11644473600
+        return (i64)self.modified
+
+    ## Whether `other` says the same of the file.
+    pub func same(other: Stamp) -> bool:
+        return self.size == other.size and self.device == other.device and self.inode == other.inode and self.modified == other.modified and self.modified_fraction == other.modified_fraction and self.changed == other.changed and self.changed_fraction == other.changed_fraction
+
+## The stamp of the file at `path`, following a symbolic link.
+pub func of(path: c.str) -> Stamp!:
+    var raw: u8[256]
+    if platform.windows:
+        # WIN32_FILE_ATTRIBUTE_DATA: attributes @0, the creation, access and write times
+        # (low half first) @4, @12, @20, and the size's high @28 and low @32 halves
+        if GetFileAttributesExA(path, 0, &raw[0]) == 0:
+            error(unreadable, "the file's metadata could not be read")
+        return Stamp(size = (u64)word32(raw, 28) << 32 | (u64)word32(raw, 32), device = 0, inode = 0,
+                     modified = (u64)word32(raw, 24) << 32 | (u64)word32(raw, 20), modified_fraction = 0, changed = 0, changed_fraction = 0)
+    if stat(path, &raw[0]) != 0:
+        error(unreadable, "the file's metadata could not be read")
+    if platform.macos:
+        # arm64 Darwin: dev i32 @0, ino @8, mtime @48, ctime @64, size @96
+        return Stamp(size = word(raw, 96), device = (u64)word32(raw, 0), inode = word(raw, 8), modified = word(raw, 48),
+                     modified_fraction = word(raw, 56), changed = word(raw, 64), changed_fraction = word(raw, 72))
+    # x86-64 Linux: dev @0, ino @8, size @48, mtime @88, ctime @104
+    return Stamp(size = word(raw, 48), device = word(raw, 0), inode = word(raw, 8), modified = word(raw, 88),
+                 modified_fraction = word(raw, 96), changed = word(raw, 104), changed_fraction = word(raw, 112))
+
+## The time now, in seconds since the Unix epoch, as a stamp's `unix()` counts.
+pub func now() -> i64:
+    return c_time(none)
+
+## The eight bytes at `at` of `raw`.
+func word(raw: const u8[256], at: usize) -> u64:
+    return memory.read[u64](&raw[at])
+
+## The four bytes at `at` of `raw`.
+func word32(raw: const u8[256], at: usize) -> u32:
+    return memory.read[u32](&raw[at])

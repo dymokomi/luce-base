@@ -1,0 +1,208 @@
+#==============================================================================================
+#
+#   tests/embed/packages - Files of a package checked on top of the other packages kept
+#
+#==============================================================================================
+
+## A package `app` whose files import the package `shapes_kit` beside it, written under a
+## new directory of `build/` for one test, and removed after.
+struct Fixture:
+    var directory: str
+
+    ## The two packages: `a` uses `shapes_kit.area`, `b` uses `shapes_kit.label`, and `third`
+    ## imports `label` and names `square`, which only `area` declares.
+    static func create() -> Fixture!:
+        let made = try files.create_temporary_directory("build")
+        var fixture = Fixture(directory = try strings.copy(made.value))
+        made.release()
+        try fixture.write("app/package.prisma", app_manifest)
+        try fixture.write("app/src/a.lucb", "from shapes_kit import area\n\npub func run() -> f64:\n    return area.square(3.0)\n")
+        try fixture.write("app/src/b.lucb", "from shapes_kit import label\n\npub func run() -> i64:\n    return label.width(\"box\")\n")
+        try fixture.write("app/src/third.lucb", "from shapes_kit import label\n\npub func run() -> f64:\n    return square(3.0)\n")
+        try fixture.write("shapes_kit/package.prisma", kit_manifest)
+        try fixture.write("shapes_kit/src/area.lucb", area_text)
+        try fixture.write("shapes_kit/src/label.lucb", "## The width of `text` in letters.\npub func width(text: str) -> i64:\n    return (i64)text.length\n")
+        return fixture
+
+    ## Write `text` to the file `relative` under the fixture.
+    func write(relative: str, text: str) -> !:
+        let path = try self.path(relative)
+        var cut = path.length
+        while path.bytes[cut - 1] != '/':
+            cut -= 1
+        try files.ensure_directory((str)path.bytes[..<cut - 1])
+        try files.write((c.str)path, text.bytes)
+
+    ## The full path of `relative` under the fixture.
+    func path(relative: str) -> str!:
+        return try in_arena.join(self.directory, relative)
+
+    ## Remove the fixture.
+    func remove():
+        files.remove_tree((c.str)self.directory) catch ignored:
+            _ = ignored
+
+let app_manifest: str = "#prisma 4.0\ndef package \"app\" {\n    str version = \"0.1.0\"\n    str kind = \"tool\"\n    str language = \"luce-base\"\n\n    def dependency \"shapes-kit\" {\n        str path = \"../shapes_kit\"\n    }\n}\n"
+let kit_manifest: str = "#prisma 4.0\ndef package \"shapes-kit\" {\n    str version = \"0.1.0\"\n    str kind = \"package\"\n    str language = \"luce-base\"\n    str[] public = [\"area\", \"label\"]\n}\n"
+let area_text: str = "## The area of a square of side `side`.\npub func square(side: f64) -> f64:\n    return side * side\n"
+
+## The modules a library keeps for `fixture`'s package `app`.
+func kept_of(library: Library*) -> Kept*:
+    assert(library.kept.count == 1)
+    return library.kept.get(0)
+
+test "a package's file is checked on top of the other packages kept, as alone":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    let a = try fixture.path("app/src/a.lucb")
+    var library = try Library.create()
+    defer library.close()
+    for round in 0..<3:
+        var result = try library.check_file(a)
+        defer result.close()
+        assert(result.ok() and result.diagnostics.length == 0)
+        let tree = result.tree else trap("the file's tree")
+        assert(tree.text == "a" and check.find_decl(tree, "run") != none)
+        # the dependency's module is the kept one, checked once
+        let kept = kept_of(&library)
+        let index = result.checker.find_module("shapes_kit.area") else trap("the kept module")
+        assert(index < kept.checker.modules.count and result.checker.modules.get(index).tree == kept.checker.modules.get(index).tree)
+        _ = round
+    var alone = try check_file((c.str)a, targets.Target.host())
+    defer alone.close()
+    assert(alone.ok() and alone.diagnostics.length == 0)
+
+test "checking one file and then another leaks nothing from the first":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    let a = try fixture.path("app/src/a.lucb")
+    let third = try fixture.path("app/src/third.lucb")
+    # `third` names `square`, which `a`'s import brings: alone, and after `a`, it is unknown
+    var fresh = try Library.create()
+    defer fresh.close()
+    var first = try fresh.check_file(third)
+    defer first.close()
+    var library = try Library.create()
+    defer library.close()
+    var before = try library.check_file(a)
+    before.close()
+    let kept = kept_of(&library)
+    var after = try library.check_file(third)
+    defer after.close()
+    assert(not first.ok() and first.failure == after.failure)
+    assert(first.diagnostics.length == after.diagnostics.length)
+    assert(strings.contains(after.failure, "third.lucb:4:12") and strings.contains(after.failure, "square"))
+    # `third`'s import of `label` was kept beside `area`, and neither check wrote on them
+    var again = try library.check_file(a)
+    again.close()
+    let grown = kept_of(&library)
+    assert(grown == kept and grown.checker.find_module("shapes_kit.label") != none)
+
+test "a check writes nothing on the kept modules":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    var library = try Library.create()
+    defer library.close()
+    let a = try fixture.path("app/src/a.lucb")
+    let b = try fixture.path("app/src/b.lucb")
+    let third = try fixture.path("app/src/third.lucb")
+    # both imports kept, then checked over and over
+    var first = try library.check_file(a)
+    first.close()
+    var second = try library.check_file(b)
+    second.close()
+    let kept = kept_of(&library)
+    let before = fingerprint(&kept.checker)
+    let modules = kept.checker.modules.count
+    for round in 0..<3:
+        let all: str[3] = [a, b, third]
+        for path in all:
+            var result = try library.check_file(path)
+            result.close()
+        _ = round
+    assert(kept_of(&library) == kept and fingerprint(&kept.checker) == before and kept.checker.modules.count == modules)
+
+test "a changed file of a kept package is seen, a touched one is not":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    var library = try Library.create()
+    defer library.close()
+    let a = try fixture.path("app/src/a.lucb")
+    var clean = try library.check_file(a)
+    defer clean.close()
+    assert(clean.ok())
+    let kept = kept_of(&library)
+    # written again with the same bytes: its times moved, its text did not
+    try fixture.write("shapes_kit/src/area.lucb", area_text)
+    var same = try library.check_file(a)
+    same.close()
+    assert(same.ok() and kept_of(&library) == kept)
+    # the same length, another text: `square` takes an integer now
+    try fixture.write("shapes_kit/src/area.lucb", "## The area of a square of side `side`.\npub func square(side: i64) -> i64:\n    return side * side\n")
+    var changed = try library.check_file(a)
+    defer changed.close()
+    assert(not changed.ok() and kept_of(&library) != kept)
+    assert(strings.contains(changed.failure, "a.lucb:4:"))
+    # the result made before the change still reads the modules it was made on
+    let tree = clean.tree else trap("the first result's tree")
+    assert(check.find_decl(tree, "run") != none)
+    try fixture.write("shapes_kit/src/area.lucb", area_text)
+    var back = try library.check_file(a)
+    back.close()
+    assert(back.ok())
+
+test "a package that does not check is reported each time, and kept once it does":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    try fixture.write("shapes_kit/src/area.lucb", "pub func square(side: f64) -> f64:\n    return side * true\n")
+    var counted = Counted()
+    var library = try Library.over(&counted)
+    defer library.close()
+    let a = try fixture.path("app/src/a.lucb")
+    var most: usize = 0
+    for round in 0..<6:
+        var result = try library.check_file(a)
+        assert(not result.ok() and strings.contains(result.failure, "shapes_kit/src/area.lucb:2:"))
+        result.close()
+        # a dependency that fails each time leaves nothing behind each time
+        if round == 1:
+            most = counted.outstanding
+        elif round > 1:
+            assert(counted.outstanding <= most)
+    try fixture.write("shapes_kit/src/area.lucb", area_text)
+    var fixed = try library.check_file(a)
+    fixed.close()
+    assert(fixed.ok() and kept_of(&library).checker.find_module("shapes_kit.area") != none)
+
+test "a file's import that does not resolve keeps what resolved":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    try fixture.write("app/src/d.lucb", "from shapes_kit import area\nfrom shapes_kit import nothing\n\npub func run() -> f64:\n    return area.square(2.0)\n")
+    var library = try Library.create()
+    defer library.close()
+    for round in 0..<2:
+        var result = try library.check_file(try fixture.path("app/src/d.lucb"))
+        assert(not result.ok() and strings.contains(result.failure, "d.lucb:2:24"))
+        result.close()
+        _ = round
+    assert(kept_of(&library).checker.find_module("shapes_kit.area") != none)
+
+test "every check's memory is given back, and the library's at its close":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    var counted = Counted()
+    var library = try Library.over(&counted)
+    let a = try fixture.path("app/src/a.lucb")
+    let b = try fixture.path("app/src/b.lucb")
+    # both imports kept first; after that, a check holds nothing once closed
+    var first = try library.check_file(a)
+    first.close()
+    var second = try library.check_file(b)
+    second.close()
+    let kept = counted.outstanding
+    for i in 0..<(usize)200:
+        var result = try library.check_file(a if i % 2 == 0 else b)
+        result.close()
+        assert(counted.outstanding == kept)
+    library.close()
+    assert(counted.outstanding == 0)
