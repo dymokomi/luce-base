@@ -67,13 +67,12 @@ python3 tools/fuzz_runner.py --report                               # the last d
 python3 tools/fuzz_runner.py --stop                                 # stop it
 ```
 
-On Windows the runner lives in a scheduled task, so it outlives the SSH session that starts
-it, and stopping it removes the task:
+On Windows the runner lives in a scheduled task, `LuceFuzz`, so it outlives the SSH session
+that starts it; stopping it removes the task:
 
 ```powershell
-schtasks /Create /TN LuceFuzz /SC ONCE /ST 00:00 /F /TR "python \"C:\Users\Dennis Sedov\scratch\fuzz\luce-base\tools\fuzz_runner.py\""
-schtasks /Run /TN LuceFuzz
-python tools\fuzz_runner.py --stop; schtasks /Delete /TN LuceFuzz /F   # stop it
+powershell -ExecutionPolicy Bypass -File tools\fuzz_task.ps1         # start
+powershell -ExecutionPolicy Bypass -File tools\fuzz_task.ps1 -Stop   # stop it
 ```
 
 Each round adds a line to `build/fuzz/rounds.log`; a round that finds something keeps its
