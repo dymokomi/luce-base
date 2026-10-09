@@ -52,6 +52,7 @@ python3 tools/test_small_copies.py
 python3 tools/test_static_data.py
 python3 tools/test_fmt_comments.py
 python3 tools/test_c_prototypes.py
+python3 tools/test_reduce.py
 # the guide: every complete program in docs/guide compiles, runs and prints what the page
 # shows, and the site built from docs/ has no link to a missing page or section
 python3 tools/doc_examples.py
