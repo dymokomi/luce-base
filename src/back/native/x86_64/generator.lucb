@@ -91,7 +91,7 @@ pub struct Generator:
     ## The bits of the float constants the function's text reads from its literal pool
     ## (`constant`), which follows the function in read-only data (`finish_pool`).
     var pool: list.List[u64]
-    ## For an assembly the driver splits into pieces it assembles in parallel (ELF): the
+    ## For an assembly the driver splits into pieces it assembles in parallel: the
     ## labels functions share (text literals, the sign masks, the half routines) are hidden
     ## global symbols, not labels local to one file, so every piece can name them.
     pub var split: bool = false

@@ -673,12 +673,10 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
     one[0] = object_path
     return one
 
-## Whether this build's assembly is split into pieces: native code for macOS or Linux
-## without debug information (whose DWARF lines run through the whole text), and not
-## Windows, whose weak declarations each piece would repeat.
+## Whether this build's assembly is split into pieces: native code without debug
+## information, whose DWARF lines run through the whole text.
 func splittable() -> bool:
-    let t = build_target()
-    return native_backend and not debug_backend and not symbols_backend and (t.os == targets.Os.macos or t.os == targets.Os.linux)
+    return native_backend and not debug_backend and not symbols_backend
 
 ## Assemble the one file at `asm_path` into `object_path`.
 func assemble_one(dir: str) -> !:

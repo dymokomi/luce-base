@@ -13,7 +13,7 @@ import os, pathlib, re, shutil, subprocess, sys, tempfile
 root = pathlib.Path(__file__).resolve().parent.parent
 compiler = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else root / "build" / "luce-base").resolve()
 if sys.platform not in ("darwin", "linux"):
-    print("skip cached pieces: the native build splits its assembly on macOS and Linux")
+    print("skip cached pieces: the gate runs it on macOS and Linux")
     sys.exit(0)
 
 

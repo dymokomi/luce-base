@@ -87,19 +87,23 @@ pub struct Format:
             try out.put("\n")
 
     ## `name` a global the linker keeps to the image: `.private_extern` on Mach-O, `.hidden`
-    ## elsewhere. Pieces of one program's assembly name it; nothing outside the image can.
+    ## on ELF, and on COFF a plain `.globl`, since a program's image exports only what it
+    ## names. Pieces of one program's assembly name it; nothing outside the image can.
     pub func hidden_global(out: buffer.Buffer*, name: str) -> !:
         if self.apple:
             try out.put("    .private_extern ")
         else:
             try out.put("    .globl ")
-            try out.put(name)
-            try out.put("\n    .hidden ")
+            if self.elf():
+                try out.put(name)
+                try out.put("\n    .hidden ")
         try out.put(name)
         try out.put("\n")
 
     ## Declare the unit's weak symbols before any code: COFF's weak definitions and the
-    ## witness tables every unit that views a record defines, so the linker keeps one.
+    ## witness tables every unit that views a record defines, so the linker keeps one. Every
+    ## piece of a split assembly repeats them; a piece that only names one leaves the
+    ## definition to the piece that has it.
     pub func begin(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
         if not self.coff():
             return
