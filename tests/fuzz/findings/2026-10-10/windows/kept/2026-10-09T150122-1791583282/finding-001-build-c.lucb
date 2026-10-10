@@ -1,0 +1,39 @@
+import thread
+import sync
+
+struct Shared:
+    var c0: @u64
+    var c1: @u64
+    var orv: @u32
+    var xorv: @u32
+    var maxv: @u64
+    var lock: sync.Mutex
+    var plain: u64
+
+func worker(context: void*?):
+    let s = (Shared*)(context else return)
+    var i: u32 = 0
+    while i < 280:
+        s.c0 += 1
+        s.c1.add(5, .seq_cst)
+        s.orv |= 16
+        s.xorv ^= 1
+        s.maxv.max(84876)
+        s.lock.lock()
+        s.plain += 1
+        s.lock.unlock()
+        i += 1
+
+pub func main(arguments: str[]) -> i32!:
+    var shared = Shared(c0 = 0, c1 = 0, orv = 0, xorv = 0, maxv = 0, lock = sync.Mutex(), plain = 0)
+    var handles: thread.Handle[2]
+    var t: usize = 0
+    while t < 2:
+        handles[t] = try thread.spawn(worker, (void*)&shared)
+        t += 1
+    t = 0
+    while t < 2:
+        try handles[t].join()
+        t += 1
+    print(f"{shared.c0} {shared.c1} {shared.orv} {shared.xorv} {shared.maxv} {shared.plain}")
+    return 0

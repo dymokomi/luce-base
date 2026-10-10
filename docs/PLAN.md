@@ -51,6 +51,10 @@ The fuzzer (`tools/fuzz.py`) mutates the corpus and generates programs that must
 across the four executions; the gate runs its short deterministic pass, and `--minutes M`
 runs it for longer. Every finding becomes a test.
 
+Open campaign evidence: [2026-10-10 Linux and Windows findings](../tests/fuzz/findings/2026-10-10/README.md)
+records 13 untriaged reports (one seed/output discrepancy and 12 timeouts), with
+the original inputs and diagnostics preserved for replay and reduction.
+
 5. **Fuzzing campaigns before a release.** An hour on arm64-macos precedes 0.15.0
    (`docs/STATUS.md`). Gate: a run of several hours on each host recorded there with the
    release it precedes, and no finding open. A campaign runs in a tree whose `build/`

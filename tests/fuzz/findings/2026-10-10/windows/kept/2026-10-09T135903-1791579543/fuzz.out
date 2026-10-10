@@ -1,0 +1,11 @@
+fuzz: round 2, 40 mutations, 60 programs, 20 trap-programs, 10 packages, 20 mem-programs, 10 atomic-programs, 4 litmus-programs, 20 width-programs, 0 findings, 46 min left
+fuzz: round 3, 80 mutations, 120 programs, 40 trap-programs, 20 packages, 40 mem-programs, 20 atomic-programs, 8 litmus-programs, 40 width-programs, 0 findings, 36 min left
+FINDING trap-build-c: width-program 56 (seed 1791579543): the build (c) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-001-trap-build-c.lucb
+FINDING trap-build-native: width-program 57 (seed 1791579543): the build (native) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-002-trap-build-native.lucb
+fuzz: round 4, 120 mutations, 180 programs, 60 trap-programs, 30 packages, 60 mem-programs, 30 atomic-programs, 12 litmus-programs, 60 width-programs, 2 findings, 18 min left
+FINDING build-release: program 206 (seed 1791579543): the build (release) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-003-build-release.lucb
+fuzz: round 5, 160 mutations, 240 programs, 80 trap-programs, 40 packages, 80 mem-programs, 40 atomic-programs, 16 litmus-programs, 80 width-programs, 3 findings, 5 min left
+fuzz: 200 mutations, 300 generated programs, 98 trap-programs, 41 packages, 81 mem-programs, 41 atomic-programs, 17 litmus-programs, 81 width-programs, 3 findings (seed 1791579543)

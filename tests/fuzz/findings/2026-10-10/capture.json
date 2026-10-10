@@ -1,0 +1,43 @@
+{
+  "linux": {
+    "target": "x86_64-linux",
+    "utc_captured": "2026-10-10T20:42:39.981367+00:00",
+    "archive": "linux-stopped-20261010.tar.gz",
+    "archive_sha256": "78887c32f55f4c7eecd861e9b7ab1dca26d010b61bf331908698f3c21dde3ec9",
+    "archive_verified_files": 2958,
+    "source_revisions_at_capture": {
+      "luce-std": "172d1f20b3b7dff7d9b25d653751cd26c05f8c39",
+      "luce-seed": "84cd3a04030b3bb69ff84b55e30d163b64701677",
+      "luce-base": "f1447ee8a1452374575b00847b76f0704b15c3ef"
+    },
+    "completed": {
+      "programs": 16312,
+      "mutations": 1630,
+      "findings": 1,
+      "completed_rounds": 20
+    },
+    "interrupted_seed": 1791661988,
+    "interrupted_round_summary": "Unavailable: runner buffers it until the round completes.",
+    "active_finding_files": []
+  },
+  "windows": {
+    "target": "x86_64-windows",
+    "utc_captured": "2026-10-10T20:42:44.643948+00:00",
+    "archive": "windows-stopped-20261010.tar.gz",
+    "archive_sha256": "aa846a52450cde31709c61ef9ad5adfe62e6f3b2d3d2c3cc3df8f33863488d95",
+    "archive_verified_files": 2502,
+    "source_revisions_at_capture": {
+      "luce-base": "f1447ee8a1452374575b00847b76f0704b15c3ef",
+      "luce-std": "172d1f20b3b7dff7d9b25d653751cd26c05f8c39"
+    },
+    "completed": {
+      "programs": 8647,
+      "mutations": 1430,
+      "findings": 12,
+      "completed_rounds": 20
+    },
+    "interrupted_seed": 1791663465,
+    "interrupted_round_summary": "Unavailable: runner buffers it until the round completes.",
+    "active_finding_files": []
+  }
+}

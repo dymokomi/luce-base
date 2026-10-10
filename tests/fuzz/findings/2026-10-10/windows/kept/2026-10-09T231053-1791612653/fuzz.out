@@ -1,0 +1,7 @@
+fuzz: aimed at 80 commits to src/ in 7 days: abi x4.0, width x4.0, dense x2.6, cache x1.9
+FINDING run-native-opt0: abi-program 23 (seed 1791612653): the program (native-opt0) stopped with -1: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-001-run-native-opt0.lucb
+FINDING trap-crash: trap-program 3 (seed 1791612653): an execution crashed without a positioned trap: native-opt3: hang
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-002-trap-crash.lucb
+coverage: 2479 of 4340 compiler functions reached, 4 for the first time (12back_opt_slp_run, 17back_native_arm64_10lanes_view, 17back_native_arm64_19float_argument_name, 18back_native_x86_64_Generator_11float_lanes); 601 backend functions never reached (build/fuzz/coverage/cold.txt)
+fuzz: 40 mutations, 133 generated programs, 15 trap-programs, 7 packages, 15 mem-programs, 7 atomic-programs, 3 litmus-programs, 60 width-programs, 2 findings (seed 1791612653); 90 abi-programs, 6 cache-programs

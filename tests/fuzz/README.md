@@ -11,3 +11,8 @@ f32/f16/narrow-integer numerics.
 programs. When a fuzzer finds a new bug, add its minimized reproducer here so the bug stays a
 seed and the mutate corpus keeps exercising the shape that produced it. AFL grows and can be
 minimized (`afl-cmin`); check the minimized survivors back in.
+
+Untriaged campaign evidence is kept separately from the curated mutation corpus:
+[2026-10-10 Linux and Windows findings](findings/2026-10-10/README.md) preserves
+13 reports with original reproducers, logs, seeds, compiler revisions, and hashes.
+Replay and minimize confirmed defects before promoting their inputs into `corpus/`.

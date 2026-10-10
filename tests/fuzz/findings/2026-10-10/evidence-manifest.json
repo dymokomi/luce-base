@@ -1,0 +1,138 @@
+{
+  "linux/coverage/cold.txt": {
+    "bytes": 21295,
+    "sha256": "78650646e1219c360d8841b9c36f37f7919a972b1b974dc3fcf019308eff7349"
+  },
+  "linux/coverage/reached.txt": {
+    "bytes": 97193,
+    "sha256": "d76820b1af4a378766512b07577215415930ae2c1ea38924b3265b57d4436948"
+  },
+  "linux/interrupted/current.lucb": {
+    "bytes": 91899,
+    "sha256": "7296eeeea0858299b444a204da4b15c29a082051089d1e580b3f4a2eb23fad9a"
+  },
+  "linux/interrupted/fmt_in.lucb": {
+    "bytes": 7872,
+    "sha256": "ac3fa1da78a4eb1dfa1b02cedb08f206d37f708b91e9339672d691be8733cb35"
+  },
+  "linux/interrupted/fmt_out.lucb": {
+    "bytes": 7874,
+    "sha256": "d0d2fcb1f6cf21a5706171956f1c67bd582089d0d929fc768029c9acbf72d11d"
+  },
+  "linux/interrupted/generated.lucb": {
+    "bytes": 7995,
+    "sha256": "cd6034334e2aaa6d4841e08e8c6a4751f918a05f66ff7b4a8e58b580dea081a3"
+  },
+  "linux/kept/2026-10-10T105258-1791654778/finding-001-disagree.lucb": {
+    "bytes": 23877,
+    "sha256": "f04d3029cd33a421d8b806fbcb6cd044f6039aefc192b42d2ba143c8157059b2"
+  },
+  "linux/kept/2026-10-10T105258-1791654778/fuzz.out": {
+    "bytes": 2949,
+    "sha256": "db70524a671eae6622ec34b6674ff46da9af5354bf6bd89c3ea9075353339d86"
+  },
+  "linux/rounds.log": {
+    "bytes": 2028,
+    "sha256": "224bc1d6d25fbb0b0980778ffbbeeef34e49e6e59784974b55bd13cfaabecf5e"
+  },
+  "windows/coverage/cold.txt": {
+    "bytes": 22010,
+    "sha256": "50bbb9c9894c4f690ce1a841e9b221e0c816ec434cbae86541f33bdba3db7dd5"
+  },
+  "windows/coverage/reached.txt": {
+    "bytes": 100070,
+    "sha256": "a112e30cadfc1e033c71f34c872fb96eb1b297a28199e5f737f35f273a997e13"
+  },
+  "windows/interrupted/current.lucb": {
+    "bytes": 212,
+    "sha256": "6d198a2d944ccfacfcc026ac9c01168c3da9e2fdf478cf87644f7c5f058a3797"
+  },
+  "windows/interrupted/fmt_in.lucb": {
+    "bytes": 42749,
+    "sha256": "2ac7a215e6e50edd9cf97d69f2a6f4521e163b6466b232cb121b3bb424ea00a3"
+  },
+  "windows/interrupted/fmt_out.lucb": {
+    "bytes": 42751,
+    "sha256": "da52eb7726664711507d64518dba214abbd6ca57be7acd9a4c1ee394ce3500e5"
+  },
+  "windows/interrupted/generated.lucb": {
+    "bytes": 15882,
+    "sha256": "01982d520265a9c0bcf93fa1057d306fb6a006d1756c09a4bba2e0ec907ef1f7"
+  },
+  "windows/kept/2026-10-09T125517-1791575717/finding-001-build-release.lucb": {
+    "bytes": 7085,
+    "sha256": "5d06927be0524cecd5a76079da6c47a328489f3081e28c557693abdeb3f2e3f3"
+  },
+  "windows/kept/2026-10-09T125517-1791575717/finding-002-trap-build-c.lucb": {
+    "bytes": 849,
+    "sha256": "45f67f510b7fa620d46424aaf2f6e3f2852a2d479ae1f5605d892d634bd1f597"
+  },
+  "windows/kept/2026-10-09T125517-1791575717/fuzz.out": {
+    "bytes": 1074,
+    "sha256": "42469d050fff139122ca60798ad3f1a28c34b73e00733598d71989fb2f90c858"
+  },
+  "windows/kept/2026-10-09T135903-1791579543/finding-001-trap-build-c.lucb": {
+    "bytes": 1889,
+    "sha256": "debf1a36b6fec8ee58a721af9f3481a73a4aa45d3a1cc3c52fbe0607029d29e6"
+  },
+  "windows/kept/2026-10-09T135903-1791579543/finding-002-trap-build-native.lucb": {
+    "bytes": 2056,
+    "sha256": "12399142ad616aec448bfaa4d7a644c8ab59bd352e707a0b38ac1fb625786b0a"
+  },
+  "windows/kept/2026-10-09T135903-1791579543/finding-003-build-release.lucb": {
+    "bytes": 7733,
+    "sha256": "eedbf391cfa1d32cedd63e3c2e13413ea44ced7cf3bee56ed01bce67b00064aa"
+  },
+  "windows/kept/2026-10-09T135903-1791579543/fuzz.out": {
+    "bytes": 1450,
+    "sha256": "dbe2d0e5378121cc7fdf84552e3b289a7f200f431570eeea0977128f0a786fc6"
+  },
+  "windows/kept/2026-10-09T150122-1791583282/finding-001-build-c.lucb": {
+    "bytes": 955,
+    "sha256": "0e5cefcab62cc0b612e340677852c8fc9b9e2c7e406328d0b5f3cfbacb38f146"
+  },
+  "windows/kept/2026-10-09T150122-1791583282/fuzz.out": {
+    "bytes": 1055,
+    "sha256": "ffacc9450b30627ef9026a3e9841fed3e470b76bc304b026530487166cd33e37"
+  },
+  "windows/kept/2026-10-09T203514-1791603314/finding-001-run-native-opt3.lucb": {
+    "bytes": 7283,
+    "sha256": "8a9c32744f194449ef2240502a5234dc848fe23d534d23552d42f0d547385933"
+  },
+  "windows/kept/2026-10-09T203514-1791603314/fuzz.out": {
+    "bytes": 653,
+    "sha256": "6400b795e9d19925c27b60ab1cab9f699294d0eeb2ae5dec13e97187f08d02f4"
+  },
+  "windows/kept/2026-10-09T220837-1791608917/finding-001-build-release.lucb": {
+    "bytes": 13931,
+    "sha256": "fa0df5efc8b69bc4ad3a7387844331e7936e4008818d96854a468a10debef434"
+  },
+  "windows/kept/2026-10-09T220837-1791608917/finding-002-trap-build-native-opt1.lucb": {
+    "bytes": 632,
+    "sha256": "8b3354dbc655151337a57e5c3c1300cb1bb646b435633307d1273346bc620da3"
+  },
+  "windows/kept/2026-10-09T220837-1791608917/finding-003-trap-build-debug.lucb": {
+    "bytes": 632,
+    "sha256": "8b3354dbc655151337a57e5c3c1300cb1bb646b435633307d1273346bc620da3"
+  },
+  "windows/kept/2026-10-09T220837-1791608917/fuzz.out": {
+    "bytes": 1371,
+    "sha256": "dad55a65cec53b430adbc3116b69bd00f6a970b727a97a2019bbcf9b4acdcd40"
+  },
+  "windows/kept/2026-10-09T231053-1791612653/finding-001-run-native-opt0.lucb": {
+    "bytes": 14001,
+    "sha256": "536b759bcdf4039ab81f88e9b9530fa9f5003dedd1f3e4091a21d02b39e13dbd"
+  },
+  "windows/kept/2026-10-09T231053-1791612653/finding-002-trap-crash.lucb": {
+    "bytes": 683,
+    "sha256": "7950461146fb1c74aa709e3226151f395b647595ea9be3b2e56b18a70a967ab4"
+  },
+  "windows/kept/2026-10-09T231053-1791612653/fuzz.out": {
+    "bytes": 1013,
+    "sha256": "e093f370c561e50363136b364d0686743d5d1df4cb437703692ca27e0f122d4a"
+  },
+  "windows/rounds.log": {
+    "bytes": 1973,
+    "sha256": "81b9a6e1df8a9a6e3f19e6947caf267607b9fbefc9b97d8d29c9fb9de21cc292"
+  }
+}

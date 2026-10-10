@@ -1,0 +1,9 @@
+fuzz: aimed at 77 commits to src/ in 7 days: abi x4.0, width x4.0, dense x2.5, cache x2.0
+FINDING build-release: dense program 3 (seed 1791608917): the build (release) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-001-build-release.lucb
+FINDING trap-build-native-opt1: trap-program 3 (seed 1791608917): the build (native-opt1) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-002-trap-build-native-opt1.lucb
+FINDING trap-build-debug: trap-program 3 (seed 1791608917): the build (debug) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-003-trap-build-debug.lucb
+coverage: 2476 of 4280 compiler functions reached, 10 for the first time (10back_ir_ir_Unit_10word_class, 13back_ir_lower_Lowerer_10word_class, 13back_ir_lower_Lowerer_16double_aggregate, 17back_native_arm64_11fmov_scaled, 17back_native_arm64_17float_result_name, 17back_native_arm64_Generator_10inline_asm, 17back_native_arm64_Generator_10pool_label, 17back_native_arm64_Generator_10put_scaled, ...); 562 backend functions never reached (build/fuzz/coverage/cold.txt)
+fuzz: 40 mutations, 124 generated programs, 15 trap-programs, 7 packages, 15 mem-programs, 7 atomic-programs, 3 litmus-programs, 60 width-programs, 3 findings (seed 1791608917); 90 abi-programs, 6 cache-programs

@@ -1,0 +1,5 @@
+fuzz: aimed at 78 commits to src/ in 7 days: abi x4.0, width x4.0, dense x2.6, cache x2.0
+FINDING run-native-opt3: program 95 (seed 1791603314): the program (native-opt3) stopped with -1: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-001-run-native-opt3.lucb
+coverage: 2467 of 4270 compiler functions reached, 2467 for the first time; 562 backend functions never reached (build/fuzz/coverage/cold.txt)
+fuzz: 30 mutations, 117 generated programs, 10 trap-programs, 5 packages, 10 mem-programs, 5 atomic-programs, 2 litmus-programs, 40 width-programs, 1 findings (seed 1791603314); 90 abi-programs, 4 cache-programs

@@ -1,0 +1,8 @@
+FINDING build-release: program 17 (seed 1791575717): the build (release) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-001-build-release.lucb
+fuzz: round 2, 40 mutations, 60 programs, 20 trap-programs, 10 packages, 20 mem-programs, 10 atomic-programs, 4 litmus-programs, 20 width-programs, 1 findings, 46 min left
+FINDING trap-build-c: trap-program 26 (seed 1791575717): the build (c) failed: 'hang'
+  input: C:\Users\Dennis Sedov\scratch\fuzz\luce-base\build\fuzz\finding-002-trap-build-c.lucb
+fuzz: round 3, 80 mutations, 120 programs, 40 trap-programs, 20 packages, 40 mem-programs, 20 atomic-programs, 8 litmus-programs, 40 width-programs, 2 findings, 26 min left
+fuzz: round 4, 120 mutations, 180 programs, 60 trap-programs, 30 packages, 60 mem-programs, 30 atomic-programs, 12 litmus-programs, 60 width-programs, 2 findings, 12 min left
+fuzz: 160 mutations, 240 generated programs, 80 trap-programs, 40 packages, 74 mem-programs, 31 atomic-programs, 13 litmus-programs, 80 width-programs, 2 findings (seed 1791575717)
