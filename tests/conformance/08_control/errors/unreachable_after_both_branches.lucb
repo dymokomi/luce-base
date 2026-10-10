@@ -1,0 +1,11 @@
+# error: unknown name `nope`
+# oracle: none -- the seed does not check unreachable statements yet
+## §8: after an `if` whose every branch returns, the rest of the block is checked as well.
+func g(x: i64) -> i64:
+    if x > 0:
+        return 1
+    else:
+        return 2
+    return nope
+pub func main(arguments: str[]) -> i32:
+    return 0

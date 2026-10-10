@@ -18,14 +18,28 @@ extend Checker:
             try self.check_stmt(s)
             if let rest = s.next:
                 if prune.certainly_leaves(s):
+                    # code after a folded platform test is another target's and may name what
+                    # this one lacks; anything else unreachable is still checked, then dropped
                     if not (conditional and self.folded_quietly):
                         var r = self.reporter()
                         try r.warn(rest, "unreachable code")
+                        try self.check_unreachable(rest)
                     s.next = none
             cursor = s.next
         self.pop_scope()
         var r = self.reporter()
         try prune.prune_block(block, &r)
+
+    ## The statements from `first` on, which never run: checked as any others, in a scope of
+    ## their own, so a mistake there is not hidden by the `return` above it.
+    func check_unreachable(first: ast.Node*) -> !:
+        self.push_scope()
+        var cursor: ast.Node*? = first
+        while let s = cursor:
+            self.folded_quietly = false
+            try self.check_stmt(s)
+            cursor = s.next
+        self.pop_scope()
 
     func check_stmt(s: ast.Node*) -> !:
         match s.kind:

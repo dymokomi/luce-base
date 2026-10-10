@@ -764,6 +764,8 @@ Base has no `goto`, and the word is an ordinary name. Should a later revision ad
 
 `return value` exits the function. A `unit` function uses bare `return` or reaches its end. Every path of a non-`unit` function returns or terminates with `error`, `trap`, or a `never` call. There is no implicit return of a final expression.
 
+Statements after one that always leaves (a `return`, `break`, `continue`, a `never` call, or an `if` or `match` whose every branch leaves) never run. They are still checked, names and types alike, and then dropped; `-W` warns that they are unreachable. Only the code after a test that folds on the target (`if platform.windows:`) is left unchecked, since it is another target's.
+
 ### 8.8 `defer` and `errdefer`
 
 ```luce

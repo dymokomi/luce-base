@@ -1,0 +1,12 @@
+## §8: code after a folded platform test is another target's, and is not checked on this one:
+## a name only the other target has may appear there.
+import platform
+
+func which() -> i32:
+    if platform.macos or platform.linux or platform.windows:
+        return 1
+    return only_on_another_target()
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{which()}")
+    return 0
