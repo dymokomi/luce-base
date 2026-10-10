@@ -77,7 +77,7 @@ extend Generator:
     ## frame and output, from the current allocator.
     static func like(model: Generator*) -> Generator!:
         var made = Generator(symbol_prefix = model.symbol_prefix, object_format = model.object_format, writer = assembly.Text(out = try buffer.Buffer.create(16384)), program_unit = model.program_unit, f = model.f, index = 0,
-                             fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 13)), text_count = 0, descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024))
+                             fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 13, formed_constants = true)), text_count = 0, descriptors = try buffer.Buffer.create(256), cold = try buffer.Buffer.create(1024), pool = try list.List[u64].create(8))
         made.dw = none
         made.split = model.split
         made.stable = model.stable

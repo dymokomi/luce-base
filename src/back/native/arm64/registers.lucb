@@ -299,6 +299,10 @@ extend Generator:
             if home != reg:
                 try self.register_move(reg, home, code)
             return
+        if let bits = self.fr.constant_of(t):
+            # a float constant, formed here (`frame.Frame.constant_of`)
+            try self.float_constant(reg, cls, bits)
+            return
         if let below = self.fr.rematerialised(t):
             # a frame address, formed here (`remat`)
             if reg.bytes[0] == 'x' or reg.bytes[0] == 'w':
@@ -355,8 +359,7 @@ extend Generator:
             return
         if r.kind == ir.RefKind.constant:
             if ir.is_float_class(cls):
-                try self.load_immediate("x16", r.value)
-                try self.fmove(reg, "x16" if cls == ir.Class.d else "w16")
+                try self.float_constant(reg, cls, (u64)r.value)
                 return
             try self.load_immediate(as_x(reg), r.value)
             return
@@ -382,6 +385,96 @@ extend Generator:
             try self.writer.line("mov ")
             try self.writer.put(reg)
             try self.writer.put(", #0")
+
+    # mark: Float constants ===================================================================
+
+    ## The float constant of `bits` (a single's in the low half) into `reg` of class `cls`:
+    ## positive zero from the zero register, a value `fmov` encodes as its immediate, any
+    ## other loaded from the function's literal pool by one `ldr`, where the movz/movk
+    ## sequence and `fmov` it replaces took up to five. An integer register (the bits read
+    ## as an integer) and a half take the bits through an immediate. A function too large
+    ## for a literal load to reach past its end builds every constant so.
+    func float_constant(reg: str, cls: ir.Class, bits: u64) -> !:
+        let first = reg.bytes[0]
+        if first == 'x' or first == 'w' or cls == ir.Class.h or (cls != ir.Class.d and cls != ir.Class.s):
+            if first == 'x' or first == 'w':
+                try self.load_immediate(as_x(reg), (i64)bits)
+                return
+            try self.load_immediate("x16", (i64)bits)
+            try self.fmove(reg, "x16" if cls == ir.Class.d else "w16")
+            return
+        let wide = cls == ir.Class.d
+        if bits == 0:
+            try self.writer.line4("fmov ", reg, ", ", "xzr" if wide else "wzr")
+            return
+        if let scaled = fmov_scaled(bits, wide):
+            try self.writer.line3("fmov ", reg, ", #")
+            try self.put_scaled(scaled)
+            return
+        if self.f.instrs.count > pool_reach:
+            try self.load_immediate("x16", (i64)bits)
+            try self.fmove(reg, "x16" if wide else "w16")
+            return
+        var k: usize = 0
+        while k < self.pool.count and self.pool.get(k) != bits:
+            k += 1
+        if k == self.pool.count:
+            try self.pool.push(bits)
+        try self.writer.line3("ldr ", reg, ", ")
+        try self.pool_label(u32(k))
+
+    ## A value times 128 (`fmov_scaled`) in decimal, exactly: its whole part, a point, and
+    ## seven digits of its 128ths (`2.5000000`), as the assembler reads an `fmov` immediate.
+    func put_scaled(scaled: i64) -> !:
+        let magnitude = (u64)(-scaled if scaled < 0 else scaled)
+        if scaled < 0:
+            try self.writer.put("-")
+        try self.writer.put_u64(magnitude >> 7)
+        try self.writer.put(".")
+        let part = (magnitude & 127) * 78125
+        var digit: u64 = 1000000
+        while digit > 0:
+            try self.writer.put(decimal_digits[(usize)((part // digit) % 10)])
+            digit //= 10
+
+    ## The function's literal pool (`float_constant`), eight bytes an entry, after its cold
+    ## paths: a single's bits in the low half, which a little-endian `ldr s` reads.
+    func finish_pool() -> !:
+        if self.pool.count == 0:
+            return
+        try self.writer.put("\n    .p2align 3")
+        for k in 0..<self.pool.count:
+            try self.writer.put("\n")
+            try self.pool_label(u32(k))
+            try self.writer.put(":\n    .quad ")
+            try self.writer.put_u64(self.pool.get(k))
+        try self.writer.put("\n")
+        self.pool.count = 0
+
+## The most instructions a function may have and still load its float constants from a
+## pool after its text: a literal load reaches a megabyte, and no instruction of the IR
+## selects to more than sixty-four bytes.
+let pool_reach: usize = 16384
+
+## The value of a float of `bits`, double when `wide`, times 128 and signed, when `fmov`
+## encodes it as an immediate: ±(16 + m)/16 · 2^e for a four-bit m and e in -3..4 (the
+## architecture's VFPExpandImm), so the value times 128 is a whole number; none for any
+## other value.
+func fmov_scaled(bits: u64, wide: bool) -> i64?:
+    let fraction_bits: u64 = 52 if wide else 23
+    let bias: u64 = 1023 if wide else 127
+    let exponent_mask: u64 = 0x7FF if wide else 0xFF
+    if (bits & (((u64)1 << (fraction_bits - 4)) - 1)) != 0 or (not wide and bits > 0xFFFFFFFF):
+        return none
+    let exponent = (bits >> fraction_bits) & exponent_mask
+    if exponent + 3 < bias or exponent > bias + 4:
+        return none
+    let mantissa = (bits >> (fraction_bits - 4)) & 15
+    let scaled = (i64)((16 + mantissa) << (exponent + 3 - bias))
+    return -scaled if ((bits >> (63 if wide else 31)) & 1) != 0 else scaled
+
+## The decimal digits, for an immediate spelled digit by digit.
+let decimal_digits: str[10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 ## The register name of class `cls` for scratch number `n` (0, 1, 2).
 func scratch_register(cls: ir.Class, n: u32) -> str:

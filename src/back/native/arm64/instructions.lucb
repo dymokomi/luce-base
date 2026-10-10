@@ -66,6 +66,13 @@ extend Generator:
                     try self.load_immediate(d, n.a.value if n.cls == ir.Class.l else (i64)((u64)n.a.value & 0xFFFFFFFF))
                     try self.finish(n.dst, n.cls, d)
                     return
+                if n.a.kind == ir.RefKind.temp:
+                    if let bits = self.fr.constant_of(n.a.index):
+                        # a float constant formed where it is used: straight into the copy
+                        let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
+                        try self.float_constant(d, n.cls, bits)
+                        try self.finish(n.dst, n.cls, d)
+                        return
                 let v = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
                 let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
                 if v != d:
@@ -176,6 +183,12 @@ extend Generator:
                 try self.writer.put(v)
                 try self.finish(n.dst, n.cls, d)
             .cast:
+                if n.a.kind == ir.RefKind.constant and (n.cls == ir.Class.d or n.cls == ir.Class.s):
+                    # a float literal straight into where the temporary lives
+                    let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
+                    try self.float_constant(d, n.cls, (u64)n.a.value)
+                    try self.finish(n.dst, n.cls, d)
+                    return
                 # bits move between an integer and a float of the same width
                 let other = ir.cast_partner(n.cls)
                 let v = try self.source(n.a, other, scratch_register(other, 0))

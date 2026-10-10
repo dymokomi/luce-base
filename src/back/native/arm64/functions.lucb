@@ -139,6 +139,7 @@ extend Generator:
             try dw.entry(&self.writer.out)
         self.f = &self.program_unit.functions.items[index]
         self.fr.reserved = 0
+        self.pool.count = 0
         self.frame_base = false
         self.reserve_asm_registers()
         if self.f.allocates_frame:
@@ -213,6 +214,7 @@ extend Generator:
         self.head_tests = tests[0..<0]
         self.flag_roles = roles[0..<0]
         try self.finish_cold()
+        try self.finish_pool()
         if let dw = self.dw:
             try dw.mark(&self.writer.out, self.f, &self.fr, index, i)
             if self.f.debug or self.f.symbols:

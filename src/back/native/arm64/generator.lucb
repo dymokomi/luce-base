@@ -127,11 +127,15 @@ pub struct Generator:
     ## how many it has.
     var cold: buffer.Buffer
     var cold_count: u32 = 0
+    ## The bits of the float constants the function's text loads from its literal pool
+    ## (`float_constant`), which follows the function's cold paths in its text
+    ## (`finish_pool`), within reach of a literal load.
+    var pool: list.List[u64]
 
     ## A generator for `program_unit`, targeting `os` with the given C symbol prefix.
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = objects.Format(os, symbol_prefix, 2), writer = assembly.Text(out = try buffer.Buffer.create(262144)), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
-                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 13)), text_count = 0, descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024))
+                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 12, scratch_floats = 13, formed_constants = true)), text_count = 0, descriptors = try buffer.Buffer.create(4096), cold = try buffer.Buffer.create(1024), pool = try list.List[u64].create(8))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -144,6 +148,13 @@ pub struct Generator:
         try self.writer.out.put(self.object_format.local_label)
         try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
         try self.writer.out.put("_")
+        try self.writer.out.put_u64((u64)n)
+
+    ## The label of entry `n` of the function's literal pool (`float_constant`).
+    func pool_label(n: u32) -> !:
+        try self.writer.out.put(self.object_format.local_label)
+        try stable_names.put_function_label(&self.writer.out, self.index, self.function_tags, self.split or self.stable)
+        try self.writer.out.put("_k")
         try self.writer.out.put_u64((u64)n)
 
     ## The label of the function's cold path `n` (`check_failure`).
