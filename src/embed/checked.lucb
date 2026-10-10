@@ -38,8 +38,10 @@ import support.cache as cache
 import support.list
 import support.modules as module_paths
 import luce_std.files
+import luce_std.paths
 import support.in_arena
 import support.stamps
+import support.changes
 import strings
 
 # mark: Diagnostics ===========================================================================

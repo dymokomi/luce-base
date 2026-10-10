@@ -1,0 +1,127 @@
+#==============================================================================================
+#
+#   changes - Whether anything in a directory changed, without looking at its files
+#
+#   DESCRIPTION:
+#       A host that keeps checked modules (`embed.Library.check_file`) looks at every file
+#       they were read from before each check (`stamps`). On macOS and Linux a look costs
+#       under a microsecond a file; on Windows it costs 15 to 20, 4 ms for the 240 files of a
+#       script importing luce-geocore. Windows can say instead whether a directory changed:
+#       a change notification armed on it is signalled by the first change after it is
+#       armed, and one wait that does not wait asks every armed notification at once, in a
+#       few microseconds. The files are looked at only when one was signalled.
+#
+#       A notification holds its directory open, which keeps the directories above it from
+#       being renamed while it is armed (the directory itself can still be renamed or
+#       removed). Elsewhere nothing is armed, and every check looks at the files.
+#
+#==============================================================================================
+
+import c
+import platform
+
+extern func FindFirstChangeNotificationA(path: c.str, subtree: i32, filter: u32) -> usize
+extern func FindNextChangeNotification(handle: usize) -> i32
+extern func FindCloseChangeNotification(handle: usize) -> i32
+extern func WaitForMultipleObjects(count: u32, handles: const usize*, wait_all: i32, milliseconds: u32) -> u32
+extern func WaitForSingleObject(handle: usize, milliseconds: u32) -> u32
+
+# A file or directory made, renamed or removed, or a file's size or write time moved
+# (`FILE_NOTIFY_CHANGE_FILE_NAME`, `_DIR_NAME`, `_SIZE`, `_LAST_WRITE`).
+let file_name: u32 = 1
+let directory_name: u32 = 2
+let size: u32 = 8
+let last_write: u32 = 16
+# What a wait answers when nothing was signalled, and what a failed arming returns.
+let wait_timeout: u32 = 258
+let invalid_handle: usize = 18446744073709551615
+# The most handles one wait takes (`MAXIMUM_WAIT_OBJECTS`).
+let most_per_wait: usize = 64
+
+## Whether the system says when a directory changed: on Windows; elsewhere no watch is
+## ever armed.
+pub func watching() -> bool:
+    return platform.windows
+
+## What a watch on a directory sees.
+pub enum Reach as u8:
+    ## A directory made, renamed or removed in it: the parent of a watched tree, whose own
+    ## watch does not see the tree's directory renamed away.
+    names = 1
+    ## A file or directory in it made, renamed, removed or written; nothing below them.
+    entries = 2
+    ## Anything in it or below it.
+    tree = 3
+
+## A directory watched for changes. It is not armed where the system has no notifications
+## or when arming failed, and then says nothing: the files are looked at.
+pub struct Watch:
+    ## The directory, NUL-terminated.
+    pub var path: str
+    ## What the watch sees.
+    pub var reach: Reach
+    ## The notification's handle; 0 when not armed.
+    var handle: usize
+
+    ## A watch on the directory at `path` (NUL-terminated) that sees `reach`. Arm it before
+    ## looking at what it watches: a change after arming is seen, one before is not.
+    pub static func arm(path: str, reach: Reach) -> Watch:
+        var watch = Watch(path = path, reach = reach, handle = 0)
+        if platform.windows:
+            let filter = directory_name if reach == Reach.names else file_name | directory_name | size | last_write
+            let handle = FindFirstChangeNotificationA((c.str)path, 1 if reach == Reach.tree else 0, filter)
+            if handle != invalid_handle:
+                watch.handle = handle
+        return watch
+
+    ## A watch that is never armed: a file that no directory speaks for.
+    pub static func unarmed() -> Watch:
+        return Watch(path = "", reach = Reach.names, handle = 0)
+
+    ## Stop watching.
+    pub func close():
+        if platform.windows:
+            if self.handle != 0:
+                _ = FindCloseChangeNotification(self.handle)
+        self.handle = 0
+
+## Whether nothing changed in any of `watches` since it was armed or last looked at here.
+## False when there are none, when one is not armed, or when one was signalled: then each
+## signalled one is armed again before this returns, so a change made while the caller
+## looks at the files is seen next time, and one that cannot be armed again is closed.
+pub func quiet(watches: Watch[]) -> bool:
+    if watches.length == 0 or not platform.windows:
+        return false
+    if signalled(watches):
+        rearm(watches)
+        return false
+    return true
+
+# Every call to the system below sits under `platform.windows`, so no other target's build
+# refers to it.
+
+## Whether any of `watches` was signalled, or is not armed.
+func signalled(watches: Watch[]) -> bool:
+    if platform.windows:
+        var handles: usize[64]
+        var start: usize = 0
+        while start < watches.length:
+            var count: usize = 0
+            while count < most_per_wait and start + count < watches.length:
+                let handle = watches[start + count].handle
+                if handle == 0:
+                    return true
+                handles[count] = handle
+                count += 1
+            if WaitForMultipleObjects((u32)count, &handles[0], 0, 0) != wait_timeout:
+                return true
+            start += count
+    return false
+
+## Arm each signalled one of `watches` again; close one that cannot be.
+func rearm(watches: Watch[]):
+    if platform.windows:
+        for i in 0..<watches.length:
+            let handle = watches[i].handle
+            if handle != 0 and WaitForSingleObject(handle, 0) != wait_timeout and FindNextChangeNotification(handle) == 0:
+                watches[i].close()

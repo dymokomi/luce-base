@@ -151,6 +151,32 @@ test "a changed file of a kept package is seen, a touched one is not":
     back.close()
     assert(back.ok())
 
+test "a file changed after its look settled is seen, on Windows by its directory's watch":
+    var fixture = try Fixture.create()
+    defer fixture.remove()
+    var library = try Library.create()
+    defer library.close()
+    let a = try fixture.path("app/src/a.lucb")
+    # held to the end, so the modules it was made on are not freed and made again in place
+    var clean = try library.check_file(a)
+    defer clean.close()
+    assert(clean.ok())
+    let kept = kept_of(&library)
+    # two seconds on, no file is so recent that its bytes are read at each look
+    settle(kept)
+    # where the directories say so, nothing changed in them since they were armed (a
+    # first look re-arms one a write just before arming may still signal)
+    _ = changes.quiet(kept.directories.span())
+    assert(changes.quiet(kept.directories.span()) == changes.watching())
+    var quiet = try library.check_file(a)
+    quiet.close()
+    assert(kept_of(&library) == kept)
+    # another text, of another length: the watch is signalled, the look sees the size
+    try fixture.write("shapes_kit/src/area.lucb", "pub func square(side: i64) -> i64:\n    return side * side\n")
+    var changed = try library.check_file(a)
+    defer changed.close()
+    assert(not changed.ok() and kept_of(&library) != kept)
+
 test "a module written after a check that missed it is found by the next check":
     var fixture = try Fixture.create()
     defer fixture.remove()
@@ -166,6 +192,14 @@ test "a module written after a check that missed it is found by the next check":
     var found = try library.check_file(d)
     defer found.close()
     assert(found.ok())
+
+## Let two seconds pass for `kept`'s watched files: none was written so lately that its
+## bytes are read at each look.
+func settle(kept: Kept*):
+    for i in 0..<kept.watched.count:
+        var w = kept.watched.get(i)
+        w.recent = false
+        kept.watched.set(i, w)
 
 test "a package that does not check is reported each time, and kept once it does":
     var fixture = try Fixture.create()

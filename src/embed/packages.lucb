@@ -12,10 +12,13 @@
 #       checks only the package's own modules.
 #
 #       Each file the kept modules were read from is watched: its size, place and times
-#       when it was read (`support/stamps.lucb`), and a hash of its bytes. Before a check, each is looked at again;
-#       one whose size or times moved is read, and when its bytes changed too the kept
-#       modules are dropped and the check reads them again. A touched file that says the
-#       same costs a read, never a check. The manifests of the packages are watched too.
+#       when it was read (`support/stamps.lucb`), and a hash of its bytes. Before a check,
+#       each is looked at again; one whose size or times moved is read, and when its bytes
+#       changed too the kept modules are dropped and the check reads them again. A touched
+#       file that says the same costs a read, never a check. The manifests of the packages
+#       are watched too. On Windows, where a look costs 15 µs and more a file, each kept
+#       package's directory is watched as well (`support/changes.lucb`), and the files are
+#       looked at only when something in one changed.
 #
 #==============================================================================================
 
@@ -34,6 +37,9 @@ struct Kept:
     var project: str
     ## Every file the modules were read from, and the manifests.
     var watched: list.List[Watched]
+    ## The directories those files are in, watched for changes where the system says so:
+    ## each package's tree and its parent, and the checked package's own directory.
+    var directories: list.List[changes.Watch]
     ## The library, and each result made on top that is not closed yet.
     var users: usize
 
@@ -43,20 +49,34 @@ struct Kept:
         errdefer destroy_arena(arena)
         with arena:
             let kept = try new Kept(arena = arena, checker = try baseline.copied(try new u8[scratch_size] ---), project = try strings.copy(project),
-                                    watched = try list.List[Watched].create(64), users = 1) in parent
+                                    watched = try list.List[Watched].create(64), directories = try list.List[changes.Watch].create(8), users = 1) in parent
             errdefer free(kept) in parent
             if project.length > 0:
-                # the manifest names the dependencies the package's files may import
+                # the manifest names the dependencies the package's files may import; the
+                # package's own files below it are written at every check and not watched
+                try kept.watch_directory(project, changes.Reach.entries)
+                try kept.watch_directory(paths.directory(project), changes.Reach.names)
                 try kept.watch(try in_arena.join(project, "package.prisma"))
             return kept
 
+    ## Close the watches on the directories.
+    func unwatch():
+        for i in 0..<self.directories.count:
+            var directory = self.directories.get(i)
+            directory.close()
+        self.directories.count = 0
+
     ## Whether every file watched says what it said when it was read. A file whose size or
     ## times moved is read again, and is current when its bytes did not change; so is one
-    ## written so lately that a write since could have left its times as they were.
+    ## written so lately that a write since could have left its times as they were. When
+    ## the directories say nothing changed in them, only such a recent file is looked at.
     func current() -> bool!:
         let now = stamps.now()
+        let quiet = changes.quiet(self.directories.span())
         for i in 0..<self.watched.count:
             var w = self.watched.get(i)
+            if quiet and not w.recent:
+                continue
             let stamp = stamps.of((c.str)w.path) catch:
                 return false
             if stamp.same(w.stamp) and not w.recent:
@@ -85,9 +105,19 @@ struct Kept:
             # another package's warnings are not the checked file's to show
             self.checker.warnings.count = 0
             for m in self.checker.modules.span()[first..]:
+                # the package's directory is watched before its files are looked at
+                let owner = try module_paths.owner_root(m.canonical)
+                var root = ""
+                if let found = owner:
+                    let (_, directory) = found
+                    root = directory
+                    try self.watch_directory(root, changes.Reach.tree)
+                    try self.watch_directory(paths.directory(root), changes.Reach.names)
+                else:
+                    # a file of no package: no directory says when it changed
+                    try self.watch_directory("", changes.Reach.names)
                 try self.watch_module(m.canonical)
-                if let owner = try module_paths.owner_root(m.canonical):
-                    let (_, root) = owner
+                if root.length > 0:
                     try self.watch(try in_arena.join(root, "package.prisma"))
 
     ## Watch the files module `path` was read from: the file, or for a module of
@@ -107,6 +137,24 @@ struct Kept:
                 try self.watch(try in_arena.join(path, (str)listed.bytes[start..<i]))
             start = i + 1
 
+    ## Watch the directory at `path` for what `reach` sees, once: a watch that sees less is
+    ## armed again to see as much. No path is a file no directory can speak for, a watch
+    ## that is never armed, so the files are always looked at.
+    func watch_directory(path: str, reach: changes.Reach) -> !:
+        for i in 0..<self.directories.count:
+            var held = self.directories.get(i)
+            if held.path != path:
+                continue
+            if (u8)held.reach >= (u8)reach:
+                return
+            held.close()
+            self.directories.set(i, changes.Watch.arm(held.path, reach))
+            return
+        if path.length == 0:
+            try self.directories.push(changes.Watch.unarmed())
+            return
+        try self.directories.push(changes.Watch.arm(try strings.copy(path), reach))
+
     ## Watch the file at `path`, once.
     func watch(path: str) -> !:
         for w in self.watched.span():
@@ -122,6 +170,7 @@ func release_kept(kept: Kept*):
     kept.users -= 1
     if kept.users > 0:
         return
+    kept.unwatch()
     let arena = kept.arena
     let parent = arena.parent
     destroy_arena(arena)

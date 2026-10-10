@@ -152,6 +152,15 @@ defer result.close()
   each look until two seconds have passed: a second write in the same tick of the file
   system's clock leaves the times as they were, and only the bytes tell. On Windows the
   look is the size and the write time, which moves in steps of about 16 ms.
+- On Windows a look costs 15 to 20 µs a file, 4 ms for the 241 files above, so the
+  library also watches directories (`support/changes.lucb`): a change notification on each
+  kept package's directory and everything below it, on the directory above that one (its
+  own watch does not see it renamed away), and on the directory of the file's own
+  package.prisma. Before a check one wait asks them all, in a few microseconds; the files
+  are looked at only when one was signalled, and otherwise only those written in the two
+  seconds before their last look. A notification holds its directory open: while the
+  library keeps a package, the directories above it cannot be renamed. The package's own
+  directory can be, and its files changed or removed.
 - A check asks the system whether a path is there once, and answers each later lookup of
   that path from the first (`cache.remembering`): resolving a script's imports asks about
   the same manifests and modules thousands of times, 6800 lookups of 250 paths for the
@@ -184,6 +193,9 @@ packages, from 241 files) (`./build/embed-timing --file PATH`):
 The look at the files is the floor of a check on top of kept packages: about 0.6 µs a
 file, what the kernel takes to say a file's size and times. The check itself, copying the
 kept checker and loading and checking the script, is under 0.1 ms.
+
+On the Windows x64 test machine the first check takes about 170 ms and each later one about
+0.4 ms; on the Linux x86-64 one, about 90 ms and 0.2 ms.
 
 ## The result
 
