@@ -33,6 +33,7 @@ python3 tools/test_float_registers.py
 python3 tools/test_x86_addressing.py
 python3 tools/test_x86_integer_registers.py
 python3 tools/test_float_constants.py
+python3 tools/test_tuple_registers.py
 python3 tools/test_widened_loads.py
 python3 tools/test_x86_selects.py
 python3 tools/test_checked_products.py

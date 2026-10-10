@@ -884,7 +884,7 @@ func divide(value: i64, divisor: i64) -> (i64, i64):
 let (quotient, remainder) = divide(17, 5)
 ```
 
-Tuples replace C's out-parameters for the common case. Public data with names is better served by a struct.
+Tuples replace C's out-parameters for the common case. Public data with names is better served by a struct. A tuple is not C-representable (§17.6), so its convention is the program's own: one of up to four words comes back in registers on every target, as a fallible result does (§11.2), with no memory between the callee's values and the caller's.
 
 ### 9.4 Function values
 
@@ -1107,7 +1107,7 @@ Evaluation remains left to right, exactly once, including named arguments in sou
 
 `T!` is a result effect, not a storable type: it cannot be a parameter, field, or element; a program that must hold a result declares an enum with a success and a failure case. `T?!` is a fallible optional.
 
-Representation: a `T!` is returned as the value and a flag, in registers where they fit, and a failure's `Error` travels beside them: the native backends leave it in the thread's `core.failure`, where `try` passes it up untouched, and return a result of up to four words in the first four integer result registers (x0–x3 on arm64; rax, rdx, rcx and r8 on x86-64). Exported fallible functions use the status form of §17.6.
+Representation: a `T!` is returned as the value and a flag, in registers where they fit, and a failure's `Error` travels beside them: the native backends leave it in the thread's `core.failure`, where `try` passes it up untouched, and return a result of up to four words in registers, a word holding one float in the next of the first four float result registers and every other word in the next of the first four integer ones (x0–x3 and d0–d3 on arm64; rax, rdx, rcx and r8 and xmm0–xmm3 on x86-64). A tuple of up to four words comes back the same way (§9.3). Exported fallible functions use the status form of §17.6.
 
 ### 11.3 Errors
 

@@ -322,7 +322,7 @@ extend Lowerer:
     func end_function() -> !:
         if self.f.debug or self.f.symbols:
             self.f.debug_scopes.items[0].end = self.f.instrs.count
-        # a fallible result of up to four words comes back in registers, both ways
+        # a fallible or tuple result of up to four words comes back in registers, both ways
         self.f.result_private = self.f.has_result and self.private_result(self.f.result_type, self.f.result_size)
         for k in 0..<self.f.calls.count:
             var info = self.f.calls.get(k)
@@ -354,7 +354,7 @@ extend Lowerer:
                 let start = u32(self.f.args.count)
                 let words = returned
                 for k in 0..<words:
-                    let (cls, store, load) = self.word_access(self.f.result_type, k)
+                    let (cls, store, load) = self.word_access(self.f.result_type, self.f.result_shape, self.f.result_private, k)
                     _ = store
                     let v = try self.f.temp(cls)
                     var read = stamped(x, load, v, try self.word_address(x, x.a, k), ir.none_ref())
@@ -378,7 +378,7 @@ extend Lowerer:
             self.f.calls.set((usize)x.extra, info)
             var got: u32[4] = [0, 0, 0, 0]
             for k in 0..<words:
-                let (cls, store, load) = self.word_access(info.result_type, k)
+                let (cls, store, load) = self.word_access(info.result_type, info.result_shape, info.result_private, k)
                 _ = store
                 _ = load
                 got[k] = try self.f.temp(cls)
@@ -386,23 +386,32 @@ extend Lowerer:
                 w.cls = cls
                 w.extra = k
                 # the failure flag comes back 0 or 1 (`opt.failure_flags`)
-                w.extra2 = 1 if info.result_private and (u64)k * 8 == self.failed_offset(info.result_type) else 0
+                w.extra2 = 1 if info.result_private and self.kind(info.result_type) == types.Kind.fallible and (u64)k * 8 == self.failed_offset(info.result_type) else 0
                 try self.f.instrs.push(w)
             let base = try self.f.temp(ir.Class.l)
             try self.f.instrs.push(stamped(x, ir.Op.addr, base, ir.slot_ref(info.result_slot), ir.none_ref()))
             for k in 0..<words:
-                let (cls, store, load) = self.word_access(info.result_type, k)
+                let (cls, store, load) = self.word_access(info.result_type, info.result_shape, info.result_private, k)
                 _ = cls
                 _ = load
                 try self.f.instrs.push(stamped(x, store, 0, ir.temp_ref(got[k]), try self.word_address(x, ir.temp_ref(base), k)))
 
-    ## How word `k` of a private result of type `result` is moved to and from its slot: as
-    ## the lowerer reaches that part of the slot, so the two agree and the optimiser keeps
-    ## the word in a temporary; the flag as a byte, a scalar payload at its own width,
-    ## anything else (a float, an aggregate's words) whole.
-    func word_access(result: u32, k: u32) -> (ir.Class, ir.Op, ir.Op):
+    ## How word `k` of a result of type `result` and shape `shape` that comes back in
+    ## registers is moved to and from its slot: as the lowerer reaches that part of the
+    ## slot, so the two agree and the optimiser keeps the word in a temporary. A word the
+    ## convention returns in a float register (`word_class`) is that float; of the rest, a
+    ## fallible result's flag is a byte and its scalar payload goes at its own width, and
+    ## anything else (an aggregate's words) whole.
+    func word_access(result: u32, shape: u32, private: bool, k: u32) -> (ir.Class, ir.Op, ir.Op):
+        let float = self.word_class(shape, private, k)
+        if float != ir.Class.l:
+            return (float, ir.store_of(float), ir.load_of(float))
         let offset = (u64)k * 8
         if self.kind(result) != types.Kind.fallible:
+            # a tuple's last word moves only as far as the tuple reaches (`private_result`)
+            let rest = self.c.table.size_of(result) - offset
+            if rest < 8:
+                return (ir.Class.w, ir.store_op(rest, false), ir.load_op(rest, false, false))
             return (ir.Class.l, ir.Op.storel, ir.Op.loadl)
         if offset == self.failed_offset(result):
             return (ir.Class.w, ir.Op.storeb, ir.Op.loadub)
@@ -413,30 +422,68 @@ extend Lowerer:
                 return (ir.Class.w if size <= 4 else ir.Class.l, ir.store_op(size, false), ir.load_op(size, false, false))
         return (ir.Class.l, ir.Op.storel, ir.Op.loadl)
 
-    ## How many integer registers a result of `size` bytes and shape `shape` comes back in,
-    ## for `result_words`: a private result's words (up to four); an aggregate of whole
-    ## words that the C convention returns in integer registers, two at most on arm64 and
-    ## on System V (every word holding an integer member, none a float, none misaligned),
-    ## one on Windows x64; 0 for a scalar, for a result through memory, and for an array,
-    ## whose lanes a vector register holds (§5.12).
+    ## The register class word `k` of a result in registers comes back in: the program's
+    ## own convention and System V by the word's leaves (`ir.Unit.word_class`), arm64 a
+    ## homogeneous aggregate of doubles in d0-d3, an integer register otherwise.
+    func word_class(shape: u32, private: bool, k: u32) -> ir.Class:
+        if private or (self.target.arch == targets.Arch.x86_64 and self.target.os != targets.Os.windows):
+            return self.program_unit.word_class(shape, k)
+        if self.target.arch == targets.Arch.arm64 and self.double_aggregate(shape) > 0:
+            return ir.Class.d
+        return ir.Class.l
+
+    ## How many registers a result of `size` bytes and shape `shape` comes back in, for
+    ## `result_words`: a private result's words (up to four, `word_class` says which kind
+    ## each takes); an aggregate of whole words that the C convention returns a word to a
+    ## register: on arm64 up to four doubles (a homogeneous aggregate) in d0-d3, or two
+    ## words of integer members in x0 and x1; on System V two eightbytes, each of integer
+    ## members or one float, in rax/rdx and xmm0/xmm1; on Windows x64 one integer word.
+    ## 0 for a scalar, for a result through memory, for an aggregate of singles packed two
+    ## to a register, and for an array, whose lanes a vector register holds (§5.12).
     func register_words(has_result: bool, result: u32, size: u32, shape: u32, private: bool) -> u32:
         if not has_result or size == 0:
             return 0
         if private:
             return (size + 7) // 8
-        if size % 8 != 0 or shape == 0 or size > 16 or result == 0 or self.kind(result) == types.Kind.array:
+        if size % 8 != 0 or shape == 0 or size > 32 or result == 0 or self.kind(result) == types.Kind.array:
             return 0
+        let words = size // 8
         if self.target.os == targets.Os.windows:
             return 1 if size == 8 else 0
+        if self.target.arch == targets.Arch.arm64 and self.double_aggregate(shape) == words:
+            return words
+        if size > 16:
+            return 0
         var covered: u32 = 0
+        var integer: u32 = 0
         for leaf in self.program_unit.leaves_of(shape):
-            if leaf.cls != ir.Class.w and leaf.cls != ir.Class.l:
-                return 0
             if leaf.size > 1 and leaf.offset % (u32)leaf.size != 0:
                 return 0
-            covered = covered | ((u32)1 << (leaf.offset // 8))
-        let words = size // 8
-        return words if covered == ((u32)1 << words) - 1 else 0
+            let bit = (u32)1 << (leaf.offset // 8)
+            covered = covered | bit
+            if leaf.cls == ir.Class.w or leaf.cls == ir.Class.l:
+                integer = integer | bit
+            elif self.target.arch == targets.Arch.arm64:
+                return 0
+        if covered != ((u32)1 << words) - 1:
+            return 0
+        for k in 0..<words:
+            # an eightbyte without an integer member is System V's SSE class: one float,
+            # never two singles packed in one register
+            if (integer & ((u32)1 << k)) == 0 and self.program_unit.word_class(shape, k) == ir.Class.l:
+                return 0
+        return words
+
+    ## How many doubles a homogeneous aggregate of doubles of shape `shape` holds, one to a
+    ## word (AAPCS64 returns up to four in d0-d3); 0 for any other shape.
+    func double_aggregate(shape: u32) -> u32:
+        let leaves = self.program_unit.leaves_of(shape)
+        if leaves.length == 0 or leaves.length > 4:
+            return 0
+        for k in 0..<leaves.length:
+            if leaves[k].cls != ir.Class.d or (u64)leaves[k].offset != (u64)k * 8:
+                return 0
+        return u32(leaves.length)
 
     ## The address of word `k` of the result at `base`, for `result_words`.
     func word_address(x: ir.Instr, base: ir.Ref, k: u32) -> ir.Ref!:
@@ -446,9 +493,17 @@ extend Lowerer:
         try self.f.instrs.push(stamped(x, ir.Op.add, p, base, ir.const_ref((i64)k * 8)))
         return ir.temp_ref(p)
 
-    ## Whether a result of type `result`, `size` bytes, takes the program's own convention.
+    ## Whether a result of type `result`, `size` bytes, takes the program's own convention:
+    ## a fallible result or a tuple of up to four words: neither is C-representable
+    ## (§17.6), so nothing outside the program calls a function answering one, and every
+    ## call of it, direct or through a function value, takes the convention by its type.
+    ## A tuple's last word is whole or a half, which a register's store moves exactly (the
+    ## inliner stores a word by its class, `w` four bytes).
     func private_result(result: u32, size: u32) -> bool:
-        return result != 0 and self.kind(result) == types.Kind.fallible and size > 0 and size <= 32
+        if result == 0 or size == 0 or size > 32:
+            return false
+        let kind = self.kind(result)
+        return kind == types.Kind.fallible or (kind == types.Kind.tuple and (size % 8 == 0 or size % 8 == 4))
 
     ## Where a result keeps its flag: after its value, whose error is `core.failure`'s.
     func failed_offset(result: u32) -> u64:

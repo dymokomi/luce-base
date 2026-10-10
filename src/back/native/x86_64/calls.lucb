@@ -216,7 +216,7 @@ extend Generator:
             try self.take_words()
         elif info.result_private:
             try self.frame_address("%r10", self.slot_home(info.result_slot))
-            try self.private_words(info.result_size, true)
+            try self.private_words(info.result_size, info.result_shape, true)
         else:
             try self.frame_address("%r10", self.slot_home(info.result_slot))
             try self.store_bytes("%rax", "%r10", 0, (u64)info.result_size)
@@ -446,7 +446,7 @@ extend Generator:
             return
         try self.frame_address("%r10", self.slot_home(info.result_slot))
         if info.result_private:
-            try self.private_words(info.result_size, true)
+            try self.private_words(info.result_size, info.result_shape, true)
             return
         let sse = self.convention.sse_of(info.result_cls, info.result_size, info.result_shape)
         try self.result_eightbytes(info.result_size, sse, true)
@@ -456,20 +456,30 @@ extend Generator:
     func result_in_memory(size: u32, shape: u32, private: bool) -> bool:
         return not private and self.convention.in_memory(size, shape)
 
-    ## The words of a fallible result of up to four words between (%r10) and rax, rdx, rcx
-    ## and r8, the program's own convention on both System V and Windows (all four are
-    ## caller-saved on both); `store` into the memory from the registers, else the reverse.
-    ## Loaded from the last word: an odd-width word takes rax to help (`load_bytes`), so
-    ## rax's own word comes last.
-    func private_words(size: u32, store: bool) -> !:
+    ## The words of a private result of up to four words (CallInfo.result_private) between
+    ## (%r10) and the registers it comes back in, the program's own convention on both
+    ## System V and Windows (all eight are caller-saved on both): a word holding one float
+    ## (`ir.Unit.word_class`) in the next of xmm0-xmm3, any other in the next of rax, rdx,
+    ## rcx and r8; `store` into the memory from the registers, else the reverse. Loaded
+    ## from the last word: an odd-width word takes rax to help (`load_bytes`), so rax's own
+    ## word comes last.
+    func private_words(size: u32, shape: u32, store: bool) -> !:
         let words = (size + 7) // 8
+        var registers: str[4] = ["", "", "", ""]
+        var floats: bool[4] = [false, false, false, false]
+        var ints: usize = 0
+        var sse: usize = 0
+        for k in 0..<words:
+            floats[k] = self.program_unit.word_class(shape, k) != ir.Class.l
+            registers[k] = xmm_names[sse] if floats[k] else private_result_registers[ints]
+            sse += 1 if floats[k] else 0
+            ints += 0 if floats[k] else 1
         for j in 0..<words:
             let k = j if store else words - 1 - j
-            let reg = private_result_registers[(usize)k]
             if store:
-                try self.store_eightbyte(reg, k, size, false)
+                try self.store_eightbyte(registers[k], k, size, floats[k])
             else:
-                try self.load_eightbyte(reg, "%r10", k, size, false)
+                try self.load_eightbyte(registers[k], "%r10", k, size, floats[k])
 
     ## The eightbytes of a small aggregate result between (%r10) and rax/rdx and xmm0/xmm1,
     ## `store` into the memory from the registers, else the reverse, the last word first
@@ -508,28 +518,50 @@ extend Generator:
         try self.writer.put_u64(below)
         try self.writer.put("(%rbp), %rsp")
 
-    ## The words of a private result, from rax, rdx, rcx and r8 into the `word`s right
-    ## after the call at `self.at`: those kept in the frame stored first, then the rest as
-    ## one parallel copy (`incoming`), since a word may live in r8, another's register;
-    ## r11 parks one to break a cycle.
+    ## The words of a result in registers, from rax, rdx, rcx and r8 and from xmm0-xmm3
+    ## into the `word`s right after the call at `self.at`, each word taking the next register
+    ## of its kind: those kept in the frame stored first, then the rest as two parallel
+    ## copies (`incoming`), the integer words' and the float words', since a word may live
+    ## in another's register (r8, xmm0-xmm3); r11 and the first float scratch register
+    ## park one to break a cycle.
     func take_words() -> !:
         var sources: u8[4] = [0, 0, 0, 0]
         var destinations: u8[4] = [0, 0, 0, 0]
         var targets: u8[4] = [0, 0, 0, 0]
         var dsts: u32[4] = [0, 0, 0, 0]
         var count: usize = 0
+        var float_sources: u8[4] = [0, 0, 0, 0]
+        var float_destinations: u8[4] = [0, 0, 0, 0]
+        var float_targets: u8[4] = [0, 0, 0, 0]
+        var float_count: usize = 0
+        var ints: u32 = 0
+        var floats: u32 = 0
         var j = self.at + 1
         while j < self.f.instrs.count and self.f.instrs.get(j).op == ir.Op.word:
             let w = self.f.instrs.get(j)
             j += 1
-            if w.dst == 0 or w.extra >= 4:
+            let float = ir.is_float_class(w.cls)
+            let index = floats if float else ints
+            floats += 1 if float else 0
+            ints += 0 if float else 1
+            if w.dst == 0 or index >= 4:
                 continue
             let code = self.fr.temp_regs.get((usize)w.dst - 1)
+            if float:
+                if code == 0:
+                    try self.frame_store(xmm_names[(usize)index], w.cls, self.temp_home(w.dst))
+                    continue
+                let held = xmm_number(self.q_name(code))
+                float_sources[float_count] = u8(index)
+                float_destinations[float_count] = held if held < 4 else incoming.no_argument
+                float_targets[float_count] = held
+                float_count += 1
+                continue
             if code == 0:
-                let arrived = private_result_narrow[(usize)w.extra] if w.cls == ir.Class.w else private_result_registers[(usize)w.extra]
+                let arrived = private_result_narrow[(usize)index] if w.cls == ir.Class.w else private_result_registers[(usize)index]
                 try self.frame_store(arrived, w.cls, self.temp_home(w.dst))
                 continue
-            sources[count] = u8(w.extra)
+            sources[count] = u8(index)
             destinations[count] = incoming.no_argument
             for r in 0..<private_result_registers.length:
                 if private_result_registers[r] == self.q_name(code):
@@ -554,17 +586,73 @@ extend Generator:
             let read = "%r11" if step.parked else arrived
             if to != read:
                 try self.writer.line4("movq ", read, ", ", to)
+        var float_steps = try incoming.sequence(float_sources[..<float_count], float_destinations[..<float_count])
+        defer float_steps.destroy()
+        let park = self.reg(ir.Class.v, 0)
+        for step in float_steps.span():
+            let k = (usize)step.index
+            let arrived = xmm_names[(usize)float_sources[k]]
+            if step.park:
+                try self.writer.line4("movaps ", arrived, ", ", park)
+                continue
+            let read = park if step.parked else arrived
+            let to = xmm_names[(usize)float_targets[k]]
+            if to != read:
+                try self.writer.line4("movaps ", read, ", ", to)
 
-    ## A `ret` of a private result's words, arrived its arguments into rax, rdx, rcx and r8:
-    ## those living in registers as one parallel copy (only r8 is both an allocated
-    ## register and a result's), r11 parking one to break a cycle; then the rest, loaded
-    ## or formed straight into theirs.
+    ## A `ret` of a result's words, its arguments each into the next register of its kind:
+    ## the integer ones into rax, rdx, rcx and r8, the floats into xmm0-xmm3. Those living
+    ## in registers move first, as one parallel copy for each kind (r8 and xmm0-xmm3 are
+    ## both allocated registers and a result's), r11 and the first float scratch register
+    ## parking one to break a cycle; then the rest, loaded or formed straight into theirs.
     func return_words(n: ir.Instr) -> !:
-        let count = (usize)n.extra2 if n.extra2 <= 4 else 4
+        var count: usize = 0
+        var words: u32[4] = [0, 0, 0, 0]
+        var float_count: usize = 0
+        var float_words: u32[4] = [0, 0, 0, 0]
+        for k in 0..<(usize)n.extra2:
+            let a = self.f.args.get((usize)n.extra + k)
+            if ir.is_float_class(a.cls):
+                if float_count < 4:
+                    float_words[float_count] = u32(k)
+                    float_count += 1
+            elif count < 4:
+                words[count] = u32(k)
+                count += 1
+        var float_sources: u8[4] = [0, 0, 0, 0]
+        var float_destinations: u8[4] = [0, 0, 0, 0]
+        var float_moved: bool[4] = [false, false, false, false]
+        var moves: usize = 0
+        var which: usize[4] = [0, 0, 0, 0]
+        for k in 0..<float_count:
+            let held = self.float_register_of(self.f.args.get((usize)n.extra + (usize)float_words[k]).value)
+            if held < 16:
+                float_sources[moves] = held
+                float_destinations[moves] = u8(k)
+                which[moves] = k
+                float_moved[k] = true
+                moves += 1
+        var float_steps = try incoming.sequence(float_sources[..<moves], float_destinations[..<moves])
+        defer float_steps.destroy()
+        let park = self.reg(ir.Class.v, 0)
+        for step in float_steps.span():
+            let m = (usize)step.index
+            let held = xmm_names[(usize)float_sources[m]]
+            if step.park:
+                try self.writer.line4("movaps ", held, ", ", park)
+                continue
+            let read = park if step.parked else held
+            let to = xmm_names[which[m]]
+            if read != to:
+                try self.writer.line4("movaps ", read, ", ", to)
+        for k in 0..<float_count:
+            if not float_moved[k]:
+                let a = self.f.args.get((usize)n.extra + (usize)float_words[k])
+                try self.operand(xmm_names[k], a.cls, a.value)
         var reads: str[4] = ["", "", "", ""]
         var pending: bool[4] = [false, false, false, false]
         for k in 0..<count:
-            let v = self.f.args.get((usize)n.extra + k).value
+            let v = self.f.args.get((usize)n.extra + (usize)words[k]).value
             if v.kind == ir.RefKind.temp and not self.fr.is_rematerialised(v.index):
                 let code = self.fr.temp_regs.get((usize)v.index - 1)
                 if code != 0 and not self.fr.float_code(code):
@@ -596,7 +684,7 @@ extend Generator:
                         break
         for k in 0..<count:
             if reads[k].length == 0:
-                try self.operand(private_result_registers[k], ir.Class.l, self.f.args.get((usize)n.extra + k).value)
+                try self.operand(private_result_registers[k], ir.Class.l, self.f.args.get((usize)n.extra + (usize)words[k]).value)
 
     func return_value(n: ir.Instr) -> !:
         if self.f.has_result and n.extra2 == 0:
@@ -607,7 +695,7 @@ extend Generator:
                     try self.operand("%rax" if self.f.result_cls == ir.Class.l else "%eax", self.f.result_cls, n.a)
             elif self.f.result_private:
                 try self.address_operand("%r10", n.a)
-                try self.private_words(self.f.result_size, false)
+                try self.private_words(self.f.result_size, self.f.result_shape, false)
             elif not self.result_in_memory(self.f.result_size, self.f.result_shape, self.f.result_private):
                 try self.address_operand("%r10", n.a)
                 let sse = self.convention.sse_of(self.f.result_cls, self.f.result_size, self.f.result_shape)

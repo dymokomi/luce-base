@@ -1,0 +1,156 @@
+## §9.3: a tuple of up to four words comes back in registers, each word that holds one
+## float in the next float register and every other word in the next integer one, whatever
+## the target; a small struct as the target's C convention returns it (arm64: up to four
+## doubles in d0-d3; System V: an eightbyte of integers or one float in rax/rdx or
+## xmm0/xmm1). Every member arrives, at every width, through a direct call, a function
+## value and a failure.
+let neg_code: ErrorCode = ErrorCode.package(3)
+let zero_code: ErrorCode = ErrorCode.package(4)
+
+noinline func a1(x: i64) -> (i64, i64):
+    return (x + 1, x * 2)
+
+noinline func a2(x: f64) -> (f64, f64):
+    return (x + 1.0, x * 2.0)
+
+noinline func a3(x: f64, n: i64) -> (i64, f64, f64):
+    return (n + 1, x * 2.0, x + 3.5)
+
+noinline func a4(x: f32) -> (f32, f32):
+    return (x + 1.0, x * 3.0)
+
+noinline func a5(x: f64) -> (u8, f64):
+    return ((u8)7, x - 1.0)
+
+noinline func a6(s: str) -> (str, i64):
+    return (s, (i64)s.length)
+
+noinline func a7(b: bool, x: f64) -> (bool, f64, i32, f32):
+    return (not b, x / 4.0, 12, (f32)x)
+
+noinline func a8(x: f64) -> ((f64, f64), i64):
+    return ((x, -x), 99)
+
+noinline func a9(x: f64) -> f64!:
+    if x < 0.0:
+        error(neg_code, "neg")
+    return x * 10.0
+
+noinline func a10(x: f32, y: f64) -> (f32, f64, f32, f64):
+    return (x, y, x + 1.0, y + 1.0)
+
+noinline func a11(x: i64) -> (i64, i64)!:
+    if x == 0:
+        error(zero_code, "zero")
+    return (x, -x)
+
+noinline func a12(x: f64) -> (f64, u16, f64):
+    return (x, (u16)5, x + x)
+
+noinline func b1(x: u8) -> (u8, u8):
+    return (x, x + 1)
+
+noinline func b2(x: u8) -> (u8, u8, u8):
+    return (x, x + 1, x + 2)
+
+noinline func b3(x: u32) -> (u32, u32, u32):
+    return (x, x + 1, x + 2)
+
+noinline func b4(x: f32) -> (f32, f32, f32):
+    return (x, x + 1.0, x + 2.0)
+
+noinline func b5(x: f64) -> (f64, f32):
+    return (x, (f32)x + 0.5)
+
+noinline func b6(x: i16) -> (i16, f32):
+    return (x, (f32)x)
+
+struct Vec3:
+    var x: f64
+    var y: f64
+    var z: f64
+
+struct Mixed:
+    var n: i64
+    var x: f64
+
+struct Halves:
+    var a: f32
+    var b: f32
+
+struct One:
+    var x: f64
+
+noinline func s1(x: f64) -> Vec3:
+    return Vec3(x = x, y = x + 1.0, z = x + 2.0)
+
+noinline func s2(x: f64) -> Mixed:
+    return Mixed(n = (i64)x, x = x * 0.5)
+
+noinline func s3(x: f32) -> Halves:
+    return Halves(a = x, b = x * 2.0)
+
+noinline func s4(x: f64) -> One:
+    return One(x = x * 4.0)
+
+## The same shapes through calls the inliner opens out, beside a neighbour each could
+## overwrite.
+func i1(x: u8) -> (u8, u8):
+    return (x, x + 1)
+
+func i2(x: f32) -> (f32, f64, u32):
+    return (x, (f64)x * 2.0, 3)
+
+func apply(f: func(f64) -> (f64, f64), x: f64) -> (f64, f64):
+    return f(x)
+
+pub func main(arguments: str[]) -> i32:
+    let (p, q) = a1(5)
+    print(f"{p} {q}")
+    let (r, s) = a2(1.5)
+    print(f"{r} {s}")
+    let (n, x, y) = a3(2.0, 7)
+    print(f"{n} {x} {y}")
+    let (g, h) = a4(2.5)
+    print(f"{g} {h}")
+    let (b, c) = a5(3.25)
+    print(f"{b} {c}")
+    let (t, l) = a6("hello")
+    print(f"{t} {l}")
+    let (bb, xx, ii, ff) = a7(true, 10.0)
+    print(f"{bb} {xx} {ii} {ff}")
+    let (pair, k) = a8(2.0)
+    print(f"{pair.0} {pair.1} {k}")
+    let v = a9(1.5) catch e:
+        recover -1.0
+    let w = a9(-1.5) catch e:
+        recover -2.0
+    print(f"{v} {w}")
+    let (z1, z2, z3, z4) = a10(1.5, 2.5)
+    print(f"{z1} {z2} {z3} {z4}")
+    let (o1, o2) = a11(3) catch e:
+        recover (0, 0)
+    let (o3, o4) = a11(0) catch e:
+        recover (8, 8)
+    print(f"{o1} {o2} {o3} {o4}")
+    let (m1, m2, m3) = a12(4.0)
+    print(f"{m1} {m2} {m3}")
+    let (u1, u2) = apply(a2, 3.0)
+    print(f"{u1} {u2}")
+    let (c1, c2) = b1(3)
+    let (d1, d2, d3) = b2(4)
+    let (e1, e2, e3) = b3(5)
+    let (f1, f2, f3) = b4(6.0)
+    let (g1, g2) = b5(7.0)
+    let (h1, h2) = b6(-8)
+    print(f"{c1} {c2} {d1} {d2} {d3} {e1} {e2} {e3} {f1} {f2} {f3} {g1} {g2} {h1} {h2}")
+    let v3 = s1(1.5)
+    let mx = s2(9.0)
+    let hv = s3(1.25)
+    let on = s4(0.5)
+    print(f"{v3.x} {v3.y} {v3.z} {mx.n} {mx.x} {hv.a} {hv.b} {on.x}")
+    var guard: u8[2] = [11, 12]
+    let (j1, j2) = i1(guard[0])
+    let (k1, k2, k3) = i2(1.5)
+    print(f"{j1} {j2} {guard[0]} {guard[1]} {k1} {k2} {k3}")
+    return 0

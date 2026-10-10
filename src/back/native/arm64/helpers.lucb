@@ -16,6 +16,14 @@
 ## which a vector temporary sees as q24–q31 and q19–q23 (d16–d18 are the generator's own).
 ## The register codes of x0, x1, x2 and x3: where a result of up to four words comes back.
 let result_codes: usize[4] = [30, 29, 28, 27]
+## The float registers a result's words come back in, d0-d3, and their single views.
+let float_result_d: str[4] = ["d0", "d1", "d2", "d3"]
+let float_result_s: str[4] = ["s0", "s1", "s2", "s3"]
+
+## Float result register `k` viewed as class `cls`: d0-d3, s0-s3 for a single.
+func float_result_name(cls: ir.Class, k: u32) -> str:
+    return float_result_s[(usize)k] if cls == ir.Class.s else float_result_d[(usize)k]
+
 let x_names: str[44] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "x12", "x13", "x7", "x6", "x5", "x4", "x3", "x2", "x1", "x0", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31", "d19", "d20", "d21", "d22", "d23"]
 let w_names: str[44] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31", "s19", "s20", "s21", "s22", "s23"]
 let h_names: str[44] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "w12", "w13", "w7", "w6", "w5", "w4", "w3", "w2", "w1", "w0", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31", "h19", "h20", "h21", "h22", "h23"]
