@@ -1580,6 +1580,10 @@ pub func main(arguments: c.str[]) -> i32!:
         try usage(io.stderr())
         return 2
     let command = (str)arguments[1]
+    # a command takes the files as it first finds them (`cache.remembering`): a lookup is
+    # tens of microseconds on Windows, and luced-3d's build looked at its dependencies'
+    # directories 90 000 times, for most of four seconds there
+    cache.remembering = true
     # `-W` may appear on any command and is not one of its arguments
     var positional = arguments.length
     for a in arguments:
