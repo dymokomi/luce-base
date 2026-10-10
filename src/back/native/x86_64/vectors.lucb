@@ -27,13 +27,14 @@ extend Generator:
             if n.op == ir.Op.loadv:
                 try self.address_operand("%r10", n.a)
                 let d = self.target(n.dst, ir.Class.v, first)
-                try self.writer.line3("movdqu (%r10), ", d, "")
+                # float lanes move in the float domain: no bypass delay before an FP operation
+                try self.writer.line3("movups (%r10), " if ir.lanes_float(shape) else "movdqu (%r10), ", d, "")
                 try self.finish(n.dst, ir.Class.v, d)
                 return
             if n.op == ir.Op.storev:
                 let value = try self.source(n.a, ir.Class.v, first)
                 try self.address_operand("%r10", n.b)
-                try self.writer.line3("movdqu ", value, ", (%r10)")
+                try self.writer.line3("movups " if ir.lanes_float(shape) else "movdqu ", value, ", (%r10)")
                 return
             if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
                 let a = try self.source(n.a, ir.Class.v, first)
@@ -44,7 +45,7 @@ extend Generator:
                 if d == b and d != a:
                     d = first
                 if a != d:
-                    try self.writer.line4("movdqa ", a, ", ", d)
+                    try self.writer.line4("movaps " if ir.lanes_float(shape) else "movdqa ", a, ", ", d)
                 let mnemonic = "pmulld" if n.op == ir.Op.vmulw and bits == 32 else vector_mnemonic(n.op, shape)
                 try self.writer.line4(mnemonic, " ", b, ", ")
                 try self.writer.put(d)

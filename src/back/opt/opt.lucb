@@ -170,6 +170,41 @@ func negations(f: ir.Function*) -> bool:
         changed = true
     return changed
 
+## A call through a temporary that holds a named function's address, its only definition
+## (single-assignment form: `kernel(x)` in an inline function called with `twice`), calls
+## that function directly, which the inliner may then expand. Whether any changed.
+pub func direct_calls(f: ir.Function*) -> bool!:
+    var named = try new u32[f.temps.count + 1] ---
+    defer free(named)
+    var defs = try new u8[f.temps.count + 1] ---
+    defer free(defs)
+    for t in 0..<named.length:
+        named[t] = 0
+        defs[t] = 0
+    var any = false
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst == 0 or (usize)x.dst >= named.length:
+            continue
+        defs[(usize)x.dst] = 2 if defs[(usize)x.dst] > 0 else 1
+        if x.op == ir.Op.addr and x.a.kind == ir.RefKind.function:
+            named[(usize)x.dst] = u32(i) + 1
+            any = true
+    if not any:
+        return false
+    var changed = false
+    for i in 0..<f.instrs.count:
+        var x = f.instrs.get(i)
+        if x.op != ir.Op.call or x.a.kind != ir.RefKind.temp or (usize)x.a.index >= named.length:
+            continue
+        let k = (usize)x.a.index
+        if named[k] == 0 or defs[k] != 1:
+            continue
+        x.a = f.instrs.get((usize)named[k] - 1).a
+        f.instrs.set(i, x)
+        changed = true
+    return changed
+
 func same_ref(a: ir.Ref, b: ir.Ref) -> bool:
     return a.kind == b.kind and a.index == b.index and a.value == b.value
 

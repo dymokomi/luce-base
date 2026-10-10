@@ -514,15 +514,24 @@ extend Generator:
             if v != d:
                 try self.writer.line4("movq " if cls == ir.Class.l else "movl ", v, ", ", d)
             try self.writer.line3("negq " if cls == ir.Class.l else "negl ", d, "")
-        elif cls == ir.Class.d:
-            try self.writer.line3("movq ", v, ", %rax")
-            try self.writer.line("btcq $63, %rax")
-            try self.writer.line3("movq %rax, ", d, "")
+        elif cls == ir.Class.d or cls == ir.Class.s:
+            # the sign bit flipped in place, from the shared masks: no integer register
+            if v != d:
+                try self.writer.line4("movaps ", v, ", ", d)
+            try self.writer.line4("xorps ", self.shared(".Lvsign64" if cls == ir.Class.d else ".Lvsign32"), "(%rip), ", d)
         else:
             try self.writer.line3("movd ", v, ", %eax")
             try self.writer.line("xorl $32768, %eax" if cls == ir.Class.h else "xorl $2147483648, %eax")
             try self.writer.line3("movd %eax, ", d, "")
         try self.finish(n.dst, cls, d)
+
+    ## A scalar SSE instruction writing `d` from `v` keeps `d`'s upper lanes, so it waits for
+    ## whatever last wrote `d`: a loop converting or rooting a value each round would chain
+    ## its rounds through that register. Clearing `d` first breaks the chain, as compilers
+    ## do; nothing to do when `d` is `v`, which the instruction reads anyway.
+    func fresh(v: str, d: str) -> !:
+        if v != d:
+            try self.writer.line4("xorps ", d, ", ", d)
 
     ## The C library's float functions this target computes itself (`isa.has_float`): the
     ## square root, the magnitude (the sign bit cleared, a NaN's payload kept), and from
@@ -535,17 +544,18 @@ extend Generator:
         let d = self.target(n.dst, cls, self.reg(cls, 0))
         match n.op:
             .fabs:
-                if double:
-                    try self.writer.line3("movq ", v, ", %rax")
-                    try self.writer.line("btrq $63, %rax")
-                    try self.writer.line3("movq %rax, ", d, "")
-                else:
-                    try self.writer.line3("movd ", v, ", %eax")
-                    try self.writer.line("andl $2147483647, %eax")
-                    try self.writer.line3("movd %eax, ", d, "")
+                # every bit but the sign, made in the second scratch register
+                let mask = self.reg(cls, 1)
+                try self.writer.line4("pcmpeqd ", mask, ", ", mask)
+                try self.writer.line3("psrlq $1, " if double else "psrld $1, ", mask, "")
+                if v != d:
+                    try self.writer.line4("movaps ", v, ", ", d)
+                try self.writer.line4("andps ", mask, ", ", d)
             .fsqrt:
+                try self.fresh(v, d)
                 try self.writer.line4("sqrtsd " if double else "sqrtss ", v, ", ", d)
             _:
+                try self.fresh(v, d)
                 let mode = "$9, " if n.op == ir.Op.ffloor else ("$10, " if n.op == ir.Op.fceil else "$11, ")
                 try self.writer.line4("roundsd " if double else "roundss ", mode, v, ", ")
                 try self.writer.put(d)
@@ -705,12 +715,14 @@ extend Generator:
                 if n.cls == ir.Class.d:
                     try self.writer.line4("cvtss2sd ", d, ", ", d)
             .exts:
+                try self.fresh(v, d)
                 try self.writer.line4("cvtss2sd ", v, ", ", d)
             .truncs:
                 if v != d:
                     try self.writer.line4("movaps ", v, ", ", d)
                 try self.round_to_half(d)
             _:
+                try self.fresh(v, d)
                 try self.writer.line4("cvtsd2ss ", v, ", ", d)
                 if n.cls == ir.Class.h:
                     try self.round_to_half(d)
@@ -818,6 +830,7 @@ extend Generator:
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0)) if n.cls != ir.Class.h else self.reg(n.cls, 0)
         let single = n.cls != ir.Class.d
         let convert = "cvtsi2ss" if single else "cvtsi2sd"
+        try self.fresh(v, d)
         if n.op == ir.Op.swtof:
             try self.writer.line4(convert, "l ", v, ", ")
             try self.writer.put(d)

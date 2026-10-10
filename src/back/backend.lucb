@@ -406,6 +406,8 @@ func optimise_function(f: ir.Function*, level: u32, arch: targets.Arch) -> !:
         var g3 = try gvn.run(f, &g2)
         g2.release()
         try note(&at, 4)
+        # a call through a known function's address calls it, for the inliner to expand
+        _ = try opt.direct_calls(f)
         if level >= 3 and try load.run(f, &g3):
             # loads became copies, and phis joined some blocks: number again
             g3.release()
