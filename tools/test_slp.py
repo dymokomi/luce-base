@@ -10,9 +10,11 @@ sharing values across lanes, some through records that overlap, some with a lane
 elsewhere, print every bit they computed: the native build at --opt 3 must print what the C
 backend prints. `--count N` and `--seed S` widen the search."""
 from pathlib import Path
-import argparse, random, re, subprocess, sys, tempfile
+import argparse, os, random, re, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+# the pass is off unless asked for (opt/slp)
+os.environ['LUCE_SLP'] = '1'
 
 KERNELS = '''struct V3:
     var x: f64
