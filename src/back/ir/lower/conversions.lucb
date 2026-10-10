@@ -71,19 +71,19 @@ extend Lowerer:
     ## A double to an integer without `core.f_to_s` or `core.f_to_u`, where the instruction
     ## can say what they do: checked (`T(x)`), a compare of the double with the type's
     ## bounds (NaN and the infinities fail it) before the conversion, which then truncates
-    ## exactly; unchecked (`(T)x`) into a 32- or 64-bit signed integer, the conversion
-    ## marked saturating (`extra` 1: NaN is 0, the rest clamps to the range), which the
-    ## target does in an instruction or a few. None for a saturating conversion into an
-    ## unsigned or narrower integer, which the helper does.
+    ## exactly; unchecked (`(T)x`) into a 32- or 64-bit integer, the conversion marked
+    ## saturating (`extra` 1: NaN is 0, the rest clamps to the range), which the target
+    ## does in an instruction or a few. None for a saturating conversion into a narrower
+    ## integer, which the helper does.
     func float_to_int(wide: ir.Ref, dest: u32, checked: bool) -> ir.Ref?!:
         let bits = self.scalar_size(dest) * 8
         let signed = self.is_signed(dest)
         if not checked:
-            if not signed or (bits != 32 and bits != 64):
+            if bits != 32 and bits != 64:
                 return none
             let cls = self.class_of(dest)
             let t = try self.f.temp(cls)
-            try self.f.emit(ir.Op.dtosi, cls, t, wide, ir.none_ref(), 1)
+            try self.f.emit(ir.Op.dtosi if signed else ir.Op.dtoui, cls, t, wide, ir.none_ref(), 1)
             return ir.temp_ref(t)
         # the range is [-2^(bits-1), 2^(bits-1)) or [0, 2^bits), whose bounds are exact
         let top = bits - 1 if signed else bits

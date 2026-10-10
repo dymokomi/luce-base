@@ -20,6 +20,14 @@ let result_codes: usize[4] = [30, 29, 28, 27]
 let float_result_d: str[4] = ["d0", "d1", "d2", "d3"]
 let float_result_s: str[4] = ["s0", "s1", "s2", "s3"]
 
+## The float argument registers d0-d7, and their single views.
+let float_argument_d: str[8] = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"]
+let float_argument_s: str[8] = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
+
+## Float argument register `k` viewed as class `cls`: d0-d7, s0-s7 for a single.
+func float_argument_name(cls: ir.Class, k: u32) -> str:
+    return float_argument_s[(usize)k] if cls == ir.Class.s else float_argument_d[(usize)k]
+
 ## Float result register `k` viewed as class `cls`: d0-d3, s0-s3 for a single.
 func float_result_name(cls: ir.Class, k: u32) -> str:
     return float_result_s[(usize)k] if cls == ir.Class.s else float_result_d[(usize)k]

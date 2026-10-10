@@ -115,7 +115,10 @@ extend Generator:
         try self.writer.line("mov x29, sp")
         if self.dw != none:
             try self.writer.line(".cfi_def_cfa_register 29")
-        if self.fr.size <= 4095:
+        if self.fr.size == 0:
+            # an empty frame: sp stays where x29 is
+            _ = 0
+        elif self.fr.size <= 4095:
             try self.writer.line("sub sp, sp, #")
             try self.writer.put_u64(self.fr.size)
         else:

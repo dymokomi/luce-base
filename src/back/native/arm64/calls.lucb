@@ -279,7 +279,10 @@ extend Generator:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 1:
-                if a.size == 0:
+                if a.size == 0 and (a.cls == ir.Class.d or a.cls == ir.Class.s):
+                    # straight into its register: no temporary lives in d0-d7
+                    try self.operand(float_argument_name(a.cls, p.first), a.cls, a.value)
+                elif a.size == 0:
                     try self.operand(scratch_register(a.cls, 0), a.cls, a.value)
                     try self.writer.line("fmov ")
                     try self.writer.put(float_letter(a.cls))

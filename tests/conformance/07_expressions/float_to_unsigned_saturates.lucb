@@ -1,0 +1,23 @@
+## Unchecked float to unsigned conversions saturate: NaN and what is below zero are 0, what
+## reaches the type's range the greatest, the rest truncates.
+noinline func wide(x: f64) -> u64:
+    return (u64)x
+
+noinline func word(x: f64) -> u32:
+    return (u32)x
+
+noinline func single_wide(x: f32) -> u64:
+    return (u64)x
+
+noinline func index(x: f64) -> usize:
+    return (usize)(x * 2.0)
+
+pub func main(arguments: str[]) -> i32:
+    let zero = (f64)(arguments.length - 1)
+    let values: f64[14] = [0.0, -0.0, 0.5, 1.0, -1.5, 3.99, 4294967295.5, 4294967296.0, 1.0e19, 9223372036854775808.0, 18446744073709549568.0, 18446744073709551616.0, 1.0e300, -1.0e300]
+    for v in values:
+        print(f"{wide(v)} {word(v)} {single_wide((f32)v)} {index(v)}")
+    let nan = zero / zero
+    let inf = 1.0 / zero
+    print(f"{wide(nan)} {word(nan)} {single_wide((f32)nan)} {wide(inf)} {word(-inf)}")
+    return 0

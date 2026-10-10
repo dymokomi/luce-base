@@ -725,6 +725,9 @@ extend Generator:
         let v = try self.source(n.a, src, self.reg(src, 0))
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
         let convert = "cvttsd2si " if src == ir.Class.d else "cvttss2si "
+        let clamped = n.extra == 1 and (n.op == ir.Op.stoui or n.op == ir.Op.dtoui)
+        if clamped:
+            try self.clamp_unsigned(n, src, v)
         if n.op == ir.Op.stosi or n.op == ir.Op.dtosi:
             try self.writer.line4(convert, v, ", ", d)
             if n.extra == 1:
@@ -752,7 +755,36 @@ extend Generator:
             try self.writer.line4(convert, work, ", ", d)
             try self.writer.line3("btcq $63, ", d, "")
             try self.writer.put("\n2:")
+        if clamped:
+            # the ends of the range, which `clamp_unsigned` branched to
+            try self.writer.line("jmp 5f")
+            try self.writer.put("\n3:")
+            try self.load_immediate(d, 0)
+            try self.writer.line("jmp 5f")
+            try self.writer.put("\n4:")
+            try self.load_immediate(d, -1 if n.cls == ir.Class.l else 4294967295)
+            try self.writer.put("\n5:")
         try self.finish(n.dst, n.cls, d)
+
+    ## Before a saturating conversion to an unsigned integer (`extra` 1): NaN and what is
+    ## not above zero to `3:`, which answers 0, and what reaches 2^bits to `4:`, which
+    ## answers the greatest, as arm64's `fcvtzu` and `core.f_to_u` answer.
+    func clamp_unsigned(n: ir.Instr, src: ir.Class, v: str) -> !:
+        let bound = self.reg(src, 1)
+        let double = src == ir.Class.d
+        let compare = "ucomisd " if double else "ucomiss "
+        try self.writer.line4("xorps ", bound, ", ", bound)
+        try self.writer.line4(compare, bound, ", ", v)
+        try self.writer.line("jbe 3f")
+        let wide = n.cls == ir.Class.l
+        if double:
+            try self.load_immediate("%r11", 4895412794951729152 if wide else 4751297606875873280)
+            try self.writer.line3("movq %r11, ", bound, "")
+        else:
+            try self.load_immediate("%r11d", 1602224128 if wide else 1333788672)
+            try self.writer.line3("movd %r11d, ", bound, "")
+        try self.writer.line4(compare, bound, ", ", v)
+        try self.writer.line("jae 4f")
 
     ## After `cvttsd2si`, which leaves the least integer for NaN and for every value out of
     ## range: the greatest for a value at or above 2^(bits-1), 0 for NaN, as arm64's

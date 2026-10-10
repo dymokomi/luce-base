@@ -41,7 +41,15 @@ extend Lowerer:
     ## `-x`, `~x`, or `-%x` on one scalar of type `t`.
     func unary_scalar(op: str, t: u32, x: ir.Ref) -> ir.Ref!:
         if self.is_float(t):
-            return try self.f.unary(ir.Op.neg, self.class_of(t), x)
+            let cls = self.class_of(t)
+            if x.kind == ir.RefKind.temp and self.f.instrs.count > 0:
+                let last = self.f.instrs.get(self.f.instrs.count - 1)
+                if last.op == ir.Op.cast and last.dst == x.index and last.a.kind == ir.RefKind.constant and last.cls == cls:
+                    # a float literal negated is the literal with its sign bit flipped,
+                    # exactly what `neg` computes: one constant (`x * -0.4375`)
+                    let sign: u64 = (u64)1 << (15 if cls == ir.Class.h else (31 if cls == ir.Class.s else 63))
+                    return try self.f.unary(ir.Op.cast, cls, ir.const_ref((i64)((u64)last.a.value ^ sign)))
+            return try self.f.unary(ir.Op.neg, cls, x)
         let cls = self.class_of(t)
         if op == "~":
             let flipped = try self.f.binary(ir.Op.xor, cls, x, ir.const_ref(-1))
