@@ -35,6 +35,8 @@ Level 3 additionally:
    Calls are memory barriers, including their implicit ABI result storage.
 3. Versions suitable counted loops for 128-bit SIMD, retaining the original
    scalar loop as both the fallback and the tail.
+4. Packs paired float arithmetic within a basic block into vector operations
+   (superword-level parallelism, `opt/slp`), below.
 
 Proof searches and loop passes have finite work bounds. Exhausting one leaves
 an optimization unapplied; it does not authorize removing a check.
@@ -52,6 +54,21 @@ Loops containing calls, atomics, unresolved checks, branches in their bodies,
 unsupported operations or additional loop-carried dependencies remain scalar.
 Floating reductions remain scalar. Elementwise floating expressions retain their
 operation order, and multiplication/addition are not fused.
+
+Within one basic block, stores of doubles to two neighbouring addresses, or of
+singles to four (else two), seed a tree of lanes: lanes one operation computes
+(add, subtract, multiply, divide, negate, square root, and conversion between
+singles and doubles) become one vector operation, lanes loaded from neighbouring
+addresses one vector load, and other lanes are broadcast or packed from their
+scalars. A tree is kept when it saves instructions, packings and extracted
+lanes counted against it, and only when the new order keeps the program's: no
+load or store crosses a store it may touch (the alias classes of `opt/load`), a
+call, or, for a store, a check that may trap. Each lane rounds as its scalar did,
+so the results are the same bits; sums and products may take their operands in
+either order, as value numbering already does. A vec3 kernel that reads its
+points whole and writes the result whole, `p + (q - p) * t` on `Float3` or on
+doubles, computes x and y together on both targets; two singles on x86-64 are
+only loaded, stored and converted, since SSE computes on four.
 
 For writes, runtime guards require each read stream to have either the same base
 or a disjoint byte range. Partial overlap in either direction uses the scalar

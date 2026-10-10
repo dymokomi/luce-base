@@ -95,7 +95,7 @@ pub func is_terminator(op: Op) -> bool:
 
 ## Whether `op` computes on vectors (§5.12), lane shape in `extra`.
 pub func is_vector_op(op: Op) -> bool:
-    return (u8)op >= (u8)Op.loadv and (u8)op <= (u8)Op.vsplat
+    return ((u8)op >= (u8)Op.loadv and (u8)op <= (u8)Op.vsplat) or ((u8)op >= (u8)Op.vinsert and (u8)op <= (u8)Op.vtruncd)
 
 ## What an operand refers to.
 pub enum RefKind as u8:
@@ -341,6 +341,18 @@ pub enum Op as u8:
     ## function's frame until it returns (`memory.frame`, §12.7). The bytes the function's
     ## calls pass on the stack go below it.
     alloca = 108
+    ## Lanes the optimiser packs from scalars (`opt/slp`), lane `extra2` of a vector of
+    ## shape `extra`: `vinsert dst = a with lane extra2 set to the scalar b` (`a` none: the
+    ## other lanes are anything), `vextract dst = lane extra2 of a`, at the lane's class, and
+    ## `vsqrt dst = the square root of every lane of a`, as `fsqrt` computes each.
+    vinsert = 164
+    vextract = 165
+    vsqrt = 166
+    ## Two lanes between widths, as `exts` and `truncd` convert each: `vexts dst = the
+    ## singles of a as doubles`, `vtruncd dst = the doubles of a as singles`; `extra` is the
+    ## result's shape.
+    vexts = 167
+    vtruncd = 168
     ## The frame pointer of the running function, for the debugger.
     frame = 200
     ## Inline assembly operands: `set_reg a -> named register b` before an `asm` block,

@@ -136,6 +136,30 @@ func vector_view(reg: str) -> str:
         return "v17"
     return "v18"
 
+## The vector view (`v24`) of a float or vector register named any way (`d24`, `s24`,
+## `q24`), the generator's scratch registers v16-v18 included.
+func lanes_view(reg: str) -> str:
+    for k in 11..<v_names.length:
+        if x_names[k] == reg or w_names[k] == reg or q_names[k] == reg:
+            return v_names[k]
+    if reg == "d16" or reg == "s16" or reg == "q16":
+        return "v16"
+    if reg == "d17" or reg == "s17" or reg == "q17":
+        return "v17"
+    return "v18" if reg == "d18" or reg == "s18" or reg == "q18" else reg
+
+## The scalar view of class `cls` (`d24` or `s24`) of a float or vector register.
+func scalar_view(reg: str, cls: ir.Class) -> str:
+    let v = lanes_view(reg)
+    for k in 11..<v_names.length:
+        if v_names[k] == v:
+            return x_names[k] if cls == ir.Class.d else w_names[k]
+    if v == "v16":
+        return "d16" if cls == ir.Class.d else "s16"
+    if v == "v17":
+        return "d17" if cls == ir.Class.d else "s17"
+    return "d18" if cls == ir.Class.d else "s18"
+
 ## The condition a comparison's `cmp` (`fcmp` when `is_float`) leaves true; after an `fcmp`
 ## of a NaN, `mi`, `ls`, `gt`, `ge` and `eq` are false and `ne` true, as `ir.Op` says.
 func condition(op: ir.Op, is_float: bool) -> str:

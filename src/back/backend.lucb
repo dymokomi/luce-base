@@ -28,6 +28,7 @@ import back.opt.gvn
 import back.opt.load
 import back.opt.loops
 import back.opt.ranges
+import back.opt.slp
 import back.opt.split
 import back.opt.ssa
 import back.opt.vectorize
@@ -164,7 +165,7 @@ pub struct NativeBackend: Backend:
             let n = self.lowerer.program_unit.functions.count
             let generated = taken.generated
             let optimised = try self.lowerer.program_unit.called_by(generated)
-            try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, optimised)
+            try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, optimised, t.arch)
             # small leaf functions measured as optimised, expanded where they are called; the
             # callers that gained bodies are optimised again and tidied
             if not self.debug and self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
@@ -172,7 +173,7 @@ pub struct NativeBackend: Backend:
                 defer free(changed)
                 for i in 0..<n:
                     changed[i] = changed[i] and generated[i]
-                try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed)
+                try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count, changed, t.arch)
                 # every function tidied, not only those this pass changed: the first pass's
                 # expansions leave parameter stores and unreached blocks behind as well
                 try each_function(&self.lowerer.program_unit, tidy_task, generated)
@@ -306,12 +307,13 @@ func print_report() -> !:
 let optimised_small: usize = 48
 
 ## Optimise every function of `program` (the first `count`), or only those `only` marks,
-## each on whichever thread takes it (back.parallel): a function's passes read and write
-## that function alone. A failure is reported for the first function that failed.
-func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?) -> !:
+## each on whichever thread takes it (back.parallel), for a target of `arch`: a function's
+## passes read and write that function alone. A failure is reported for the first function
+## that failed.
+func optimise_functions(program: ir.Unit*, level: u32, count: u32, only: bool[]?, arch: targets.Arch) -> !:
     let n = program.functions.count if program.functions.count < (usize)count else (usize)count
     with memory.heap:
-        var job = Optimising(program = program, level = level, only = only, failures = try parallel.failures(n))
+        var job = Optimising(program = program, level = level, arch = arch, only = only, failures = try parallel.failures(n))
         defer free(job.failures)
         let order = try program.largest_first(n)
         defer free(order)
@@ -362,6 +364,7 @@ func sweep_task(f: ir.Function*) -> !:
 struct Optimising:
     var program: ir.Unit*
     var level: u32
+    var arch: targets.Arch
     var only: bool[]?
     var failures: parallel.Failure[]
 
@@ -371,11 +374,11 @@ func optimise_task(context: void*?, index: usize):
     if let marked = job.only:
         if index >= marked.length or not marked[index]:
             return
-    optimise_function(&job.program.functions.items[index], job.level) catch failure:
+    optimise_function(&job.program.functions.items[index], job.level, job.arch) catch failure:
         job.failures[index] = parallel.failed(failure.code, failure.message)
 
-## The optimiser's passes over `f` at `level`.
-func optimise_function(f: ir.Function*, level: u32) -> !:
+## The optimiser's passes over `f` at `level`, for a target of `arch`.
+func optimise_function(f: ir.Function*, level: u32, arch: targets.Arch) -> !:
     if f.naked or f.debug or f.instrs.count == 0 or level == 0:
         return
     with memory.heap:
@@ -434,6 +437,8 @@ func optimise_function(f: ir.Function*, level: u32) -> !:
             _ = try loops.straighten(f)
             try loops.run(f)
             try vectorize.run(f)
+            # paired float arithmetic within a block, as vector operations where it pays
+            _ = try slp.run(f, arch)
             g3 = try cfg.Graph.over(f)
         try dessa.run(f, &g3)
         g3.release()

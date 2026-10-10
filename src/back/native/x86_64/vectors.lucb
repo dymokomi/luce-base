@@ -21,6 +21,8 @@ extend Generator:
         let signed = ir.lanes_signed(shape)
         let first = self.reg(ir.Class.v, 0)
         let second = self.reg(ir.Class.v, 1)
+        if try self.float_lanes(n, first):
+            return
         if bytes == 16:
             if n.op == ir.Op.loadv:
                 try self.address_operand("%r10", n.a)
@@ -95,6 +97,94 @@ extend Generator:
                 else:
                     try self.writer.line5(vector_mnemonic(n.op, shape), " ", second, ", ", first)
                 try self.vector_result(n.dst, first, bytes)
+
+    ## Float lanes straight between their registers: two singles to and from memory as the
+    ## register's low quadword, and a float broadcast into every lane; false for anything
+    ## else.
+    func float_lanes(n: ir.Instr, first: str) -> bool!:
+        let shape = n.extra
+        let bytes = ir.vector_bytes(shape)
+        let bits = ir.lane_bits(shape)
+        if not ir.lanes_float(shape):
+            return false
+        if bytes == 8 and (n.op == ir.Op.loadv or n.op == ir.Op.storev):
+            # two singles, the register's low quadword, between their registers and memory
+            try self.address_operand("%r10", n.b if n.op == ir.Op.storev else n.a)
+            if n.op == ir.Op.loadv:
+                let d = self.target(n.dst, ir.Class.v, first)
+                try self.writer.line3("movsd (%r10), ", d, "")
+                try self.finish(n.dst, ir.Class.v, d)
+            else:
+                let value = try self.source(n.a, ir.Class.v, first)
+                try self.writer.line3("movsd ", value, ", (%r10)")
+            return true
+        if bytes == 16 and n.op == ir.Op.vsplat:
+            # a float straight from where it lives into every lane of the result's register
+            let cls = ir.Class.d if bits == 64 else ir.Class.s
+            let v = try self.source(n.a, cls, self.reg(cls, 1))
+            let d = self.target(n.dst, ir.Class.v, first)
+            if v != d:
+                try self.writer.line4("movaps ", v, ", ", d)
+            try self.writer.line4("unpcklpd " if bits == 64 else "shufps $0, ", d, ", ", d)
+            try self.finish(n.dst, ir.Class.v, d)
+            return true
+        return false
+
+    ## The lanes the optimiser packs from scalars (`opt/slp`), between the allocated
+    ## registers: a scalar into lane 0 (`movsd`/`movss`, merging) or lane 1 (`unpcklpd`, or
+    ## `unpcklps` for a two-lane single vector, the only shapes the optimiser inserts
+    ## into), a lane out to a scalar (lane 0 is the register itself; `unpckhpd` or `shufps`
+    ## bring another down), and the square root of every lane. An inserted scalar sharing
+    ## the result's register is moved aside before the vector it joins is copied in.
+    func packed_lanes(n: ir.Instr) -> !:
+        let shape = n.extra
+        let wide = ir.lane_bits(shape) == 64
+        let cls = ir.Class.d if wide else ir.Class.s
+        if n.op == ir.Op.vsqrt or n.op == ir.Op.vexts or n.op == ir.Op.vtruncd:
+            let a = try self.source(n.a, ir.Class.v, self.reg(ir.Class.v, 0))
+            let d = self.target(n.dst, ir.Class.v, self.reg(ir.Class.v, 0))
+            var mnemonic = "sqrtpd " if wide else "sqrtps "
+            if n.op == ir.Op.vexts:
+                mnemonic = "cvtps2pd "
+            elif n.op == ir.Op.vtruncd:
+                mnemonic = "cvtpd2ps "
+            try self.writer.line4(mnemonic, a, ", ", d)
+            try self.finish(n.dst, ir.Class.v, d)
+            return
+        if n.op == ir.Op.vextract:
+            let a = try self.source(n.a, ir.Class.v, self.reg(ir.Class.v, 0))
+            let d = self.target(n.dst, cls, self.reg(cls, 0))
+            if a != d:
+                try self.writer.line4("movaps ", a, ", ", d)
+            if n.extra2 > 0 and wide:
+                try self.writer.line4("unpckhpd ", d, ", ", d)
+            elif n.extra2 > 0:
+                try self.writer.line("shufps $")
+                try self.writer.put_u64((u64)n.extra2)
+                try self.put2(", ", d)
+                try self.put2(", ", d)
+            try self.finish(n.dst, cls, d)
+            return
+        var b = try self.source(n.b, cls, self.reg(cls, 1))
+        let d = self.target(n.dst, ir.Class.v, self.reg(ir.Class.v, 0))
+        if n.a.kind == ir.RefKind.none_ and n.extra2 == 0:
+            # the other lanes are anything: the scalar's own move
+            if b != d:
+                try self.writer.line4("movaps ", b, ", ", d)
+            try self.finish(n.dst, ir.Class.v, d)
+            return
+        if b == d:
+            try self.writer.line4("movaps ", b, ", ", self.reg(cls, 1))
+            b = self.reg(cls, 1)
+        if n.a.kind != ir.RefKind.none_:
+            let a = try self.source(n.a, ir.Class.v, self.reg(ir.Class.v, 0))
+            if a != d:
+                try self.writer.line4("movaps ", a, ", ", d)
+        if n.extra2 == 0:
+            try self.writer.line4("movsd " if wide else "movss ", b, ", ", d)
+        else:
+            try self.writer.line4("unpcklpd " if wide else "unpcklps ", b, ", ", d)
+        try self.finish(n.dst, ir.Class.v, d)
 
     ## `vaddo`/`vsubo`: the wrapping result in the third scratch register; a lane that
     ## overflowed traps. With `a` and `b` in the first two: bytes and halfwords compare the

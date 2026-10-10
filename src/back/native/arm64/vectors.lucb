@@ -20,7 +20,7 @@ extend Generator:
         let all = ".16b" if bytes == 16 else ".8b"
         # Full-width operations can read and write their allocated registers
         # directly. Narrow and checked vectors keep the specialized sequences.
-        if bytes == 16 and try self.full_vector(n, arr, all):
+        if (bytes == 16 or ir.lanes_float(shape)) and try self.full_vector(n, arr, all):
             return
         match n.op:
             .loadv:
@@ -63,17 +63,29 @@ extend Generator:
     ## A sixteen-byte load, store, or lane-wise arithmetic straight between the allocated
     ## registers; false for an operation that takes the scratch sequences instead.
     func full_vector(n: ir.Instr, arr: str, all: str) -> bool!:
+        if n.op == ir.Op.vsplat and ir.lanes_float(n.extra):
+            # a float straight from where it lives into every lane of the result's register
+            let cls = ir.Class.d if ir.lane_bits(n.extra) == 64 else ir.Class.s
+            let v = try self.source(n.a, cls, scratch_register(cls, 0))
+            let d = self.target(n.dst, ir.Class.v, "q16")
+            try self.writer.line4("dup ", lanes_view(d), arr, ", ")
+            try self.writer.put(lanes_view(v))
+            try self.writer.put(".d[0]" if cls == ir.Class.d else ".s[0]")
+            try self.finish(n.dst, ir.Class.v, d)
+            return true
+        # an eight-byte vector is the register's low half, loaded and stored as `d`
+        let wide = ir.vector_bytes(n.extra) == 16
         if n.op == ir.Op.loadv:
             let address = try self.source(n.a, ir.Class.l, "x9")
             let d = self.target(n.dst, ir.Class.v, "q16")
-            try self.writer.line4("ldr ", d, ", [", address)
+            try self.writer.line4("ldr ", d if wide else scalar_view(d, ir.Class.d), ", [", address)
             try self.writer.put("]")
             try self.finish(n.dst, ir.Class.v, d)
             return true
         if n.op == ir.Op.storev:
             let value = try self.source(n.a, ir.Class.v, "q16")
             let address = try self.source(n.b, ir.Class.l, "x9")
-            try self.writer.line4("str ", value, ", [", address)
+            try self.writer.line4("str ", value if wide else scalar_view(value, ir.Class.d), ", [", address)
             try self.writer.put("]")
             return true
         if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
@@ -94,6 +106,70 @@ extend Generator:
             try self.finish(n.dst, ir.Class.v, d)
             return true
         return false
+
+    ## The lanes the optimiser packs from scalars (`opt/slp`), between the allocated
+    ## registers: a scalar into a lane (`ins`), a lane out to a scalar (lane 0 is the
+    ## register's own scalar view), and the square root of every lane. An inserted scalar
+    ## sharing the result's register is moved aside before the vector it joins is copied in.
+    func packed_lanes(n: ir.Instr) -> !:
+        let shape = n.extra
+        let wide = ir.lane_bits(shape) == 64
+        let cls = ir.Class.d if wide else ir.Class.s
+        let lane = ".d[" if wide else ".s["
+        if n.op == ir.Op.vsqrt or n.op == ir.Op.vexts or n.op == ir.Op.vtruncd:
+            # the source's lanes: as many as the result's, of the other width when converting
+            var source_lanes = arrangement(shape)
+            var mnemonic = "fsqrt "
+            if n.op == ir.Op.vexts:
+                source_lanes = ".2s"
+                mnemonic = "fcvtl "
+            elif n.op == ir.Op.vtruncd:
+                source_lanes = ".2d"
+                mnemonic = "fcvtn "
+            let a = try self.source(n.a, ir.Class.v, "q16")
+            let d = self.target(n.dst, ir.Class.v, "q16")
+            try self.writer.line4(mnemonic, lanes_view(d), arrangement(shape), ", ")
+            try self.writer.put(lanes_view(a))
+            try self.writer.put(source_lanes)
+            try self.finish(n.dst, ir.Class.v, d)
+            return
+        if n.op == ir.Op.vextract:
+            let a = try self.source(n.a, ir.Class.v, "q16")
+            let d = self.target(n.dst, cls, scratch_register(cls, 0))
+            if n.extra2 == 0:
+                let low = scalar_view(a, cls)
+                if low != d:
+                    try self.fmove(d, low)
+            else:
+                try self.writer.line4("mov ", d, ", ", lanes_view(a))
+                try self.writer.put(lane)
+                try self.writer.put_u64((u64)n.extra2)
+                try self.writer.put("]")
+            try self.finish(n.dst, cls, d)
+            return
+        var b = try self.source(n.b, cls, scratch_register(cls, 1))
+        let d = self.target(n.dst, ir.Class.v, "q16")
+        if n.a.kind == ir.RefKind.none_ and n.extra2 == 0:
+            # the other lanes are anything: the scalar's own move
+            if lanes_view(b) != lanes_view(d):
+                try self.fmove(scalar_view(d, cls), b)
+            try self.finish(n.dst, ir.Class.v, d)
+            return
+        if lanes_view(b) == lanes_view(d):
+            try self.fmove(scratch_register(cls, 1), b)
+            b = scratch_register(cls, 1)
+        if n.a.kind != ir.RefKind.none_:
+            let a = try self.source(n.a, ir.Class.v, "q16")
+            if lanes_view(a) != lanes_view(d):
+                try self.writer.line4("mov ", lanes_view(d), ".16b, ", lanes_view(a))
+                try self.writer.put(".16b")
+        try self.writer.line4("mov ", lanes_view(d), lane, "")
+        try self.writer.put_u64((u64)n.extra2)
+        try self.writer.put("], ")
+        try self.writer.put(lanes_view(b))
+        try self.writer.put(lane)
+        try self.writer.put("0]")
+        try self.finish(n.dst, ir.Class.v, d)
 
     ## `v << count` and `v >> count`: the count, one scalar, spread over the lanes; a right
     ## shift is a left shift by the negated count, arithmetic or logical by the lanes'

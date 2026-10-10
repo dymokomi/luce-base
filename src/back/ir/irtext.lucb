@@ -187,6 +187,9 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
                 try out.put("f" if ir.lanes_float(x.extra) else ("s" if ir.lanes_signed(x.extra) else "u"))
                 try out.put_u64((u64)ir.lane_bits(x.extra))
                 try out.put("]")
+                if x.op == ir.Op.vinsert or x.op == ir.Op.vextract:
+                    try out.put(" lane ")
+                    try out.put_u64((u64)x.extra2)
             elif x.extra != 0 and x.op != ir.Op.trap_:
                 try out.put(" [")
                 try out.put_u64((u64)x.extra)
@@ -351,6 +354,11 @@ func op_name(op: ir.Op) -> str:
         .vshl: return "vshl"
         .vshr: return "vshr"
         .vsplat: return "vsplat"
+        .vinsert: return "vinsert"
+        .vextract: return "vextract"
+        .vsqrt: return "vsqrt"
+        .vexts: return "vexts"
+        .vtruncd: return "vtruncd"
         .fma: return "fma"
         .select: return "select"
         .dbg: return "dbg"

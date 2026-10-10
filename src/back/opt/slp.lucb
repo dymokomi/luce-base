@@ -1,0 +1,681 @@
+#==============================================================================================
+#
+#   slp - Paired float arithmetic as vector operations, within a basic block
+#
+#   DESCRIPTION:
+#       Superword-level parallelism (Larsen and Amarasinghe; LLVM's bottom-up form): stores
+#       of doubles to two neighbouring addresses, or of singles to four (two on arm64), seed
+#       a tree of lanes. Lanes the same operation computes become one vector operation of
+#       their operands' lanes, and loads from neighbouring addresses one vector load; any
+#       other lanes are packed from their scalars (a broadcast when they are one value).
+#       The tree is kept when it saves instructions: each vector operation, load and store
+#       saves all but one of its lanes' scalars, each packing and each lane a scalar still
+#       needs elsewhere costs one or two.
+#
+#       A vector operation stands where its last lane did, its operands before it and a
+#       lane's scalar, when something outside the tree reads it, extracted after it. A tree
+#       is kept only when that order keeps the program's: every scalar outside it reads a
+#       lane after the vector computes it, and no load or store crosses a store or a call it
+#       may touch (`load.Aliases`), nor a store a check that may trap. Each lane computes
+#       what its scalar computed, in the same order, rounding once: lane-wise IEEE
+#       arithmetic is exact as the scalar is, so the results are the same bits. A sum or a
+#       product may take its operands in either order, as value numbering already does.
+#
+#==============================================================================================
+
+import back.ir.cfg
+import back.ir.ir
+import back.opt.load
+import back.target as targets
+import support.list
+
+# mark: Nodes =================================================================================
+
+## A tree node's kind: lanes one vector operation computes, lanes loaded together, the
+## seed's stores, one value in every lane, and lanes packed from their scalars.
+let operation: u8 = 1
+let loaded: u8 = 2
+let stored: u8 = 3
+let broadcast: u8 = 4
+let packed: u8 = 5
+
+## No node, no instruction.
+let none_index: u32 = 0xFFFFFFFF
+
+## How deep a tree goes before its lanes are packed from scalars instead.
+let deepest: u32 = 12
+
+## The most instructions a tree may span, so the order checks stay cheap.
+let widest_span: u32 = 384
+
+## One node of a tree of lanes.
+struct Node:
+    var kind: u8
+    ## The vector operation, for an `operation` node.
+    var op: ir.Op
+    ## The lanes' class, `d` or `s`.
+    var cls: ir.Class
+    ## The lanes' values (a store's stored value for `stored`).
+    var values: ir.Ref[4]
+    ## The scalar instruction of each lane, for `operation`, `loaded` and `stored`.
+    var instrs: u32[4]
+    ## The operand nodes: the first, the second (`none_index` when there is none).
+    var first: u32
+    var second: u32
+    ## Where the vector operation stands: the last of its lanes' instructions.
+    var at: u32
+    ## The vector temporary, once emitted.
+    var vector: u32
+
+## A vector instruction to place after instruction `at` of the function.
+struct Insert:
+    var at: u32
+    var instr: ir.Instr
+
+# mark: The pass ==============================================================================
+
+## Pack the paired float arithmetic of `f`'s blocks into vector operations where it pays,
+## for a target of `arch`; whether anything changed.
+pub func run(f: ir.Function*, arch: targets.Arch) -> bool!:
+    if f.naked or f.debug or f.symbols or not has_seed(f):
+        return false
+    var g = try cfg.Graph.over(f)
+    defer g.release()
+    var aliases = try load.Aliases.over(f, &g)
+    defer aliases.release()
+    var s = try Pass.over(f, &g, &aliases, arch)
+    defer s.release()
+    for b in g.order.span():
+        try s.block(g.blocks.get((usize)b))
+    if s.inserts.count == 0:
+        return false
+    try s.rewrite()
+    return true
+
+## Whether `f` stores a float anywhere: no tree grows without a seed.
+func has_seed(f: ir.Function*) -> bool:
+    for x in f.instrs.span():
+        if x.op == ir.Op.stored or x.op == ir.Op.stores:
+            return true
+    return false
+
+## The pass over one function: where each temporary is defined and read, the trees of the
+## block at hand, and what the kept ones put in and take out.
+struct Pass:
+    var f: ir.Function*
+    var g: cfg.Graph*
+    var aliases: load.Aliases*
+    var arch: targets.Arch
+    ## Per temporary, the instruction defining it; `none_index` for none.
+    var defined: u32[]
+    ## Per instruction, the block holding it.
+    var block_of: u32[]
+    ## The readers of each temporary, as positions: `use_start[t] ..< use_start[t + 1]`
+    ## of `use_at` (an instruction's index; a phi's argument reads at its predecessor's end).
+    var use_start: u32[]
+    var use_at: u32[]
+    ## Per instruction, whether a kept tree took it (`claimed`) or removed it (`removed`).
+    var claimed: bool[]
+    var removed: bool[]
+    ## The tree being grown.
+    var nodes: list.List[Node]
+    ## The kept trees' vector instructions, in order.
+    var inserts: list.List[Insert]
+    ## The block at hand.
+    var start: u32
+    var end: u32
+
+    static func over(f: ir.Function*, g: cfg.Graph*, aliases: load.Aliases*, arch: targets.Arch) -> Pass!:
+        let n = f.instrs.count
+        var s = Pass(f = f, g = g, aliases = aliases, arch = arch, defined = try new u32[f.temps.count + 1] ---, block_of = try new u32[n + 1] ---, use_start = try new u32[f.temps.count + 2] ---, use_at = try new u32[1] ---, claimed = try new bool[n + 1] ---, removed = try new bool[n + 1] ---, nodes = try list.List[Node].create(16), inserts = try list.List[Insert].create(16), start = 0, end = 0)
+        for t in 0..<s.defined.length:
+            s.defined[t] = none_index
+        for i in 0..<s.claimed.length:
+            s.claimed[i] = false
+            s.removed[i] = false
+            s.block_of[i] = none_index
+        for b in 0..<g.blocks.count:
+            let block = g.blocks.get(b)
+            for i in block.start..<block.end:
+                s.block_of[(usize)i] = u32(b)
+        for i in 0..<n:
+            let x = f.instrs.get(i)
+            if x.dst != 0:
+                s.defined[(usize)x.dst] = u32(i)
+        try s.find_uses()
+        return s
+
+    func release():
+        free(self.defined)
+        free(self.block_of)
+        free(self.use_start)
+        free(self.use_at)
+        free(self.claimed)
+        free(self.removed)
+        self.nodes.destroy()
+        self.inserts.destroy()
+
+    # mark: Readers ===========================================================================
+
+    ## Every reader of every temporary, counted then placed: an instruction's operands and
+    ## arguments at its index, a phi's argument at the last instruction of the block it
+    ## comes from.
+    func find_uses() -> !:
+        let temps = self.f.temps.count + 1
+        var counts = try new u32[temps] ---
+        defer free(counts)
+        for t in 0..<temps:
+            counts[t] = 0
+        self.walk_uses(counts, false)
+        var total: u32 = 0
+        for t in 0..<temps:
+            self.use_start[t] = total
+            total += counts[t]
+            counts[t] = self.use_start[t]
+        self.use_start[temps] = total
+        free(self.use_at)
+        self.use_at = try new u32[(usize)total + 1] ---
+        self.walk_uses(counts, true)
+
+    ## One pass over the readers: counting each temporary's in `counts`, or, with `place`,
+    ## writing each at the next free position `counts` holds.
+    func walk_uses(counts: u32[], place: bool):
+        for i in 0..<self.f.instrs.count:
+            let x = self.f.instrs.get(i)
+            if x.op == ir.Op.phi:
+                for k in 0..<x.extra2:
+                    let arg = self.f.phi_args.get((usize)(x.extra + k))
+                    let pred = self.g.block_of(arg.pred)
+                    var at = u32(i)
+                    if pred != cfg.none_block:
+                        let block = self.g.blocks.get((usize)pred)
+                        at = block.end - 1 if block.end > block.start else block.end
+                    self.use(counts, arg.value, at, place)
+                continue
+            self.use(counts, x.a, u32(i), place)
+            self.use(counts, x.b, u32(i), place)
+            let (args_start, args_count) = ir.argument_range(self.f, x)
+            for k in 0..<args_count:
+                self.use(counts, self.f.args.get((usize)(args_start + k)).value, u32(i), place)
+
+    func use(counts: u32[], r: ir.Ref, at: u32, place: bool):
+        if r.kind != ir.RefKind.temp or (usize)r.index >= counts.length:
+            return
+        if place:
+            self.use_at[(usize)counts[(usize)r.index]] = at
+        counts[(usize)r.index] += 1
+
+    # mark: Seeds =============================================================================
+
+    ## The trees block `block` grows, each from stores to neighbouring addresses: the lowest
+    ## of a run of them starts a group, of two doubles, or of four singles, else two.
+    func block(block: cfg.Block) -> !:
+        if block.end - block.start < 4:
+            return
+        self.start = block.start
+        self.end = block.end
+        var stores = try list.List[u32].create(8)
+        defer stores.destroy()
+        for i in block.start..<block.end:
+            let x = self.f.instrs.get((usize)i)
+            if x.op == ir.Op.stored or x.op == ir.Op.stores:
+                try stores.push(i)
+        if stores.count < 2:
+            return
+        var tried = try new bool[stores.count] ---
+        defer free(tried)
+        for k in 0..<stores.count:
+            tried[k] = false
+        for k in 0..<stores.count:
+            let i = stores.get(k)
+            if self.claimed[(usize)i] or self.neighbour(&stores, tried, i, -1, true) != none_index:
+                continue
+            tried[k] = true
+            let x = self.f.instrs.get((usize)i)
+            var group: u32[4] = [i, none_index, none_index, none_index]
+            var lanes: u32 = 2 if x.op == ir.Op.stored else 4
+            var found = true
+            for l in 1..<lanes:
+                group[l] = self.neighbour(&stores, tried, i, (i64)l, false)
+                found = found and group[l] != none_index
+            if not found and lanes == 4 and group[1] != none_index:
+                lanes = 2
+                found = true
+            if found:
+                try self.seed(group, lanes)
+
+    ## The store of the same kind as store `i`, in the block's `stores`, unclaimed, at `l`
+    ## lanes past it (`l` negative: before it); `none_index` when there is none. With
+    ## `untried`, only a store not yet tried as a group's start counts.
+    func neighbour(stores: list.List[u32]*, tried: bool[], i: u32, l: i64, untried: bool) -> u32:
+        let x = self.f.instrs.get((usize)i)
+        let width = width_of(x.op)
+        let here = self.aliases.at(x.b, 0)
+        for k in 0..<stores.count:
+            let j = stores.get(k)
+            let y = self.f.instrs.get((usize)j)
+            if j == i or y.op != x.op or self.claimed[(usize)j] or (untried and tried[k]):
+                continue
+            let there = self.aliases.at(y.b, 0)
+            if same_base(here, there) and there.offset == here.offset +% l * width:
+                return j
+        return none_index
+
+    ## Grow the tree of the stores `group` of `lanes` lanes, and keep it if it is lawful and
+    ## pays.
+    func seed(group: u32[4], lanes: u32) -> !:
+        self.nodes.count = 0
+        let first = self.f.instrs.get((usize)group[0])
+        let cls = ir.Class.d if first.op == ir.Op.stored else ir.Class.s
+        var values: ir.Ref[4] = [ir.none_ref(), ir.none_ref(), ir.none_ref(), ir.none_ref()]
+        var at: u32 = 0
+        for l in 0..<lanes:
+            values[l] = self.f.instrs.get((usize)group[l]).a
+            at = group[l] if group[l] > at else at
+        let child = try self.build(values, lanes, cls, 0)
+        if child == none_index:
+            return
+        try self.nodes.push(Node(kind = stored, op = ir.Op.storev, cls = cls, values = values, instrs = group, first = child, second = none_index, at = at, vector = 0))
+        var extracts = try new bool[self.nodes.count * 4] ---
+        defer free(extracts)
+        for k in 0..<extracts.length:
+            extracts[k] = false
+        if not try self.ordered(lanes, extracts) or not self.reaches(lanes) or self.profit(lanes, extracts) < 1:
+            return
+        try self.emit(lanes, extracts)
+
+    # mark: Growing a tree ====================================================================
+
+    ## The node computing `values`, `lanes` of class `cls`, `depth` below the seed: one
+    ## operation or one load of every lane where the lanes allow it, else a broadcast or a
+    ## packing; `none_index` when nothing can (four singles packed on x86-64, which has no
+    ## instruction for a lane past the second before SSE4.1).
+    func build(values: ir.Ref[4], lanes: u32, cls: ir.Class, depth: u32) -> u32!:
+        var same = true
+        for l in 1..<lanes:
+            same = same and same_value(values[0], values[l])
+        if same and not self.narrow(lanes, cls):
+            return try self.add(Node(kind = broadcast, op = ir.Op.vsplat, cls = cls, values = values, instrs = no_instrs(), first = none_index, second = none_index, at = 0, vector = 0))
+        if depth < deepest:
+            if let found = try self.lanes_of(values, lanes, cls, depth):
+                return found
+        if self.narrow(lanes, cls) or (lanes > 2 and self.arch == targets.Arch.x86_64):
+            return none_index
+        return try self.add(Node(kind = packed, op = ir.Op.vinsert, cls = cls, values = values, instrs = no_instrs(), first = none_index, second = none_index, at = 0, vector = 0))
+
+    ## Whether lanes of `lanes` and `cls` are two singles on x86-64, which only loads, stores
+    ## and converts: SSE computes on four, and the two it would not use hold anything.
+    func narrow(lanes: u32, cls: ir.Class) -> bool:
+        return self.arch == targets.Arch.x86_64 and lanes == 2 and cls == ir.Class.s
+
+    ## The node one instruction per lane makes of `values`: the same operation, of the same
+    ## class, in this block, on instructions no tree has taken; none when there is none.
+    func lanes_of(values: ir.Ref[4], lanes: u32, cls: ir.Class, depth: u32) -> u32?!:
+        var instrs = no_instrs()
+        var at: u32 = 0
+        for l in 0..<lanes:
+            let v = values[l]
+            if v.kind != ir.RefKind.temp or (usize)v.index >= self.defined.length:
+                return none
+            let i = self.defined[(usize)v.index]
+            if i == none_index or i < self.start or i >= self.end or self.claimed[(usize)i]:
+                return none
+            instrs[l] = i
+            at = i if i > at else at
+        let x = self.f.instrs.get((usize)instrs[0])
+        if x.cls != cls:
+            return none
+        for l in 1..<lanes:
+            let y = self.f.instrs.get((usize)instrs[l])
+            if y.op != x.op or y.cls != cls or instrs[l] == instrs[0]:
+                return none
+        if let known = self.node_of(instrs, lanes):
+            return known
+        for l in 0..<lanes:
+            if self.taken(instrs[l], lanes) != none:
+                # a lane of another node of the tree: packed from its scalar instead
+                return none
+        if x.op == ir.Op.loadd or x.op == ir.Op.loads:
+            let base = self.aliases.at(x.a, 0)
+            for l in 1..<lanes:
+                let there = self.aliases.at(self.f.instrs.get((usize)instrs[l]).a, 0)
+                if not same_base(base, there) or there.offset != base.offset +% (i64)l * width_of(x.op):
+                    return none
+            return try self.add(Node(kind = loaded, op = ir.Op.loadv, cls = cls, values = values, instrs = instrs, first = none_index, second = none_index, at = at, vector = 0))
+        let op = vector_of(x.op)
+        if op == ir.Op.copy or (self.narrow(lanes, cls) and op != ir.Op.vtruncd):
+            return none
+        # a conversion's operands are lanes of the other width
+        let operand_cls = ir.Class.s if op == ir.Op.vexts else (ir.Class.d if op == ir.Op.vtruncd else cls)
+        if (op == ir.Op.vexts or op == ir.Op.vtruncd) and lanes != 2:
+            return none
+        var left: ir.Ref[4] = [x.a, ir.none_ref(), ir.none_ref(), ir.none_ref()]
+        var right: ir.Ref[4] = [x.b, ir.none_ref(), ir.none_ref(), ir.none_ref()]
+        for l in 1..<lanes:
+            let y = self.f.instrs.get((usize)instrs[l])
+            left[l] = y.a
+            right[l] = y.b
+            if (x.op == ir.Op.add or x.op == ir.Op.mul) and self.likeness(x.a, y.b) + self.likeness(x.b, y.a) > self.likeness(x.a, y.a) + self.likeness(x.b, y.b):
+                # the sum or product's operands the other way, as the first lane has them
+                left[l] = y.b
+                right[l] = y.a
+        let first = try self.build(left, lanes, operand_cls, depth + 1)
+        if first == none_index:
+            return none_index
+        var second = none_index
+        if op != ir.Op.vneg and op != ir.Op.vsqrt and op != ir.Op.vexts and op != ir.Op.vtruncd:
+            second = try self.build(right, lanes, cls, depth + 1)
+            if second == none_index:
+                return none_index
+        return try self.add(Node(kind = operation, op = op, cls = cls, values = values, instrs = instrs, first = first, second = second, at = at, vector = 0))
+
+    ## How alike two operands are, for the order of a sum's or a product's: the same value,
+    ## or loads from neighbouring addresses, most; values one kind of instruction computes,
+    ## less; anything else, not at all.
+    func likeness(p: ir.Ref, q: ir.Ref) -> u32:
+        if same_value(p, q):
+            return 3
+        if p.kind != ir.RefKind.temp or q.kind != ir.RefKind.temp or (usize)p.index >= self.defined.length or (usize)q.index >= self.defined.length:
+            return 0
+        let i = self.defined[(usize)p.index]
+        let j = self.defined[(usize)q.index]
+        if i == none_index or j == none_index:
+            return 0
+        let x = self.f.instrs.get((usize)i)
+        let y = self.f.instrs.get((usize)j)
+        if x.op != y.op:
+            return 0
+        if (x.op == ir.Op.loadd or x.op == ir.Op.loads) and same_base(self.aliases.at(x.a, 0), self.aliases.at(y.a, 0)):
+            return 3
+        return 2
+
+    ## The tree's node for exactly these lanes' instructions, already grown.
+    func node_of(instrs: u32[4], lanes: u32) -> u32?:
+        for k in 0..<self.nodes.count:
+            let n = self.nodes.get(k)
+            if n.kind != operation and n.kind != loaded:
+                continue
+            var same = true
+            for l in 0..<lanes:
+                same = same and n.instrs[l] == instrs[l]
+            if same:
+                return u32(k)
+        return none
+
+    ## Whether instruction `i` is a lane of a node of the tree; its node.
+    func taken(i: u32, lanes: u32) -> u32?:
+        for k in 0..<self.nodes.count:
+            let n = self.nodes.get(k)
+            if n.kind == operation or n.kind == loaded or n.kind == stored:
+                for l in 0..<lanes:
+                    if n.instrs[l] == i:
+                        return u32(k)
+        return none
+
+    func add(n: Node) -> u32!:
+        try self.nodes.push(n)
+        return u32(self.nodes.count - 1)
+
+    # mark: Whether a tree is kept ============================================================
+
+    ## Whether every scalar a lane's value is still read as comes after the node computing
+    ## it, where the lane is then extracted (`extracts`, four flags a node): each reader
+    ## outside the tree, and each packing or broadcast of the value, which stands before
+    ## the node reading it. A tree spanning more than `widest_span` instructions is left be.
+    func ordered(lanes: u32, extracts: bool[]) -> bool!:
+        let root = self.nodes.get(self.nodes.count - 1)
+        var low = root.at
+        for n in self.nodes.span():
+            if n.kind == operation or n.kind == loaded or n.kind == stored:
+                for l in 0..<lanes:
+                    low = n.instrs[l] if n.instrs[l] < low else low
+        if root.at - low > widest_span:
+            return false
+        for k in 0..<self.nodes.count:
+            let n = self.nodes.get(k)
+            if n.kind != operation and n.kind != loaded:
+                continue
+            for l in 0..<lanes:
+                let t = (usize)n.values[l].index
+                for u in self.use_at[(usize)self.use_start[t]..<(usize)self.use_start[t + 1]]:
+                    if self.taken(u, lanes) != none:
+                        # a lane reads it through this node, or through a packing below
+                        continue
+                    if not self.later(u, n.at):
+                        return false
+                    extracts[k * 4 + l] = true
+        for n in self.nodes.span():
+            if n.kind != operation and n.kind != stored:
+                continue
+            if not try self.packs_after(n, n.first, lanes, extracts) or not try self.packs_after(n, n.second, lanes, extracts):
+                return false
+        return true
+
+    ## Whether the packing or broadcast `child` of `n` reads each lane value of the tree it
+    ## takes after that value's node computes it; the lanes it takes are extracted.
+    func packs_after(n: Node, child: u32, lanes: u32, extracts: bool[]) -> bool!:
+        if child == none_index:
+            return true
+        let c = self.nodes.get((usize)child)
+        if c.kind != packed and c.kind != broadcast:
+            return true
+        for l in 0..<lanes:
+            let v = c.values[l]
+            if v.kind != ir.RefKind.temp or (usize)v.index >= self.defined.length or self.defined[(usize)v.index] == none_index:
+                continue
+            if let owner = self.taken(self.defined[(usize)v.index], lanes):
+                let m = self.nodes.get((usize)owner)
+                if n.at <= m.at:
+                    return false
+                for l2 in 0..<lanes:
+                    if same_value(m.values[l2], v):
+                        extracts[(usize)owner * 4 + l2] = true
+        return true
+
+    ## Whether a read at instruction `u` comes after instruction `at`: later in the same
+    ## block, or in another (which the value's block dominates).
+    func later(u: u32, at: u32) -> bool:
+        return (usize)u >= self.block_of.length or self.block_of[(usize)u] != self.block_of[(usize)at] or u > at
+
+    ## Whether moving each load and store of the tree to its node's place keeps every access
+    ## it passes in order: a load passes no store it may touch, a store no access it may
+    ## touch and no check that may trap, and neither passes a call or anything else that
+    ## reaches memory unseen.
+    func reaches(lanes: u32) -> bool:
+        for k in 0..<self.nodes.count:
+            let n = self.nodes.get(k)
+            if n.kind != loaded and n.kind != stored:
+                continue
+            for l in 0..<lanes:
+                let i = n.instrs[l]
+                let x = self.f.instrs.get((usize)i)
+                for j in i + 1..<n.at + 1:
+                    if let m = self.taken(j, lanes):
+                        if m == u32(k) or self.nodes.get((usize)m).at > n.at:
+                            continue
+                    if not self.passes(x, self.f.instrs.get((usize)j)):
+                        return false
+        return true
+
+    ## Whether the scalar load or store `x` may move past instruction `y`.
+    func passes(x: ir.Instr, y: ir.Instr) -> bool:
+        let storing = x.op == ir.Op.stored or x.op == ir.Op.stores
+        if barrier(y):
+            return false
+        if may_trap(y):
+            return not storing
+        let y_loads = load.is_load(y.op) or y.op == ir.Op.loadv
+        let y_stores = load.is_store(y.op) or y.op == ir.Op.storev
+        if not y_stores and not (y_loads and storing):
+            return true
+        let here = self.aliases.at(x.b if storing else x.a, 0)
+        let there = y.b if y_stores else y.a
+        return self.aliases.relation(here, width_of(x.op), there, access_width(y)) == load.no_alias
+
+    ## What the tree saves: every vector operation, load and store all but one of its lanes'
+    ## instructions; less one for each broadcast (two on x86-64, whose broadcast copies the
+    ## scalar first), as many as the lanes for each packing, and one for each lane extracted
+    ## (two past the first on x86-64, which shuffles the lane down).
+    func profit(lanes: u32, extracts: bool[]) -> i64:
+        let x86 = self.arch == targets.Arch.x86_64
+        var gain: i64 = 0
+        for k in 0..<self.nodes.count:
+            let n = self.nodes.get(k)
+            if n.kind == operation or n.kind == loaded or n.kind == stored:
+                gain += (i64)lanes - 1
+            elif n.kind == broadcast:
+                gain -= 2 if x86 else 1
+            else:
+                gain -= (i64)lanes
+            for l in 0..<lanes:
+                if extracts[k * 4 + l]:
+                    gain -= 2 if x86 and l > 0 else 1
+        return gain
+
+    # mark: Emitting a kept tree ==============================================================
+
+    ## The tree's vector instructions, each after the last of its lanes' instructions, which
+    ## go: its operands' packings and broadcasts first, then the operation, then the lanes
+    ## a scalar still reads, extracted into the temporaries that held them.
+    func emit(lanes: u32, extracts: bool[]) -> !:
+        for k in 0..<self.nodes.count:
+            var n = self.nodes.get(k)
+            if n.kind == packed or n.kind == broadcast:
+                continue
+            let shape = shape_of(n.cls, lanes)
+            let near = self.f.instrs.get((usize)n.at)
+            let a = try self.operand(n.first, n.at, near, lanes)
+            let b = try self.operand(n.second, n.at, near, lanes)
+            let lane0 = self.f.instrs.get((usize)n.instrs[0])
+            if n.kind == stored:
+                try self.insert(n.at, near, ir.Op.storev, ir.Class.v, 0, a, lane0.b, shape, 0)
+            else:
+                n.vector = try self.f.temp(ir.Class.v)
+                self.nodes.set(k, n)
+                if n.kind == loaded:
+                    try self.insert(n.at, near, ir.Op.loadv, ir.Class.v, n.vector, lane0.a, ir.none_ref(), shape, 0)
+                else:
+                    try self.insert(n.at, near, n.op, ir.Class.v, n.vector, a, b, shape, 0)
+                for l in 0..<lanes:
+                    if extracts[k * 4 + l]:
+                        try self.insert(n.at, near, ir.Op.vextract, n.cls, n.values[l].index, ir.temp_ref(n.vector), ir.none_ref(), shape, l)
+            for l in 0..<lanes:
+                self.removed[(usize)n.instrs[l]] = true
+                self.claimed[(usize)n.instrs[l]] = true
+
+    ## The vector operand node `child` stands for at `at`: an emitted node's own vector, or a
+    ## broadcast or packing formed there.
+    func operand(child: u32, at: u32, near: ir.Instr, lanes: u32) -> ir.Ref!:
+        if child == none_index:
+            return ir.none_ref()
+        let c = self.nodes.get((usize)child)
+        let shape = shape_of(c.cls, lanes)
+        if c.kind == operation or c.kind == loaded:
+            return ir.temp_ref(c.vector)
+        if c.kind == broadcast:
+            let t = try self.f.temp(ir.Class.v)
+            try self.insert(at, near, ir.Op.vsplat, ir.Class.v, t, c.values[0], ir.none_ref(), shape, 0)
+            return ir.temp_ref(t)
+        var vector = ir.none_ref()
+        for l in 0..<lanes:
+            let t = try self.f.temp(ir.Class.v)
+            try self.insert(at, near, ir.Op.vinsert, ir.Class.v, t, vector, c.values[l], shape, l)
+            vector = ir.temp_ref(t)
+        return vector
+
+    func insert(at: u32, near: ir.Instr, op: ir.Op, cls: ir.Class, dst: u32, a: ir.Ref, b: ir.Ref, shape: u32, lane: u32) -> !:
+        try self.inserts.push(Insert(at = at, instr = ir.Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = shape, extra2 = lane, line = near.line, file = near.file, scope = near.scope, site = near.site)))
+
+    ## The function's instructions again: the removed ones gone, each insert after the
+    ## instruction it names, in the order the trees made them.
+    func rewrite() -> !:
+        let n = self.f.instrs.count
+        var first = try new u32[n + 1] ---
+        defer free(first)
+        for i in 0..<first.length:
+            first[i] = 0
+        for x in self.inserts.span():
+            first[(usize)x.at + 1] += 1
+        for i in 1..<first.length:
+            first[i] += first[i - 1]
+        var order = try new u32[self.inserts.count] ---
+        defer free(order)
+        var next = try new u32[n + 1] ---
+        defer free(next)
+        for i in 0..<first.length:
+            next[i] = first[i]
+        for k in 0..<self.inserts.count:
+            let at = (usize)self.inserts.get(k).at
+            order[(usize)next[at]] = u32(k)
+            next[at] += 1
+        var out = try list.List[ir.Instr].create(n + self.inserts.count)
+        for i in 0..<n:
+            if not self.removed[i]:
+                try out.push(self.f.instrs.get(i))
+            let stop = (usize)first[i + 1] if i + 1 < first.length else self.inserts.count
+            for k in (usize)first[i]..<stop:
+                try out.push(self.inserts.get((usize)order[k]).instr)
+        self.f.instrs.destroy()
+        self.f.instrs = out
+
+# mark: Helpers ===============================================================================
+
+## The shape of `lanes` float lanes of class `cls`.
+func shape_of(cls: ir.Class, lanes: u32) -> u32:
+    return ir.lanes(64 if cls == ir.Class.d else 32, lanes, true, false)
+
+func no_instrs() -> u32[4]:
+    return [none_index, none_index, none_index, none_index]
+
+## Whether two operands are one value: the same temporary or the same constant.
+func same_value(p: ir.Ref, q: ir.Ref) -> bool:
+    if p.kind != q.kind:
+        return false
+    if p.kind == ir.RefKind.temp:
+        return p.index == q.index
+    return p.kind == ir.RefKind.constant and p.value == q.value
+
+## Whether two addresses are offsets from one base.
+func same_base(a: load.Alias, b: load.Alias) -> bool:
+    return a.kind == b.kind and a.base == b.base and a.name == b.name
+
+## The bytes a scalar float load or store moves.
+func width_of(op: ir.Op) -> i64:
+    return 8 if op == ir.Op.loadd or op == ir.Op.stored else 4
+
+## The bytes any load or store moves, for the order of two accesses.
+func access_width(y: ir.Instr) -> i64:
+    if y.op == ir.Op.loadv or y.op == ir.Op.storev:
+        return (i64)ir.vector_bytes(y.extra)
+    match y.op:
+        .loadsb, .loadub, .storeb: return 1
+        .loadsh, .loaduh, .loadhf, .storeh, .storehf: return 2
+        .loadsw, .loaduw, .loads, .storew, .stores: return 4
+        _: return 8
+
+## The vector operation computing a float scalar operation lane by lane; `copy` for none.
+func vector_of(op: ir.Op) -> ir.Op:
+    match op:
+        .add: return ir.Op.vadd
+        .sub: return ir.Op.vsub
+        .mul: return ir.Op.vmul
+        .sdiv: return ir.Op.vdiv
+        .neg: return ir.Op.vneg
+        .fsqrt: return ir.Op.vsqrt
+        .exts: return ir.Op.vexts
+        .truncd: return ir.Op.vtruncd
+        _: return ir.Op.copy
+
+## Whether `y` reaches memory beyond what a load or store names, or runs what may: a call,
+## an atomic, a fence, an asm block, a block copy, the frame's own storage.
+func barrier(y: ir.Instr) -> bool:
+    match y.op:
+        .call, .asm_, .set_reg, .get_reg, .blit, .zero, .fill, .fence, .alloca, .reserve, .atomic_load, .atomic_store, .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min, .atomic_cas: return true
+        _: return false
+
+## Whether `y` may trap: a check, a checked operation, an integer division.
+func may_trap(y: ir.Instr) -> bool:
+    match y.op:
+        .bounds, .addo, .subo, .mulo, .trap_, .vaddo, .vsubo: return true
+        .sdiv, .udiv, .srem, .urem: return not ir.is_float_class(y.cls)
+        _: return false

@@ -309,6 +309,8 @@ extend Generator:
                     try self.writer.line("dmb ish")
             .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
                 try self.vector(n)
+            .vinsert, .vextract, .vsqrt, .vexts, .vtruncd:
+                try self.packed_lanes(n)
             .fma:
                 try self.fused(n)
             .select:

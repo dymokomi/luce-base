@@ -258,6 +258,8 @@ extend Generator:
                 try self.selected(n)
             .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
                 try self.vector(n)
+            .vinsert, .vextract, .vsqrt, .vexts, .vtruncd:
+                try self.packed_lanes(n)
             _:
                 error(failed, "an instruction the x86_64 generator does not know")
 
