@@ -18,6 +18,7 @@
 #
 #==============================================================================================
 
+import memory
 import support.list
 import back.ir.cfg
 import back.ir.ir
@@ -32,6 +33,8 @@ struct Entry:
     var a: ir.Ref
     var b: ir.Ref
     var extra: u32
+    ## The lane of a `vinsert` or `vextract`, which two otherwise equal ones differ by.
+    var lane: u32
     var result: u32
 
 ## The table of available computations, scoped to the walk: open addressing over the
@@ -95,7 +98,7 @@ struct Table:
         var at = hash_of(x) & (self.buckets.length - 1)
         while self.buckets[at] != 0:
             let entry = self.entries.get((usize)self.buckets[at] - 1)
-            if entry.op == x.op and entry.cls == x.cls and entry.extra == x.extra and same_ref(entry.a, x.a) and same_ref(entry.b, x.b):
+            if entry.op == x.op and entry.cls == x.cls and entry.extra == x.extra and entry.lane == lane_of(x) and same_ref(entry.a, x.a) and same_ref(entry.b, x.b):
                 return entry.result
             at = (at + 1) & (self.buckets.length - 1)
         return 0
@@ -104,15 +107,21 @@ struct Table:
         var at = hash_of(x) & (self.buckets.length - 1)
         while self.buckets[at] != 0:
             at = (at + 1) & (self.buckets.length - 1)
-        try self.entries.push(Entry(op = x.op, cls = x.cls, a = x.a, b = x.b, extra = x.extra, result = x.dst))
+        try self.entries.push(Entry(op = x.op, cls = x.cls, a = x.a, b = x.b, extra = x.extra, lane = lane_of(x), result = x.dst))
         self.buckets[at] = u32(self.entries.count)
         try self.log.push(u32(at))
+
+## The lane a `vinsert` or `vextract` names in `extra2`; 0 for every other instruction,
+## whose `extra2` is no part of what it computes (a position, an argument's index).
+func lane_of(x: ir.Instr) -> u32:
+    return x.extra2 if x.op == ir.Op.vinsert or x.op == ir.Op.vextract else 0
 
 func hash_of(x: ir.Instr) -> usize:
     var h: u64 = 0xcbf29ce484222325
     h = (h ^ (u64)x.op) *% 0x100000001b3
     h = (h ^ (u64)x.cls) *% 0x100000001b3
     h = (h ^ (u64)x.extra) *% 0x100000001b3
+    h = (h ^ (u64)lane_of(x)) *% 0x100000001b3
     h = (h ^ ref_hash(x.a)) *% 0x100000001b3
     h = (h ^ ref_hash(x.b)) *% 0x100000001b3
     return (usize)h
@@ -594,3 +603,32 @@ func drop_dead_phis(f: ir.Function*) -> !:
 func mark_use(used: bool[], r: ir.Ref):
     if r.kind == ir.RefKind.temp and (usize)r.index < used.length:
         used[(usize)r.index] = true
+
+test "two lanes extracted from one vector are two values":
+    var backing: u8[262144]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        # t1 = loadv; t2 = lane 0 of t1; t3 = lane 1 of t1; ret t2 + t3: luce-3d's
+        # splat packing lost its second lane when value numbering took them as one
+        var f = try ir.Function.create("lanes")
+        let shape = ir.lanes(64, 2, true, false)
+        let s = try f.slot(16, 16)
+        let v = try f.temp(ir.Class.v)
+        try f.emit(ir.Op.loadv, ir.Class.v, v, ir.slot_ref(s), ir.none_ref(), shape)
+        let low = try f.temp(ir.Class.d)
+        try f.emit(ir.Op.vextract, ir.Class.d, low, ir.temp_ref(v), ir.none_ref(), shape)
+        let high = try f.temp(ir.Class.d)
+        try f.emit(ir.Op.vextract, ir.Class.d, high, ir.temp_ref(v), ir.none_ref(), shape)
+        f.instrs.items[f.instrs.count - 1].extra2 = 1
+        let sum = try f.binary(ir.Op.add, ir.Class.d, ir.temp_ref(low), ir.temp_ref(high))
+        try f.emit(ir.Op.ret, ir.Class.d, 0, sum, ir.none_ref(), 0)
+        var g = try cfg.Graph.over(&f)
+        var numbered = try run(&f, &g)
+        _ = numbered
+        var extracts: u32 = 0
+        for x in f.instrs.span():
+            if x.op == ir.Op.vextract:
+                extracts += 1
+            if x.op == ir.Op.add:
+                assert(x.a.index != x.b.index)
+        assert(extracts == 2)

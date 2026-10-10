@@ -36,8 +36,7 @@ Level 3 additionally:
 3. Versions suitable counted loops for 128-bit SIMD, retaining the original
    scalar loop as both the fallback and the tail.
 4. Packs paired float arithmetic within a basic block into vector operations
-   (superword-level parallelism, `opt/slp`), below; off unless `LUCE_SLP` is set,
-   until it passes luce-3d's and luce-ui's tests.
+   (superword-level parallelism, `opt/slp`), below.
 
 Proof searches and loop passes have finite work bounds. Exhausting one leaves
 an optimization unapplied; it does not authorize removing a check.

@@ -28,7 +28,6 @@ import back.ir.ir
 import back.opt.load
 import back.target as targets
 import support.list
-import os
 
 # mark: Nodes =================================================================================
 
@@ -76,10 +75,9 @@ struct Insert:
 # mark: The pass ==============================================================================
 
 ## Pack the paired float arithmetic of `f`'s blocks into vector operations where it pays,
-## for a target of `arch`; whether anything changed. Off unless `LUCE_SLP` is set: it
-## miscompiled luce-3d and luce-ui, and stays off until they pass with it.
+## for a target of `arch`; whether anything changed.
 pub func run(f: ir.Function*, arch: targets.Arch) -> bool!:
-    if f.naked or f.debug or f.symbols or os.env("LUCE_SLP") == none or not has_seed(f):
+    if f.naked or f.debug or f.symbols or not has_seed(f):
         return false
     var g = try cfg.Graph.over(f)
     defer g.release()

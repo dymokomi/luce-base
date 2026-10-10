@@ -8,13 +8,14 @@ keeps its scalar order. Then generated programs, each a few rounds of random exp
 over the fields of records of doubles and singles stored back to neighbouring fields, some
 sharing values across lanes, some through records that overlap, some with a lane read
 elsewhere, print every bit they computed: the native build at --opt 3 must print what the C
-backend prints. `--count N` and `--seed S` widen the search."""
+backend prints; two lanes are read again in another block, through a helper. (Value
+numbering once took two lanes extracted from one vector as one value, in a caller numbered
+again after the vectors were made; opt/gvn's test keeps that case.) `--count N` and
+`--seed S` widen the search."""
 from pathlib import Path
-import argparse, os, random, re, subprocess, sys, tempfile
+import argparse, random, re, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-# the pass is off unless asked for (opt/slp)
-os.environ['LUCE_SLP'] = '1'
 
 KERNELS = '''struct V3:
     var x: f64
@@ -81,6 +82,7 @@ def program(rng):
     fields = ['a', 'b', 'c', 'd']
     lines = ['extern func c_sqrt as "sqrt"(x: f64) -> f64', '', 'struct R:']
     lines += [f'    var {f}: {kind}' for f in fields]
+    lines += ['', 'func half(x: f64) -> f64:', '    return x * 0.5']
     lines += ['', 'noinline func step(out: R*, p: const R*, q: const R*, k: f64) -> f64:']
     lines += [f'    let p{f} = (f64)p.{f}' for f in fields]
     lines += [f'    let q{f} = (f64)q.{f}' for f in fields]
@@ -100,8 +102,11 @@ def program(rng):
         rng.shuffle(order)
     for f in order:
         lines.append(f'    out.{f} = ({kind})r{f}')
-    seen = rng.choice(fields)
-    lines.append(f'    return r{seen} + k')
+    first, second = rng.sample(fields, 2)
+    # two lanes read again in another block, through a helper
+    lines.append(f'    if k > 1.0:')
+    lines.append(f'        return half(r{first}) - r{second}')
+    lines.append(f'    return r{first} + half(r{second})')
     lines += ['', 'func bits(r: R) -> u64:']
     lines.append('    return ' + ' ^ '.join(f'((u64){"" if kind == "f64" else "(f64)"}r.{f}.bits() if r.{f} == r.{f} else 7)' for f in fields))
     lines += ['', 'pub func main(arguments: str[]) -> i32:',
@@ -115,6 +120,7 @@ def program(rng):
               '        total = total ^ (r.bits() if r == r else 9)',
               '        for i in 0..<3:',
               '            total = total *% 31 +% bits(rs[i])',
+              '        total = total ^ half(k).bits()',
               '    print(f"{total}")',
               '    return 0', '']
     return '\n'.join(lines)
