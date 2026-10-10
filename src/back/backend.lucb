@@ -17,6 +17,7 @@
 import c
 import io
 import memory
+import platform
 import back.native.dwarf
 import back.native.arm64
 import back.ir.cfg
@@ -267,8 +268,9 @@ pub struct NativeBackend: Backend:
 
 # mark: Optimisation pipeline =================================================================
 
-## Processor time per stage, in the C library's clock ticks (a millionth of a second):
-## lower, inline, promote, ssa, gvn, load, dessa, the sweep, generate.
+## Time per stage, in microseconds: processor time from the C library's clock, which on
+## Windows is the time since the process started, in milliseconds. Lower, inline, promote,
+## ssa, gvn, load, dessa, the sweep, generate.
 var stage_ticks: u64[9] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 ## Whether this build keeps stage times (`--opt-report`).
 var timing: bool = false
@@ -276,7 +278,8 @@ let stage_names: str[9] = ["lower", "inline", "promote", "ssa", "gvn", "load", "
 extern func c_clock as "clock"() -> c.long
 
 func ticks() -> u64:
-    return (u64)(i64)c_clock()
+    let clock = (u64)(i64)c_clock()
+    return clock * 1000 if platform.windows else clock
 
 ## Stage times, kept only for `--opt-report`, which runs every stage on one thread.
 func note(at: u64*, stage: usize) -> !:
