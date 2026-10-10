@@ -56,6 +56,8 @@ extend Generator:
                 try self.put_renamed(half_routines_text, ".Llb_", "lb_")
             else:
                 try self.writer.put(half_routines_text)
+        if self.program:
+            try self.object_format.manifest(&self.writer.out)
         self.ending = self.writer.out.used
         try self.object_format.finish(&self.writer.out)
         if let dw = self.dw:

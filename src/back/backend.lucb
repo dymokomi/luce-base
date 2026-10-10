@@ -103,6 +103,8 @@ pub struct NativeBackend: Backend:
     ## Whether the driver will assemble the text in pieces (`support.pieces`): the
     ## generator then names the labels functions share as hidden symbols.
     pub var split: bool = false
+    ## Whether the build is a program, not a library (`Generator.program`).
+    pub var program: bool = false
     ## Labels and literals named by what they label without splitting (`Generator.stable`):
     ## what `reuse` needs on a target whose assembly is one file.
     pub var stable: bool = false
@@ -194,6 +196,7 @@ pub struct NativeBackend: Backend:
                 generator.level = t.level
                 generator.split = self.split
                 generator.stable = self.stable
+                generator.program = self.program
                 generator.reused = taken.texts
                 generator.reused_flags = taken.flags
                 try generator.generate()

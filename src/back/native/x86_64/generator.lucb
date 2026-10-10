@@ -95,6 +95,9 @@ pub struct Generator:
     ## labels functions share (text literals, the sign masks, the half routines) are hidden
     ## global symbols, not labels local to one file, so every piece can name them.
     pub var split: bool = false
+    ## Whether the unit is a program, not a library: on Windows it carries the program's
+    ## manifest (`objects.Format.manifest`).
+    pub var program: bool = false
     ## Labels and literals named by what they label (`stable_names`), as with `split`, but
     ## local to the one assembly: a function's text is then the same in every build that
     ## has it, which `reuse` needs, on a target whose assembly is not split.

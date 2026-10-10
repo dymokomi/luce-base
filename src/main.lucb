@@ -361,6 +361,8 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32, split: bool
         native.report = opt_report
         native.split = split
         native.stable = stable
+        # mode 3 is a library's code (`generate_library`)
+        native.program = mode != 3
         if (split or stable) and reusing and try cache.on():
             # the texts are kept under the program's name and the build's settings
             var settings = digest.Digest.start(0x73657474696e6773)

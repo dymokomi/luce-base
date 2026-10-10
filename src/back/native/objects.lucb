@@ -203,6 +203,28 @@ pub struct Format:
             try self.symbol(out, name)
             try out.put(",\"dr\"\n    .p2align 3\n")
 
+    ## A Windows program's manifest, as the resource the loader reads it from (RT_MANIFEST
+    ## 1): the process heap is the segment heap. The default heap serialises the
+    ## allocations of a program's threads on one lock, where the segment heap gives each
+    ## its own; the compiler's parallel stages kept two of twenty processors busy without
+    ## it. Windows before 10 version 2004 ignores the setting. Elsewhere, nothing.
+    pub func manifest(out: buffer.Buffer*) -> !:
+        if not self.coff():
+            return
+        # the resource directory: type, name and language levels, one entry each, their
+        # offsets from the section's start, and the data's address relative to the image
+        try out.put("\n    .section .rsrc,\"dr\"\n    .p2align 2\n.Lrsrc:\n")
+        try out.put("    .long 0, 0\n    .short 0, 0, 0, 1\n    .long 24, 0x80000000 + (.Lrsrc_name - .Lrsrc)\n")
+        try out.put(".Lrsrc_name:\n    .long 0, 0\n    .short 0, 0, 0, 1\n    .long 1, 0x80000000 + (.Lrsrc_language - .Lrsrc)\n")
+        try out.put(".Lrsrc_language:\n    .long 0, 0\n    .short 0, 0, 0, 1\n    .long 1033, .Lrsrc_entry - .Lrsrc\n")
+        try out.put(".Lrsrc_entry:\n    .rva .Lrsrc_manifest\n    .long .Lrsrc_end - .Lrsrc_manifest, 0, 0\n")
+        try out.put(".Lrsrc_manifest:\n")
+        for line in manifest_text:
+            try out.put("    .ascii \"")
+            try out.put(line)
+            try out.put("\"\n")
+        try out.put(".Lrsrc_end:\n")
+
     ## The unit's last line: on Mach-O every symbol an atom of its own, what the linker
     ## needs to coalesce weak definitions across units and drop dead ones; on ELF a
     ## non-executable stack note.
@@ -420,3 +442,12 @@ pub func module_asm(writer: assembly.Text*, program_unit: ir.Unit*) -> !:
     for block in program_unit.module_asm.span():
         try writer.put("\n")
         try writer.put(block.bytes)
+
+## The manifest `Format.manifest` gives a Windows program, its attributes in single quotes
+## so that each line is an assembler string as it stands.
+let manifest_text: str[5] = [
+    "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>",
+    "<assembly xmlns='urn:schemas-microsoft-com:asm.v1' manifestVersion='1.0'>",
+    "<application xmlns='urn:schemas-microsoft-com:asm.v3'><windowsSettings>",
+    "<heapType xmlns='http://schemas.microsoft.com/SMI/2020/WindowsSettings'>SegmentHeap</heapType>",
+    "</windowsSettings></application></assembly>"]
