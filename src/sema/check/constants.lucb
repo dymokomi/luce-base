@@ -222,7 +222,7 @@ extend Checker:
                 let r = e.right else return none
                 let a = self.constant_u64(l) else return none
                 let b = self.constant_u64(r) else return none
-                return fold_binary(e.text, a, b)
+                return self.folded_in_type(e.text, a, b, e.type_id)
             .call:
                 let callee = e.left else return none
                 if callee.kind != ast.Kind.name or callee.resolved != none:
@@ -253,6 +253,24 @@ extend Checker:
                 return self.constant_u64(l if truth else r)
             _:
                 return none
+
+    ## `a op b` folded as the program computes it in `ty` (§7.4): division, remainder and `>>`
+    ## signed when the type is, the result truncated to the type's width, and nothing for a
+    ## checked `+`, `-` or `*` that overflows it, which traps when it runs instead.
+    func folded_in_type(op: str, a: u64, b: u64, ty: u32) -> u64?:
+        if not self.table.is_integer(ty):
+            return fold_binary(op, a, b)
+        let signed = self.table.is_signed(ty)
+        var raw: u64 = 0
+        if signed and (op == "//" or op == "%" or op == ">>"):
+            raw = fold_signed(op, (i64)a, (i64)b) else return none
+        else:
+            raw = fold_binary(op, a, b) else return none
+        let out = self.converted_constant(raw, ty) else return none
+        if op == "+" or op == "-" or op == "*":
+            if out != raw or overflows_64(op, a, b, signed):
+                return none
+        return out
 
     ## A constant converted to an integer or `bool` type (§7.5): truncated to the width, then
     ## sign-extended when the type is signed, so the sixty-four-bit fold reads it back right.

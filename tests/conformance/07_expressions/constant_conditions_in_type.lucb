@@ -1,0 +1,18 @@
+# oracle: none -- the seed folds signed `//`, `%` and `>>` in a condition as unsigned
+## §7.4, §8.1: a condition of constants is folded as the program would compute it, in the
+## operands' type: a shift in `u8` keeps eight bits, and `//`, `%` and `>>` of signed values
+## are signed. Found by the fuzzer: the folded `if` took the other branch than the program.
+pub func main(arguments: str[]) -> i32:
+    var taken: i64 = 0
+    if ((0 -% 207) << 5) < ((u8)-656 << 2):
+        taken += 1
+    if (-8 // 3) == -2:
+        taken += 10
+    if (-7 % 2) == -1:
+        taken += 100
+    if (-16 >> 2) == -4:
+        taken += 1000
+    if ((u8)200 +% (u8)100) == (u8)44:
+        taken += 10000
+    print(f"{taken}")
+    return 0

@@ -1,6 +1,6 @@
 # Fuzz findings preserved on 2026-10-10
 
-Status: **13 untriaged reports, 12 distinct input files by SHA-256**. These are
+Status: **triaged 2026-10-11** (below): one compiler bug, fixed; twelve environment timeouts. Originally 13 reports, 12 distinct input files by SHA-256. These are
 observations from the Linux and Windows background campaigns, not 13 confirmed
 compiler bugs. No report has been replayed, minimized, fixed, or dismissed in this
 preservation pass.
@@ -73,3 +73,25 @@ present when the campaigns stopped.
 4. For confirmed defects, add a minimized regression test and a suitable seed to
    `tests/fuzz/corpus`, link the fix here, and update the report's status. Keep the
    original reproducers and logs as evidence.
+
+## Triage, 2026-10-11
+
+**Linux, dense program 184: a compiler bug, fixed.** The seed was right. Reduced by hand
+from the 632-line input: a condition made only of constants, `((0 -% 207) << 5) <
+((u8)-656 << 2)`, is `true` when the program computes it, in `u8` (32 < 192), but the checker
+folded it in sixty-four bits (1568 < 192) to `false` and dropped the branch, so a store
+through a pointer set there never happened. Every compiled build shares the checker, which
+is why all seven agreed. The fold now computes as the program does: the result truncated to
+the operands' type, signed `//`, `%` and `>>` for signed types (§7.4: truncating, as C), and
+no fold of a checked `+`, `-` or `*` that overflows, which traps when it runs. Tests:
+`07_expressions/constant_conditions_in_type` and `constant_condition_overflow_traps`. The
+seed has the mirror bug (it folds signed `//`, `%` and `>>` in a condition as unsigned), so
+the first test is `oracle: none` until the seed is fixed.
+
+**Windows, all twelve: environment, not compiler.** Replayed on luce-windows with the
+compiler at c938bff, idle: every input builds in 0.1–0.3 s under the recorded flags and runs
+in under 0.05 s; the eight non-trap programs print exactly what the C backend prints, and
+the four trap programs trap at the same position with the same message as the C backend.
+The reports came from a busy machine before the Windows build-speed work (6bcd47d segment
+heap, 5c24f41 parallel assembly, c08bc45 path lookups), when builds there were about 3×
+slower and the fuzzer's per-build limit was reached.

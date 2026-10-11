@@ -1,0 +1,7 @@
+# oracle: none -- the seed folds a checked overflow in a condition instead of trapping
+## §7.4: a checked operation of constants that overflows its type is not folded away; the
+## program traps where it would compute it.
+pub func main(arguments: str[]) -> i32:
+    if ((u8)200 + (u8)100) > (u8)0:
+        print("reached")
+    return 0

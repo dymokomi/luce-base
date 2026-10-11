@@ -485,6 +485,44 @@ func fold_binary(op: str, a: u64, b: u64) -> u64?:
         return a ^ b
     return none
 
+## Signed `//`, `%` and `>>` of two constants (§7.4): truncating division, the remainder's
+## sign the dividend's, an arithmetic shift; none where the program would trap.
+func fold_signed(op: str, a: i64, b: i64) -> u64?:
+    if op == ">>":
+        if b < 0:
+            return none
+        return (u64)(a >> (b if b < 63 else 63))
+    if b == 0 or (b == -1 and (u64)a == 0x8000000000000000):
+        return none
+    if op == "//":
+        return (u64)(a // b)
+    if op == "%":
+        return (u64)(a % b)
+    return none
+
+## Whether a checked `+`, `-` or `*` of two sixty-four-bit constants overflows.
+func overflows_64(op: str, a: u64, b: u64, signed: bool) -> bool:
+    if op == "+":
+        let sum = a +% b
+        if signed:
+            return ((i64)a >= 0) == ((i64)b >= 0) and ((i64)sum >= 0) != ((i64)a >= 0)
+        return sum < a
+    if op == "-":
+        let difference = a -% b
+        if signed:
+            return ((i64)a >= 0) != ((i64)b >= 0) and ((i64)difference >= 0) != ((i64)a >= 0)
+        return b > a
+    if op == "*":
+        if a == 0 or b == 0:
+            return false
+        let product = a *% b
+        if signed:
+            if ((i64)a == -1 and b == 0x8000000000000000) or ((i64)b == -1 and a == 0x8000000000000000):
+                return true
+            return (i64)product // (i64)a != (i64)b
+        return product // a != b
+    return false
+
 func compare_constants(op: str, a: u64, b: u64, signed: bool) -> bool?:
     if op == "==":
         return a == b
