@@ -229,15 +229,16 @@ pub func discard_unpublished(o: Object*):
 ## never walks fields already released. What the fields held that refers back to the
 ## object, a closure over `self` or a child holding its parent, lets go of it in the drop;
 ## a reference still held after that was published by the failed `init`, which stops the
-## program rather than leave it pointing at freed storage.
-pub func abandon(o: Object*):
+## program rather than leave it pointing at freed storage. The trap names the `init`'s own
+## failure, `cause` raised at `cause_at`, which the publication would otherwise hide.
+pub func abandon(o: Object*, cause: str, cause_at: str):
     check_alive(o)
     set_color(o, black)
     o.flags |= abandoning
     o.info.drop(o)
     o.flags &= ~abandoning
     if o.strong != 1:
-        stop("a failed `init` published `self`")
+        core.trap_located_after(site, "a failed `init` published `self`", cause, cause_at)
     live -= 1
     o.strong = 0
     o.flags |= dead

@@ -39,7 +39,7 @@ pub func main(arguments: str[]) -> i32!:
         # a failed `init` that handed `self` to something outside its own fields
         ownership.enter()
         _ = ownership.retain(value)
-        ownership.abandon(value)
+        ownership.abandon(value, "no room", "main.lucb:9:5")
         return 0
     if operation != 0:
         var delivery = Delivery(value, operation)

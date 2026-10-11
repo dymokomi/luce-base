@@ -509,7 +509,7 @@ What the collector and the destructor need to know about a class.
 
 - `func discard_unpublished(o: Object*)` — Free unpublished storage without invoking the successful object's cleanup. The native initializer owns cleanup of its partially acquired resources.
 
-- `func abandon(o: Object*)` — An `init` that failed: the fields assigned so far go, no `deinit` runs. Like `destroy`, the object leaves the collector's candidates first, so a collection the drop sets off never walks fields already released. What the fields held that refers back to the object, a closure over `self` or a child holding its parent, lets go of it in the drop; a reference still held after that was published by the failed `init`, which stops the program rather than leave it pointing at freed storage.
+- `func abandon(o: Object*, cause: str, cause_at: str)` — An `init` that failed: the fields assigned so far go, no `deinit` runs. Like `destroy`, the object leaves the collector's candidates first, so a collection the drop sets off never walks fields already released. What the fields held that refers back to the object, a closure over `self` or a child holding its parent, lets go of it in the drop; a reference still held after that was published by the failed `init`, which stops the program rather than leave it pointing at freed storage. The trap names the `init`'s own failure, `cause` raised at `cause_at`, which the publication would otherwise hide.
 
 - `func identity(object: Object*) -> u64` — The allocation identity, or the concrete owner's identity through an adapter.
 

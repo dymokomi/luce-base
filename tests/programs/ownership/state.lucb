@@ -163,7 +163,7 @@ test "abandon takes the object out of the collector's candidates before its fiel
     # a release that leaves a count makes the object a purple candidate
     _ = retain((Object*)probe)
     release((Object*)probe)
-    abandon((Object*)probe)
+    abandon((Object*)probe, "", "")
     assert(walked_while_dropping == 0)
     assert(live_count() == 0)
     assert((str)log[..<logged] == "1")
@@ -176,7 +176,7 @@ test "abandon lets go of a field that refers back to the object":
     child.next = (Node*)retain((Object*)parent)
     parent.next = child
     # the child's release of its parent is bookkeeping; no `deinit` runs for the parent
-    abandon((Object*)parent)
+    abandon((Object*)parent, "", "")
     assert(live_count() == 0)
     assert((str)log[..<logged] == "3")
     assert(finish_run(0) == 0)

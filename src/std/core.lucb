@@ -125,6 +125,25 @@ pub func trap_located(position: str, message: str) -> never:
     write_diagnostic("\n".bytes)
     finish_trap()
 
+## A trap with the failure that led to it on a second line, `  failed at file:line:column:
+## cause`, or `  failed: cause` when it names no position.
+pub func trap_located_after(position: str, message: str, cause: str, cause_at: str) -> never:
+    begin_trap()
+    write_diagnostic("trap: ".bytes)
+    if position.length > 0:
+        write_diagnostic(position.bytes)
+        write_diagnostic(": ".bytes)
+    write_diagnostic(message.bytes)
+    if cause_at.length > 0:
+        write_diagnostic("\n  failed at ".bytes)
+        write_diagnostic(cause_at.bytes)
+        write_diagnostic(": ".bytes)
+    else:
+        write_diagnostic("\n  failed: ".bytes)
+    write_diagnostic(cause.bytes)
+    write_diagnostic("\n".bytes)
+    finish_trap()
+
 ## `trap: file:line:column: `, or `trap: ` when the position is empty (a C build's code
 ## before its first statement).
 func diagnostic_location(position: c.str):

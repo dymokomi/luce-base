@@ -33,6 +33,6 @@ with tempfile.TemporaryDirectory(prefix='base-ownership-') as temporary:
             else:
                 message = ('another runtime thread' if operation < 4
                            else 'needs a runtime entry on this thread' if operation == 4
-                           else 'a failed `init` published `self`')
+                           else 'a failed `init` published `self`\n  failed at main.lucb:9:5: no room')
                 assert message in result.stderr, result.stderr
 print('PASS shared ownership: lifecycle, context generations, wrong-thread rejection and a failed init that published itself; six modes')
