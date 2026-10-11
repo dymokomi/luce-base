@@ -51,7 +51,9 @@ pub struct Interface[I]:
 
     ## The interface value, trapping if it is invalid.
     pub func value() -> I:
-        return self.get() catch failure: trap(failure.message)
+        return self.get() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## Begin a guarded invocation, retaining the owner.
     pub func enter() -> !:

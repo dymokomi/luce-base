@@ -89,7 +89,8 @@ pub struct Reservation[T]:
         if declaration.main_thread and not thread.is_main():
             error(wrong_thread, "this native type requires the process main thread")
         var information = ownership.Info(name = declaration.name, size = memory.size_of(Owner[T]),
-                                         finish = Owner[T].finish_owner, drop = Owner[T].drop_owner, trace = Owner[T].trace_owner)
+                                         finish = Owner[T].finish_owner, drop = Owner[T].drop_owner,
+                                         trace = Owner[T].trace_owner, disposes = true)
         let owner = (Owner[T]*)try ownership.reserve(&information, memory.size_of(Owner[T]))
         owner.information = information
         owner.header.info = &owner.information

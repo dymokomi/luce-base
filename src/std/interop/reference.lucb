@@ -46,7 +46,9 @@ pub struct Reference[T]:
 
     ## Infallible access traps; fallible adapters use get to preserve a closed error.
     pub func value() -> T*:
-        return self.get() catch failure: trap(failure.message)
+        return self.get() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## A stable identity for the value that never repeats.
     pub func identity() -> u64:

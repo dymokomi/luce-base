@@ -81,11 +81,15 @@ pub struct View[T]:
 
     ## The value, trapping if the lease has expired.
     pub func value() -> const T*:
-        return self.get() catch failure: trap(failure.message)
+        return self.get() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## The mutable value, trapping when unavailable.
     pub func value_mut() -> T*:
-        return self.get_mut() catch failure: trap(failure.message)
+        return self.get_mut() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## Whether the view's lease is still valid.
     pub func is_valid() -> bool:
@@ -110,7 +114,9 @@ pub struct View[T]:
 
     ## Begin a guarded invocation for an interface witness.
     pub static func begin_interface(object: ownership.Object*):
-        View[T]((ViewOwner[T]*)object).enter() catch failure: trap(failure.message)
+        View[T]((ViewOwner[T]*)object).enter() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## End a guarded invocation for an interface witness.
     pub static func end_interface(object: ownership.Object*):

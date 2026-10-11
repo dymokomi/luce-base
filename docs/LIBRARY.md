@@ -480,12 +480,15 @@ What the collector and the destructor need to know about a class.
 - `var trace: func(Object*, func(Object*, void*) -> unit, void*) -> unit` — Visits every strong reference the object holds, fields in declaration order.
 - `var identity: (func(Object*) -> u64)? = none` — An interface adapter preserves the identity of its concrete owner.
 - `var acyclic: bool = false` — No object of this type can be part of a reference cycle (text, a list of numbers, a class whose fields are all such): the collector never takes one as a candidate nor walks into one, so large acyclic data costs it nothing.
+- `var disposes: bool = false` — `finish` disposes native state that other objects' finishes may still reach (a native object's close): in a garbage cycle it runs after every `deinit`, and before the finishes of the objects this one refers to, as releasing them in turn would.
 
 - `func live_count() -> usize` — Allocated objects not yet finalized on the calling runtime thread.
 
 - `func restore_site(saved: str)` — The caller's site again, deferred by every function the compiler writes.
 
 - `func stop(message: str) -> never` — Stop the program with `trap: file:line:column: message` on standard error and status 1.
+
+- `func stop_at_site(message: str)` — A library trap on behalf of the value language: stops at its running statement when one is set, so the trap names the Luce line rather than the library's; returns otherwise, for the caller's own `trap` to name its statement.
 
 - `func context_id() -> u64` — A unique runtime identity for this thread, independent of recycled OS thread IDs.
 
@@ -523,7 +526,7 @@ What the collector and the destructor need to know about a class.
 
 - `let candidate_limit: usize = 1024`
 
-- `func collect()` — Free the garbage: deinits first, then every object's fields, then the storage.
+- `func collect()` — Free the garbage: deinits first, then the native objects' disposals, then every object's fields, then the storage.
 
 ### `Weak` (struct)
 

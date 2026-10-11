@@ -16,6 +16,8 @@ local var roots: Object*[]
 local var root_count: usize = 0
 local var whites: Object*[]
 local var white_count: usize = 0
+local var disposals: Object*[]
+local var disposal_count: usize = 0
 local var collector_running: bool = false
 ## `LUCE_CYCLE_STRESS` in the environment: 0 not read yet, 1 absent, 2 present.
 var stress_state: @u8
@@ -119,6 +121,57 @@ func visit_restore(child: Object*, context: void*):
     check_thread(child)
     child.strong += 1
 
+func push_disposal(o: Object*):
+    if disposal_count == disposals.length:
+        disposals = grow(disposals, disposal_count, 64)
+    disposals[disposal_count] = o
+    disposal_count += 1
+
+func visit_order(child: Object*, context: void*):
+    if skipped(child):
+        return
+    order_from(child)
+
+## A depth-first walk of the garbage that lists each disposing object after every one it
+## reaches: read backwards, an object is disposed before what it refers to.
+func order_from(o: Object*):
+    if not has(o, collecting) or has(o, ordered):
+        return
+    o.flags |= ordered
+    o.info.trace(o, visit_order, (void*)o)
+    if o.info.disposes:
+        push_disposal(o)
+
+## The order the garbage's native objects are disposed in, after every `deinit` has run:
+## each before the objects it refers to, as releasing the garbage one reference at a time
+## would, so a close that reaches into what it holds finds it open. A cycle has no first
+## object, and the walk treats the edge back to an object it is still inside as the one
+## released last. It starts at the objects that do not dispose, oldest first, then the
+## rest: a native object's references own what they reach, while a cycle is closed by the
+## value language's objects and closures, so the walk enters it there.
+func order_disposal():
+    disposal_count = 0
+    var i: usize = 0
+    while i < white_count:
+        if not whites[i].info.disposes:
+            order_from(whites[i])
+        i += 1
+    i = 0
+    while i < white_count:
+        order_from(whites[i])
+        i += 1
+
+func run_finish(o: Object*):
+    if let f = o.info.finish:
+        let before = o.strong
+        o.strong += 1
+        f(o)
+        if o.strong > before + 1:
+            trap("`deinit` published `self`")
+        # Native disposal may release edges, including an edge to itself.
+        # Remove only the temporary finalizer reference, preserving those drops.
+        o.strong -= 1
+
 ## The garbage in the order its objects were made, oldest first (their generations): what a
 ## cycle's deinits and the releases of its fields follow, the same in a compiled program and
 ## Luce's interpreter whatever let go of what when (a heap sort, in place).
@@ -148,7 +201,8 @@ func sift_white(first: usize, end: usize):
         whites[child] = held
         root = child
 
-## Free the garbage: deinits first, then every object's fields, then the storage.
+## Free the garbage: deinits first, then the native objects' disposals, then every object's
+## fields, then the storage.
 pub func collect():
     if collector_running:
         return
@@ -192,19 +246,18 @@ pub func collect():
     while i < white_count:
         whites[i].info.trace(whites[i], visit_restore, (void*)whites[i])
         i += 1
+    # the order is taken before any finish runs, over the garbage as it was found
+    order_disposal()
     i = 0
     while i < white_count:
-        let o = whites[i]
-        if let f = o.info.finish:
-            let before = o.strong
-            o.strong += 1
-            f(o)
-            if o.strong > before + 1:
-                trap("`deinit` published `self`")
-            # Native disposal may release edges, including an edge to itself.
-            # Remove only the temporary finalizer reference, preserving those drops.
-            o.strong -= 1
+        if not whites[i].info.disposes:
+            run_finish(whites[i])
         i += 1
+    i = disposal_count
+    while i > 0:
+        i -= 1
+        run_finish(disposals[i])
+    disposal_count = 0
     i = 0
     while i < white_count:
         whites[i].info.drop(whites[i])

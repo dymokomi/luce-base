@@ -37,6 +37,15 @@ func node(value: i64) -> Node*:
     n.value = value
     return n
 
+## The same node as a native object's owner, whose finish disposes what others may reach.
+var disposing_info: Info = Info(name = "Disposing", size = memory.size_of(Node), finish = node_finish, drop = node_drop,
+                                trace = node_trace, disposes = true)
+
+func disposing(value: i64) -> Node*:
+    let n = (Node*)allocate(&disposing_info)
+    n.value = value
+    return n
+
 ## The shared runtime uses stable heap storage between isolated test arenas.
 func fresh():
     assert(finish_run(0) == 0)
@@ -223,3 +232,21 @@ test "a garbage cycle's reference to a live object costs the object that one ref
     release((Object*)kept)
     assert((str)log[..<logged] == "5")
     assert(live_count() == 0)
+
+test "a cycle's deinits run first, then its disposals, each before what it refers to":
+    fresh()
+    # made oldest first: a native node, the native object holding it, a plain object holding
+    # that; the node's reference back to the plain object closes the cycle
+    let inner = disposing(1)
+    let outer = disposing(2)
+    let root = node(3)
+    outer.next = (Node*)retain((Object*)inner)
+    root.next = (Node*)retain((Object*)outer)
+    inner.next = (Node*)retain((Object*)root)
+    release((Object*)inner)
+    release((Object*)outer)
+    release((Object*)root)
+    collect()
+    assert((str)log[..<logged] == "321")
+    assert(live_count() == 0)
+    assert(finish_run(0) == 0)

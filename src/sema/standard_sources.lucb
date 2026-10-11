@@ -4930,6 +4930,8 @@ pub let immortal: u8 = 32
 ## An object whose `init` failed, while `abandon` releases its fields: a release of it is
 ## bookkeeping only and the collector never walks into it.
 let abandoning: u8 = 64
+## Placed in the collector's disposal order (cycles.lucb, `order_disposal`).
+let ordered: u8 = 128
 
 ## The ownership header every managed object carries, before its fields.
 pub struct Object:
@@ -4968,6 +4970,10 @@ pub struct Info:
     ## class whose fields are all such): the collector never takes one as a candidate nor
     ## walks into one, so large acyclic data costs it nothing.
     pub var acyclic: bool = false
+    ## `finish` disposes native state that other objects' finishes may still reach (a
+    ## native object's close): in a garbage cycle it runs after every `deinit`, and before
+    ## the finishes of the objects this one refers to, as releasing them in turn would.
+    pub var disposes: bool = false
 
 ## Objects alive: allocated and not yet destroyed.
 local var live: usize = 0
@@ -4988,6 +4994,13 @@ pub func restore_site(saved: str):
 ## Stop the program with `trap: file:line:column: message` on standard error and status 1.
 pub func stop(message: str) -> never:
     core.trap_located(site, message)
+
+## A library trap on behalf of the value language: stops at its running statement when one is
+## set, so the trap names the Luce line rather than the library's; returns otherwise, for the
+## caller's own `trap` to name its statement.
+pub func stop_at_site(message: str):
+    if site.length > 0:
+        core.trap_located(site, message)
 
 func color_of(o: Object*) -> u8:
     return o.flags & color_mask
@@ -5250,6 +5263,8 @@ local var roots: Object*[]
 local var root_count: usize = 0
 local var whites: Object*[]
 local var white_count: usize = 0
+local var disposals: Object*[]
+local var disposal_count: usize = 0
 local var collector_running: bool = false
 ## `LUCE_CYCLE_STRESS` in the environment: 0 not read yet, 1 absent, 2 present.
 var stress_state: @u8
@@ -5353,6 +5368,57 @@ func visit_restore(child: Object*, context: void*):
     check_thread(child)
     child.strong += 1
 
+func push_disposal(o: Object*):
+    if disposal_count == disposals.length:
+        disposals = grow(disposals, disposal_count, 64)
+    disposals[disposal_count] = o
+    disposal_count += 1
+
+func visit_order(child: Object*, context: void*):
+    if skipped(child):
+        return
+    order_from(child)
+
+## A depth-first walk of the garbage that lists each disposing object after every one it
+## reaches: read backwards, an object is disposed before what it refers to.
+func order_from(o: Object*):
+    if not has(o, collecting) or has(o, ordered):
+        return
+    o.flags |= ordered
+    o.info.trace(o, visit_order, (void*)o)
+    if o.info.disposes:
+        push_disposal(o)
+
+## The order the garbage's native objects are disposed in, after every `deinit` has run:
+## each before the objects it refers to, as releasing the garbage one reference at a time
+## would, so a close that reaches into what it holds finds it open. A cycle has no first
+## object, and the walk treats the edge back to an object it is still inside as the one
+## released last. It starts at the objects that do not dispose, oldest first, then the
+## rest: a native object's references own what they reach, while a cycle is closed by the
+## value language's objects and closures, so the walk enters it there.
+func order_disposal():
+    disposal_count = 0
+    var i: usize = 0
+    while i < white_count:
+        if not whites[i].info.disposes:
+            order_from(whites[i])
+        i += 1
+    i = 0
+    while i < white_count:
+        order_from(whites[i])
+        i += 1
+
+func run_finish(o: Object*):
+    if let f = o.info.finish:
+        let before = o.strong
+        o.strong += 1
+        f(o)
+        if o.strong > before + 1:
+            trap("`deinit` published `self`")
+        # Native disposal may release edges, including an edge to itself.
+        # Remove only the temporary finalizer reference, preserving those drops.
+        o.strong -= 1
+
 ## The garbage in the order its objects were made, oldest first (their generations): what a
 ## cycle's deinits and the releases of its fields follow, the same in a compiled program and
 ## Luce's interpreter whatever let go of what when (a heap sort, in place).
@@ -5382,7 +5448,8 @@ func sift_white(first: usize, end: usize):
         whites[child] = held
         root = child
 
-## Free the garbage: deinits first, then every object's fields, then the storage.
+## Free the garbage: deinits first, then the native objects' disposals, then every object's
+## fields, then the storage.
 pub func collect():
     if collector_running:
         return
@@ -5426,19 +5493,18 @@ pub func collect():
     while i < white_count:
         whites[i].info.trace(whites[i], visit_restore, (void*)whites[i])
         i += 1
+    # the order is taken before any finish runs, over the garbage as it was found
+    order_disposal()
     i = 0
     while i < white_count:
-        let o = whites[i]
-        if let f = o.info.finish:
-            let before = o.strong
-            o.strong += 1
-            f(o)
-            if o.strong > before + 1:
-                trap("`deinit` published `self`")
-            # Native disposal may release edges, including an edge to itself.
-            # Remove only the temporary finalizer reference, preserving those drops.
-            o.strong -= 1
+        if not whites[i].info.disposes:
+            run_finish(whites[i])
         i += 1
+    i = disposal_count
+    while i > 0:
+        i -= 1
+        run_finish(disposals[i])
+    disposal_count = 0
     i = 0
     while i < white_count:
         whites[i].info.drop(whites[i])
@@ -7371,7 +7437,8 @@ pub struct Reservation[T]:
         if declaration.main_thread and not thread.is_main():
             error(wrong_thread, "this native type requires the process main thread")
         var information = ownership.Info(name = declaration.name, size = memory.size_of(Owner[T]),
-                                         finish = Owner[T].finish_owner, drop = Owner[T].drop_owner, trace = Owner[T].trace_owner)
+                                         finish = Owner[T].finish_owner, drop = Owner[T].drop_owner,
+                                         trace = Owner[T].trace_owner, disposes = true)
         let owner = (Owner[T]*)try ownership.reserve(&information, memory.size_of(Owner[T]))
         owner.information = information
         owner.header.info = &owner.information
@@ -7442,7 +7509,9 @@ pub struct Reference[T]:
 
     ## Infallible access traps; fallible adapters use get to preserve a closed error.
     pub func value() -> T*:
-        return self.get() catch failure: trap(failure.message)
+        return self.get() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## A stable identity for the value that never repeats.
     pub func identity() -> u64:
@@ -7713,11 +7782,15 @@ pub struct View[T]:
 
     ## The value, trapping if the lease has expired.
     pub func value() -> const T*:
-        return self.get() catch failure: trap(failure.message)
+        return self.get() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## The mutable value, trapping when unavailable.
     pub func value_mut() -> T*:
-        return self.get_mut() catch failure: trap(failure.message)
+        return self.get_mut() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## Whether the view's lease is still valid.
     pub func is_valid() -> bool:
@@ -7742,7 +7815,9 @@ pub struct View[T]:
 
     ## Begin a guarded invocation for an interface witness.
     pub static func begin_interface(object: ownership.Object*):
-        View[T]((ViewOwner[T]*)object).enter() catch failure: trap(failure.message)
+        View[T]((ViewOwner[T]*)object).enter() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## End a guarded invocation for an interface witness.
     pub static func end_interface(object: ownership.Object*):
@@ -7813,7 +7888,9 @@ pub struct Interface[I]:
 
     ## The interface value, trapping if it is invalid.
     pub func value() -> I:
-        return self.get() catch failure: trap(failure.message)
+        return self.get() catch failure:
+            ownership.stop_at_site(failure.message)
+            trap(failure.message)
 
     ## Begin a guarded invocation, retaining the owner.
     pub func enter() -> !:
