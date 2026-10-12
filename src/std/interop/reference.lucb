@@ -35,7 +35,7 @@ pub struct Reference[T]:
 
     ## Drop this reference's edge.
     pub func release():
-        ownership.release(&self.owner.header)
+        ownership.release_held(&self.owner.header)
 
     ## The native value, or a closed/uninitialized error.
     pub func get() -> T*!:

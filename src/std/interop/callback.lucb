@@ -37,13 +37,13 @@ pub struct Callback[A, R]:
     ## Drop this callback's edge to the owner.
     pub func release():
         self.require_thread()
-        ownership.release(self.owner)
+        ownership.release_held(self.owner)
 
     ## Call the callable with `argument`, retaining the owner across the call.
     pub func invoke(argument: A) -> Outcome[R]:
         self.require_thread()
         _ = ownership.retain(self.owner)
-        defer ownership.release(self.owner)
+        defer ownership.release_held(self.owner)
         return self.entry(self.owner, argument)
 
     ## Visit the owner as a strong reference.

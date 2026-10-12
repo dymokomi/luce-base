@@ -5084,8 +5084,17 @@ pub func retain(o: Object*) -> Object*:
     set_color(o, black)
     return o
 
-## Drop a strong reference to `o`, finalizing it when the count reaches zero.
+## Drop a strong reference to `o`, finalizing it when the count reaches zero. The value
+## language's release: it stores before it releases, so the collector may run here.
 pub func release(o: Object*):
+    release_from(o, true)
+
+## `release` for a handle native code holds (`interop`): never runs the collector, which
+## could trace a field the caller has released but not yet overwritten (`possible_root`).
+pub func release_held(o: Object*):
+    release_from(o, false)
+
+func release_from(o: Object*, may_collect: bool):
     check_thread(o)
     if has(o, immortal):
         return
@@ -5101,7 +5110,7 @@ pub func release(o: Object*):
     if o.strong == 0:
         destroy(o)
     elif not o.info.acyclic:
-        possible_root(o)
+        possible_root(o, may_collect)
 
 ## `deinit`, then the fields, then the storage unless a weak reference keeps the shell.
 func destroy(o: Object*):
@@ -5251,7 +5260,8 @@ let text_19: str = r"""#========================================================
 #
 #   DESCRIPTION:
 #       A synchronous trial-deletion collector for reference cycles on the owning thread,
-#       run when the candidate set fills or at the end of a run. An object whose type is
+#       run when the candidate set fills at a release of the value language's, explicitly,
+#       or at the end of a run; never at a release through a native handle (`release_held`). An object whose type is
 #       acyclic is never a candidate and never walked into: it cannot be part of a cycle,
 #       and every visitor skipping it keeps the trial counts balanced.
 #
@@ -5266,13 +5276,16 @@ local var white_count: usize = 0
 local var disposals: Object*[]
 local var disposal_count: usize = 0
 local var collector_running: bool = false
+## The candidate count at which a release that may not collect drops the candidates that
+## are no longer purple or alive (`purge_roots`), so the buffer grows only with live ones.
+local var purge_at: usize = 0
 ## `LUCE_CYCLE_STRESS` in the environment: 0 not read yet, 1 absent, 2 present.
 var stress_state: @u8
 extern func stress_getenv as "getenv"(name: c.str) -> c.str?
 
-## Whether `LUCE_CYCLE_STRESS` is set: the collector then runs at every new candidate, so a
-## collection happens at every release that could leave a cycle, in `clear`, `remove`, a
-## `deinit` and a failed `init` too (the stress mode of luce's tools/cycles_fuzz.py). The
+## Whether `LUCE_CYCLE_STRESS` is set: the collector then runs at every new candidate of a
+## release that may collect, so a collection happens at every such release that could leave
+## a cycle, in `clear`, `remove`, a `deinit` and a failed `init` too (the stress mode of luce's tools/cycles_fuzz.py). The
 ## environment is read once; every thread reads the same answer.
 func stressed() -> bool:
     var state = stress_state.load(.relaxed)
@@ -5296,14 +5309,46 @@ func push_white(o: Object*):
     whites[white_count] = o
     white_count += 1
 
-func possible_root(o: Object*):
+## `o`, released and still held, may be a cycle's root. When the candidates fill, a release
+## of the value language's collects (`may_collect`). A release through a native handle never
+## does: native code may still hold a traced field whose edge it has just released, as in
+## `old.release()` before `self.field = next`, and a collection would take that edge away a
+## second time. Its candidates wait for the next release that may collect, or a `collect`.
+func possible_root(o: Object*, may_collect: bool):
     if color_of(o) != purple:
         set_color(o, purple)
         if not has(o, buffered):
             o.flags |= buffered
             push_root(o)
             if (root_count >= candidate_limit or stressed()) and not collector_running:
-                collect()
+                if may_collect:
+                    collect()
+                elif root_count >= purge_at:
+                    purge_roots()
+                    purge_at = candidate_limit if root_count * 2 < candidate_limit else root_count * 2
+
+## A point where no native code is midway through replacing a traced field, such as the top
+## of an event loop's turn: collects when releases through native handles filled the
+## candidates (`possible_root`), which they never collect themselves.
+pub func safe_point():
+    if root_count >= candidate_limit and not collector_running:
+        collect()
+
+## Drop the candidates that are no longer purple or no longer alive, freeing the storage of
+## the dead: it touches no object's fields, so any release may.
+func purge_roots():
+    var kept: usize = 0
+    var i: usize = 0
+    while i < root_count:
+        let o = roots[i]
+        if color_of(o) == purple and o.strong > 0 and not has(o, dead):
+            roots[kept] = o
+            kept += 1
+        else:
+            o.flags &= ~buffered
+            release_shell(o)
+        i += 1
+    root_count = kept
 
 ## An object no walk enters: a literal, an acyclic one, or one `abandon` is dropping.
 func skipped(child: Object*) -> bool:
@@ -5455,20 +5500,10 @@ pub func collect():
     if collector_running:
         return
     collector_running = true
+    purge_at = candidate_limit
     # candidates still purple and alive stay; the rest leave the buffer
-    var kept: usize = 0
+    purge_roots()
     var i: usize = 0
-    while i < root_count:
-        let o = roots[i]
-        if color_of(o) == purple and o.strong > 0 and not has(o, dead):
-            roots[kept] = o
-            kept += 1
-        else:
-            o.flags &= ~buffered
-            release_shell(o)
-        i += 1
-    root_count = kept
-    i = 0
     while i < root_count:
         mark_gray(roots[i])
         i += 1
@@ -7392,7 +7427,7 @@ pub struct Owner[T]:
         owner.active -= 1
         if owner.closed and owner.active == 0:
             dispose_owner[T](owner)
-        ownership.release(object)
+        ownership.release_held(object)
 
     ## The collector's finalizer: close the owner.
     pub static func finish_owner(object: ownership.Object*):
@@ -7502,7 +7537,7 @@ pub struct Reference[T]:
 
     ## Drop this reference's edge.
     pub func release():
-        ownership.release(&self.owner.header)
+        ownership.release_held(&self.owner.header)
 
     ## The native value, or a closed/uninitialized error.
     pub func get() -> T*!:
@@ -7627,7 +7662,7 @@ struct LeaseState:
 
 func drop_lease(object: ownership.Object*):
     let state = (LeaseState*)object
-    ownership.release(state.owner)
+    ownership.release_held(state.owner)
 
 func trace_lease(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
     visit(((LeaseState*)object).owner, context)
@@ -7666,7 +7701,7 @@ pub struct Lease:
     ## Drop this lease's edge.
     pub func release():
         self.alive()
-        ownership.release(&self.state.header)
+        ownership.release_held(&self.state.header)
 
     ## Mark the scope invalid; later checks fail.
     pub func invalidate():
@@ -7694,7 +7729,7 @@ pub struct Lease:
     pub func leave():
         self.alive()
         self.state.end(self.state.owner)
-        ownership.release(&self.state.header)
+        ownership.release_held(&self.state.header)
 
     ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
@@ -7769,7 +7804,7 @@ pub struct View[T]:
 
     ## Drop this view's edge.
     pub func release():
-        ownership.release(&self.owner.header)
+        ownership.release_held(&self.owner.header)
 
     ## A read-only pointer to the value, after checking the lease.
     pub func get() -> const T*!:
@@ -7811,7 +7846,7 @@ pub struct View[T]:
     pub func leave():
         ownership.check_alive(&self.owner.header)
         self.owner.lease.leave()
-        ownership.release(&self.owner.header)
+        ownership.release_held(&self.owner.header)
 
     ## Validate that `object` is a live view of this type.
     pub static func validate_interface(object: ownership.Object*) -> !:
@@ -7881,7 +7916,7 @@ pub struct Interface[I]:
 
     ## Drop this witness's edge to the owner.
     pub func release():
-        ownership.release(self.owner)
+        ownership.release_held(self.owner)
 
     ## The interface value, after checking that the owner is alive and valid.
     pub func get() -> I!:
@@ -7908,7 +7943,7 @@ pub struct Interface[I]:
         ownership.check_alive(self.owner)
         if let end = self.end:
             end(self.owner)
-        ownership.release(self.owner)
+        ownership.release_held(self.owner)
 
     ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
@@ -7944,7 +7979,7 @@ pub struct Owned[T]:
     ## End this value's obligation to its owner.
     pub func release():
         if let owner = self.owner:
-            ownership.release(owner)
+            ownership.release_held(owner)
 
     ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
@@ -8085,13 +8120,13 @@ pub struct Callback[A, R]:
     ## Drop this callback's edge to the owner.
     pub func release():
         self.require_thread()
-        ownership.release(self.owner)
+        ownership.release_held(self.owner)
 
     ## Call the callable with `argument`, retaining the owner across the call.
     pub func invoke(argument: A) -> Outcome[R]:
         self.require_thread()
         _ = ownership.retain(self.owner)
-        defer ownership.release(self.owner)
+        defer ownership.release_held(self.owner)
         return self.entry(self.owner, argument)
 
     ## Visit the owner as a strong reference.
@@ -8185,7 +8220,7 @@ pub struct Connection:
         let state = self.state else return
         self.state = none
         self.remove(state, self.identifier)
-        ownership.release(state)
+        ownership.release_held(state)
 
     ## Whether the registration is still present.
     pub func is_connected() -> bool:
@@ -8309,7 +8344,7 @@ pub struct Signal[A]:
 
     ## Drop this signal's edge.
     pub func release():
-        ownership.release(&self.state.header)
+        ownership.release_held(&self.state.header)
 
     ## Close the signal; further connects and emits fail.
     pub func close():
@@ -8351,7 +8386,7 @@ pub struct Signal[A]:
     ## Deliver `argument` to every connected callback.
     pub func emit(argument: A) -> Outcome[unit]:
         _ = ownership.retain(&self.state.header)
-        defer ownership.release(&self.state.header)
+        defer ownership.release_held(&self.state.header)
         if self.state.closed:
             return Outcome[unit].failure(invalid, Owned[str]("a signal is closed"))
         if self.state.count == 0:

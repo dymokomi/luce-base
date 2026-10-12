@@ -185,8 +185,17 @@ pub func retain(o: Object*) -> Object*:
     set_color(o, black)
     return o
 
-## Drop a strong reference to `o`, finalizing it when the count reaches zero.
+## Drop a strong reference to `o`, finalizing it when the count reaches zero. The value
+## language's release: it stores before it releases, so the collector may run here.
 pub func release(o: Object*):
+    release_from(o, true)
+
+## `release` for a handle native code holds (`interop`): never runs the collector, which
+## could trace a field the caller has released but not yet overwritten (`possible_root`).
+pub func release_held(o: Object*):
+    release_from(o, false)
+
+func release_from(o: Object*, may_collect: bool):
     check_thread(o)
     if has(o, immortal):
         return
@@ -202,7 +211,7 @@ pub func release(o: Object*):
     if o.strong == 0:
         destroy(o)
     elif not o.info.acyclic:
-        possible_root(o)
+        possible_root(o, may_collect)
 
 ## `deinit`, then the fields, then the storage unless a weak reference keeps the shell.
 func destroy(o: Object*):

@@ -25,7 +25,7 @@ pub struct Owned[T]:
     ## End this value's obligation to its owner.
     pub func release():
         if let owner = self.owner:
-            ownership.release(owner)
+            ownership.release_held(owner)
 
     ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):

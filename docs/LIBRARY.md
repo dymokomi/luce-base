@@ -508,7 +508,9 @@ What the collector and the destructor need to know about a class.
 
 - `func retain(o: Object*) -> Object*` — Add a strong reference to `o` and return it.
 
-- `func release(o: Object*)` — Drop a strong reference to `o`, finalizing it when the count reaches zero.
+- `func release(o: Object*)` — Drop a strong reference to `o`, finalizing it when the count reaches zero. The value language's release: it stores before it releases, so the collector may run here.
+
+- `func release_held(o: Object*)` — `release` for a handle native code holds (`interop`): never runs the collector, which could trace a field the caller has released but not yet overwritten (`possible_root`).
 
 - `func discard_unpublished(o: Object*)` — Free unpublished storage without invoking the successful object's cleanup. The native initializer owns cleanup of its partially acquired resources.
 
@@ -525,6 +527,8 @@ What the collector and the destructor need to know about a class.
 - `func drain(since: usize)` — Releases every temporary pooled since `mark`, in the order they were pooled.
 
 - `let candidate_limit: usize = 1024`
+
+- `func safe_point()` — A point where no native code is midway through replacing a traced field, such as the top of an event loop's turn: collects when releases through native handles filled the candidates (`possible_root`), which they never collect themselves.
 
 - `func collect()` — Free the garbage: deinits first, then the native objects' disposals, then every object's fields, then the storage.
 

@@ -40,7 +40,7 @@ pub struct Interface[I]:
 
     ## Drop this witness's edge to the owner.
     pub func release():
-        ownership.release(self.owner)
+        ownership.release_held(self.owner)
 
     ## The interface value, after checking that the owner is alive and valid.
     pub func get() -> I!:
@@ -67,7 +67,7 @@ pub struct Interface[I]:
         ownership.check_alive(self.owner)
         if let end = self.end:
             end(self.owner)
-        ownership.release(self.owner)
+        ownership.release_held(self.owner)
 
     ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):

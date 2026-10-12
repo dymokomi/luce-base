@@ -1,6 +1,6 @@
 import memory
 import thread
-from ownership import Object, Info, allocate, retain, release, reserve, discard_unpublished, abandon, context_id, weak_make, weak_drop, weak_get, pool_object, mark, drain, collect, finish_run, live_count
+from ownership import Object, Info, allocate, retain, release, release_held, candidate_limit, reserve, discard_unpublished, abandon, context_id, weak_make, weak_drop, weak_get, pool_object, mark, drain, collect, finish_run, live_count
 
 ## A hand-built class, shaped as the emitter shapes one: the header first, then the fields.
 struct Node:
@@ -300,3 +300,31 @@ func left_by(body: func(void*?) -> unit) -> usize!:
 test "the end of a run gives back every buffer a collection of native objects grew":
     fresh()
     assert(try left_by(collect_native_cycle) == try left_by(collect_plain_cycle))
+
+test "a release through a native handle never collects, so a field it left stale is never traced":
+    fresh()
+    # `child` is held once, by `owner`; `holder`'s traced field still names it after native
+    # code released that edge, and before it stores the field's next value. Both holders
+    # are candidates, so a collection would take `child`'s one reference away twice.
+    let owner = node(1)
+    let holder = node(2)
+    let child = node(3)
+    owner.next = child
+    holder.next = (Node*)retain((Object*)child)
+    release_held(retain((Object*)owner))
+    release_held(retain((Object*)holder))
+    var fillers: Node*[1024] = ---
+    for i in 0..<candidate_limit - 3:
+        fillers[i] = node(4)
+        release_held(retain((Object*)fillers[i]))
+    # the candidate that fills the buffer, with `holder.next` stale
+    release_held((Object*)child)
+    holder.next = none
+    collect()
+    assert(live_count() == candidate_limit and logged == 0)
+    for i in 0..<candidate_limit - 3:
+        release((Object*)fillers[i])
+    release((Object*)holder)
+    release((Object*)owner)
+    assert(live_count() == 0)
+    assert(finish_run(0) == 0)

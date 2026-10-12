@@ -100,7 +100,7 @@ pub struct Signal[A]:
 
     ## Drop this signal's edge.
     pub func release():
-        ownership.release(&self.state.header)
+        ownership.release_held(&self.state.header)
 
     ## Close the signal; further connects and emits fail.
     pub func close():
@@ -142,7 +142,7 @@ pub struct Signal[A]:
     ## Deliver `argument` to every connected callback.
     pub func emit(argument: A) -> Outcome[unit]:
         _ = ownership.retain(&self.state.header)
-        defer ownership.release(&self.state.header)
+        defer ownership.release_held(&self.state.header)
         if self.state.closed:
             return Outcome[unit].failure(invalid, Owned[str]("a signal is closed"))
         if self.state.count == 0:

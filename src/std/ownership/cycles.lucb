@@ -4,7 +4,8 @@
 #
 #   DESCRIPTION:
 #       A synchronous trial-deletion collector for reference cycles on the owning thread,
-#       run when the candidate set fills or at the end of a run. An object whose type is
+#       run when the candidate set fills at a release of the value language's, explicitly,
+#       or at the end of a run; never at a release through a native handle (`release_held`). An object whose type is
 #       acyclic is never a candidate and never walked into: it cannot be part of a cycle,
 #       and every visitor skipping it keeps the trial counts balanced.
 #
@@ -19,13 +20,16 @@ local var white_count: usize = 0
 local var disposals: Object*[]
 local var disposal_count: usize = 0
 local var collector_running: bool = false
+## The candidate count at which a release that may not collect drops the candidates that
+## are no longer purple or alive (`purge_roots`), so the buffer grows only with live ones.
+local var purge_at: usize = 0
 ## `LUCE_CYCLE_STRESS` in the environment: 0 not read yet, 1 absent, 2 present.
 var stress_state: @u8
 extern func stress_getenv as "getenv"(name: c.str) -> c.str?
 
-## Whether `LUCE_CYCLE_STRESS` is set: the collector then runs at every new candidate, so a
-## collection happens at every release that could leave a cycle, in `clear`, `remove`, a
-## `deinit` and a failed `init` too (the stress mode of luce's tools/cycles_fuzz.py). The
+## Whether `LUCE_CYCLE_STRESS` is set: the collector then runs at every new candidate of a
+## release that may collect, so a collection happens at every such release that could leave
+## a cycle, in `clear`, `remove`, a `deinit` and a failed `init` too (the stress mode of luce's tools/cycles_fuzz.py). The
 ## environment is read once; every thread reads the same answer.
 func stressed() -> bool:
     var state = stress_state.load(.relaxed)
@@ -49,14 +53,46 @@ func push_white(o: Object*):
     whites[white_count] = o
     white_count += 1
 
-func possible_root(o: Object*):
+## `o`, released and still held, may be a cycle's root. When the candidates fill, a release
+## of the value language's collects (`may_collect`). A release through a native handle never
+## does: native code may still hold a traced field whose edge it has just released, as in
+## `old.release()` before `self.field = next`, and a collection would take that edge away a
+## second time. Its candidates wait for the next release that may collect, or a `collect`.
+func possible_root(o: Object*, may_collect: bool):
     if color_of(o) != purple:
         set_color(o, purple)
         if not has(o, buffered):
             o.flags |= buffered
             push_root(o)
             if (root_count >= candidate_limit or stressed()) and not collector_running:
-                collect()
+                if may_collect:
+                    collect()
+                elif root_count >= purge_at:
+                    purge_roots()
+                    purge_at = candidate_limit if root_count * 2 < candidate_limit else root_count * 2
+
+## A point where no native code is midway through replacing a traced field, such as the top
+## of an event loop's turn: collects when releases through native handles filled the
+## candidates (`possible_root`), which they never collect themselves.
+pub func safe_point():
+    if root_count >= candidate_limit and not collector_running:
+        collect()
+
+## Drop the candidates that are no longer purple or no longer alive, freeing the storage of
+## the dead: it touches no object's fields, so any release may.
+func purge_roots():
+    var kept: usize = 0
+    var i: usize = 0
+    while i < root_count:
+        let o = roots[i]
+        if color_of(o) == purple and o.strong > 0 and not has(o, dead):
+            roots[kept] = o
+            kept += 1
+        else:
+            o.flags &= ~buffered
+            release_shell(o)
+        i += 1
+    root_count = kept
 
 ## An object no walk enters: a literal, an acyclic one, or one `abandon` is dropping.
 func skipped(child: Object*) -> bool:
@@ -208,20 +244,10 @@ pub func collect():
     if collector_running:
         return
     collector_running = true
+    purge_at = candidate_limit
     # candidates still purple and alive stay; the rest leave the buffer
-    var kept: usize = 0
+    purge_roots()
     var i: usize = 0
-    while i < root_count:
-        let o = roots[i]
-        if color_of(o) == purple and o.strong > 0 and not has(o, dead):
-            roots[kept] = o
-            kept += 1
-        else:
-            o.flags &= ~buffered
-            release_shell(o)
-        i += 1
-    root_count = kept
-    i = 0
     while i < root_count:
         mark_gray(roots[i])
         i += 1

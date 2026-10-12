@@ -40,7 +40,7 @@ pub struct Owner[T]:
         owner.active -= 1
         if owner.closed and owner.active == 0:
             dispose_owner[T](owner)
-        ownership.release(object)
+        ownership.release_held(object)
 
     ## The collector's finalizer: close the owner.
     pub static func finish_owner(object: ownership.Object*):

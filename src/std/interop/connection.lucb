@@ -30,7 +30,7 @@ pub struct Connection:
         let state = self.state else return
         self.state = none
         self.remove(state, self.identifier)
-        ownership.release(state)
+        ownership.release_held(state)
 
     ## Whether the registration is still present.
     pub func is_connected() -> bool:

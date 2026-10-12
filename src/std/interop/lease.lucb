@@ -20,7 +20,7 @@ struct LeaseState:
 
 func drop_lease(object: ownership.Object*):
     let state = (LeaseState*)object
-    ownership.release(state.owner)
+    ownership.release_held(state.owner)
 
 func trace_lease(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
     visit(((LeaseState*)object).owner, context)
@@ -59,7 +59,7 @@ pub struct Lease:
     ## Drop this lease's edge.
     pub func release():
         self.alive()
-        ownership.release(&self.state.header)
+        ownership.release_held(&self.state.header)
 
     ## Mark the scope invalid; later checks fail.
     pub func invalidate():
@@ -87,7 +87,7 @@ pub struct Lease:
     pub func leave():
         self.alive()
         self.state.end(self.state.owner)
-        ownership.release(&self.state.header)
+        ownership.release_held(&self.state.header)
 
     ## Visit the owner as a strong reference.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):

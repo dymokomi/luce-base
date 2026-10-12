@@ -64,7 +64,7 @@ pub struct View[T]:
 
     ## Drop this view's edge.
     pub func release():
-        ownership.release(&self.owner.header)
+        ownership.release_held(&self.owner.header)
 
     ## A read-only pointer to the value, after checking the lease.
     pub func get() -> const T*!:
@@ -106,7 +106,7 @@ pub struct View[T]:
     pub func leave():
         ownership.check_alive(&self.owner.header)
         self.owner.lease.leave()
-        ownership.release(&self.owner.header)
+        ownership.release_held(&self.owner.header)
 
     ## Validate that `object` is a live view of this type.
     pub static func validate_interface(object: ownership.Object*) -> !:
