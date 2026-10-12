@@ -335,8 +335,8 @@ func checked(path: c.str, test_build: bool = false, whole_package: bool = false)
     # the modules the last build of this entry loaded, parsed ahead in parallel
     # (`check.prefetch`), and the list kept again for the next
     let listing = try cache.record_key(try strings.format(try new u8[((str)path).length + 16] ---, f"modules {(str)path}"))
-    if let listed = try cache.find(listing, "-m", true):
-        try checker.prefetch((str)(try in_arena.read((c.str)listed)))
+    if let listed = try cache.read(listing, "-m", true):
+        try checker.prefetch((str)listed)
     try checker.load(path)
     cache.keep_bytes_as(listing, "-m", (try checker.loaded_list()).bytes)
     try checker.check_program()
@@ -536,16 +536,14 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
     let header_path = try strings.format(name_bytes[512..<1024], f"{dir}/lucb_rt.h")
     let runtime_path = try strings.format(name_bytes[1024..<1536], f"{dir}/lucb_rt.c")
     let start_path = try strings.format(name_bytes[1536..<2048], f"{dir}/start.c")
-    let object_path = try strings.format(name_bytes[2048..<2560], f"{dir}/gen.o")
+    var object_path = try strings.format(name_bytes[2048..<2560], f"{dir}/gen.o")
     try files.write((c.str)header_path, runtime.header.bytes)
     try files.write((c.str)runtime_path, runtime.source.bytes)
     if with_start:
         try files.write((c.str)start_path, runtime.start.bytes)
     let include = try strings.format(name_bytes[2560..<3072], f"-I{dir}")
-    if let cached = try cache.find(key, "-c.o"):
-        let object = try files.read((c.str)cached)
-        defer object.release()
-        try files.write((c.str)object_path, object.value)
+    if let cached = try cache.take(key, "-c.o", dir):
+        object_path = cached
     else:
         let text = try translate(checker, entry, mode)
         try files.write((c.str)gen_path, text.bytes)
@@ -652,17 +650,15 @@ func finish_debug(exe: str) -> !:
 ## a split assembly's pieces (`support.pieces`), in order, or one object.
 func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str) -> str[]!:
     if splittable():
-        if let listed = try pieces.cached(key):
+        if let listed = try pieces.cached(key, dir):
             return listed
         let text = try translate(checker, entry, mode, true)
         let t = build_target()
         return try pieces.assemble(dir, text, split_starts, split_tags, split_ending, key, t.os == targets.Os.macos, t.arch_name(), split_whole)
     let asm_path = try strings.format(name_bytes[..<512], f"{dir}/gen.s")
-    let object_path = try strings.format(name_bytes[512..<1024], f"{dir}/gen.o")
-    if let cached = try cache.find(key, "-n.o"):
-        let object = try files.read((c.str)cached)
-        defer object.release()
-        try files.write((c.str)object_path, object.value)
+    var object_path = try strings.format(name_bytes[512..<1024], f"{dir}/gen.o")
+    if let cached = try cache.take(key, "-n.o", dir):
+        object_path = cached
     else:
         # labels named by what they label, so the next build may reuse functions (`back.reuse`)
         let text = try translate(checker, entry, mode, false, not debug_backend and not symbols_backend)

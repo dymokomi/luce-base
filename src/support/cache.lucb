@@ -387,6 +387,32 @@ pub func find(entry: str, suffix: str, quiet: bool = false) -> str?!:
     refresh((c.str)path)
     return path
 
+## The cached object for the key `entry` and `suffix`, taken into the build's workspace `dir`
+## under the same name, when the cache has it: a hard link, or a copy where the two cannot
+## share a file. A build links what it took, never the cache's own file, which a build
+## trimming the shared cache (luce's `trim`) may remove at any moment; one removed before it
+## was taken is a miss. The cache never writes a file in place (`keep` renames a whole new
+## one over the name), so what a build took never changes under it.
+pub func take(entry: str, suffix: str, dir: str, quiet: bool = false) -> str?!:
+    let found = try find(entry, suffix, quiet) else return none
+    let room = try new u8[dir.length + entry.length + suffix.length + 2] ---
+    let path = try strings.format(room, f"{dir}/{entry}{suffix}")
+    if files.exists((c.str)path):
+        # an earlier build's, in a workspace kept between builds
+        files.remove_file((c.str)path) catch ignored:
+            _ = ignored
+    files.create_hard_link((c.str)found, (c.str)path) catch:
+        _ = files.copy_file((c.str)found, (c.str)path, replace = true) catch:
+            return none
+    return path
+
+## The bytes of the cached file for `entry` and `suffix`, when the cache has it; none when it
+## is missing or goes before it is read, as a trim of the shared cache may make it.
+pub func read(entry: str, suffix: str, quiet: bool = false) -> u8[]?!:
+    let found = try find(entry, suffix, quiet) else return none
+    return in_arena.read((c.str)found) catch:
+        return none
+
 ## A hit is a use: the file's modified time becomes now. A cache shared by many builds is kept
 ## within its size by removing the files modified longest ago (luce's `trim`), so this keeps
 ## what builds use and spares what a build in flight has just found. A file that cannot be
@@ -522,3 +548,22 @@ func copy_terminated(text: str) -> str!:
     memory.copy(room, text.bytes, text.length)
     room[text.length] = 0
     return (str)room[..<text.length]
+
+test "a build takes a cached object into its workspace, and one gone before it is taken is a miss":
+    let scratch = try in_arena.temporary_directory(".")
+    defer files.remove_tree((c.str)scratch) catch ignored:
+        _ = ignored
+    let cache_dir = try in_arena.join(scratch, "cache")
+    let workspace = try in_arena.join(scratch, "work")
+    try files.create_directory((c.str)cache_dir)
+    try files.create_directory((c.str)workspace)
+    let saved = override
+    defer override = saved
+    override = cache_dir
+    try keep_bytes(cache_dir, "0123456789abcdef", "-p.o", "object")
+    let taken = try take("0123456789abcdef", "-p.o", workspace, true) else return assert(false)
+    # a trim of the shared cache removes the cache's file; the build still has its own
+    try files.remove_file((c.str)try in_arena.join(cache_dir, "0123456789abcdef-p.o"))
+    assert((str)(try in_arena.read((c.str)taken)) == "object")
+    assert(try take("0123456789abcdef", "-p.o", workspace, true) == none)
+    assert(try read("0123456789abcdef", "-p.o", true) == none)

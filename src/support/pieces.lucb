@@ -53,11 +53,10 @@ func least_for(total: usize) -> usize:
         least *= 2
     return least
 
-## The objects of the pieces the build `key` was assembled in, in order, when the cache
-## still has every one; none otherwise.
-pub func cached(key: str) -> str[]?!:
-    let listed = try cache.find(key, "-n.m") else return none
-    let text = (str)(try in_arena_read(listed))
+## The objects of the pieces the build `key` was assembled in, in order, taken into the
+## workspace `dir` (`cache.take`) when the cache still has every one; none otherwise.
+pub func cached(key: str, dir: str) -> str[]?!:
+    let text = (str)(try cache.read(key, "-n.m") else return none)
     var objects = try list.List[str].create(64)
     var at: usize = 0
     while at < text.length:
@@ -68,7 +67,7 @@ pub func cached(key: str) -> str[]?!:
         at = end + 1
         if piece.length == 0:
             continue
-        let object = try cache.find(piece, "-p.o", true) else return none
+        let object = try cache.take(piece, "-p.o", dir, true) else return none
         try objects.push(object)
     if objects.count == 0:
         return none
@@ -112,7 +111,7 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
         keys[k] = try cache.piece_key(prelude, middle, ends, arch)
         try listing.put(keys[k])
         try listing.put("\n")
-        if let kept = try cache.find(keys[k], "-p.o", true):
+        if let kept = try cache.take(keys[k], "-p.o", dir, true):
             objects[k] = kept
             continue
         # a piece is named by its key, as the cache names it, and relative to the workspace
@@ -139,16 +138,6 @@ func write_piece(path: str, prelude: str, middle: str, closing: str) -> !:
         memory.copy(whole[prelude.length..], middle.bytes, middle.length)
         memory.copy(whole[prelude.length + middle.length..], closing.bytes, closing.length)
         try files.write((c.str)path, whole)
-
-## The whole file at `path`, in the current allocator.
-func in_arena_read(path: str) -> u8[]!:
-    let caller = memory.allocator
-    with memory.heap:
-        let whole = try files.read((c.str)path)
-        defer whole.release()
-        let copy = try new u8[whole.value.length] --- in caller
-        memory.copy(copy, whole.value, copy.length)
-        return copy
 
 # mark: The assembler threads ===============================================================
 
