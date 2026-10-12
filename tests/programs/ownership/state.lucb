@@ -1,4 +1,5 @@
 import memory
+import thread
 from ownership import Object, Info, allocate, retain, release, reserve, discard_unpublished, abandon, context_id, weak_make, weak_drop, weak_get, pool_object, mark, drain, collect, finish_run, live_count
 
 ## A hand-built class, shaped as the emitter shapes one: the header first, then the fields.
@@ -250,3 +251,52 @@ test "a cycle's deinits run first, then its disposals, each before what it refer
     assert((str)log[..<logged] == "321")
     assert(live_count() == 0)
     assert(finish_run(0) == 0)
+
+## Counts the blocks taken from the heap it wraps.
+struct Counting: memory.Allocator:
+    var upstream: memory.Allocator
+    var live: usize
+
+    pub func allocate(size: usize, alignment: usize) -> u8[]?:
+        let block = self.upstream.allocate(size, alignment) else return none
+        self.live += 1
+        return block
+
+    pub func resize(block: u8[], size: usize) -> bool:
+        return false
+
+    pub func release(block: u8[]):
+        self.live -= 1
+        self.upstream.release(block)
+
+## A worker's collector starts with no buffers: they grow in its first collection, and the
+## end of its run gives them back. Its cycle is of plain objects or of native ones.
+func collect_cycle(native: bool):
+    let a = disposing(1) if native else node(1)
+    let b = disposing(2) if native else node(2)
+    a.next = (Node*)retain((Object*)b)
+    b.next = (Node*)retain((Object*)a)
+    release((Object*)a)
+    release((Object*)b)
+    collect()
+    assert(finish_run(0) == 0)
+
+func collect_plain_cycle(context: void*?):
+    collect_cycle(false)
+
+func collect_native_cycle(context: void*?):
+    collect_cycle(true)
+
+## The blocks left in `memory.heap` by a worker running `body`, its thread's own included.
+func left_by(body: func(void*?) -> unit) -> usize!:
+    var counting = Counting(upstream = memory.heap, live = 0)
+    let previous = memory.heap
+    memory.heap = &counting
+    defer memory.heap = previous
+    let worker = try thread.spawn(body, none)
+    try worker.join()
+    return counting.live
+
+test "the end of a run gives back every buffer a collection of native objects grew":
+    fresh()
+    assert(try left_by(collect_native_cycle) == try left_by(collect_plain_cycle))

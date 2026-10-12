@@ -67,8 +67,11 @@ func release_buffers():
         free(roots) in memory.heap
     if whites.length > 0:
         free(whites) in memory.heap
+    if disposals.length > 0:
+        free(disposals) in memory.heap
     var empty_pending: Pending[]
     var empty_objects: Object*[]
     pending = empty_pending
     roots = empty_objects
     whites = empty_objects
+    disposals = empty_objects

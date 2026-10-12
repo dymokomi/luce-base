@@ -5287,9 +5287,12 @@ func push_root(o: Object*):
     roots[root_count] = o
     root_count += 1
 
+## The disposal order lists some of the garbage, so its buffer grows with the garbage's: a
+## collection allocates only when the garbage outgrows what came before.
 func push_white(o: Object*):
     if white_count == whites.length:
         whites = grow(whites, white_count, 256)
+        disposals = grow(disposals, 0, 256)
     whites[white_count] = o
     white_count += 1
 
@@ -5369,8 +5372,6 @@ func visit_restore(child: Object*, context: void*):
     child.strong += 1
 
 func push_disposal(o: Object*):
-    if disposal_count == disposals.length:
-        disposals = grow(disposals, disposal_count, 64)
     disposals[disposal_count] = o
     disposal_count += 1
 
@@ -5640,11 +5641,14 @@ func release_buffers():
         free(roots) in memory.heap
     if whites.length > 0:
         free(whites) in memory.heap
+    if disposals.length > 0:
+        free(disposals) in memory.heap
     var empty_pending: Pending[]
     var empty_objects: Object*[]
     pending = empty_pending
     roots = empty_objects
     whites = empty_objects
+    disposals = empty_objects
 """
 
 ## The text of `src/std/strings/module.lucb`.
