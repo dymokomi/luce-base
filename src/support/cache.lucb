@@ -384,7 +384,16 @@ pub func find(entry: str, suffix: str, quiet: bool = false) -> str?!:
         return none
     if report and not quiet:
         try io.stderr().write(f"luce-base: cache hit {entry}{suffix}\n")
+    refresh((c.str)path)
     return path
+
+## A hit is a use: the file's modified time becomes now. A cache shared by many builds is kept
+## within its size by removing the files modified longest ago (luce's `trim`), so this keeps
+## what builds use and spares what a build in flight has just found. A file that cannot be
+## touched is used as it is.
+func refresh(path: c.str):
+    files.touch(path) catch ignored:
+        _ = ignored
 
 ## The key of a piece of a split assembly (`support.pieces`): its text, which is all the
 ## assembler reads, and the architecture it assembles for.
