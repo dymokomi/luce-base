@@ -211,6 +211,10 @@ func opposite_condition(cond: str) -> str:
         "lt": return "ge"
         "lo": return "hs"
         "hs": return "lo"
+        "cs": return "cc"
+        "cc": return "cs"
+        "vs": return "vc"
+        "vc": return "vs"
         _: return cond
 
 ## `x21` -> `w21`, `x9` -> `w9`: the 32-bit view of an integer register.

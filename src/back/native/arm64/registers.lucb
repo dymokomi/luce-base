@@ -411,7 +411,7 @@ extend Generator:
             try self.writer.line3("fmov ", reg, ", #")
             try self.put_scaled(scaled)
             return
-        if self.f.instrs.count > pool_reach:
+        if self.f.instrs.count > short_reach:
             try self.load_immediate("x16", (i64)bits)
             try self.fmove(reg, "x16" if wide else "w16")
             return
@@ -451,10 +451,11 @@ extend Generator:
         try self.writer.put("\n")
         self.pool.count = 0
 
-## The most instructions a function may have and still load its float constants from a
-## pool after its text: a literal load reaches a megabyte, and no instruction of the IR
-## selects to more than sixty-four bytes.
-let pool_reach: usize = 16384
+## The most instructions a function may have for a megabyte to cross it, the reach of a
+## literal load and of a conditional branch: no instruction of the IR selects to more than
+## sixty-four bytes. Past it, float constants are built in place (`float_constant`) and a
+## conditional branch skips over an unconditional one (`branch_start`).
+let short_reach: usize = 16384
 
 ## The value of a float of `bits`, double when `wide`, times 128 and signed, when `fmov`
 ## encodes it as an immediate: ±(16 + m)/16 · 2^e for a four-bit m and e in -3..4 (the

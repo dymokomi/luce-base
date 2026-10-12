@@ -37,11 +37,13 @@ extend Generator:
                 let c = try self.source(n.a, n.cls, "x9" if n.cls == ir.Class.l else "w9")
                 # into whichever target comes next, one branch to the other
                 if n.extra == next_label:
-                    try self.writer.line3("cbz ", c, ", ")
+                    try self.branch_start("cbz ", "cbnz ", c)
                     try self.label_name(n.extra2)
+                    try self.branch_end()
                     return
-                try self.writer.line3("cbnz ", c, ", ")
+                try self.branch_start("cbnz ", "cbz ", c)
                 try self.label_name(n.extra)
+                try self.branch_end()
                 if n.extra2 != next_label:
                     try self.writer.line("b ")
                     try self.label_name(n.extra2)
@@ -420,10 +422,9 @@ extend Generator:
         if negate:
             cond = opposite_condition(cond)
         if let jump = branch:
-            try self.writer.line("b.")
-            try self.writer.put(cond)
-            try self.writer.put(" ")
+            try self.branch_on(cond)
             try self.label_name(jump.extra2 if next_label == jump.extra else jump.extra)
+            try self.branch_end()
             if next_label != jump.extra and next_label != jump.extra2:
                 try self.writer.line("b ")
                 try self.label_name(jump.extra2)
@@ -463,8 +464,9 @@ extend Generator:
             index = scratch
         try self.writer.line3("cmp ", index, ", #")
         try self.writer.put_u64((u64)table.count)
-        try self.writer.line("b.hs ")
+        try self.branch_on("hs")
         try self.label_name(n.extra)
+        try self.branch_end()
         try self.writer.line("adr x10, ")
         try self.table_name(n.extra2)
         try self.writer.line3("ldrsw x9, [x10, ", index, ", lsl #2]" if wide else ", uxtw #2]")
@@ -700,8 +702,9 @@ extend Generator:
             try self.writer.put("\n1:")
             return
         self.cold_count += 1
-        try self.writer.line(fail)
+        try self.branch_start(fail, pass)
         try self.cold_label(self.cold_count)
+        try self.branch_end()
         # the trap goes to the cold paths' text, through the writer every emission uses
         let body = self.writer.out
         self.writer.out = self.cold
@@ -713,6 +716,34 @@ extend Generator:
         try self.trap_text(reason, n.extra2)
         self.cold = self.writer.out
         self.writer.out = body
+
+    ## The start of a conditional branch, up to its label: `taken`, then `operand` and a
+    ## comma when there is one (`cbz ` and `x9`; `b.hs `). In a function a conditional branch
+    ## may not reach across (`short_reach`), `skipped`, the opposite branch, jumps over an
+    ## unconditional `b` to the label instead; `branch_end` places its target.
+    func branch_start(taken: str, skipped: str, operand: str = "") -> !:
+        let far = self.f.instrs.count > short_reach
+        try self.writer.line(skipped if far else taken)
+        if operand.length > 0:
+            try self.writer.put(operand)
+            try self.writer.put(", ")
+        if far:
+            try self.writer.put("1f")
+            try self.writer.line("b ")
+
+    ## `branch_start` for `b.cond`, on condition `cond` (`hs`).
+    func branch_on(cond: str) -> !:
+        let far = self.f.instrs.count > short_reach
+        try self.writer.line("b.")
+        try self.writer.put(opposite_condition(cond) if far else cond)
+        try self.writer.put(" 1f" if far else " ")
+        if far:
+            try self.writer.line("b ")
+
+    ## The end of a conditional branch after its label: the target of a far one's skip.
+    func branch_end() -> !:
+        if self.f.instrs.count > short_reach:
+            try self.writer.put("\n1:")
 
     ## The function's cold paths (`check_failure`), after its body and before its end.
     func finish_cold() -> !:
