@@ -1570,7 +1570,44 @@ func module_question(command: str, positional: usize, arguments: c.str[], out: i
     return none
 
 ## The `luce-base` command: it dispatches on the first argument (§19.6).
-pub func main(arguments: c.str[]) -> i32!:
+## `given` with each `@file` replaced by the file's lines, one argument a line, as C
+## compilers read them: how a caller passes more than a command line holds. Windows takes
+## 32 767 characters, and luce's batched questions (`resolve-all`, `describe-closure
+## --modules`) name every module of a program by its absolute path. An `@` that names no
+## readable file stays the argument it is.
+func response_files(given: c.str[]) -> c.str[]!:
+    var any = false
+    for a in given:
+        let text = (str)a
+        if text.length > 1 and text.bytes[0] == '@':
+            any = true
+    if not any:
+        return given
+    var expanded = try list.List[c.str].create(given.length + 64)
+    for a in given:
+        let text = (str)a
+        if text.length < 2 or text.bytes[0] != '@':
+            try expanded.push(a)
+            continue
+        let read = files.read((c.str)try strings.copy((str)text.bytes[1..])) catch:
+            try expanded.push(a)
+            continue
+        let contents = (str)read.value
+        var start: usize = 0
+        while start < contents.length:
+            var end = start
+            while end < contents.length and contents.bytes[end] != '\n':
+                end += 1
+            var stop = end
+            if stop > start and contents.bytes[stop - 1] == '\r':
+                stop -= 1
+            try expanded.push((c.str)try strings.copy((str)contents.bytes[start..<stop]))
+            start = end + 1
+    return expanded.span()
+
+## The command line, its `@file` arguments read (`response_files`): the command's status.
+pub func main(given: c.str[]) -> i32!:
+    let arguments = try response_files(given)
     let out = io.stdout()
     if arguments.length < 2:
         try usage(io.stderr())
@@ -1668,3 +1705,16 @@ pub func main(arguments: c.str[]) -> i32!:
         return 0
     try usage(io.stderr())
     return 2
+
+test "an @file argument stands for the file's lines, one argument a line":
+    let folder = try in_arena.temporary_directory(".")
+    defer files.remove_tree((c.str)folder) catch ignored:
+        _ = ignored
+    let listing = try in_arena.join(folder, "arguments")
+    try files.write((c.str)listing, "C:/a b/one.luc\r\nroot\n--\nlast")
+    let reference = try strings.join(["@", listing], "")
+    var given: c.str[4] = ["luce-base", "resolve-all", (c.str)try strings.copy(reference), "@missing-file"]
+    let expanded = try response_files(given)
+    assert(expanded.length == 7)
+    assert((str)expanded[2] == "C:/a b/one.luc" and (str)expanded[3] == "root" and (str)expanded[4] == "--" and (str)expanded[5] == "last")
+    assert((str)expanded[6] == "@missing-file")
