@@ -107,31 +107,24 @@ func no_operations(field: u8[], after_data: bool):
             count -= 5
     let last = count % 11
     if last != 0:
-        memory.copy(field[at..], nop_of(last), last)
+        memory.copy(field[at..], nops[last - 1], last)
         at += last
     while at < field.length:
-        memory.copy(field[at..], nop_of(11), 11)
+        memory.copy(field[at..], nops[10], 11)
         at += 11
 
-## The `nop` of each length from one byte to eleven, one after another: the one of `n`
-## bytes starts at byte `n * (n - 1) / 2`. (LUCE-BUG: bytes in an array rather than byte
-## strings, which luce-seed 115e1f0 cannot emit as static initialisers.)
-let nop_patterns: u8[66] = [0x90,
-                            0x66, 0x90,
-                            0x0F, 0x1F, 0x00,
-                            0x0F, 0x1F, 0x40, 0x00,
-                            0x0F, 0x1F, 0x44, 0x00, 0x00,
-                            0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00,
-                            0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00,
-                            0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x66, 0x2E, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x66, 0x66, 0x2E, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00]
-
-## The `nop` of `n` bytes, one to eleven.
-func nop_of(n: usize) -> const u8[]:
-    let start = n * (n - 1) // 2
-    return nop_patterns[start..<start + n]
+## The `nop` of each length from one byte to eleven, the one of `n` bytes at `n - 1`.
+let nops: const u8[11][] = [b"\x90",
+                            b"\x66\x90",
+                            b"\x0F\x1F\x00",
+                            b"\x0F\x1F\x40\x00",
+                            b"\x0F\x1F\x44\x00\x00",
+                            b"\x66\x0F\x1F\x44\x00\x00",
+                            b"\x0F\x1F\x80\x00\x00\x00\x00",
+                            b"\x0F\x1F\x84\x00\x00\x00\x00\x00",
+                            b"\x66\x0F\x1F\x84\x00\x00\x00\x00\x00",
+                            b"\x66\x2E\x0F\x1F\x84\x00\x00\x00\x00\x00",
+                            b"\x66\x66\x2E\x0F\x1F\x84\x00\x00\x00\x00\x00"]
 
 # mark: Fixups ================================================================================
 

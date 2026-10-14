@@ -211,9 +211,8 @@ func symbol(index: u32) -> state.Value:
 
 # mark: Opcodes ===============================================================================
 
-## The least line advance a special opcode makes is -5. (LUCE-BUG: its magnitude here,
-## since luce-seed 115e1f0 cannot emit a negative constant as a static initialiser.)
-let line_base_magnitude: i64 = 5
+## The least line advance a special opcode makes.
+let line_base: i64 = -5
 let line_range: u8 = 14
 let opcode_base: u8 = 13
 ## The most a special opcode advances the address: (255 - 13) / 14.
@@ -234,13 +233,13 @@ func advance(u: state.Unit*, delta: i64, step: u64, end: bool) -> !:
         try u.byte(1)
         return
     var line = delta
-    var biased = line + line_base_magnitude
+    var biased = line - line_base
     var copy = false
     if biased < 0 or biased >= (i64)line_range:
         try u.byte(3)
         try directives.put_leb(u, line, true)
         line = 0
-        biased = line_base_magnitude
+        biased = 0 - line_base
         copy = true
     if line == 0 and step == 0:
         try u.byte(1)

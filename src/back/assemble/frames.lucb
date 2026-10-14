@@ -35,10 +35,8 @@ let def_cfa_offset: u8 = 0x0E
 
 ## The return address's column on x86-64 Windows.
 let return_column: u64 = 32
-## The data alignment factor is -8: a saved register's offset is in eights below the frame.
-## (LUCE-BUG: its magnitude here, since luce-seed 115e1f0 cannot emit a negative constant
-## as a static initialiser.)
-let data_factor: i64 = 8
+## The data alignment factor: a saved register's offset is in eights below the frame.
+let data_factor: i64 = -8
 
 ## One call frame instruction: an advance from one place to another, or a rule.
 struct Step:
@@ -175,7 +173,7 @@ pub struct Frames:
         for b in [(u8)'z', (u8)'R', 0u8]:
             try u.byte(b)
         try directives.put_leb(u, 1, false)
-        try directives.put_leb(u, 0 - data_factor, true)
+        try directives.put_leb(u, data_factor, true)
         try u.byte((u8)return_column)
         try directives.put_leb(u, 1, false)
         # FDE addresses: PC-relative, four signed bytes
@@ -220,7 +218,7 @@ pub struct Frames:
         elif op == offset_rule:
             if s.offset % data_factor != 0:
                 try u.fail("a saved register's offset is a multiple of 8")
-            let factored = (0 - s.offset) // data_factor
+            let factored = s.offset // data_factor
             if factored >= 0 and s.register < 64:
                 try u.byte(offset_rule | (u8)s.register)
                 try directives.put_leb(u, factored, false)
@@ -241,10 +239,10 @@ pub struct Frames:
         elif op == def_cfa:
             try u.byte(def_cfa if s.offset >= 0 else 0x12)
             try directives.put_leb(u, (i64)s.register, false)
-            try directives.put_leb(u, s.offset if s.offset >= 0 else (0 - s.offset) // data_factor, s.offset < 0)
+            try directives.put_leb(u, s.offset if s.offset >= 0 else s.offset // data_factor, s.offset < 0)
         elif op == def_cfa_offset:
             try u.byte(def_cfa_offset if s.offset >= 0 else 0x13)
-            try directives.put_leb(u, s.offset if s.offset >= 0 else (0 - s.offset) // data_factor, s.offset < 0)
+            try directives.put_leb(u, s.offset if s.offset >= 0 else s.offset // data_factor, s.offset < 0)
         elif op == def_cfa_register:
             try u.byte(def_cfa_register)
             try directives.put_leb(u, (i64)s.register, false)

@@ -38,16 +38,12 @@ struct Register:
 
     ## The operand size a general register gives an instruction, 0 for any other.
     func size() -> u8:
-        var size: u8 = 0
-        # a statement, not a `match` expression: GCC -O2 finds the seed's C for an
-        # expression over an enum maybe-uninitialised (LUCE-BUG, luce-seed 115e1f0)
-        match self.bank:
-            .byte, .high_byte: size = 1
-            .word: size = 2
-            .dword: size = 4
-            .qword: size = 8
-            .absent, .xmm, .ymm, .segment, .rip: size = 0
-        return size
+        return match self.bank:
+            .byte, .high_byte => 1
+            .word => 2
+            .dword => 4
+            .qword => 8
+            .absent, .xmm, .ymm, .segment, .rip => 0
 
     ## Whether the register is a general register of any width.
     func general() -> bool:

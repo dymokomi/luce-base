@@ -156,17 +156,13 @@ func relocations(out: buffer.Buffer*, s: const object.Section*, indexes: const u
 
 ## The AMD64 relocation type of `fix`.
 func relocation_type(fix: object.Fix) -> u16:
-    var kind: u16 = 0
-    # a statement, not a `match` expression: GCC -O2 finds the seed's C for an
-    # expression over an enum maybe-uninitialised (LUCE-BUG, luce-seed 115e1f0)
-    match fix:
-        .absolute64: kind = 1
-        .absolute32: kind = 2
-        .image32: kind = 3
-        .relative32: kind = 4
-        .section16: kind = 10
-        .section32: kind = 11
-    return kind
+    return match fix:
+        .absolute64 => 1
+        .absolute32 => 2
+        .image32 => 3
+        .relative32 => 4
+        .section16 => 10
+        .section32 => 11
 
 # mark: Symbols ===============================================================================
 
@@ -196,15 +192,12 @@ func symbol(out: buffer.Buffer*, names: buffer.Buffer*, o: object.Object*, s: co
         number = u16(s.section)
     try put16(out, number)
     try put16(out, 0)
-    var storage = class_static
-    # a statement, not a `match` expression: GCC -O2 finds the seed's C for an
-    # expression over an enum maybe-uninitialised (LUCE-BUG, luce-seed 115e1f0)
-    match s.binding:
-        .internal: storage = class_label if s.code else class_static
-        .section_base: storage = class_static
-        .external: storage = class_external
-        .weak_external: storage = class_weak_external
-        .file: storage = class_file
+    let storage = match s.binding:
+        .internal => class_label if s.code else class_static
+        .section_base => class_static
+        .external => class_external
+        .weak_external => class_weak_external
+        .file => class_file
     try out.put_byte(storage)
     try out.put_byte(u8(auxiliary_count(s)))
     match s.binding:
