@@ -289,27 +289,88 @@ pub func fold_constant_branch(s: ast.Node*, reporter: Reporter*, quiet: bool) ->
     else:
         s.body = none
 
-## A private function no name resolved to leaves the module. `main`, `answer`, tests,
-## exports, hidden lambdas, and anything with an attribute stay, as do methods and the
-## standard modules' own functions, which the backends may name directly.
+## A private function the module's live code does not reach leaves the module. `main`,
+## `answer`, tests, exports, hidden lambdas, and anything with an attribute stay, as do
+## methods and the standard modules' own functions, which the backends may name directly;
+## they and every other declaration are the roots, and a private function stays when a
+## root's tree, or the tree of one that stays, names it. What the checker cut before this,
+## a branch another target's constant rules out and the code after it, names nothing, so a
+## function only that code reached goes, and so does one only such a function reached,
+## and so on. A function nothing named at all is warned about; one only cut code named is
+## gone in silence, as the code that named it is.
 pub func prune_unused_functions(tree: ast.Node*, reporter: Reporter*, is_prelude: bool) -> !:
     if is_prelude:
         return
-    var previous: ast.Node*? = none
+    # the candidates' names as the checker saw them, then each marked again when reached
+    var named = try list.List[bool].create(16)
+    defer named.destroy()
     var cursor = tree.body
     while let d = cursor:
-        let candidate = d.kind == ast.Kind.func_ and not d.has(ast.flag_referenced) and not d.has(ast.flag_pub) and not d.has(ast.flag_export) and not d.has(ast.flag_lambda) and d.attrs == none and d.text != "main" and d.text != "answer"
-        if candidate:
-            var text: u8[512]
-            try reporter.warn(d, try strings.format(text, f"unused function `{d.text}`"))
-            if let p = previous:
-                p.next = d.next
-            else:
-                tree.body = d.next
-            cursor = d.next
-            continue
+        if is_prunable(d):
+            try named.push(d.has(ast.flag_referenced))
+            d.flags &= ~ast.flag_referenced
+        cursor = d.next
+    var reached = try list.List[ast.Node*].create(16)
+    defer reached.destroy()
+    cursor = tree.body
+    while let d = cursor:
+        if not is_prunable(d):
+            try reach_names(d, tree, &reached)
+        cursor = d.next
+    var next: usize = 0
+    while next < reached.count:
+        try reach_names(reached.get(next), tree, &reached)
+        next += 1
+    var previous: ast.Node*? = none
+    var index: usize = 0
+    cursor = tree.body
+    while let d = cursor:
+        if is_prunable(d):
+            let was_named = named.get(index)
+            index += 1
+            if not d.has(ast.flag_referenced):
+                if not was_named:
+                    var text: u8[512]
+                    try reporter.warn(d, try strings.format(text, f"unused function `{d.text}`"))
+                if let p = previous:
+                    p.next = d.next
+                else:
+                    tree.body = d.next
+                cursor = d.next
+                continue
         previous = d
         cursor = d.next
+
+## Whether top-level declaration `d` is a private function that leaves the module unless
+## something live names it.
+func is_prunable(d: ast.Node*) -> bool:
+    return d.kind == ast.Kind.func_ and not d.has(ast.flag_pub) and not d.has(ast.flag_export) and not d.has(ast.flag_lambda) and d.attrs == none and d.text != "main" and d.text != "answer"
+
+## Every prunable function of module `tree` that the tree of `node` names, marked
+## referenced and queued on `reached` the first time; `node`'s own siblings are not part
+## of its tree, and another module's functions are that module's business.
+func reach_names(node: ast.Node*, tree: ast.Node*, reached: list.List[ast.Node*]*) -> !:
+    if let d = node.resolved:
+        if d.resolved == tree and is_prunable(d) and not d.has(ast.flag_referenced):
+            d.flags |= ast.flag_referenced
+            try reached.push(d)
+    if let x = node.left:
+        try reach_list(x, tree, reached)
+    if let x = node.right:
+        try reach_list(x, tree, reached)
+    if let x = node.body:
+        try reach_list(x, tree, reached)
+    if let x = node.ty:
+        try reach_list(x, tree, reached)
+    if let x = node.attrs:
+        try reach_list(x, tree, reached)
+
+## `reach_names` over `first` and the siblings after it.
+func reach_list(first: ast.Node*, tree: ast.Node*, reached: list.List[ast.Node*]*) -> !:
+    var cursor: ast.Node*? = first
+    while let n = cursor:
+        try reach_names(n, tree, reached)
+        cursor = n.next
 
 ## An import nothing resolved through leaves the tree here, so nothing after the checker
 ## sees it (§16.3).

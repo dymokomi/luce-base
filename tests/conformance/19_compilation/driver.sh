@@ -57,6 +57,14 @@ for pair in "x86_64-linux ARM_LINUX_X86" "arm64-macos ARM_MACOS_ARM64" "x86_64-w
     survivors=$(grep -o 'ARM_[A-Z0-9_]*' build/conformance.c | sort -u | tr '\n' ' ')
     [ "$survivors" = "$2 " ] || { echo "FAIL $dir/targets_prune.lucb for $1: kept [$survivors]"; exit 1; }
 done
+# a chain of private functions only pruned code reaches is gone on every target, and the C
+# symbol its last link names with it (§19.6)
+for target in x86_64-linux arm64-macos x86_64-windows; do
+    $lb build $dir/prune_chain.lucb --target $target --emit=c -o build/conformance.c
+    if grep -q 'prune_chain_[0-9]*\(deepest\|middle\|top\)' build/conformance.c; then
+        echo "FAIL $dir/prune_chain.lucb for $target: a pruned chain is in the C"; exit 1
+    fi
+done
 # another target than this host's
 case "$(tools/host.sh)" in x86_64-windows) other=x86_64-linux;; *) other=x86_64-windows;; esac
 if $lb build $dir/targets_prune.lucb --target $other --native -o build/conformance 2> build/conformance.err; then

@@ -1,0 +1,23 @@
+## §19.6: code after a folded platform test is pruned, and so is every private function
+## only that code reaches, however long the chain: `top` is named only there, `middle` only
+## by `top`, and `deepest` only by `middle`, whose C symbol nothing defines. None of them
+## is left for the link, on any target.
+import platform
+
+extern func defined_nowhere(x: i64) -> i64
+
+func deepest(x: i64) -> i64:
+    return defined_nowhere(x)
+
+func middle(x: i64) -> i64:
+    return deepest(x) + 1
+
+func top(x: i64) -> i64:
+    return middle(x) + 1
+
+pub func main(arguments: str[]) -> i32:
+    if platform.macos or platform.linux or platform.windows:
+        print("ok private chain pruned")
+        return 0
+    print(f"{top(1)}")
+    return 0
