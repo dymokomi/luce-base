@@ -56,7 +56,7 @@ import support.macos_platform
 import support.in_arena
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME] [--own-assembler] [--own-linker]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic] [--own-assembler] [--own-linker]\n       luce-base assemble FILE.s -o FILE.o\n       luce-base link FILE.o... -o FILE.exe [-lNAME] [-LDIR] [--system DIR] [--entry NAME]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic]\n       luce-base assemble FILE.s -o FILE.o\n       luce-base link FILE.o... -o FILE.exe [-lNAME] [-LDIR] [--system DIR] [--entry NAME]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -487,14 +487,6 @@ var debug_backend: bool
 var symbols_backend: bool
 ## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
 var freestanding: bool
-## `--own-assembler`, TEMPORARY while it reaches parity everywhere: x86_64-windows assembly
-## goes through the compiler's own assembler (`back.assemble`) instead of GNU `as`. The flag
-## goes once the default flips and the `as` path is deleted.
-var own_assembler: bool
-## `--own-linker`, TEMPORARY while it reaches parity: an x86_64-windows program is linked by
-## the compiler's own linker (`back.link`) against the DLLs themselves, with no MinGW driver,
-## `ld` or libraries; it implies `--own-assembler`. The flag goes once the default flips.
-var own_linker: bool
 ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
 var diagnostic_profile: bool
 ## The manifest of the package being built (§16.4): its native inputs reach the build.
@@ -521,9 +513,16 @@ func host_c_compiler() -> c.str:
         return (c.str)selected
     return "gcc" if platform.windows else "cc"
 
-## The host C compiler on `arguments`.
+## The host C compiler on `arguments`. Windows has none of its own and native builds there
+## use none: only the C backend needs one, and a failure to start it says so.
 func run_cc(arguments: c.str[], directory: str) -> interop.Owned[process.Completed]!:
-    return try host_tools.run_compiler(host_c_compiler(), arguments, directory)
+    let compiler = host_c_compiler()
+    let ran = host_tools.run_compiler(compiler, arguments, directory) catch failure:
+        if not platform.windows:
+            error(failure.code, failure.message)
+        let room = try new u8[failure.message.length + 256] --- in memory.heap
+        error(build_failed, try strings.format(room, f"the C backend needs a C compiler, and `{(str)compiler}` could not be run ({failure.message}); name one with CC, or build natively, which needs none"))
+    return ran
 
 ## The program's object, from the cache or by translating and assembling (§19.7), then the
 ## link into `requested_exe`.
@@ -537,8 +536,6 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
     var name_bytes: u8[4096]
     let linked_exe = try in_arena.join(dir, "program.exe")
     let key = try build_key(mode, release)
-    if own_linker and not native_backend:
-        error(build_failed, "--own-linker links the native backend's objects; the C backend needs the C compiler")
     if native_backend:
         try assemble_and_link(dir, name_bytes[..<3072], checker, entry, mode, key, linked_exe)
         try host_tools.publish(linked_exe, exe)
@@ -669,7 +666,7 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
         let text = try translate(checker, entry, mode, true)
         let t = build_target()
         return try pieces.assemble(dir, text, split_starts, split_tags, split_ending, key, t.os == targets.Os.macos, t.arch_name(), split_whole,
-                                   try own_assembly())
+                                   in_process())
     let asm_path = try strings.format(name_bytes[..<512], f"{dir}/gen.s")
     var object_path = try strings.format(name_bytes[512..<1024], f"{dir}/gen.o")
     if let cached = try cache.take(key, "-n.o", dir):
@@ -677,7 +674,7 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
     else:
         # labels named by what they label, so the next build may reuse functions (`back.reuse`)
         let text = try translate(checker, entry, mode, false, not debug_backend and not symbols_backend)
-        if try own_assembly():
+        if in_process():
             try assemble_in_process(text, object_path)
         else:
             try files.write((c.str)asm_path, text.bytes)
@@ -692,21 +689,10 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
 func splittable() -> bool:
     return native_backend and not debug_backend and not symbols_backend
 
-## Whether this build assembles with the compiler's own assembler (`--own-assembler`),
-## which makes COFF objects for x86_64-windows only.
-func own_assembly() -> bool!:
-    if not own_assembler and not own_linking():
-        return false
-    let t = build_target()
-    if t.os != targets.Os.windows or t.arch != targets.Arch.x86_64:
-        error(build_failed, "--own-assembler makes objects for x86_64-windows only")
-    return true
-
-## Whether this build links with the compiler's own linker: `--own-linker`, or a native
-## build with `LUCE_OWN_LINKER` set, TEMPORARY like the flag, for the builds `luc` and `luce`
-## start, which pass no flag of their own.
-func own_linking() -> bool:
-    return own_linker or (native_backend and os.env("LUCE_OWN_LINKER") != none)
+## Whether the target's native objects are the compiler's own to assemble and link
+## (`Linker.pe`, x86_64-windows), in this process, with no host tool.
+func in_process() -> bool:
+    return build_target().linker == targets.Linker.pe
 
 ## Assembly `text` as the COFF object at `object_path`, by the compiler's own assembler.
 func assemble_in_process(text: str, object_path: str) -> !:
@@ -727,12 +713,12 @@ func assemble_one(dir: str) -> !:
         error(build_failed, "the assembler rejected the generated code")
 
 ## The program's objects (`program_objects`), then the target's linker (§19.5): Apple's
-## `ld` against the system library found through `xcrun`, or the C driver, which knows
-## where the C library, its start files, and the dynamic loader are.
+## `ld` against the system library found through `xcrun`, the C driver, which knows
+## where the C library, its start files, and the dynamic loader are, or the compiler's own.
 func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str, exe: str) -> !:
     let objects = try program_objects(dir, name_bytes, checker, entry, mode, key)
     let t = build_target()
-    if own_linking():
+    if t.linker == targets.Linker.pe:
         try link_in_process(objects, exe, t)
         return
     if t.linker == targets.Linker.c_driver:
@@ -798,8 +784,8 @@ func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entr
         try io.stderr().write(linked.value.error_output)
         error(build_failed, "the linker rejected the generated code")
 
-## The link through the C driver: the object, the manifest's sources compiled beside it,
-## the libraries of the build, and the target's system libraries. A freestanding program
+## The link through the C driver (Linux): the object, the manifest's sources compiled beside
+## it, the libraries of the build, and the target's system libraries. A freestanding program
 ## links no start files and enters at its own `_start`, the C library still beside it as
 ## on macOS; `-framework` names nothing here.
 func link_with_driver(dir: str, objects: const str[], exe: str, t: targets.Target) -> !:
@@ -810,21 +796,11 @@ func link_with_driver(dir: str, objects: const str[], exe: str, t: targets.Targe
         try cc_args.add((c.str)object)
     if freestanding:
         try cc_args.add("-nostartfiles")
-    if t.os == targets.Os.linux:
-        # the libraries after it are kept only where the program uses them
-        try cc_args.add("-Wl,--as-needed")
-        # the program's functions in the dynamic symbol table, so a crash report
-        # (dladdr) names them
-        try cc_args.add("-rdynamic")
-    if t.os == targets.Os.windows:
-        # Keep the compiler support runtime self-contained without forcing system import
-        # libraries (Vulkan, Winsock, bcrypt) to have nonexistent static variants.
-        try cc_args.add("-static-libgcc")
-        try cc_args.add("-Wl,-Bstatic")
-        try cc_args.add("-lwinpthread")
-        try cc_args.add("-Wl,-Bdynamic")
-        # no link time in the header: the same objects link to the same bytes (§19.7)
-        try cc_args.add("-Wl,--no-insert-timestamp")
+    # the libraries after it are kept only where the program uses them
+    try cc_args.add("-Wl,--as-needed")
+    # the program's functions in the dynamic symbol table, so a crash report (dladdr) names
+    # them
+    try cc_args.add("-rdynamic")
     # the manifest's C sources (§17.4), each compiled to an object beside the assembly
     try compile_sources(dir, &cc_args)
     for search in package.link_search:
@@ -838,16 +814,15 @@ func link_with_driver(dir: str, objects: const str[], exe: str, t: targets.Targe
         try cc_args.add((c.str)library)
     try run_tool("cc", cc_args.span(), "the linker rejected the generated code", dir)
 
-## The link by the compiler's own linker (`--own-linker`): the objects, the libraries the
+## The link by the compiler's own linker (`back.link`): the objects, the libraries the
 ## package, the command line and the target name as DLLs, found where the package and the
 ## command line say and in Windows' own directory. The manifest's C sources would need a C
-## compiler, which this link is without.
+## compiler, which a Windows build is without.
 func link_in_process(objects: const str[], exe: str, t: targets.Target) -> !:
-    if t.os != targets.Os.windows or t.arch != targets.Arch.x86_64:
-        error(build_failed, "--own-linker links x86_64-windows programs only")
     if package.sources.length > 0:
-        var room: u8[1024]
-        error(build_failed, try strings.format(room, f"--own-linker compiles no C: the package names C sources, such as {(str)package.sources[0]}"))
+        # the message outlives the command's arena with the failure, so its room is the heap's
+        let room = try new u8[((str)package.sources[0]).length + 160] --- in memory.heap
+        error(build_failed, try strings.format(room, f"{(str)package.sources[0]}: C sources need a C compiler, which Windows builds do not use; list them under the package's macOS and Linux `def native` blocks"))
     var libraries = try list.List[str].create(16)
     for library in package.libraries:
         try libraries.push((str)library)
@@ -990,14 +965,14 @@ func build_library(code: str, header_text: str, name: str) -> !:
     let header_path = try strings.format(names_bytes[2560..<3072], f"{name}.h")
     let object_path = try strings.format(names_bytes[..<512], f"{dir}/gen.o")
     if native_backend:
-        if try own_assembly():
+        if in_process():
             try assemble_in_process(code, object_path)
         else:
             let asm_path = try strings.format(names_bytes[512..<1024], f"{dir}/gen.s")
             try files.write((c.str)asm_path, code.bytes)
             var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
             try run_tool("as", as_args, "the assembler rejected the generated code", dir)
-        if own_linking():
+        if in_process():
             var one: str[1] = [object_path]
             try archiver.archive_files(one, archive)
         else:
@@ -1070,7 +1045,7 @@ func link_file(arguments: const c.str[]) -> !:
             let value = (str)arguments[i + 1] if i + 1 < arguments.length else ""
             if a == "-o" or a == "--system" or a == "--entry":
                 if value.length == 0:
-                    var room: u8[64]
+                    let room = try new u8[64] --- in memory.heap
                     error(build_failed, try strings.format(room, f"{a} takes a value"))
                 if a == "-o":
                     options.output = value
@@ -1147,11 +1122,6 @@ func test_options(arguments: const c.str[]) -> TestOptions?!:
             options.native = false
         elif a == "--package":
             options.whole_package = true
-        elif a == "--own-assembler":
-            own_assembler = true
-        elif a == "--own-linker":
-            own_assembler = true
-            own_linker = true
         elif profile == "diagnostic" or profile == "default":
             options.diagnostic = profile == "diagnostic"
             i += 1
@@ -1652,11 +1622,6 @@ func build_option(options: Options*, arguments: c.str[], i: usize, emission_back
         return i + 1
     elif a == "--debug":
         options.debug = true
-    elif a == "--own-assembler":
-        own_assembler = true
-    elif a == "--own-linker":
-        own_assembler = true
-        own_linker = true
     elif a == "-W":
         show_warnings = true
     elif starts_with(a, "-l") and a.length > 2:

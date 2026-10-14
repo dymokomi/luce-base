@@ -32,11 +32,13 @@ pub enum Arch as u8:
     x86_64 = 2
 
 ## How a target's executable is linked from the assembled object: Apple's `ld` against the
-## SDK `xcrun` finds, or the C driver, which knows the start files, the C library and the
-## dynamic loader of its system.
+## SDK `xcrun` finds; the C driver, which knows the start files, the C library and the
+## dynamic loader of its system; or the compiler itself, which assembles COFF objects
+## (`back.assemble`) and links them into a PE image (`back.link`) with no tool beside it.
 pub enum Linker as u8:
     macho = 1
     c_driver = 2
+    pe = 3
 
 ## The architecture's name, as `asm ARCH` blocks (§8.9) and `--target` (§19.5) spell it.
 pub func arch_name(arch: Arch) -> str:
@@ -46,7 +48,7 @@ pub func arch_name(arch: Arch) -> str:
 
 let macos_libraries: str[1] = ["-lSystem"]
 let linux_libraries: str[2] = ["-lm", "-lpthread"]
-let windows_libraries: str[4] = ["-lm", "-lsynchronization", "-lbcrypt", "-Wl,--stack,16777216"]
+let windows_libraries: str[2] = ["-lsynchronization", "-lbcrypt"]
 
 # mark: Targets ===============================================================================
 
@@ -97,7 +99,7 @@ pub struct Target:
                           stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", linker = Linker.c_driver, system_libraries = linux_libraries)
         if name == "x86_64-windows":
             return Target(name = name, os = Os.windows, arch = Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
-                          stdin_symbol = "__acrt_iob_func", stdout_symbol = "__acrt_iob_func", stderr_symbol = "__acrt_iob_func", linker = Linker.c_driver, system_libraries = windows_libraries)
+                          stdin_symbol = "__acrt_iob_func", stdout_symbol = "__acrt_iob_func", stderr_symbol = "__acrt_iob_func", linker = Linker.pe, system_libraries = windows_libraries)
         return none
 
     ## Whether this target is the one the compiler is running on.

@@ -2,39 +2,41 @@
 
 Windows is a native `x86_64-windows` target. Base emits Win64 assembly and COFF
 objects, including shadow space, register preservation, aggregate calls and
-returns, TLS, stack probes and SEH unwind records. By default MinGW GCC supplies the
-assembler and linker and its CRT; threads are Windows' own. `--backend=c` is the
-comparison backend.
+returns, TLS, stack probes and SEH unwind records. The compiler assembles and links
+them itself, in its own process: a native build needs no MinGW, `as`, `ld`, `ar` or
+other toolchain, only Windows. Threads are Windows' own. `--backend=c` is the
+comparison backend, and it alone needs a C compiler (`gcc`, or the one `CC` names).
 
-The compiler has an assembler of its own for this target (`src/back/assemble`), which reads
-the same assembly and writes the COFF object GNU `as` writes, in the compiler's process.
-`build` and `test` take `--own-assembler` to use it; the flag is temporary, until the own
-assembler becomes the only one. `luce-base assemble FILE.s -o FILE.o` runs it alone, and
-`tools/asm_parity.py --suite` checks it against GNU `as` on every test program's assembly.
+The assembler (`src/back/assemble`) reads the assembly the native backend and inline
+`asm` write and makes the COFF object GNU `as` makes, the split pieces of a large program
+in parallel. `luce-base assemble FILE.s -o FILE.o` runs it alone, and
+`tools/asm_parity.py --suite` checks it against MinGW-w64's GNU `as` on every test
+program's assembly (a development check: test.sh runs it on macOS and Linux).
 
-It has a linker of its own too (`src/back/link`), so a native program needs neither MinGW
-nor any other toolchain: `--own-linker` on `build` and `test` (temporary, like
-`--own-assembler`, which it implies) links the objects in the compiler's process. Builds
-that `luc` and `luce` start take it from the environment: set `LUCE_OWN_LINKER` (to
-anything) and every native build links that way. There are no import libraries: a name the
-objects leave undefined is looked up in the export tables of the DLLs themselves, in
-`%SystemRoot%\System32` and the directories `-L` and a package's manifest name. The C
-library is the Universal CRT, `ucrtbase.dll`; `kernel32`, `user32`, `shell32` and
-`advapi32` are always searched, as MinGW's driver links them; `-lNAME` searches `NAME.dll`.
-A small start library in the linker stands in for MinGW's start files and support
-libraries: the entry, the TLS directory, the stack probe, and the C names the UCRT keeps in
-its headers (`printf`, `snprintf`, `atexit`, `fabsf`) or MinGW added (`usleep`,
+The linker (`src/back/link`) links the objects into a PE executable. There are no import
+libraries: a name the objects leave undefined is looked up in the export tables of the DLLs
+themselves, in `%SystemRoot%\System32` and the directories `-L` and a package's manifest
+name. The C library is the Universal CRT, `ucrtbase.dll`; `kernel32`, `user32`, `shell32`
+and `advapi32` are always searched, as MinGW's driver links them; `-lNAME` searches
+`NAME.dll`. A small start library in the linker stands in for MinGW's start files and
+support libraries: the entry, the TLS directory, the stack probe, and the C names the UCRT
+keeps in its headers (`printf`, `snprintf`, `atexit`, `fabsf`) or MinGW added (`usleep`,
 `clock_gettime`). The image is GNU `ld`'s for a console program: subsystem 5.2, a 16 MiB
 stack, ASLR with high entropy, and DWARF in sections named as `ld` names them, so gdb reads
-a `--debug` build. A package's C `sources` need a C compiler, so a build with them stops
-under `--own-linker`; a `--lib` build writes its archive itself, as GNU `ar rcs` would.
+a `--debug` build. A `--lib` build writes its archive itself, as GNU `ar rcs` would.
 `luce-base link FILE.o... -o FILE.exe [-lNAME] [--system DIR]` runs the linker alone;
 `--system` names a copy of System32 on another host.
 
+A package's C `sources` need a C compiler, so a native Windows build with any stops with
+an error naming the first. A package keeps its C under `def native "macos"` and
+`def native "linux"` and writes its Windows side in Base.
+
 ## Build
 
-Install Python 3 and MinGW-w64 GCC with pthread support, and put `python`, `gcc`,
-`ar` and `nm` on PATH (the gate's Windows machine uses a standalone MinGW-w64 GCC). In PowerShell:
+Building the compiler from a checkout starts from its C snapshot, so it needs Python 3 and,
+for that first step alone, a MinGW-w64 GCC (`gcc` on PATH, or `--cc`; the test machine uses
+a standalone MinGW-w64 GCC). Every later generation, and every program they build, is
+assembled and linked by the compiler itself. In PowerShell:
 
 ```powershell
 python tools/build_windows.py
@@ -93,16 +95,15 @@ not deadlock each other. Windows sockets use pointer-sized handles and Winsock
 errors rather than CRT file descriptors. Deadlines and nonblocking behavior are
 implemented through Winsock polling. Server shutdown uses console control events.
 
-GNU tools run with relative generated filenames inside a private workspace beside
+The C backend runs GCC with relative generated filenames inside a private workspace beside
 the destination. The child receives that working directory through `CreateProcessW`
 and private `TMPDIR`, `TEMP` and `TMP` overrides. Publishing uses Unicode filesystem
-operations on the same volume. Compiler-driver intermediates use relative output
-names (`-save-temps=obj`) to avoid GCC's ANSI temporary-path expansion; the owned
-workspace removes them after both successful and failed builds. Source, output and temporary-directory paths need
-no short-name aliases, and the parent process environment is unchanged. External
-C source and library operands still follow the selected GNU toolchain's filename
-support. Compiler support archives are linked statically, while Windows system and
-SDK import libraries remain dynamic so facilities such as Vulkan can link normally.
+operations on the same volume, tried again for a moment while another process (a virus
+scan, the indexer) holds a file, as is removing the workspace. Compiler-driver
+intermediates use relative output names (`-save-temps=obj`) to avoid GCC's ANSI
+temporary-path expansion; the owned workspace removes them after both successful and failed
+builds. Source, output and temporary-directory paths need no short-name aliases, and the
+parent process environment is unchanged.
 
 ## Windows and Vulkan
 
@@ -133,7 +134,6 @@ python tools/test_windows.py --suite conformance --c --debug
 python tools/test_windows.py --suite samples --c --debug
 python tools/test_windows_arguments.py --compiler build/luce-base.exe
 python tools/test_windows_native.py
-python tests/programs/net_protocols/run.py build/luce-base.exe
 $env:VK_INSTANCE_LAYERS = 'VK_LAYER_KHRONOS_validation'
 $env:VK_LAYER_VALIDATE_SYNC = '1'
 python tools/test_windows_native.py --gpu
@@ -141,8 +141,8 @@ python tools/test_vulkan_abi.py --help
 ```
 
 The native contract runner covers files, IPv4/IPv6 TCP and UDP, cancellation,
-deadlines and stack unwinding through independent Windows counters and C/Windows
-SDK oracles. Repeated short sleeps must meet their requested duration even across
+deadlines and stack unwinding through independent Windows counters and the Windows
+unwind API (`RtlVirtualUnwind`). Repeated short sleeps must meet their requested duration even across
 timer ticks. Its optional GUI cases exercise Win32 and actual Vulkan presentation.
 Each runs in native opt 0–3, native debug and C debug/release modes. JSON results
 are retained in `build/`.

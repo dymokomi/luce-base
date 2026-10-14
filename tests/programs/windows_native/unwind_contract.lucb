@@ -1,0 +1,70 @@
+## Windows unwinds the native backend's frames by its .pdata/.xdata alone: a walk through the
+## documented context and unwind calls (not CaptureStackBackTrace's best-effort policy) meets
+## every recursive frame, each with a probed 8 KiB of locals.
+extern func memset(destination: void*, value: i32, count: usize) -> void*
+extern func memcpy(destination: void*, source: const void*, count: usize) -> void*
+extern func RtlCaptureContext(context: void*)
+extern func RtlLookupFunctionEntry(pc: u64, image_base: u64*, history: void*?) -> RuntimeFunction*?
+extern func RtlVirtualUnwind(kind: u32, image_base: u64, pc: u64, entry: RuntimeFunction*, context: void*, handler_data: void**, establisher: u64*,
+                             pointers: void*?) -> void*?
+
+## RUNTIME_FUNCTION: a function's range and unwind data, relative to its image.
+extern struct RuntimeFunction:
+    begin: u32
+    end: u32
+    unwind: u32
+
+## A CONTEXT is 1232 bytes, aligned to 16; its instruction and stack pointers' places.
+let context_bytes: usize = 1232
+let rip_at: usize = 248
+let rsp_at: usize = 152
+
+func word_at(context: u8*, offset: usize) -> u64:
+    var value: u64 = 0
+    _ = memcpy(&value, context + offset, 8)
+    return value
+
+func put_word(context: u8*, offset: usize, value: u64):
+    _ = memcpy(context + offset, &value, 8)
+
+## How many of the frames on the stack, up to `required`, belong to `function`.
+noinline func unwind_count(function: void*, required: u32) -> u32:
+    var image: u64 = 0
+    let target = RtlLookupFunctionEntry((u64)function, &image, none) else return 0
+    let wanted = image + (u64)target.begin
+    var room: u8[1248] = ---
+    let start = (usize)(void*)&room[0]
+    let context = &room[(16 - start % 16) % 16]
+    RtlCaptureContext(context)
+    var matches: u32 = 0
+    var frame = 0
+    while frame < 64 and word_at(context, rip_at) != 0 and matches < required:
+        frame += 1
+        let pc = word_at(context, rip_at)
+        if let entry = RtlLookupFunctionEntry(pc, &image, none):
+            if image + (u64)entry.begin == wanted:
+                matches += 1
+            var handler: void* = ---
+            var establisher: u64 = 0
+            _ = RtlVirtualUnwind(0, image, pc, entry, context, &handler, &establisher, none)
+        else:
+            # a leaf: its return address is at the stack pointer
+            let sp = word_at(context, rsp_at)
+            put_word(context, rip_at, ((const u64*)(const void*)(usize)sp)[0])
+            put_word(context, rsp_at, sp + 8)
+    return matches
+
+noinline func walk(depth: u32) -> u32:
+    var storage: u8[8192]
+    _ = memset(&storage[0], (i32)depth, storage.length)
+    if depth > 0:
+        let nested = walk(depth - 1)
+        assert(storage[0] == (u8)depth and storage[8191] == (u8)depth)
+        return nested + 1
+    assert(unwind_count((void*)walk, 13) == 13)
+    return 0
+
+pub func main(arguments: str[]) -> i32:
+    assert(walk(12) == 12)
+    print("ok Windows unwind metadata across recursive probed stack frames")
+    return 0

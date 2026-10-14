@@ -39,10 +39,10 @@ the native backend. Native code generation is the primary hardening target.
 A released compiler, with the standard library beside it, installs in one line
 from [luce-base.luciaos.com](https://luce-base.luciaos.com): `curl -fsSL
 https://luce-base.luciaos.com/install.sh | sh` on macOS and Linux, `irm
-https://luce-base.luciaos.com/install.ps1 | iex` in PowerShell on Windows. It
-needs the host's C toolchain (`cc`, `as`, `ar`, `nm`: the Xcode command line
-tools, a Linux `gcc`/`clang` package, or a MinGW-w64 GCC), which the
-compiler drives for assembling and linking. A program it builds links the
+https://luce-base.luciaos.com/install.ps1 | iex` in PowerShell on Windows. On macOS
+and Linux it needs the host's C toolchain (`cc`, `as`, `ar`, `nm`: the Xcode command
+line tools, or a Linux `gcc`/`clang` package), which the compiler drives for assembling
+and linking; on Windows it assembles and links itself and needs no other tool. A program it builds links the
 standard library statically and needs nothing from the installation to run.
 Releases ship luce-base inside the Luce archive, built on each host by
 `tools/toolchain.py --archive` and published by `tools/release.py` (docs/CI.md);

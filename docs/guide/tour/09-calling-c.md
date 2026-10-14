@@ -83,7 +83,9 @@ extern func mix(a: i32, b: i32) -> i32
 
 The same `def native` block takes `libraries` to link (`["sqlite3", "m"]`), `link_search`
 directories, macOS `frameworks` and `pkg_config` names. A block named after a platform,
-`def native "macos" { ... }`, applies only there.
+`def native "macos" { ... }`, applies only there. On Windows the compiler assembles and
+links by itself, with no C compiler, so C sources work on macOS and Linux only: list them
+under `def native "macos"` and `def native "linux"`.
 
 To use an existing C library, `luce-base bind header.h -o module.lucb` writes the `extern`
 declarations from its header and lists anything it could not translate.

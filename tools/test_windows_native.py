@@ -21,7 +21,7 @@ for case in cases:
     for flags in modes:
         with tempfile.TemporaryDirectory(prefix='luce-windows-contract-') as work:
             binary = Path(work) / 'test.exe'
-            command = [args.compiler.resolve(), 'build', ROOT / 'tests/programs/windows_native' / ('unwind/main.lucb' if case == 'unwind_contract' else case + '.lucb'), *flags, '-o', binary]
+            command = [args.compiler.resolve(), 'build', ROOT / 'tests/programs/windows_native' / (case + '.lucb'), *flags, '-o', binary]
             compiled = subprocess.run(command, cwd=ROOT, capture_output=True, timeout=180)
             record = dict(case=case, flags=flags, build_status=compiled.returncode,
                           build_stderr=compiled.stderr.decode('utf-8', errors='replace'))

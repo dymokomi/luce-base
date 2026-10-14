@@ -27,6 +27,18 @@ def run_rejection(compiler, source):
         return dict(record, ok=False, stderr=str(error))
 
 
+# the `def native` elements a Windows build takes (base.md §16.4)
+WINDOWS_NATIVE = re.compile(r'def native "(?:inputs|all|windows|x86_64-windows)" \{([^}]*)\}')
+
+
+def has_c_sources(source):
+    """Whether the program's manifest names C sources for Windows, which native builds there
+    refuse: they need a C compiler, and Windows builds use none. Such programs run on macOS
+    and Linux only."""
+    manifest = source.parent / "package.prisma"
+    return manifest.exists() and any("sources" in block for block in WINDOWS_NATIVE.findall(manifest.read_text(encoding="utf-8")))
+
+
 def trap_pattern(text):
     """A `.trap` fixture's text as tests/conformance/case.sh's `grep` reads it: a basic regular
     expression, of which the fixtures use `.` and `.*`; every other byte stands for itself."""
@@ -72,7 +84,7 @@ def main():
     # every case is its own build and run in its own directory: as many at once as cores
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
     parser.add_argument("--match", default="")
-    # a flag every native build adds, as `--extra=--own-assembler`
+    # a flag every native build adds, as `--extra=--opt-report`
     parser.add_argument("--extra", action="append", default=[])
     parser.add_argument("--debug", action="store_true", help="native --debug builds too")
     args = parser.parse_args()
@@ -94,7 +106,7 @@ def main():
         source = fixture.with_suffix(".lucb")
         if not source.exists():
             source = fixture.with_suffix("") / "main.lucb"
-        if args.match not in str(source):
+        if args.match not in str(source) or has_c_sources(source):
             continue
         host = fixture.with_suffix(".x86_64-windows.expect")
         expectation = host if host.exists() else fixture

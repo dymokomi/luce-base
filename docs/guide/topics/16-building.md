@@ -37,10 +37,11 @@ In a project, `luc build`, `luc check`, `luc test` and `luc fmt` run these on th
 | `-W` | print warnings (below) |
 | `--cache-dir DIR`, `--cache-report` | where the build cache is, and whether it was used |
 
-The compiler generates machine code itself and uses the C toolchain on your machine (`cc`, or
-the one `CC` names) to assemble and link. `--backend=c` translates the program to C and
-compiles that instead; it exists for comparison and for platforms without a native code
-generator.
+The compiler generates machine code itself. On macOS and Linux it uses the C toolchain on
+your machine (`cc`, or the one `CC` names) to assemble and link; on Windows it assembles and
+links by itself and needs no other tool. `--backend=c` translates the program to C and
+compiles that instead, with a C compiler on every platform; it exists for comparison and for
+platforms without a native code generator.
 
 ## Messages
 
@@ -71,7 +72,7 @@ of the program.
 | --- | --- |
 | `arm64-macos` | Apple Silicon |
 | `x86_64-linux` | |
-| `x86_64-windows` | with a MinGW-w64 GCC |
+| `x86_64-windows` | assembled and linked by the compiler itself |
 
 `luce-base build file.lucb --target` with no name lists the targets and marks the one this
 compiler runs on. The compiler can write another target's code anywhere (`--emit=asm

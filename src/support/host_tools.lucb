@@ -19,6 +19,10 @@ import strings
 import support.in_arena
 import thread
 
+## How often a Windows file operation another process's handle blocks is tried again, 25 ms
+## apart: for two and a half seconds.
+let retries: i32 = 100
+
 ## A temporary directory a host tool runs in, removed when closed.
 pub struct Workspace:
     let directory: str
@@ -33,9 +37,18 @@ pub struct Workspace:
     pub func path() -> str:
         return self.directory
 
-    ## Remove the workspace and everything in it.
+    ## Remove the workspace and everything in it, tried again as `publish` tries a move: on
+    ## Windows a program just built or run there may hold one of its files for a moment.
     pub func close() -> !:
-        try files.remove_tree((c.str)self.directory)
+        var tries = 0
+        while true:
+            files.remove_tree((c.str)self.directory) catch failure:
+                if platform.windows and tries < retries:
+                    tries += 1
+                    thread.sleep(25)
+                    continue
+                error(failure.code, failure.message)
+            return
 
     ## Remove the workspace, ignoring failure.
     pub func destroy():
@@ -52,7 +65,7 @@ pub func publish(source: str, destination: str) -> !:
     var tries = 0
     while true:
         files.rename((c.str)source, (c.str)target, true) catch failure:
-            if platform.windows and tries < 100:
+            if platform.windows and tries < retries:
                 tries += 1
                 thread.sleep(25)
                 continue

@@ -20,7 +20,8 @@ Layout, under ~/.local/luce-dev:
 The key names the four commits; the newest three toolchains are kept.
 
 Runs on macOS and Linux, and on Windows (the build goes through tools/build_windows.py
-there). Windows links need privileges, so `current` is a directory junction there, and
+there, whose first stage, compiled from luce-base's C snapshot, is the one step that needs a
+MinGW-w64 GCC; luce-base assembles and links everything after it, luce and luc too). Windows links need privileges, so `current` is a directory junction there, and
 its bin/ goes first on the user's PATH in place of links in ~/.local/bin: a new shell or
 ssh session finds this toolchain's luc ahead of an installed release.
 """

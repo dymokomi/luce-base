@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Bootstrap native Windows x64 Base and verify self-hosting across generations."""
+"""Bootstrap native Windows x64 Base and verify self-hosting across generations.
+
+Stage 0 is the checked-in C snapshot compiled by MinGW-w64 GCC (or the seed, `--seed`): the
+one step that needs a C compiler, on a development machine. Stage 0 builds stage 1 and stage
+1 builds stage 2 natively, assembled and linked in the compiler's own process."""
 import argparse
 import os
 from pathlib import Path
@@ -18,7 +22,7 @@ def run(*command, timeout=600):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--seed', type=Path, help='verify a fresh bootstrap using this C++ seed')
-    parser.add_argument('--cc', default=os.environ.get('CC', 'gcc'), help='MinGW GCC executable')
+    parser.add_argument('--cc', default=os.environ.get('CC', 'gcc'), help='the MinGW-w64 GCC that compiles stage 0 from the C snapshot')
     args = parser.parse_args()
     if os.name != 'nt':
         parser.error('this entry point builds on Windows; use build.sh on Unix')
