@@ -162,10 +162,12 @@ extend Generator:
         try self.fr.layout(self.f, 0, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0 and not self.f.result_private, straight)
         try self.object_format.function_start(&self.writer.out, self.f)
         if self.f.naked:
-            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
+            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after, not
+            # even the `ret` the lowerer ends every function with
             var k: usize = 0
             while k < self.f.instrs.count:
-                try self.instruction(self.f.instrs.get(k))
+                if self.f.instrs.get(k).op == ir.Op.asm_:
+                    try self.instruction(self.f.instrs.get(k))
                 k += 1
             try self.object_format.function_end(&self.writer.out, self.f)
             return

@@ -1,7 +1,7 @@
 # oracle: none
 ## §11.3: an error that escapes a fallible `main` out of a call into another package is
-## reported where it was raised, then on a line of its own where it came out of that call:
-## `  called at file:line:column`.
+## reported where it was raised, then on a line of its own where it came out of that call,
+## `  called at file:line:column`, the file as positions name it (as given under `--debug`).
 import origin_source.raise
 
 pub func main(arguments: str[]) -> i32!:

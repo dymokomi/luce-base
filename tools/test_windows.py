@@ -27,6 +27,12 @@ def run_rejection(compiler, source):
         return dict(record, ok=False, stderr=str(error))
 
 
+def trap_pattern(text):
+    """A `.trap` fixture's text as tests/conformance/case.sh's `grep` reads it: a basic regular
+    expression, of which the fixtures use `.` and `.*`; every other byte stands for itself."""
+    return re.escape(text.strip()).replace(rb"\.", b".").replace(rb"\*", b"*")
+
+
 def run_case(compiler, source, expected, flags, trap=False):
     record = dict(source=str(source.relative_to(ROOT)), flags=flags)
     folder = tempfile.mkdtemp(prefix="luce-windows-test-")
@@ -39,7 +45,7 @@ def run_case(compiler, source, expected, flags, trap=False):
                                  stderr=build.stderr.decode("utf-8", errors="replace"))
         else:
             result = run([binary], cwd=ROOT, capture_output=True, timeout=30)
-            ok = (result.returncode == 1 and expected.strip() in result.stderr) if trap else (
+            ok = (result.returncode == 1 and re.search(trap_pattern(expected), result.stderr) is not None) if trap else (
                 result.returncode == 0 and result.stdout == expected)
             result_record = dict(record, ok=ok, phase="run", status=result.returncode,
                                  stdout=result.stdout.decode("utf-8", errors="replace"),

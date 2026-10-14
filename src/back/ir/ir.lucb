@@ -1030,6 +1030,19 @@ pub struct Unit:
                 found = leaf.cls if leaf.offset == low and (leaf.cls == Class.d or leaf.cls == Class.s) else Class.l
         return found if count == 1 else Class.l
 
+    ## How many bytes of word `k` of an aggregate of shape `shape` its leaves reach, one to
+    ## eight; eight for a word without one. A word read only so far leaves its padding
+    ## behind, so a fallible result's flag word, a byte, comes back 0 or 1 even from a slot
+    ## (`opt.failure_flags`).
+    pub func word_reach(shape: u32, k: u32) -> u32:
+        let low = k * 8
+        var reach: u32 = 0
+        for leaf in self.leaves_of(shape):
+            let end = leaf.offset + (u32)leaf.size
+            if leaf.offset < low + 8 and end > low and end - low > reach:
+                reach = end - low
+        return 8 if reach == 0 or reach > 8 else reach
+
     ## Record a shape from the leaves pushed since `start`; its 1-based index.
     pub func shape_from(start: usize) -> u32!:
         try self.shapes.push(Shape(start = u32(start), count = u32(self.leaves.count - start)))

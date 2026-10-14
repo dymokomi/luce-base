@@ -109,8 +109,8 @@ and a Vulkan-capable driver; the gate runs them in the logged-in desktop session
 
 ```powershell
 .\build\luce-base.exe test src/main.lucb
-python tools/test_windows.py --suite conformance --c
-python tools/test_windows.py --suite samples --c
+python tools/test_windows.py --suite conformance --c --debug
+python tools/test_windows.py --suite samples --c --debug
 python tools/test_windows_arguments.py --compiler build/luce-base.exe
 python tools/test_windows_native.py
 python tests/programs/net_protocols/run.py build/luce-base.exe

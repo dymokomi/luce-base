@@ -356,8 +356,9 @@ extend Generator:
     ## The words of a private result of `size` bytes and shape `shape` between `[x16]` and
     ## the registers it comes back in (CallInfo.result_private): a word holding one float
     ## (`ir.Unit.word_class`) in the next of d0-d3 (s0-s3 for a single), any other in the
-    ## next of x0-x3, stored only as far as the value reaches; `store` into the memory
-    ## from the registers, else the reverse.
+    ## next of x0-x3, stored only as far as the value reaches and loaded only as far as
+    ## the word's leaves do (`ir.Unit.word_reach`); `store` into the memory from the
+    ## registers, else the reverse.
     func private_words(size: u32, shape: u32, store: bool) -> !:
         var ints: usize = 0
         var floats: u64 = 0
@@ -378,7 +379,8 @@ extend Generator:
                 if store:
                     try self.store_low(x_names[reg], w_names[reg], (u64)word * 8, rest if rest < 8 else 8)
                 else:
-                    try self.load_low(x_names[reg], w_names[reg], (u64)word * 8, rest if rest < 8 else 8)
+                    let reach = (u64)self.program_unit.word_reach(shape, word)
+                    try self.load_low(x_names[reg], w_names[reg], (u64)word * 8, rest if rest < reach else reach)
                 ints += 1
             word += 1
 

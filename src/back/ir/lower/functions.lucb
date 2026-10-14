@@ -241,12 +241,13 @@ extend Lowerer:
         self.pooling = true
         if let decl = d:
             self.pooling = not self.calls_frame(decl.body)
-        # the program's own functions are described and hooked; the standard modules are not
+        # the program's own functions are described and hooked; the standard modules are not,
+        # nor a naked function, which is its assembly and nothing else (§9.8)
         self.f.debug = false
         self.f.symbols = false
         if let decl = d:
             let owner = inst.owner else decl
-            let own = not check.is_standard_module(names.module_of(owner))
+            let own = not check.is_standard_module(names.module_of(owner)) and not ast.has_attribute(decl, "naked")
             self.f.debug = self.debug and own
             self.f.symbols = self.symbols and own
             self.src_file = self.source_of(owner)

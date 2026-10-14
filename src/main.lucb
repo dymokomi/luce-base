@@ -314,9 +314,10 @@ func spelled_root(path: str, canonical: str, root: str) -> str:
         return (str)path.bytes[..<path.length - below.length]
     return root
 
-## The program at `path`, checked, with its warnings reported.
-func checked(path: c.str, test_build: bool = false, whole_package: bool = false) -> check.Checker!:
+## The program at `given`, checked, with its warnings reported.
+func checked(given: c.str, test_build: bool = false, whole_package: bool = false) -> check.Checker!:
     cache.begin()
+    let path = try module_paths.portable(given)
     let canonical = try module_paths.canonical((str)path)
     let m = try manifest.load(canonical)
     package = m

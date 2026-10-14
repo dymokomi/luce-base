@@ -16,6 +16,7 @@ import c
 import luce_std.files
 import memory
 import luce_std.paths
+import platform
 import strings
 import support.hashed
 import support.list
@@ -63,6 +64,20 @@ pub func canonical(path: str) -> str!:
     let resolved = try in_arena.canonical((c.str)terminated)
     remember(path, resolved)
     return resolved
+
+## `path` spelled as the compiler spells the paths it composes: on Windows with `/` between
+## its directories, so a source the command line names with `\` reads in a position
+## (§11.3) as a module it imports does; elsewhere, where `\` is a byte of a name, `path`
+## itself. A copy in the current allocator when it differs.
+pub func portable(path: c.str) -> c.str!:
+    let text = (str)path
+    if not platform.windows or strings.find(text, "\\") == none:
+        return path
+    let room = try new u8[text.length + 1] ---
+    for (k, byte) in text.bytes.indexed():
+        room[k] = '/' if byte == '\\' else byte
+    room[text.length] = 0
+    return (c.str)(str)room[..<text.length]
 
 ## The paths resolved so far, each with the index of its answer in `resolved_answers`,
 ## in the heap; made at the first path.

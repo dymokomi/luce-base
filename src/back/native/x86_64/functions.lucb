@@ -287,11 +287,13 @@ extend Generator:
         let text_start = self.writer.out.used
         try self.object_format.function_start(&self.writer.out, self.f)
         if self.f.naked:
-            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
+            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after, not
+            # even the `ret` the lowerer ends every function with
             var k: usize = 0
             while k < self.f.instrs.count:
                 self.at = k
-                try self.instruction(self.f.instrs.get(k))
+                if self.f.instrs.get(k).op == ir.Op.asm_:
+                    try self.instruction(self.f.instrs.get(k))
                 k += 1
             try self.object_format.function_end(&self.writer.out, self.f)
             return

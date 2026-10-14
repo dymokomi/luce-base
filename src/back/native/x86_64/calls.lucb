@@ -461,8 +461,8 @@ extend Generator:
     ## System V and Windows (all eight are caller-saved on both): a word holding one float
     ## (`ir.Unit.word_class`) in the next of xmm0-xmm3, any other in the next of rax, rdx,
     ## rcx and r8; `store` into the memory from the registers, else the reverse. Loaded
-    ## from the last word: an odd-width word takes rax to help (`load_bytes`), so rax's own
-    ## word comes last.
+    ## as far as each word's leaves reach (`ir.Unit.word_reach`), from the last word: an
+    ## odd-width word takes rax to help (`load_bytes`), so rax's own word comes last.
     func private_words(size: u32, shape: u32, store: bool) -> !:
         let words = (size + 7) // 8
         var registers: str[4] = ["", "", "", ""]
@@ -479,7 +479,8 @@ extend Generator:
             if store:
                 try self.store_eightbyte(registers[k], k, size, floats[k])
             else:
-                try self.load_eightbyte(registers[k], "%r10", k, size, floats[k])
+                let reach = k * 8 + self.program_unit.word_reach(shape, k)
+                try self.load_eightbyte(registers[k], "%r10", k, reach if reach < size else size, floats[k])
 
     ## The eightbytes of a small aggregate result between (%r10) and rax/rdx and xmm0/xmm1,
     ## `store` into the memory from the registers, else the reverse, the last word first

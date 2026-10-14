@@ -213,10 +213,9 @@ def main():
             mine = subprocess.run([str(args.compiler), 'assemble', str(path), '-o', str(ours)], capture_output=True)
             timing['as'] += middle - started
             timing['ours'] += time.perf_counter() - middle
-            if gas.returncode != 0 and mine.returncode != 0:
-                # both refuse it: agreement
-                return path, []
             if gas.returncode != 0:
+                # the compiler's assembly is GNU as's to take: refusing it is the compiler's
+                # fault (a `.cfi_` directive outside a procedure, say), whatever ours did
                 return path, ['GNU as rejected it: ' + gas.stderr.decode(errors='replace').strip()[:300]]
             if mine.returncode != 0:
                 return path, ['ours rejected it: ' + (mine.stdout + mine.stderr).decode(errors='replace').strip()[:300]]
