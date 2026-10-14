@@ -273,7 +273,8 @@ extend Generator:
         try selection.sink_addresses(self.f)
         try self.fixed_clobbers()
         try self.fr.plan(self.f)
-        try layout.thread_after_allocation(self.f, &self.fr)
+        var threaded = try layout.thread_after_allocation(self.f, &self.fr)
+        defer threaded.restore(self.f)
         self.windows_plan = 0
         if self.convention.windows:
             self.windows_plan = plan else (4095 if self.dw != none else self.allocated_saves())

@@ -23,6 +23,8 @@ import back.native.frame
 import back.native.selection
 import support.list
 
+# mark: Arranging =============================================================================
+
 ## Put `f`'s blocks in the order its generator selects them in: each jump sent to the first
 ## of its label's run and on through blocks that only jump (`selection.canonical_labels`),
 ## the blocks that only trap last (`selection.traps_last`), and each rotated loop's latch
@@ -134,9 +136,42 @@ func chain_start(f: ir.Function*, heads: bool[], body_at: usize, jump_at: usize)
             return none
     return none
 
+# mark: Threading after allocation ============================================================
+
+## Where `thread_after_allocation` found each branch's targets, to put back once the
+## function's text is written: x86-64 lays a Windows function out again, and its allocation
+## must see the branches as the first one did.
+pub struct Threaded:
+    var targets: list.List[u32]
+    var tables: list.List[u32]
+
+    ## Put every branch's targets back, and give back the storage.
+    pub func restore(f: ir.Function*):
+        var k: usize = 0
+        for i in 0..<f.instrs.count:
+            var x = f.instrs.get(i)
+            if x.op == ir.Op.jmp or x.op == ir.Op.jnz or x.op == ir.Op.switch_:
+                x.extra = self.targets.get(k)
+                x.extra2 = self.targets.get(k + 1)
+                f.instrs.set(i, x)
+                k += 2
+        for i in 0..<self.tables.count:
+            f.jump_labels.set(i, self.tables.get(i))
+        self.targets.destroy()
+        self.tables.destroy()
+
 ## Once `f`'s registers are allocated: each jump or branch to a block of copies that emit
-## nothing goes where that block goes (`selection.thread_quiet`).
-pub func thread_after_allocation(f: ir.Function*, fr: frame.Frame*) -> !:
+## nothing goes where that block goes (`selection.thread_quiet`). The targets before, to
+## restore after the text (`Threaded.restore`).
+pub func thread_after_allocation(f: ir.Function*, fr: frame.Frame*) -> Threaded!:
+    var threaded = Threaded(targets = try list.List[u32].create(64), tables = try list.List[u32].create(f.jump_labels.count + 1))
+    for x in f.instrs.span():
+        if x.op == ir.Op.jmp or x.op == ir.Op.jnz or x.op == ir.Op.switch_:
+            try threaded.targets.push(x.extra)
+            try threaded.targets.push(x.extra2)
+    for label in f.jump_labels.span():
+        try threaded.tables.push(label)
     let quiet = try fr.quiet(f)
     defer free(quiet)
     try selection.thread_quiet(f, quiet)
+    return threaded

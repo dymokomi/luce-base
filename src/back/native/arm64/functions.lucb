@@ -152,7 +152,8 @@ extend Generator:
         try layout.arrange(self.f, true)
         try selection.sink_addresses(self.f)
         try self.fr.plan(self.f)
-        try layout.thread_after_allocation(self.f, &self.fr)
+        var threaded = try layout.thread_after_allocation(self.f, &self.fr)
+        defer threaded.restore(self.f)
         self.crossing = 0
         var entry = try selection.entry_loads(self.f)
         defer free(entry)
