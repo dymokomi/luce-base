@@ -9,7 +9,7 @@
 | `native/` | ARM64 and x86-64 assembly, register allocation, frame layout and DWARF emission |
 | `native/x86_64/` | x86 calling-convention, object-format and unwind policy, separate from instruction selection |
 | `assemble/` | The x86-64 assembler: AT&T assembly to a COFF object, in the compiler (`x86_64/` encodes instructions; `object` and `coff` are what a linker reads) |
-| `link/` | The Windows linker: COFF objects to a PE executable, in the compiler; imports from the DLLs' own export tables, and a start library in place of MinGW's start files |
+| `link/` | The Windows linker: COFF objects to a PE executable, in the compiler; imports from the DLLs' own export tables, a start library in place of MinGW's start files, and `--lib`'s archive |
 | `c/` | Explicit C comparison/snapshot emission and C library headers |
 | `names.lucb` | Symbol naming shared by both backends |
 | `target.lucb` | Target platform and toolchain definitions |

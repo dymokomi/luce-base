@@ -1,0 +1,141 @@
+#==============================================================================================
+#
+#   archive - Objects as the static library GNU `ar rcs` writes
+#
+#   DESCRIPTION:
+#       `--lib` on Windows hands a C toolchain a `.a` of the program's object. The archive
+#       is `!<arch>`, then the symbol index, a member named `/` that lists every global the
+#       objects define with the place of the member that does, then each object behind a
+#       header of its own; every header's date, owner and group are 0, as a deterministic
+#       `ar` writes them, so the same objects make the same archive.
+#
+#==============================================================================================
+
+import back.assemble.assembler
+import back.assemble.object
+import back.link.read
+import c
+import interop
+import luce_std.files
+import luce_std.paths
+import memory
+import strings
+import support.buffer
+from support.arena import Arena
+
+## One object of an archive: its name, its bytes, and what it says of itself.
+pub struct Member:
+    ## The member's name, at most fifteen bytes.
+    pub var name: str
+    ## The object file's bytes.
+    pub var bytes: const u8[]
+    ## The object read back, for the symbols it defines.
+    pub var o: const object.Object*
+
+let header_size: usize = 60
+
+## The archive at `output` of the objects at `objects`, each a member by its file name.
+pub func archive_files(objects: const str[], output: str) -> !:
+    var arena = Arena(memory.heap, 1048576)
+    defer arena.destroy()
+    with arena:
+        var members = try new Member[objects.length] ---
+        var contents = try new interop.Owned[const u8[]][objects.length] ---
+        var read_count: usize = 0
+        defer:
+            for k in 0..<read_count:
+                contents[k].release()
+        var objects_read = try new object.Object[objects.length] ---
+        for (k, path) in objects.indexed():
+            # the file is the heap's, as luce-std hands it, not the arena's
+            with memory.heap:
+                contents[k] = try files.read((c.str)path)
+            read_count += 1
+            objects_read[k] = try read.object_from(contents[k].value, path)
+            members[k] = Member(name = paths.base(path), bytes = contents[k].value, o = &objects_read[k])
+        var out = try buffer.Buffer.create(1048576)
+        try write(members, &out)
+        try files.write((c.str)output, out.bytes())
+
+## `members` as an archive, into `out`.
+pub func write(members: const Member[], out: buffer.Buffer*) -> !:
+    # the symbol index: how many, each one's member's place, then the names
+    var count: usize = 0
+    var names: usize = 0
+    for m in members:
+        for s in m.o.symbols.span():
+            if defined_global(&s):
+                count += 1
+                names += s.name.length + 1
+    let index = 4 + 4 * count + names
+    var at = 8 + header_size + even(index)
+    try out.put("!<arch>\n")
+    try header(out, "/", index)
+    try big_endian(out, u32(count))
+    for m in members:
+        for s in m.o.symbols.span():
+            if defined_global(&s):
+                try big_endian(out, u32(at))
+        at += header_size + even(m.bytes.length)
+    for m in members:
+        for s in m.o.symbols.span():
+            if defined_global(&s):
+                try out.put(s.name)
+                try out.put_byte(0)
+    if index % 2 == 1:
+        try out.put_byte('\n')
+    for m in members:
+        if m.name.length > 15:
+            try read.refuse(f"archive member `{m.name}` is longer than fifteen bytes")
+        var room: u8[16]
+        try header(out, try strings.format(room, f"{m.name}/"), m.bytes.length)
+        try out.put_bytes(m.bytes)
+        if m.bytes.length % 2 == 1:
+            try out.put_byte('\n')
+
+## Whether `s` is a global the object defines, which the index lists.
+func defined_global(s: const object.Symbol*) -> bool:
+    return s.binding == object.Binding.external and s.section != 0
+
+## A member's header: its name, a date, owner and group of 0, mode 644, and its size.
+func header(out: buffer.Buffer*, name: str, size: usize) -> !:
+    try field(out, name, 16)
+    try field(out, "0", 12)
+    try field(out, "0", 6)
+    try field(out, "0", 6)
+    try field(out, "644", 8)
+    var room: u8[24]
+    try field(out, try strings.format(room, f"{size}"), 10)
+    try out.put("`\n")
+
+## `text` padded with spaces to `width`.
+func field(out: buffer.Buffer*, text: str, width: usize) -> !:
+    try out.put(text)
+    for _ in text.length..<width:
+        try out.put_byte(' ')
+
+func big_endian(out: buffer.Buffer*, v: u32) -> !:
+    try out.put_byte((u8)(v >> 24))
+    try out.put_byte((u8)(v >> 16))
+    try out.put_byte((u8)(v >> 8))
+    try out.put_byte((u8)v)
+
+func even(n: usize) -> usize:
+    return n + n % 2
+
+# mark: Tests =================================================================================
+
+test "an archive indexes each global its object defines at the member's header":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var written = try buffer.Buffer.create(1024)
+        try assembler.assemble("    .text\n    .globl f\nf:\n    ret\n".bytes, "t.s", &written)
+        let o = try read.object_from(written.bytes(), "t.o")
+        var members: Member[1] = [Member(name = "gen.o", bytes = written.bytes(), o = &o)]
+        var out = try buffer.Buffer.create(1024)
+        try write(members, &out)
+        let a = out.bytes()
+        # the index, one symbol, `f`, in the member whose header is after it, at 8 + 60 + 10
+        assert((str)a[..<8] == "!<arch>\n" and a[8] == '/' and a[71] == 1 and a[75] == 78 and a[76] == 'f' and a[77] == 0)
+        assert((str)a[78..<84] == "gen.o/" and (str)a[136..<138] == "`\n")

@@ -27,8 +27,9 @@ its headers (`printf`, `snprintf`, `atexit`, `fabsf`) or MinGW added (`usleep`,
 `clock_gettime`). The image is GNU `ld`'s for a console program: subsystem 5.2, a 16 MiB
 stack, ASLR with high entropy, and DWARF in sections named as `ld` names them, so gdb reads
 a `--debug` build. A package's C `sources` need a C compiler, so a build with them stops
-under `--own-linker`. `luce-base link FILE.o... -o FILE.exe [-lNAME] [--system DIR]` runs
-the linker alone; `--system` names a copy of System32 on another host.
+under `--own-linker`; a `--lib` build writes its archive itself, as GNU `ar rcs` would.
+`luce-base link FILE.o... -o FILE.exe [-lNAME] [--system DIR]` runs the linker alone;
+`--system` names a copy of System32 on another host.
 
 ## Build
 

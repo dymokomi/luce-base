@@ -14,6 +14,7 @@ import os
 import c
 import interop
 import back.assemble.assembler
+import back.link.archive as archiver
 import back.link.linker
 import back.backend
 import back.ir.digest
@@ -996,11 +997,15 @@ func build_library(code: str, header_text: str, name: str) -> !:
             try files.write((c.str)asm_path, code.bytes)
             var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
             try run_tool("as", as_args, "the assembler rejected the generated code", dir)
-        var ar_args = try Arguments.create()
-        try ar_args.add("rcs")
-        try ar_args.add((c.str)archive)
-        try ar_args.add((c.str)object_path)
-        try run_tool("ar", ar_args.span(), "the archiver failed", dir)
+        if own_linking():
+            var one: str[1] = [object_path]
+            try archiver.archive_files(one, archive)
+        else:
+            var ar_args = try Arguments.create()
+            try ar_args.add("rcs")
+            try ar_args.add((c.str)archive)
+            try ar_args.add((c.str)object_path)
+            try run_tool("ar", ar_args.span(), "the archiver failed", dir)
     else:
         let gen_path = try strings.format(names_bytes[512..<1024], f"{dir}/gen.c")
         let rt_header = try strings.format(names_bytes[1024..<1536], f"{dir}/lucb_rt.h")
