@@ -248,8 +248,8 @@ pub struct Checker:
     pub var test_build: bool = false
     ## The package of the entry under test, a module of which is tested too.
     var tested_package: str = ""
-    ## `luce-base test --package`: every module of the package under test is loaded and
-    ## tested, whether the entry imports it or not (§16.5).
+    ## `--package` on `test` or `check`: every module of the entry's package is loaded,
+    ## checked and, in a test, tested, whether the entry imports it or not (§16.5).
     pub var whole_package: bool = false
     ## The entry, the module under test, by its index in `modules`.
     pub var entry_index: usize = 0

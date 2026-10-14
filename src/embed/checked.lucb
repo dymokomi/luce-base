@@ -146,13 +146,15 @@ pub func standard_modules() -> const str[]:
 
 ## Check the program whose entry is the file `path` for `target`, as the luce-base command
 ## does: the standard library from its directory (`standard`), imports resolved as every
-## build resolves them (§16.3), positions as the path is spelled.
-pub func check_file(path: c.str, target: targets.Target) -> Checked!:
+## build resolves them (§16.3), positions as the path is spelled. With `whole_package`, every
+## other module of the file's package too, imported or not (`check --package`).
+pub func check_file(path: c.str, target: targets.Target, whole_package: bool = false) -> Checked!:
     let arena = try new_arena(memory.heap)
     errdefer destroy_arena(arena)
     with arena:
         var checker = try check.Checker.create(try new u8[scratch_size] ---)
         checker.build_target = target
+        checker.whole_package = whole_package
         let message = load_and_check(&checker, path) catch failure:
             recover try strings.copy(failure.message)
         return try finish(arena, &checker, file_tree(&checker, (str)path), message)

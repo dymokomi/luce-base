@@ -131,7 +131,7 @@ extend Checker:
                 recover ""
         try self.load_as(path, try module_paths.entry_name((str)path))
         self.entry_index = self.modules.count - 1
-        if self.test_build and self.whole_package:
+        if self.whole_package:
             try self.load_package_modules((str)path)
 
     ## Load module `name` from the directory `root` and, first, every module it imports, all
@@ -149,7 +149,7 @@ extend Checker:
 
     ## Every module of the entry's package that it does not import, in the order of their
     ## paths, each after the modules it imports; all are library code, as the entry is in
-    ## a test (§16.5).
+    ## a test (§16.5). A check takes them too (`check --package`, §19.6).
     func load_package_modules(entry: str) -> !:
         let standard_library = try module_paths.canonical(try standard.directory())
         for path in (try module_paths.package_modules(entry, standard_library)).span():

@@ -14,6 +14,9 @@
 - with `--package`, which `luc test` passes, it runs those of every module under the
   source root too, imported or not, a fragment directory and a nested one included and a
   hidden directory's left out, each after what it imports and the rest by their paths;
+- `luce-base check` on the entry checks what it reaches; with `--package`, which `luc check`
+  passes, every module under the source root too, the same modules `test --package` loads,
+  with no test fragment read;
 - a false `assert` in a test's body fails that test, reported at the `assert`, an error at
   the test, and the run goes on to count the failures; one in a function a test calls
   traps and ends the run.
@@ -134,4 +137,10 @@ with tempfile.TemporaryDirectory() as directory:
     refused = run(root, "check", "tests/names_test_only.lucb", ok=False)
     assert refused.returncode != 0 and "only_in_tests" in refused.stderr, \
         f"FAIL: a build read the test fragments: {refused.returncode} {refused.stderr}"
-print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests, --package every module's, a test's assert fails it, a trap names its test")
+    run(root, "check", "src/main.lucb", "--package")
+    (root / "src/solids/broken.lucb").write_text("func three() -> i64:\n    return \"three\"\n")
+    run(root, "check", "src/main.lucb")
+    unreached = run(root, "check", "src/main.lucb", "--package", ok=False)
+    assert unreached.returncode == 1 and "broken.lucb:2:12: expected `i64`, got `str`" in unreached.stderr, \
+        f"FAIL: check --package missed a module nothing imports: {unreached.returncode} {unreached.stderr}"
+print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests, --package every module's, a test's assert fails it, a trap names its test, check --package every module")

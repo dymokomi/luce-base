@@ -56,7 +56,7 @@ import support.macos_platform
 import support.in_arena
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic]\n       luce-base assemble FILE.s -o FILE.o\n       luce-base link FILE.o... -o FILE.exe [-lNAME] [-LDIR] [--system DIR] [--entry NAME]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--package] [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic]\n       luce-base assemble FILE.s -o FILE.o\n       luce-base link FILE.o... -o FILE.exe [-lNAME] [-LDIR] [--system DIR] [--entry NAME]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -1174,10 +1174,11 @@ func checked_entry(path: c.str) -> check.Checker!:
     try checker.check_program()
     return checker
 
-## Check FILE and the modules it imports; silence means success. The command's status: 1
-## when the check failed, or when it printed warnings and `-W` makes them a failure.
-func check_file(path: c.str) -> i32!:
-    var result = try embed.check_file(path, build_target())
+## Check FILE and the modules it imports, and with `whole_package` every other module of its
+## package (`--package`, what `luc check` asks for); silence means success. The command's
+## status: 1 when the check failed, or when it printed warnings and `-W` makes them a failure.
+func check_file(path: c.str, whole_package: bool) -> i32!:
+    var result = try embed.check_file(path, build_target(), whole_package)
     defer result.close()
     if not result.ok():
         try report_failure(result.failure)
@@ -1766,14 +1767,18 @@ pub func main(given: c.str[]) -> i32!:
             try report_failure(failure.message)
             recover 1
         return code
-    if command == "check" and (positional == 3 or positional == 5):
+    if command == "check" and positional >= 3:
+        var whole_package = false
+        for a in arguments[3..]:
+            if (str)a == "--package": whole_package = true
+        let words = positional - (1 if whole_package else 0)
         let targeted = check_target(arguments) catch failure:
             try report_failure(failure.message)
             return 1
-        if targeted != (positional == 5):
+        if (words != 3 and words != 5) or targeted != (words == 5):
             try usage(io.stderr())
             return 2
-        let code = check_file(arguments[2]) catch failure:
+        let code = check_file(arguments[2], whole_package) catch failure:
             try report_failure(failure.message)
             recover 1
         return code
