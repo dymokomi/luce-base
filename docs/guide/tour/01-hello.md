@@ -8,17 +8,23 @@ On macOS or Linux:
 curl -fsSL https://luce.luciaos.com/install.sh | sh && . "$HOME/.local/luce/env"
 ```
 
-On Windows, in PowerShell:
+On Windows, in Command Prompt:
+
+```bat
+curl -fsSLo "%TEMP%\luce-install.cmd" https://luce.luciaos.com/install.cmd && "%TEMP%\luce-install.cmd"
+```
+
+or in PowerShell:
 
 ```sh
 irm https://luce.luciaos.com/install.ps1 | iex
 ```
 
-This puts the compiler, `luce-base`, and the project tool, `luc`, on your `PATH`. The
-compiler uses the C toolchain on your machine to assemble and link, so it needs one: the
-Xcode command line tools on macOS (`xcode-select --install`), `gcc` or `clang` on Linux,
-and MSYS2's UCRT64 `gcc` on Windows. The installer tells you if it is missing. Check that it
-worked:
+This puts the compiler, `luce-base`, and the project tool, `luc`, on your `PATH`. On macOS
+and Linux, building a program uses the C toolchain on your machine to assemble and link, so
+it needs one: the Xcode command line tools on macOS (`xcode-select --install`) and `gcc` or
+`clang` on Linux; the installer tells you if it is missing. On Windows the compiler
+assembles and links by itself, so nothing else is needed. Check that it worked:
 
 ```sh
 luce-base --version

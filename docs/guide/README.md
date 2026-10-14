@@ -14,14 +14,23 @@ On macOS or Linux:
 curl -fsSL https://luce.luciaos.com/install.sh | sh && . "$HOME/.local/luce/env"
 ```
 
-On Windows, in PowerShell:
+On Windows, in Command Prompt:
+
+```bat
+curl -fsSLo "%TEMP%\luce-install.cmd" https://luce.luciaos.com/install.cmd && "%TEMP%\luce-install.cmd"
+```
+
+or in PowerShell:
 
 ```sh
 irm https://luce.luciaos.com/install.ps1 | iex
 ```
 
-This installs the compiler, `luce-base`, and the project tool, `luc`.
-[Chapter 1 of the Tour](tour/01-hello.md) covers what you need and a first program.
+This installs the compiler, `luce-base`, and the project tool, `luc`. On Windows that is
+all you need: the compiler assembles and links programs itself, so there is no Visual
+Studio, MinGW or other C toolchain to install. On macOS and Linux it uses the system's C
+toolchain for that step. [Chapter 1 of the Tour](tour/01-hello.md) covers what you need and
+a first program.
 
 ## The documentation
 
