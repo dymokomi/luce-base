@@ -630,6 +630,22 @@ extend Emitter:
 
     ## Whether `e` denotes storage C can take the address of: a name, `self`, a member of a
     ## place or through a pointer, an element, or a dereference.
+    ## Whether place `e` is at an address nothing evaluated can change: a binding, `self`,
+    ## or a field of one reached without a pointer, a span or an index.
+    func is_fixed_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name, .self_: return true
+            .group:
+                let inner = e.left else return false
+                return self.is_fixed_place(inner)
+            .member:
+                let owner = e.left else return false
+                # `self` is never assigned, so the record it points at stays put
+                if self.kind(owner.type_id) == types.Kind.module or owner.kind == ast.Kind.self_:
+                    return true
+                return not self.is_ptr(owner.type_id) and self.is_fixed_place(owner)
+            _: return false
+
     func is_place(e: ast.Node*) -> bool:
         match e.kind:
             .name, .self_, .index: return true

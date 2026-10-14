@@ -178,6 +178,28 @@ extend Emitter:
                 try self.put_u64(try literals.decode_integer(i.text))
                 try self.put("])")
                 return
+            if may_have_effect(i) and not self.is_fixed_place(owner):
+                # the array before the index (§7.1), which C leaves unordered: its address
+                # first, then the element through it
+                let n = self.tmp()
+                try self.put("(*({ __auto_type ")
+                try self.put_tmp("ix", n)
+                try self.put(" = ")
+                if owner.kind == ast.Kind.index:
+                    # a row of an array of arrays, which must be inside it, not one past
+                    try self.put("&(")
+                    try self.index_at(owner, false)
+                    try self.put(")")
+                else:
+                    try self.address(owner)
+                try self.put("; &")
+                try self.put_tmp("ix", n)
+                try self.put("->d[lb_at((uint64_t)(")
+                try self.expr(i)
+                try self.put("), ")
+                try self.put_u64(length + slack)
+                try self.put("ULL)]; }))")
+                return
             try self.put("((")
             try self.expr(owner)
             try self.put(").d[lb_at((uint64_t)(")
@@ -208,6 +230,19 @@ extend Emitter:
             return
         if self.is_ptr(ot):
             # element-scaled by the pointee, an array included (§7.7)
+            if may_have_effect(i):
+                # the pointer before the index (§7.1), which C leaves unordered
+                let n = self.tmp()
+                try self.put("(*({ __auto_type ")
+                try self.put_tmp("ix", n)
+                try self.put(" = ")
+                try self.expr(owner)
+                try self.put("; &")
+                try self.put_tmp("ix", n)
+                try self.put("[")
+                try self.expr(i)
+                try self.put("]; }))")
+                return
             try self.put("((")
             try self.expr(owner)
             try self.put(")[")

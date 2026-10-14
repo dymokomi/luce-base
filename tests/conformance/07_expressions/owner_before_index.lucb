@@ -1,0 +1,122 @@
+## §7.1 and §6.5: an owner is evaluated before its index, a place before the value stored
+## into it, and an operand before the next one, so a call that moves what an earlier
+## operand read does not change it. Each case calls something that replaces a span, moves a
+## pointer, or changes a record after the earlier operand was read; every backend and the
+## interpreter must see the earlier reading.
+struct Pair:
+    var a: i64
+    var b: i64
+
+struct Holder:
+    var items: u8[]
+    var pair: Pair
+
+struct Box:
+    var cells: i64[3]
+
+## Gives `h` fresh storage and answers 0.
+noinline func moved(h: Holder*) -> usize!:
+    h.items = try new u8[4]
+    return 0
+
+## Gives `h` fresh storage and answers 9.
+noinline func moved_value(h: Holder*) -> u8!:
+    h.items = try new u8[4]
+    return 9
+
+noinline func repoint(p: Box**, to: Box*) -> usize:
+    *p = to
+    return 1
+
+noinline func change(p: Pair*) -> i64:
+    p.a = 50
+    return 1
+
+noinline func bump(x: i64*) -> i64:
+    *x += 100
+    return 1
+
+noinline func rewrite(a: i64[2]*) -> i64:
+    (*a)[0] = 9
+    return 0
+
+noinline func first_of(s: u8[], k: usize) -> u8:
+    return s[0]
+
+noinline func same(h: Holder*) -> Holder*:
+    return h
+
+## A span is read before an index that replaces it: reading, storing, adding into,
+## addressing, slicing and passing it all use the old storage.
+func spans() -> !:
+    var h = Holder(items = try new u8[4], pair = Pair(a = 1, b = 2))
+    var old = h.items
+    old[0] = 5
+    let r = h.items[try moved(&h)]
+    old = h.items
+    h.items[try moved(&h)] = 9
+    let stored = old[0]
+    old = h.items
+    old[0] = 1
+    h.items[try moved(&h)] += 2
+    let added = old[0]
+    old = h.items
+    let p = &h.items[try moved(&h)]
+    *p = 7
+    let addressed = old[0]
+    old = h.items
+    old[0] = 3
+    let s = h.items[(try moved(&h))..<2]
+    old = h.items
+    old[0] = 4
+    let passed = first_of(h.items, try moved(&h))
+    old = h.items
+    old[1] = 6
+    let through_call = same(&h).items[try moved(&h) + 1]
+    print(f"spans {r} {stored} {added} {addressed} {s[0]} {passed} {through_call} {h.items[0]}")
+
+## A pointer, and a field reached through one, is read before an index that moves it.
+func pointers():
+    var a = Box(cells = [1, 2, 3])
+    var b = Box(cells = [4, 5, 6])
+    var p: Box* = &a
+    let read = p.cells[repoint(&p, &b)]
+    p = &a
+    p.cells[repoint(&p, &b)] = 9
+    p = &a
+    var cells: i64* = &a.cells[0]
+    let element = cells[repoint(&p, &b) + (usize)change_cells(&cells, &b)]
+    print(f"pointers {read} {a.cells[1]} {b.cells[1]} {element}")
+
+noinline func change_cells(p: i64**, to: Box*) -> i64:
+    *p = &to.cells[0]
+    return 0
+
+## The place is evaluated before the value stored into it (§6.5 keeps the store last).
+func places() -> !:
+    var h = Holder(items = try new u8[4], pair = Pair(a = 1, b = 2))
+    let old = h.items
+    h.items[0] = try moved_value(&h)
+    print(f"places {old[0]} {h.items[0]}")
+
+## Operands: a record and an array compared, a local added to and a field added into are
+## read before the operand after them changes them.
+func operands():
+    var p = Pair(a = 1, b = 2)
+    let equal = p == Pair(a = change(&p), b = 2)
+    var x: i64 = 1
+    let sum = x + bump(&x)
+    x = 1
+    x += bump(&x)
+    var h = Pair(a = 1, b = 2)
+    h.a += change(&h)
+    var row: i64[2] = [1, 2]
+    let same_row = row == [rewrite(&row) + 1, 2]
+    print(f"operands {equal} {sum} {x} {h.a} {same_row}")
+
+pub func main(arguments: str[]) -> i32!:
+    try spans()
+    pointers()
+    try places()
+    operands()
+    return 0

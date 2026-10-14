@@ -210,6 +210,13 @@ statement expression the call closes (`begin_sequence`, `end_sequence`, and
 The receiver of a method call, and the function value of a call through one,
 is computed into a temporary before the hoisted arguments when both may have
 an effect (`receiver_first`), which is the order the rule asks for.
+C's subscript and assignment are unordered too: an index that may have an effect
+reads its pointer, or the address of its array, into a temporary first, and an
+assignment whose value may have an effect takes its place's address first, unless
+the place is a binding or a field of one that nothing can move (`is_fixed_place`).
+The native lowering reads an owner before its index and copies an operand held in
+memory before an operand with an effect runs (`held`), which `may_have_effect` keeps
+off code without calls.
 
 Two more things about C the backend works around. A formatted text (`f"..."`)
 is built in a buffer, and the value that is passed on points into it; a buffer

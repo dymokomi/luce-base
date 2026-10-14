@@ -119,17 +119,18 @@ extend Lowerer:
         return try self.index_address_at(e, false)
 
     ## The address of `owner[i]`; under `&` the index may equal the length, C's one past
-    ## the end (§7.7), so the bound is one more.
+    ## the end (§7.7), so the bound is one more. The owner comes first (§7.1): its place,
+    ## its pointer, or its span's data and length are read before the index runs, so a
+    ## call in the index that moves the owner leaves this element where it was.
     func index_address_at(e: ast.Node*, one_past: bool) -> ir.Ref!:
         let owner = e.left else return try self.fail(e, "no owner")
         let i = e.body else return try self.fail(e, "no index")
         let ot = try self.ty(owner)
-        let iv = try self.value(i, types.usize_id)
-        let index = try self.widen(iv.ref, iv.type_id, types.usize_id)
         # `index <= length` one past the end, `index < length` otherwise
         let inclusive: u32 = 1 if one_past else 0
         if self.is_array(ot):
             let base = try self.place(owner)
+            let index = try self.index_value(i)
             let t = self.c.table.get(ot)
             try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length), inclusive)
             try self.mark_position()
@@ -139,6 +140,7 @@ extend Lowerer:
             let span = try self.expr(owner)
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, span.ref)
             let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
+            let index = try self.index_value(i)
             try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, length, inclusive)
             try self.mark_position()
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
@@ -146,10 +148,16 @@ extend Lowerer:
         if self.is_ptr(ot):
             # element-scaled by the pointee, an array included (§7.7)
             let p = try self.expr(owner)
+            let index = try self.index_value(i)
             let inner = self.elem(ot)
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(inner)))
             return try self.f.binary(ir.Op.add, ir.Class.l, p.ref, scaled)
         return try self.fail(e, "indexing needs a span or an array")
+
+    ## Index `i` as a `usize`.
+    func index_value(i: ast.Node*) -> ir.Ref!:
+        let iv = try self.value(i, types.usize_id)
+        return try self.widen(iv.ref, iv.type_id, types.usize_id)
 
     func slice(e: ast.Node*) -> LowerValue!:
         let owner = e.left else return try self.fail(e, "no owner")

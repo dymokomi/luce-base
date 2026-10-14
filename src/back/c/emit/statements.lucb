@@ -166,6 +166,16 @@ extend Emitter:
                 try self.put_tmp("as", n)
                 try self.put("; }")
                 return
+            if may_have_effect(value) and not self.is_fixed_place(place):
+                # the place before the value (§7.1), which C leaves unordered: its address
+                # is taken first, so a value that moves what the place reads cannot move it
+                let cell = try self.place_cell(place, pt)
+                try self.line("")
+                try self.expr(cell)
+                try self.put(" = ")
+                try self.value(value, pt)
+                try self.put("; }")
+                return
             try self.place(place)
             try self.put(" = ")
             try self.value(value, pt)
@@ -181,44 +191,60 @@ extend Emitter:
             try self.value(value, self.elem(pt))
             try self.put(";")
             return
-        # a compound assignment evaluates its place once (§6.5): the place's address is
-        # taken into a temporary and the operation reads and writes through it
+        try self.compound_assign(place, value, pt, op)
+
+    ## `place op= value` for an operator `op` that is not atomic. The place is evaluated
+    ## once (§6.5): its address is taken into a temporary and the operation reads and writes
+    ## through it. C orders neither that read nor `op=`'s own against the value, so when the
+    ## value may have an effect the read goes first into a temporary of its own (§7.1).
+    func compound_assign(place: ast.Node*, value: ast.Node*, pt: u32, op: str) -> !:
         let cell = try self.place_cell(place, pt)
+        try self.line("")
+        var read = cell
+        let ordered = may_have_effect(value)
+        if ordered:
+            read = try ast.Node.make(ast.Kind.unary, "*", cell.start, cell.line)
+            read.left = cell.left
+            read.type_id = pt
+            _ = try self.hoist(read, pt)
+        try self.expr(cell)
         if op == "&" or op == "|" or op == "^":
-            try self.line("")
-            try self.expr(cell)
             try self.put(" = ")
-            try self.expr(cell)
+            try self.expr(read)
             try self.put(" ")
             try self.put(op)
             try self.put(" (")
             try self.value(value, pt)
-            try self.put("); }")
-            return
-        # `p += n`: C's own pointer arithmetic scales by the pointee, as `p + n` does (§7.7)
-        if self.kind(pt) == types.Kind.pointer and (op == "+" or op == "-"):
-            try self.line("")
-            try self.expr(cell)
-            try self.put(" ")
-            try self.put(op)
-            try self.put("= (")
+            try self.put(")")
+        elif self.kind(pt) == types.Kind.pointer and (op == "+" or op == "-"):
+            # `p += n`: C's own pointer arithmetic scales by the pointee, as `p + n` does (§7.7)
+            try self.compound_operator(read, op, ordered)
+            try self.put("(")
             try self.value(value, try self.ty(value))
-            try self.put("); }")
-            return
-        if self.is_float(pt) and (op == "+" or op == "-" or op == "*" or op == "/"):
-            try self.line("")
-            try self.expr(cell)
+            try self.put(")")
+        elif self.is_float(pt) and (op == "+" or op == "-" or op == "*" or op == "/"):
+            try self.compound_operator(read, op, ordered)
+            try self.value(value, pt)
+        else:
+            try self.put(" = ")
+            try self.checked_op(helper_name(op), pt, read, value)
+        try self.put("; }")
+        if ordered:
+            self.sequenced.count -= 1
+
+    ## ` op= ` after a compound assignment's place, or ` = read op ` when its read was
+    ## taken first.
+    func compound_operator(read: ast.Node*, op: str, ordered: bool) -> !:
+        if not ordered:
             try self.put(" ")
             try self.put(op)
             try self.put("= ")
-            try self.value(value, pt)
-            try self.put("; }")
             return
-        try self.line("")
-        try self.expr(cell)
         try self.put(" = ")
-        try self.checked_op(helper_name(op), pt, cell, value)
-        try self.put("; }")
+        try self.expr(read)
+        try self.put(" ")
+        try self.put(op)
+        try self.put(" ")
 
     ## Opens a block holding a pointer to `place`, and answers the dereference that stands
     ## for the place from then on; the caller closes the block.

@@ -20,7 +20,7 @@
 #       (§16.1), parallel to the C backend's.
 #
 #==============================================================================================
-from back.effects import arguments_have_effect
+from back.effects import may_have_effect, arguments_have_effect
 import back.ir.ir
 import back.exits
 import back.instances

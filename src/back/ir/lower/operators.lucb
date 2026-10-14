@@ -304,7 +304,7 @@ extend Lowerer:
             return try self.equality(l, lt, r, rt, ot, op == "!=")
         if op == "<" or op == "<=" or op == ">" or op == ">=":
             if ot == types.str_id:
-                let lv = try self.expr(l)
+                let lv = try self.held(try self.expr(l), r)
                 let rv = try self.expr(r)
                 let start = u32(self.f.args.count)
                 try self.f.args.push(try self.arg_of(lv))
@@ -355,7 +355,7 @@ extend Lowerer:
         let et = self.elem(t)
         let lt = try self.ty(l)
         let rt = try self.ty(r)
-        let lv = try self.value(l, lt if self.kind(lt) == types.Kind.array else et)
+        let lv = try self.held(try self.value(l, lt if self.kind(lt) == types.Kind.array else et), r)
         let rv = try self.value(r, rt if self.kind(rt) == types.Kind.array else et)
         let stride = self.c.table.size_of(et)
         let count = self.c.table.get(t).length
@@ -562,15 +562,15 @@ extend Lowerer:
                 let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(side.ref, self.c.table.size_of(self.elem(vt))))
                 result = try self.f.binary(ir.Op.ceq, ir.Class.w, present, ir.const_ref(0))
             else:
-                let a = try self.value(l, vt)
+                let a = try self.held(try self.value(l, vt), r)
                 let b = try self.value(r, vt)
                 result = try self.value_equal(a.ref, b.ref, vt)
         elif ot == types.str_id or ot == types.fmt_id:
-            let a = try self.expr(l)
+            let a = try self.held(try self.expr(l), r)
             let b = try self.expr(r)
             result = try self.text_equal(a.ref, b.ref)
         elif not self.is_scalar(ot):
-            let a = try self.value(l, ot)
+            let a = try self.held(try self.value(l, ot), r)
             let b = try self.value(r, ot)
             result = try self.value_equal(a.ref, b.ref, ot)
         else:

@@ -552,7 +552,7 @@ The address of a local, a span or `str` of a local array, and a span `memory.fra
 
 ### 7.1 Evaluation order
 
-Left to right, always: receiver then arguments, operands, array elements, interpolation fields, constructor arguments. A backend may reorder only when traps and side effects are unobservable.
+Left to right, always: receiver then arguments, operands, array elements, interpolation fields, constructor arguments, an indexed or sliced owner before its index (a span's data and length are read then, so an index that replaces the span still selects from the one it had), and an assignment's place before its value, a compound assignment reading the place before the value too. A backend may reorder only when traps and side effects are unobservable.
 
 ### 7.2 Arithmetic
 

@@ -24,6 +24,16 @@ extend Lowerer:
             cls = ir.Class.w
         return ir.Arg(value = v.ref, cls = cls, size = 0, align = 8, type_id = v.type_id, shape = 0, scalar_width = (u32)self.scalar_size(v.type_id))
 
+    ## Operand `v` held where `later`, an operand evaluated after it, cannot change it
+    ## (§7.1): a value read where it lives in memory is copied out when `later` may have
+    ## an effect; anything else stands as it is.
+    func held(v: LowerValue, later: ast.Node*) -> LowerValue!:
+        if not v.in_memory or not may_have_effect(later):
+            return v
+        let copy = try self.slot_address(try self.new_slot(v.type_id))
+        try self.f.copy_bytes(copy, v.ref, self.size(v.type_id))
+        return LowerValue(ref = copy, type_id = v.type_id, in_memory = true)
+
     ## A call of a named symbol whose arguments are already pushed; the scalar result.
     func call_named(name: str, start: u32, count: u32, cls: ir.Class, has_result: bool, result_type: u32) -> ir.Ref!:
         let info = ir.CallInfo(args_start = start, args_count = count, fixed_count = count, variadic = false, result_cls = cls, has_result = has_result, result_size = 0, result_align = 8, result_type = result_type, result_slot = 0, result_shape = 0)
