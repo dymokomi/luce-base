@@ -43,6 +43,9 @@ extend Lowerer:
             return LowerValue(ref = a, type_id = want, in_memory = true)
         if w.kind == types.Kind.span:
             if h.kind == types.Kind.array:
+                if let owner = self.literal_owner:
+                    if e.kind == ast.Kind.array_lit:
+                        return try self.static_literal(e, want, owner)
                 let arr = try self.expr(e)
                 return try self.span_of(arr.ref, ir.const_ref((i64)h.length), want)
             if have == types.str_id or have == types.fmt_id:

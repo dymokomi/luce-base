@@ -732,13 +732,18 @@ pub struct Table:
     ## The element of a pointer, span, array or optional, parenthesised where it would
     ## otherwise read as something else: under `const` or `volatile`, which qualify the
     ## innermost type (§5.3), a compound element, so `const (Rule*)[]` (a read-only span of
-    ## pointers) is not `const Rule*[]` (a span of pointers to read-only rules); an optional
-    ## under `[]` or `[N]`, `(c.str?)[3]`, or under `*` unless it is a nullable pointer
-    ## (`Link*?*`); a function type, whose result would take the suffix; and an atomic.
+    ## pointers) is not `const Rule*[]` (a span of pointers to read-only rules); a span or
+    ## array under `[]` or `[N]`, since a run of brackets reads inside-out (§5.4), so two
+    ## spans of read-only bytes are `(const u8[])[2]`, not `const u8[][2]`, which is a span
+    ## of arrays; an optional under `[]` or `[N]`, `(c.str?)[3]`, or under `*` unless it is
+    ## a nullable pointer (`Link*?*`); a function type, whose result would take the suffix;
+    ## and an atomic.
     func describe_element(out: io.Writer, elem: u32, qualified: bool, parent: Kind) -> !:
         let e = self.get(elem)
         var grouped = e.kind == Kind.atomic or e.kind == Kind.func_ or e.kind == Kind.fallible
         if qualified and (e.kind == Kind.pointer or e.kind == Kind.span or e.kind == Kind.array or e.kind == Kind.optional):
+            grouped = true
+        if (parent == Kind.span or parent == Kind.array) and (e.kind == Kind.span or e.kind == Kind.array):
             grouped = true
         if e.kind == Kind.optional and parent != Kind.optional:
             grouped = grouped or parent != Kind.pointer or self.kind(e.elem) != Kind.pointer

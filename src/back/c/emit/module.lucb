@@ -153,6 +153,8 @@ pub struct Emitter:
     ## Inside a top-level initialiser (§6.4): arithmetic and casts are C's own constant
     ## operators, since the helpers that trap are not constant expressions to C.
     var folding: bool
+    ## Inside `lb_init_runtime_globals`: an array a global's span views is `static`.
+    var initialising: bool = false
     ## The loop being emitted walks an array in place: its sequence temporary is a pointer.
     var seq_in_place: bool
     ## The line of the allocation being emitted, for the diagnostic profile's record.

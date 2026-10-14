@@ -26,16 +26,13 @@ extend Emitter:
         try self.module_globals(&deferred_storage)
         self.target = to_body
         try self.seed_functions(mode)
-        # bodies, until the worklist is drained: a body may need new instances
         var next: usize = 0
         var tests_done: usize = 0
-        while next < self.funcs.items.count or tests_done < self.tests.count:
-            while let inst = self.funcs.next_pending(&next):
-                if not ast.is_linked(inst.decl):
-                    try self.function(inst)
-            while tests_done < self.tests.count and next >= self.funcs.items.count:
-                try self.test_body(self.tests.get(tests_done))
-                tests_done += 1
+        try self.drain(&next, &tests_done)
+        # with the bodies, before the types are written: its values may need a type or an
+        # instance no body did
+        try self.runtime_globals_initialiser()
+        try self.drain(&next, &tests_done)
         self.target = to_globals
         try self.deferred_globals(&deferred_storage)
         deferred_storage.destroy()
@@ -55,7 +52,6 @@ extend Emitter:
         try self.line("")
         try self.out.put_bytes(self.body.bytes())
         try self.line("")
-        try self.runtime_globals_initialiser()
         try self.trap_entries()
         if mode == 1:
             try self.test_runner()
@@ -66,6 +62,17 @@ extend Emitter:
         else:
             let main_fn = check.find_decl(self.entry, "main") else return
             try self.main_shim(main_fn)
+
+    ## The bodies of the worklist's instances, from `next`, and the tests from `tests_done`,
+    ## until it is drained: a body may need new instances.
+    func drain(next: usize*, tests_done: usize*) -> !:
+        while *next < self.funcs.items.count or *tests_done < self.tests.count:
+            while let inst = self.funcs.next_pending(next):
+                if not ast.is_linked(inst.decl):
+                    try self.function(inst)
+            while *tests_done < self.tests.count and *next >= self.funcs.items.count:
+                try self.test_body(self.tests.get(*tests_done))
+                *tests_done += 1
 
     ## Every module's globals and constants, and its arm64 module-level assembly; plain
     ## standard storage is put in `deferred` to be declared only when used.
@@ -407,6 +414,7 @@ extend Emitter:
     ## module order before `main` runs.
     func runtime_globals_initialiser() -> !:
         try self.line("static void lb_init_runtime_globals(void) {")
+        self.initialising = true
         for d in self.runtime_globals.span():
             let init = d.left else continue
             try self.line("    ")
@@ -414,6 +422,7 @@ extend Emitter:
             try self.put(" = ")
             try self.value(init, d.type_id)
             try self.put(";")
+        self.initialising = false
         try self.line("}")
 
     ## A global's initialiser that names another constant, `os.macos = platform.macos` or

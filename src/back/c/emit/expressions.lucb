@@ -182,11 +182,35 @@ extend Emitter:
         try self.note_vtable(target, iface)
         _ = d
 
+    ## Array literal `e` as a compound literal, `const`-qualified when `read_only`.
+    func array_literal(e: ast.Node*, read_only: bool) -> !:
+        let t = try self.ty(e)
+        try self.put("((const " if read_only else "((")
+        try self.put_type(t)
+        try self.put("){{")
+        var first = true
+        var cursor = e.body
+        while let m = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            try self.value(m, self.elem(t))
+            cursor = m.next
+        try self.put("}})")
+
     ## The data pointer of an array-typed expression.
     func array_data(e: ast.Node*) -> !:
         if e.kind == ast.Kind.name or e.kind == ast.Kind.member or e.kind == ast.Kind.index or e.kind == ast.Kind.self_:
             try self.place(e)
             try self.put(".d")
+            return
+        if self.folding and e.kind == ast.Kind.array_lit:
+            # a global's initialiser: a compound literal at file scope is storage as long
+            # as the program, as the span the global holds must view (§6.3); read-only, as
+            # a literal's span is (§5.3) and the native backend's array is
+            try self.put("(")
+            try self.array_literal(e, true)
+            try self.put(").d")
             return
         let n = self.tmp()
         if self.target == to_scratch:
@@ -200,9 +224,13 @@ extend Emitter:
             try self.put_tmp("ad", n)
             try self.put(".d)")
             return
-        try self.put("({ ")
+        # in `lb_init_runtime_globals` the array outlives the initialiser, as the global's
+        # span of it must; elsewhere it is the expression's
+        try self.put("({ static " if self.initialising else "({ ")
         try self.put_type(try self.ty(e))
         try self.put(" ")
+        try self.put_tmp("ad", n)
+        try self.put("; ")
         try self.put_tmp("ad", n)
         try self.put(" = ")
         try self.expr(e)
@@ -284,19 +312,7 @@ extend Emitter:
                     cursor = m.next
                 try self.put("})")
             .array_lit:
-                let t = try self.ty(e)
-                try self.put("((")
-                try self.put_type(t)
-                try self.put("){{")
-                var first = true
-                var cursor = e.body
-                while let m = cursor:
-                    if not first:
-                        try self.put(", ")
-                    first = false
-                    try self.value(m, self.elem(t))
-                    cursor = m.next
-                try self.put("}})")
+                try self.array_literal(e, false)
             .lambda:
                 let d = e.resolved else return
                 try self.func_value(e, d)

@@ -1,0 +1,7 @@
+# error: expected `i64[]`, got `i64[3]`: a span with mutable elements views a mutable array
+## §5.3: a literal is no mutable place, so a top-level span made of one is `const T[]`,
+## whether the binding is a `let` or a `var`.
+var rows: i64[] = [10, 20, 30]
+
+pub func main(arguments: str[]) -> i32:
+    return 0

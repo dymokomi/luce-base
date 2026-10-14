@@ -115,9 +115,8 @@ extend Lowerer:
                 if (try self.runs_initialiser(d)) and not d.has(ast.flag_thread_local):
                     if check.is_library_module(names.module_of(d)):
                         _ = try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
-                    elif let init = d.left:
-                        let v = try self.value(init, d.type_id)
-                        try self.store_to(try self.global_address(d), v)
+                    else:
+                        try self.store_initialiser(d)
                 cursor = d.next
             i += 1
         if locals:
@@ -158,9 +157,8 @@ extend Lowerer:
                 if initialised(d) and d.has(ast.flag_thread_local):
                     if check.is_library_module(names.module_of(d)):
                         _ = try self.call_named(try self.init_function_name(d), u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id)
-                    elif let init = d.left:
-                        let v = try self.value(init, d.type_id)
-                        try self.store_to(try self.global_address(d), v)
+                    else:
+                        try self.store_initialiser(d)
                 cursor = d.next
             i += 1
         self.pop_scope()
@@ -204,12 +202,21 @@ extend Lowerer:
         # never expanded into `lb_init_globals`: the pruner must still see it apart
         self.f.noinline = true
         try self.push_scope(false, "", 0, 0)
-        if let init = d.left:
-            let v = try self.value(init, d.type_id)
-            try self.store_to(try self.global_address(d), v)
+        try self.store_initialiser(d)
         self.pop_scope()
         try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.end_function()
+
+    ## Global `d` given its initialiser's value, in the function being built. An array
+    ## literal it makes a span of gets storage of its own (`static_literal`), since this
+    ## function's frame is gone when the span is read.
+    func store_initialiser(d: ast.Node*) -> !:
+        let init = d.left else return
+        self.literal_owner = d
+        self.literal_count = 0
+        let v = try self.value(init, d.type_id)
+        try self.store_to(try self.global_address(d), v)
+        self.literal_owner = none
 
     func test_body(t: ast.Node*, index: u32) -> !:
         let inst = instances.Instance(decl = t, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
@@ -452,15 +459,21 @@ extend Lowerer:
         let init = d.left else return none
         if not initialised(d) or d.has(ast.flag_thread_local) or ast.has_attribute(d, "weak") or section_of(d).length > 0:
             return none
-        let t = d.type_id
-        if not self.is_array(t) or self.size(t) == 0:
+        if not self.is_array(d.type_id):
+            return none
+        return try self.literal_bytes(init, d.type_id)
+
+    ## The bytes of array `e` of type `t` laid out (`lay_out`), or none when they are not
+    ## all constants it lays out.
+    func literal_bytes(e: ast.Node*, t: u32) -> u8[]?!:
+        if self.size(t) == 0:
             return none
         let data = try new u8[(usize)self.size(t)]
         var laid = false
         defer:
             if not laid:
                 free(data)
-        if not self.lay_out(init, t, data, 0):
+        if not self.lay_out(e, t, data, 0):
             return none
         laid = true
         return data

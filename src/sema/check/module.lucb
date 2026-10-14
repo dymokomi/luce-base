@@ -393,6 +393,11 @@ pub struct Checker:
             _ = try sink.write("`, got `".bytes)
             try self.table.describe(&sink, got)
             _ = try sink.write("`".bytes)
+            let e = self.table.get(expected)
+            let g = self.table.get(got)
+            if e.kind == types.Kind.span and not e.is_const and g.kind == types.Kind.array and self.same_pointee(g.elem, e.elem):
+                # the elements agree: what is missing is a mutable place to view (§5.3)
+                _ = try sink.write(": a span with mutable elements views a mutable array; a literal or a `let` makes a `const` span".bytes)
         return try self.fail(node, (str)self.scratch[half..<half + sink.used])
 
     # -- scopes ---------------------------------------------------------------------------

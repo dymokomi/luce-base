@@ -219,6 +219,10 @@ pub struct Lowerer:
     ## The globals whose initialiser was laid out as their bytes (`static_data`), by name:
     ## no initialiser function stores them.
     var laid_out: hashed.Table[str]
+    ## The global whose initialiser is being lowered, and how many array literals it has
+    ## made spans of so far: each such array is a global of its own (`static_literal`).
+    var literal_owner: ast.Node*? = none
+    var literal_count: u32 = 0
     ## Lowering on demand (`lower_reached`): each instance's name, by index and by name;
     ## whether each was queued; the queue and how far it was lowered; how many of the
     ## unit's functions were scanned for what they name; the assembly texts seen.

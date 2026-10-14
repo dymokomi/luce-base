@@ -214,10 +214,14 @@ extend Lowerer:
 
     func array_literal(e: ast.Node*) -> LowerValue!:
         let t = try self.ty(e)
+        let a = try self.slot_address(try self.new_slot(t))
+        try self.store_elements(e, t, a)
+        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    ## The elements of array literal `e`, of type `t`, stored at `a`.
+    func store_elements(e: ast.Node*, t: u32, a: ir.Ref) -> !:
         let et = self.elem(t)
         let stride = self.c.table.size_of(et)
-        let slot = try self.new_slot(t)
-        let a = try self.slot_address(slot)
         var offset: u64 = 0
         var cursor = e.body
         while let m = cursor:
@@ -225,7 +229,39 @@ extend Lowerer:
             try self.store_to(try self.offset_address(a, offset), v)
             offset += stride
             cursor = m.next
-        return LowerValue(ref = a, type_id = t, in_memory = true)
+
+    ## Span `want` of array literal `e` in the initialiser of global `owner`: the array is a
+    ## global of its own, `<owner>_0lit<n>`, as C's compound literal at file scope is, since
+    ## the initialiser's frame is gone when the span is read. A literal's span is always
+    ## read-only (a mutable place alone makes a `T[]`, §5.3), so constant elements are laid
+    ## out as read-only bytes (`literal_bytes`) that one array serves every thread with; the
+    ## rest the initialiser stores, into an array per thread for a `local var`'s.
+    func static_literal(e: ast.Node*, want: u32, owner: ast.Node*) -> LowerValue!:
+        let t = try self.ty(e)
+        let owner_name = try self.global_name(owner)
+        let room = try new u8[owner_name.length + 16] ---
+        let name = try strings.format(room, f"{owner_name}_0lit{self.literal_count}")
+        self.literal_count += 1
+        let standard = check.is_library_module(names.module_of(owner))
+        var global = ir.Global(name = name, standard = standard, size = self.size(t), align = self.align(t), is_thread_local = false, exported = false, weak = false, used = false, section = "", external = false)
+        let length = ir.const_ref((i64)self.c.table.get(t).length)
+        if let data = try self.literal_bytes(e, t):
+            if not all_zero(data):
+                global.data = data
+                global.read_only = true
+            try self.program_unit.globals.push(global)
+            return try self.span_of(try self.f.address_of(ir.global_ref(name)), length, want)
+        global.is_thread_local = owner.has(ast.flag_thread_local)
+        try self.program_unit.globals.push(global)
+        var a = ir.none_ref()
+        if global.is_thread_local:
+            let tls = try self.temp(ir.Class.l)
+            try self.f.emit(ir.Op.addr_tls, ir.Class.l, tls.index, ir.global_ref(name), ir.none_ref(), 0)
+            a = tls
+        else:
+            a = try self.f.address_of(ir.global_ref(name))
+        try self.store_elements(e, t, a)
+        return try self.span_of(a, length, want)
 
     func conditional(e: ast.Node*) -> LowerValue!:
         let cond = e.ty else return try self.fail(e, "no condition")

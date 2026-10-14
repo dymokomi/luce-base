@@ -44,16 +44,12 @@ extend Checker:
         elif t.has(ast.flag_star):
             let inner = t.left else return try self.fail(t, "a pointer needs a pointee")
             let elem = try self.resolve_type(inner)
-            # a qualifier binds to the innermost type (§5.3): `const f32[4]*` is a pointer to
-            # a read-only array, its `const` on the element beneath the array suffixes
-            var qualified = inner
-            while qualified.has(ast.flag_array):
-                qualified = qualified.left else break
+            let qualified = beneath_arrays(inner)
             id = try self.table.pointer(elem, qualified.has(ast.flag_const), qualified.has(ast.flag_volatile))
         elif t.has(ast.flag_span):
             let inner = t.left else return try self.fail(t, "a span needs an element type")
             let elem = try self.resolve_type(inner)
-            id = try self.table.span(elem, inner.has(ast.flag_const))
+            id = try self.table.span(elem, beneath_arrays(inner).has(ast.flag_const))
         elif t.has(ast.flag_array):
             let inner = t.left else return try self.fail(t, "an array needs an element type")
             let count = t.right else return try self.fail(t, "an array needs a length")
@@ -422,3 +418,12 @@ func concrete(id: u32) -> u32:
     if id == types.untyped_float_id:
         return types.f64_id
     return id
+
+## The type beneath `t`'s array suffixes, whose qualifier a pointer or span over them takes:
+## a qualifier binds to the innermost type (§5.3), so `const f32[4]*` points to read-only
+## arrays and `const u8[][4]` is a span of them.
+func beneath_arrays(t: ast.Node*) -> ast.Node*:
+    var qualified = t
+    while qualified.has(ast.flag_array):
+        qualified = qualified.left else break
+    return qualified

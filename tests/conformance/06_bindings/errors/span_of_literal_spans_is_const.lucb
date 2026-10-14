@@ -1,0 +1,8 @@
+# error: expected `(const u8[])[]`, got `(const u8[])[2]`: a span with mutable elements
+## §5.3, §5.4: `const` binds to the innermost type, so `const u8[][]` is a span with
+## mutable elements, each a `const u8[]`; a literal makes only a read-only span, written
+## `const (const u8[])[]`.
+let words: const u8[][] = [b"a", b"bc"]
+
+pub func main(arguments: str[]) -> i32:
+    return 0
