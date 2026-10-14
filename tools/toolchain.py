@@ -19,8 +19,10 @@ Layout, under ~/.local/luce-dev:
                        link through it
 The key names the four commits; the newest three toolchains are kept.
 
-Runs on macOS and Linux, and on Windows from Git's bash (the build goes through
-tools/build_windows.py there, and nothing is linked into a bin directory).
+Runs on macOS and Linux, and on Windows (the build goes through tools/build_windows.py
+there). Windows links need privileges, so `current` is a directory junction there, and
+its bin/ goes first on the user's PATH in place of links in ~/.local/bin: a new shell or
+ssh session finds this toolchain's luc ahead of an installed release.
 """
 import argparse
 import glob
@@ -31,6 +33,10 @@ import shutil
 import subprocess
 import sys
 import tarfile
+if os.name == "nt":
+    import _winapi
+    import ctypes
+    import winreg
 
 ROOT = Path.home() / ".local" / "luce-dev"
 SOURCE = ROOT / "src"
@@ -42,6 +48,8 @@ WINDOWS = os.name == "nt"
 # Git's bash: on Windows `bash` on PATH is WSL's launcher
 BASH = r"C:\scoop\apps\git\current\bin\bash.exe" if WINDOWS else "bash"
 KEEP = 3
+# how Windows writes a path past MAX_PATH, and reads a junction back
+LONG_PATH = "\\\\?\\"
 
 
 def run(command, cwd, extra=None):
@@ -105,11 +113,36 @@ def link(target, path):
     path.symlink_to(target)
 
 
+def junction(target, path):
+    """Point directory junction `path` at `target` (Windows links need privileges)."""
+    if os.path.lexists(path):
+        # removes the junction itself, never what it points at
+        os.rmdir(path)
+    _winapi.CreateJunction(str(target), str(path))
+
+
+def first_on_path(directory):
+    """Put `directory` first on the user's PATH and tell running programs."""
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_READ | winreg.KEY_WRITE) as key:
+        try:
+            value, kind = winreg.QueryValueEx(key, "Path")
+        except FileNotFoundError:
+            value, kind = "", winreg.REG_EXPAND_SZ
+        entries = [entry for entry in value.split(";") if entry]
+        if entries and entries[0].lower() == str(directory).lower():
+            return
+        entries = [str(directory)] + [entry for entry in entries if entry.lower() != str(directory).lower()]
+        winreg.SetValueEx(key, "Path", 0, kind, ";".join(entries))
+    # WM_SETTINGCHANGE, so Explorer and the ssh service hand new shells the new PATH
+    ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, "Environment", 0x0002, 5000, None)
+    print(f"toolchain: {directory} is first on the user PATH (new shells)")
+
+
 def install(destination):
     current = ROOT / "current"
     if WINDOWS:
-        # links need privileges here; the archive is what a release takes from Windows
-        print(f"toolchain: built {tree(destination)}")
+        junction(tree(destination), current)
+        first_on_path(current / "bin")
         return
     link(tree(destination), current)
     BIN.mkdir(parents=True, exist_ok=True)
@@ -135,7 +168,8 @@ def main():
     arguments = parser.parse_args()
     if arguments.status:
         current = ROOT / "current"
-        print(f"{current} -> {os.readlink(current)}" if current.is_symlink() else "no toolchain yet")
+        # a junction reads back with the long-path prefix
+        print(f"{current} -> {os.readlink(current).removeprefix(LONG_PATH)}" if os.path.lexists(current) else "no toolchain yet")
         for name in KEYED:
             if (SOURCE / name).exists():
                 print(f"{name} {head(name)[:12]}")
@@ -151,7 +185,7 @@ def main():
     os.utime(destination)
     install(destination)
     prune()
-    luce = (tree(destination) if WINDOWS else ROOT / "current") / "bin" / ("luce.exe" if WINDOWS else "luce")
+    luce = ROOT / "current" / "bin" / ("luce.exe" if WINDOWS else "luce")
     print(subprocess.check_output([str(luce), "--version"], text=True).strip())
 
 
