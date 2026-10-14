@@ -16,7 +16,8 @@
   hidden directory's left out, each after what it imports and the rest by their paths;
 - `luce-base check` on the entry checks what it reaches; with `--package`, which `luc check`
   passes, every module under the source root too, the same modules `test --package` loads,
-  with no test fragment read;
+  with no test fragment read, and in the compiler's own package (luce-base) not its
+  standard library's source under src/std, whichever compiler checks it;
 - a false `assert` in a test's body fails that test, reported at the `assert`, an error at
   the test, and the run goes on to count the failures; one in a function a test calls
   traps and ends the run.
@@ -143,4 +144,14 @@ with tempfile.TemporaryDirectory() as directory:
     unreached = run(root, "check", "src/main.lucb", "--package", ok=False)
     assert unreached.returncode == 1 and "broken.lucb:2:12: expected `i64`, got `str`" in unreached.stderr, \
         f"FAIL: check --package missed a module nothing imports: {unreached.returncode} {unreached.stderr}"
-print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests, --package every module's, a test's assert fails it, a trap names its test, check --package every module")
+with tempfile.TemporaryDirectory() as directory:
+    # the compiler's own package, as another compiler checks it: src/std is the standard
+    # library's source, which no module of the package names
+    root = Path(directory)
+    (root / "src/std").mkdir(parents=True)
+    (root / "package.prisma").write_text('#prisma 4.0\ndef package "luce-base" {\n    str kind = "tool"\n}\n')
+    (root / "src/main.lucb").write_text("pub func main(arguments: str[]) -> i32:\n    _ = arguments\n    return 0\n")
+    (root / "src/std/ORDER").write_text("core\n")
+    (root / "src/std/core.lucb").write_text("pub func wrong() -> i64:\n    return \"text\"\n")
+    run(root, "check", "src/main.lucb", "--package")
+print("ok a package's tests live under tests/: its modules imported, a same-named one too, its test fragments added, its builds untouched, the entry's test runs the package's tests, --package every module's, a test's assert fails it, a trap names its test, check --package every module but the compiler's own standard library")
