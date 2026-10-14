@@ -1,0 +1,21 @@
+## §15.1, §7.5: a pointer to an atomic is written with parentheses, `(@u64)*`, and a cast
+## names it so: `((@u64)*)raw` reaches the atomic through an untyped pointer, as a thread's
+## context does. Its methods and `*p += 1` act on the atomic it points at. A parenthesised
+## type nests, `(((@u64)*)*)`, while `((n))` and `((n) * 2)` stay grouped expressions.
+func bump(raw: void*):
+    let count = ((@u64)*)raw
+    *count += 1
+    count.add(2, .relaxed)
+
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64 = 0
+    bump(&hits)
+    let typed: (@u64)* = &hits
+    typed.store(typed.load(.relaxed) + 4, .relaxed)
+    let held = &typed
+    let deeper = (((@u64)*)*)(void*)held
+    (**deeper).store(hits.load(.relaxed) * 10, .relaxed)
+    let n: i64 = 3
+    let grouped = ((n)) * 2 + ((n) * 2)
+    print(f"{hits.load(.relaxed)} {grouped}")
+    return 0

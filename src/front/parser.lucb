@@ -27,6 +27,16 @@ let max_nest: u32 = 100
 ## A chain of calls or operators, one level per link, may be longer than nesting is deep.
 let max_chain: u32 = 300
 
+## How many parentheses deep a cast's type may nest, `(((@u64)*)*)p` being two.
+let max_type_parens: u32 = 8
+
+## What `looks_like_cast` saw of a parenthesised cast type (`cast_shape`): the token just
+## past it, whether it is surely a type, and whether it is a lowercase name alone.
+struct CastShape:
+    var end: usize
+    var typed: bool
+    var bare: bool
+
 ## The recursive-descent parser over a source's tokens.
 pub struct Parser:
     var src: source.Source
@@ -1361,7 +1371,23 @@ pub struct Parser:
                             break
                 j += 1
             return self.cast_operand_follows(j + 1)
-        var i: usize = 1
+        let shape = self.cast_shape(1, 0) else return false
+        if not self.peek_op(shape.end, ")"):
+            return false
+        if shape.bare:
+            # `(bits)1`, `(lib.bits)x`: a cast through an alias only when a plain operand
+            # follows, since `(n) - 1` and `(n) * p` are arithmetic (§7.5)
+            let after = self.peek(shape.end + 1)
+            return after.kind == token.Kind.name or after.kind == token.Kind.integer or after.kind == token.Kind.float or after.kind == token.Kind.character or after.kind == token.Kind.text
+        if not shape.typed:
+            return false
+        return self.cast_operand_follows(shape.end + 1)
+
+    ## The type a cast's parentheses would hold, starting `at` tokens ahead, `depth`
+    ## parentheses into it: where it ends, and whether it is surely a type or a lowercase
+    ## name that may be an alias; none when it cannot be a type.
+    func cast_shape(at: usize, depth: u32) -> CastShape?:
+        var i = at
         var t = self.peek(i)
         if t.kind == token.Kind.operator and self.text_of(t) == "@":
             i += 1
@@ -1378,11 +1404,22 @@ pub struct Parser:
             # `(const (T*)*)p`: a parenthesised pointer type after a qualifier, C's
             # `T *const *` (§5.3); `((x))` alone is a grouped expression
             if not self.skip_bracketed(&i, "(", ")"):
-                return false
+                return none
+            typed = true
+        elif t.kind == token.Kind.operator and self.text_of(t) == "(":
+            # `((@u64)*)p`, `((c.str?)[3])p`: a parenthesised type, a pointer to an atomic or
+            # an array of optionals (§5.4, §15.1), when what the parentheses hold is surely a
+            # type; `((x))` and `((n) * 2)` are grouped expressions
+            if depth >= max_type_parens:
+                return none
+            let inner = self.cast_shape(i + 1, depth + 1) else return none
+            if not inner.typed or not self.peek_op(inner.end, ")"):
+                return none
+            i = inner.end + 1
             typed = true
         else:
             if t.kind != token.Kind.name:
-                return false
+                return none
             head = self.text_of(t)
             typed = is_type_word(head)
             bare = not typed  # a lowercase name: an alias, if anything
@@ -1401,22 +1438,14 @@ pub struct Parser:
                 typed = true
                 i += 2
             elif s == "[" and typed:
-                # `(List[T]*)p`: the type arguments of a generic instance (§7.5)
+                # `(List[T]*)p`: the type arguments of a generic instance, or an array's
+                # length after a parenthesised type (§5.4, §7.5)
                 if not self.skip_bracketed(&i, "[", "]"):
-                    return false
+                    return none
             else:
                 break
             t = self.peek(i)
-        if not (t.kind == token.Kind.operator and self.text_of(t) == ")"):
-            return false
-        if bare:
-            # `(bits)1`, `(lib.bits)x`: a cast through an alias only when a plain operand
-            # follows, since `(n) - 1` and `(n) * p` are arithmetic (§7.5)
-            let after = self.peek(i + 1)
-            return after.kind == token.Kind.name or after.kind == token.Kind.integer or after.kind == token.Kind.float or after.kind == token.Kind.character or after.kind == token.Kind.text
-        if not typed:
-            return false
-        return self.cast_operand_follows(i + 1)
+        return CastShape(end = i, typed = typed, bare = bare)
 
     ## What follows a cast's `)` must begin an operand for it to be a cast.
     func cast_operand_follows(at: usize) -> bool:

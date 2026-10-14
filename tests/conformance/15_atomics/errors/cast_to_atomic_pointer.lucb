@@ -1,0 +1,11 @@
+# error: `@u64*` is an atomic pointer; a pointer to an atomic is written `(@u64)*`
+## §15.1: `@` covers the suffixes after it, so `(@u64*)raw` names an atomic pointer, which
+## a cast does not make; the diagnostic says how a pointer to an atomic is written.
+func bump(raw: void*):
+    let count: (@u64)* = (@u64*)raw
+    *count += 1
+
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64 = 0
+    bump(&hits)
+    return (i32)hits.load(.relaxed)

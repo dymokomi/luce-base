@@ -398,6 +398,14 @@ pub struct Checker:
             if e.kind == types.Kind.span and not e.is_const and g.kind == types.Kind.array and self.same_pointee(g.elem, e.elem):
                 # the elements agree: what is missing is a mutable place to view (§5.3)
                 _ = try sink.write(": a span with mutable elements views a mutable array; a literal or a `let` makes a `const` span".bytes)
+            if e.kind == types.Kind.atomic and self.table.kind(e.elem) == types.Kind.pointer and g.kind == types.Kind.pointer:
+                # `@` covers the suffixes after it: `@u64*` is an atomic pointer (§15.1)
+                let pointee = self.table.get(e.elem).elem
+                _ = try sink.write(": `".bytes)
+                try self.table.describe(&sink, expected)
+                _ = try sink.write("` is an atomic pointer; a pointer to an atomic is written `(@".bytes)
+                try self.table.describe(&sink, pointee)
+                _ = try sink.write(")*`".bytes)
         return try self.fail(node, (str)self.scratch[half..<half + sink.used])
 
     # -- scopes ---------------------------------------------------------------------------

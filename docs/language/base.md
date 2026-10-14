@@ -613,7 +613,7 @@ Base has two conversion spellings with two meanings.
 
 There is no reinterpreting cast between scalars of different kinds. `f32.bits(u32)` and `f64.bits(u64)` build a float from its bits and `value.bits()` reads them; a union (§10.4) reinterprets anything else.
 
-The parser reads `(` *type* `)` as a cast when the parenthesised text is a type ending in `*`, `[]`, `[N]`, or `?`, or is a scalar, `str`, a `c.` type name, an alias of one of those (`(bits)1`, `(lib.bits)1`), or a parenthesised function type; a bare name that resolves to a value is not a cast. `(Name)(x)` with a bare struct name is a call, not a cast; struct-to-struct casts do not exist, so nothing is lost.
+The parser reads `(` *type* `)` as a cast when the parenthesised text is a type ending in `*`, `[]`, `[N]`, or `?`, or is a scalar, `str`, a `c.` type name, an alias of one of those (`(bits)1`, `(lib.bits)1`), a parenthesised function type, or a type built on a parenthesised one, as a pointer to an atomic is (`((@u64)*)raw`, §15.1), while `((n))` and `((n) * 2)` stay grouped expressions; a bare name that resolves to a value is not a cast. `(Name)(x)` with a bare struct name is a call, not a cast; struct-to-struct casts do not exist, so nothing is lost.
 
 **Why implicit widening.** Full Luce requires every integer conversion to be written, and its arithmetic code is correspondingly full of `u64(index)`. A widening of the same signedness cannot change a value or lose one, so requiring it to be written costs the reader without protecting them. Zig admits exactly this conversion and nothing more, and the rule has held there.
 
@@ -1372,7 +1372,7 @@ atomic.fence(.release)
 - Plain reads and `=` are sequentially consistent loads and stores.
 - `+=`, `-=`, `|=`, `&=`, `^=` on an `@T` are the sequentially consistent read-modify-write instructions, and they wrap as C11's do. Checked arithmetic does not apply to atomics: the `@` on the type is the marker that the instruction is what is wanted.
 - The methods, each returning the previous value: `add(v, order)`, `sub(v, order)`, `set(mask, order)` (or), `clear(mask, order)` (and-not), `flip(mask, order)` (xor), `max(v, order)`, `min(v, order)`, `swap(v, order)`; and `load(order)`, `store(v, order)`. `cas(expected, desired, success, failure, weak = false) -> (bool, T)` answers whether it exchanged and the value observed; `failure` may not be `release` or `acq_rel` and may not be stronger than `success`; with `weak = true` it may fail spuriously. `wait(expected)` blocks while the value equals `expected`; `wake(count)` wakes up to `count` waiters, `wake(0)` all. The `Ordering` cases are `relaxed`, `acquire`, `release`, `acq_rel`, `seq_cst`, and an omitted `order` is `seq_cst`. `atomic.fence(order)` is a standalone fence, and `atomic.fence(.signal)` is a compiler-only barrier for signal handlers.
-- `@` covers the whole type after it, suffixes included: `@Node*?` is an atomic nullable pointer and `@u64*` an atomic pointer. A pointer to an atomic is written with parentheses, `(@u64)*`, as `&counter` of a `@u64` is typed; a diagnostic spells it so.
+- `@` covers the whole type after it, suffixes included: `@Node*?` is an atomic nullable pointer and `@u64*` an atomic pointer. A pointer to an atomic is written with parentheses, `(@u64)*`, as `&counter` of a `@u64` is typed; a diagnostic spells it so, and a cast names it the same way, `((@u64)*)raw`.
 - Every `@T` is lock-free by construction; the double-width form of §5.9 exists only where the target has the instruction.
 - Semantics are the C11 memory model.
 
