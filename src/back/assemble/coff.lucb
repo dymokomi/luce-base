@@ -1,0 +1,250 @@
+#==============================================================================================
+#
+#   coff - An object as the COFF file Windows' linkers read
+#
+#   DESCRIPTION:
+#       The file header, a header per section, every section's bytes one after another,
+#       then each section's relocations, the symbol table and the string table that holds
+#       the names longer than eight bytes. A section symbol carries its section's length
+#       and relocation count, a weak external the index of its fallback, and the file
+#       symbol the name GNU `as` gives a source it was not told the name of. More than
+#       65535 relocations in a section are counted in a first relocation of their own, as
+#       the format extends the header's 16-bit count.
+#
+#==============================================================================================
+
+import back.assemble.object
+import support.buffer
+import support.list
+
+# mark: The file ==============================================================================
+
+## The machine field of an x86-64 object.
+let machine_amd64: u16 = 0x8664
+## The file characteristics GNU `as` writes: no line numbers, and no relocations when it
+## has none.
+let no_line_numbers: u16 = 0x0004
+let no_relocations: u16 = 0x0001
+let file_header_size: u64 = 20
+let section_header_size: u64 = 40
+let relocation_size: u64 = 10
+let symbol_size: u64 = 18
+
+## `o` as a COFF object for x86-64, into `out`.
+pub func write(o: object.Object*, out: buffer.Buffer*) -> !:
+    # the string table, less the size that leads it
+    var names = try buffer.Buffer.create(4096)
+    defer names.destroy()
+    # each object symbol's index in the file's table, which counts auxiliary records
+    var indexes = try new u32[o.symbols.count] ---
+    defer free(indexes)
+    var records: u32 = 0
+    for (i, s) in o.symbols.span().indexed():
+        indexes[i] = records
+        records += 1 + auxiliary_count(&s)
+    let sections = o.sections.span()
+    var at = file_header_size + section_header_size * (u64)sections.length
+    var data_at = at
+    for s in sections:
+        if s.content != object.Content.zeroed:
+            at += (u64)s.bytes.length
+    var relocations_at = at
+    for s in sections:
+        at += relocation_size * (u64)(relocation_records(&s))
+    try put16(out, machine_amd64)
+    try put16(out, u16(sections.length))
+    try put32(out, 0)
+    try put32(out, u32(at))
+    try put32(out, records)
+    var relocated = false
+    for s in sections:
+        relocated = relocated or s.relocations.count > 0
+    try put16(out, 0)
+    try put16(out, no_line_numbers | (0 if relocated else no_relocations))
+    for s in sections:
+        let raw = s.content != object.Content.zeroed and s.bytes.length > 0
+        let count = relocation_records(&s)
+        try section_name(out, &names, s.name)
+        try put32(out, 0)
+        try put32(out, 0)
+        try put32(out, u32(s.size))
+        try put32(out, u32(data_at) if raw else 0)
+        try put32(out, u32(relocations_at) if count > 0 else 0)
+        try put32(out, 0)
+        try put16(out, u16(count) if count < 0xFFFF else 0xFFFF)
+        try put16(out, 0)
+        try put32(out, characteristics(&s) | (overflow_flag if count >= 0xFFFF else 0))
+        if raw:
+            data_at += (u64)s.bytes.length
+        relocations_at += relocation_size * (u64)count
+    for s in sections:
+        if s.content != object.Content.zeroed:
+            try out.put_bytes(s.bytes)
+    for s in sections:
+        try relocations(out, &s, indexes)
+    for (i, s) in o.symbols.span().indexed():
+        try symbol(out, &names, o, &s, indexes)
+    try put32(out, u32(names.used + 4))
+    try out.put_bytes(names.bytes())
+
+## A section header's name: inline when it fits, else `/` and its offset in the strings.
+func section_name(out: buffer.Buffer*, names: buffer.Buffer*, name: str) -> !:
+    if name.length <= 8:
+        try out.put(name)
+        for _ in name.length..<8:
+            try out.put_byte(0)
+        return
+    var digits: u8[16]
+    var n: usize = 0
+    var v = names.used + 4
+    while v > 0 or n == 0:
+        digits[n] = (u8)(v % 10) + '0'
+        v = v // 10
+        n += 1
+    try out.put_byte('/')
+    var written: usize = 1
+    while n > 0:
+        n -= 1
+        try out.put_byte(digits[n])
+        written += 1
+    for _ in written..<8:
+        try out.put_byte(0)
+    try names.put(name)
+    try names.put_byte(0)
+
+# mark: Sections ==============================================================================
+
+## The flag the header sets when the relocation count is in the first relocation.
+let overflow_flag: u32 = 0x01000000
+
+## The relocation records `s` needs: its relocations, and the one carrying their count when
+## it outgrows the header's sixteen bits.
+func relocation_records(s: const object.Section*) -> usize:
+    let count = s.relocations.count
+    return count + 1 if count >= 0xFFFF else count
+
+## The header flags of `s`: what it holds, how it is loaded, and its alignment.
+func characteristics(s: const object.Section*) -> u32:
+    var flags: u32 = 0
+    match s.content:
+        .code: flags = 0x00000020 | 0x20000000
+        .data: flags = 0x00000040
+        .zeroed: flags = 0x00000080
+    if s.readable:
+        flags |= 0x40000000
+    if s.writable:
+        flags |= 0x80000000
+    if not s.loaded:
+        flags |= 0x02000000
+    var power: u32 = 1
+    var a = s.alignment
+    while a > 1:
+        a = a // 2
+        power += 1
+    return flags | (power << 20)
+
+## `s`'s relocations, each symbol by its index in the file's table.
+func relocations(out: buffer.Buffer*, s: const object.Section*, indexes: const u32[]) -> !:
+    if s.relocations.count >= 0xFFFF:
+        try put32(out, u32(s.relocations.count + 1))
+        try put32(out, 0)
+        try put16(out, 0)
+    for r in s.relocations.span():
+        try put32(out, u32(r.offset))
+        try put32(out, indexes[r.symbol])
+        try put16(out, relocation_type(r.fix))
+
+## The AMD64 relocation type of `fix`.
+func relocation_type(fix: object.Fix) -> u16:
+    var kind: u16 = 0
+    # a statement, not a `match` expression: GCC -O2 finds the seed's C for an
+    # expression over an enum maybe-uninitialised (LUCE-BUG, luce-seed 115e1f0)
+    match fix:
+        .absolute64: kind = 1
+        .absolute32: kind = 2
+        .image32: kind = 3
+        .relative32: kind = 4
+        .section16: kind = 10
+        .section32: kind = 11
+    return kind
+
+# mark: Symbols ===============================================================================
+
+## The storage classes the table uses.
+let class_external: u8 = 2
+let class_static: u8 = 3
+let class_label: u8 = 6
+let class_file: u8 = 103
+let class_weak_external: u8 = 105
+## A weak external's search: this object's fallback, not a library's definition.
+let weak_search_nolibrary: u32 = 1
+
+## How many auxiliary records follow symbol `s`.
+func auxiliary_count(s: const object.Symbol*) -> u32:
+    return 1 if s.binding == object.Binding.section_base or s.binding == object.Binding.weak_external or s.binding == object.Binding.file else 0
+
+## Symbol `s` and its auxiliary record.
+func symbol(out: buffer.Buffer*, names: buffer.Buffer*, o: object.Object*, s: const object.Symbol*, indexes: const u32[]) -> !:
+    try symbol_name(out, names, ".file" if s.binding == object.Binding.file else s.name)
+    try put32(out, u32(s.value))
+    var number: u16 = 0
+    if s.binding == object.Binding.file:
+        number = 0xFFFE
+    elif s.section == object.absolute_section:
+        number = 0xFFFF
+    elif s.binding != object.Binding.weak_external:
+        number = u16(s.section)
+    try put16(out, number)
+    try put16(out, 0)
+    var storage = class_static
+    # a statement, not a `match` expression: GCC -O2 finds the seed's C for an
+    # expression over an enum maybe-uninitialised (LUCE-BUG, luce-seed 115e1f0)
+    match s.binding:
+        .internal: storage = class_label if s.code else class_static
+        .section_base: storage = class_static
+        .external: storage = class_external
+        .weak_external: storage = class_weak_external
+        .file: storage = class_file
+    try out.put_byte(storage)
+    try out.put_byte(u8(auxiliary_count(s)))
+    match s.binding:
+        .section_base:
+            let section = o.sections.items[s.section - 1]
+            try put32(out, u32(section.used))
+            # the count's low sixteen bits, as GNU `as` writes it however many there are
+            try put16(out, (u16)section.relocations.count)
+            try zeros(out, 12)
+        .weak_external:
+            try put32(out, indexes[s.fallback])
+            try put32(out, weak_search_nolibrary)
+            try zeros(out, 10)
+        .file:
+            try out.put(s.name)
+            try zeros(out, 18 - s.name.length)
+        .internal, .external:
+            return
+
+## A symbol's name: inline when it fits in eight bytes, else its offset in the strings.
+func symbol_name(out: buffer.Buffer*, names: buffer.Buffer*, name: str) -> !:
+    if name.length <= 8:
+        try out.put(name)
+        try zeros(out, 8 - name.length)
+        return
+    try put32(out, 0)
+    try put32(out, u32(names.used + 4))
+    try names.put(name)
+    try names.put_byte(0)
+
+# mark: Bytes =================================================================================
+
+func put16(out: buffer.Buffer*, v: u16) -> !:
+    try out.put_byte((u8)v)
+    try out.put_byte((u8)(v >> 8))
+
+func put32(out: buffer.Buffer*, v: u32) -> !:
+    try put16(out, (u16)v)
+    try put16(out, (u16)(v >> 16))
+
+func zeros(out: buffer.Buffer*, count: usize) -> !:
+    for _ in 0..<count:
+        try out.put_byte(0)

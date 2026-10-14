@@ -13,6 +13,7 @@ import luce_std.paths
 import os
 import c
 import interop
+import back.assemble.assembler
 import back.backend
 import back.ir.digest
 import back.reuse
@@ -53,7 +54,7 @@ import support.macos_platform
 import support.in_arena
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME] [--own-assembler]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic] [--own-assembler]\n       luce-base assemble FILE.s -o FILE.o\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -483,6 +484,10 @@ var debug_backend: bool
 var symbols_backend: bool
 ## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
 var freestanding: bool
+## `--own-assembler`, TEMPORARY while it reaches parity everywhere: x86_64-windows assembly
+## goes through the compiler's own assembler (`back.assemble`) instead of GNU `as`. The flag
+## goes once the default flips and the `as` path is deleted.
+var own_assembler: bool
 ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
 var diagnostic_profile: bool
 ## The manifest of the package being built (§16.4): its native inputs reach the build.
@@ -654,7 +659,8 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
             return listed
         let text = try translate(checker, entry, mode, true)
         let t = build_target()
-        return try pieces.assemble(dir, text, split_starts, split_tags, split_ending, key, t.os == targets.Os.macos, t.arch_name(), split_whole)
+        return try pieces.assemble(dir, text, split_starts, split_tags, split_ending, key, t.os == targets.Os.macos, t.arch_name(), split_whole,
+                                   try own_assembly())
     let asm_path = try strings.format(name_bytes[..<512], f"{dir}/gen.s")
     var object_path = try strings.format(name_bytes[512..<1024], f"{dir}/gen.o")
     if let cached = try cache.take(key, "-n.o", dir):
@@ -662,8 +668,11 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
     else:
         # labels named by what they label, so the next build may reuse functions (`back.reuse`)
         let text = try translate(checker, entry, mode, false, not debug_backend and not symbols_backend)
-        try files.write((c.str)asm_path, text.bytes)
-        try assemble_one(dir)
+        if try own_assembly():
+            try assemble_in_process(text, object_path)
+        else:
+            try files.write((c.str)asm_path, text.bytes)
+            try assemble_one(dir)
         cache.keep(key, "-n.o", object_path)
     let one = try new str[1] ---
     one[0] = object_path
@@ -673,6 +682,23 @@ func program_objects(dir: str, name_bytes: u8[], checker: check.Checker*, entry:
 ## information, whose DWARF lines run through the whole text.
 func splittable() -> bool:
     return native_backend and not debug_backend and not symbols_backend
+
+## Whether this build assembles with the compiler's own assembler (`--own-assembler`),
+## which makes COFF objects for x86_64-windows only.
+func own_assembly() -> bool!:
+    if not own_assembler:
+        return false
+    let t = build_target()
+    if t.os != targets.Os.windows or t.arch != targets.Arch.x86_64:
+        error(build_failed, "--own-assembler makes objects for x86_64-windows only")
+    return true
+
+## Assembly `text` as the COFF object at `object_path`, by the compiler's own assembler.
+func assemble_in_process(text: str, object_path: str) -> !:
+    var object = try buffer.Buffer.create(text.length // 4)
+    defer object.destroy()
+    try assembler.assemble(text.bytes, "gen.s", &object)
+    try files.write((c.str)object_path, object.bytes())
 
 ## Assemble the one file at `asm_path` into `object_path`.
 func assemble_one(dir: str) -> !:
@@ -914,10 +940,13 @@ func build_library(code: str, header_text: str, name: str) -> !:
     let header_path = try strings.format(names_bytes[2560..<3072], f"{name}.h")
     let object_path = try strings.format(names_bytes[..<512], f"{dir}/gen.o")
     if native_backend:
-        let asm_path = try strings.format(names_bytes[512..<1024], f"{dir}/gen.s")
-        try files.write((c.str)asm_path, code.bytes)
-        var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
-        try run_tool("as", as_args, "the assembler rejected the generated code", dir)
+        if try own_assembly():
+            try assemble_in_process(code, object_path)
+        else:
+            let asm_path = try strings.format(names_bytes[512..<1024], f"{dir}/gen.s")
+            try files.write((c.str)asm_path, code.bytes)
+            var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
+            try run_tool("as", as_args, "the assembler rejected the generated code", dir)
         var ar_args = try Arguments.create()
         try ar_args.add("rcs")
         try ar_args.add((c.str)archive)
@@ -956,6 +985,17 @@ func build_library(code: str, header_text: str, name: str) -> !:
     try host_tools.publish(archive, destination)
     try files.write((c.str)header_path, header_text.bytes)
     try workspace.close()
+
+## `assemble FILE -o OBJECT`: x86-64 assembly for Windows as a COFF object, through the
+## compiler's own assembler (`back.assemble`).
+func assemble_file(path: c.str, output: c.str) -> !:
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let text = try in_arena.read(path)
+        var object = try buffer.Buffer.create(text.length // 4)
+        try assembler.assemble(text, (str)path, &object)
+        try files.write(output, object.bytes())
 
 ## Run a build tool; its standard error is shown when it fails.
 func run_tool(program: c.str, arguments: c.str[], what: str, directory: str = "") -> !:
@@ -1011,6 +1051,8 @@ func test_options(arguments: const c.str[]) -> TestOptions?!:
             options.native = false
         elif a == "--package":
             options.whole_package = true
+        elif a == "--own-assembler":
+            own_assembler = true
         elif profile == "diagnostic" or profile == "default":
             options.diagnostic = profile == "diagnostic"
             i += 1
@@ -1511,6 +1553,8 @@ func build_option(options: Options*, arguments: c.str[], i: usize, emission_back
         return i + 1
     elif a == "--debug":
         options.debug = true
+    elif a == "--own-assembler":
+        own_assembler = true
     elif a == "-W":
         show_warnings = true
     elif starts_with(a, "-l") and a.length > 2:
@@ -1698,13 +1742,25 @@ pub func main(given: c.str[]) -> i32!:
             try report_failure(failure.message)
             return 1
         return 0
+    if let code = try file_tool(command, positional, arguments, out):
+        return code
+    try usage(io.stderr())
+    return 2
+
+## The commands that turn one file into another form, `lex` and `assemble`: the exit status,
+## or none when `command` is not one of them with its arguments.
+func file_tool(command: str, positional: usize, arguments: c.str[], out: io.Writer) -> i32?!:
+    if command == "assemble" and positional == 5 and (str)arguments[3] == "-o":
+        assemble_file(arguments[2], arguments[4]) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
     if command == "lex" and positional == 3:
         lex_file(arguments[2], out) catch failure:
             try report_failure(failure.message)
             return 1
         return 0
-    try usage(io.stderr())
-    return 2
+    return none
 
 test "an @file argument stands for the file's lines, one argument a line":
     let folder = try in_arena.temporary_directory(".")

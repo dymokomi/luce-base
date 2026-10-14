@@ -1,0 +1,232 @@
+#==============================================================================================
+#
+#   forms - The mnemonics the assembler knows, and what each one encodes
+#
+#   DESCRIPTION:
+#       A mnemonic names a `Form`: the family of instructions that encode alike, the
+#       operand size its suffix spells (0 when the registers decide), and the family's
+#       parameters. The table is made once per assembly from a few lines per family: the
+#       integer operations with each of their `b`, `w`, `l`, `q` spellings, the conditions
+#       under `j`, `set` and `cmov`, the vector operations and their `v` forms.
+#
+#==============================================================================================
+
+import memory
+import strings
+import back.assemble.lookup
+import support.list
+
+# mark: Forms =================================================================================
+
+## The families of instructions that encode alike.
+enum Family:
+    ## `add` … `cmp`: `code` the group's number.
+    alu
+    test_bits
+    mov
+    movabs
+    lea
+    ## `movzbl` and kin: `opcode` in the `0F` map, or `movslq`'s one-byte `63`.
+    widen
+    ## `rol` … `sar`: `code` the group's number.
+    shift
+    ## `not`, `neg`, `mul`, `div`, `idiv`: `code` the group's number.
+    unary
+    ## `inc`, `dec`: `code` 0 or 1.
+    step
+    imul
+    xchg
+    ## `cmpxchg`, `xadd`: a register into memory, `opcode` in the `0F` map.
+    exchange
+    ## `cmpxchg8b`, `cmpxchg16b`.
+    exchange_wide
+    ## `bt` … `btc`: `code` the group's number, `opcode` the register form.
+    bit_test
+    ## `bsf`, `bsr`, `popcnt`, `lzcnt`, `tzcnt`: a load into a register.
+    bit_scan
+    bswap
+    ## `set<cc>`, `cmov<cc>`, `j<cc>`: `code` the condition.
+    set
+    cmov
+    branch
+    jump
+    call
+    push
+    pop
+    ## No operands: `prefix`, `map` and `opcode` are the bytes, `code` a fourth.
+    plain
+    ## `ldmxcsr`, `stmxcsr`: `code` the extension.
+    mxcsr
+    ## A vector operation reading its source into the register it writes.
+    vector
+    ## A vector move: `opcode` loads, `store` stores.
+    vector_move
+    ## A packed shift: `opcode` by a register, `store` by an immediate with `code` its extension.
+    vector_shift
+    movd
+    movq
+    ## `cvtsi2ss`, `cvtsi2sd`: an integer into a float.
+    from_integer
+    ## `cvtss2si` and kin: a float into an integer register.
+    to_integer
+    ## `pmovmskb`, `movmskps`, `movmskpd`: a vector's sign bits into an integer register.
+    mask
+    ## `vfmadd231sd` and kin.
+    fused
+    ## `vcvtps2ph`: the source in the reg field.
+    half_store
+
+## What a mnemonic encodes.
+struct Form:
+    var family: Family
+    ## The operand size its suffix spells, 0 when the operands decide.
+    var size: u8
+    var code: u8
+    ## The mandatory prefix: 0, `66`, `F2` or `F3`.
+    var prefix: u8
+    var map: u8
+    var opcode: u8
+    var store: u8
+    var flags: u8
+
+## An immediate byte follows the operands.
+let takes_immediate: u8 = 1
+## The VEX form takes a second source, in `vvvv`.
+let two_sources: u8 = 2
+## VEX-encoded.
+let vex_encoded: u8 = 4
+## VEX.W1 for a VEX form, REX.W for another.
+let wide_form: u8 = 8
+## The legacy form has a VEX twin, `v` before its name.
+let has_vex: u8 = 16
+
+## A form of `family`.
+func form(family: Family, size: u8 = 0, code: u8 = 0, prefix: u8 = 0, map: u8 = 0, opcode: u8 = 0, store: u8 = 0, flags: u8 = 0) -> Form:
+    return Form(family = family, size = size, code = code, prefix = prefix, map = map, opcode = opcode, store = store, flags = flags)
+
+# mark: The table =============================================================================
+
+## Every mnemonic, by name, to its form.
+pub struct Encoder:
+    var names: lookup.Lookup
+    var forms: list.List[Form]
+    ## `lock` or a repeat prefix on a line of its own, for the next instruction.
+    var pending_lock: bool
+    var pending_repeat: u8
+
+    ## The table, in the current allocator, which keeps its names.
+    pub static func create() -> Encoder!:
+        var e = Encoder(names = try lookup.Lookup.create(2048), forms = try list.List[Form].create(1024), pending_lock = false, pending_repeat = 0)
+        try e.integer_forms()
+        try e.control_forms()
+        try e.vector_forms()
+        return e
+
+    ## `name` for `f`.
+    func add(name: str, f: Form) -> !:
+        let copy = try new u8[name.length] ---
+        memory.copy(copy, name.bytes, name.length)
+        if self.names.find((str)copy) == none:
+            try self.names.add((str)copy, u32(self.forms.count))
+            try self.forms.push(f)
+
+    ## `name` with no suffix, the registers deciding the size, and with each of `b`, `w`,
+    ## `l` and `q`.
+    func add_sized(name: str, f: Form, bytes: bool = true) -> !:
+        try self.add(name, f)
+        var room: u8[32]
+        for row in [("b", 1u8), ("w", 2u8), ("l", 4u8), ("q", 8u8)]:
+            let (letter, size) = row
+            if size == 1 and not bytes:
+                continue
+            var sized = f
+            sized.size = size
+            try self.add(try strings.format(room, f"{name}{letter}"), sized)
+
+    ## `name` and its `w`, `l` and `q` spellings.
+    func add_wide(name: str, f: Form) -> !:
+        try self.add_sized(name, f, false)
+
+    ## `prefix` and each condition after it, for `f` with the condition in `code`.
+    func add_conditions(prefix: str, f: Form, sized: bool) -> !:
+        var room: u8[32]
+        for row in conditions:
+            let (spelling, code) = row
+            var c = f
+            c.code = code
+            let name = try strings.format(room, f"{prefix}{spelling}")
+            if sized:
+                try self.add_wide(name, c)
+            else:
+                try self.add(name, c)
+
+    func integer_forms() -> !:
+        for (k, name) in ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"].indexed():
+            try self.add_sized(name, form(Family.alu, code = (u8)k))
+        try self.add_sized("test", form(Family.test_bits))
+        try self.add_sized("mov", form(Family.mov))
+        try self.add_sized("movabs", form(Family.movabs))
+        try self.add_wide("lea", form(Family.lea))
+        for row in [("movzbw", 2u8, 0xB6u8), ("movzbl", 4u8, 0xB6u8), ("movzbq", 8u8, 0xB6u8), ("movzwl", 4u8, 0xB7u8),
+                    ("movzwq", 8u8, 0xB7u8), ("movsbw", 2u8, 0xBEu8), ("movsbl", 4u8, 0xBEu8), ("movsbq", 8u8, 0xBEu8),
+                    ("movswl", 4u8, 0xBFu8), ("movswq", 8u8, 0xBFu8)]:
+            let (name, size, opcode) = row
+            try self.add(name, form(Family.widen, size = size, map = 1, opcode = opcode, code = 1 if opcode == 0xB6 or opcode == 0xBE else 2))
+        try self.add("movslq", form(Family.widen, size = 8, map = 0, opcode = 0x63, code = 4))
+        for (k, name) in ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"].indexed():
+            try self.add_sized(name, form(Family.shift, code = 4 if name == "sal" else (u8)k))
+        for row in [(2u8, "not"), (3u8, "neg"), (4u8, "mul"), (6u8, "div"), (7u8, "idiv")]:
+            let (k, name) = row
+            try self.add_sized(name, form(Family.unary, code = k))
+        try self.add_sized("inc", form(Family.step, code = 0))
+        try self.add_sized("dec", form(Family.step, code = 1))
+        try self.add_sized("imul", form(Family.imul))
+        try self.add_sized("xchg", form(Family.xchg))
+        try self.add_sized("cmpxchg", form(Family.exchange, map = 1, opcode = 0xB0))
+        try self.add_sized("xadd", form(Family.exchange, map = 1, opcode = 0xC0))
+        try self.add("cmpxchg8b", form(Family.exchange_wide, size = 4))
+        try self.add("cmpxchg16b", form(Family.exchange_wide, size = 8))
+        for row in [(4u8, "bt", 0xA3u8), (5u8, "bts", 0xABu8), (6u8, "btr", 0xB3u8), (7u8, "btc", 0xBBu8)]:
+            let (k, name, opcode) = row
+            try self.add_wide(name, form(Family.bit_test, code = k, map = 1, opcode = opcode))
+        for row in [("bsf", 0u8, 0xBCu8), ("bsr", 0u8, 0xBDu8), ("popcnt", 0xF3u8, 0xB8u8), ("lzcnt", 0xF3u8, 0xBDu8),
+                    ("tzcnt", 0xF3u8, 0xBCu8)]:
+            let (name, prefix, opcode) = row
+            try self.add_wide(name, form(Family.bit_scan, prefix = prefix, map = 1, opcode = opcode))
+        try self.add_wide("bswap", form(Family.bswap))
+        try self.add_conditions("set", form(Family.set), false)
+        try self.add_conditions("cmov", form(Family.cmov), true)
+
+    func control_forms() -> !:
+        try self.add_conditions("j", form(Family.branch), false)
+        try self.add("jmp", form(Family.jump))
+        try self.add("jmpq", form(Family.jump))
+        try self.add("call", form(Family.call))
+        try self.add("callq", form(Family.call))
+        try self.add_wide("push", form(Family.push))
+        try self.add_wide("pop", form(Family.pop))
+        for row in plain_forms:
+            let (name, prefix, map, opcode, fourth) = row
+            try self.add(name, form(Family.plain, prefix = prefix, map = map, opcode = opcode, code = fourth))
+        try self.add("ldmxcsr", form(Family.mxcsr, code = 2))
+        try self.add("stmxcsr", form(Family.mxcsr, code = 3))
+
+    ## The form of `name`, or none.
+    func find(name: str) -> Form?:
+        let index = self.names.find(name) else return none
+        return self.forms.get((usize)index)
+
+## The condition codes as `j`, `set` and `cmov` spell them.
+let conditions: (str, u8)[30] = [("o", 0), ("no", 1), ("b", 2), ("c", 2), ("nae", 2), ("ae", 3), ("nb", 3), ("nc", 3), ("e", 4), ("z", 4),
+                                 ("ne", 5), ("nz", 5), ("be", 6), ("na", 6), ("a", 7), ("nbe", 7), ("s", 8), ("ns", 9), ("p", 10), ("pe", 10),
+                                 ("np", 11), ("po", 11), ("l", 12), ("nge", 12), ("ge", 13), ("nl", 13), ("le", 14), ("ng", 14), ("g", 15),
+                                 ("nle", 15)]
+
+## The instructions without operands: name, mandatory prefix, map, opcode, and a fourth
+## byte (0 for none).
+let plain_forms: (str, u8, u8, u8, u8)[24] = [("ret", 0, 0, 0xC3, 0), ("retq", 0, 0, 0xC3, 0), ("nop", 0, 0, 0x90, 0), ("pause", 0xF3, 0, 0x90, 0),
+                                              ("cltd", 0, 0, 0x99, 0), ("cdq", 0, 0, 0x99, 0), ("cqto", 0x48, 0, 0x99, 0), ("cqo", 0x48, 0, 0x99, 0),
+                                              ("cltq", 0x48, 0, 0x98, 0), ("cdqe", 0x48, 0, 0x98, 0), ("cwtl", 0, 0, 0x98, 0), ("leave", 0, 0, 0xC9, 0),
+                                              ("int3", 0, 0, 0xCC, 0), ("hlt", 0, 0, 0xF4, 0), ("ud2", 0, 1, 0x0B, 0), ("cpuid", 0, 1, 0xA2, 0),
+                                              ("syscall", 0, 1, 0x05, 0), ("rdtsc", 0, 1, 0x31, 0), ("mfence", 0, 1, 0xAE, 0xF0), ("lfence", 0, 1, 0xAE, 0xE8),
+                                              ("sfence", 0, 1, 0xAE, 0xF8), ("movsb", 0, 0, 0xA4, 0), ("stosb", 0, 0, 0xAA, 0), ("movsq", 0x48, 0, 0xA5, 0)]

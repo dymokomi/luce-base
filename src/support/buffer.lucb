@@ -93,6 +93,10 @@ pub struct Buffer: io.Writer:
     pub func bytes() -> const u8[]:
         return self.data[..<self.used]
 
+    ## The bytes written so far, to change in place; invalid after the next append.
+    pub func written() -> u8[]:
+        return self.data[..<self.used]
+
     ## Discard the contents, keeping the storage.
     pub func clear():
         self.used = 0

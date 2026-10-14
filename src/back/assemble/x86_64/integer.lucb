@@ -1,0 +1,392 @@
+#==============================================================================================
+#
+#   integer - The general-register instructions
+#
+#   DESCRIPTION:
+#       Arithmetic, moves, shifts, multiplication and division, exchanges, bit scans,
+#       `set` and `cmov`, in the forms GNU `as` picks: a register into a register or memory
+#       through the store opcode (`01 /r`), memory into a register through the load opcode
+#       (`03 /r`), a sign-extended byte for an immediate that fits one, else the
+#       accumulator's short form, else four bytes; `movq` of an immediate that fits 32
+#       signed bits as `c7`, else `movabs`.
+#
+#==============================================================================================
+
+# mark: The instruction =======================================================================
+
+## An instruction as read: its form, operands, and the prefixes written before it.
+struct Instruction:
+    var name: str
+    var form: Form
+    var operands: Operand[4]
+    var count: usize
+    var lock: bool
+    var repeat: u8
+
+    ## Operand `i`.
+    func at(i: usize) -> Operand:
+        return self.operands[i]
+
+## Fail unless `x` has `n` operands.
+func expect(u: state.Unit*, x: Instruction*, n: usize) -> !:
+    if x.count != n:
+        try u.fail(f"`{x.name}` takes {n} operand{"" if n == 1 else "s"}, not {x.count}")
+
+## Fail: the operands are not ones `x` takes.
+func mismatch(u: state.Unit*, x: Instruction*) -> never!:
+    try u.fail(f"`{x.name}` does not take these operands")
+
+## The operand size of `x`: its suffix's, else the last general register's.
+func operand_size(u: state.Unit*, x: Instruction*) -> u8!:
+    if x.form.size != 0:
+        return x.form.size
+    var i = x.count
+    while i > 0:
+        i -= 1
+        if x.operands[i].general():
+            return x.operands[i].size()
+    try u.fail(f"`{x.name}` needs a suffix for its operand size")
+
+## Fail unless every general register among `x`'s first `n` operands is `size` bytes.
+func same_size(u: state.Unit*, x: Instruction*, n: usize, size: u8) -> !:
+    for i in 0..<n:
+        let o = x.operands[i]
+        if o.general() and o.size() != size:
+            try u.fail(f"`{x.name}` mixes operand sizes")
+
+## Write `e` with `x`'s prefixes and the REX needs of its registers.
+func finish(u: state.Unit*, x: Instruction*, e: Encoding*) -> !:
+    e.lock = x.lock
+    if x.repeat != 0:
+        e.repeat = x.repeat
+    for i in 0..<x.count:
+        let o = x.operands[i]
+        if o.kind == Kind.register:
+            e.note(o.register)
+    try emit(u, e)
+
+## Whether `v`, cut to `size` bytes, fits a sign-extended byte.
+func fits_byte(v: state.Value, size: u8) -> bool:
+    if not v.is_constant():
+        return false
+    let n = v.constant
+    let cut = match size:
+        1 => (i64)(i8)n
+        2 => (i64)(i16)n
+        4 => (i64)(i32)n
+        _ => n
+    return cut >= -128 and cut <= 127
+
+## Fail when constant `v` cannot be a 64-bit operation's sign-extended four bytes.
+func check_signed32(u: state.Unit*, x: Instruction*, v: state.Value) -> !:
+    if v.is_constant() and (v.constant < -2147483648 or v.constant > 2147483647):
+        try u.fail(f"`{x.name}`'s immediate does not fit 32 signed bits")
+
+## The bytes of an immediate for an operand of `size`.
+func immediate_bytes(size: u8) -> u8:
+    return 4 if size == 8 else size
+
+# mark: Arithmetic and moves ==================================================================
+
+## `add` … `cmp`: an immediate, a register, or memory into a register.
+func alu(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    let origin = x.at(0)
+    let target = x.at(1)
+    let k = x.form.code
+    var e: Encoding = ---
+    if origin.kind == Kind.immediate and target.general_or_memory():
+        if size == 8:
+            try check_signed32(u, x, origin.value)
+        let accumulator = target.general() and target.register.number == 0
+        if size == 1:
+            e = Encoding.plain(0, 0x04 + 8 * k) if accumulator else Encoding.with_modrm(0, 0x80, k, target)
+            e.with_immediate(1, origin.value)
+        elif fits_byte(origin.value, size):
+            e = Encoding.with_modrm(0, 0x83, k, target)
+            e.with_immediate(1, origin.value)
+        else:
+            e = Encoding.plain(0, 0x05 + 8 * k) if accumulator else Encoding.with_modrm(0, 0x81, k, target)
+            e.with_immediate(immediate_bytes(size), origin.value)
+    elif origin.general() and target.general_or_memory():
+        e = Encoding.with_modrm(0, (0 if size == 1 else 1) + 8 * k, origin.register.number, target)
+    elif origin.memory() and target.general():
+        e = Encoding.with_modrm(0, (2 if size == 1 else 3) + 8 * k, target.register.number, origin)
+    else:
+        try mismatch(u, x)
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `test`: an immediate or a register against a register or memory.
+func test_bits(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    let a = x.at(0)
+    let b = x.at(1)
+    var e: Encoding = ---
+    if a.kind == Kind.immediate and b.general_or_memory():
+        if b.general() and b.register.number == 0:
+            e = Encoding.plain(0, 0xA8 if size == 1 else 0xA9)
+        else:
+            e = Encoding.with_modrm(0, 0xF6 if size == 1 else 0xF7, 0, b)
+        e.with_immediate(immediate_bytes(size), a.value)
+    elif a.general() and b.general_or_memory():
+        e = Encoding.with_modrm(0, 0x84 if size == 1 else 0x85, a.register.number, b)
+    elif a.memory() and b.general():
+        e = Encoding.with_modrm(0, 0x84 if size == 1 else 0x85, b.register.number, a)
+    else:
+        try mismatch(u, x)
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `mov`: an immediate, a register or memory into a register, or into memory; with a
+## vector register, `movq`.
+func mov(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if x.at(0).vector() or x.at(1).vector():
+        if x.form.size != 8:
+            try mismatch(u, x)
+        try move_quad(u, x)
+        return
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    let origin = x.at(0)
+    let target = x.at(1)
+    var e: Encoding = ---
+    if origin.kind == Kind.immediate and target.general():
+        if size == 8 and origin.value.is_constant() and (origin.value.constant < -2147483648 or origin.value.constant > 2147483647):
+            e = Encoding.plain(0, 0xB8)
+            e.plus = target.register.number
+            e.with_immediate(8, origin.value)
+        elif size == 8:
+            if not origin.value.is_constant():
+                try u.fail("`movq` of a symbol's address is `leaq` or `movabsq`")
+            e = Encoding.with_modrm(0, 0xC7, 0, target)
+            e.with_immediate(4, origin.value)
+        else:
+            e = Encoding.plain(0, 0xB0 if size == 1 else 0xB8)
+            e.plus = target.register.number
+            e.with_immediate(size, origin.value)
+    elif origin.kind == Kind.immediate and target.memory():
+        try check_signed32(u, x, origin.value)
+        e = Encoding.with_modrm(0, 0xC6 if size == 1 else 0xC7, 0, target)
+        e.with_immediate(immediate_bytes(size), origin.value)
+    elif origin.general() and target.general_or_memory():
+        e = Encoding.with_modrm(0, 0x88 if size == 1 else 0x89, origin.register.number, target)
+    elif origin.memory() and target.general():
+        e = Encoding.with_modrm(0, 0x8A if size == 1 else 0x8B, target.register.number, origin)
+    else:
+        try mismatch(u, x)
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `movabs`: eight bytes of immediate into a register.
+func movabs(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if x.at(0).kind != Kind.immediate or not x.at(1).general() or x.at(1).size() != 8:
+        try mismatch(u, x)
+    var e = Encoding.plain(0, 0xB8)
+    e.plus = x.at(1).register.number
+    e.with_immediate(8, x.at(0).value)
+    e.sized(8)
+    try finish(u, x, &e)
+
+## `lea`: an address into a register.
+func lea(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if not x.at(0).memory() or not x.at(1).general():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    var e = Encoding.with_modrm(0, 0x8D, x.at(1).register.number, x.at(0))
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `movzbl` and kin: a narrower register or memory, extended into a register.
+func widen(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    let origin = x.at(0)
+    let target = x.at(1)
+    if not origin.general_or_memory() or not target.general() or target.size() != x.form.size:
+        try mismatch(u, x)
+    if origin.general() and origin.size() != x.form.code:
+        try mismatch(u, x)
+    var e = Encoding.with_modrm(x.form.map, x.form.opcode, target.register.number, origin)
+    e.sized(x.form.size)
+    try finish(u, x, &e)
+
+# mark: Shifts, multiplication, division ======================================================
+
+## `rol` … `sar`: by one, by an immediate, or by `%cl`.
+func shift(u: state.Unit*, x: Instruction*) -> !:
+    if x.count != 1 and x.count != 2:
+        try mismatch(u, x)
+    let target = x.at(x.count - 1)
+    if not target.general_or_memory():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    if target.general() and target.size() != size:
+        try mismatch(u, x)
+    let byte = size == 1
+    let k = x.form.code
+    var e = Encoding.with_modrm(0, 0xD0 if byte else 0xD1, k, target)
+    if x.count == 2:
+        let count = x.at(0)
+        if count.kind == Kind.immediate:
+            if not (count.value.is_constant() and count.value.constant == 1):
+                e = Encoding.with_modrm(0, 0xC0 if byte else 0xC1, k, target)
+                e.with_immediate(1, count.value)
+        elif count.general() and count.register.bank == Bank.byte and count.register.number == 1:
+            e = Encoding.with_modrm(0, 0xD2 if byte else 0xD3, k, target)
+        else:
+            try mismatch(u, x)
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `not`, `neg`, `mul`, `div`, `idiv`: one register or memory operand.
+func unary(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if not x.at(0).general_or_memory():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    var e = Encoding.with_modrm(0, 0xF6 if size == 1 else 0xF7, x.form.code, x.at(0))
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `inc`, `dec`.
+func step(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if not x.at(0).general_or_memory():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    var e = Encoding.with_modrm(0, 0xFE if size == 1 else 0xFF, x.form.code, x.at(0))
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `imul`: of the accumulator (one operand), into a register (two), or of an immediate (three).
+func imul(u: state.Unit*, x: Instruction*) -> !:
+    let size = try operand_size(u, x)
+    var e: Encoding = ---
+    if x.count == 1 and x.at(0).general_or_memory():
+        e = Encoding.with_modrm(0, 0xF6 if size == 1 else 0xF7, 5, x.at(0))
+    elif x.count == 2 and x.at(0).general_or_memory() and x.at(1).general():
+        e = Encoding.with_modrm(1, 0xAF, x.at(1).register.number, x.at(0))
+    elif (x.count == 2 or x.count == 3) and x.at(0).kind == Kind.immediate and x.at(x.count - 1).general():
+        # the source is the destination itself when two operands are written
+        let origin = x.at(1)
+        if not origin.general_or_memory():
+            try mismatch(u, x)
+        let short = fits_byte(x.at(0).value, size)
+        e = Encoding.with_modrm(0, 0x6B if short else 0x69, x.at(x.count - 1).register.number, origin)
+        e.with_immediate(1 if short else immediate_bytes(size), x.at(0).value)
+    else:
+        try mismatch(u, x)
+    if size == 1 and x.count != 1:
+        try mismatch(u, x)
+    try same_size(u, x, x.count, size)
+    e.sized(size)
+    try finish(u, x, &e)
+
+# mark: Exchanges and bits ====================================================================
+
+## `xchg`: the accumulator's short form with another register, else `87 /r`.
+func xchg(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    let a = x.at(0)
+    let b = x.at(1)
+    var e: Encoding = ---
+    if a.general() and b.general() and size != 1 and (a.register.number == 0 or b.register.number == 0) and not (size == 4 and a.register.number == 0 and b.register.number == 0):
+        e = Encoding.plain(0, 0x90)
+        e.plus = b.register.number if a.register.number == 0 else a.register.number
+    elif a.general() and b.general_or_memory():
+        e = Encoding.with_modrm(0, 0x86 if size == 1 else 0x87, a.register.number, b)
+    elif a.memory() and b.general():
+        e = Encoding.with_modrm(0, 0x86 if size == 1 else 0x87, b.register.number, a)
+    else:
+        try mismatch(u, x)
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `cmpxchg`, `xadd`: a register into a register or memory.
+func exchange(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if not x.at(0).general() or not x.at(1).general_or_memory():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    var e = Encoding.with_modrm(1, x.form.opcode + (0 if size == 1 else 1), x.at(0).register.number, x.at(1))
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `cmpxchg8b`, `cmpxchg16b`: memory alone.
+func exchange_wide(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if not x.at(0).memory():
+        try mismatch(u, x)
+    var e = Encoding.with_modrm(1, 0xC7, 1, x.at(0))
+    e.sized(x.form.size)
+    try finish(u, x, &e)
+
+## `bt` … `btc`: a bit, by an immediate or a register, of a register or memory.
+func bit_test(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if not x.at(1).general_or_memory():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    var e: Encoding = ---
+    if x.at(0).kind == Kind.immediate:
+        e = Encoding.with_modrm(1, 0xBA, x.form.code, x.at(1))
+        e.with_immediate(1, x.at(0).value)
+    elif x.at(0).general():
+        e = Encoding.with_modrm(1, x.form.opcode, x.at(0).register.number, x.at(1))
+    else:
+        try mismatch(u, x)
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `bsf`, `bsr`, `popcnt`, `lzcnt`, `tzcnt`: a register or memory into a register.
+func bit_scan(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if not x.at(0).general_or_memory() or not x.at(1).general():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    var e = Encoding.with_modrm(1, x.form.opcode, x.at(1).register.number, x.at(0))
+    e.repeat = x.form.prefix
+    e.sized(size)
+    try finish(u, x, &e)
+
+## `bswap`: a register's bytes reversed.
+func bswap(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if not x.at(0).general() or x.at(0).size() < 4:
+        try mismatch(u, x)
+    var e = Encoding.plain(1, 0xC8)
+    e.plus = x.at(0).register.number
+    e.sized(x.at(0).size())
+    try finish(u, x, &e)
+
+## `set<cc>`: a condition into a byte.
+func set(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if not x.at(0).general_or_memory() or (x.at(0).general() and x.at(0).size() != 1):
+        try mismatch(u, x)
+    var e = Encoding.with_modrm(1, 0x90 + x.form.code, 0, x.at(0))
+    try finish(u, x, &e)
+
+## `cmov<cc>`: a register or memory into a register when the condition holds.
+func cmov(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if not x.at(0).general_or_memory() or not x.at(1).general():
+        try mismatch(u, x)
+    let size = try operand_size(u, x)
+    try same_size(u, x, 2, size)
+    var e = Encoding.with_modrm(1, 0x40 + x.form.code, x.at(1).register.number, x.at(0))
+    e.sized(size)
+    try finish(u, x, &e)

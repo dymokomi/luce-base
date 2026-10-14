@@ -1,0 +1,154 @@
+#==============================================================================================
+#
+#   expressions - What an operand or a directive's expression comes to
+#
+#   DESCRIPTION:
+#       GNU `as`'s expressions with its precedence: unary `-`, `~` and `!` first, then `*`,
+#       `/`, `%`, `<<` and `>>`, then `|`, `&`, `^` and `!`, then `+` and `-`. Numbers
+#       combine freely; a symbol may be added to a number, and one symbol taken from another,
+#       which the layout resolves when both are in one section. `.` is the current place,
+#       `1b` and `1f` the numbered labels behind and ahead, `name@SECREL32` a symbol's
+#       offset in its section.
+#
+#==============================================================================================
+
+import back.assemble.source
+import back.assemble.state
+
+# mark: Reading ===============================================================================
+
+## The expression at `c`, read into what it comes to.
+pub func evaluate(u: state.Unit*, c: source.Cursor*) -> state.Value!:
+    var left = try term_sum(u, c)
+    while true:
+        let op = c.peek()
+        if op != '+' and op != '-':
+            break
+        c.at += 1
+        let right = try term_sum(u, c)
+        left = try combine(u, left, op, right)
+    return left
+
+## A run of `|`, `&`, `^` and `!` (or-not) over products.
+func term_sum(u: state.Unit*, c: source.Cursor*) -> state.Value!:
+    var left = try product(u, c)
+    while true:
+        let op = c.peek()
+        if op != '|' and op != '&' and op != '^' and not (op == '!' and c.peek_second() != '='):
+            break
+        c.at += 1
+        let right = try product(u, c)
+        left = state.Value.number(try numbers(u, left, op, right))
+    return left
+
+## A run of `*`, `/`, `%`, `<<` and `>>` over unary terms.
+func product(u: state.Unit*, c: source.Cursor*) -> state.Value!:
+    var left = try unary(u, c)
+    while true:
+        var op = c.peek()
+        if op == '<' or op == '>':
+            if c.peek_second() != op:
+                break
+            c.at += 1
+        elif op != '*' and op != '/' and op != '%':
+            break
+        c.at += 1
+        let right = try unary(u, c)
+        left = state.Value.number(try numbers(u, left, op, right))
+    return left
+
+## A term with its unary operators.
+func unary(u: state.Unit*, c: source.Cursor*) -> state.Value!:
+    let op = c.peek()
+    if op == '-' or op == '~' or op == '!' or op == '+':
+        c.at += 1
+        let v = try unary(u, c)
+        if op == '+':
+            return v
+        if not v.is_constant():
+            try u.fail("only a number may be negated or inverted")
+        let n = v.constant
+        return state.Value.number(0 -% n if op == '-' else (~n if op == '~' else (1 if n == 0 else 0)))
+    return try term(u, c)
+
+## A number, a symbol, `.`, or an expression in parentheses.
+func term(u: state.Unit*, c: source.Cursor*) -> state.Value!:
+    if c.take('('):
+        let inner = try evaluate(u, c)
+        if not c.take(')'):
+            try u.fail("expected `)`")
+        return inner
+    if let n = source.number(c):
+        # `1b`, `1f`: the numbered label behind or ahead
+        if c.at < c.text.length and (c.text[c.at] == 'b' or c.text[c.at] == 'f'):
+            let forward = c.text[c.at] == 'f'
+            c.at += 1
+            return symbol_value(try u.numbered_symbol(u32(n), forward))
+        return state.Value.number((i64)n)
+    if c.peek() == '\'' and c.at + 1 < c.text.length:
+        # a character's code
+        let b = c.text[c.at + 1]
+        c.at += 2
+        _ = c.take('\'')
+        return state.Value.number((i64)b)
+    let name = c.name()
+    if name.length == 0:
+        try u.fail(f"expected an expression at `{c.rest()}`")
+    if name == ".":
+        return symbol_value(try u.here_symbol())
+    var v = symbol_value(try u.symbol(name))
+    if c.at < c.text.length and c.text[c.at] == '@':
+        c.at += 1
+        let modifier = c.name()
+        if modifier != "SECREL32" and modifier != "secrel32":
+            try u.fail(f"unknown symbol modifier `@{modifier}`")
+        v.section_relative = true
+    return v
+
+# mark: Combining =============================================================================
+
+## The address of symbol `index`.
+func symbol_value(index: u32) -> state.Value:
+    return state.Value(constant = 0, symbol = index + 1, minus = 0, section_relative = false)
+
+## `left op right` for `+` and `-`: numbers combine, a number moves a symbol, and one symbol
+## less another is their distance once both are placed.
+func combine(u: state.Unit*, left: state.Value, op: u8, right: state.Value) -> state.Value!:
+    var out = left
+    if op == '+':
+        # at most one symbol added and one taken away, from either side
+        if (left.symbol != 0 and right.symbol != 0) or (left.minus != 0 and right.minus != 0) or right.section_relative:
+            try u.fail("an expression adds two symbols")
+        out.constant = left.constant +% right.constant
+        if right.symbol != 0:
+            out.symbol = right.symbol
+        if right.minus != 0:
+            out.minus = right.minus
+        return out
+    if right.minus != 0 or right.section_relative or (right.symbol != 0 and left.minus != 0):
+        try u.fail("an expression takes away too many symbols")
+    out.constant = left.constant -% right.constant
+    if right.symbol != 0:
+        if left.symbol == 0:
+            try u.fail("an expression takes a symbol from a number")
+        out.minus = right.symbol
+    return out
+
+## `left op right` where both must be numbers.
+func numbers(u: state.Unit*, left: state.Value, op: u8, right: state.Value) -> i64!:
+    if not left.is_constant() or not right.is_constant():
+        try u.fail("only numbers combine with that operator")
+    let a = left.constant
+    let b = right.constant
+    if (op == '/' or op == '%') and b == 0:
+        try u.fail("division by zero")
+    return match op:
+        '*' => a *% b
+        '/' => a // b
+        '%' => a % b
+        '<' => a << (b & 63)
+        '>' => a >> (b & 63)
+        '|' => a | b
+        '&' => a & b
+        '^' => a ^ b
+        _ => a | ~b

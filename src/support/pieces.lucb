@@ -18,6 +18,7 @@
 #
 #==============================================================================================
 
+import back.assemble.assembler
 import back.parallel
 import c
 import luce_std.files
@@ -77,9 +78,12 @@ pub func cached(key: str, dir: str) -> str[]?!:
 ## generator) in `dir`, and answer the objects to link, in order: a piece whose text is in
 ## the build cache (`support.cache`) reuses its object, the others are assembled in
 ## parallel and kept there, and the list of pieces is kept under the build's `key`.
-## `macho` assembles through Apple's driver for `arch`. A `whole` text is one piece: its
-## module-level assembly may define labels local to the file that its functions name.
-pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[], ending: usize, key: str, macho: bool, arch: str, whole: bool) -> str[]!:
+## `macho` assembles through Apple's driver for `arch`; `own` through the compiler's own
+## assembler (`back.assemble`), in this process, from text that is never written. A `whole`
+## text is one piece: its module-level assembly may define labels local to the file that
+## its functions name.
+pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[], ending: usize, key: str, macho: bool, arch: str, whole: bool,
+                  own: bool) -> str[]!:
     let functions = starts.length - 1
     let rest = starts[0] if whole else starts[functions]
     let prelude = (str)text.bytes[..<starts[0]]
@@ -99,6 +103,8 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
     let made = cuts.count - 1 if cuts.count > 0 else 0
     let objects = try new str[made + 1] ---
     let keys = try new str[made + 1] ---
+    let middles = try new str[made + 1] ---
+    let closings = try new str[made + 1] ---
     var pending = try list.List[usize].create(made + 1)
     var listing = try buffer.Buffer.create(20 * (made + 1))
     for k in 0..<made + 1:
@@ -109,6 +115,8 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
             middle = (str)text.bytes[starts[cuts.get(k)]..<to_byte]
             ends = closing
         keys[k] = try cache.piece_key(prelude, middle, ends, arch)
+        middles[k] = middle
+        closings[k] = ends
         try listing.put(keys[k])
         try listing.put("\n")
         if let kept = try cache.take(keys[k], "-p.o", dir, true):
@@ -119,9 +127,11 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
         # the program is the same whichever pieces were assembled and which came from the
         # cache
         objects[k] = try strings.format(try new u8[dir.length + keys[k].length + 8] ---, f"{dir}/{keys[k]}-p.o")
-        try write_piece(try strings.format(try new u8[dir.length + keys[k].length + 8] ---, f"{dir}/{keys[k]}-p.s"), prelude, middle, ends)
+        if not own:
+            try write_piece(try strings.format(try new u8[dir.length + keys[k].length + 8] ---, f"{dir}/{keys[k]}-p.s"), prelude, middle, ends)
         try pending.push(k)
-    try assemble_pending(dir, keys, pending.span(), macho)
+    let texts = Texts(prelude = prelude, middles = middles, closings = closings, objects = objects)
+    try assemble_pending(dir, keys, pending.span(), macho, &texts if own else none)
     for k in pending.span():
         cache.keep(keys[k], "-p.o", objects[k])
     cache.keep_bytes_as(key, "-n.m", listing.bytes())
@@ -132,12 +142,24 @@ pub func assemble(dir: str, text: str, starts: const usize[], tags: const u64[],
 ## `prelude`, `middle` and `closing` as one file at `path`.
 func write_piece(path: str, prelude: str, middle: str, closing: str) -> !:
     with memory.heap:
-        var whole = try new u8[prelude.length + middle.length + closing.length] ---
+        var whole = try joined(prelude, middle, closing)
         defer free(whole)
-        memory.copy(whole, prelude.bytes, prelude.length)
-        memory.copy(whole[prelude.length..], middle.bytes, middle.length)
-        memory.copy(whole[prelude.length + middle.length..], closing.bytes, closing.length)
         try files.write((c.str)path, whole)
+
+## `prelude`, `middle` and `closing` as one text, in the current allocator.
+func joined(prelude: str, middle: str, closing: str) -> u8[]!:
+    var whole = try new u8[prelude.length + middle.length + closing.length] ---
+    memory.copy(whole, prelude.bytes, prelude.length)
+    memory.copy(whole[prelude.length..], middle.bytes, middle.length)
+    memory.copy(whole[prelude.length + middle.length..], closing.bytes, closing.length)
+    return whole
+
+## The pieces' texts and objects, by piece, for the compiler's own assembler.
+struct Texts:
+    var prelude: str
+    var middles: const str[]
+    var closings: const str[]
+    var objects: const str[]
 
 # mark: The assembler threads ===============================================================
 
@@ -151,20 +173,25 @@ struct Assembling:
     var batches: usize[]
     ## Apple's driver, which takes many sources in one run; else `as`, one each.
     var driver: str
+    ## The texts the compiler's own assembler takes, when it assembles them.
+    var texts: const Texts*?
     var failures: parallel.Failure[]
 
 ## Assemble the pieces `pending` lists in `dir`, as `<key>-p.o` from `<key>-p.s`: on macOS
 ## in one run of the driver per thread (each run starts in some milliseconds; an edit's
-## few pieces take one each), else one `as` per piece.
-func assemble_pending(dir: str, keys: const str[], pending: const usize[], macho: bool) -> !:
+## few pieces take one each), else one `as` per piece; or from `texts`, in this process,
+## a batch per thread.
+func assemble_pending(dir: str, keys: const str[], pending: const usize[], macho: bool, texts: const Texts*?) -> !:
     if pending.length == 0:
         return
     let threads = (usize)parallel.workers()
-    let runs = pending.length if not macho else (threads if threads < pending.length else pending.length)
+    let batched = macho or texts != none
+    let runs = pending.length if not batched else (threads if threads < pending.length else pending.length)
     var batches = try new usize[runs + 1] ---
     for r in 0..<runs + 1:
         batches[r] = r * pending.length // runs
-    var job = Assembling(dir = dir, keys = keys, pieces = pending, batches = batches, driver = try driver_for(macho), failures = try parallel.failures(runs))
+    var job = Assembling(dir = dir, keys = keys, pieces = pending, batches = batches, driver = try driver_for(macho), texts = texts,
+                         failures = try parallel.failures(runs))
     with memory.heap:
         try parallel.each(runs, assemble_task, (void*)&job)
     try parallel.check(job.failures)
@@ -182,6 +209,14 @@ func assemble_batch(job: Assembling*, index: usize) -> !:
     with arena:
         let first = job.batches[index]
         let after = job.batches[index + 1]
+        if let texts = job.texts:
+            for at in first..<after:
+                let k = job.pieces[at]
+                let text = try joined(texts.prelude, texts.middles[k], texts.closings[k])
+                var object = try buffer.Buffer.create(text.length // 4)
+                try assembler.assemble(text, job.keys[k], &object)
+                try files.write((c.str)texts.objects[k], object.bytes())
+            return
         var arguments = try new c.str[3 + 3 * (after - first)] ---
         var n: usize = 0
         if job.driver.length > 0:

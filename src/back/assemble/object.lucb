@@ -1,0 +1,121 @@
+#==============================================================================================
+#
+#   object - An object file as the assembler makes it and a linker reads it
+#
+#   DESCRIPTION:
+#       Sections of bytes, the symbols that name places in them or outside, and the
+#       relocations that ask the linker to write a symbol's address into a section. The
+#       model is the object formats' common ground: COFF writes it today (`coff`), and the
+#       linker of the same formats reads into it. A relocation says what it means (`Fix`),
+#       not a format's number for it; its addend is in the section's bytes at its place, as
+#       COFF keeps it.
+#
+#==============================================================================================
+
+import support.list
+
+# mark: Relocations ===========================================================================
+
+## What a relocation writes at its place, from the address of its symbol `S`, the addend
+## `A` already at the place, and the place's own address `P`.
+pub enum Fix:
+    ## `S + A`, eight bytes.
+    absolute64
+    ## `S + A`, four bytes.
+    absolute32
+    ## `S + A` less the image's base, four bytes: an address relative to the image.
+    image32
+    ## `S + A - (P + 4)`, four bytes: the distance from the end of the field.
+    relative32
+    ## `S + A` less the start of the symbol's section, four bytes.
+    section32
+    ## The number of the symbol's section, two bytes.
+    section16
+
+## A place in a section the linker writes a symbol's address into.
+pub struct Relocation:
+    ## The place, from the start of the section.
+    pub var offset: u64
+    ## The symbol, by index into the object's symbols.
+    pub var symbol: u32
+    ## What is written there.
+    pub var fix: Fix
+
+# mark: Symbols ===============================================================================
+
+## How far a symbol is seen.
+pub enum Binding:
+    ## Within the object only: a label the object names in its symbol table.
+    internal
+    ## Across objects: defined here, or wanted from elsewhere when its section is 0.
+    external
+    ## A weak external: the symbol another object defines, else its `fallback`.
+    weak_external
+    ## A section's own symbol, at its start; relocations against local places name it.
+    section_base
+    ## The source file the object came from.
+    file
+
+## A name for a place: in a section, absolute, or wanted from another object.
+pub struct Symbol:
+    ## The symbol's name, or the file symbol's source name.
+    pub var name: str
+    ## The section, numbered from 1; 0 when the symbol is undefined here, and
+    ## `absolute_section` when its value is a number, not a place.
+    pub var section: u32
+    ## The place in its section, or the number.
+    pub var value: u64
+    ## How far the symbol is seen.
+    pub var binding: Binding
+    ## A local symbol that labels code rather than data.
+    pub var code: bool
+    ## A weak symbol's fallback, by index into the symbols.
+    pub var fallback: u32
+
+## The section number of a symbol whose value is a number, not a place.
+pub let absolute_section: u32 = 0xFFFFFFFF
+
+# mark: Sections ==============================================================================
+
+## What a section holds and how a loaded image treats it.
+pub enum Content:
+    ## Instructions.
+    code
+    ## Initialised data.
+    data
+    ## Zeroed data with no bytes in the object.
+    zeroed
+
+## A named run of bytes the linker places whole.
+pub struct Section:
+    ## The section's name.
+    pub var name: str
+    ## What the section holds.
+    pub var content: Content
+    ## Whether the loaded image may write it.
+    pub var writable: bool
+    ## Whether the loaded image keeps it: false for debugging information.
+    pub var loaded: bool
+    ## Whether the loaded image may read it: false for COFF's `y` sections.
+    pub var readable: bool
+    ## The section's alignment in bytes, a power of two.
+    pub var alignment: u64
+    ## The bytes; empty for a zeroed section.
+    pub var bytes: u8[]
+    ## The section's size, which a zeroed section has without bytes.
+    pub var size: u64
+    ## The size before its end was padded to the alignment.
+    pub var used: u64
+    ## The places the linker writes addresses into, in order.
+    pub var relocations: list.List[Relocation]
+
+## Sections, the symbols naming places in them, and the file it came from.
+pub struct Object:
+    ## The sections, numbered from 1 in this order.
+    pub var sections: list.List[Section]
+    ## The symbol table, in the order the format writes it.
+    pub var symbols: list.List[Symbol]
+
+    ## An empty object.
+    pub static func create() -> Object!:
+        return Object(sections = try list.List[Section].create(16), symbols = try list.List[Symbol].create(64))

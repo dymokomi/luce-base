@@ -1,0 +1,306 @@
+#==============================================================================================
+#
+#   vector - SSE and AVX instructions
+#
+#   DESCRIPTION:
+#       A legacy vector instruction is its mandatory prefix, the opcode map and opcode,
+#       and ModRM with the destination in the reg field; its `v` twin is the same opcode
+#       under VEX, with a second source in `vvvv` when it takes three operands. Moves keep
+#       a store opcode for memory destinations, and under VEX a register move whose source
+#       alone is past `xmm7` uses it too, so the shorter VEX fits, as GNU `as` does.
+#       `movd` and `movq` move between general and vector registers, and `cvtsi2sd` and its
+#       kin convert between them.
+#
+#==============================================================================================
+
+# mark: The table =============================================================================
+
+extend Encoder:
+    func vector_forms() -> !:
+        var room: u8[32]
+        for row in [("add", 0x58u8), ("mul", 0x59u8), ("sub", 0x5Cu8), ("min", 0x5Du8), ("div", 0x5Eu8), ("max", 0x5Fu8),
+                    ("sqrt", 0x51u8)]:
+            let (name, opcode) = row
+            for kind in [("ps", 0u8), ("pd", 0x66u8), ("ss", 0xF3u8), ("sd", 0xF2u8)]:
+                let (suffix, prefix) = kind
+                let packed_root = name == "sqrt" and (prefix == 0 or prefix == 0x66)
+                try self.both(try strings.format(room, f"{name}{suffix}"),
+                              form(Family.vector, prefix = prefix, map = 1, opcode = opcode, flags = 0 if packed_root else two_sources))
+        for row in [("and", 0x54u8), ("andn", 0x55u8), ("or", 0x56u8), ("xor", 0x57u8), ("unpckl", 0x14u8), ("unpckh", 0x15u8),
+                    ("shuf", 0xC6u8), ("cmp", 0xC2u8)]:
+            let (name, opcode) = row
+            let imm = takes_immediate if opcode == 0xC6 or opcode == 0xC2 else 0
+            try self.both(try strings.format(room, f"{name}ps"), form(Family.vector, map = 1, opcode = opcode, flags = two_sources | imm))
+            try self.both(try strings.format(room, f"{name}pd"), form(Family.vector, prefix = 0x66, map = 1, opcode = opcode, flags = two_sources | imm))
+        for row in vector_table:
+            let (name, prefix, map, opcode, flags) = row
+            try self.both(name, form(Family.vector, prefix = prefix, map = map, opcode = opcode, flags = flags))
+        for row in packed_integer:
+            let (name, map, opcode) = row
+            try self.both(name, form(Family.vector, prefix = 0x66, map = map, opcode = opcode, flags = two_sources))
+        for row in [("movups", 0u8, 0x10u8, 0x11u8), ("movupd", 0x66u8, 0x10u8, 0x11u8), ("movaps", 0u8, 0x28u8, 0x29u8),
+                    ("movapd", 0x66u8, 0x28u8, 0x29u8), ("movdqu", 0xF3u8, 0x6Fu8, 0x7Fu8), ("movdqa", 0x66u8, 0x6Fu8, 0x7Fu8),
+                    ("movss", 0xF3u8, 0x10u8, 0x11u8), ("movsd", 0xF2u8, 0x10u8, 0x11u8)]:
+            let (name, prefix, load, store) = row
+            try self.both(name, form(Family.vector_move, prefix = prefix, map = 1, opcode = load, store = store))
+        for row in [("psrlw", 0xD1u8, 0x71u8, 2u8), ("psraw", 0xE1u8, 0x71u8, 4u8), ("psllw", 0xF1u8, 0x71u8, 6u8),
+                    ("psrld", 0xD2u8, 0x72u8, 2u8), ("psrad", 0xE2u8, 0x72u8, 4u8), ("pslld", 0xF2u8, 0x72u8, 6u8),
+                    ("psrlq", 0xD3u8, 0x73u8, 2u8), ("psllq", 0xF3u8, 0x73u8, 6u8), ("psrldq", 0u8, 0x73u8, 3u8),
+                    ("pslldq", 0u8, 0x73u8, 7u8)]:
+            let (name, by_register, by_immediate, k) = row
+            try self.both(name, form(Family.vector_shift, prefix = 0x66, map = 1, opcode = by_register, store = by_immediate, code = k))
+        try self.both("movd", form(Family.movd, size = 4))
+        try self.both("movq", form(Family.movq, size = 8))
+        for row in [("cvtsi2ss", 0xF3u8), ("cvtsi2sd", 0xF2u8)]:
+            let (name, prefix) = row
+            try self.both_wide(name, form(Family.from_integer, prefix = prefix, map = 1, opcode = 0x2A, flags = two_sources))
+        for row in [("cvtss2si", 0xF3u8, 0x2Du8), ("cvttss2si", 0xF3u8, 0x2Cu8), ("cvtsd2si", 0xF2u8, 0x2Du8),
+                    ("cvttsd2si", 0xF2u8, 0x2Cu8)]:
+            let (name, prefix, opcode) = row
+            try self.both_wide(name, form(Family.to_integer, prefix = prefix, map = 1, opcode = opcode))
+        for row in [("pmovmskb", 0x66u8, 0xD7u8), ("movmskps", 0u8, 0x50u8), ("movmskpd", 0x66u8, 0x50u8)]:
+            let (name, prefix, opcode) = row
+            try self.both(name, form(Family.mask, prefix = prefix, map = 1, opcode = opcode))
+        for row in [("vfmadd", 0x98u8), ("vfmsub", 0x9Au8), ("vfnmadd", 0x9Cu8), ("vfnmsub", 0x9Eu8)]:
+            let (name, base) = row
+            for operands in [("132", 0u8), ("213", 0x10u8), ("231", 0x20u8)]:
+                let (order, offset) = operands
+                for kind in [("ps", 0u8, 0u8), ("pd", 0u8, wide_form), ("ss", 1u8, 0u8), ("sd", 1u8, wide_form)]:
+                    let (suffix, scalar, wide) = kind
+                    try self.add(try strings.format(room, f"{name}{order}{suffix}"),
+                                 form(Family.fused, prefix = 0x66, map = 2, opcode = base + offset + scalar, flags = vex_encoded | two_sources | wide))
+        try self.add("vcvtph2ps", form(Family.vector, prefix = 0x66, map = 2, opcode = 0x13, flags = vex_encoded))
+        try self.add("vcvtps2ph", form(Family.half_store, prefix = 0x66, map = 3, opcode = 0x1D, flags = vex_encoded | takes_immediate))
+
+    ## `name` for `f`, and `v` and `name` for its VEX twin.
+    func both(name: str, f: Form) -> !:
+        try self.add(name, f)
+        var room: u8[32]
+        var twin = f
+        twin.flags |= vex_encoded
+        try self.add(try strings.format(room, f"v{name}"), twin)
+
+    ## `both` for `name` and its `l` and `q` spellings, which name the integer's size.
+    func both_wide(name: str, f: Form) -> !:
+        try self.both(name, f)
+        var room: u8[32]
+        for row in [("l", 4u8), ("q", 8u8)]:
+            let (letter, size) = row
+            var sized = f
+            sized.size = size
+            try self.both(try strings.format(room, f"{name}{letter}"), sized)
+
+## Vector operations past the arithmetic: name, mandatory prefix, map, opcode, flags.
+let vector_table: (str, u8, u8, u8, u8)[34] = [
+    ("cvtss2sd", 0xF3, 1, 0x5A, two_sources), ("cvtsd2ss", 0xF2, 1, 0x5A, two_sources), ("cvtps2pd", 0, 1, 0x5A, 0), ("cvtpd2ps", 0x66, 1, 0x5A, 0),
+    ("cvtdq2ps", 0, 1, 0x5B, 0), ("cvtps2dq", 0x66, 1, 0x5B, 0), ("cvttps2dq", 0xF3, 1, 0x5B, 0), ("cvtdq2pd", 0xF3, 1, 0xE6, 0),
+    ("cvtpd2dq", 0xF2, 1, 0xE6, 0), ("cvttpd2dq", 0x66, 1, 0xE6, 0), ("ucomiss", 0, 1, 0x2E, 0), ("ucomisd", 0x66, 1, 0x2E, 0),
+    ("comiss", 0, 1, 0x2F, 0), ("comisd", 0x66, 1, 0x2F, 0), ("pshufd", 0x66, 1, 0x70, takes_immediate), ("pshuflw", 0xF2, 1, 0x70, takes_immediate),
+    ("pshufhw", 0xF3, 1, 0x70, takes_immediate), ("movhlps", 0, 1, 0x12, two_sources), ("movlhps", 0, 1, 0x16, two_sources),
+    ("rcpps", 0, 1, 0x53, 0), ("rsqrtps", 0, 1, 0x52, 0), ("pabsb", 0x66, 2, 0x1C, 0), ("pabsw", 0x66, 2, 0x1D, 0), ("pabsd", 0x66, 2, 0x1E, 0),
+    ("ptest", 0x66, 2, 0x17, 0), ("roundps", 0x66, 3, 0x08, takes_immediate), ("roundpd", 0x66, 3, 0x09, takes_immediate),
+    ("roundss", 0x66, 3, 0x0A, takes_immediate | two_sources), ("roundsd", 0x66, 3, 0x0B, takes_immediate | two_sources),
+    ("blendps", 0x66, 3, 0x0C, takes_immediate | two_sources), ("blendpd", 0x66, 3, 0x0D, takes_immediate | two_sources),
+    ("pblendw", 0x66, 3, 0x0E, takes_immediate | two_sources), ("palignr", 0x66, 3, 0x0F, takes_immediate | two_sources),
+    ("insertps", 0x66, 3, 0x21, takes_immediate | two_sources)]
+
+## The packed integer operations of the `66 0F` (map 1) and `66 0F 38` (map 2) maps that
+## take two sources: name, map, opcode.
+let packed_integer: (str, u8, u8)[56] = [
+    ("punpcklbw", 1, 0x60), ("punpcklwd", 1, 0x61), ("punpckldq", 1, 0x62), ("packsswb", 1, 0x63), ("pcmpgtb", 1, 0x64),
+    ("pcmpgtw", 1, 0x65), ("pcmpgtd", 1, 0x66), ("packuswb", 1, 0x67), ("punpckhbw", 1, 0x68), ("punpckhwd", 1, 0x69),
+    ("punpckhdq", 1, 0x6A), ("packssdw", 1, 0x6B), ("punpcklqdq", 1, 0x6C), ("punpckhqdq", 1, 0x6D), ("pcmpeqb", 1, 0x74),
+    ("pcmpeqw", 1, 0x75), ("pcmpeqd", 1, 0x76), ("paddq", 1, 0xD4), ("pmullw", 1, 0xD5), ("psubusb", 1, 0xD8),
+    ("psubusw", 1, 0xD9), ("pminub", 1, 0xDA), ("pand", 1, 0xDB), ("paddusb", 1, 0xDC), ("paddusw", 1, 0xDD),
+    ("pmaxub", 1, 0xDE), ("pandn", 1, 0xDF), ("pavgb", 1, 0xE0), ("pavgw", 1, 0xE3), ("pmulhuw", 1, 0xE4),
+    ("pmulhw", 1, 0xE5), ("psubsb", 1, 0xE8), ("psubsw", 1, 0xE9), ("pminsw", 1, 0xEA), ("por", 1, 0xEB),
+    ("paddsb", 1, 0xEC), ("paddsw", 1, 0xED), ("pmaxsw", 1, 0xEE), ("pxor", 1, 0xEF), ("pmuludq", 1, 0xF4),
+    ("pmaddwd", 1, 0xF5), ("psadbw", 1, 0xF6), ("psubb", 1, 0xF8), ("psubw", 1, 0xF9), ("psubd", 1, 0xFA),
+    ("psubq", 1, 0xFB), ("paddb", 1, 0xFC), ("paddw", 1, 0xFD), ("paddd", 1, 0xFE), ("pshufb", 2, 0x00),
+    ("pmulld", 2, 0x40), ("pminsd", 2, 0x39), ("pminud", 2, 0x3B), ("pmaxsd", 2, 0x3D), ("pmaxud", 2, 0x3F),
+    ("pcmpeqq", 2, 0x29)]
+
+# mark: Encoding ==============================================================================
+
+## Parts for a vector operation whose ModRM reg is `reg` and rm `rm`, under `x`'s form:
+## its prefix, map and opcode, VEX when the form is a `v` one with `second` in `vvvv`.
+func vector_parts(x: Instruction*, opcode: u8, reg: u8, rm: Operand, second: u8, long: bool) -> Encoding:
+    let f = x.form
+    var e = Encoding.with_modrm(f.map, opcode, reg, rm)
+    e.operand16 = f.prefix == 0x66
+    e.repeat = f.prefix if f.prefix == 0xF2 or f.prefix == 0xF3 else 0
+    e.vex = (f.flags & vex_encoded) != 0
+    e.vvvv = second
+    e.long = long
+    if (f.flags & wide_form) != 0:
+        e.wide = true
+    return e
+
+## The operands of a vector operation, after any immediate: the source in rm, the second
+## source under VEX, the destination; checked to be vector registers or memory.
+func vector_operands(u: state.Unit*, x: Instruction*) -> (Operand, u8, Operand)!:
+    let f = x.form
+    let imm: usize = 1 if (f.flags & takes_immediate) != 0 else 0
+    let vex = (f.flags & vex_encoded) != 0
+    let three = vex and (f.flags & two_sources) != 0
+    try expect(u, x, imm + (3 if three else 2))
+    if imm == 1 and x.at(0).kind != Kind.immediate:
+        try mismatch(u, x)
+    let origin = x.at(imm)
+    let target = x.at(x.count - 1)
+    var second: u8 = 0
+    if three:
+        if not x.at(imm + 1).vector():
+            try mismatch(u, x)
+        second = x.at(imm + 1).register.number
+    if not origin.vector_or_memory() or not target.vector():
+        try mismatch(u, x)
+    return (origin, second, target)
+
+## A vector operation: its source into its destination, under VEX with a second source.
+func vector(u: state.Unit*, x: Instruction*) -> !:
+    let (origin, second, target) = try vector_operands(u, x)
+    var e = vector_parts(x, x.form.opcode, target.register.number, origin, second, target.register.bank == Bank.ymm)
+    if (x.form.flags & takes_immediate) != 0:
+        e.with_immediate(1, x.at(0).value)
+    try finish(u, x, &e)
+
+## A vector move: the load opcode into a register, the store opcode into memory; under
+## VEX, a register move from past `xmm7` into a low register through the store opcode.
+func vector_move(u: state.Unit*, x: Instruction*) -> !:
+    let vex = (x.form.flags & vex_encoded) != 0
+    if x.count == 3 and vex and x.at(0).vector() and x.at(1).vector() and x.at(2).vector():
+        # `vmovss` and `vmovsd` of registers merge a second source
+        let origin = x.at(0)
+        let target = x.at(2)
+        var e = vector_parts(x, x.form.opcode, target.register.number, origin, x.at(1).register.number, false)
+        if origin.register.number >= 8 and target.register.number < 8:
+            e = vector_parts(x, x.form.store, origin.register.number, target, x.at(1).register.number, false)
+        try finish(u, x, &e)
+        return
+    try expect(u, x, 2)
+    let origin = x.at(0)
+    let target = x.at(1)
+    let long = (origin.kind == Kind.register and origin.register.bank == Bank.ymm) or (target.kind == Kind.register and target.register.bank == Bank.ymm)
+    var e: Encoding = ---
+    if target.vector() and origin.vector_or_memory():
+        e = vector_parts(x, x.form.opcode, target.register.number, origin, 0, long)
+        if vex and origin.vector() and origin.register.number >= 8 and target.register.number < 8:
+            e = vector_parts(x, x.form.store, origin.register.number, target, 0, long)
+    elif origin.vector() and target.memory():
+        e = vector_parts(x, x.form.store, origin.register.number, target, 0, long)
+    else:
+        try mismatch(u, x)
+    try finish(u, x, &e)
+
+## A packed shift: by a vector register or memory, or by an immediate.
+func vector_shift(u: state.Unit*, x: Instruction*) -> !:
+    let vex = (x.form.flags & vex_encoded) != 0
+    try expect(u, x, 3 if vex else 2)
+    let target = x.at(x.count - 1)
+    if not target.vector():
+        try mismatch(u, x)
+    var e: Encoding = ---
+    if x.at(0).kind == Kind.immediate:
+        let origin = x.at(1) if vex else target
+        if not origin.vector():
+            try mismatch(u, x)
+        e = vector_parts(x, x.form.store, x.form.code, origin, target.register.number if vex else 0, false)
+        e.with_immediate(1, x.at(0).value)
+    else:
+        if x.form.opcode == 0 or not x.at(0).vector_or_memory():
+            try mismatch(u, x)
+        e = vector_parts(x, x.form.opcode, target.register.number, x.at(0), x.at(1).register.number if vex else 0, false)
+    try finish(u, x, &e)
+
+# mark: Between register files ================================================================
+
+## `movd`: four bytes between a general register or memory and a vector register.
+func move_double(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    let origin = x.at(0)
+    let target = x.at(1)
+    var e: Encoding = ---
+    if target.xmm() and origin.general_or_memory() and (not origin.general() or origin.size() == 4):
+        e = between(x, 0x6E, target.register.number, origin)
+    elif origin.xmm() and target.general_or_memory() and (not target.general() or target.size() == 4):
+        e = between(x, 0x7E, origin.register.number, target)
+    else:
+        try mismatch(u, x)
+    try finish(u, x, &e)
+
+## `movq` with a vector register: eight bytes between general registers, memory and
+## vector registers, each direction its own opcode.
+func move_quad(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    let origin = x.at(0)
+    let target = x.at(1)
+    var e: Encoding = ---
+    if target.xmm() and origin.general() and origin.size() == 8:
+        e = between(x, 0x6E, target.register.number, origin)
+        e.wide = true
+    elif origin.xmm() and target.general() and target.size() == 8:
+        e = between(x, 0x7E, origin.register.number, target)
+        e.wide = true
+    elif target.xmm() and (origin.memory() or origin.xmm()):
+        e = between(x, 0x7E, target.register.number, origin)
+        e.operand16 = false
+        e.repeat = 0xF3
+    elif origin.xmm() and target.memory():
+        e = between(x, 0xD6, origin.register.number, target)
+    else:
+        try mismatch(u, x)
+    try finish(u, x, &e)
+
+## Parts of a `66 0F` move between register files.
+func between(x: Instruction*, opcode: u8, reg: u8, rm: Operand) -> Encoding:
+    var e = Encoding.with_modrm(1, opcode, reg, rm)
+    e.operand16 = true
+    e.vex = (x.form.flags & vex_encoded) != 0
+    return e
+
+## `cvtsi2sd` and kin: an integer register or memory into a float.
+func from_integer(u: state.Unit*, x: Instruction*) -> !:
+    let vex = (x.form.flags & vex_encoded) != 0
+    try expect(u, x, 3 if vex else 2)
+    let origin = x.at(0)
+    let target = x.at(x.count - 1)
+    if not origin.general_or_memory() or not target.xmm() or (origin.general() and origin.size() < 4):
+        try mismatch(u, x)
+    let size = x.form.size if x.form.size != 0 else (origin.size() if origin.general() else 4)
+    var e = vector_parts(x, x.form.opcode, target.register.number, origin, x.at(1).register.number if vex else 0, false)
+    e.wide = size == 8
+    try finish(u, x, &e)
+
+## `cvttsd2si` and kin: a float into an integer register.
+func to_integer(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    let origin = x.at(0)
+    let target = x.at(1)
+    if not origin.vector_or_memory() or not target.general() or target.size() < 4:
+        try mismatch(u, x)
+    var e = vector_parts(x, x.form.opcode, target.register.number, origin, 0, false)
+    e.wide = target.size() == 8
+    try finish(u, x, &e)
+
+## `pmovmskb` and kin: a vector register's sign bits into an integer register.
+func mask(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 2)
+    if not x.at(0).vector() or not x.at(1).general() or x.at(1).size() < 4:
+        try mismatch(u, x)
+    var e = vector_parts(x, x.form.opcode, x.at(1).register.number, x.at(0), 0, x.at(0).register.bank == Bank.ymm)
+    e.wide = x.at(1).size() == 8
+    try finish(u, x, &e)
+
+## `vfmadd231sd` and kin: always VEX, three operands.
+func fused(u: state.Unit*, x: Instruction*) -> !:
+    try vector(u, x)
+
+## `vcvtps2ph`: the source register in the reg field, the destination in rm.
+func half_store(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 3)
+    if x.at(0).kind != Kind.immediate or not x.at(1).vector() or not x.at(2).vector_or_memory():
+        try mismatch(u, x)
+    var e = vector_parts(x, x.form.opcode, x.at(1).register.number, x.at(2), 0, x.at(1).register.bank == Bank.ymm)
+    e.with_immediate(1, x.at(0).value)
+    try finish(u, x, &e)

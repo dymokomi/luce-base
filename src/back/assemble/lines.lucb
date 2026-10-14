@@ -1,0 +1,311 @@
+#==============================================================================================
+#
+#   lines - The DWARF line table from `.file` and `.loc`
+#
+#   DESCRIPTION:
+#       `.file N "path"` names the source files; `.loc file line column` gives the next
+#       instruction its position, as GNU `as` attaches it: a `.loc` followed by another
+#       before any instruction places the first where the second is, and line 0 places
+#       nothing. Once the layout is final the positions become `.debug_line`, appended to
+#       what the section holds: a DWARF 3 header with each path cut into its directory and
+#       name, then a sequence per section of code, each step the shortest opcodes `as`
+#       chooses for its line and address advance.
+#
+#==============================================================================================
+
+import back.assemble.directives
+import back.assemble.expressions
+import back.assemble.object
+import back.assemble.source
+import back.assemble.state
+import strings
+import support.list
+
+# mark: Recording =============================================================================
+
+## A position as `.loc` gives it.
+struct Position:
+    var file: u32
+    var line: u32
+    var column: u32
+    var statement: bool
+    var prologue_end: bool
+
+## A position attached to the instruction at `place`.
+struct Row:
+    var place: state.Place
+    var position: Position
+
+## The files, and the rows of every section in the order its instructions came.
+pub struct Lines:
+    ## The source files by number, from 1; an empty name for a number not given.
+    var files: list.List[str]
+    var rows: list.List[Row]
+    ## The sections with rows, in the order their first row came.
+    var sections: list.List[u32]
+    var current: Position
+    ## A `.loc` waits for the next instruction.
+    var pending: bool
+
+    ## No files, no rows.
+    pub static func create() -> Lines!:
+        return Lines(files = try list.List[str].create(16), rows = try list.List[Row].create(1024), sections = try list.List[u32].create(4),
+                     current = Position(file = 1, line = 1, column = 0, statement = true, prologue_end = false), pending = false)
+
+    ## Do `.file` or `.loc`, its arguments at `c`; false when it is neither.
+    pub func directive(u: state.Unit*, name: str, c: source.Cursor*) -> bool!:
+        if name == ".file":
+            let n = source.number(c) else return try u.fail("`.file` without a number names the object's source, which is not supported")
+            let room = try new u8[c.text.length] ---
+            let length = source.string(c, room) else return try u.fail("expected the file's path in quotes")
+            if n == 0 or n > 65535:
+                try u.fail("a file number from 1")
+            while self.files.count < (usize)n:
+                try self.files.push("")
+            self.files.items[(usize)n - 1] = (str)room[..<length]
+            return true
+        if name != ".loc":
+            return false
+        if self.pending:
+            # a `.loc` that no instruction took is placed here
+            try self.place_row(u)
+        var p = self.current
+        p.file = u32(try number(u, c))
+        p.line = u32(try number(u, c))
+        p.column = 0
+        if source.digit(c.peek()):
+            p.column = u32(try number(u, c))
+        while not c.done():
+            let option = c.name()
+            if option == "prologue_end":
+                p.prologue_end = true
+            elif option == "is_stmt":
+                p.statement = try number(u, c) != 0
+            else:
+                try u.fail(f"`.loc` option `{option}` is not supported")
+        self.current = p
+        self.pending = true
+        return true
+
+    ## Before an instruction: place the waiting `.loc` here.
+    pub func instruction(u: state.Unit*) -> !:
+        if self.pending:
+            try self.place_row(u)
+
+    ## A row for the current position here, unless its line is 0.
+    func place_row(u: state.Unit*) -> !:
+        if self.current.line != 0:
+            var known = false
+            for s in self.sections.span():
+                known = known or s == u.current
+            if not known:
+                try self.sections.push(u.current)
+            try self.rows.push(Row(place = u.here(), position = self.current))
+        self.pending = false
+        self.current.prologue_end = false
+
+    # mark: The table =========================================================================
+
+    ## `.debug_line`, once the layout is final: when there are rows, files, or a
+    ## `.debug_info` with something in it, as GNU `as` decides.
+    pub func finish(u: state.Unit*) -> !:
+        var info = false
+        for s in u.sections.span():
+            info = info or (s.name == ".debug_info" and s.size() > 0)
+        if self.rows.count == 0 and self.files.count == 0 and not info:
+            return
+        if self.rows.count > 0 and not info:
+            try u.fail("line rows without `.debug_info`, which the assembler does not make")
+        let was = u.current
+        u.current = try u.section(".debug_line", object.Content.data, false, false, true)
+        let length_at = u.open().bytes.used
+        try u.little(0, 4)
+        try u.little(3, 2)
+        let header_at = u.open().bytes.used
+        try u.little(0, 4)
+        for b in [1u8, 1u8, 0xFBu8, line_range, opcode_base, 0u8, 1u8, 1u8, 1u8, 1u8, 0u8, 0u8, 0u8, 1u8, 0u8, 0u8, 1u8]:
+            try u.byte(b)
+        try self.names(u)
+        patch32(u, header_at, u.open().bytes.used - header_at - 4)
+        for section in self.sections.span():
+            try self.sequence(u, section)
+        patch32(u, length_at, u.open().bytes.used - length_at - 4)
+        u.current = was
+
+    ## The directory and file tables: each path cut at its last separator, each directory
+    ## once in the order it first came, spelled as it first came. Directories compare as
+    ## Windows' file names do, letters in either case and either slash, as GNU `as` for
+    ## Windows compares them.
+    func names(u: state.Unit*) -> !:
+        var directories = try list.List[str].create(8)
+        var indexes = try list.List[u32].create(self.files.count)
+        for path in self.files.span():
+            let cut = last_separator(path)
+            var index: u32 = 0
+            if let at = cut:
+                let directory = (str)path.bytes[..<at]
+                index = u32(directories.count + 1)
+                for (k, d) in directories.span().indexed():
+                    if same_directory(d, directory):
+                        index = u32(k + 1)
+                if index == u32(directories.count + 1):
+                    try directories.push(directory)
+            try indexes.push(index)
+        for d in directories.span():
+            try put_string(u, d)
+        try u.byte(0)
+        for (k, path) in self.files.span().indexed():
+            var name = path
+            if let at = last_separator(path):
+                name = (str)path.bytes[at + 1..]
+            try put_string(u, name)
+            try directives.put_leb(u, (i64)indexes.get(k), false)
+            try u.byte(0)
+            try u.byte(0)
+        try u.byte(0)
+
+    ## Section `section`'s sequence: its rows, then its end.
+    func sequence(u: state.Unit*, section: u32) -> !:
+        let text = &u.sections.items[section]
+        var file: u32 = 1
+        var line: u32 = 1
+        var column: u32 = 0
+        var statement = true
+        var address: u64 = 0
+        var first = true
+        for r in self.rows.span():
+            if r.place.section != section:
+                continue
+            let p = r.position
+            if p.file != file:
+                file = p.file
+                try u.byte(4)
+                try directives.put_leb(u, (i64)file, false)
+            if p.column != column:
+                column = p.column
+                try u.byte(5)
+                try directives.put_leb(u, (i64)column, false)
+            if p.statement != statement:
+                statement = p.statement
+                try u.byte(6)
+            if p.prologue_end:
+                try u.byte(10)
+            let at = text.address(r.place)
+            if first:
+                # DW_LNE_set_address, the address a relocation
+                try u.byte(0)
+                try u.byte(9)
+                try u.byte(2)
+                try u.fixup(8, state.Meaning.absolute, symbol(try u.symbol_at(r.place)))
+                try advance(u, (i64)p.line - (i64)line, 0, false)
+                first = false
+            else:
+                try advance(u, (i64)p.line - (i64)line, at - address, false)
+            line = p.line
+            address = at
+        try advance(u, 0, text.size() - address, true)
+
+## The value naming symbol `index`.
+func symbol(index: u32) -> state.Value:
+    return state.Value(constant = 0, symbol = index + 1, minus = 0, section_relative = false)
+
+# mark: Opcodes ===============================================================================
+
+## The least line advance a special opcode makes is -5. (LUCE-BUG: its magnitude here,
+## since luce-seed 115e1f0 cannot emit a negative constant as a static initialiser.)
+let line_base_magnitude: i64 = 5
+let line_range: u8 = 14
+let opcode_base: u8 = 13
+## The most a special opcode advances the address: (255 - 13) / 14.
+let most_special: u64 = 17
+
+## Advance the line by `delta` and the address by `step` and emit a row, in GNU `as`'s
+## opcodes: a special opcode when one fits, after `DW_LNS_const_add_pc` when that makes one
+## fit, else `DW_LNS_advance_pc`; or, at `end`, the end of the sequence.
+func advance(u: state.Unit*, delta: i64, step: u64, end: bool) -> !:
+    if end:
+        if step == most_special:
+            try u.byte(8)
+        elif step != 0:
+            try u.byte(2)
+            try directives.put_leb(u, (i64)step, false)
+        try u.byte(0)
+        try u.byte(1)
+        try u.byte(1)
+        return
+    var line = delta
+    var biased = line + line_base_magnitude
+    var copy = false
+    if biased < 0 or biased >= (i64)line_range:
+        try u.byte(3)
+        try directives.put_leb(u, line, true)
+        line = 0
+        biased = line_base_magnitude
+        copy = true
+    if line == 0 and step == 0:
+        try u.byte(1)
+        return
+    let base = biased + (i64)opcode_base
+    if step < 256 + most_special:
+        let special = base + (i64)step * (i64)line_range
+        if special <= 255:
+            try u.byte((u8)special)
+            return
+        let after = base + ((i64)step - (i64)most_special) * (i64)line_range
+        if after <= 255:
+            try u.byte(8)
+            try u.byte((u8)after)
+            return
+    try u.byte(2)
+    try directives.put_leb(u, (i64)step, false)
+    try u.byte(1 if copy else (u8)base)
+
+# mark: Text ==================================================================================
+
+## A number argument.
+func number(u: state.Unit*, c: source.Cursor*) -> u64!:
+    let v = try expressions.evaluate(u, c)
+    if not v.is_constant() or v.constant < 0:
+        try u.fail("expected a number")
+    return (u64)v.constant
+
+## Where the last `/` or `\` of `path` is.
+func last_separator(path: str) -> usize?:
+    var k = path.length
+    while k > 0:
+        k -= 1
+        if path.bytes[k] == '/' or path.bytes[k] == '\\':
+            return k
+    return none
+
+## Whether two directories are the same on Windows: letters in either case, `/` and `\`
+## alike.
+func same_directory(a: str, b: str) -> bool:
+    if a.length != b.length:
+        return false
+    for k in 0..<a.length:
+        if folded(a.bytes[k]) != folded(b.bytes[k]):
+            return false
+    return true
+
+## `b` lowered, with `\` as `/`.
+func folded(b: u8) -> u8:
+    if b == '\\':
+        return '/'
+    if b >= 'A' and b <= 'Z':
+        return b + 32
+    return b
+
+## `text` and its terminating zero.
+func put_string(u: state.Unit*, text: str) -> !:
+    for b in text.bytes:
+        try u.byte(b)
+    try u.byte(0)
+
+## The four bytes at `at` of the current section set to `v`.
+func patch32(u: state.Unit*, at: usize, v: usize):
+    let bytes = u.open().bytes.written()
+    var rest = v
+    for k: usize in 0..<4:
+        bytes[at + k] = (u8)rest
+        rest = rest >> 8

@@ -1,0 +1,269 @@
+#==============================================================================================
+#
+#   operands - x86-64 registers and AT&T operands
+#
+#   DESCRIPTION:
+#       `%name` registers by bank and number, `$expression` immediates, and memory as
+#       `segment:displacement(base, index, scale)` with any part left out; `*` before a
+#       register or memory makes a jump's or call's target indirect. A bare expression is a
+#       memory operand with no registers: an absolute address, or a jump's label.
+#
+#==============================================================================================
+
+import back.assemble.expressions
+import back.assemble.source
+import back.assemble.state
+
+# mark: Registers =============================================================================
+
+## What a register holds.
+enum Bank:
+    absent
+    ## `al`, `cl`, `dl`, `bl`, `spl` … `r15b`: the low byte; `spl` to `dil` need a REX.
+    byte
+    ## `ah`, `ch`, `dh`, `bh`: the second byte, which no REX instruction can name.
+    high_byte
+    word
+    dword
+    qword
+    xmm
+    ymm
+    segment
+    rip
+
+## A register: its bank and its number in the encoding.
+struct Register:
+    var bank: Bank
+    var number: u8
+
+    ## The operand size a general register gives an instruction, 0 for any other.
+    func size() -> u8:
+        var size: u8 = 0
+        # a statement, not a `match` expression: GCC -O2 finds the seed's C for an
+        # expression over an enum maybe-uninitialised (LUCE-BUG, luce-seed 115e1f0)
+        match self.bank:
+            .byte, .high_byte: size = 1
+            .word: size = 2
+            .dword: size = 4
+            .qword: size = 8
+            .absent, .xmm, .ymm, .segment, .rip: size = 0
+        return size
+
+    ## Whether the register is a general register of any width.
+    func general() -> bool:
+        return self.size() != 0
+
+    ## Whether naming it needs a REX prefix: a register numbered past 7, or `spl` to `dil`.
+    func needs_rex() -> bool:
+        return self.number >= 8 or (self.bank == Bank.byte and self.number >= 4)
+
+## The legacy registers' two-letter names, numbered as the encoding numbers them.
+let legacy: str[8] = ["ax", "cx", "dx", "bx", "sp", "bp", "si", "di"]
+
+## The register `%name` names, without its `%`.
+func register_named(name: str) -> Register?:
+    let b = name.bytes
+    if b.length < 2:
+        return none
+    if b[0] == 'r' and b[1] >= '0' and b[1] <= '9':
+        return numbered(b[1..])
+    if b.length == 3 and (b[0] == 'r' or b[0] == 'e'):
+        if let n = legacy_number((str)b[1..]):
+            return Register(bank = Bank.qword if b[0] == 'r' else Bank.dword, number = n)
+        if name == "rip":
+            return Register(bank = Bank.rip, number = 0)
+    if b.length == 2:
+        if let n = legacy_number(name):
+            return Register(bank = Bank.word, number = n)
+        if b[1] == 'l' or b[1] == 'h':
+            let low = b[1] == 'l'
+            let n = match b[0]:
+                'a' => 0
+                'c' => 1
+                'd' => 2
+                'b' => 3
+                _ => 8
+            if n < 8:
+                return Register(bank = Bank.byte if low else Bank.high_byte, number = (u8)(n if low else n + 4))
+        return segment_named(name)
+    if b.length == 3 and b[2] == 'l':
+        if let n = legacy_number((str)b[..<2]):
+            if n >= 4:
+                return Register(bank = Bank.byte, number = n)
+    if b.length >= 4 and (b[0] == 'x' or b[0] == 'y') and b[1] == 'm' and b[2] == 'm':
+        let n = decimal(b[3..]) else return none
+        if n > 15:
+            return none
+        return Register(bank = Bank.xmm if b[0] == 'x' else Bank.ymm, number = (u8)n)
+    return none
+
+## `r8` to `r15` and their narrower views: the digits after `r` and a width letter.
+func numbered(b: const u8[]) -> Register?:
+    var end: usize = 0
+    while end < b.length and b[end] >= '0' and b[end] <= '9':
+        end += 1
+    let n = decimal(b[..<end]) else return none
+    if n < 8 or n > 15:
+        return none
+    let rest = (str)b[end..]
+    let bank = match rest:
+        "" => Bank.qword
+        "d" => Bank.dword
+        "w" => Bank.word
+        "b", "l" => Bank.byte
+        _ => Bank.absent
+    if bank == Bank.absent:
+        return none
+    return Register(bank = bank, number = (u8)n)
+
+## The number of a legacy two-letter name, `ax` to `di`.
+func legacy_number(name: str) -> u8?:
+    for (i, n) in legacy.indexed():
+        if n == name:
+            return (u8)i
+    return none
+
+## A segment register: `es`, `cs`, `ss`, `ds`, `fs`, `gs`.
+func segment_named(name: str) -> Register?:
+    let n: u8 = match name:
+        "es" => 0
+        "cs" => 1
+        "ss" => 2
+        "ds" => 3
+        "fs" => 4
+        "gs" => 5
+        _ => 8
+    if n == 8:
+        return none
+    return Register(bank = Bank.segment, number = n)
+
+## A run of decimal digits as a number, none when empty or too long.
+func decimal(b: const u8[]) -> u64?:
+    if b.length == 0 or b.length > 3:
+        return none
+    var v: u64 = 0
+    for d in b:
+        if d < '0' or d > '9':
+            return none
+        v = v * 10 + (u64)(d - '0')
+    return v
+
+# mark: Operands ==============================================================================
+
+## What an operand is.
+enum Kind:
+    register
+    immediate
+    memory
+
+## An operand as written.
+struct Operand:
+    var kind: Kind
+    ## A register operand's register.
+    var register: Register
+    ## `*`: an indirect jump's or call's target.
+    var star: bool
+    ## An immediate's value, or a memory operand's displacement.
+    var value: state.Value
+    ## A memory operand's base and index, `Bank.absent` when absent; its scale, 1 to 8.
+    var base: Register
+    var index: Register
+    var scale: u8
+    ## Its segment register's number, 8 for none.
+    var segment: u8
+    ## Whether it had parentheses: without them it is an absolute address or a label.
+    var bracketed: bool
+
+    ## Whether this is a general register of any width.
+    func general() -> bool:
+        return self.kind == Kind.register and self.register.general()
+
+    ## Whether this is an `xmm` register.
+    func xmm() -> bool:
+        return self.kind == Kind.register and self.register.bank == Bank.xmm
+
+    ## Whether this is an `xmm` or `ymm` register.
+    func vector() -> bool:
+        return self.kind == Kind.register and (self.register.bank == Bank.xmm or self.register.bank == Bank.ymm)
+
+    ## Whether this is memory.
+    func memory() -> bool:
+        return self.kind == Kind.memory
+
+    ## Whether this is a general register or memory.
+    func general_or_memory() -> bool:
+        return self.general() or self.memory()
+
+    ## Whether this is a vector register or memory.
+    func vector_or_memory() -> bool:
+        return self.vector() or self.memory()
+
+    ## The operand size a general register gives, 0 otherwise.
+    func size() -> u8:
+        return self.register.size() if self.kind == Kind.register else 0
+
+## No register.
+let no_register: Register = Register(bank = Bank.absent, number = 0)
+
+## The operands of an instruction, at most four, read from `c`: how many.
+func read_operands(u: state.Unit*, c: source.Cursor*, out: Operand[]) -> usize!:
+    var n: usize = 0
+    if c.done():
+        return 0
+    while true:
+        if n == out.length:
+            try u.fail("too many operands")
+        out[n] = try read_operand(u, c)
+        n += 1
+        if c.done():
+            return n
+        if not c.take(','):
+            try u.fail(f"expected `,` before `{c.rest()}`")
+    return n
+
+## One operand.
+func read_operand(u: state.Unit*, c: source.Cursor*) -> Operand!:
+    var o = Operand(kind = Kind.memory, register = no_register, star = c.take('*'), value = state.Value.number(0), base = no_register,
+                    index = no_register, scale = 1, segment = 8, bracketed = false)
+    if c.take('$'):
+        o.kind = Kind.immediate
+        o.value = try expressions.evaluate(u, c)
+        return o
+    if c.peek() == '%':
+        let r = try read_register(u, c)
+        if not c.take(':'):
+            o.kind = Kind.register
+            o.register = r
+            return o
+        if r.bank != Bank.segment:
+            try u.fail("only a segment register goes before `:`")
+        o.segment = r.number
+    if c.peek() != '(':
+        o.value = try expressions.evaluate(u, c)
+    if c.take('('):
+        o.bracketed = true
+        if c.peek() == '%':
+            o.base = try read_register(u, c)
+        if c.take(','):
+            o.index = try read_register(u, c)
+            if c.take(','):
+                let s = source.number(c) else return try u.fail("expected a scale")
+                if s != 1 and s != 2 and s != 4 and s != 8:
+                    try u.fail("a scale is 1, 2, 4 or 8")
+                o.scale = (u8)s
+        if not c.take(')'):
+            try u.fail("expected `)`")
+        if o.base.bank != Bank.absent and o.base.bank != Bank.qword and o.base.bank != Bank.rip:
+            try u.fail("an address's base is a 64-bit register")
+        if o.index.bank != Bank.absent and (o.index.bank != Bank.qword or o.index.number == 4):
+            try u.fail("an address's index is a 64-bit register other than rsp")
+        if o.base.bank == Bank.rip and o.index.bank != Bank.absent:
+            try u.fail("an address relative to rip has no index")
+    return o
+
+## The register `%name` at the cursor.
+func read_register(u: state.Unit*, c: source.Cursor*) -> Register!:
+    if not c.take('%'):
+        try u.fail("expected a register")
+    let name = c.name()
+    return register_named(name) else return try u.fail(f"unknown register `%{name}`")

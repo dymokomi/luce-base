@@ -1,0 +1,122 @@
+#==============================================================================================
+#
+#   control - Jumps, calls, the stack, and the instructions without operands
+#
+#   DESCRIPTION:
+#       A jump to a label is a piece of its section: two bytes while the label is near
+#       enough, more once the layout finds it is not, or a label elsewhere (`layout`). A
+#       call to a label is always the five-byte form, its distance a fixup. Through a
+#       register or memory (`*`), both are `FF` with the extension of their kind.
+#
+#==============================================================================================
+
+# mark: Jumps and calls =======================================================================
+
+## The label a direct jump or call names.
+func label_of(u: state.Unit*, x: Instruction*) -> state.Value!:
+    let target = x.at(0)
+    if target.kind != Kind.memory or target.star or target.bracketed or target.segment != 8 or target.value.symbol == 0 or target.value.minus != 0:
+        try u.fail(f"`{x.name}` goes to a label or, after `*`, a register or memory")
+    return target.value
+
+## `j<cc>`: a conditional jump to a label.
+func branch(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    try u.piece(state.Shape.branch, 2, try label_of(u, x), code = x.form.code)
+
+## `jmp`: to a label, or through a register or memory.
+func jump(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if x.at(0).star:
+        try indirect(u, x, 4)
+        return
+    try u.piece(state.Shape.jump, 2, try label_of(u, x))
+
+## `call`: to a label, or through a register or memory.
+func call(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if x.at(0).star:
+        try indirect(u, x, 2)
+        return
+    let target = try label_of(u, x)
+    try u.byte(0xE8)
+    try u.fixup(4, state.Meaning.relative, target)
+
+## `FF /k` through the register or memory after `*`.
+func indirect(u: state.Unit*, x: Instruction*, k: u8) -> !:
+    var target = x.at(0)
+    if target.kind == Kind.register and target.size() != 8:
+        try mismatch(u, x)
+    if target.kind == Kind.immediate:
+        try mismatch(u, x)
+    target.star = false
+    var e = Encoding.with_modrm(0, 0xFF, k, target)
+    try finish(u, x, &e)
+
+# mark: The stack =============================================================================
+
+## `push`: a register, an immediate, or memory.
+func push(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    let o = x.at(0)
+    var e: Encoding = ---
+    if o.general():
+        if o.size() != 8 and o.size() != 2:
+            try mismatch(u, x)
+        e = Encoding.plain(0, 0x50)
+        e.plus = o.register.number
+        e.operand16 = o.size() == 2
+    elif o.kind == Kind.immediate:
+        let short = fits_byte(o.value, 8)
+        e = Encoding.plain(0, 0x6A if short else 0x68)
+        e.with_immediate(1 if short else 4, o.value)
+    elif o.memory():
+        e = Encoding.with_modrm(0, 0xFF, 6, o)
+        e.operand16 = x.form.size == 2
+    else:
+        try mismatch(u, x)
+    try finish(u, x, &e)
+
+## `pop`: into a register or memory.
+func pop(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    let o = x.at(0)
+    var e: Encoding = ---
+    if o.general():
+        if o.size() != 8 and o.size() != 2:
+            try mismatch(u, x)
+        e = Encoding.plain(0, 0x58)
+        e.plus = o.register.number
+        e.operand16 = o.size() == 2
+    elif o.memory():
+        e = Encoding.with_modrm(0, 0x8F, 0, o)
+        e.operand16 = x.form.size == 2
+    else:
+        try mismatch(u, x)
+    try finish(u, x, &e)
+
+# mark: No operands ===========================================================================
+
+## An instruction of fixed bytes: its prefixes, the mandatory one, the opcode.
+func plain(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 0)
+    if x.repeat != 0:
+        try u.byte(x.repeat)
+    if x.lock:
+        try u.byte(0xF0)
+    let f = x.form
+    if f.prefix != 0:
+        try u.byte(f.prefix)
+    if f.map == 1:
+        try u.byte(0x0F)
+    try u.byte(f.opcode)
+    if f.code != 0:
+        try u.byte(f.code)
+
+## `ldmxcsr`, `stmxcsr`: the vector unit's control word from or to memory.
+func mxcsr(u: state.Unit*, x: Instruction*) -> !:
+    try expect(u, x, 1)
+    if not x.at(0).memory():
+        try mismatch(u, x)
+    var e = Encoding.with_modrm(1, 0xAE, x.form.code, x.at(0))
+    try finish(u, x, &e)

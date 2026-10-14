@@ -1,0 +1,244 @@
+#==============================================================================================
+#
+#   unwind - Windows x64 unwind information from `.seh_` directives
+#
+#   DESCRIPTION:
+#       Between `.seh_proc` and `.seh_endproc` the directives record what the prologue did
+#       and where: a register pushed, the stack allocated, the frame register set, a
+#       register saved. Once the layout is final each procedure becomes an UNWIND_INFO in
+#       `.xdata` (its codes last first, padded to an even count, four-byte aligned) and a
+#       RUNTIME_FUNCTION in `.pdata` naming its start, end and unwind information, as GNU
+#       `as` writes them; code in `.text$name` gets `.xdata$name` and `.pdata$name`.
+#
+#==============================================================================================
+
+import back.assemble.expressions
+import back.assemble.object
+import back.assemble.source
+import back.assemble.state
+import strings
+import support.list
+
+# mark: Recording =============================================================================
+
+## The unwind operations, as UNWIND_CODE numbers them.
+let push_nonvolatile: u8 = 0
+let allocate_large: u8 = 1
+let allocate_small: u8 = 2
+let set_frame: u8 = 3
+let save_nonvolatile: u8 = 4
+let save_nonvolatile_far: u8 = 5
+let save_vector: u8 = 8
+let save_vector_far: u8 = 9
+
+## A prologue operation where it ended.
+struct Code:
+    var place: state.Place
+    var operation: u8
+    var register: u8
+    var amount: u64
+
+## A procedure's unwind record: its code's section, places, and operations.
+struct Procedure:
+    var section: u32
+    var start: state.Place
+    var prologue: state.Place
+    var end: state.Place
+    var first: usize
+    var count: usize
+    ## The frame register and its offset as UNWIND_INFO's fourth byte packs them.
+    var frame: u8
+    ## The `.xdata` and `.pdata` sections it goes in.
+    var data: u32
+    var table: u32
+
+## The procedures of a unit.
+pub struct Unwind:
+    var procedures: list.List[Procedure]
+    var codes: list.List[Code]
+    var open: bool
+    var current: Procedure
+
+    ## No procedures yet.
+    pub static func create() -> Unwind!:
+        var w = Unwind(procedures = try list.List[Procedure].create(256), codes = try list.List[Code].create(1024), open = false)
+        return w
+
+    ## Do the `.seh_` directive `name`, its arguments at `c`; false when it is not one.
+    pub func directive(u: state.Unit*, name: str, c: source.Cursor*) -> bool!:
+        if name == ".seh_proc":
+            if self.open:
+                try u.fail("`.seh_proc` inside another")
+            _ = c.name()
+            let here = u.here()
+            self.current = Procedure(section = u.current, start = here, prologue = here, end = here, first = self.codes.count, count = 0, frame = 0,
+                                     data = 0, table = 0)
+            self.open = true
+            return true
+        if not starts_seh(name):
+            return false
+        if not self.open:
+            try u.fail(f"`{name}` outside `.seh_proc`")
+        match name:
+            ".seh_pushreg": try self.code(u, push_nonvolatile, try general(u, c), 0)
+            ".seh_stackalloc": try self.code(u, allocate_small, 0, try byte_count(u, c))
+            ".seh_setframe":
+                let register = try general(u, c)
+                if not c.take(','):
+                    try u.fail("expected `,` and the frame's offset")
+                let offset = try byte_count(u, c)
+                if offset % 16 != 0 or offset > 240:
+                    try u.fail("a frame offset is a multiple of 16 up to 240")
+                self.current.frame = register | (u8)((offset // 16) << 4)
+                try self.code(u, set_frame, register, offset)
+            ".seh_savereg", ".seh_savexmm":
+                let vector = name == ".seh_savexmm"
+                let register = try vector_register(u, c) if vector else try general(u, c)
+                if not c.take(','):
+                    try u.fail("expected `,` and the save's offset")
+                try self.code(u, save_vector if vector else save_nonvolatile, register, try byte_count(u, c))
+            ".seh_endprologue": self.current.prologue = u.here()
+            ".seh_endproc":
+                if u.current != self.current.section:
+                    try u.fail("`.seh_endproc` in another section than its `.seh_proc`")
+                self.current.end = u.here()
+                self.current.count = self.codes.count - self.current.first
+                try self.place_tables(u)
+                try self.procedures.push(self.current)
+                self.open = false
+            _: try u.fail(f"`{name}` is not supported")
+        return true
+
+    ## An operation at the current place.
+    func code(u: state.Unit*, operation: u8, register: u8, amount: u64) -> !:
+        try self.codes.push(Code(place = u.here(), operation = operation, register = register, amount = amount))
+
+    ## The `.xdata` and `.pdata` sections of the current procedure's code section, made now
+    ## if new, where GNU `as` makes them.
+    func place_tables(u: state.Unit*) -> !:
+        let text = u.sections.items[self.current.section].name
+        let suffix = (str)text.bytes[5..] if state.starts(text, ".text") else ""
+        var room: u8[512]
+        let data_name = try strings.format(room, f".xdata{suffix}")
+        self.current.data = try u.section(try strings.copy(data_name), object.Content.data, false, true, true)
+        let table_name = try strings.format(room, f".pdata{suffix}")
+        self.current.table = try u.section(try strings.copy(table_name), object.Content.data, false, true, true)
+
+    # mark: Writing ===========================================================================
+
+    ## Every procedure's UNWIND_INFO and RUNTIME_FUNCTION, once the layout is final.
+    pub func finish(u: state.Unit*) -> !:
+        if self.open:
+            try u.fail("`.seh_proc` without `.seh_endproc`")
+        let was = u.current
+        for p in self.procedures.span():
+            try self.write(u, &p)
+        u.current = was
+
+    ## Procedure `p`'s records.
+    func write(u: state.Unit*, p: const Procedure*) -> !:
+        let text = &u.sections.items[p.section]
+        let start = text.address(p.start)
+        u.current = p.data
+        while u.open().bytes.used % 4 != 0:
+            try u.byte(0)
+        let info = u.here()
+        let prologue = text.address(p.prologue) - start
+        if prologue > 255:
+            try u.fail("a prologue longer than 255 bytes")
+        var slots: u64 = 0
+        for k in 0..<p.count:
+            slots += slots_of(&self.codes.items[p.first + k])
+        try u.byte(1)
+        try u.byte((u8)prologue)
+        try u.byte((u8)slots)
+        try u.byte(p.frame)
+        var k = p.count
+        while k > 0:
+            k -= 1
+            let c = &self.codes.items[p.first + k]
+            try u.byte((u8)(text.address(c.place) - start))
+            try write_code(u, c)
+        if slots % 2 == 1:
+            try u.little(0, 2)
+        u.current = p.table
+        for place in [p.start, p.end]:
+            try u.fixup(4, state.Meaning.image, symbol(try u.symbol_at(place)))
+        try u.fixup(4, state.Meaning.image, symbol(try u.symbol_at(info)))
+
+## The value naming symbol `index`.
+func symbol(index: u32) -> state.Value:
+    return state.Value(constant = 0, symbol = index + 1, minus = 0, section_relative = false)
+
+## How many two-byte slots code `c` takes.
+func slots_of(c: const Code*) -> u64:
+    if c.operation == allocate_small:
+        return 1 if c.amount <= 128 else (2 if c.amount <= 524280 else 3)
+    if c.operation == save_nonvolatile:
+        return 2 if c.amount // 8 <= 0xFFFF else 3
+    if c.operation == save_vector:
+        return 2 if c.amount // 16 <= 0xFFFF else 3
+    return 1
+
+## Code `c`'s operation byte and its slots after the offset.
+func write_code(u: state.Unit*, c: const Code*) -> !:
+    if c.operation == allocate_small:
+        if c.amount <= 128:
+            try u.byte(allocate_small | (u8)(((c.amount - 8) // 8) << 4))
+        elif c.amount <= 524280:
+            try u.byte(allocate_large)
+            try u.little(c.amount // 8, 2)
+        else:
+            try u.byte(allocate_large | 0x10)
+            try u.little(c.amount, 4)
+        return
+    if c.operation == save_nonvolatile or c.operation == save_vector:
+        let scale: u64 = 8 if c.operation == save_nonvolatile else 16
+        if c.amount // scale <= 0xFFFF:
+            try u.byte(c.operation | (c.register << 4))
+            try u.little(c.amount // scale, 2)
+        else:
+            try u.byte((save_nonvolatile_far if c.operation == save_nonvolatile else save_vector_far) | (c.register << 4))
+            try u.little(c.amount, 4)
+        return
+    if c.operation == set_frame:
+        # the register and offset are UNWIND_INFO's, not the code's
+        try u.byte(set_frame)
+        return
+    try u.byte(c.operation | (c.register << 4))
+
+# mark: Operands ==============================================================================
+
+## Whether `name` is an `.seh_` directive.
+func starts_seh(name: str) -> bool:
+    return state.starts(name, ".seh_")
+
+## A general register's number, `%rax` to `%r15`.
+func general(u: state.Unit*, c: source.Cursor*) -> u8!:
+    _ = c.take('%')
+    let name = c.name()
+    for (i, n) in ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"].indexed():
+        if n == name:
+            return (u8)i
+    try u.fail(f"`%{name}` is not a 64-bit general register")
+
+## A vector register's number, `%xmm0` to `%xmm15`.
+func vector_register(u: state.Unit*, c: source.Cursor*) -> u8!:
+    _ = c.take('%')
+    let name = c.name()
+    if state.starts(name, "xmm") and name.length > 3:
+        var n: u32 = 0
+        for b in name.bytes[3..]:
+            if b < '0' or b > '9':
+                try u.fail(f"`%{name}` is not a vector register")
+            n = n * 10 + (u32)(b - '0')
+        if n < 16:
+            return (u8)n
+    try u.fail(f"`%{name}` is not a vector register")
+
+## A number of bytes.
+func byte_count(u: state.Unit*, c: source.Cursor*) -> u64!:
+    let v = try expressions.evaluate(u, c)
+    if not v.is_constant() or v.constant < 0:
+        try u.fail("expected a number of bytes")
+    return (u64)v.constant

@@ -5,6 +5,12 @@ objects, including shadow space, register preservation, aggregate calls and
 returns, TLS, stack probes and SEH unwind records. MinGW GCC supplies the assembler,
 linker, CRT and pthread library. `--backend=c` is the comparison backend.
 
+The compiler has an assembler of its own for this target (`src/back/assemble`), which reads
+the same assembly and writes the COFF object GNU `as` writes, in the compiler's process.
+`build` and `test` take `--own-assembler` to use it; the flag is temporary, until the own
+assembler becomes the only one. `luce-base assemble FILE.s -o FILE.o` runs it alone, and
+`tools/asm_parity.py --suite` checks it against GNU `as` on every test program's assembly.
+
 ## Build
 
 Install Python 3 and MinGW-w64 GCC with pthread support, and put `python`, `gcc`,

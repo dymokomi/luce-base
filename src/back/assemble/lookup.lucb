@@ -1,0 +1,99 @@
+#==============================================================================================
+#
+#   lookup - Names to the numbers they were given, for the assembler's hot path
+#
+#   DESCRIPTION:
+#       Every label, symbol reference and mnemonic of a source is looked up by name, millions
+#       of times in a large program. This table hashes a name with FNV-1a, which is a few
+#       instructions a byte, keeps each slot's hash beside its number so a probe compares
+#       bytes only when the hashes agree, and borrows its names, which the source or the
+#       assembler's arena keeps. Nothing walks it in its own order, so the output never
+#       depends on the hash.
+#
+#==============================================================================================
+
+import memory
+
+## Names, by hash, to the numbers they were added with.
+pub struct Lookup:
+    var hashes: u64[]
+    ## Each slot's number + 1; 0 for a free slot.
+    var numbers: u32[]
+    var names: str[]
+    var used: usize
+
+    ## A table with room for `expected` names before it grows.
+    pub static func create(expected: usize) -> Lookup!:
+        var size: usize = 64
+        while size < expected * 2:
+            size *= 2
+        return Lookup(hashes = try new u64[size], numbers = try new u32[size], names = try new str[size] ---, used = 0)
+
+    ## The number `name` was added with, or none.
+    pub func find(name: str) -> u32?:
+        let h = fnv(name)
+        let mask = self.hashes.length - 1
+        var slot = (usize)h & mask
+        while self.numbers[slot] != 0:
+            if self.hashes[slot] == h and self.names[slot] == name:
+                return self.numbers[slot] - 1
+            slot = (slot + 1) & mask
+        return none
+
+    ## Add `name` with `number`; it must not be there already.
+    pub func add(name: str, number: u32) -> !:
+        if (self.used + 1) * 2 > self.hashes.length:
+            try self.grow()
+        self.place(name, fnv(name), number + 1)
+        self.used += 1
+
+    func place(name: str, h: u64, stored: u32):
+        let mask = self.hashes.length - 1
+        var slot = (usize)h & mask
+        while self.numbers[slot] != 0:
+            slot = (slot + 1) & mask
+        self.hashes[slot] = h
+        self.numbers[slot] = stored
+        self.names[slot] = name
+
+    func grow() -> !:
+        let hashes = self.hashes
+        let numbers = self.numbers
+        let names = self.names
+        let size = hashes.length * 2
+        self.hashes = try new u64[size]
+        self.numbers = try new u32[size]
+        self.names = try new str[size] ---
+        for k in 0..<hashes.length:
+            if numbers[k] != 0:
+                self.place(names[k], hashes[k], numbers[k])
+        free(hashes)
+        free(numbers)
+        free(names)
+
+## FNV-1a of `name`'s bytes.
+func fnv(name: str) -> u64:
+    var h: u64 = 0xCBF29CE484222325
+    for b in name.bytes:
+        h = (h ^ (u64)b) *% 0x100000001B3
+    return h
+
+test "names find the numbers they were added with, past growth":
+    var table = try Lookup.create(1)
+    var names: str[300] = ---
+    var rooms: u8[3000] = ---
+    for i in 0..<names.length:
+        let room = rooms[i * 10..<i * 10 + 10]
+        var n = i
+        var k: usize = 0
+        while true:
+            room[k] = (u8)(n % 10) + '0'
+            n = n // 10
+            k += 1
+            if n == 0:
+                break
+        names[i] = (str)room[..<k]
+        try table.add(names[i], u32(i))
+    for i in 0..<names.length:
+        assert(table.find(names[i]) == u32(i))
+    assert(table.find("absent") == none)

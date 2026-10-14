@@ -251,6 +251,9 @@ $full && tests/sanitize/run.sh
 # the other C compilers a release meets compile the emitted C here first: GNU GCC on the
 # host's snapshot, MinGW-w64 GCC on the Windows one (tools/cross_c.sh)
 $full && tools/cross_c.sh
+# the compiler's own x86-64 assembler writes the COFF object GNU `as` writes, for every test
+# program's x86_64-windows assembly in every build mode (tools/asm_parity.py, MinGW-w64's `as`)
+$full && python3 tools/asm_parity.py --suite
 # the seed's program corpus, built natively: every `# answer: N` program prints N
 tools/native_check.sh
 # the native backend under valgrind's memcheck where valgrind is present (Linux): every

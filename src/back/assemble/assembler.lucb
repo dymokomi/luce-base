@@ -1,0 +1,139 @@
+#==============================================================================================
+#
+#   assembler - x86-64 assembly to a COFF object, inside the compiler
+#
+#   DESCRIPTION:
+#       The assembler the native backend's Windows output goes through instead of GNU
+#       `as`: the same AT&T text, the generator's and the programs' inline assembly alike,
+#       read statement by statement into sections (`state`), laid out (`layout`), with the
+#       unwind tables (`unwind`), the call frames (`frames`) and the line table (`lines`)
+#       written once the layout is final, and written as COFF (`coff`). An instruction or
+#       directive it does not know stops it with the line.
+#
+#==============================================================================================
+
+import back.assemble.coff
+import back.assemble.directives
+import back.assemble.frames
+import back.assemble.layout
+import back.assemble.lines
+import back.assemble.object
+import back.assemble.source
+import back.assemble.state
+import back.assemble.unwind
+import back.assemble.x86_64
+import memory
+import support.buffer
+from support.arena import Arena
+
+## `text`, x86-64 assembly for Windows, as a COFF object into `out`. `path` names the source
+## in messages; a failure is `state.rejected`, its message naming the line.
+pub func assemble(text: const u8[], path: str, out: buffer.Buffer*) -> !:
+    var arena = Arena(memory.heap, 1048576)
+    defer arena.destroy()
+    with arena:
+        var o = try object_from(text, path)
+        try coff.write(&o, out)
+
+## The object `text` makes, in the current allocator.
+pub func object_from(text: const u8[], path: str) -> object.Object!:
+    # a symbol for every hundred bytes of source is about what the compiler's has
+    var u = try state.Unit.create(path, text.length // 100)
+    var encoder = try x86_64.Encoder.create()
+    var tables = Tables(procedures = try unwind.Unwind.create(), frames = try frames.Frames.create(), rows = try lines.Lines.create())
+    var statements = source.Lines.over(text)
+    while let statement = statements.next():
+        u.line = statements.line
+        try statement_of(&u, &encoder, &tables, statement)
+    u.line = statements.line
+    try layout.settle(&u)
+    # GNU `as`'s order: the unwind tables as procedures end, the lines, the frames
+    try tables.procedures.finish(&u)
+    try tables.rows.finish(&u)
+    try tables.frames.finish(&u)
+    try layout.settle(&u)
+    return try layout.object_of(&u)
+
+## What the directives beside the sections and symbols record for after the layout.
+struct Tables:
+    var procedures: unwind.Unwind
+    var frames: frames.Frames
+    var rows: lines.Lines
+
+## One statement: its labels, then a directive or an instruction.
+func statement_of(u: state.Unit*, encoder: x86_64.Encoder*, tables: Tables*, statement: const u8[]) -> !:
+    var c = source.Cursor.over(statement)
+    while true:
+        let before = c.at
+        if source.digit(c.peek()):
+            if let n = source.number(&c):
+                if c.take(':'):
+                    try u.define_numbered(u32(n))
+                    continue
+            c.at = before
+            break
+        let name = c.name()
+        if name.length > 0 and c.take(':'):
+            try u.define(name)
+            continue
+        c.at = before
+        break
+    if c.done():
+        return
+    let word = c.name()
+    if word.length == 0:
+        try u.fail(f"cannot read `{c.rest()}`")
+    if word.bytes[0] == '.':
+        if try directives.directive(u, word, &c):
+            return
+        if try tables.procedures.directive(u, word, &c) or try tables.frames.directive(u, word, &c) or try tables.rows.directive(u, word, &c):
+            return
+        try u.fail(f"unknown directive `{word}`")
+    try tables.rows.instruction(u)
+    try encoder.instruction(u, word, &c)
+    u.open().after_data = false
+
+# mark: Tests =================================================================================
+
+## The bytes of `text`'s `.text` and its relocations, as `object_from` makes them.
+func text_of(text: str) -> (const u8[], const object.Relocation[], object.Object)!:
+    let o = try object_from(text.bytes, "gen.s")
+    let section = o.sections.items[0]
+    return (section.bytes[..<section.used], section.relocations.span(), o)
+
+test "instructions assemble to the bytes GNU as chooses":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let (bytes, _, _) = try text_of("f:\n    movq %rax, %rbx\n    addq $1000, %rax\n    addq $8, %rsp\n    vaddsd %xmm8, %xmm2, %xmm3\n    movq 0(%rsp), %rcx\n    jmp f\n")
+        let expected: u8[24] = [0x48, 0x89, 0xC3, 0x48, 0x05, 0xE8, 0x03, 0, 0, 0x48, 0x83, 0xC4, 0x08, 0xC4, 0xC1, 0x6B, 0x58, 0xD8, 0x48, 0x8B, 0x0C,
+                                0x24, 0xEB, 0xE8]
+        assert(bytes.length == 24)
+        for k in 0..<bytes.length:
+            assert(bytes[k] == expected[k])
+
+test "a jump grows when its label is past a byte's reach":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let (bytes, _, _) = try text_of("    jne far\n    .zero 200, 0x90\nfar:\n    ret\n")
+        assert(bytes.length == 207 and bytes[0] == 0x0F and bytes[1] == 0x85 and bytes[2] == 200 and bytes[3] == 0)
+
+test "a call outside the object is a relocation against its symbol":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let (bytes, relocations, o) = try text_of("    call elsewhere\n    leaq here(%rip), %rax\nhere:\n    ret\n")
+        assert(bytes.length == 13 and bytes[0] == 0xE8 and bytes[8] == 0 and bytes[9] == 0)
+        assert(relocations.length == 1 and relocations[0].offset == 1 and relocations[0].fix == object.Fix.relative32)
+        assert(o.symbols.items[relocations[0].symbol].name == "elsewhere")
+
+test "an instruction it does not know stops it at the line":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var failed = false
+        _ = object_from("    ret\n    frobnicate %rax\n".bytes, "gen.s") catch failure:
+            assert(failure.code == state.rejected and failure.message == "gen.s:2: unknown instruction `frobnicate`")
+            failed = true
+        assert(failed)

@@ -1,0 +1,210 @@
+#==============================================================================================
+#
+#   directives - Sections, symbols and data
+#
+#   DESCRIPTION:
+#       The directives every object needs whatever its instructions: switching sections
+#       (`.text`, `.data`, `.bss`, `.section` with COFF's flag letters), declaring symbols
+#       (`.globl`, `.weak`), data of every width with expressions the layout or the linker
+#       finishes (`.byte` … `.quad`, `.rva`, `.secrel32`, the LEB128s), strings, zeros and
+#       alignment. The unwind, frame and line directives have modules of their own.
+#
+#==============================================================================================
+
+import back.assemble.expressions
+import back.assemble.object
+import back.assemble.source
+import back.assemble.state
+import memory
+
+## Do the directive `name`, its arguments at `c`; false when it is not one of these.
+pub func directive(u: state.Unit*, name: str, c: source.Cursor*) -> bool!:
+    match name:
+        ".text": u.current = try u.section(".text", object.Content.code, false, true, true)
+        ".data": u.current = try u.section(".data", object.Content.data, true, true, true)
+        ".bss": u.current = try u.section(".bss", object.Content.zeroed, true, true, true)
+        ".section": try section(u, c)
+        ".globl", ".global": try symbols(u, c, false)
+        ".weak": try symbols(u, c, true)
+        ".byte": try data(u, c, 1, state.Meaning.absolute)
+        ".short", ".word", ".2byte", ".value": try data(u, c, 2, state.Meaning.absolute)
+        ".long", ".int", ".4byte": try data(u, c, 4, state.Meaning.absolute)
+        ".quad", ".8byte": try data(u, c, 8, state.Meaning.absolute)
+        ".rva": try data(u, c, 4, state.Meaning.image)
+        ".secrel32": try data(u, c, 4, state.Meaning.section_relative)
+        ".secidx": try data(u, c, 2, state.Meaning.section_index)
+        ".uleb128": try leb(u, c, false)
+        ".sleb128": try leb(u, c, true)
+        ".ascii": try strings(u, c, false)
+        ".asciz", ".string": try strings(u, c, true)
+        ".zero", ".space", ".skip": try zeros(u, c)
+        ".p2align": try align(u, c, true)
+        ".balign", ".align": try align(u, c, false)
+        _: return false
+    if not c.done():
+        try u.fail(f"unexpected `{c.rest()}` after `{name}`")
+    return true
+
+# mark: Sections and symbols ==================================================================
+
+## `.section name[, "flags"]`: COFF's letters, `x` code, `d` data, `b` zeroed, `r` read only,
+## `w` writable; with none, writable data. A `.debug` section is never loaded.
+func section(u: state.Unit*, c: source.Cursor*) -> !:
+    let name = c.name()
+    if name.length == 0:
+        try u.fail("`.section` needs a name")
+    let debug = state.starts(name, ".debug")
+    var content = object.Content.data
+    var writable = not debug
+    if c.take(','):
+        var room: u8[16]
+        let n = source.string(c, room) else return try u.fail("expected the section's flags in quotes")
+        writable = false
+        for b in room[..<n]:
+            match b:
+                'x': content = object.Content.code
+                'd': content = object.Content.data
+                'b':
+                    content = object.Content.zeroed
+                    writable = true
+                'w': writable = true
+                'r': writable = false
+                _: try u.fail(f"section flag `{(str)room[..<n]}` is not supported")
+    u.current = try u.section(name, content, writable, not debug, true)
+
+## `.globl` or `.weak` and its names.
+func symbols(u: state.Unit*, c: source.Cursor*, weak: bool) -> !:
+    while true:
+        let name = c.name()
+        if name.length == 0:
+            try u.fail("expected a symbol's name")
+        let s = &u.symbols.items[try u.symbol(name)]
+        if weak:
+            s.weak = true
+        else:
+            s.external = true
+        s.hidden = false
+        if not c.take(','):
+            return
+
+# mark: Data ==================================================================================
+
+## A list of expressions, each `size` bytes: numbers as they are, the rest fixups.
+func data(u: state.Unit*, c: source.Cursor*, size: u8, meaning: state.Meaning) -> !:
+    u.open().after_data = true
+    while true:
+        let v = try expressions.evaluate(u, c)
+        if v.is_constant() and meaning == state.Meaning.absolute:
+            try u.little((u64)v.constant, (usize)size)
+        else:
+            try u.fixup(size, state.Meaning.section_relative if v.section_relative else meaning, v)
+        if not c.take(','):
+            return
+
+## A list of LEB128 numbers: a number's bytes now, a distance's once the layout is final.
+func leb(u: state.Unit*, c: source.Cursor*, signed: bool) -> !:
+    u.open().after_data = true
+    while true:
+        let v = try expressions.evaluate(u, c)
+        if v.is_constant():
+            try put_leb(u, v.constant, signed)
+        else:
+            try u.piece(state.Shape.sleb if signed else state.Shape.uleb, 1, v)
+        if not c.take(','):
+            return
+
+## `v` as a LEB128.
+pub func put_leb(u: state.Unit*, v: i64, signed: bool) -> !:
+    var rest = v
+    while true:
+        let low = (u8)(rest & 0x7F)
+        rest = rest >> 7 if signed else (i64)((u64)rest >> 7)
+        let done = (rest == 0 and (low & 0x40) == 0) or (rest == -1 and (low & 0x40) != 0) if signed else rest == 0
+        try u.byte(low if done else low | 0x80)
+        if done:
+            return
+
+## The bytes of LEB128 `v`.
+pub func leb_size(v: i64, signed: bool) -> u64:
+    var rest = v
+    var n: u64 = 0
+    while true:
+        let low = rest & 0x7F
+        rest = rest >> 7 if signed else (i64)((u64)rest >> 7)
+        n += 1
+        if signed:
+            if (rest == 0 and (low & 0x40) == 0) or (rest == -1 and (low & 0x40) != 0):
+                return n
+        elif rest == 0:
+            return n
+    return n
+
+## A list of quoted strings, each followed by a zero when `terminated`.
+func strings(u: state.Unit*, c: source.Cursor*, terminated: bool) -> !:
+    u.open().after_data = true
+    let room = try new u8[c.text.length] ---
+    defer free(room)
+    while true:
+        let n = source.string(c, room) else return try u.fail("expected a quoted string")
+        for b in room[..<n]:
+            try u.byte(b)
+        if terminated:
+            try u.byte(0)
+        if not c.take(','):
+            return
+
+## `.zero count` or `.space count[, fill]`.
+func zeros(u: state.Unit*, c: source.Cursor*) -> !:
+    u.open().after_data = true
+    let count = try expressions.evaluate(u, c)
+    var fill: i64 = 0
+    if c.take(','):
+        let v = try expressions.evaluate(u, c)
+        if not v.is_constant():
+            try u.fail("a fill is a number")
+        fill = v.constant
+    if not count.is_constant() or count.constant < 0:
+        try u.fail("a count of bytes is a number")
+    try u.fill((u64)count.constant, (u8)fill)
+
+## `.p2align power[, fill[, most]]`, or `.balign bytes[, fill[, most]]`: padding to the
+## alignment, which the section takes on; in code, without a fill, no-operations.
+func align(u: state.Unit*, c: source.Cursor*, power_given: bool) -> !:
+    let first = try expressions.evaluate(u, c)
+    if not first.is_constant() or first.constant < 0:
+        try u.fail("an alignment is a number")
+    var power: i64 = 0
+    if power_given:
+        if first.constant > 30:
+            try u.fail("an alignment past 2^30")
+        power = first.constant
+    else:
+        while ((i64)1 << power) < first.constant:
+            power += 1
+        if ((i64)1 << power) != first.constant:
+            try u.fail("an alignment is a power of two")
+    var fill: i64 = -1
+    var most: u64 = 0
+    if c.take(','):
+        if c.peek() != ',':
+            let v = try expressions.evaluate(u, c)
+            if not v.is_constant():
+                try u.fail("a fill is a number")
+            fill = v.constant & 0xFF
+        if c.take(','):
+            let v = try expressions.evaluate(u, c)
+            if not v.is_constant() or v.constant < 0:
+                try u.fail("the most padding is a number")
+            most = (u64)v.constant
+    if most == 0:
+        u.align_at_least((u64)1 << (u64)power)
+    let s = u.open()
+    if s.content == object.Content.zeroed:
+        # nothing to write: the reserved size rounds up
+        let size = (u64)1 << (u64)power
+        s.reserved = (s.reserved + size - 1) & ~(size - 1)
+        return
+    let nops = fill < 0 and s.content == object.Content.code
+    # padding in code starts with a one-byte no-operation after data
+    let code = (1 if s.after_data else 0) if nops else (u8)(fill if fill >= 0 else 0)
+    try u.piece(state.Shape.pad if nops else state.Shape.align, 0, state.Value.number(0), code = code, power = (u8)power, limit = most)

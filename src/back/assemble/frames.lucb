@@ -1,0 +1,274 @@
+#==============================================================================================
+#
+#   frames - `.eh_frame` from `.cfi_` directives
+#
+#   DESCRIPTION:
+#       Between `.cfi_startproc` and `.cfi_endproc` each directive records a call frame
+#       instruction, after an advance to where it stands when code came between. Once the
+#       layout is final each procedure becomes an FDE, sharing a CIE with the procedures
+#       whose instructions begin alike, as GNU `as` writes `.eh_frame` for x86-64 Windows:
+#       a `zR` CIE with PC-relative four-byte addresses, the return address in column 32,
+#       the instructions before the first advance in the CIE, each entry padded with
+#       `DW_CFA_nop` to four bytes and the last to eight.
+#
+#==============================================================================================
+
+import back.assemble.directives
+import back.assemble.expressions
+import back.assemble.object
+import back.assemble.source
+import back.assemble.state
+import support.list
+
+# mark: Recording =============================================================================
+
+## The call frame instructions, as DWARF numbers them; `advance` stands for the advance_loc
+## forms, chosen by the distance.
+let advance: u8 = 0x40
+let offset_rule: u8 = 0x80
+let restore_rule: u8 = 0xC0
+let remember_state: u8 = 0x0A
+let restore_state: u8 = 0x0B
+let def_cfa: u8 = 0x0C
+let def_cfa_register: u8 = 0x0D
+let def_cfa_offset: u8 = 0x0E
+
+## The return address's column on x86-64 Windows.
+let return_column: u64 = 32
+## The data alignment factor is -8: a saved register's offset is in eights below the frame.
+## (LUCE-BUG: its magnitude here, since luce-seed 115e1f0 cannot emit a negative constant
+## as a static initialiser.)
+let data_factor: i64 = 8
+
+## One call frame instruction: an advance from one place to another, or a rule.
+struct Step:
+    var operation: u8
+    var register: u64
+    var offset: i64
+    var since: state.Place
+    var until: state.Place
+
+## A procedure: its section, its extent, its steps.
+struct Entry:
+    var section: u32
+    var start: state.Place
+    var end: state.Place
+    var first: usize
+    var count: usize
+
+## A CIE written: its place in `.eh_frame` and the steps it begins with.
+struct Common:
+    var at: usize
+    var first: usize
+    var count: usize
+
+## The procedures of a unit.
+pub struct Frames:
+    var steps: list.List[Step]
+    var entries: list.List[Entry]
+    var open: bool
+    var current: Entry
+    ## Where the last instruction was recorded.
+    var last: state.Place
+
+    ## No procedures yet.
+    pub static func create() -> Frames!:
+        return Frames(steps = try list.List[Step].create(1024), entries = try list.List[Entry].create(256), open = false)
+
+    ## Do the `.cfi_` directive `name`, its arguments at `c`; false when it is not one.
+    pub func directive(u: state.Unit*, name: str, c: source.Cursor*) -> bool!:
+        if not state.starts(name, ".cfi_"):
+            return false
+        if name == ".cfi_startproc":
+            if self.open:
+                try u.fail("`.cfi_startproc` inside another")
+            let here = u.here()
+            self.current = Entry(section = u.current, start = here, end = here, first = self.steps.count, count = 0)
+            self.last = here
+            self.open = true
+            if c.name() != "simple":
+                # the machine's state at a call: the frame 8 above rsp, the return address there
+                try self.step(def_cfa, 7, 8)
+                try self.step(offset_rule, return_column, -8)
+            return true
+        if not self.open:
+            try u.fail(f"`{name}` outside `.cfi_startproc`")
+        if name == ".cfi_endproc":
+            self.current.end = u.here()
+            self.current.count = self.steps.count - self.current.first
+            try self.entries.push(self.current)
+            self.open = false
+            return true
+        let here = u.here()
+        if here.offset != self.last.offset or here.pieces != self.last.pieces:
+            try self.steps.push(Step(operation = advance, register = 0, offset = 0, since = self.last, until = here))
+            self.last = here
+        match name:
+            ".cfi_def_cfa":
+                let register = try number(u, c)
+                if not c.take(','):
+                    try u.fail("expected `,` and an offset")
+                try self.step(def_cfa, (u64)register, try number(u, c))
+            ".cfi_def_cfa_offset": try self.step(def_cfa_offset, 0, try number(u, c))
+            ".cfi_def_cfa_register": try self.step(def_cfa_register, (u64)try number(u, c), 0)
+            ".cfi_offset":
+                let register = try number(u, c)
+                if not c.take(','):
+                    try u.fail("expected `,` and an offset")
+                try self.step(offset_rule, (u64)register, try number(u, c))
+            ".cfi_restore": try self.step(restore_rule, (u64)try number(u, c), 0)
+            ".cfi_remember_state": try self.step(remember_state, 0, 0)
+            ".cfi_restore_state": try self.step(restore_state, 0, 0)
+            _: try u.fail(f"`{name}` is not supported")
+        return true
+
+    func step(operation: u8, register: u64, offset: i64) -> !:
+        let nowhere = state.Place(section = 0, offset = 0, pieces = 0)
+        try self.steps.push(Step(operation = operation, register = register, offset = offset, since = nowhere, until = nowhere))
+
+    # mark: Writing ===========================================================================
+
+    ## `.eh_frame`, once the layout is final.
+    pub func finish(u: state.Unit*) -> !:
+        if self.open:
+            try u.fail("`.cfi_startproc` without `.cfi_endproc`")
+        if self.entries.count == 0:
+            return
+        let was = u.current
+        u.current = try u.section(".eh_frame", object.Content.data, false, true, true)
+        u.align_at_least(8)
+        var commons = try list.List[Common].create(4)
+        for (k, e) in self.entries.span().indexed():
+            var shared = self.common_of(&e, commons.span())
+            if shared == none:
+                # the steps before the first advance or remembered state begin the CIE
+                var count: usize = 0
+                while count < e.count and not starts_body(&self.steps.items[e.first + count]):
+                    count += 1
+                try commons.push(Common(at = u.open().bytes.used, first = e.first, count = count))
+                try self.write_common(u, &commons.items[commons.count - 1])
+                shared = commons.count - 1
+            let common = commons.get(shared else 0)
+            try self.write_entry(u, &e, &common, k + 1 == self.entries.count)
+        u.current = was
+
+    ## The CIE `e` begins as, when one does: its steps are `e`'s first, which then end or
+    ## go on with an advance or a remembered state.
+    func common_of(e: const Entry*, commons: const Common[]) -> usize?:
+        for (k, c) in commons.indexed():
+            if c.count > e.count:
+                continue
+            var same = true
+            for n in 0..<c.count:
+                let a = &self.steps.items[c.first + n]
+                let b = &self.steps.items[e.first + n]
+                same = same and a.operation == b.operation and a.register == b.register and a.offset == b.offset
+            if same and (c.count == e.count or starts_body(&self.steps.items[e.first + c.count])):
+                return k
+        return none
+
+    ## A CIE with the first steps of `c`.
+    func write_common(u: state.Unit*, c: const Common*) -> !:
+        try u.little(0, 4)
+        try u.little(0, 4)
+        try u.byte(1)
+        for b in [(u8)'z', (u8)'R', 0u8]:
+            try u.byte(b)
+        try directives.put_leb(u, 1, false)
+        try directives.put_leb(u, 0 - data_factor, true)
+        try u.byte((u8)return_column)
+        try directives.put_leb(u, 1, false)
+        # FDE addresses: PC-relative, four signed bytes
+        try u.byte(0x1B)
+        for n in 0..<c.count:
+            try self.write_step(u, 0, &self.steps.items[c.first + n])
+        try close(u, c.at, 4)
+
+    ## The FDE of `e`, its CIE `c`.
+    func write_entry(u: state.Unit*, e: const Entry*, c: const Common*, last: bool) -> !:
+        let at = u.open().bytes.used
+        let text = &u.sections.items[e.section]
+        try u.little(0, 4)
+        try u.little((u64)(at + 4 - c.at), 4)
+        # the start, from this field: the address four bytes on, less the field's end
+        try u.fixup(4, state.Meaning.relative, state.Value(constant = 4, symbol = try u.symbol_at(e.start) + 1, minus = 0, section_relative = false))
+        try u.little(text.address(e.end) - text.address(e.start), 4)
+        try directives.put_leb(u, 0, false)
+        for n in c.count..<e.count:
+            try self.write_step(u, e.section, &self.steps.items[e.first + n])
+        try close(u, at, 8 if last else 4)
+
+    ## Step `s`, its advances measured in section `section`.
+    func write_step(u: state.Unit*, section: u32, s: const Step*) -> !:
+        let op = s.operation
+        if op == advance:
+            let text = &u.sections.items[section]
+            let delta = text.address(s.until) - text.address(s.since)
+            if delta == 0:
+                return
+            if delta < 0x40:
+                try u.byte(advance | (u8)delta)
+            elif delta < 0x100:
+                try u.byte(0x02)
+                try u.byte((u8)delta)
+            elif delta < 0x10000:
+                try u.byte(0x03)
+                try u.little(delta, 2)
+            else:
+                try u.byte(0x04)
+                try u.little(delta, 4)
+        elif op == offset_rule:
+            if s.offset % data_factor != 0:
+                try u.fail("a saved register's offset is a multiple of 8")
+            let factored = (0 - s.offset) // data_factor
+            if factored >= 0 and s.register < 64:
+                try u.byte(offset_rule | (u8)s.register)
+                try directives.put_leb(u, factored, false)
+            elif factored >= 0:
+                try u.byte(0x05)
+                try directives.put_leb(u, (i64)s.register, false)
+                try directives.put_leb(u, factored, false)
+            else:
+                try u.byte(0x11)
+                try directives.put_leb(u, (i64)s.register, false)
+                try directives.put_leb(u, factored, true)
+        elif op == restore_rule:
+            if s.register < 64:
+                try u.byte(restore_rule | (u8)s.register)
+            else:
+                try u.byte(0x06)
+                try directives.put_leb(u, (i64)s.register, false)
+        elif op == def_cfa:
+            try u.byte(def_cfa if s.offset >= 0 else 0x12)
+            try directives.put_leb(u, (i64)s.register, false)
+            try directives.put_leb(u, s.offset if s.offset >= 0 else (0 - s.offset) // data_factor, s.offset < 0)
+        elif op == def_cfa_offset:
+            try u.byte(def_cfa_offset if s.offset >= 0 else 0x13)
+            try directives.put_leb(u, s.offset if s.offset >= 0 else (0 - s.offset) // data_factor, s.offset < 0)
+        elif op == def_cfa_register:
+            try u.byte(def_cfa_register)
+            try directives.put_leb(u, (i64)s.register, false)
+        else:
+            try u.byte(op)
+
+## Whether `s` ends the steps a CIE may hold: an advance, or a remembered state.
+func starts_body(s: const Step*) -> bool:
+    return s.operation == advance or s.operation == remember_state
+
+## Pad the entry begun at `at` with `DW_CFA_nop` to `alignment`, then set its length.
+func close(u: state.Unit*, at: usize, alignment: usize) -> !:
+    while u.open().bytes.used % alignment != 0:
+        try u.byte(0)
+    let length = u.open().bytes.used - at - 4
+    let bytes = u.open().bytes.written()
+    var rest = length
+    for k: usize in 0..<4:
+        bytes[at + k] = (u8)rest
+        rest = rest >> 8
+
+## A signed number argument.
+func number(u: state.Unit*, c: source.Cursor*) -> i64!:
+    let v = try expressions.evaluate(u, c)
+    if not v.is_constant():
+        try u.fail("expected a number; registers are written as DWARF numbers")
+    return v.constant

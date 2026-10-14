@@ -1,0 +1,261 @@
+#==============================================================================================
+#
+#   source - Reading assembly text: statements, names, numbers and strings
+#
+#   DESCRIPTION:
+#       GNU `as`'s AT&T source: a statement per line, or several split by `;`, a `#`
+#       comment to the line's end, labels before a statement. A `Cursor` walks one
+#       statement's text; the readers here take what every part of the assembler spells
+#       the same way: a symbol's name, a number in any of `as`'s bases, a quoted string
+#       with its escapes.
+#
+#==============================================================================================
+
+# mark: Statements ============================================================================
+
+## The statements of a source, line by line.
+pub struct Lines:
+    ## The whole source.
+    pub var text: const u8[]
+    ## Where the next line starts.
+    pub var at: usize
+    ## The current line's number, from 1.
+    pub var line: u32
+    ## The rest of the current line after the statement `next` answered last.
+    var pending: usize
+    var pending_end: usize
+
+    ## The statements of `text`.
+    pub static func over(text: const u8[]) -> Lines:
+        return Lines(text = text, at = 0, line = 0, pending = 0, pending_end = 0)
+
+    ## The next statement, comments and surrounding blanks gone; none at the source's end.
+    ## `line` is its line.
+    pub func next() -> const u8[]?:
+        while true:
+            if self.pending < self.pending_end:
+                let statement = self.statement(self.pending, self.pending_end)
+                if statement.length > 0:
+                    return statement
+                continue
+            if self.at >= self.text.length:
+                return none
+            var end = self.at
+            while end < self.text.length and self.text[end] != '\n':
+                end += 1
+            self.line += 1
+            self.pending = self.at
+            self.pending_end = end
+            self.at = end + 1
+        return none
+
+    ## The statement starting at `first`, up to a `;` or a comment outside a string, and
+    ## where the next one starts.
+    func statement(first: usize, end: usize) -> const u8[]:
+        var i = first
+        var quoted = false
+        var stop = end
+        var after = end
+        while i < end:
+            let b = self.text[i]
+            if quoted:
+                if b == '\\':
+                    i += 1
+                elif b == '"':
+                    quoted = false
+            elif b == '"':
+                quoted = true
+            elif b == '#':
+                stop = i
+                after = end
+                break
+            elif b == ';':
+                stop = i
+                after = i + 1
+                break
+            i += 1
+        self.pending = after
+        return trimmed(self.text[first..<stop])
+
+## `text` without blanks at either end.
+pub func trimmed(text: const u8[]) -> const u8[]:
+    var start: usize = 0
+    var end = text.length
+    while start < end and blank(text[start]):
+        start += 1
+    while end > start and blank(text[end - 1]):
+        end -= 1
+    return text[start..<end]
+
+## Whether `b` separates words.
+pub func blank(b: u8) -> bool:
+    return b == ' ' or b == '\t' or b == '\r'
+
+# mark: The cursor ============================================================================
+
+## A walk over one statement.
+pub struct Cursor:
+    ## The statement.
+    pub var text: const u8[]
+    ## Where the next byte is read.
+    pub var at: usize
+
+    ## A cursor at the start of `text`.
+    pub static func over(text: const u8[]) -> Cursor:
+        return Cursor(text = text, at = 0)
+
+    ## Past any blanks. The cursor's loops are the assembler's hottest: they keep the
+    ## position in a local and test bytes in place.
+    pub func skip_blanks():
+        let t = self.text
+        var at = self.at
+        while at < t.length:
+            let b = t[at]
+            if b != ' ' and b != '\t' and b != '\r':
+                break
+            at +%= 1
+        self.at = at
+
+    ## Whether only blanks are left.
+    pub func done() -> bool:
+        self.skip_blanks()
+        return self.at >= self.text.length
+
+    ## The next byte after any blanks, 0 at the end.
+    pub func peek() -> u8:
+        self.skip_blanks()
+        return self.text[self.at] if self.at < self.text.length else 0
+
+    ## The byte after the next one, 0 past the end.
+    pub func peek_second() -> u8:
+        return self.text[self.at + 1] if self.at + 1 < self.text.length else 0
+
+    ## Take `b` when it is next, after any blanks.
+    pub func take(b: u8) -> bool:
+        if self.peek() == b:
+            self.at += 1
+            return true
+        return false
+
+    ## The name that starts here (`name_start`, then `name_part`s), after any blanks;
+    ## empty when none does.
+    pub func name() -> str:
+        self.skip_blanks()
+        let t = self.text
+        let start = self.at
+        var at = start
+        if at < t.length and name_start(t[at]):
+            at +%= 1
+            while at < t.length:
+                let b = t[at]
+                # a letter of either case, a digit, `_`, `.` or `$`
+                if ((b | 0x20) -% 'a') >= 26 and (b -% '0') >= 10 and b != '_' and b != '.' and b != '$':
+                    break
+                at +%= 1
+        self.at = at
+        return (str)t[start..<at]
+
+    ## The rest of the statement, blanks trimmed.
+    pub func rest() -> str:
+        return (str)trimmed(self.text[self.at..])
+
+## Whether `b` may begin a symbol's name.
+pub func name_start(b: u8) -> bool:
+    return (b >= 'a' and b <= 'z') or (b >= 'A' and b <= 'Z') or b == '_' or b == '.' or b == '$'
+
+## Whether `b` may continue a symbol's name.
+pub func name_part(b: u8) -> bool:
+    return name_start(b) or (b >= '0' and b <= '9')
+
+## Whether `b` is a decimal digit.
+pub func digit(b: u8) -> bool:
+    return b >= '0' and b <= '9'
+
+# mark: Numbers and strings ===================================================================
+
+## The number at the cursor, as GNU `as` reads it: `0x` hexadecimal, `0b` binary, a leading
+## `0` octal, else decimal; wrapping to 64 bits. None when no digit is there.
+pub func number(c: Cursor*) -> u64?:
+    c.skip_blanks()
+    let t = c.text
+    if c.at >= t.length or not digit(t[c.at]):
+        return none
+    var radix: u64 = 10
+    if t[c.at] == '0' and c.at + 1 < t.length:
+        let second = t[c.at + 1]
+        if second == 'x' or second == 'X':
+            radix = 16
+            c.at += 2
+        elif second == 'b' or second == 'B':
+            radix = 2
+            c.at += 2
+        elif digit(second):
+            radix = 8
+            c.at += 1
+    var value: u64 = 0
+    while c.at < t.length:
+        let d = digit_value(t[c.at]) else break
+        if d >= radix:
+            break
+        value = value *% radix +% d
+        c.at += 1
+    return value
+
+## The value of `b` as a digit of any base up to sixteen.
+func digit_value(b: u8) -> u64?:
+    if b >= '0' and b <= '9':
+        return (u64)(b - '0')
+    if b >= 'a' and b <= 'f':
+        return (u64)(b - 'a') + 10
+    if b >= 'A' and b <= 'F':
+        return (u64)(b - 'A') + 10
+    return none
+
+## The bytes of the quoted string at the cursor, its escapes read, into `out`; how many.
+## None when no string starts here or it does not end on the line.
+pub func string(c: Cursor*, out: u8[]) -> usize?:
+    if not c.take('"'):
+        return none
+    let t = c.text
+    var n: usize = 0
+    while c.at < t.length:
+        var b = t[c.at]
+        c.at += 1
+        if b == '"':
+            return n
+        if b == '\\' and c.at < t.length:
+            b = escaped(c)
+        if n == out.length:
+            return none
+        out[n] = b
+        n += 1
+    return none
+
+## The byte an escape stands for; the cursor is after its backslash.
+func escaped(c: Cursor*) -> u8:
+    let t = c.text
+    let b = t[c.at]
+    c.at += 1
+    if b >= '0' and b <= '7':
+        # up to three octal digits
+        var v: u32 = (u32)(b - '0')
+        var k = 1
+        while k < 3 and c.at < t.length and t[c.at] >= '0' and t[c.at] <= '7':
+            v = v * 8 + (u32)(t[c.at] - '0')
+            c.at += 1
+            k += 1
+        return (u8)v
+    if b == 'x' or b == 'X':
+        var v: u32 = 0
+        while c.at < t.length:
+            let d = digit_value(t[c.at]) else break
+            v = v * 16 + u32(d)
+            c.at += 1
+        return (u8)v
+    return match b:
+        'n' => '\n'
+        't' => '\t'
+        'r' => 13
+        'b' => 8
+        'f' => 12
+        _ => b

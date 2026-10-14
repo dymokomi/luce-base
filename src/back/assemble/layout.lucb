@@ -1,0 +1,223 @@
+#==============================================================================================
+#
+#   layout - Where everything lands, and the object it makes
+#
+#   DESCRIPTION:
+#       The pieces of every section start small: a jump short, an alignment as its address
+#       asks. Passes over the sections then size each piece from where its target lands,
+#       as GNU `as` relaxes: a place before the piece where this pass put it, one after it
+#       where the last pass did, moved by what this pass has grown so far. A jump only
+#       grows, so the passes end, each a walk of the pieces; the layout is final when one
+#       changes nothing. The object then takes each section's bytes with the pieces
+#       written in and the fixups resolved: a distance within a section, or a jump or
+#       displacement to a place in it, becomes a number; anything else a relocation, the
+#       addend in place, against the section's own symbol for a place defined here, or the
+#       symbol itself when it is undefined or weak.
+#
+#==============================================================================================
+
+import back.assemble.contents
+import back.assemble.directives
+import back.assemble.object
+import back.assemble.state
+import memory
+import strings
+import support.list
+
+# mark: Settling the pieces ===================================================================
+
+## Size every piece of every section from where things land, until nothing changes.
+pub func settle(u: state.Unit*) -> !:
+    for i in 0..<u.sections.count:
+        let s = &u.sections.items[i]
+        let n = s.pieces.count
+        if s.growth.length != n + 1:
+            s.growth = try new u64[n + 1] ---
+            s.regions = try new u32[n + 1] ---
+        var running: u64 = 0
+        var region: u32 = 0
+        for k in 0..<n:
+            s.growth[k] = running
+            s.regions[k] = region
+            let p = &s.pieces.items[k]
+            running += p.size
+            if p.shape == state.Shape.align or p.shape == state.Shape.pad:
+                region += 1
+        s.growth[n] = running
+        s.regions[n] = region
+    var passes = 0
+    while true:
+        var changed = false
+        for i in 0..<u.sections.count:
+            if try relax(u, u32(i)):
+                changed = true
+        if not changed:
+            return
+        passes += 1
+        if passes > 1000:
+            try u.fail("the layout does not settle")
+
+## One pass over section `i`'s pieces; whether one changed size.
+func relax(u: state.Unit*, i: u32) -> bool!:
+    let s = &u.sections.items[i]
+    var running: u64 = 0
+    var changed = false
+    for k in 0..<s.pieces.count:
+        let p = &s.pieces.items[k]
+        let stretch = (i64)running - (i64)s.growth[k]
+        s.growth[k] = running
+        let address = p.at + running
+        var size = p.size
+        match p.shape:
+            .jump, .branch:
+                if size == 2 and not try reaches(u, i, k, stretch, p, address):
+                    size = 5 if p.shape == state.Shape.jump else 6
+            .align, .pad:
+                size = padding(address, p.power, p.limit)
+            .uleb, .sleb:
+                u.line = p.line
+                size = directives.leb_size(try distance(u, i, k, stretch, p.value), p.shape == state.Shape.sleb)
+        if size != p.size:
+            changed = true
+            p.size = size
+        running += size
+    s.growth[s.pieces.count] = running
+    return changed
+
+## Where `place` is during the pass over section `i` at piece `k`: placed already when it
+## is before the piece, else where the last pass put it, moved by `stretch`.
+func address_in_pass(u: state.Unit*, i: u32, k: usize, stretch: i64, place: state.Place) -> u64:
+    let s = &u.sections.items[place.section]
+    let address = place.offset + s.growth[place.pieces]
+    if place.section != i or (usize)place.pieces <= k:
+        return address
+    return (u64)((i64)address + stretch)
+
+## Whether the two-byte jump `p` at `address`, piece `k` of section `i`, reaches its
+## target: a label in the same section, not weak, within a signed byte of the jump's end.
+## A label this pass has not reached yet moves with the growth so far, unless an alignment
+## lies between, which may absorb it; one that then seems behind the jump is not judged
+## until the next pass, as GNU `as` relaxes.
+func reaches(u: state.Unit*, i: u32, k: usize, stretch: i64, p: state.Piece*, address: u64) -> bool!:
+    let t = &u.symbols.items[p.value.symbol - 1]
+    if not t.defined or t.weak or t.place.section != i:
+        return false
+    let s = &u.sections.items[i]
+    var target = (i64)(t.place.offset + s.growth[t.place.pieces]) + p.value.constant
+    if (usize)t.place.pieces > k and stretch != 0:
+        if stretch < 0 or s.regions[t.place.pieces] == s.regions[k]:
+            target += stretch
+        elif target < (i64)address:
+            return true
+    let aim = target - (i64)(address + 1)
+    return aim >= -127 and aim <= 128
+
+## The padding an alignment to `2^power` needs at `address`, none past `limit`.
+func padding(address: u64, power: u8, limit: u64) -> u64:
+    let size = (u64)1 << power
+    let pad = (size - address % size) % size
+    return 0 if limit != 0 and pad > limit else pad
+
+## The value of distance `v` during a pass: both its symbols placed in one section.
+func distance(u: state.Unit*, i: u32, k: usize, stretch: i64, v: state.Value) -> i64!:
+    if v.symbol == 0 or v.minus == 0:
+        try u.fail("a LEB128 is a number or the distance between two labels")
+    let a = &u.symbols.items[v.symbol - 1]
+    let b = &u.symbols.items[v.minus - 1]
+    if not a.defined or not b.defined or a.place.section != b.place.section:
+        try u.fail(f"`{a.name}` and `{b.name}` are not both defined in one section")
+    return (i64)address_in_pass(u, i, k, stretch, a.place) - (i64)address_in_pass(u, i, k, stretch, b.place) + v.constant
+
+# mark: The object ============================================================================
+
+## The object the settled unit makes: its symbols, then each section's bytes and
+## relocations.
+pub func object_of(u: state.Unit*) -> object.Object!:
+    var o = try object.Object.create()
+    for i in 0..<u.sections.count:
+        u.sections.items[i].number = u32(i + 1)
+    try mark_referenced(u)
+    try symbols(u, &o)
+    for i in 0..<u.sections.count:
+        try o.sections.push(try contents.contents(u, u32(i)))
+    return o
+
+## Mark each symbol a relocation may name: one a fixup or a jump refers to while it is
+## undefined, or weak; and each empty section a relocation names through a place in it.
+func mark_referenced(u: state.Unit*) -> !:
+    for i in 0..<u.sections.count:
+        let s = &u.sections.items[i]
+        for f in s.fixups.span():
+            if f.value.minus == 0:
+                mark(u, f.value.symbol)
+        for p in s.pieces.span():
+            if p.shape == state.Shape.jump or p.shape == state.Shape.branch:
+                mark(u, p.value.symbol)
+    for s in u.symbols.span():
+        if s.referenced and not s.defined and state.starts(s.name, " "):
+            try u.fail("a numbered label is used but never defined")
+
+func mark(u: state.Unit*, symbol: u32):
+    if symbol == 0:
+        return
+    let s = &u.symbols.items[symbol - 1]
+    if not s.defined or s.weak:
+        s.referenced = true
+    else:
+        u.sections.items[s.place.section].referenced = true
+
+## The symbol table, in the order of GNU `as`'s COFF: the file, the local labels, the
+## sections, then the defined globals, each weak symbol's fallback where the weak symbol
+## first appeared, then the undefined and weak externals; each kind in the order its
+## symbols were first named.
+func symbols(u: state.Unit*, o: object.Object*) -> !:
+    try o.symbols.push(object.Symbol(name = "fake", section = 0, value = 0, binding = object.Binding.file, code = false, fallback = 0))
+    for s in &u.symbols.span():
+        if s.defined and not s.external and not s.weak and not s.hidden:
+            s.index = u32(o.symbols.count)
+            try o.symbols.push(defined(u, s, object.Binding.internal))
+    # every section's symbol but an empty one's (`.text`, `.data` and `.bss` aside), which
+    # only a relocation brings, and then without its auxiliary record, as GNU `as` does
+    for i in 0..<u.sections.count:
+        let s = &u.sections.items[i]
+        let empty = s.size() == 0 and i >= 3
+        if empty and not s.referenced:
+            continue
+        s.symbol = u32(o.symbols.count)
+        try o.symbols.push(object.Symbol(name = s.name, section = s.number, value = 0,
+                                         binding = object.Binding.internal if empty else object.Binding.section_base, code = false, fallback = 0))
+    # a weak symbol's fallback is named after the first defined global
+    var first = ""
+    for s in u.symbols.span():
+        if s.defined and s.external and not s.weak:
+            first = s.name
+            break
+    for s in &u.symbols.span():
+        if s.weak:
+            s.fallback = u32(o.symbols.count)
+            var room: u8[4096]
+            let name = try strings.format(room, f".weak.{s.name}.{first}")
+            var fallback = object.Symbol(name = try strings.copy(name), section = object.absolute_section, value = 0, binding = object.Binding.external,
+                                         code = false, fallback = 0)
+            if s.defined:
+                fallback = defined(u, s, object.Binding.external)
+                fallback.name = try strings.copy(name)
+            try o.symbols.push(fallback)
+        elif s.defined and s.external:
+            s.index = u32(o.symbols.count)
+            try o.symbols.push(defined(u, s, object.Binding.external))
+    for s in &u.symbols.span():
+        if s.weak:
+            s.index = u32(o.symbols.count)
+            try o.symbols.push(object.Symbol(name = s.name, section = 0, value = 0, binding = object.Binding.weak_external, code = false,
+                                             fallback = s.fallback))
+        elif not s.defined and (s.external or s.referenced):
+            # an undefined `L` name is another object's, like any other
+            s.index = u32(o.symbols.count)
+            try o.symbols.push(object.Symbol(name = s.name, section = 0, value = 0, binding = object.Binding.external, code = false, fallback = 0))
+
+## Defined symbol `s` as the object names it, with `binding`.
+func defined(u: state.Unit*, s: const state.Symbol*, binding: object.Binding) -> object.Symbol:
+    let section = &u.sections.items[s.place.section]
+    return object.Symbol(name = s.name, section = section.number, value = section.address(s.place), binding = binding,
+                         code = section.content == object.Content.code, fallback = 0)

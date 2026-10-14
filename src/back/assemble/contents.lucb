@@ -1,0 +1,201 @@
+#==============================================================================================
+#
+#   contents - A settled section's final bytes and relocations
+#
+#   DESCRIPTION:
+#       The fixed bytes with each piece written in at its settled size: a jump's short or
+#       long form, padding (GNU `as`'s no-operations in code), a LEB128. Then each fixup:
+#       a number when its value is one by now, else a relocation whose addend stays in the
+#       field. The section ends padded to its alignment, with `nop`s in code, as `as`
+#       leaves it.
+#
+#==============================================================================================
+
+import back.assemble.object
+import back.assemble.state
+import memory
+import support.list
+
+# mark: Bytes =================================================================================
+
+## Section `i` of the settled unit as the object holds it. Symbols have their indexes.
+pub func contents(u: state.Unit*, i: u32) -> object.Section!:
+    let s = &u.sections.items[i]
+    let used = s.size()
+    let size = (used + s.alignment - 1) & ~(s.alignment - 1)
+    var out = object.Section(name = s.name, content = s.content, writable = s.writable, loaded = s.loaded, readable = s.readable,
+                             alignment = s.alignment, size = size, used = used, relocations = try list.List[object.Relocation].create(0))
+    if s.content == object.Content.zeroed:
+        return out
+    var bytes = try new u8[(usize)size]
+    let fixed = s.bytes.bytes()
+    var copied: usize = 0
+    for k in 0..<s.pieces.count:
+        let p = &s.pieces.items[k]
+        let at = (usize)(p.at + s.growth[k])
+        memory.copy(bytes[copied + (usize)s.growth[k]..], fixed[copied..], (usize)p.at - copied)
+        copied = (usize)p.at
+        u.line = p.line
+        try piece(u, i, p, bytes, at, &out.relocations)
+    memory.copy(bytes[copied + (usize)s.growth[s.pieces.count]..], fixed[copied..], fixed.length - copied)
+    if s.content == object.Content.code:
+        for at in (usize)used..<(usize)size:
+            bytes[at] = 0x90
+    for f in s.fixups.span():
+        u.line = f.line
+        try fixup(u, i, &f, bytes, &out.relocations)
+    out.bytes = bytes
+    return out
+
+## The bytes of piece `p`, settled at `at`.
+func piece(u: state.Unit*, i: u32, p: const state.Piece*, bytes: u8[], at: usize, relocations: list.List[object.Relocation]*) -> !:
+    match p.shape:
+        .jump, .branch:
+            let near = p.size != 2
+            var field = at + 1
+            if p.shape == state.Shape.jump:
+                bytes[at] = 0xE9 if near else 0xEB
+            elif near:
+                bytes[at] = 0x0F
+                bytes[at + 1] = 0x80 + p.code
+                field = at + 2
+            else:
+                bytes[at] = 0x70 + p.code
+            if near:
+                try relative(u, i, p.value, field, 0, bytes, relocations)
+            else:
+                let s = &u.sections.items[i]
+                let t = &u.symbols.items[p.value.symbol - 1]
+                bytes[field] = (u8)((i64)s.address(t.place) + p.value.constant - (i64)(field + 1))
+        .align:
+            for k in 0..<(usize)p.size:
+                bytes[at + k] = p.code
+        .pad:
+            no_operations(bytes[at..<at + (usize)p.size], p.code != 0)
+        .uleb, .sleb:
+            let v = try distance(u, p.value)
+            write_leb(bytes[at..<at + (usize)p.size], v, p.shape == state.Shape.sleb)
+
+## A LEB128 of `v` filling `field`.
+func write_leb(field: u8[], v: i64, signed: bool):
+    var rest = v
+    for k in 0..<field.length:
+        let low = (u8)(rest & 0x7F)
+        rest = rest >> 7 if signed else (i64)((u64)rest >> 7)
+        field[k] = low if k + 1 == field.length else low | 0x80
+
+## GNU `as`'s padding in code: a one-byte `nop` first after data, a jump over the rest
+## when more than seven eleven-byte `nop`s would be needed, then the remainder's `nop`
+## and eleven-byte ones.
+func no_operations(field: u8[], after_data: bool):
+    var at: usize = 0
+    var count = field.length
+    if after_data and count > 0:
+        field[0] = 0x90
+        at = 1
+        count -= 1
+    if count // 11 > 7:
+        if count - 2 <= 127:
+            field[at] = 0xEB
+            field[at + 1] = (u8)(count - 2)
+            at += 2
+            count -= 2
+        else:
+            field[at] = 0xE9
+            put(field[at + 1..], (u64)(count - 5), 4)
+            at += 5
+            count -= 5
+    let last = count % 11
+    if last != 0:
+        memory.copy(field[at..], nop_of(last), last)
+        at += last
+    while at < field.length:
+        memory.copy(field[at..], nop_of(11), 11)
+        at += 11
+
+## The `nop` of each length from one byte to eleven, one after another: the one of `n`
+## bytes starts at byte `n * (n - 1) / 2`. (LUCE-BUG: bytes in an array rather than byte
+## strings, which luce-seed 115e1f0 cannot emit as static initialisers.)
+let nop_patterns: u8[66] = [0x90,
+                            0x66, 0x90,
+                            0x0F, 0x1F, 0x00,
+                            0x0F, 0x1F, 0x40, 0x00,
+                            0x0F, 0x1F, 0x44, 0x00, 0x00,
+                            0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00,
+                            0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00,
+                            0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x66, 0x2E, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x66, 0x66, 0x2E, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+## The `nop` of `n` bytes, one to eleven.
+func nop_of(n: usize) -> const u8[]:
+    let start = n * (n - 1) // 2
+    return nop_patterns[start..<start + n]
+
+# mark: Fixups ================================================================================
+
+## Fixup `f` of section `i`: its number into the bytes, or a relocation.
+func fixup(u: state.Unit*, i: u32, f: const state.Fixup*, bytes: u8[], relocations: list.List[object.Relocation]*) -> !:
+    let s = &u.sections.items[i]
+    let at = (usize)(f.at + s.growth[f.pieces])
+    let v = f.value
+    if v.minus != 0 or v.symbol == 0:
+        if f.meaning != state.Meaning.absolute or v.section_relative:
+            try u.fail("this field needs a symbol's address, not a number")
+        put(bytes[at..], (u64)(try distance(u, v) if v.minus != 0 else v.constant), (usize)f.size)
+        return
+    match f.meaning:
+        .absolute:
+            if f.size != 8 and f.size != 4:
+                try u.fail("only four or eight bytes hold an address")
+            try relocate(u, v, at, object.Fix.absolute64 if f.size == 8 else object.Fix.absolute32, 0, bytes, relocations)
+        .relative: try relative(u, i, v, at, f.trailing, bytes, relocations)
+        .image: try relocate(u, v, at, object.Fix.image32, 0, bytes, relocations)
+        .section_relative: try relocate(u, v, at, object.Fix.section32, 0, bytes, relocations)
+        .section_index: try relocate(u, v, at, object.Fix.section16, 0, bytes, relocations)
+
+## A distance between two labels of one section, settled.
+func distance(u: state.Unit*, v: state.Value) -> i64!:
+    let a = &u.symbols.items[v.symbol - 1]
+    let b = &u.symbols.items[v.minus - 1]
+    if not a.defined or not b.defined or a.place.section != b.place.section:
+        try u.fail(f"`{a.name}` and `{b.name}` are not both defined in one section")
+    let s = &u.sections.items[a.place.section]
+    return (i64)s.address(a.place) - (i64)s.address(b.place) + v.constant
+
+## A four-byte displacement at `at` from the end of an instruction `trailing` bytes after
+## the field to `v`: a number to a place in section `i`, else a relocation.
+func relative(u: state.Unit*, i: u32, v: state.Value, at: usize, trailing: u8, bytes: u8[], relocations: list.List[object.Relocation]*) -> !:
+    let t = &u.symbols.items[v.symbol - 1]
+    if t.defined and not t.weak and t.place.section == i:
+        let s = &u.sections.items[i]
+        let d = (i64)s.address(t.place) + v.constant - (i64)(at + 4 + (usize)trailing)
+        if d < -2147483648 or d > 2147483647:
+            try u.fail("a displacement past 32 bits")
+        put(bytes[at..], (u64)d, 4)
+        return
+    try relocate(u, v, at, object.Fix.relative32, -(i64)trailing, bytes, relocations)
+
+## A relocation at `at` for `v`, its addend and `adjust` in the field: against the
+## section's symbol for a place defined here, the symbol itself when it is undefined, and
+## a weak one with its own place added, as GNU `as` writes it.
+func relocate(u: state.Unit*, v: state.Value, at: usize, fix: object.Fix, adjust: i64, bytes: u8[], relocations: list.List[object.Relocation]*) -> !:
+    let t = &u.symbols.items[v.symbol - 1]
+    var symbol = t.index
+    var addend = v.constant + adjust
+    if t.defined:
+        let s = &u.sections.items[t.place.section]
+        addend += (i64)s.address(t.place)
+        if not t.weak:
+            symbol = s.symbol
+    try relocations.push(object.Relocation(offset = (u64)at, symbol = symbol, fix = fix))
+    let size: usize = 8 if fix == object.Fix.absolute64 else (2 if fix == object.Fix.section16 else 4)
+    put(bytes[at..], (u64)addend, size)
+
+## `v`'s low `size` bytes into `field`, least significant first.
+func put(field: u8[], v: u64, size: usize):
+    var rest = v
+    for k in 0..<size:
+        field[k] = (u8)rest
+        rest = rest >> 8

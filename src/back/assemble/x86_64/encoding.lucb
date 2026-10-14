@@ -1,0 +1,210 @@
+#==============================================================================================
+#
+#   encoding - An x86-64 instruction's bytes from its parts
+#
+#   DESCRIPTION:
+#       An `Encoding` gathers what an instruction is made of: prefixes, the REX or VEX
+#       bits, the opcode, the ModRM reg field and the operand ModRM's rm names, an
+#       immediate. `emit` writes them in GNU `as`'s order: segment, operand size, the
+#       repeat or mandatory prefix, lock, then REX or VEX, the opcode, ModRM, SIB, the
+#       displacement, the immediate. A memory operand takes the shortest displacement its
+#       value allows, as `as` chooses: none at 0 unless the base is rbp or r13, one byte
+#       when it fits, else four; an address relative to rip is a fixup from the end of the
+#       instruction.
+#
+#==============================================================================================
+
+# mark: The parts =============================================================================
+
+## What an instruction is made of before its bytes are written.
+struct Encoding:
+    ## `66`: a 16-bit operand, or the mandatory prefix of a vector instruction.
+    var operand16: bool
+    ## `F2` or `F3`: a repeat prefix or a vector instruction's mandatory one; 0 for none.
+    var repeat: u8
+    var lock: bool
+    ## REX.W: a 64-bit operand.
+    var wide: bool
+    ## A REX even with no bit set: `spl` to `dil`.
+    var rex: bool
+    ## No REX allowed: `ah` to `bh`.
+    var no_rex: bool
+    ## The opcode map: 0 one byte, 1 `0F`, 2 `0F 38`, 3 `0F 3A`.
+    var map: u8
+    var opcode: u8
+    ## The ModRM reg field: a register's number or the opcode's extension.
+    var reg: u8
+    ## Whether the instruction has ModRM, and the operand its rm names.
+    var modrm: bool
+    var rm: Operand
+    ## A register added to the opcode's low bits (`50+r`), 16 for none.
+    var plus: u8
+    ## The immediate's size in bytes, 0 for none, and its value.
+    var immediate_size: u8
+    var immediate: state.Value
+    ## VEX: the encoding, its `vvvv` register, its L bit.
+    var vex: bool
+    var vvvv: u8
+    var long: bool
+
+    ## Parts with nothing set but the opcode.
+    static func plain(map: u8, opcode: u8) -> Encoding:
+        return Encoding(operand16 = false, repeat = 0, lock = false, wide = false, rex = false, no_rex = false, map = map, opcode = opcode, reg = 0,
+                        modrm = false, rm = empty_operand(), plus = 16, immediate_size = 0, immediate = state.Value.number(0), vex = false,
+                        vvvv = 0, long = false)
+
+    ## Parts for an opcode with ModRM: `reg` in its reg field, `rm` its operand.
+    static func with_modrm(map: u8, opcode: u8, reg: u8, rm: Operand) -> Encoding:
+        var e = Encoding.plain(map, opcode)
+        e.modrm = true
+        e.reg = reg
+        e.rm = rm
+        return e
+
+    ## The operand size `size` (1, 2, 4, 8) of a general instruction.
+    func sized(size: u8):
+        self.operand16 = size == 2
+        self.wide = size == 8
+
+    ## The prefix bits general register `r` asks for in any position.
+    func note(r: Register):
+        if r.bank == Bank.byte and r.number >= 4 and r.number < 8:
+            self.rex = true
+        if r.bank == Bank.high_byte:
+            self.no_rex = true
+
+    ## An immediate of `size` bytes.
+    func with_immediate(size: u8, value: state.Value):
+        self.immediate_size = size
+        self.immediate = value
+
+## An operand that names nothing.
+func empty_operand() -> Operand:
+    return Operand(kind = Kind.register, register = no_register, star = false, value = state.Value.number(0), base = no_register,
+                   index = no_register, scale = 1, segment = 8, bracketed = false)
+
+## A register operand.
+func register_operand(r: Register) -> Operand:
+    var o = empty_operand()
+    o.register = r
+    return o
+
+# mark: Writing ===============================================================================
+
+## The instruction `e` describes, into the unit's current section.
+func emit(u: state.Unit*, e: Encoding*) -> !:
+    let in_memory = e.modrm and e.rm.kind == Kind.memory
+    if in_memory and e.rm.segment != 8:
+        try u.byte(0x64 if e.rm.segment == 4 else (0x65 if e.rm.segment == 5 else (0x26 + e.rm.segment * 8)))
+    # under VEX the operand-size and mandatory prefixes are its `pp` bits
+    if e.operand16 and not e.vex:
+        try u.byte(0x66)
+    if e.repeat != 0 and not e.vex:
+        try u.byte(e.repeat)
+    if e.lock:
+        try u.byte(0xF0)
+    # the extension bits: reg's high bit, the index's, and rm's, base's or the opcode register's
+    let r = e.reg >= 8
+    var x = false
+    var b = false
+    if e.modrm:
+        if in_memory:
+            x = e.rm.index.bank != Bank.absent and e.rm.index.number >= 8
+            b = e.rm.base.bank == Bank.qword and e.rm.base.number >= 8
+        else:
+            b = e.rm.register.number >= 8
+    elif e.plus != 16:
+        b = e.plus >= 8
+    if e.vex:
+        try vex_prefix(u, e, r, x, b)
+    else:
+        if e.wide or r or x or b or e.rex:
+            if e.no_rex:
+                try u.fail("`%ah` to `%bh` cannot be used with a register that needs a REX prefix")
+            try u.byte(0x40 | (8 if e.wide else 0) | (4 if r else 0) | (2 if x else 0) | (1 if b else 0))
+        if e.map >= 1:
+            try u.byte(0x0F)
+        if e.map == 2:
+            try u.byte(0x38)
+        if e.map == 3:
+            try u.byte(0x3A)
+    try u.byte(e.opcode + (e.plus & 7 if e.plus != 16 else 0))
+    if e.modrm:
+        if in_memory:
+            try address(u, e)
+        else:
+            try u.byte(0xC0 | ((e.reg & 7) << 3) | (e.rm.register.number & 7))
+    try immediate(u, e.immediate_size, e.immediate)
+
+## A VEX prefix: two bytes when the map is `0F` and neither X, B nor W is wanted, else three.
+func vex_prefix(u: state.Unit*, e: Encoding*, r: bool, x: bool, b: bool) -> !:
+    let pp: u8 = 1 if e.operand16 else (2 if e.repeat == 0xF3 else (3 if e.repeat == 0xF2 else 0))
+    let tail = ((~e.vvvv & 15) << 3) | (4 if e.long else 0) | pp
+    if e.map == 1 and not x and not b and not e.wide:
+        try u.byte(0xC5)
+        try u.byte((0 if r else 0x80) | tail)
+        return
+    try u.byte(0xC4)
+    try u.byte((0 if r else 0x80) | (0 if x else 0x40) | (0 if b else 0x20) | e.map)
+    try u.byte((0x80 if e.wide else 0) | tail)
+
+## ModRM, SIB and displacement of memory operand `e.rm`.
+func address(u: state.Unit*, e: Encoding*) -> !:
+    let m = &e.rm
+    let reg = (e.reg & 7) << 3
+    if m.base.bank == Bank.rip:
+        try u.byte(reg | 5)
+        try displacement32(u, m.value, state.Meaning.relative, e.immediate_size)
+        return
+    let has_index = m.index.bank != Bank.absent
+    let scale: u8 = match m.scale:
+        1 => 0
+        2 => 0x40
+        4 => 0x80
+        _ => 0xC0
+    let index_bits = (m.index.number & 7) << 3 if has_index else 0x20
+    if m.base.bank == Bank.absent:
+        # no base: the SIB form with a 32-bit displacement, absolute or indexed
+        try u.byte(reg | 4)
+        try u.byte(scale | index_bits | 5)
+        try displacement32(u, m.value, state.Meaning.absolute, 0)
+        return
+    let base = m.base.number & 7
+    var mode: u8 = 0x80
+    if m.value.is_constant():
+        let d = m.value.constant
+        if d == 0 and base != 5:
+            mode = 0
+        elif d >= -128 and d <= 127:
+            mode = 0x40
+    if has_index or base == 4:
+        try u.byte(mode | reg | 4)
+        try u.byte(scale | index_bits | base)
+    else:
+        try u.byte(mode | reg | base)
+    if mode == 0x40:
+        try u.byte((u8)m.value.constant)
+    elif mode == 0x80:
+        try displacement32(u, m.value, state.Meaning.absolute, 0)
+
+## A four-byte displacement: the number, or a fixup meaning `meaning` (an address
+## relative to rip from the end of the instruction, `trailing` bytes after the field).
+func displacement32(u: state.Unit*, value: state.Value, meaning: state.Meaning, trailing: u8) -> !:
+    if value.is_constant():
+        try u.little((u64)value.constant, 4)
+        return
+    if value.section_relative:
+        try u.fixup(4, state.Meaning.section_relative, value)
+        return
+    try u.fixup(4, meaning, value, trailing)
+
+## An immediate of `size` bytes: the number, or a fixup for the symbol's address.
+func immediate(u: state.Unit*, size: u8, value: state.Value) -> !:
+    if size == 0:
+        return
+    if value.is_constant():
+        try u.little((u64)value.constant, (usize)size)
+        return
+    if size < 4:
+        try u.fail("a symbol's address does not fit an immediate this small")
+    try u.fixup(size, state.Meaning.section_relative if value.section_relative else state.Meaning.absolute, value)

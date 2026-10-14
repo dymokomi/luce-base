@@ -1,0 +1,379 @@
+#==============================================================================================
+#
+#   state - What the assembler has made of its source so far
+#
+#   DESCRIPTION:
+#       The sections being filled and the symbols named. A section holds the bytes whose
+#       size is known as they are written, and between them the pieces whose size waits
+#       on where things land: a jump that may be short, an alignment's padding, a LEB128
+#       of a distance. A place is an offset into the fixed bytes and the number of pieces
+#       before it, so it keeps its meaning while the pieces change size (`layout`). A value
+#       a field needs but the line cannot know, an address or a distance, is a fixup at its
+#       place, resolved once the layout is final or left to the linker as a relocation.
+#
+#==============================================================================================
+
+import back.assemble.lookup
+import back.assemble.object
+import memory
+import support.buffer
+import support.list
+import strings
+
+## The assembler rejected its source.
+pub let rejected: ErrorCode = ErrorCode.package(61)
+
+# mark: Values and places =====================================================================
+
+## What an expression came to: a number, plus a symbol's address, less another's. A symbol
+## is its index + 1, 0 for none.
+pub struct Value:
+    ## The number.
+    pub var constant: i64
+    ## The symbol whose address is added.
+    pub var symbol: u32
+    ## The symbol whose address is taken away.
+    pub var minus: u32
+    ## `@SECREL32`: the symbol's offset in its section rather than its address.
+    pub var section_relative: bool
+
+    ## The number `n`.
+    pub static func number(n: i64) -> Value:
+        return Value(constant = n, symbol = 0, minus = 0, section_relative = false)
+
+    ## Whether the value is a number already.
+    pub func is_constant() -> bool:
+        return self.symbol == 0 and self.minus == 0 and not self.section_relative
+
+## A place in a section before its layout is final: an offset into its fixed bytes, after
+## `pieces` of its pieces.
+pub struct Place:
+    ## The section, by index.
+    pub var section: u32
+    ## The offset into the section's fixed bytes.
+    pub var offset: u64
+    ## How many of the section's pieces come before it.
+    pub var pieces: u32
+
+## A name for a place, or for a symbol another object defines.
+pub struct Symbol:
+    ## The name as the source spells it.
+    pub var name: str
+    ## Whether a label defines it here.
+    pub var defined: bool
+    ## Where its label is, once defined.
+    pub var place: Place
+    ## `.globl`: seen by other objects.
+    pub var external: bool
+    ## `.weak`.
+    pub var weak: bool
+    ## A name the object leaves out of its symbol table: `.L` and `L` labels, the numbered
+    ## local labels, and the places the assembler names for itself.
+    pub var hidden: bool
+    ## Whether a relocation may name it: something refers to it and it is not defined, or weak.
+    pub var referenced: bool
+    ## Its index in the object (`layout`).
+    pub var index: u32
+    ## A weak symbol's fallback's index in the object.
+    pub var fallback: u32
+
+# mark: Sections ==============================================================================
+
+## What a piece of a section is.
+pub enum Shape:
+    ## `jmp` to a label: two bytes when it reaches, else five.
+    jump
+    ## A conditional jump to a label (`code` the condition): two bytes, else six.
+    branch
+    ## Padding to a power of two (`power`) with the byte `code`.
+    align
+    ## Padding to a power of two (`power`) with no-operations, in code.
+    pad
+    ## An unsigned LEB128 of `value`.
+    uleb
+    ## A signed LEB128 of `value`.
+    sleb
+
+## A run of a section whose size waits on the layout.
+pub struct Piece:
+    ## What the piece is.
+    pub var shape: Shape
+    ## The offset into the section's fixed bytes the piece stands at.
+    pub var at: u64
+    ## The piece's size in the current layout.
+    pub var size: u64
+    ## A jump's target, or a LEB128's value.
+    pub var value: Value
+    ## A conditional jump's condition; an alignment's fill byte, or for padding in code whether data came before it.
+    pub var code: u8
+    ## An alignment's power of two.
+    pub var power: u8
+    ## The most padding an alignment adds, 0 for no limit.
+    pub var limit: u64
+    ## The source line, for messages.
+    pub var line: u32
+
+## What a fixup writes.
+pub enum Meaning:
+    ## The value itself.
+    absolute
+    ## The value less the address after the field and `trailing` more bytes: an instruction's
+    ## displacement from its end.
+    relative
+    ## The value less the image's base (`.rva`).
+    image
+    ## The value less its section's start (`.secrel32`, `@SECREL32`).
+    section_relative
+    ## The number of the value's section (`.secidx`).
+    section_index
+
+## A field whose value waits on the layout, or on the linker.
+pub struct Fixup:
+    ## The field's offset into the section's fixed bytes.
+    pub var at: u64
+    ## How many of the section's pieces come before the field.
+    pub var pieces: u32
+    ## The field's size in bytes.
+    pub var size: u8
+    ## What the field is to hold.
+    pub var meaning: Meaning
+    ## The value the field holds.
+    pub var value: Value
+    ## The bytes of the instruction after a `relative` field.
+    pub var trailing: u8
+    ## The source line, for messages.
+    pub var line: u32
+
+## A section being filled.
+pub struct Section:
+    ## The section's name.
+    pub var name: str
+    ## What it holds.
+    pub var content: object.Content
+    ## Whether the loaded image may write it.
+    pub var writable: bool
+    ## Whether the loaded image keeps it.
+    pub var loaded: bool
+    ## Whether the loaded image may read it.
+    pub var readable: bool
+    ## Its alignment in bytes: the largest an alignment in it asked for.
+    pub var alignment: u64
+    ## The bytes whose size was known when they were written.
+    pub var bytes: buffer.Buffer
+    ## A zeroed section's size, which has no bytes.
+    pub var reserved: u64
+    ## The pieces, in order.
+    pub var pieces: list.List[Piece]
+    ## The fields waiting on the layout or the linker, in order.
+    pub var fixups: list.List[Fixup]
+    ## After the layout, how much the pieces before piece `k` add: `pieces.count + 1` sizes.
+    pub var growth: u64[]
+    ## How many alignments are among the pieces before piece `k`: the stretch of the code
+    ## between two alignments moves together (`layout`).
+    pub var regions: u32[]
+    ## The section's number in the object, from 1.
+    pub var number: u32
+    ## The index of the section's symbol in the object.
+    pub var symbol: u32
+    ## Whether a relocation names the section's symbol: an empty section has one only then.
+    pub var referenced: bool
+    ## Whether the last thing written was data rather than an instruction: GNU `as` then
+    ## starts code padding with a one-byte no-operation.
+    pub var after_data: bool
+
+    ## Where `p` landed, once the layout is final.
+    pub func address(p: Place) -> u64:
+        return p.offset + self.growth[p.pieces]
+
+    ## The section's size, once the layout is final.
+    pub func size() -> u64:
+        if self.content == object.Content.zeroed:
+            return self.reserved
+        return (u64)self.bytes.used + self.growth[self.pieces.count]
+
+    ## The place the next byte goes.
+    pub func here(number: u32) -> Place:
+        let offset = self.reserved if self.content == object.Content.zeroed else (u64)self.bytes.used
+        return Place(section = number, offset = offset, pieces = (u32)self.pieces.count)
+
+# mark: The unit ==============================================================================
+
+## Everything the source has made so far, and where it is.
+pub struct Unit:
+    ## The sections, in the order the source first named them.
+    pub var sections: list.List[Section]
+    ## The section being filled, by index.
+    pub var current: u32
+    ## The symbols, in the order the source first named them.
+    pub var symbols: list.List[Symbol]
+    var by_name: lookup.Lookup
+    var sections_by_name: lookup.Lookup
+    ## The source's name, for messages.
+    pub var path: str
+    ## The line being read, for messages.
+    pub var line: u32
+    ## How many times each numbered local label (`1:`) has been defined.
+    var numbered: u32[100]
+
+    ## An empty unit for source named `path`, in its `.text`, with `.data` and `.bss`
+    ## after it, as GNU `as` starts; room for `expected` symbols before its tables grow.
+    pub static func create(path: str, expected: usize) -> Unit!:
+        var u = Unit(sections = try list.List[Section].create(16), current = 0, symbols = try list.List[Symbol].create(expected),
+                     by_name = try lookup.Lookup.create(expected), sections_by_name = try lookup.Lookup.create(32), path = path, line = 0)
+        _ = try u.section(".text", object.Content.code, false, true, true)
+        _ = try u.section(".data", object.Content.data, true, true, true)
+        _ = try u.section(".bss", object.Content.zeroed, true, true, true)
+        return u
+
+    ## Stop at the current line with `message`.
+    pub func fail(message: fmt) -> never!:
+        var room: u8[1024]
+        let head = strings.format(room, f"{self.path}:{self.line}: ") catch failure:
+            error(rejected, "the assembler rejected its source")
+        let tail = strings.format(room[head.length..], message) catch failure:
+            error(rejected, head)
+        error(rejected, (str)room[..<head.length + tail.length])
+
+    # mark: Sections ==========================================================================
+
+    ## The section named `name`, made with these attributes when new; its index.
+    pub func section(name: str, content: object.Content, writable: bool, loaded: bool, readable: bool) -> u32!:
+        if let found = self.sections_by_name.find(name):
+            return found
+        let index = self.sections.count
+        let alignment: u64 = 16 if starts(name, ".text") or starts(name, ".data") or starts(name, ".rdata") or starts(name, ".bss") else (1 if not loaded else 4)
+        try self.sections.push(Section(name = name, content = content, writable = writable, loaded = loaded, readable = readable,
+                                       alignment = alignment, bytes = try buffer.Buffer.create(0 if content == object.Content.zeroed else 4096),
+                                       reserved = 0, pieces = try list.List[Piece].create(0), fixups = try list.List[Fixup].create(0)))
+        try self.sections_by_name.add(name, u32(index))
+        return u32(index)
+
+    ## The section being filled.
+    pub func open() -> Section*:
+        return &self.sections.items[self.current]
+
+    ## The place the next byte of the current section goes.
+    pub func here() -> Place:
+        return self.open().here(self.current)
+
+    ## At least `alignment` bytes of alignment for the current section.
+    pub func align_at_least(alignment: u64):
+        let s = self.open()
+        if alignment > s.alignment:
+            s.alignment = alignment
+
+    # mark: Bytes =============================================================================
+
+    ## One byte, into the current section; in a zeroed one only zero, which only reserves.
+    pub func byte(b: u8) -> !:
+        let s = self.open()
+        if s.content == object.Content.zeroed:
+            if b != 0:
+                try self.fail("a zeroed section holds only zeros")
+            s.reserved += 1
+            return
+        try s.bytes.put_byte(b)
+
+    ## `v`'s low `size` bytes, least significant first.
+    pub func little(v: u64, size: usize) -> !:
+        var rest = v
+        for _ in 0..<size:
+            try self.byte((u8)rest)
+            rest = rest >> 8
+
+    ## `count` copies of `b`.
+    pub func fill(count: u64, b: u8) -> !:
+        let s = self.open()
+        if s.content == object.Content.zeroed:
+            if b != 0:
+                try self.fail("a zeroed section holds only zeros")
+            s.reserved += count
+            return
+        for _ in 0..<count:
+            try s.bytes.put_byte(b)
+
+    ## A field of `size` bytes that `value` fills once the layout is final.
+    pub func fixup(size: u8, meaning: Meaning, value: Value, trailing: u8 = 0) -> !:
+        let s = self.open()
+        if s.content == object.Content.zeroed:
+            try self.fail("a zeroed section holds no addresses")
+        try s.fixups.push(Fixup(at = (u64)s.bytes.used, pieces = u32(s.pieces.count), size = size, meaning = meaning, value = value,
+                                trailing = trailing, line = self.line))
+        for _ in 0..<size:
+            try s.bytes.put_byte(0)
+
+    ## A piece whose size the layout decides, starting at `size`.
+    pub func piece(shape: Shape, size: u64, value: Value, code: u8 = 0, power: u8 = 0, limit: u64 = 0) -> !:
+        let s = self.open()
+        try s.pieces.push(Piece(shape = shape, at = (u64)s.bytes.used, size = size, value = value, code = code, power = power,
+                                limit = limit, line = self.line))
+
+    # mark: Symbols ===========================================================================
+
+    ## The symbol `name`, made undefined when new; its index.
+    pub func symbol(name: str) -> u32!:
+        if let found = self.by_name.find(name):
+            return found
+        let index = (u32)self.symbols.count
+        let hidden = starts(name, ".L") or starts(name, "L")
+        try self.symbols.push(Symbol(name = name, defined = false, place = Place(section = 0, offset = 0, pieces = 0), external = false,
+                                     weak = false, hidden = hidden, referenced = false, index = 0, fallback = 0))
+        try self.by_name.add(name, u32(index))
+        return u32(index)
+
+    ## Define `name` here.
+    pub func define(name: str) -> !:
+        try self.define_symbol(try self.symbol(name))
+
+    ## Define symbol `index` here.
+    pub func define_symbol(index: u32) -> !:
+        let s = &self.symbols.items[index]
+        if s.defined:
+            try self.fail(f"`{s.name}` is already defined")
+        s.defined = true
+        s.place = self.here()
+
+    ## A symbol for the current place, hidden from the object.
+    pub func here_symbol() -> u32!:
+        return try self.symbol_at(self.here())
+
+    ## A symbol for `place`, hidden from the object.
+    pub func symbol_at(place: Place) -> u32!:
+        let index = try self.symbol(try self.made_name(" here", self.symbols.count))
+        let s = &self.symbols.items[index]
+        s.defined = true
+        s.hidden = true
+        s.place = place
+        return index
+
+    ## Define the numbered local label `n:` here.
+    pub func define_numbered(n: u32) -> !:
+        if n >= 100:
+            try self.fail("numbered local labels go up to 99")
+        self.numbered[n] += 1
+        let index = try self.symbol(try self.made_name(" n", (usize)n * 1000000 + (usize)self.numbered[n]))
+        self.symbols.items[index].hidden = true
+        try self.define_symbol(index)
+
+    ## The symbol `n` names looking back (`1b`) or forward (`1f`).
+    pub func numbered_symbol(n: u32, forward: bool) -> u32!:
+        if n >= 100:
+            try self.fail("numbered local labels go up to 99")
+        let count = self.numbered[n] + 1 if forward else self.numbered[n]
+        if count == 0:
+            try self.fail(f"no `{n}:` before `{n}b`")
+        let index = try self.symbol(try self.made_name(" n", (usize)n * 1000000 + (usize)count))
+        self.symbols.items[index].hidden = true
+        return index
+
+    ## A name the source cannot spell: `prefix` and `n`, in the unit's own storage.
+    func made_name(prefix: str, n: usize) -> str!:
+        var room: u8[64]
+        let text = try strings.format(room, f"{prefix}{n}")
+        let copy = try new u8[text.length] ---
+        memory.copy(copy, text.bytes, text.length)
+        return (str)copy
+
+## Whether `text` begins with `prefix`.
+pub func starts(text: str, prefix: str) -> bool:
+    return text.length >= prefix.length and (str)text.bytes[..<prefix.length] == prefix

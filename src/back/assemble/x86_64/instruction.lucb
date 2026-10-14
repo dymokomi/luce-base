@@ -1,0 +1,82 @@
+#==============================================================================================
+#
+#   instruction - One instruction: its prefixes, its form, its operands, its bytes
+#
+#   DESCRIPTION:
+#       The mnemonic names the form, after any `lock` or repeat prefix written before it on
+#       the line or alone on the line before; the operands follow, and the form's family
+#       encodes them. An unknown mnemonic, or operands its family does not take, stop the
+#       assembly at the line.
+#
+#==============================================================================================
+
+extend Encoder:
+    ## The instruction `mnemonic` whose operands are at `c`, into the unit's current section.
+    pub func instruction(u: state.Unit*, mnemonic: str, c: source.Cursor*) -> !:
+        var name = mnemonic
+        var lock = self.pending_lock
+        var repeat = self.pending_repeat
+        self.pending_lock = false
+        self.pending_repeat = 0
+        while true:
+            if name == "lock":
+                lock = true
+            elif name == "rep" or name == "repe" or name == "repz":
+                repeat = 0xF3
+            elif name == "repne" or name == "repnz":
+                repeat = 0xF2
+            else:
+                break
+            name = c.name()
+            if name.length == 0:
+                # a prefix alone: it is the next instruction's
+                self.pending_lock = lock
+                self.pending_repeat = repeat
+                return
+        let f = self.find(name) else return try u.fail(f"unknown instruction `{name}`")
+        var x: Instruction
+        x.name = name
+        x.form = f
+        x.lock = lock
+        x.repeat = repeat
+        x.count = try read_operands(u, c, x.operands[0..])
+        try encode(u, &x)
+
+## `x`'s bytes, by its family.
+func encode(u: state.Unit*, x: Instruction*) -> !:
+    match x.form.family:
+        .alu: try alu(u, x)
+        .test_bits: try test_bits(u, x)
+        .mov: try mov(u, x)
+        .movabs: try movabs(u, x)
+        .lea: try lea(u, x)
+        .widen: try widen(u, x)
+        .shift: try shift(u, x)
+        .unary: try unary(u, x)
+        .step: try step(u, x)
+        .imul: try imul(u, x)
+        .xchg: try xchg(u, x)
+        .exchange: try exchange(u, x)
+        .exchange_wide: try exchange_wide(u, x)
+        .bit_test: try bit_test(u, x)
+        .bit_scan: try bit_scan(u, x)
+        .bswap: try bswap(u, x)
+        .set: try set(u, x)
+        .cmov: try cmov(u, x)
+        .branch: try branch(u, x)
+        .jump: try jump(u, x)
+        .call: try call(u, x)
+        .push: try push(u, x)
+        .pop: try pop(u, x)
+        .plain: try plain(u, x)
+        .mxcsr: try mxcsr(u, x)
+        .vector: try vector(u, x)
+        .vector_move: try vector_move(u, x)
+        .vector_shift: try vector_shift(u, x)
+        .movd: try move_double(u, x)
+        .movq: try move_quad(u, x)
+        .from_integer: try from_integer(u, x)
+        .to_integer: try to_integer(u, x)
+        .mask: try mask(u, x)
+        .fused: try fused(u, x)
+        .half_store: try half_store(u, x)

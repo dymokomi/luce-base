@@ -66,8 +66,13 @@ def main():
     # every case is its own build and run in its own directory: as many at once as cores
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
     parser.add_argument("--match", default="")
+    # a flag every native build adds, as `--extra=--own-assembler`
+    parser.add_argument("--extra", action="append", default=[])
+    parser.add_argument("--debug", action="store_true", help="native --debug builds too")
     args = parser.parse_args()
-    flags = [["--native", "--opt", str(level)] for level in args.opt]
+    flags = [["--native", "--opt", str(level), *args.extra] for level in args.opt]
+    if args.debug:
+        flags += [["--native", "--debug", *args.extra], ["--native", "--release", "--debug", *args.extra]]
     if args.c_only:
         flags = []
     if args.c or args.c_only:
