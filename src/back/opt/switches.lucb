@@ -1,0 +1,303 @@
+#==============================================================================================
+#
+#   switches - A chain of equality tests on one value becomes a jump table
+#
+#   DESCRIPTION:
+#       `if s == 4: … elif s == 3: … elif s == 2: … elif s == 1: …` tests its value once
+#       per arm in turn, as C's `switch` ported to `if`/`elif` does. Where four or more
+#       such tests follow each other through their false sides, each test after the first
+#       alone in its block and entered only from the test before it, and the values are
+#       dense (`ir.dense_range`, as a `match` decides), the head's branch becomes the
+#       `switch` a `match` on the same values lowers to: one subtraction, one bounds test
+#       and one indirect jump, which a predictor follows per value instead of through a
+#       chain of branches whose outcomes depend on one another. Each value's first test
+#       names its target, the last test's false side is the default, and the targets'
+#       phis take what the chain's blocks gave them from the head instead. A target with
+#       phis entered by more than one of the chain's edges, or a test of any other form,
+#       ends the chain where it is.
+#
+#==============================================================================================
+
+import back.ir.cfg
+import back.ir.ir
+import memory
+import support.list
+
+## The most tests a chain takes.
+let longest_chain: usize = 512
+
+## Convert every chain of `f`; whether one was converted.
+pub func run(f: ir.Function*) -> bool!:
+    with memory.heap:
+        var g = try cfg.Graph.blocks_of(f)
+        defer g.release()
+        var definitions = try new u32[f.temps.count + 1] ---
+        defer free(definitions)
+        for t in 0..<definitions.length:
+            definitions[t] = 0
+        for i in 0..<f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.dst != 0 and (usize)x.dst < definitions.length:
+                definitions[(usize)x.dst] = u32(i + 1)
+        # each block heads or joins at most one chain; `taken` marks the chains' blocks
+        var taken = try new bool[g.blocks.count] ---
+        defer free(taken)
+        for b in 0..<taken.length:
+            taken[b] = false
+        var chains = try list.List[Chain].create(4)
+        defer release_chains(&chains)
+        for h in 0..<g.blocks.count:
+            if taken[h] or g.blocks.get(h).rpo == cfg.none_block:
+                continue
+            if let found = try chain_at(f, &g, definitions, u32(h)):
+                var chain = found
+                if try accepted(f, &g, &chain):
+                    for b in chain.blocks.span():
+                        taken[(usize)b] = true
+                    try chains.push(chain)
+                else:
+                    chain.release()
+        if chains.count == 0:
+            return false
+        try rewrite(f, &g, &chains, taken)
+        return true
+
+# mark: Recognising a chain =====================================================================
+
+## One test of a chain: the block's value compared with `value`, then to `then`'s label,
+## else to `other`'s.
+struct Test:
+    var subject: u32
+    var cls: ir.Class
+    var value: i64
+    var then: u32
+    var other: u32
+    ## The comparison's instruction index + 1, and its result temporary.
+    var compare: u32
+    var result: u32
+
+## A chain: its blocks in order (the head first), each value's target label, sorted by
+## value, and the default label.
+struct Chain:
+    var blocks: list.List[u32]
+    var values: list.List[i64]
+    var targets: list.List[u32]
+    var default: u32
+    var subject: u32
+    var cls: ir.Class
+
+    func release():
+        self.blocks.destroy()
+        self.values.destroy()
+        self.targets.destroy()
+
+func release_chains(chains: list.List[Chain]*):
+    for k in 0..<chains.count:
+        chains.items[k].release()
+    chains.destroy()
+
+## The test block `b` ends with: a branch on `t == constant` or `t != constant` of an
+## integer temporary, the constant held at the comparison's width.
+func test_of(f: ir.Function*, definitions: u32[], block: cfg.Block) -> Test?:
+    if block.end == block.start:
+        return none
+    let branch = f.instrs.get((usize)block.end - 1)
+    if branch.op != ir.Op.jnz or branch.a.kind != ir.RefKind.temp or (usize)branch.a.index >= definitions.length:
+        return none
+    let at = definitions[(usize)branch.a.index]
+    if at == 0 or at <= block.start or at > block.end:
+        return none
+    let compare = f.instrs.get((usize)at - 1)
+    if (compare.op != ir.Op.ceq and compare.op != ir.Op.cne) or (compare.cls != ir.Class.w and compare.cls != ir.Class.l):
+        return none
+    var subject = compare.a
+    var constant = compare.b
+    if subject.kind == ir.RefKind.constant:
+        subject = compare.b
+        constant = compare.a
+    if subject.kind != ir.RefKind.temp or constant.kind != ir.RefKind.constant:
+        return none
+    # a word compares the low 32 bits: the constant as those bits, signed
+    let value = (i64)(i32)(constant.value & 0xFFFFFFFF) if compare.cls == ir.Class.w else constant.value
+    let equal = compare.op == ir.Op.ceq
+    return Test(subject = subject.index, cls = compare.cls, value = value, then = branch.extra if equal else branch.extra2, other = branch.extra2 if equal else branch.extra, compare = at, result = compare.dst)
+
+## Whether block `block` holds nothing but its test: the comparison, the branch, and
+## positions for a debugger.
+func only_test(f: ir.Function*, block: cfg.Block, tested: Test) -> bool:
+    for i in block.start..<block.end - 1:
+        let x = f.instrs.get((usize)i)
+        if i + 1 != tested.compare and x.op != ir.Op.dbg:
+            return false
+    return true
+
+## The chain headed by block `h`, when its tests are at least four: the head's test on a
+## value, then each block its false side enters that tests the same value at the same
+## width, alone, entered from the test before it only.
+func chain_at(f: ir.Function*, g: cfg.Graph*, definitions: u32[], h: u32) -> Chain?!:
+    let first = test_of(f, definitions, g.blocks.get((usize)h)) else return none
+    var chain = Chain(blocks = try list.List[u32].create(8), values = try list.List[i64].create(8), targets = try list.List[u32].create(8), default = first.other, subject = first.subject, cls = first.cls)
+    try chain.blocks.push(h)
+    try add_case(&chain, first.value, first.then)
+    var last = first
+    while chain.blocks.count < longest_chain:
+        let next = g.block_of(last.other)
+        if next == cfg.none_block or next == h or in_chain(&chain, next):
+            break
+        let block = g.blocks.get((usize)next)
+        if block.preds.count != 1 or block.preds.get(0) != chain.blocks.get(chain.blocks.count - 1):
+            break
+        let link = test_of(f, definitions, block) else break
+        if link.subject != first.subject or link.cls != first.cls or not only_test(f, block, link) or holds(&chain, link.value):
+            break
+        try chain.blocks.push(next)
+        try add_case(&chain, link.value, link.then)
+        chain.default = link.other
+        last = link
+    if chain.blocks.count < 4:
+        chain.release()
+        return none
+    return chain
+
+## Whether a test of the chain names `value` already: a second test of it ends the chain,
+## whose default it then is.
+func holds(chain: Chain*, value: i64) -> bool:
+    for v in chain.values.span():
+        if v == value:
+            return true
+    return false
+
+## Add a value's target, the values kept sorted (signed): insertion, since a chain is short.
+func add_case(chain: Chain*, value: i64, target: u32) -> !:
+    try chain.values.push(value)
+    try chain.targets.push(target)
+    var j = chain.values.count - 1
+    while j > 0 and chain.values.get(j - 1) > value:
+        chain.values.set(j, chain.values.get(j - 1))
+        chain.targets.set(j, chain.targets.get(j - 1))
+        j -= 1
+    chain.values.set(j, value)
+    chain.targets.set(j, target)
+
+func in_chain(chain: Chain*, b: u32) -> bool:
+    for c in chain.blocks.span():
+        if c == b:
+            return true
+    return false
+
+## Whether the chain becomes a jump table: its values dense enough, no target one of its
+## own blocks, and every target with phis entered by one of its edges only.
+func accepted(f: ir.Function*, g: cfg.Graph*, chain: Chain*) -> bool!:
+    if ir.dense_range(chain.values.span()) == none:
+        return false
+    var labels = try list.List[u32].create(chain.targets.count + 1)
+    defer labels.destroy()
+    for t in chain.targets.span():
+        try labels.push(t)
+    try labels.push(chain.default)
+    for k in 0..<labels.count:
+        let target = g.block_of(labels.get(k))
+        if target == cfg.none_block or in_chain(chain, target):
+            return false
+        let block = g.blocks.get((usize)target)
+        if block.start < block.end and f.instrs.get((usize)block.start).op == ir.Op.phi:
+            for j in 0..<labels.count:
+                if j != k and labels.get(j) == labels.get(k):
+                    return false
+    return true
+
+# mark: Rewriting ===============================================================================
+
+## Each chain's head ends in its `switch`; the other tests' blocks go, and their
+## comparisons with them unless something else reads one.
+func rewrite(f: ir.Function*, g: cfg.Graph*, chains: list.List[Chain]*, taken: bool[]) -> !:
+    var heads = try new u32[g.blocks.count] ---
+    defer free(heads)
+    for b in 0..<heads.length:
+        heads[b] = cfg.none_block
+    for k in 0..<chains.count:
+        heads[(usize)chains.items[k].blocks.get(0)] = u32(k)
+    let reads = try read_counts(f)
+    defer free(reads)
+    var out = try list.List[ir.Instr].create(f.instrs.count + 8)
+    for b in 0..<g.blocks.count:
+        let block = g.blocks.get(b)
+        if taken[b] and heads[b] == cfg.none_block:
+            continue
+        if block.label != 0:
+            try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = block.label, extra2 = 0, line = 0, file = 0, scope = 0, site = 0))
+        if heads[b] == cfg.none_block:
+            for i in block.start..<block.end:
+                try out.push(f.instrs.get((usize)i))
+            continue
+        let chain = &chains.items[(usize)heads[b]]
+        let branch = f.instrs.get((usize)block.end - 1)
+        # each test's comparison goes with its branch unless something else reads it; a
+        # later test's then moves up to the head, which dominates whatever its block did,
+        # and the rest of that block was positions alone
+        for c in 0..<chain.blocks.count:
+            let link = g.blocks.get((usize)chain.blocks.get(c))
+            let condition = f.instrs.get((usize)link.end - 1).a.index
+            for i in link.start..<link.end - 1:
+                let x = f.instrs.get((usize)i)
+                let read_elsewhere = x.dst == condition and reads[(usize)x.dst] > 1
+                if read_elsewhere or (c == 0 and x.dst != condition):
+                    try out.push(x)
+        try push_switch(f, chain, branch, &out)
+        try relabel_phis(f, g, chain, block.label)
+    f.instrs.destroy()
+    f.instrs = out
+
+## The `switch` over the chain's values, at the head's branch's position.
+func push_switch(f: ir.Function*, chain: Chain*, branch: ir.Instr, out: list.List[ir.Instr]*) -> !:
+    let entries = ir.dense_range(chain.values.span()) else return
+    let low = chain.values.get(0)
+    try f.jump_tables.push(ir.Table(low = low, start = u32(f.jump_labels.count), count = u32(entries)))
+    let start = f.jump_labels.count
+    for k in 0..<entries:
+        try f.jump_labels.push(chain.default)
+    for k in 0..<chain.values.count:
+        let entry = (usize)((u64)chain.values.get(k) -% (u64)low)
+        f.jump_labels.set(start + entry, chain.targets.get(k))
+    try out.push(ir.Instr(op = ir.Op.switch_, cls = chain.cls, dst = 0, a = ir.temp_ref(chain.subject), b = ir.none_ref(), extra = chain.default, extra2 = u32(f.jump_tables.count - 1), line = branch.line, file = branch.file, scope = branch.scope, site = branch.site))
+
+## What the chain's blocks gave the targets' phis, the head gives now.
+func relabel_phis(f: ir.Function*, g: cfg.Graph*, chain: Chain*, head: u32) -> !:
+    var labels = try list.List[u32].create(chain.blocks.count)
+    defer labels.destroy()
+    for b in chain.blocks.span():
+        try labels.push(g.blocks.get((usize)b).label)
+    var targets = try list.List[u32].create(chain.targets.count + 1)
+    defer targets.destroy()
+    for t in chain.targets.span():
+        try targets.push(t)
+    try targets.push(chain.default)
+    for label in targets.span():
+        let block = g.blocks.get((usize)g.block_of(label))
+        var at = block.start
+        while at < block.end and f.instrs.get((usize)at).op == ir.Op.phi:
+            let phi = f.instrs.get((usize)at)
+            for k in 0..<phi.extra2:
+                let entry = f.phi_args.get((usize)(phi.extra + k))
+                for chained in labels.span():
+                    if entry.pred == chained:
+                        f.phi_args.items[(usize)(phi.extra + k)].pred = head
+            at += 1
+
+## How many times each temporary is read: by an instruction, a phi, or a pooled argument.
+func read_counts(f: ir.Function*) -> u32[]!:
+    var reads = try new u32[f.temps.count + 1] ---
+    for t in 0..<reads.length:
+        reads[t] = 0
+    for x in f.instrs.span():
+        count_read(reads, x.a)
+        count_read(reads, x.b)
+    for entry in f.phi_args.span():
+        count_read(reads, entry.value)
+    for arg in f.args.span():
+        count_read(reads, arg.value)
+    return reads
+
+func count_read(reads: u32[], r: ir.Ref):
+    if r.kind == ir.RefKind.temp and (usize)r.index < reads.length:
+        reads[(usize)r.index] += 1

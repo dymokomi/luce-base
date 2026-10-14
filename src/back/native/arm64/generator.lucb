@@ -31,6 +31,7 @@ import back.native.regalloc
 import back.native.incoming
 import back.native.flags
 import back.native.levels
+import back.native.layout
 import back.native.selection
 import back.native.stable_names
 import back.ir.ir

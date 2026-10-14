@@ -38,8 +38,34 @@ Level 3 additionally:
 4. Packs paired float arithmetic within a basic block into vector operations
    (superword-level parallelism, `opt/slp`), below.
 
+A branch establishes more than its comparison's order: `x != 0` puts `x` above 0, so
+`x - 1` under `while x != 0` is unchecked; a comparison of a zero-extended word with a
+constant bounds the word as well, so `(1 << s) - 1` is unchecked once `s < 32` has been
+checked (a shift of a nonzero constant by less than the bits it leaves is at least the
+constant); and the edge records what it decided about the condition itself, so a second
+branch on the same condition below it (the check of a second shift by the same count) is
+a jump. The decided conditions are a table per temporary, not facts, so they add nothing
+to the searches.
+
 Proof searches and loop passes have finite work bounds. Exhausting one leaves
 an optimization unapplied; it does not authorize removing a check.
+
+## Chains of tests and dead stores
+
+C's `switch` ported as `if s == 4: … elif s == 3: … elif s == 2: … elif s == 1: …` tests
+one value against each case in turn. Where four or more such tests follow each other
+through their false sides, each later test alone in its block and entered only from the
+one before, and the values are dense enough for a table (the rule a `match` uses,
+`ir.dense_range`), `opt/switches` makes the head's branch the `switch` the `match` would
+lower to. The first test of a value decides; the last test's false side is the default.
+A target with phis entered by more than one of the chain's edges ends the chain. An
+OPL2 synthesizer's envelope loop ran a fifth faster this way on an M4.
+
+At level 3 a store whose bytes a later store writes again on the one path from it, before
+any load that may read them, any call that may, a trap or a return, goes
+(`load.dead_stores`). The search follows blocks that have one successor and passes only
+instructions that cannot trap. `if (rng & 1) != 0: chip.rng ^= taps` followed by
+`chip.rng >>= 1` keeps the arm only its value, which `ifconvert` then selects.
 
 ## SIMD scope
 
@@ -112,6 +138,28 @@ saturating): `fcvtzs` on arm64, `cvttsd2si` with the fix-ups for the top of the
 range and NaN on x86-64. A checked `T(x)` compares the float with the type's bounds
 and traps before an exact conversion. The narrower and unsigned saturating casts keep
 `core.f_to_s` and `core.f_to_u`.
+
+Block layout. A jump or branch to a block that only jumps on goes where that block goes,
+through runs of such blocks; once registers are allocated, a block of copies between
+temporaries that share a register counts as one (the copies `dessa` leaves on an `if`'s
+empty arm), but a branch keeps falling into the block after it (`selection.thread_quiet`).
+A rotated loop whose body ends in an `if` would take two branches each round: into the
+arm, or from it to the latch, and back to the body's top. `native/layout` moves the chain
+of blocks that falls into the latch above the body, as C compilers place a loop's blocks:
+the latch's test falls into the body, the body's branch to the moved arm goes back up,
+and each round takes one branch. The chain begins at a block that follows a jump, return
+or trap, holds no loop of its own, and never reaches back to the body; its first label is
+the one aligned. The loop's head is entered once, by a branch over the chain.
+
+A product by a constant other than a power of two (or one more than one) that an add
+reads right after is one `madd` on arm64: `&chip.voices[i // 2].operators[i & 1]` with
+84- and 40-byte records. A product of two variables keeps its `mul` and `add`: as a
+`madd` in matrix_product's inner loop it ran a fifth slower. A branch on a value against
+zero is `cbz`/`cbnz`, a bounds check against a fixed length compares with an immediate
+on both targets, a 64-bit comparison of a zero-extended word with a constant compares the
+word itself (`opt.widened_comparisons`), and an x86-64 `add`, `imul`, `and`, `or` or `xor`
+whose second operand is already in the destination register takes the first instead of
+moving both.
 
 Calls and frames. A scalar parameter is promoted like any local, at its own width
 (its slot is a register or two wide), and when its only use is the load `ssa.promote`

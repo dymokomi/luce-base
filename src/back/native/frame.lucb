@@ -165,6 +165,23 @@ pub struct Frame:
     pub func uses(code: u8) -> bool:
         return (self.used_mask & ((u64)1 << (u64)(code - 1))) != 0
 
+    ## By instruction of `f`, once its registers are allocated (`plan`): whether it emits
+    ## nothing, a copy between temporaries that share a register or of one formed at each
+    ## use (`selection.thread_quiet`). Freed by the caller.
+    pub func quiet(f: ir.Function*) -> bool[]!:
+        var quiet = try new bool[f.instrs.count] ---
+        for i in 0..<f.instrs.count:
+            let x = f.instrs.get(i)
+            quiet[i] = false
+            if x.op != ir.Op.copy or x.dst == 0 or (usize)x.dst > self.temp_regs.count:
+                continue
+            if self.is_rematerialised(x.dst):
+                quiet[i] = true
+            elif x.a.kind == ir.RefKind.temp and (usize)x.a.index <= self.temp_regs.count and not self.is_rematerialised(x.a.index):
+                let code = self.temp_regs.get((usize)x.dst - 1)
+                quiet[i] = code != 0 and code == self.temp_regs.get((usize)x.a.index - 1)
+        return quiet
+
     ## Whether temporary `t` is formed at each use (`remat`, `constant_of`) rather than kept.
     pub func is_rematerialised(t: u32) -> bool:
         return ((usize)t < self.formed.count and self.formed.get((usize)t) != 0) or ((usize)t < self.constant_formed.count and self.constant_formed.get((usize)t))

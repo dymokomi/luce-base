@@ -155,3 +155,94 @@ export func number_scan(text: const u8[], rounds: usize) -> f64:
             at += used + 2
         round += 1
     return total
+
+## One operator of an FM synthesizer's voice, an OPL2's slot: 40 bytes.
+struct Operator:
+    var state: u32
+    var shift: u32
+    var select: u32
+    var volume: i32
+    var sustain: u32
+    var vibrato: u32
+    var count: u32
+    var step: u32
+    var feedback: i32[2]
+
+## A voice of two operators: 84 bytes.
+struct Voice:
+    var operators: Operator[2]
+    var block: u32
+
+## The chip: nine voices, the envelope counter and the noise register.
+struct Chip:
+    var voices: Voice[9]
+    var counter: u32
+    var noise: u32
+
+## The envelope's increments: a row of eight per rate's low bits.
+let rates: u32[16] = [0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2]
+
+## One sample's operator work, as an OPL2 emulator ported from C writes it (fmopl.c's
+## `advance`): each envelope steps through a chain of `if`/`elif` tests of its state, gated
+## by the counter's low bits under the operator's shift and read from the rate table; each
+## phase advances; the noise register shifts, taking its taps on its low bit.
+noinline func advance(chip: Chip*):
+    chip.counter +%= 1
+    for i: usize in 0..<18:
+        let op = &chip.voices[i // 2].operators[i & 1]
+        if op.state == 4:
+            if (chip.counter & ((1 << op.shift) - 1)) == 0:
+                op.volume += (~op.volume * (i32)rates[op.select + ((chip.counter >> op.shift) & 7)]) >> 3
+                if op.volume <= 0:
+                    op.volume = 0
+                    op.state = 3
+        elif op.state == 3:
+            if (chip.counter & ((1 << op.shift) - 1)) == 0:
+                op.volume += (i32)rates[op.select + ((chip.counter >> op.shift) & 7)]
+                if (u32)op.volume >= op.sustain:
+                    op.state = 2
+        elif op.state == 2:
+            if (chip.counter & ((1 << op.shift) - 1)) == 0:
+                op.volume += (i32)rates[op.select + ((chip.counter >> op.shift) & 7)]
+                if op.volume >= 511:
+                    op.volume = 511
+                    op.state = 1
+        elif op.state == 1:
+            if (chip.counter & ((1 << op.shift) - 1)) == 0:
+                op.volume += (i32)rates[op.select + ((chip.counter >> op.shift) & 7)]
+                if op.volume >= 511:
+                    op.volume = 511
+                    op.state = 4
+    for i: usize in 0..<18:
+        let voice = &chip.voices[i // 2]
+        let op = &voice.operators[i & 1]
+        if op.vibrato != 0:
+            op.count +%= (voice.block >> 3) *% op.step
+        else:
+            op.count +%= op.step
+    var shifts = chip.counter & 3
+    while shifts != 0:
+        if (chip.noise & 1) != 0:
+            chip.noise ^= 0x800302
+        chip.noise >>= 1
+        shifts -= 1
+
+## An FM synthesizer's eighteen operators, seeded from `words`, advanced `rounds` samples.
+export func operators(words: const u64[], rounds: usize) -> u64:
+    assert(words.length >= 18)
+    var chip: Chip = ---
+    for i: usize in 0..<18:
+        let w = words[i]
+        chip.voices[i // 2].operators[i & 1] = Operator(state = (u32)(w % 5), shift = (u32)((w >> 8) % 12), select = (u32)((w >> 16) & 1) * 8, volume = (i32)((w >> 24) % 512), sustain = (u32)((w >> 33) % 32) * 16, vibrato = (u32)((w >> 42) & 1), count = (u32)(w >> 43), step = (u32)((w >> 3) & 0xFFFF), feedback = [0, 0])
+        chip.voices[i // 2].block = (u32)((w >> 50) & 0x1FFF)
+    chip.counter = 0
+    chip.noise = 1
+    var round: usize = 0
+    while round < rounds:
+        advance(&chip)
+        round += 1
+    var total = (u64)chip.noise
+    for i: usize in 0..<18:
+        let op = &chip.voices[i // 2].operators[i & 1]
+        total = total *% 31 +% (u64)op.count +% (u64)(u32)op.volume +% (u64)op.state
+    return total

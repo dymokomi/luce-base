@@ -160,39 +160,114 @@ pub func zero_extended(f: ir.Function*, entry: u32[]) -> bool[]!:
 
 ## Send every jump to a label that shares its place with others (labels in a row, with
 ## only `dbg` between) to the first of the run, so a generator falling into the run finds
-## its target next (`label_at`) and leaves out the jump; then leave out the labels only
-## fallen into (`drop_passed_labels`).
+## its target next (`label_at`) and leaves out the jump; a jump or branch to a block that
+## only jumps on (the empty join of an `if` inside a loop, whose arms all go on to the
+## loop's next turn) goes where that block goes, one taken branch instead of two; then
+## leave out the labels only fallen into (`drop_passed_labels`).
 pub func canonical_labels(f: ir.Function*) -> !:
     if f.labels == 0:
         return
-    var first = try new u32[(usize)f.labels + 1] ---
+    var first = try label_runs(f)
     defer free(first)
+    var changed = false
+    for k in 0..<first.length:
+        changed = changed or first[k] != u32(k)
+    var none_quiet: bool[1] = [false]
+    if not f.debug and try thread_jumps(f, first, none_quiet[0..<0]):
+        changed = true
+    if changed:
+        retarget(f, first)
+    try drop_passed_labels(f)
+
+## Once registers are allocated, `quiet` marks the instructions that emit nothing (a copy
+## between temporaries that share a register): a block of only those, the copies `dessa`
+## left on an `if`'s empty arm, goes on as a lone jump does, and a jump or branch to it is
+## sent where it goes (`thread_jumps`).
+pub func thread_quiet(f: ir.Function*, quiet: const bool[]) -> !:
+    if f.labels == 0 or f.debug or f.symbols or f.dynamic_levels != 0:
+        return
+    var first = try label_runs(f)
+    defer free(first)
+    if try thread_jumps(f, first, quiet):
+        retarget(f, first)
+
+## By label, the first label of the run it is in (labels in a row, with only `dbg` between).
+func label_runs(f: ir.Function*) -> u32[]!:
+    var first = try new u32[(usize)f.labels + 1] ---
     for k in 0..<first.length:
         first[k] = u32(k)
     var run: u32 = 0
-    var changed = false
     for x in f.instrs.span():
         if x.op == ir.Op.label:
             if run == 0:
                 run = x.extra
             elif (usize)x.extra < first.length:
                 first[(usize)x.extra] = run
-                changed = true
         elif x.op != ir.Op.dbg:
             run = 0
-    if changed:
-        retarget(f, first)
-    try drop_passed_labels(f)
+    return first
 
-## Every jump to label `k` sent to `first[k]` (`canonical_labels`).
+## The most jumps on one path `thread_jumps` follows: a longer one, or one that comes round
+## again (`while true: pass`), keeps its first jump.
+let longest_thread: u32 = 16
+
+## Send each label whose block does nothing but go on, by a lone `jmp` or by falling into
+## the next label, to where it goes, through any run of such blocks, in `first` (already
+## sending each label to the first of its run); `quiet` (empty: none) marks instructions
+## that emit nothing besides labels and `dbg`. Whether any label was sent on.
+func thread_jumps(f: ir.Function*, first: u32[], quiet: const bool[]) -> bool!:
+    # each label's block's onward label, or 0 when its block does something
+    var onward = try new u32[first.length] ---
+    defer free(onward)
+    for k in 0..<onward.length:
+        onward[k] = 0
+    var waiting = try list.List[u32].create(8)
+    defer waiting.destroy()
+    var any = false
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.label and (usize)x.extra < first.length:
+            # the labels waiting, of another run, fall into this one
+            if waiting.count > 0 and first[(usize)waiting.get(0)] != first[(usize)x.extra]:
+                for label in waiting.span():
+                    onward[(usize)label] = first[(usize)x.extra]
+                any = true
+                waiting.count = 0
+            try waiting.push(x.extra)
+            continue
+        if x.op == ir.Op.dbg or (i < quiet.length and quiet[i]):
+            continue
+        if x.op == ir.Op.jmp and waiting.count > 0 and (usize)x.extra < first.length:
+            for label in waiting.span():
+                onward[(usize)label] = first[(usize)x.extra]
+            any = true
+        waiting.count = 0
+    if not any:
+        return false
+    var sent = false
+    for k in 1..<first.length:
+        var at = first[k]
+        var steps: u32 = 0
+        while onward[(usize)at] != 0 and onward[(usize)at] != at and steps < longest_thread:
+            at = onward[(usize)at]
+            steps += 1
+        if steps < longest_thread and at != first[k] and at != u32(k):
+            first[k] = at
+            sent = true
+    return sent
+
+## Every jump to label `k` sent to `first[k]` (`canonical_labels`), except a branch's way
+## into the labels right after it, which stays a fall-through into the first of them: going
+## on through a quiet block from there costs nothing, and a branch with neither way next
+## takes a jump more.
 func retarget(f: ir.Function*, first: u32[]):
     for i in 0..<f.instrs.count:
         var x = f.instrs.get(i)
         if x.op == ir.Op.jmp or x.op == ir.Op.switch_:
             x.extra = first[(usize)x.extra] if (usize)x.extra < first.length else x.extra
         elif x.op == ir.Op.jnz:
-            x.extra = first[(usize)x.extra] if (usize)x.extra < first.length else x.extra
-            x.extra2 = first[(usize)x.extra2] if (usize)x.extra2 < first.length else x.extra2
+            x.extra = next_or_first(f, i, x.extra, first)
+            x.extra2 = next_or_first(f, i, x.extra2, first)
         else:
             continue
         f.instrs.set(i, x)
@@ -200,6 +275,16 @@ func retarget(f: ir.Function*, first: u32[]):
         let label = f.jump_labels.get(k)
         if (usize)label < first.length:
             f.jump_labels.set(k, first[(usize)label])
+
+## Where the branch at `at` to `label` goes: the first of the labels right after it when
+## `label` is among them, else `first[label]`.
+func next_or_first(f: ir.Function*, at: usize, label: u32, first: u32[]) -> u32:
+    var k = at + 1
+    while k < f.instrs.count and (f.instrs.get(k).op == ir.Op.label or f.instrs.get(k).op == ir.Op.dbg):
+        if f.instrs.get(k).op == ir.Op.label and f.instrs.get(k).extra == label:
+            return label_at(f, at + 1) if label_at(f, at + 1) != 0 else label
+        k += 1
+    return first[(usize)label] if (usize)label < first.length else label
 
 ## Leave out each label nothing jumps to that only the instruction before it falls into: an
 ## expanded function's return point, say. Its block then runs on from the one before, so a
@@ -450,14 +535,39 @@ pub func rotations(f: ir.Function*, heads: bool[], counts: u32[], floats: bool) 
     return tests
 
 ## After `rotations`: a rotated loop goes round from its body's first label, which is then
-## the one aligned, not the head it enters by once.
+## the one aligned, not the head it enters by once. When the blocks that fall into its
+## latch were moved above the body (`layout.latches_first`), the round begins with them
+## instead: the first of their labels is aligned, and the others, the body's among them,
+## are only fallen into.
 pub func rotate_heads(f: ir.Function*, heads: bool[], tests: u32[]):
     for k in 0..<tests.length:
         if tests[k] != 0:
             let body = f.instrs.get((usize)tests[k]).extra
             heads[k] = false
-            if (usize)body < heads.length:
+            let top = label_at(f, (usize)tests[k] + 1)
+            if top != body and top != 0 and moved_chain(f, (usize)tests[k] + 1, body, u32(k)):
+                var at = (usize)tests[k] + 2
+                while at < f.instrs.count:
+                    let x = f.instrs.get(at)
+                    if x.op == ir.Op.label and (usize)x.extra < heads.length:
+                        heads[(usize)x.extra] = false
+                        if x.extra == body:
+                            break
+                    at += 1
+                heads[(usize)top] = true
+            elif (usize)body < heads.length:
                 heads[(usize)body] = true
+
+## Whether the instructions from `first` up to the label `body` are a latch chain moved
+## above it: they end in the jump back to `head`, right before the body's label.
+func moved_chain(f: ir.Function*, first: usize, body: u32, head: u32) -> bool:
+    var at = first
+    while at < f.instrs.count:
+        let x = f.instrs.get(at)
+        if x.op == ir.Op.label and x.extra == body:
+            return at > first and f.instrs.get(at - 1).op == ir.Op.jmp and f.instrs.get(at - 1).extra == head
+        at += 1
+    return false
 
 ## The label of the instruction at `at`, or 0 when it is not a label.
 pub func label_at(f: ir.Function*, at: usize) -> u32:
@@ -631,6 +741,36 @@ pub func shifted_add(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, ir.R
     if other.kind != ir.RefKind.temp or same_temp(other, through):
         return none
     return (other, shift.a, (u32)bits)
+
+## An integer product by a constant used once, by the add right after it, the constant no
+## power of two or one above one (which `shifted_add` and a shifted add take): `base + i *
+## 248`, the `i`th record of 248 bytes. The other addend and the two factors, which arm64's
+## multiply-add takes in one instruction (`madd x0, x1, x2, x3`). A product of two variables
+## keeps its `mul` and `add`: as a `madd` in matrix_product's inner loop
+## (benchmarks/native_vs_c) it ran a fifth slower on an M4.
+pub func multiplied_add(f: ir.Function*, at: usize, counts: u32[]) -> (ir.Ref, ir.Ref, ir.Ref)?:
+    if f.debug or f.symbols or at + 1 >= f.instrs.count:
+        return none
+    let product = f.instrs.get(at)
+    if product.op != ir.Op.mul or (product.cls != ir.Class.l and product.cls != ir.Class.w) or product.dst == 0 or counts[product.dst] != 1:
+        return none
+    if product.a.kind != ir.RefKind.temp or product.b.kind != ir.RefKind.constant:
+        return none
+    let value = (u64)product.b.value
+    if value <= 2 or (value & (value - 1)) == 0 or ((value - 1) & (value - 2)) == 0:
+        return none
+    let sum = f.instrs.get(at + 1)
+    if sum.op != ir.Op.add or sum.cls != product.cls:
+        return none
+    let through = ir.temp_ref(product.dst)
+    var other = sum.a
+    if not same_temp(sum.b, through):
+        if not same_temp(sum.a, through):
+            return none
+        other = sum.b
+    if other.kind != ir.RefKind.temp or same_temp(other, through):
+        return none
+    return (other, product.a, product.b)
 
 ## The bytes a load or store moves.
 func access_bytes(op: ir.Op) -> u32:

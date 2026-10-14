@@ -149,11 +149,10 @@ extend Generator:
             # x28 keeps the frame's bottom (`frame_base`), saved and restored as any
             # callee-saved register the function uses
             self.fr.reserve(10)
-        try selection.canonical_labels(self.f)
-        if not self.f.debug:
-            try selection.traps_last(self.f)
+        try layout.arrange(self.f, true)
         try selection.sink_addresses(self.f)
         try self.fr.plan(self.f)
+        try layout.thread_after_allocation(self.f, &self.fr)
         self.crossing = 0
         var entry = try selection.entry_loads(self.f)
         defer free(entry)
@@ -260,6 +259,12 @@ extend Generator:
                 if let dw = self.dw:
                     try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
                 try self.shifted_add(self.f.instrs.get(i + 1), fused)
+                return 2
+        if let fused = selection.multiplied_add(self.f, i, uses):
+            if not self.fr.is_rematerialised(self.f.instrs.get(i).dst) and not self.fr.is_rematerialised(self.f.instrs.get(i + 1).dst):
+                if let dw = self.dw:
+                    try dw.mark(&self.writer.out, self.f, &self.fr, index, i + 1)
+                try self.multiplied_add(self.f.instrs.get(i + 1), fused)
                 return 2
         return 0
 

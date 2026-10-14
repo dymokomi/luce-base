@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
     if (!work || !size || size > (1u << 24) || !seed) return 2;
     int floating = !strcmp(argv[1], "float_recurrence") || !strcmp(argv[1], "transform") || !strcmp(argv[1], "matrix_product") || !strcmp(argv[1], "vector_normals");
     int arrays = !strcmp(argv[1], "transform") || !strcmp(argv[1], "matrix_product");
-    int summing = !strcmp(argv[1], "sum_words");
+    int summing = !strcmp(argv[1], "sum_words") || !strcmp(argv[1], "operators");
     int chasing = !strcmp(argv[1], "chase");
     int scanning = !strcmp(argv[1], "byte_scan") || !strcmp(argv[1], "word_copy") || !strcmp(argv[1], "bit_decode");
     int copying = !strcmp(argv[1], "word_copy");
@@ -130,6 +130,10 @@ int main(int argc, char **argv) {
         memcpy(out, a, size * sizeof *a);
         start = now(); transform(out, size, b, size, work); elapsed = now() - start;
         result = hash_bytes(out, size * sizeof *out);
+    } else if (!strcmp(argv[1], "operators")) {
+        if (size < 18) return 2;
+        result = operators(words, size, 1);
+        start = now(); result = operators(words, size, work); elapsed = now() - start;
     } else if (!strcmp(argv[1], "byte_scan")) {
         result = byte_scan(bytes, size, 1);
         start = now(); result = byte_scan(bytes, size, work); elapsed = now() - start;

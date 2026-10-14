@@ -1,0 +1,142 @@
+#==============================================================================================
+#
+#   layout - Where a loop's blocks go: the round's last blocks above its body
+#
+#   DESCRIPTION:
+#       A rotated loop (`selection.rotations`) tests whether to go round where its latch
+#       jumps back to its head. When its body ends in an `if`, the arm laid out last falls
+#       into the latch and every other arm jumps to it, so each round takes two branches:
+#       into its arm or to the latch, and back to the body's top. Laid out the way C
+#       compilers place a loop's blocks, the chain of blocks that falls into the latch
+#       moves above the body: the latch's test then falls into the body and leaves only
+#       when the loop ends, the body's branch into that arm goes back up to it, and each
+#       round takes one branch. The head is entered once, by a branch to the body that
+#       jumps over the chain. The chain moves whole: only blocks nothing else falls into
+#       begin it, it holds no loop of its own, and a loop whose body falls into its latch
+#       by itself keeps its order. The chain's first block is the loop's top, which the
+#       generators align in place of the body (`selection.rotate_heads`).
+#
+#==============================================================================================
+
+import back.ir.ir
+import back.native.frame
+import back.native.selection
+import support.list
+
+## Put `f`'s blocks in the order its generator selects them in: each jump sent to the first
+## of its label's run and on through blocks that only jump (`selection.canonical_labels`),
+## the blocks that only trap last (`selection.traps_last`), and each rotated loop's latch
+## chain above its body (`latches_first`).
+pub func arrange(f: ir.Function*, floats: bool) -> !:
+    try selection.canonical_labels(f)
+    if not f.debug:
+        try selection.traps_last(f)
+    try latches_first(f, floats)
+
+## Move each rotated loop's latch chain above its body, in `f` as the generators are about
+## to select it; `floats` is whether a float comparison fuses with its branch, as
+## `selection.rotations` asks.
+pub func latches_first(f: ir.Function*, floats: bool) -> !:
+    if f.debug or f.symbols or f.naked or f.dynamic_levels != 0 or f.labels == 0:
+        return
+    var heads = try selection.loop_heads(f)
+    defer free(heads)
+    var counts = try selection.uses(f)
+    defer free(counts)
+    var tests = try selection.rotations(f, heads, counts, floats)
+    defer free(tests)
+    # where each label is, and the last jump back to each head
+    var at = try new u32[heads.length] ---
+    defer free(at)
+    var last_jump = try new u32[heads.length] ---
+    defer free(last_jump)
+    for k in 0..<at.length:
+        at[k] = 0
+        last_jump[k] = 0
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.label and (usize)x.extra < at.length:
+            at[(usize)x.extra] = u32(i) + 1
+        elif x.op == ir.Op.jmp and (usize)x.extra < last_jump.length:
+            last_jump[(usize)x.extra] = u32(i) + 1
+    # by instruction: 1 + the chain moved in front of it, and whether it moves
+    var chain_before = try new u32[f.instrs.count + 1] ---
+    defer free(chain_before)
+    var moved = try new bool[f.instrs.count + 1] ---
+    defer free(moved)
+    for i in 0..<moved.length:
+        chain_before[i] = 0
+        moved[i] = false
+    var starts = try list.List[u32].create(4)
+    defer starts.destroy()
+    var ends = try list.List[u32].create(4)
+    defer ends.destroy()
+    for head in 0..<tests.length:
+        if tests[head] == 0 or last_jump[head] == 0:
+            continue
+        let branch_at = (usize)tests[head]
+        let branch = f.instrs.get(branch_at)
+        # the body directly after the head's test, which it enters when the loop goes on
+        if branch.extra == branch.extra2 or selection.label_at(f, branch_at + 1) != branch.extra:
+            continue
+        let jump_at = (usize)last_jump[head] - 1
+        if jump_at <= branch_at:
+            continue
+        if let start = chain_start(f, heads, branch_at + 1, jump_at):
+            chain_before[branch_at + 1] = u32(starts.count) + 1
+            try starts.push(u32(start))
+            try ends.push(u32(jump_at) + 1)
+            for i in start..<jump_at + 1:
+                moved[i] = true
+    if starts.count == 0:
+        return
+    var out = try list.List[ir.Instr].create(f.instrs.count)
+    for i in 0..<f.instrs.count:
+        if chain_before[i] != 0:
+            let k = (usize)chain_before[i] - 1
+            for c in (usize)starts.get(k)..<(usize)ends.get(k):
+                try out.push(f.instrs.get(c))
+        if not moved[i]:
+            try out.push(f.instrs.get(i))
+    f.instrs.destroy()
+    f.instrs = out
+
+## Where the chain of blocks ending in the jump back at `jump_at` begins: the first label
+## of the block that the blocks after it fall into one by one and that nothing falls into
+## itself (it follows a jump, a return or a trap, not a branch, whose other way it is). None when the chain reaches the body at `body_at` (the body falls into its latch
+## by itself), holds a loop's head, or begins without a label.
+func chain_start(f: ir.Function*, heads: bool[], body_at: usize, jump_at: usize) -> usize?:
+    var i = jump_at
+    while i > body_at:
+        i -= 1
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.label:
+            if (usize)x.extra < heads.length and heads[(usize)x.extra]:
+                return none
+            # the run's first label: what comes before it falls in, or does not
+            var first = i
+            while first > body_at and f.instrs.get(first - 1).op == ir.Op.label:
+                first -= 1
+                let y = f.instrs.get(first)
+                if (usize)y.extra < heads.length and heads[(usize)y.extra]:
+                    return none
+            if first <= body_at:
+                return none
+            var before = first - 1
+            while before > body_at and f.instrs.get(before).op == ir.Op.dbg:
+                before -= 1
+            # a branch falls into the block after it when that is one of its targets
+            let last = f.instrs.get(before).op
+            if ir.is_terminator(last) and last != ir.Op.jnz:
+                return first
+            i = first
+        elif ir.is_terminator(x.op):
+            return none
+    return none
+
+## Once `f`'s registers are allocated: each jump or branch to a block of copies that emit
+## nothing goes where that block goes (`selection.thread_quiet`).
+pub func thread_after_allocation(f: ir.Function*, fr: frame.Frame*) -> !:
+    let quiet = try fr.quiet(f)
+    defer free(quiet)
+    try selection.thread_quiet(f, quiet)

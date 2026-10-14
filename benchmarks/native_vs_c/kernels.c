@@ -159,3 +159,95 @@ double number_scan(const uint8_t *text, size_t length, size_t rounds) {
     }
     return total;
 }
+
+typedef struct {
+    uint32_t state, shift, select;
+    int32_t volume;
+    uint32_t sustain, vibrato, count, step;
+    int32_t feedback[2];
+} fm_operator;
+
+typedef struct {
+    fm_operator operators[2];
+    uint32_t block;
+} fm_voice;
+
+typedef struct {
+    fm_voice voices[9];
+    uint32_t counter, noise;
+} fm_chip;
+
+static const uint32_t fm_rates[16] = {0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2};
+
+static __attribute__((noinline)) void fm_advance(fm_chip *chip) {
+    chip->counter += 1;
+    for (size_t i = 0; i < 18; ++i) {
+        fm_operator *op = &chip->voices[i / 2].operators[i & 1];
+        if (op->state == 4) {
+            if ((chip->counter & ((1u << op->shift) - 1)) == 0) {
+                op->volume += (~op->volume * (int32_t)fm_rates[op->select + ((chip->counter >> op->shift) & 7)]) >> 3;
+                if (op->volume <= 0) {
+                    op->volume = 0;
+                    op->state = 3;
+                }
+            }
+        } else if (op->state == 3) {
+            if ((chip->counter & ((1u << op->shift) - 1)) == 0) {
+                op->volume += (int32_t)fm_rates[op->select + ((chip->counter >> op->shift) & 7)];
+                if ((uint32_t)op->volume >= op->sustain) op->state = 2;
+            }
+        } else if (op->state == 2) {
+            if ((chip->counter & ((1u << op->shift) - 1)) == 0) {
+                op->volume += (int32_t)fm_rates[op->select + ((chip->counter >> op->shift) & 7)];
+                if (op->volume >= 511) {
+                    op->volume = 511;
+                    op->state = 1;
+                }
+            }
+        } else if (op->state == 1) {
+            if ((chip->counter & ((1u << op->shift) - 1)) == 0) {
+                op->volume += (int32_t)fm_rates[op->select + ((chip->counter >> op->shift) & 7)];
+                if (op->volume >= 511) {
+                    op->volume = 511;
+                    op->state = 4;
+                }
+            }
+        }
+    }
+    for (size_t i = 0; i < 18; ++i) {
+        fm_voice *voice = &chip->voices[i / 2];
+        fm_operator *op = &voice->operators[i & 1];
+        if (op->vibrato != 0)
+            op->count += (voice->block >> 3) * op->step;
+        else
+            op->count += op->step;
+    }
+    uint32_t shifts = chip->counter & 3;
+    while (shifts != 0) {
+        if ((chip->noise & 1) != 0) chip->noise ^= 0x800302;
+        chip->noise >>= 1;
+        shifts -= 1;
+    }
+}
+
+uint64_t operators(const uint64_t *words, size_t length, size_t rounds) {
+    assert(length >= 18);
+    fm_chip chip;
+    for (size_t i = 0; i < 18; ++i) {
+        uint64_t w = words[i];
+        fm_operator op = {(uint32_t)(w % 5), (uint32_t)((w >> 8) % 12), (uint32_t)((w >> 16) & 1) * 8,
+                          (int32_t)((w >> 24) % 512), (uint32_t)((w >> 33) % 32) * 16, (uint32_t)((w >> 42) & 1),
+                          (uint32_t)(w >> 43), (uint32_t)((w >> 3) & 0xFFFF), {0, 0}};
+        chip.voices[i / 2].operators[i & 1] = op;
+        chip.voices[i / 2].block = (uint32_t)((w >> 50) & 0x1FFF);
+    }
+    chip.counter = 0;
+    chip.noise = 1;
+    for (size_t round = 0; round < rounds; ++round) fm_advance(&chip);
+    uint64_t total = chip.noise;
+    for (size_t i = 0; i < 18; ++i) {
+        fm_operator *op = &chip.voices[i / 2].operators[i & 1];
+        total = total * 31 + (uint64_t)op->count + (uint64_t)(uint32_t)op->volume + (uint64_t)op->state;
+    }
+    return total;
+}

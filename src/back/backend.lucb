@@ -28,6 +28,7 @@ import back.opt.gvn
 import back.opt.load
 import back.opt.loops
 import back.opt.ranges
+import back.opt.switches
 import back.opt.slp
 import back.opt.split
 import back.opt.ssa
@@ -417,6 +418,10 @@ func optimise_function(f: ir.Function*, level: u32, arch: targets.Arch) -> !:
             g3.release()
             g3 = g4
             try note(&at, 4)
+        # a store written over before anything reads it goes
+        if level >= 3 and try load.dead_stores(f, &g3):
+            g3.release()
+            g3 = try cfg.Graph.over(f)
         try note(&at, 5)
         if level >= 3 and try loops.simplify_phis(f, &g3):
             var simplified = try gvn.run(f, &g3)
@@ -430,6 +435,10 @@ func optimise_function(f: ir.Function*, level: u32, arch: targets.Arch) -> !:
             g3 = simplified
         # branches that only choose a value become selects
         if try ifconvert.run(f):
+            g3.release()
+            g3 = try cfg.Graph.over(f)
+        # a chain of `==` tests on one value jumps through a table, as a `match` does
+        if try switches.run(f):
             g3.release()
             g3 = try cfg.Graph.over(f)
         # neighbouring elements' accesses add constants to one address

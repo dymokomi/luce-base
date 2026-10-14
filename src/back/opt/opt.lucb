@@ -35,6 +35,7 @@ pub func clean_function(f: ir.Function*) -> !:
     _ = try failure_flags(f)
     _ = powers_of_two(f)
     _ = negations(f)
+    _ = try widened_comparisons(f)
     _ = try low_bits(f)
     _ = fold(f)
     # a chain of values the rewrites left unread goes one link per sweep
@@ -166,6 +167,42 @@ func negations(f: ir.Function*) -> bool:
         x.cls = d.cls
         x.a = d.a
         x.b = d.b
+        f.instrs.set(i, x)
+        changed = true
+    return changed
+
+## A 64-bit comparison of a zero-extended word with a constant a word holds is the same
+## comparison of the word: a shift count checked against the width (`(u64)sh >= 32`)
+## compares the count's register, with no extension before it. Only an equality or an
+## unsigned order turns, and only an extension one instruction defines; it goes if nothing
+## else reads it (`sweep`). Whether any changed.
+func widened_comparisons(f: ir.Function*) -> bool!:
+    var definition = try new u32[f.temps.count + 1] ---
+    defer free(definition)
+    var assigned = try new u32[f.temps.count + 1] ---
+    defer free(assigned)
+    for t in 0..<definition.length:
+        definition[t] = 0
+        assigned[t] = 0
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst != 0 and (usize)x.dst < definition.length:
+            definition[(usize)x.dst] = (u32)i + 1
+            assigned[(usize)x.dst] += 1
+    var changed = false
+    for i in 0..<f.instrs.count:
+        var x = f.instrs.get(i)
+        let ordered = x.op == ir.Op.ceq or x.op == ir.Op.cne or x.op == ir.Op.cult or x.op == ir.Op.cule or x.op == ir.Op.cugt or x.op == ir.Op.cuge
+        if not ordered or x.cls != ir.Class.l or x.a.kind != ir.RefKind.temp or x.b.kind != ir.RefKind.constant or x.b.value < 0 or x.b.value > 4294967295:
+            continue
+        let k = (usize)x.a.index
+        if k >= definition.length or assigned[k] != 1 or definition[k] == 0:
+            continue
+        let d = f.instrs.get((usize)definition[k] - 1)
+        if d.op != ir.Op.extuw or d.a.kind != ir.RefKind.temp:
+            continue
+        x.cls = ir.Class.w
+        x.a = d.a
         f.instrs.set(i, x)
         changed = true
     return changed

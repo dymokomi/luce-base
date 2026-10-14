@@ -52,6 +52,12 @@ struct RangeVisit:
     var child: usize
     var mark: usize
     var product_mark: usize
+    var decision_mark: usize
+
+## What an edge decided about the condition its branch tested (`Search.outcomes`).
+let undecided: u8 = 0
+let failed: u8 = 1
+let held: u8 = 2
 
 struct Search:
     var f: ir.Function*
@@ -65,6 +71,11 @@ struct Search:
     var products: list.List[Product]
     ## Per temporary a phi defines: 1 + the index of the phi's block; 0 for the others.
     var join_of: u32[]
+    ## Per temporary, what a branch on it above decided: `held` or `failed` on the edge
+    ## taken, `undecided` elsewhere; `decisions` lists the temporaries set, newest last,
+    ## to forget them as the walk leaves the blocks the edge dominates.
+    var outcomes: u8[]
+    var decisions: list.List[u32]
     var changed: bool = false
 
     ## The chain bucket of operand `r`: its own for a temporary, a shared one otherwise.
@@ -185,6 +196,13 @@ struct Search:
                 let low = self.lower(definition.a, cls, depth + 1)
                 if factor > 0 and self.upper(definition.a, cls, depth + 1) <= limit(cls) // factor:
                     result = low * factor
+            elif definition.op == ir.Op.shl and definition.a.kind == ir.RefKind.constant and definition.cls == cls:
+                # `1 << s` with `s` below the width: no bit of the constant shifted out, so
+                # it is at least the constant (`(1 << s) - 1` cannot wrap)
+                let constant = bits(definition.a, cls)
+                let room = (u64)(32 if cls == ir.Class.w else 64) - significant(constant)
+                if constant > 0 and self.upper(definition.b, cls, depth + 1) <= room:
+                    result = constant
         var at = self.right_heads[self.bucket(value)]
         while at != 0:
             let fact = self.facts.get((usize)at - 1)
@@ -498,7 +516,12 @@ struct Search:
         let branch = self.f.instrs.get(predecessor.end - 1)
         if branch.op != ir.Op.jnz or branch.extra == branch.extra2:
             return
-        try self.assume(branch.a, branch.extra == block.label)
+        let yes = branch.extra == block.label
+        try self.assume(branch.a, yes)
+        # the condition itself, for a later branch on it below the edge
+        if branch.a.kind == ir.RefKind.temp and (usize)branch.a.index < self.outcomes.length and self.outcomes[branch.a.index] == undecided:
+            self.outcomes[branch.a.index] = held if yes else failed
+            try self.decisions.push(branch.a.index)
 
     ## The facts that `condition` being true (`yes`), or false, establishes.
     func assume(condition: ir.Ref, yes_now: bool) -> !:
@@ -525,15 +548,39 @@ struct Search:
             return
         let a = comparison.a
         let b = comparison.b
-        match comparison.op:
-            .cult: try self.add(Relation.less if yes else Relation.at_most, comparison.cls, a if yes else b, b if yes else a)
-            .cule: try self.add(Relation.at_most if yes else Relation.less, comparison.cls, a if yes else b, b if yes else a)
-            .cugt: try self.add(Relation.less if yes else Relation.at_most, comparison.cls, b if yes else a, a if yes else b)
-            .cuge: try self.add(Relation.at_most if yes else Relation.less, comparison.cls, b if yes else a, a if yes else b)
+        try self.compared(comparison.op, comparison.cls, comparison.a, comparison.b, yes)
+        # a word zero-extended for its comparison (a shift count against the width) is
+        # bounded as the word itself
+        let a_word = self.extended_word(comparison.a)
+        let b_word = self.extended_word(comparison.b)
+        if comparison.cls == ir.Class.l and a_word.kind == ir.RefKind.temp and comparison.b.kind == ir.RefKind.constant and bits(comparison.b, ir.Class.l) <= limit(ir.Class.w):
+            try self.compared(comparison.op, ir.Class.w, a_word, comparison.b, yes)
+        if comparison.cls == ir.Class.l and b_word.kind == ir.RefKind.temp and comparison.a.kind == ir.RefKind.constant and bits(comparison.a, ir.Class.l) <= limit(ir.Class.w):
+            try self.compared(comparison.op, ir.Class.w, comparison.a, b_word, yes)
+
+    ## The facts a comparison `a op b` at `cls` establishes when it is `yes`, or false.
+    func compared(op: ir.Op, cls: ir.Class, a: ir.Ref, b: ir.Ref, yes: bool) -> !:
+        match op:
+            .cult: try self.add(Relation.less if yes else Relation.at_most, cls, a if yes else b, b if yes else a)
+            .cule: try self.add(Relation.at_most if yes else Relation.less, cls, a if yes else b, b if yes else a)
+            .cugt: try self.add(Relation.less if yes else Relation.at_most, cls, b if yes else a, a if yes else b)
+            .cuge: try self.add(Relation.at_most if yes else Relation.less, cls, b if yes else a, a if yes else b)
             .ceq, .cne:
-                if yes == (comparison.op == ir.Op.ceq):
-                    try self.add(Relation.equal, comparison.cls, a, b)
+                if yes == (op == ir.Op.ceq):
+                    try self.add(Relation.equal, cls, a, b)
+                elif is_zero(b):
+                    # unsigned, a value other than 0 is above it
+                    try self.add(Relation.less, cls, b, a)
+                elif is_zero(a):
+                    try self.add(Relation.less, cls, a, b)
             _: _ = 0
+
+    ## The word `r` zero-extends (`extuw`), or none.
+    func extended_word(r: ir.Ref) -> ir.Ref:
+        if r.kind != ir.RefKind.temp or self.definitions[r.index] == 0:
+            return ir.none_ref()
+        let definition = self.f.instrs.get(self.definitions[r.index] - 1)
+        return definition.a if definition.op == ir.Op.extuw else ir.none_ref()
 
     ## Walk the dominator tree from block `root`: each block's facts hold in the blocks it
     ## dominates and are dropped after them. An explicit stack, not recursion, as in
@@ -541,7 +588,7 @@ struct Search:
     func visit(root: u32) -> !:
         var stack = try list.List[RangeVisit].create(64)
         defer stack.destroy()
-        try stack.push(RangeVisit(block = root, child = 0, mark = self.facts.count, product_mark = self.products.count))
+        try stack.push(RangeVisit(block = root, child = 0, mark = self.facts.count, product_mark = self.products.count, decision_mark = self.decisions.count))
         try self.visit_block(root)
         while stack.count > 0:
             var top = stack.get(stack.count - 1)
@@ -550,11 +597,14 @@ struct Search:
                 let child = block.children.get(top.child)
                 top.child += 1
                 stack.set(stack.count - 1, top)
-                try stack.push(RangeVisit(block = child, child = 0, mark = self.facts.count, product_mark = self.products.count))
+                try stack.push(RangeVisit(block = child, child = 0, mark = self.facts.count, product_mark = self.products.count, decision_mark = self.decisions.count))
                 try self.visit_block(child)
             else:
                 self.truncate(top.mark)
                 self.products.count = top.product_mark
+                while self.decisions.count > top.decision_mark:
+                    self.outcomes[self.decisions.get(self.decisions.count - 1)] = undecided
+                    self.decisions.count -= 1
                 stack.count -= 1
 
     ## Take in block `index`'s incoming facts and its instructions' own, and drop the checks
@@ -604,6 +654,15 @@ struct Search:
                     instruction.extra2 = 0
                     self.f.instrs.set(at, instruction)
                     self.changed = true
+            elif instruction.op == ir.Op.jnz and instruction.a.kind == ir.RefKind.temp and instruction.extra != instruction.extra2:
+                # a branch on a condition an edge above already decided (a shift count
+                # checked once, tested again for the next shift by the same count)
+                let decision = self.outcomes[instruction.a.index] if (usize)instruction.a.index < self.outcomes.length else undecided
+                if decision != undecided:
+                    let taken = instruction.extra if decision == held else instruction.extra2
+                    instruction = ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = taken, extra2 = 0, line = instruction.line, file = instruction.file, scope = instruction.scope, site = instruction.site)
+                    self.f.instrs.set(at, instruction)
+                    self.changed = true
             if checked_product:
                 try self.products.push(Product(cls = instruction.cls, left = instruction.a, right = instruction.b, value = ir.temp_ref(instruction.dst)))
             at += 1
@@ -614,9 +673,13 @@ struct Search:
 ## definition. The caller rebuilds its graph when instructions were removed.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
     let buckets = f.temps.count + 1 + shared_buckets
-    var search = Search(f = f, g = g, definitions = try new u32[f.temps.count + 1] ---, facts = try list.List[Fact].create(32), left_heads = try new u32[buckets] ---, right_heads = try new u32[buckets] ---, products = try list.List[Product].create(8), join_of = try new u32[f.temps.count + 1] ---)
+    var search = Search(f = f, g = g, definitions = try new u32[f.temps.count + 1] ---, facts = try list.List[Fact].create(32), left_heads = try new u32[buckets] ---, right_heads = try new u32[buckets] ---, products = try list.List[Product].create(8), join_of = try new u32[f.temps.count + 1] ---, outcomes = try new u8[f.temps.count + 1] ---, decisions = try list.List[u32].create(16))
     defer free(search.definitions)
     defer free(search.join_of)
+    defer free(search.outcomes)
+    defer search.decisions.destroy()
+    for index in 0..<search.outcomes.length:
+        search.outcomes[index] = undecided
     for index in 0..<search.join_of.length:
         search.join_of[index] = 0
     for b in 0..<g.count():
@@ -651,6 +714,15 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
 
 func is_unsigned_comparison(op: ir.Op) -> bool:
     return op == ir.Op.cult or op == ir.Op.cule or op == ir.Op.cugt or op == ir.Op.cuge
+
+## How many bits `value` needs: 0 for 0, 1 for 1, 3 for 7.
+func significant(value: u64) -> u64:
+    var n: u64 = 0
+    var rest = value
+    while rest != 0:
+        rest >>= 1
+        n += 1
+    return n
 
 func is_zero(value: ir.Ref) -> bool:
     return value.kind == ir.RefKind.constant and value.value == 0

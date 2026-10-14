@@ -15,6 +15,13 @@
 #       other memory), an atomic, or a fence, the load stays. Only a whole match of one
 #       class is taken: a value of another width or class stays a load too.
 #
+#       A store whose bytes a later store writes again on every path from it, before
+#       anything could read them, goes (`dead_stores`): `if (rng & 1) != 0: chip.rng ^= k`
+#       followed by `chip.rng >>= 1` leaves the arm only a value to choose, which `ifconvert`
+#       then chooses without a branch. The search goes forward from the store through
+#       blocks that have one way on, past stores and loads that cannot touch its bytes and
+#       work that cannot trap; anything else keeps the store.
+#
 #==============================================================================================
 
 import support.list
@@ -459,3 +466,90 @@ func join_value(s: Search*, address: Alias, width: i64, op: ir.Op, cls: ir.Class
 
 func same_alias(a: Alias, b: Alias) -> bool:
     return a.kind == b.kind and a.base == b.base and a.offset == b.offset and a.name == b.name
+
+# mark: Dead stores ============================================================================
+
+## The most instructions the search from one store visits.
+let dead_store_reach: u32 = 64
+
+## Remove the stores of `f` (single-assignment form, graph `g`) that a later store
+## overwrites before anything reads them; whether any went. The graph is then stale.
+pub func dead_stores(f: ir.Function*, g: cfg.Graph*) -> bool!:
+    var aliases = try Aliases.over(f, g)
+    defer aliases.release()
+    var dead = try new bool[f.instrs.count + 1] ---
+    defer free(dead)
+    var any = false
+    for b in 0..<g.blocks.count:
+        let block = g.blocks.get(b)
+        if block.rpo == cfg.none_block:
+            continue
+        for i in block.start..<block.end:
+            dead[(usize)i] = false
+            let x = f.instrs.get((usize)i)
+            if is_store(x.op) and overwritten(f, g, &aliases, u32(b), i):
+                dead[(usize)i] = true
+                any = true
+    if not any:
+        return false
+    var out = try list.List[ir.Instr].create(f.instrs.count)
+    for b in 0..<g.blocks.count:
+        let block = g.blocks.get(b)
+        if block.label != 0 and block.start > 0:
+            try out.push(f.instrs.get((usize)block.start - 1))
+        for i in block.start..<block.end:
+            if block.rpo == cfg.none_block or not dead[(usize)i]:
+                try out.push(f.instrs.get((usize)i))
+    f.instrs.destroy()
+    f.instrs = out
+    return true
+
+## Whether the store at `at`, in block `b`, is written over by a later store on the one
+## path from it before anything may read its bytes, trap, or leave.
+func overwritten(f: ir.Function*, g: cfg.Graph*, aliases: Aliases*, start_block: u32, at: u32) -> bool:
+    let store = f.instrs.get((usize)at)
+    let width = store_width(store.op)
+    let address = aliases.at(store.b, 0)
+    var b = start_block
+    var i = at + 1
+    var budget = dead_store_reach
+    while budget > 0:
+        let block = g.blocks.get((usize)b)
+        while i < block.end:
+            if budget == 0:
+                return false
+            budget -= 1
+            let x = f.instrs.get((usize)i)
+            i += 1
+            # the address's own base defined again: the search went round a loop
+            if x.dst != 0 and address.kind == Kind.unknown and address.base == x.dst:
+                return false
+            if is_store(x.op):
+                let rel = aliases.relation(address, width, x.b, store_width(x.op))
+                if rel == must_alias:
+                    let over = aliases.at(x.b, 0)
+                    return over.offset <= address.offset and address.offset + width <= over.offset + store_width(x.op)
+                continue
+            if is_load(x.op):
+                if aliases.relation(address, width, x.a, load_width(x.op)) != no_alias:
+                    return false
+                continue
+            if x.op == ir.Op.jmp:
+                break
+            if not harmless(x.op):
+                return false
+        # on to the one block this one goes to, by its jump or by falling in
+        if block.succs.count != 1:
+            return false
+        b = block.succs.get(0)
+        i = g.blocks.get((usize)b).start
+    return false
+
+## Whether `op` only computes a value: it reads no memory, cannot trap, and does not leave.
+func harmless(op: ir.Op) -> bool:
+    match op:
+        .copy, .addr, .add, .sub, .mul, .and_, .or_, .xor, .shl, .lshr, .ashr, .neg: return true
+        .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge: return true
+        .extsb, .extub, .extsh, .extuh, .extsw, .extuw, .exts, .truncd, .cast: return true
+        .select, .phi, .label, .dbg: return true
+        _: return false

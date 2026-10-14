@@ -17,7 +17,7 @@ commands and build durations, and `results.json` with every timed sample. Rebuil
 after changing sources or compilers; `--reuse-build` intentionally uses the existing
 binaries. `--output`, `--base`, `--cc`, `--samples`, and `--target-ms` are configurable.
 
-The eleven workloads cover a wrapping integer recurrence, strict floating-point
+The twelve workloads cover a wrapping integer recurrence, strict floating-point
 recurrence, integer array reduction, floating-point array transformation, byte
 classification, unaligned 32-bit word copies (`memory.read`/`memory.write` against
 `memcpy` of four bytes), unpredictable dependent loads, ordinary i/j/k matrix
@@ -27,7 +27,11 @@ methods of another module (geometry.lucb, as luce-geocore's are to its users) ag
 inflate's inner loop (masked shift counts, a table lookup, `and`-joined conditions), and
 decimal numbers joined by `, ` as a usda array or JSON document writes them, read back and
 summed: std's `strings.scan_f64` against the C library's `strtod` (the one row where C
-is its library's code rather than the same algorithm). Each pair uses the same types, inputs, algorithm and traversal
+is its library's code rather than the same algorithm), and an FM synthesizer's per-sample
+operator work as an OPL2 emulator ported from C does it (`operators`): eighteen operator
+records of a chip reached by pointer, each envelope stepped through a chain of
+`if`/`elif` state tests under a shifted counter mask and a rate table, each phase advanced,
+and a noise register shifted with its taps taken on its low bit. Each pair uses the same types, inputs, algorithm and traversal
 order. Base retains its normal bounds and arithmetic checks. C receives valid
 inputs and retains the same explicit entry assertions; it has no per-access bounds
 checks. Differences in generated checks are part of what the comparison measures.

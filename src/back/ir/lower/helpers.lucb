@@ -192,27 +192,6 @@ func vector_op(op: str, floats: bool) -> ir.Op:
         return ir.Op.vshr
     return ir.Op.copy
 
-## A jump table needs this many values at least, of which one entry in `table_density`
-## percent names one (the rest go to the fallback), and no more than `table_entries`.
-let table_cases: usize = 4
-let table_density: u64 = 40
-let table_entries: u64 = 4095
-
-## How many entries a jump table over the sorted `values` has, from the first to the
-## last, when they are enough and dense enough for one; none when a search does better.
-func dense_range(values: i64[]) -> usize?:
-    if values.length < table_cases:
-        return none
-    # sorted signed or unsigned, the last is above the first either way: the distance
-    # is the same in 64-bit arithmetic that wraps
-    let distance = (u64)values[values.length - 1] -% (u64)values[0]
-    if distance >= table_entries:
-        return none
-    let entries = distance + 1
-    if (u64)values.length * 100 < entries * table_density:
-        return none
-    return (usize)entries
-
 ## The bits of the double `2^power`, or of `-2^power`: exact for every power up to 1023.
 func power_of_two_bits(power: u64, negative: bool) -> i64:
     let bits = (1023 + power) << 52

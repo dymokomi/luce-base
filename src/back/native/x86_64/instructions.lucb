@@ -213,8 +213,14 @@ extend Generator:
                     try self.call_symbol(self.program_unit.trap_function)
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "%rax")
-                let b = try self.source(n.b, ir.Class.l, "%r11")
-                try self.writer.line4("cmpq ", b, ", ", a)
+                if n.b.kind == ir.RefKind.constant and n.b.value >= 0 and n.b.value <= 2147483647:
+                    # a fixed array's length is the comparison's immediate
+                    try self.writer.line("cmpq $")
+                    try self.writer.put_i64(n.b.value)
+                    try self.put2(", ", a)
+                else:
+                    let b = try self.source(n.b, ir.Class.l, "%r11")
+                    try self.writer.line4("cmpq ", b, ", ", a)
                 try self.check_failure("jbe " if n.extra == 1 else "jb ", "ja " if n.extra == 1 else "jae ", "index out of bounds", n)
             .addo, .subo, .mulo:
                 try self.checked(n)
@@ -298,9 +304,14 @@ extend Generator:
         if n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr:
             try self.variable_shift(n, suffix)
             return
-        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        var a = try self.source(n.a, cls, self.reg(cls, 0))
         var b = try self.source(n.b, cls, self.reg(cls, 1))
         let d = self.target(n.dst, cls, self.reg(cls, 0))
+        let commutes = n.op == ir.Op.add or n.op == ir.Op.mul or n.op == ir.Op.and_ or n.op == ir.Op.or_ or n.op == ir.Op.xor
+        if commutes and b == d and a != d:
+            # the operand already in the destination is the one the instruction keeps
+            b = a
+            a = d
         # A dying RHS may share the destination. Preserve it before installing the
         # LHS: x86's destructive two-operand form must not turn a+b into a+a.
         if b == d and a != d:

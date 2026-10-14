@@ -256,9 +256,14 @@ extend Generator:
                     try self.call_trap()
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "x9")
-                let b = try self.source(n.b, ir.Class.l, "x10")
-                try self.writer.line3("cmp ", a, ", ")
-                try self.writer.put(b)
+                if n.b.kind == ir.RefKind.constant and n.b.value >= 0 and n.b.value <= 4095:
+                    # a fixed array's length is the comparison's immediate
+                    try self.writer.line3("cmp ", a, ", #")
+                    try self.writer.put_i64(n.b.value)
+                else:
+                    let b = try self.source(n.b, ir.Class.l, "x10")
+                    try self.writer.line3("cmp ", a, ", ")
+                    try self.writer.put(b)
                 try self.check_failure("b.ls " if n.extra == 1 else "b.lo ", "b.hi " if n.extra == 1 else "b.hs ", "index out of bounds", n)
             .addo, .subo, .mulo:
                 try self.checked(n)
@@ -407,6 +412,17 @@ extend Generator:
     func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0, negate: bool = false) -> !:
         let a = try self.source(n.a, n.cls, scratch_register(n.cls, 0))
         let is_float = ir.is_float_class(n.cls)
+        if let jump = branch:
+            if not is_float and (n.op == ir.Op.ceq or n.op == ir.Op.cne) and n.b.kind == ir.RefKind.constant and n.b.value == 0:
+                # a branch on a value against zero tests the register itself
+                let zero = n.op == ir.Op.ceq
+                try self.branch_start("cbz " if zero else "cbnz ", "cbnz " if zero else "cbz ", a)
+                try self.label_name(jump.extra2 if next_label == jump.extra else jump.extra)
+                try self.branch_end()
+                if next_label != jump.extra and next_label != jump.extra2:
+                    try self.writer.line("b ")
+                    try self.label_name(jump.extra2)
+                return
         # an integer constant the instruction can carry: `cmp` up to 4095, `cmn` below 0
         let immediate = not is_float and n.b.kind == ir.RefKind.constant and n.b.value >= -4095 and n.b.value <= 4095
         let b = "" if immediate else try self.source(n.b, n.cls, scratch_register(n.cls, 1))

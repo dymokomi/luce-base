@@ -143,6 +143,22 @@ extend Generator:
         try self.writer.put_u64((u64)shift)
         try self.finish(n.dst, n.cls, d)
 
+    ## The add `n` of a product by a constant right before it (`selection.multiplied_add`),
+    ## as one `madd`: the variable factor in the first scratch register when not in its own,
+    ## the constant formed in the second, the other addend in the third.
+    func multiplied_add(n: ir.Instr, fused: (ir.Ref, ir.Ref, ir.Ref)) -> !:
+        let (other, a, b) = fused
+        let x = try self.source(a, n.cls, scratch_register(n.cls, 0))
+        let y = scratch_register(n.cls, 1)
+        try self.load_immediate(y, b.value if n.cls == ir.Class.l else (i64)((u64)b.value & 0xFFFFFFFF))
+        let o = try self.source(other, n.cls, scratch_register(n.cls, 2))
+        let d = self.target(n.dst, n.cls, scratch_register(n.cls, 0))
+        try self.writer.line5("madd ", d, ", ", x, ", ")
+        try self.writer.put(y)
+        try self.writer.put(", ")
+        try self.writer.put(o)
+        try self.finish(n.dst, n.cls, d)
+
     ## Emit instructions `at` and `at + 1` as one register-offset access when they are one
     ## (`selection.summed_access`), and the widening after as `scaled_access_at` does; how
     ## many instructions that was.

@@ -296,7 +296,7 @@ extend Lowerer:
     ## (`dense_range`), else halve while more than three remain, then compare each.
     func search(current: ir.Ref, st: u32, values: i64[], branches: u32[], fallback: u32) -> !:
         let cls = self.class_of(st)
-        if let entries = dense_range(values):
+        if let entries = ir.dense_range(values):
             try self.jump_table(current, cls, values, branches, entries, fallback)
             return
         if values.length <= 3:
