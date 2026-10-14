@@ -1,0 +1,254 @@
+#==============================================================================================
+#
+#   linker - COFF objects to a Windows x86-64 executable, inside the compiler
+#
+#   DESCRIPTION:
+#       The linker the native backend's Windows objects go through instead of MinGW's
+#       driver, `ld` and its libraries. The objects' global names go into one table
+#       (`symbols`); what they leave undefined comes first from the start library
+#       (`startup`), then from the DLLs that export it (`dlls`), through an import object
+#       made for them (`imports`). Then the sections are laid out (`layout`), the
+#       relocations written (`relocate`), and the image written (`pe`) with its import,
+#       resource, exception, base relocation and TLS directories. A name nothing defines
+#       stops the link, with every such name and an object that wants it.
+#
+#==============================================================================================
+
+import back.assemble.assembler
+import back.assemble.object
+import back.link.dlls
+import back.link.fields
+import back.link.imports
+import back.link.layout
+import back.link.pe
+import back.link.read
+import back.link.relocate
+import back.link.startup
+import back.link.symbols
+import c
+import interop
+import luce_std.files
+import memory
+import support.buffer
+import support.list
+from support.arena import Arena
+
+## What a link is asked.
+pub struct Options:
+    ## The objects, in order.
+    pub var objects: const str[]
+    ## The libraries `-lNAME` names.
+    pub var libraries: const str[]
+    ## Where a library's DLL may be, before the system's directory.
+    pub var directories: const str[]
+    ## Where Windows keeps its DLLs; empty when the host has none.
+    pub var system: str
+    ## The entry: `mainCRTStartup`, or a freestanding program's `_start`.
+    pub var entry: str
+    ## The executable to write.
+    pub var output: str
+
+## Link `options.objects` into the executable at `options.output`.
+pub func link(options: const Options*) -> !:
+    var arena = Arena(memory.heap, 1048576)
+    defer arena.destroy()
+    with arena:
+        var inputs = try list.List[symbols.Input].create(options.objects.length + 16)
+        for path in options.objects:
+            # the file is the heap's, as luce-std hands it, not the link's arena's
+            var contents: interop.Owned[const u8[]]
+            with memory.heap:
+                contents = try files.read((c.str)path)
+            defer contents.release()
+            try inputs.push(try symbols.Input.of(try read.object_from(contents.value, path), path))
+        var libraries = try dlls.Libraries.create(options.system, options.directories)
+        defer libraries.destroy()
+        try libraries.standard(options.libraries)
+        var out = try buffer.Buffer.create(1048576)
+        try image_of(&inputs, &libraries, options.entry, &out)
+        try files.write((c.str)options.output, out.bytes())
+
+## The executable `inputs` make with names from `libraries`, entered at `entry`, into `out`.
+pub func image_of(inputs: list.List[symbols.Input]*, libraries: dlls.Libraries*, entry: str, out: buffer.Buffer*) -> !:
+    var globals = try symbols.Globals.create()
+    for k in 0..<inputs.count:
+        try globals.add(inputs.span(), u32(k))
+    try pull_members(inputs, &globals, entry)
+    try import_undefined(inputs, &globals, libraries)
+    try write_image(inputs.span(), &globals, entry, out)
+
+# mark: Names =================================================================================
+
+## The start library's members the inputs want, each pulled in when it defines a name
+## nothing else does (the entry among them), until none is wanted.
+func pull_members(inputs: list.List[symbols.Input]*, globals: symbols.Globals*, entry: str) -> !:
+    var members = try startup.members()
+    var pulled = try new bool[members.count]
+    var changed = true
+    while changed:
+        changed = false
+        var wanted = try globals.undefined(inputs.span())
+        if globals.find(entry) == none:
+            try wanted.push(entry)
+        for (k, m) in members.span().indexed():
+            if not pulled[k] and defines_any(&m, wanted.span()):
+                pulled[k] = true
+                changed = true
+                try inputs.push(try symbols.Input.of(m, "the start library"))
+                try globals.add(inputs.span(), u32(inputs.count - 1))
+
+## Whether `o` defines any of `names`.
+func defines_any(o: const object.Object*, names: const str[]) -> bool:
+    for s in o.symbols.span():
+        if s.binding == object.Binding.external and s.section != 0:
+            for name in names:
+                if s.name == name:
+                    return true
+    return false
+
+## The import object for every name still undefined, from the DLLs that export it; a name
+## none exports stops the link, listed with an object that wants it.
+func import_undefined(inputs: list.List[symbols.Input]*, globals: symbols.Globals*, libraries: dlls.Libraries*) -> !:
+    let undefined = try globals.undefined(inputs.span())
+    var wanted = try list.List[imports.Wanted].create(undefined.count)
+    var missing = try buffer.Buffer.create(256)
+    for name in undefined.span():
+        let symbol = (str)name.bytes[6..] if starts_with(name, "__imp_") else name
+        var already = false
+        for w in wanted.span():
+            already = already or w.symbol == symbol
+        if already:
+            continue
+        if let source = try libraries.find(symbol):
+            if source.data and symbol.length == name.length:
+                try read.refuse(f"`{name}` is data in {libraries.items.items[source.library].name}, which only `__imp_{name}` reaches")
+            try wanted.push(imports.Wanted(symbol = symbol, source = source))
+        else:
+            try missing.put("\n  `")
+            try missing.put(name)
+            try missing.put("`, wanted by ")
+            try missing.put(wanter(inputs.span(), name))
+    if missing.used > 0:
+        try read.refuse(f"undefined symbols:{missing.view()}")
+    if wanted.count > 0:
+        try inputs.push(try symbols.Input.of(try imports.object_of(libraries.items.span(), wanted.span()), "the imports"))
+        try globals.add(inputs.span(), u32(inputs.count - 1))
+
+## An input that wants `name`.
+func wanter(inputs: const symbols.Input[], name: str) -> str:
+    for input in inputs:
+        for s in input.o.symbols.span():
+            if s.section == 0 and s.name == name:
+                return input.path
+    return "no object"
+
+func starts_with(text: str, start: str) -> bool:
+    return text.length >= start.length and (str)text.bytes[..<start.length] == start
+
+# mark: The image =============================================================================
+
+## Lay out `inputs`, write their relocations, and write the image into `out`.
+func write_image(inputs: symbols.Input[], globals: const symbols.Globals*, entry: str, out: buffer.Buffer*) -> !:
+    var outputs = try list.List[layout.Output].create(24)
+    var place = try layout.lay_out(inputs, &outputs, layout.page, true)
+    var moved = try list.List[u32].create(1024)
+    try relocate.relocate(inputs, globals, outputs.span(), pe.image_base, true, &moved)
+    for o in &outputs.span():
+        if o.name == ".pdata":
+            try relocate.sort_functions(o)
+    # the base relocations after the loaded sections, the debugging sections after them
+    var relocations = pe.Directory(place = 0, size = 0)
+    if moved.count > 0:
+        let table = try relocate.base_relocations(moved.span())
+        relocations = pe.Directory(place = u32(place), size = u32(table.length))
+        try outputs.push(layout.Output(name = ".reloc", flags = layout.flags_of(false, false, false, false), place = place, size = (u64)table.length, bytes = table))
+        place = (place + (u64)table.length + layout.page - 1) & ~(layout.page - 1)
+    _ = try layout.lay_out(inputs, &outputs, place, false)
+    try relocate.relocate(inputs, globals, outputs.span(), pe.image_base, false, &moved)
+    var image = pe.Image(outputs = outputs.span(), symbols = try symbols_of(inputs, outputs.span()), entry = try place_of(inputs, globals, entry),
+                         relocatable = moved.count > 0)
+    image.directories[pe.directory_relocation] = relocations
+    try directories(&image, inputs, globals)
+    try pe.write(&image, out)
+
+## The data directories but the base relocations': the function table, the resources, the
+## TLS directory, and the import object's descriptors and address tables.
+func directories(image: pe.Image*, inputs: const symbols.Input[], globals: const symbols.Globals*) -> !:
+    for o in image.outputs:
+        if o.name == ".pdata":
+            image.directories[pe.directory_exception] = pe.Directory(place = u32(o.place), size = u32(o.size))
+        elif o.name == ".rsrc":
+            image.directories[pe.directory_resource] = pe.Directory(place = u32(o.place), size = u32(o.size))
+    if globals.find("_tls_used") != none:
+        image.directories[pe.directory_tls] = pe.Directory(place = u32(try place_of(inputs, globals, "_tls_used")), size = 40)
+    # the import object is the last input when there is one
+    let last = &inputs[inputs.length - 1]
+    if last.path == "the imports":
+        let descriptors = last.o.sections.items[imports.descriptors_section - 1]
+        let addresses = last.o.sections.items[imports.addresses_section - 1]
+        image.directories[pe.directory_import] = pe.Directory(place = u32(last.places[imports.descriptors_section - 1]), size = u32(descriptors.size))
+        image.directories[pe.directory_import_addresses] = pe.Directory(place = u32(last.places[imports.addresses_section - 1]), size = u32(addresses.size))
+
+## The symbols the image's table names: every object's defined ones, global and local, at
+## their places in the image's sections (`outputs`).
+func symbols_of(inputs: const symbols.Input[], outputs: const layout.Output[]) -> pe.Symbol[]!:
+    var named = try list.List[pe.Symbol].create(4096)
+    for input in inputs:
+        for s in input.o.symbols.span():
+            let kept = s.binding == object.Binding.external or s.binding == object.Binding.internal
+            if not kept or s.section == 0 or s.section == object.absolute_section or s.name.length == 0:
+                continue
+            let output = input.outputs[s.section - 1]
+            if output == 0:
+                continue
+            let section = &input.o.sections.items[s.section - 1]
+            let value = input.places[s.section - 1] - outputs[output - 1].place + s.value
+            try named.push(pe.Symbol(name = s.name, output = output, value = value, external = s.binding == object.Binding.external,
+                                     code = section.content == object.Content.code))
+    return named.span()
+
+## The place of global `name` relative to the image.
+func place_of(inputs: const symbols.Input[], globals: const symbols.Globals*, name: str) -> u64!:
+    let d = globals.find(name) else return try read.refuse(f"`{name}` is not defined")
+    let t = try symbols.target(inputs, globals, d.input, d.symbol, pe.image_base)
+    return t.address - pe.image_base
+
+# mark: Tests =================================================================================
+
+## A program calling one function of a DLL, its libraries known by name alone.
+func linked(text: str, out: buffer.Buffer*) -> !:
+    var inputs = try list.List[symbols.Input].create(4)
+    try inputs.push(try symbols.Input.of(try assembler.object_from(text.bytes, "test.s"), "test.o"))
+    var none_named: str[]
+    var libraries = try dlls.Libraries.create("", none_named)
+    let crt: str[3] = ["_set_app_type", "_set_invalid_parameter_handler", "exit"]
+    let kernel: str[1] = ["GetTickCount"]
+    try libraries.listed("ucrtbase.dll", crt)
+    try libraries.listed("kernel32.dll", kernel)
+    try image_of(&inputs, &libraries, "mainCRTStartup", out)
+
+test "a program links into an image that enters at the start library and imports by DLL":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var out = try buffer.Buffer.create(4096)
+        try linked("    .text\n    .globl main\nmain:\n    subq $40, %rsp\n    call GetTickCount\n    addq $40, %rsp\n    ret\n", &out)
+        let image = out.bytes()
+        assert(image[0] == 'M' and image[1] == 'Z' and fields.u32_at(image, 64) == 0x00004550)
+        let optional: usize = 64 + 24
+        # PE32+, an entry in the first page of code, two DLLs' descriptors and the empty one
+        assert(fields.u16_at(image, optional) == 0x020B)
+        assert(fields.u32_at(image, optional + 16) >= 0x1000 and fields.u32_at(image, optional + 16) < 0x2000)
+        assert(fields.u32_at(image, optional + 112 + 8 * pe.directory_import + 4) == 60)
+        assert(fields.u32_at(image, optional + 112 + 8 * pe.directory_import_addresses) != 0)
+
+test "a name no object or DLL defines stops the link, naming who wants it":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var out = try buffer.Buffer.create(4096)
+        var failed = false
+        linked("    .text\n    .globl main\nmain:\n    jmp nowhere\n", &out) catch failure:
+            assert(failure.code == read.refused and failure.message == "undefined symbols:\n  `nowhere`, wanted by test.o")
+            failed = true
+        assert(failed)

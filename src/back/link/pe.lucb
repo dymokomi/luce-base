@@ -1,0 +1,237 @@
+#==============================================================================================
+#
+#   pe - The laid-out image as a PE32+ executable
+#
+#   DESCRIPTION:
+#       A DOS header that only points past itself, the PE signature, the COFF file header,
+#       the optional header with the sixteen data directories, a header per section, then
+#       each section's bytes from a 512-byte boundary. A section name longer than eight
+#       bytes, a debugging section's, is `/N`, an offset into a string table at the end of
+#       the file, as GNU `ld` writes it and gdb reads it. The header's values are GNU
+#       `ld`'s for a MinGW console program, so a program behaves as it did: subsystem 5.2,
+#       a 16 MiB stack reserve, ASLR with high entropy, no-execute data, and no time stamp,
+#       so the same objects link to the same bytes (§19.7).
+#
+#==============================================================================================
+
+import back.link.fields
+import back.link.layout
+import support.buffer
+import strings
+
+## The image's base, where it is linked to load; the loader moves it anywhere (ASLR).
+pub let image_base: u64 = 0x140000000
+## The stack the main thread reserves, as the C driver's `--stack` asked.
+let stack_reserve: u64 = 16777216
+let file_alignment: u64 = 0x200
+
+# mark: The image =============================================================================
+
+## The data directories the linker fills, by their place among the sixteen: the import
+## descriptors.
+pub let directory_import: usize = 1
+## The resource tree, `.rsrc`.
+pub let directory_resource: usize = 2
+## The function table, `.pdata`.
+pub let directory_exception: usize = 3
+## The base relocations, `.reloc`.
+pub let directory_relocation: usize = 5
+## The TLS directory, `_tls_used`.
+pub let directory_tls: usize = 9
+## The import address tables, which the loader writes.
+pub let directory_import_addresses: usize = 12
+
+## A data directory: a place in the image and its size.
+pub struct Directory:
+    ## Where it is, relative to the image's base.
+    pub var place: u32
+    ## Its size in bytes.
+    pub var size: u32
+
+## A symbol the image's symbol table names, for debuggers and for `nm`, which a crash
+## report's addresses are read against.
+pub struct Symbol:
+    ## The name.
+    pub var name: str
+    ## The image section, numbered from 1 among all of them, empty ones too.
+    pub var output: u32
+    ## The place in that section.
+    pub var value: u64
+    ## Whether other objects saw it, rather than its own alone.
+    pub var external: bool
+    ## Whether it labels code.
+    pub var code: bool
+
+## What the headers say beside the sections.
+pub struct Image:
+    ## The sections, in address order; an empty one gets no header, since the loader refuses
+    ## an image with one.
+    pub var outputs: const layout.Output[]
+    ## The symbols, in the objects' order.
+    pub var symbols: const Symbol[]
+    ## The entry's place.
+    pub var entry: u64
+    ## The data directories.
+    pub var directories: Directory[16]
+    ## Whether the image can move: false when it has nothing for the loader to relocate.
+    pub var relocatable: bool
+
+# mark: Headers ===============================================================================
+
+let dos_size: usize = 64
+let file_header_size: usize = 20
+let optional_size: usize = 240
+let section_header_size: usize = 40
+let symbol_size: usize = 18
+
+## `image` as a PE file, into `out`.
+pub func write(image: const Image*, out: buffer.Buffer*) -> !:
+    # each section's number in the file, 0 for an empty one, and its bytes' place
+    var numbers = try new u32[image.outputs.length]
+    var raw = try new u64[image.outputs.length]
+    var count: usize = 0
+    for (k, s) in image.outputs.indexed():
+        if s.size > 0:
+            count += 1
+            numbers[k] = u32(count)
+    let headers = align((u64)(dos_size + 4 + file_header_size + optional_size + section_header_size * count), file_alignment)
+    var at = headers
+    for (k, s) in image.outputs.indexed():
+        if numbers[k] != 0 and s.bytes.length > 0:
+            raw[k] = at
+            at += align((u64)s.bytes.length, file_alignment)
+    # the string table holds the long names, the sections' and then the symbols'
+    var names = try buffer.Buffer.create(65536)
+    var header = try new u8[(usize)headers]
+    header[0] = 'M'
+    header[1] = 'Z'
+    fields.put(header, 60, (u64)dos_size, 4)
+    var table = try buffer.Buffer.create(image.symbols.length * symbol_size + 1)
+    for symbol in image.symbols:
+        let number = numbers[symbol.output - 1]
+        if number != 0:
+            try symbol_record(&table, &symbol, number, &names)
+    file_header(header[dos_size..], count, at, u32(table.used // symbol_size), image.relocatable)
+    try optional_header(header[dos_size + 4 + file_header_size..], image, headers)
+    for (k, s) in image.outputs.indexed():
+        if numbers[k] != 0:
+            let field = dos_size + 4 + file_header_size + optional_size + (usize)(numbers[k] - 1) * section_header_size
+            try section_header(header[field..], &s, raw[k], &names)
+    try out.put_bytes(header)
+    for (k, s) in image.outputs.indexed():
+        if numbers[k] != 0 and s.bytes.length > 0:
+            try out.put_bytes(s.bytes)
+            try zeros(out, (usize)(align((u64)s.bytes.length, file_alignment) - (u64)s.bytes.length))
+    try out.put_bytes(table.bytes())
+    var size: u8[4]
+    fields.put(size, 0, (u64)(names.used + 4), 4)
+    try out.put_bytes(size)
+    try out.put_bytes(names.bytes())
+
+## The signature and the file header: x86-64, `count` sections, the symbol table at
+## `symbols_at` with `symbols` records, the string table after it, and an executable that
+## addresses above 2 GiB.
+func file_header(field: u8[], count: usize, symbols_at: u64, symbols: u32, relocatable: bool):
+    field[0] = 'P'
+    field[1] = 'E'
+    let f = field[4..]
+    fields.put(f, 0, 0x8664, 2)
+    fields.put(f, 2, (u64)count, 2)
+    fields.put(f, 8, symbols_at, 4)
+    fields.put(f, 12, (u64)symbols, 4)
+    fields.put(f, 16, (u64)optional_size, 2)
+    # executable, large address aware, and with no relocations when it cannot move
+    fields.put(f, 18, 0x0022 | (0 if relocatable else 0x0001), 2)
+
+## A symbol's record: its name, its place in section `number`, a function's type, and its
+## storage class, external or static.
+func symbol_record(table: buffer.Buffer*, symbol: const Symbol*, number: u32, names: buffer.Buffer*) -> !:
+    var record: u8[18]
+    if symbol.name.length <= 8:
+        for k in 0..<symbol.name.length:
+            record[k] = symbol.name.bytes[k]
+    else:
+        fields.put(record, 4, (u64)(names.used + 4), 4)
+        try names.put(symbol.name)
+        try names.put_byte(0)
+    fields.put(record, 8, symbol.value, 4)
+    fields.put(record, 12, (u64)number, 2)
+    fields.put(record, 14, 0x20 if symbol.code else 0, 2)
+    record[16] = 2 if symbol.external else 3
+    try table.put_bytes(record)
+
+## The optional header: PE32+, sizes, the entry, the base and alignments, the versions and
+## subsystem, the stack and heap, and the data directories.
+func optional_header(f: u8[], image: const Image*, headers: u64) -> !:
+    var code: u64 = 0
+    var data: u64 = 0
+    var zeroed: u64 = 0
+    var code_base: u64 = 0
+    var end: u64 = 0
+    for s in image.outputs:
+        if s.size == 0:
+            continue
+        if layout.is_code(&s):
+            code += align((u64)s.bytes.length, file_alignment)
+            if code_base == 0:
+                code_base = s.place
+        elif s.bytes.length > 0:
+            data += align((u64)s.bytes.length, file_alignment)
+        else:
+            zeroed += align(s.size, file_alignment)
+        end = align(s.place + s.size, layout.page)
+    fields.put(f, 0, 0x020B, 2)
+    f[2] = 2
+    f[3] = 47
+    fields.put(f, 4, code, 4)
+    fields.put(f, 8, data, 4)
+    fields.put(f, 12, zeroed, 4)
+    fields.put(f, 16, image.entry, 4)
+    fields.put(f, 20, code_base, 4)
+    fields.put(f, 24, image_base, 8)
+    fields.put(f, 32, layout.page, 4)
+    fields.put(f, 36, file_alignment, 4)
+    # operating system 4.0 and subsystem 5.2, GNU `ld`'s: Windows sizes a window's frame by
+    # the subsystem version, so a program's windows keep the size they had
+    fields.put(f, 40, 4, 2)
+    fields.put(f, 48, 5, 2)
+    fields.put(f, 50, 2, 2)
+    fields.put(f, 56, end, 4)
+    fields.put(f, 60, headers, 4)
+    # the console subsystem; high-entropy ASLR, a movable base and no-execute data
+    fields.put(f, 68, 3, 2)
+    fields.put(f, 70, 0x0160 if image.relocatable else 0x0100, 2)
+    fields.put(f, 72, stack_reserve, 8)
+    fields.put(f, 80, 0x1000, 8)
+    fields.put(f, 88, 0x100000, 8)
+    fields.put(f, 96, 0x1000, 8)
+    fields.put(f, 108, 16, 4)
+    for (k, d) in image.directories.indexed():
+        fields.put(f, 112 + k * 8, (u64)d.place, 4)
+        fields.put(f, 116 + k * 8, (u64)d.size, 4)
+
+## A section's header: its name, size and place in memory, its bytes' place and size in the
+## file, and its flags.
+func section_header(f: u8[], s: const layout.Output*, raw: u64, names: buffer.Buffer*) -> !:
+    if s.name.length <= 8:
+        for k in 0..<s.name.length:
+            f[k] = s.name.bytes[k]
+    else:
+        var room: u8[16]
+        let spelled = try strings.format(room, f"/{names.used + 4}")
+        for k in 0..<spelled.length:
+            f[k] = spelled.bytes[k]
+        try names.put(s.name)
+        try names.put_byte(0)
+    fields.put(f, 8, s.size, 4)
+    fields.put(f, 12, s.place, 4)
+    fields.put(f, 16, align((u64)s.bytes.length, file_alignment), 4)
+    fields.put(f, 20, raw, 4)
+    fields.put(f, 36, (u64)s.flags, 4)
+
+func align(n: u64, to: u64) -> u64:
+    return (n + to - 1) & ~(to - 1)
+
+func zeros(out: buffer.Buffer*, count: usize) -> !:
+    for _ in 0..<count:
+        try out.put_byte(0)

@@ -1,0 +1,144 @@
+#==============================================================================================
+#
+#   imports - The image's imports, as one more object
+#
+#   DESCRIPTION:
+#       What an import library would hand a linker, made here from the names the objects
+#       want and the DLLs that have them (`dlls`): for each DLL a descriptor, its lookup
+#       table and address table of hint-and-name entries, and its name; for each imported
+#       name a slot in the address table, `__imp_NAME`, which the loader fills, and `NAME`,
+#       a jump through it, which a `call NAME` reaches. The sections are named `.idata$N` in
+#       the order the image wants them, so they sort into one `.idata` like any other
+#       object's (`layout`), and every address in them is a relocation the linker writes
+#       like any other.
+#
+#==============================================================================================
+
+import back.assemble.object
+import back.link.fields
+import back.link.dlls
+import strings
+import support.list
+
+## A name an object wants and where it comes from.
+pub struct Wanted:
+    ## The name as the objects spell it, without `__imp_`.
+    pub var symbol: str
+    ## The library and the name it exports.
+    pub var source: dlls.Import
+
+## The object's sections, numbered from 1: the descriptors, which the image's import
+## directory names, the lookup tables, the address tables, which its import address table
+## directory names, the hint-and-name entries, the libraries' names, and the jumps.
+pub let descriptors_section: u32 = 1
+let lookups_section: u32 = 2
+## The address tables' section, which the image's import address table directory names.
+pub let addresses_section: u32 = 3
+let names_section: u32 = 4
+let libraries_section: u32 = 5
+let jumps_section: u32 = 6
+
+## The sections' names, in their numbers' order: each is the symbol of its own start.
+let section_names: str[6] = [".idata$2", ".idata$4", ".idata$5", ".idata$6", ".idata$7", ".text"]
+
+let descriptor_size: usize = 20
+let entry_size: usize = 8
+let jump_size: usize = 8
+
+## The import object for `wanted` from `libraries`, each library that gives one a name.
+pub func object_of(libraries: const dlls.Library[], wanted: const Wanted[]) -> object.Object!:
+    var o = try object.Object.create()
+    # the libraries that give a name, in the order they are looked in, and how many each gives
+    var counts = try new usize[libraries.length]
+    for w in wanted:
+        counts[w.source.library] += 1
+    var used: usize = 0
+    var entries: usize = 0
+    var names: usize = 0
+    var library_names: usize = 0
+    for (k, n) in counts.indexed():
+        if n > 0:
+            used += 1
+            entries += n + 1
+            library_names += libraries[k].name.length + 1
+    for w in wanted:
+        names += even(2 + w.source.name.length + 1)
+    var descriptors = try section(descriptors_section, (used + 1) * descriptor_size, 4)
+    var lookups = try section(lookups_section, entries * entry_size, 8)
+    var addresses = try section(addresses_section, entries * entry_size, 8)
+    var hints = try section(names_section, names, 2)
+    var dll_names = try section(libraries_section, even(library_names), 2)
+    var jumps = try section(jumps_section, wanted.length * jump_size, 8)
+    jumps.content = object.Content.code
+    jumps.writable = false
+    for (k, name) in section_names.indexed():
+        try o.symbols.push(object.Symbol(name = name, section = u32(k + 1), value = 0, binding = object.Binding.section_base, code = false, fallback = 0))
+    var descriptor: usize = 0
+    var entry: usize = 0
+    var hint_at: usize = 0
+    var name_at: usize = 0
+    var jump: usize = 0
+    for (k, library) in libraries.indexed():
+        if counts[k] == 0:
+            continue
+        # the descriptor: the lookup table, no time stamp or forwarder chain, the name, the address table
+        try relocate(&descriptors, descriptor, lookups_section, entry * entry_size)
+        try relocate(&descriptors, descriptor + 12, libraries_section, name_at)
+        try relocate(&descriptors, descriptor + 16, addresses_section, entry * entry_size)
+        descriptor += descriptor_size
+        put_text(dll_names.bytes, name_at, library.name)
+        name_at += library.name.length + 1
+        for w in wanted:
+            if w.source.library != u32(k):
+                continue
+            # the hint-and-name entry, which the lookup and address tables both point to
+            fields.put(hints.bytes, hint_at, (u64)w.source.hint, 2)
+            put_text(hints.bytes, hint_at + 2, w.source.name)
+            try relocate(&lookups, entry * entry_size, names_section, hint_at)
+            try relocate(&addresses, entry * entry_size, names_section, hint_at)
+            hint_at += even(2 + w.source.name.length + 1)
+            # `jmp *slot(%rip)`, and the two names
+            jumps.bytes[jump] = 0xFF
+            jumps.bytes[jump + 1] = 0x25
+            fields.put(jumps.bytes, jump + 2, (u64)(entry * entry_size), 4)
+            try jumps.relocations.push(object.Relocation(offset = (u64)(jump + 2), symbol = addresses_section - 1, fix = object.Fix.relative32))
+            for pad in jump + 6..<jump + jump_size:
+                jumps.bytes[pad] = 0xCC
+            try o.symbols.push(defined(w.symbol, jumps_section, jump, true))
+            var room: u8[4096]
+            let slot = try strings.copy(try strings.format(room, f"__imp_{w.symbol}"))
+            try o.symbols.push(defined(slot, addresses_section, entry * entry_size, false))
+            jump += jump_size
+            entry += 1
+        # each table ends in a zero entry
+        entry += 1
+    try o.sections.push(descriptors)
+    try o.sections.push(lookups)
+    try o.sections.push(addresses)
+    try o.sections.push(hints)
+    try o.sections.push(dll_names)
+    try o.sections.push(jumps)
+    return o
+
+## Section `number`: data of `size` zero bytes.
+func section(number: u32, size: usize, alignment: u64) -> object.Section!:
+    return object.Section(name = section_names[number - 1], content = object.Content.data, writable = true, loaded = true, readable = true, alignment = alignment,
+                          bytes = try new u8[size], size = (u64)size, used = (u64)size, relocations = try list.List[object.Relocation].create(16))
+
+## A global symbol at `at` in section `number`.
+func defined(name: str, number: u32, at: usize, code: bool) -> object.Symbol:
+    return object.Symbol(name = name, section = number, value = (u64)at, binding = object.Binding.external, code = code, fallback = 0)
+
+## At `at` in `s`, the address relative to the image of the place `addend` bytes into
+## section `number`.
+func relocate(s: object.Section*, at: usize, number: u32, addend: usize) -> !:
+    fields.put(s.bytes, at, (u64)addend, 4)
+    try s.relocations.push(object.Relocation(offset = (u64)at, symbol = number - 1, fix = object.Fix.image32))
+
+func even(n: usize) -> usize:
+    return (n + 1) // 2 * 2
+
+## `text` at `at`, its NUL already there.
+func put_text(bytes: u8[], at: usize, text: str):
+    for k in 0..<text.length:
+        bytes[at + k] = text.bytes[k]

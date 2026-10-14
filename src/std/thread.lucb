@@ -3,17 +3,18 @@
 #   thread - Native threads
 #
 #   DESCRIPTION:
-#       Spawning, joining and detaching host threads over pthreads (Windows through its own
-#       primitives), with the running thread's identity and yielding and sleeping.
+#       Spawning, joining and detaching host threads over pthreads, and on Windows over its
+#       own threads, with the running thread's identity and yielding and sleeping.
 #
 #==============================================================================================
 
-from windows_abi import Sleep
+from windows_abi import CloseHandle, Sleep
 import c
 import core
 import memory
 import platform
 import time
+import windows_text
 extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
 extern func pthread_join(thread: void*, result: void*?*?) -> i32
 extern func pthread_detach(thread: void*) -> i32
@@ -28,6 +29,12 @@ extern func pthread_attr_destroy(attributes: void*) -> i32
 extern func mac_setname as "pthread_setname_np"(name: c.str) -> i32
 extern func linux_setname as "pthread_setname_np"(thread: void*, name: c.str) -> i32
 extern func sched_yield() -> i32
+## Windows' threads: a handle each, which joining waits on and closes.
+extern func CreateThread(security: void*?, stack: usize, start: func(void*) -> u32, argument: void*, flags: u32, id: u32*?) -> void*?
+extern func WaitForSingleObject(handle: void*, milliseconds: u32) -> u32
+extern func GetCurrentThread() -> void*
+extern func SetThreadDescription(thread: void*, name: const u16*) -> i32
+extern func SwitchToThread() -> i32
 extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
 
 ## `struct timespec`: `tv_nsec` is a C `long`, four bytes on Windows.
@@ -55,19 +62,35 @@ let name_room: usize = 16
 ## and it stays none.
 pub var locals_start: (func() -> unit)?
 
-## A running thread; the zero value is no thread at all, so arrays of handles exist.
+## CreateThread's flag that makes its size the stack's reservation, not its first commit.
+let stack_reservation: u32 = 0x00010000
+## WaitForSingleObject's wait without end, and its answer when the object is signalled.
+let wait_forever: u32 = 0xFFFFFFFF
+let signalled: u32 = 0
+
+## A running thread; the zero value is no thread at all, so arrays of handles exist. On
+## Windows the id is the thread's handle.
 pub struct Handle:
     var id: void*?
 
     ## Wait for the thread to finish.
     pub func join() -> !:
         let id = self.id else error(failed, "no thread to join")
+        if platform.windows:
+            let waited = WaitForSingleObject(id, wait_forever)
+            _ = CloseHandle(id)
+            if waited != signalled:
+                error(failed, "join")
+            return
         if pthread_join(id, none) != 0:
             error(failed, "join")
 
     ## Let the thread run on its own; its resources are reclaimed at exit.
     pub func detach():
         let id = self.id else return
+        if platform.windows:
+            _ = CloseHandle(id)
+            return
         _ = pthread_detach(id)
 
 ## What a new thread starts with: the entry, its context, its name in a heap block of
@@ -87,13 +110,27 @@ func trampoline(raw: void*) -> void*?:
     let context = start.context
     if start.name_length > 0:
         let text = (c.str)(str)start.name[..<start.name_length]
-        if platform.macos:
+        if platform.windows:
+            name_windows(text)
+        elif platform.macos:
             _ = mac_setname(text)
         else:
             _ = linux_setname(pthread_self(), text)
     release_start(start)
     entry(context)
     return none
+
+## A Windows thread's entry, which answers a status rather than a pointer.
+func windows_trampoline(raw: void*) -> u32:
+    _ = trampoline(raw)
+    return 0
+
+## The calling thread's name, as Windows' tools show it: UTF-16, and best effort.
+func name_windows(name: c.str):
+    let wide = windows_text.wide(name, failed) catch failure:
+        return
+    defer free(wide)
+    _ = SetThreadDescription(GetCurrentThread(), wide.data)
 
 ## Free what `spawn` handed the new thread: the start record and its copy of the name.
 func release_start(start: Start*):
@@ -113,13 +150,16 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
     let start = new Start(entry = entry, context = context, name = copy, name_length = kept) in memory.heap catch failure:
         error(memory.exhausted, "memory.exhausted")
     errdefer free(start) in memory.heap
-    var attributes: u64[16]
-    if pthread_attr_init((void*)&attributes[0]) != 0:
-        error(failed, "spawn")
     let wanted = stack if stack > 0 else default_stack
     let page = memory.page_size()
     var size = wanted if wanted > least_stack else least_stack
     size = (size + page - 1) // page * page
+    if platform.windows:
+        let handle = CreateThread(none, size, windows_trampoline, (void*)start, stack_reservation, none) else error(failed, "spawn")
+        return Handle(id = handle)
+    var attributes: u64[16]
+    if pthread_attr_init((void*)&attributes[0]) != 0:
+        error(failed, "spawn")
     if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:
         _ = pthread_attr_destroy((void*)&attributes[0])
         error(failed, "the stack size is refused")
@@ -131,8 +171,11 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
     let thread = id else error(failed, "spawn")
     return Handle(id = thread)
 
-## A handle to the calling thread.
+## A handle to the calling thread: on Windows its pseudo-handle, which stands for whichever
+## thread uses it and which closing leaves alone.
 pub func current() -> Handle:
+    if platform.windows:
+        return Handle(id = GetCurrentThread())
     return Handle(id = pthread_self())
 
 ## Whether this is the process's initial thread, for main-thread native resources.
@@ -154,6 +197,9 @@ pub func pause():
 
 ## Yield the processor to another runnable thread.
 pub func yield():
+    if platform.windows:
+        _ = SwitchToThread()
+        return
     _ = sched_yield()
 
 ## Sleep for at least `milliseconds`: a signal that interrupts the sleep leaves the time

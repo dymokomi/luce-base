@@ -1,0 +1,67 @@
+#==============================================================================================
+#
+#   order - A stable sort for the compiler's own arrays
+#
+#   DESCRIPTION:
+#       A bottom-up merge sort: n log n comparisons, equal items kept in the order they
+#       came, and one scratch array of the same length from the current allocator. The
+#       compiler's sources keep to what the seed's library has, which has no sort.
+#
+#==============================================================================================
+
+## `items` ordered by `less`, equal items in their order.
+pub func stable[T](items: T[], less: func(T, T) -> bool) -> !:
+    let n = items.length
+    if n < 2:
+        return
+    var other = try new T[n] ---
+    defer free(other)
+    var source = items
+    var target = other
+    var width: usize = 1
+    # whether the sorted runs are in `other` after the last pass
+    var moved = false
+    while width < n:
+        var start: usize = 0
+        while start < n:
+            let middle = start + width if start + width < n else n
+            let end = start + 2 * width if start + 2 * width < n else n
+            var i = start
+            var j = middle
+            for k in start..<end:
+                # the right run's item goes first only when it is strictly less
+                if i < middle and (j >= end or not less(source[j], source[i])):
+                    target[k] = source[i]
+                    i += 1
+                else:
+                    target[k] = source[j]
+                    j += 1
+            start = end
+        let swap = source
+        source = target
+        target = swap
+        moved = not moved
+        width *= 2
+    if moved:
+        for k in 0..<n:
+            items[k] = source[k]
+
+func before(a: u32, b: u32) -> bool:
+    return a < b
+
+func by_key(a: (u32, u32), b: (u32, u32)) -> bool:
+    let (x, _) = a
+    let (y, _) = b
+    return x < y
+
+test "a merge sort orders, past one run's width, and keeps equal items in their order":
+    var values: u32[9] = [5, 3, 9, 1, 3, 7, 2, 8, 0]
+    try stable(values, before)
+    for k in 1..<values.length:
+        assert(values[k - 1] <= values[k])
+    var pairs: (u32, u32)[5] = [(2, 0), (1, 1), (2, 2), (1, 3), (0, 4)]
+    try stable(pairs, by_key)
+    let (_, first) = pairs[1]
+    let (_, second) = pairs[2]
+    let (_, third) = pairs[3]
+    assert(first == 1 and second == 3 and third == 0)

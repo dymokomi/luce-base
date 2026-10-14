@@ -2,14 +2,33 @@
 
 Windows is a native `x86_64-windows` target. Base emits Win64 assembly and COFF
 objects, including shadow space, register preservation, aggregate calls and
-returns, TLS, stack probes and SEH unwind records. MinGW GCC supplies the assembler,
-linker, CRT and pthread library. `--backend=c` is the comparison backend.
+returns, TLS, stack probes and SEH unwind records. By default MinGW GCC supplies the
+assembler and linker and its CRT; threads are Windows' own. `--backend=c` is the
+comparison backend.
 
 The compiler has an assembler of its own for this target (`src/back/assemble`), which reads
 the same assembly and writes the COFF object GNU `as` writes, in the compiler's process.
 `build` and `test` take `--own-assembler` to use it; the flag is temporary, until the own
 assembler becomes the only one. `luce-base assemble FILE.s -o FILE.o` runs it alone, and
 `tools/asm_parity.py --suite` checks it against GNU `as` on every test program's assembly.
+
+It has a linker of its own too (`src/back/link`), so a native program needs neither MinGW
+nor any other toolchain: `--own-linker` on `build` and `test` (temporary, like
+`--own-assembler`, which it implies) links the objects in the compiler's process. Builds
+that `luc` and `luce` start take it from the environment: set `LUCE_OWN_LINKER` (to
+anything) and every native build links that way. There are no import libraries: a name the
+objects leave undefined is looked up in the export tables of the DLLs themselves, in
+`%SystemRoot%\System32` and the directories `-L` and a package's manifest name. The C
+library is the Universal CRT, `ucrtbase.dll`; `kernel32`, `user32`, `shell32` and
+`advapi32` are always searched, as MinGW's driver links them; `-lNAME` searches `NAME.dll`.
+A small start library in the linker stands in for MinGW's start files and support
+libraries: the entry, the TLS directory, the stack probe, and the C names the UCRT keeps in
+its headers (`printf`, `snprintf`, `atexit`, `fabsf`) or MinGW added (`usleep`,
+`clock_gettime`). The image is GNU `ld`'s for a console program: subsystem 5.2, a 16 MiB
+stack, ASLR with high entropy, and DWARF in sections named as `ld` names them, so gdb reads
+a `--debug` build. A package's C `sources` need a C compiler, so a build with them stops
+under `--own-linker`. `luce-base link FILE.o... -o FILE.exe [-lNAME] [--system DIR]` runs
+the linker alone; `--system` names a copy of System32 on another host.
 
 ## Build
 

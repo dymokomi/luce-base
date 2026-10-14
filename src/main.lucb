@@ -14,6 +14,7 @@ import os
 import c
 import interop
 import back.assemble.assembler
+import back.link.linker
 import back.backend
 import back.ir.digest
 import back.reuse
@@ -54,7 +55,7 @@ import support.macos_platform
 import support.in_arena
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME] [--own-assembler]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic] [--own-assembler]\n       luce-base assemble FILE.s -o FILE.o\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE [--target NAME] [-W]\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE [BUILD_ROOT]\n       luce-base describe-closure FILE\n       luce-base describe-closure [--cache-dir DIR] --modules BUILD_ROOT NAME FILE SOURCE_ROOT...\n       luce-base native-inputs FILE...\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base resolve-all FILE SOURCE_ROOT MODULE... [-- FILE SOURCE_ROOT MODULE...]...\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [--cache-dir DIR] [--cache-report] [-W] [-lNAME] [-LDIR] [-framework NAME] [--own-assembler] [--own-linker]\n       luce-base test FILE [--package] [--backend=c] [--native] [--profile diagnostic] [--own-assembler] [--own-linker]\n       luce-base assemble FILE.s -o FILE.o\n       luce-base link FILE.o... -o FILE.exe [-lNAME] [-LDIR] [--system DIR] [--entry NAME]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -489,6 +490,10 @@ var freestanding: bool
 ## goes through the compiler's own assembler (`back.assemble`) instead of GNU `as`. The flag
 ## goes once the default flips and the `as` path is deleted.
 var own_assembler: bool
+## `--own-linker`, TEMPORARY while it reaches parity: an x86_64-windows program is linked by
+## the compiler's own linker (`back.link`) against the DLLs themselves, with no MinGW driver,
+## `ld` or libraries; it implies `--own-assembler`. The flag goes once the default flips.
+var own_linker: bool
 ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
 var diagnostic_profile: bool
 ## The manifest of the package being built (§16.4): its native inputs reach the build.
@@ -531,6 +536,8 @@ func compile(checker: check.Checker*, entry: ast.Node*, mode: u32, requested_exe
     var name_bytes: u8[4096]
     let linked_exe = try in_arena.join(dir, "program.exe")
     let key = try build_key(mode, release)
+    if own_linker and not native_backend:
+        error(build_failed, "--own-linker links the native backend's objects; the C backend needs the C compiler")
     if native_backend:
         try assemble_and_link(dir, name_bytes[..<3072], checker, entry, mode, key, linked_exe)
         try host_tools.publish(linked_exe, exe)
@@ -687,12 +694,18 @@ func splittable() -> bool:
 ## Whether this build assembles with the compiler's own assembler (`--own-assembler`),
 ## which makes COFF objects for x86_64-windows only.
 func own_assembly() -> bool!:
-    if not own_assembler:
+    if not own_assembler and not own_linking():
         return false
     let t = build_target()
     if t.os != targets.Os.windows or t.arch != targets.Arch.x86_64:
         error(build_failed, "--own-assembler makes objects for x86_64-windows only")
     return true
+
+## Whether this build links with the compiler's own linker: `--own-linker`, or a native
+## build with `LUCE_OWN_LINKER` set, TEMPORARY like the flag, for the builds `luc` and `luce`
+## start, which pass no flag of their own.
+func own_linking() -> bool:
+    return own_linker or (native_backend and os.env("LUCE_OWN_LINKER") != none)
 
 ## Assembly `text` as the COFF object at `object_path`, by the compiler's own assembler.
 func assemble_in_process(text: str, object_path: str) -> !:
@@ -718,6 +731,9 @@ func assemble_one(dir: str) -> !:
 func assemble_and_link(dir: str, name_bytes: u8[], checker: check.Checker*, entry: ast.Node*, mode: u32, key: str, exe: str) -> !:
     let objects = try program_objects(dir, name_bytes, checker, entry, mode, key)
     let t = build_target()
+    if own_linking():
+        try link_in_process(objects, exe, t)
+        return
     if t.linker == targets.Linker.c_driver:
         try link_with_driver(dir, objects, exe, t)
         return
@@ -820,6 +836,38 @@ func link_with_driver(dir: str, objects: const str[], exe: str, t: targets.Targe
     for library in t.system_libraries:
         try cc_args.add((c.str)library)
     try run_tool("cc", cc_args.span(), "the linker rejected the generated code", dir)
+
+## The link by the compiler's own linker (`--own-linker`): the objects, the libraries the
+## package, the command line and the target name as DLLs, found where the package and the
+## command line say and in Windows' own directory. The manifest's C sources would need a C
+## compiler, which this link is without.
+func link_in_process(objects: const str[], exe: str, t: targets.Target) -> !:
+    if t.os != targets.Os.windows or t.arch != targets.Arch.x86_64:
+        error(build_failed, "--own-linker links x86_64-windows programs only")
+    if package.sources.length > 0:
+        var room: u8[1024]
+        error(build_failed, try strings.format(room, f"--own-linker compiles no C: the package names C sources, such as {(str)package.sources[0]}"))
+    var libraries = try list.List[str].create(16)
+    for library in package.libraries:
+        try libraries.push((str)library)
+    for library in link_libraries:
+        try libraries.push((str)library)
+    for library in t.system_libraries:
+        if starts_with(library, "-l"):
+            try libraries.push((str)library.bytes[2..])
+    var directories = try list.List[str].create(8)
+    for search in package.link_search:
+        try directories.push((str)search)
+    for directory in link_directories:
+        try directories.push((str)directory)
+    let options = linker.Options(objects = objects, libraries = libraries.span(), directories = directories.span(), system = try system_directory(),
+                                 entry = "_start" if freestanding else "mainCRTStartup", output = exe)
+    try linker.link(&options)
+
+## Windows' own DLLs' directory, System32 under `SystemRoot`; empty on a host without one.
+func system_directory() -> str!:
+    let root = os.env("SystemRoot") else return ""
+    return try in_arena.join(root, "System32")
 
 ## `build FILE`: check, generate, compile.
 func build_file(path: c.str, options: Options) -> !:
@@ -998,6 +1046,48 @@ func assemble_file(path: c.str, output: c.str) -> !:
         try assembler.assemble(text, (str)path, &object)
         try files.write(output, object.bytes())
 
+## `link FILE.o... -o FILE.exe`: objects for x86_64-windows linked into an executable by
+## the compiler's own linker (`back.link`), with `-lNAME`'s DLLs from `-LDIR`, `--system
+## DIR` (Windows' own directory by default, so another host can link with a copy of it),
+## and `--entry NAME` for an entry other than the start library's.
+func link_file(arguments: const c.str[]) -> !:
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var objects = try list.List[str].create(16)
+        var libraries = try list.List[str].create(8)
+        var directories = try list.List[str].create(8)
+        var options = linker.Options(objects = objects.span(), libraries = libraries.span(), directories = directories.span(), system = try system_directory(),
+                                     entry = "mainCRTStartup", output = "")
+        var i: usize = 0
+        while i < arguments.length:
+            let a = (str)arguments[i]
+            let value = (str)arguments[i + 1] if i + 1 < arguments.length else ""
+            if a == "-o" or a == "--system" or a == "--entry":
+                if value.length == 0:
+                    var room: u8[64]
+                    error(build_failed, try strings.format(room, f"{a} takes a value"))
+                if a == "-o":
+                    options.output = value
+                elif a == "--system":
+                    options.system = value
+                else:
+                    options.entry = value
+                i += 1
+            elif starts_with(a, "-l") and a.length > 2:
+                try libraries.push((str)a.bytes[2..])
+            elif starts_with(a, "-L") and a.length > 2:
+                try directories.push((str)a.bytes[2..])
+            else:
+                try objects.push(a)
+            i += 1
+        if options.output.length == 0:
+            error(build_failed, "link needs -o FILE.exe")
+        options.objects = objects.span()
+        options.libraries = libraries.span()
+        options.directories = directories.span()
+        try linker.link(&options)
+
 ## Run a build tool; its standard error is shown when it fails.
 func run_tool(program: c.str, arguments: c.str[], what: str, directory: str = "") -> !:
     let ran = try run_cc(arguments, directory) if (str)program == "cc" else try host_tools.run(program, arguments, directory)
@@ -1054,6 +1144,9 @@ func test_options(arguments: const c.str[]) -> TestOptions?!:
             options.whole_package = true
         elif a == "--own-assembler":
             own_assembler = true
+        elif a == "--own-linker":
+            own_assembler = true
+            own_linker = true
         elif profile == "diagnostic" or profile == "default":
             options.diagnostic = profile == "diagnostic"
             i += 1
@@ -1556,6 +1649,9 @@ func build_option(options: Options*, arguments: c.str[], i: usize, emission_back
         options.debug = true
     elif a == "--own-assembler":
         own_assembler = true
+    elif a == "--own-linker":
+        own_assembler = true
+        own_linker = true
     elif a == "-W":
         show_warnings = true
     elif starts_with(a, "-l") and a.length > 2:
@@ -1753,6 +1849,11 @@ pub func main(given: c.str[]) -> i32!:
 func file_tool(command: str, positional: usize, arguments: c.str[], out: io.Writer) -> i32?!:
     if command == "assemble" and positional == 5 and (str)arguments[3] == "-o":
         assemble_file(arguments[2], arguments[4]) catch failure:
+            try report_failure(failure.message)
+            return 1
+        return 0
+    if command == "link" and positional >= 5:
+        link_file(arguments[2..]) catch failure:
             try report_failure(failure.message)
             return 1
         return 0

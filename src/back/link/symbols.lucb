@@ -1,0 +1,132 @@
+#==============================================================================================
+#
+#   symbols - The objects a link takes, and what each global name comes to
+#
+#   DESCRIPTION:
+#       Every object's external symbols go into one table by name. A definition in a
+#       section, or an absolute one, is strong: two of one name stop the link. A weak
+#       external stands for its name until a strong definition comes, and falls back to its
+#       own object's fallback symbol; of several weak ones, the first whose fallback is a
+#       place wins over those whose fallback is the number 0, which is how a split program's
+#       pieces name a weak definition only one of them holds. What no object defines is
+#       undefined, for the start library and then the DLLs (`linker`). Once the sections
+#       have addresses, any symbol of any object comes to an address here (`target`).
+#
+#==============================================================================================
+
+import back.assemble.lookup
+import back.assemble.object
+import back.link.read
+import support.list
+
+# mark: Inputs ================================================================================
+
+## An object the link takes, and where its sections land.
+pub struct Input:
+    ## The sections and symbols.
+    pub var o: object.Object
+    ## The file it was read from, or what made it, for messages.
+    pub var path: str
+    ## Each section's output section, numbered from 1; 0 for a section the image leaves out.
+    pub var outputs: u32[]
+    ## Each section's address relative to the image's base.
+    pub var places: u64[]
+
+    ## `o` from `path`, not laid out yet.
+    pub static func of(o: object.Object, path: str) -> Input!:
+        let count = o.sections.count
+        return Input(o = o, path = path, outputs = try new u32[count], places = try new u64[count])
+
+# mark: Global names ==========================================================================
+
+## A global name's definition: symbol `symbol` of input `input`.
+pub struct Definition:
+    ## The input, by index.
+    pub var input: u32
+    ## The symbol, by index into the input's symbols.
+    pub var symbol: u32
+    ## Whether a weak external's fallback stands for the name, which a strong definition replaces.
+    pub var weak: bool
+
+## Every global name the inputs define, by name.
+pub struct Globals:
+    var names: lookup.Lookup
+    var definitions: list.List[Definition]
+
+    ## An empty table.
+    pub static func create() -> Globals!:
+        return Globals(names = try lookup.Lookup.create(4096), definitions = try list.List[Definition].create(4096))
+
+    ## The definitions of input `index` of `inputs`.
+    pub func add(inputs: const Input[], index: u32) -> !:
+        let o = &inputs[index].o
+        for (k, s) in o.symbols.span().indexed():
+            if s.binding == object.Binding.external and s.section != 0:
+                try self.define(inputs, s.name, Definition(input = index, symbol = u32(k), weak = false))
+            elif s.binding == object.Binding.weak_external:
+                try self.define(inputs, s.name, Definition(input = index, symbol = s.fallback, weak = true))
+
+    func define(inputs: const Input[], name: str, d: Definition) -> !:
+        let existing = self.names.find(name)
+        if existing == none:
+            try self.names.add(name, u32(self.definitions.count))
+            try self.definitions.push(d)
+            return
+        let found = existing else return
+        let had = self.definitions.items[found]
+        if not had.weak:
+            if not d.weak:
+                try read.refuse(f"`{name}` is defined twice, in {inputs[had.input].path} and {inputs[d.input].path}")
+            return
+        # a strong definition replaces a weak one; a weak one whose fallback is a place, one
+        # that falls back to the number 0
+        if not d.weak or (absolute(inputs, had) and not absolute(inputs, d)):
+            self.definitions.items[found] = d
+
+    ## The definition of `name`, or none.
+    pub func find(name: str) -> Definition?:
+        let found = self.names.find(name) else return none
+        return self.definitions.items[found]
+
+    ## The names the inputs want that none defines, each once, in the order first wanted.
+    pub func undefined(inputs: const Input[]) -> list.List[str]!:
+        var seen = try lookup.Lookup.create(256)
+        var names = try list.List[str].create(256)
+        for input in inputs:
+            for s in input.o.symbols.span():
+                if s.binding == object.Binding.external and s.section == 0 and self.names.find(s.name) == none and seen.find(s.name) == none:
+                    try seen.add(s.name, 0)
+                    try names.push(s.name)
+        return names
+
+## Whether `d`'s symbol is a number rather than a place.
+func absolute(inputs: const Input[], d: Definition) -> bool:
+    return inputs[d.input].o.symbols.items[d.symbol].section == object.absolute_section
+
+# mark: Addresses =============================================================================
+
+## What a relocation's symbol comes to once the sections are laid out.
+pub struct Target:
+    ## The address: in the image, or a number.
+    pub var address: u64
+    ## Whether the address is a number, which moves with no image and needs no base relocation.
+    pub var absolute: bool
+    ## The output section the address is in, numbered from 1; 0 for a number.
+    pub var output: u32
+
+## Symbol `symbol` of input `index` as an address in the image at `base`: its section's
+## place and its value, a number, or what its name comes to.
+pub func target(inputs: const Input[], globals: const Globals*, index: u32, symbol: u32, base: u64) -> Target!:
+    let input = &inputs[index]
+    let s = &input.o.symbols.items[symbol]
+    if s.section == object.absolute_section:
+        return Target(address = s.value, absolute = true, output = 0)
+    if s.section != 0 and s.binding != object.Binding.weak_external:
+        let output = input.outputs[s.section - 1]
+        if output == 0:
+            try read.refuse(f"`{s.name}` is in a section the image leaves out")
+        return Target(address = base + input.places[s.section - 1] + s.value, absolute = false, output = output)
+    let d = globals.find(s.name) else return try read.refuse(f"undefined symbol `{s.name}`, wanted by {input.path}")
+    if d.input == index and d.symbol == symbol:
+        try read.refuse(f"`{s.name}` stands for itself")
+    return try target(inputs, globals, d.input, d.symbol, base)

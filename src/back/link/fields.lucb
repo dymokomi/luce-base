@@ -1,0 +1,20 @@
+#==============================================================================================
+#
+#   fields - Little-endian numbers in the bytes of objects and images
+#
+#==============================================================================================
+
+## The sixteen bits at `at`.
+pub func u16_at(bytes: const u8[], at: usize) -> u16:
+    return (u16)bytes[at] | ((u16)bytes[at + 1] << 8)
+
+## The thirty-two bits at `at`.
+pub func u32_at(bytes: const u8[], at: usize) -> u32:
+    return (u32)u16_at(bytes, at) | ((u32)u16_at(bytes, at + 2) << 16)
+
+## `v`'s low `size` bytes at `at`, least significant first.
+pub func put(bytes: u8[], at: usize, v: u64, size: usize):
+    var rest = v
+    for k in 0..<size:
+        bytes[at + k] = (u8)rest
+        rest = rest >> 8

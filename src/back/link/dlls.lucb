@@ -1,0 +1,238 @@
+#==============================================================================================
+#
+#   dlls - The DLLs an image imports from, read from their own export tables
+#
+#   DESCRIPTION:
+#       No import libraries: a name the objects leave undefined is looked for in the export
+#       tables of the DLLs themselves, Windows' own in its system directory and a package's
+#       beside it, each read whole and its export names borrowed from it. The C library
+#       is the Universal CRT (ucrtbase.dll, on every Windows 10 and later), looked in first
+#       so `memcpy` is never ntdll's; then kernel32, the libraries the build names (`-lNAME`
+#       as NAME.dll), and the libraries MinGW's driver adds to every program, user32,
+#       shell32 and advapi32. The synchronization API set has no file to read: its three
+#       names are listed here. Where the CRT has a name only under another spelling, as
+#       Microsoft's `oldnames` and the UCRT's headers map it, the import takes that one:
+#       `close` is `_close`, and `time` is `_time64`.
+#
+#==============================================================================================
+
+import back.assemble.lookup
+import back.link.fields
+import back.link.read
+import c
+import interop
+import luce_std.files
+import memory
+import strings
+import support.list
+
+# mark: Libraries =============================================================================
+
+## A DLL and the names it exports, each with its hint, the name's index in the export table,
+## and whether it names data rather than code.
+pub struct Library:
+    ## The file name the image's import names it by.
+    pub var name: str
+    var exports: lookup.Lookup
+    ## The file, kept while the link reads names out of it; none for an API set.
+    var file: interop.Owned[const u8[]]?
+
+## A name an import takes from a library.
+pub struct Import:
+    ## The library, by index.
+    pub var library: u32
+    ## The name as the library exports it.
+    pub var name: str
+    ## The name's index in the library's export table, where the loader looks first.
+    pub var hint: u16
+    ## Whether the name is data, which only `__imp_` reaches.
+    pub var data: bool
+
+## The bit of an export's number that marks data.
+let data_bit: u32 = 0x80000000
+
+## The DLLs a link looks names up in, in order.
+pub struct Libraries:
+    ## The libraries, the CRT first.
+    pub var items: list.List[Library]
+    ## Where Windows keeps its DLLs, and where a package's may be.
+    var system: str
+    var directories: const str[]
+
+    ## No libraries yet: those named later are looked for in `directories`, then in `system`.
+    pub static func create(system: str, directories: const str[]) -> Libraries!:
+        return Libraries(items = try list.List[Library].create(16), system = system, directories = directories)
+
+    ## The libraries every program imports from, then each of `named` (`-lNAME`) not among them.
+    pub func standard(named: const str[]) -> !:
+        try self.add("ucrtbase")
+        try self.add("kernel32")
+        for name in named:
+            try self.add(name)
+        for name in mingw_defaults:
+            try self.add(name)
+
+    ## The library `-lNAME` names, unless it is one already, or one the CRT and the start
+    ## library stand in for.
+    pub func add(name: str) -> !:
+        for skipped in stood_in:
+            if name == skipped:
+                return
+        if name == "synchronization":
+            try self.listed(synchronization_set, synchronization_names)
+            return
+        var file = name
+        if not ends_with(name, ".dll"):
+            var room: u8[512]
+            file = try strings.copy(try strings.format(room, f"{name}.dll"))
+        for library in self.items.span():
+            if same_name(library.name, file):
+                return
+        for directory in self.directories:
+            if try self.add_file(directory, file):
+                return
+        if self.system.length == 0 or not try self.add_file(self.system, file):
+            try read.refuse(f"cannot find {file} for -l{name}")
+
+    ## `file` from `directory` when it is there.
+    func add_file(directory: str, file: str) -> bool!:
+        var room: u8[4096]
+        let path = try strings.format(room, f"{directory}/{file}")
+        if not files.exists((c.str)path):
+            return false
+        # the heap's, as luce-std hands it, and released by `destroy`, not with the link's arena
+        var contents: interop.Owned[const u8[]]
+        with memory.heap:
+            contents = try files.read((c.str)path)
+        var library = Library(name = file, exports = try lookup.Lookup.create(2048), file = contents)
+        try exports_of(&library, contents.value, path)
+        try self.items.push(library)
+        return true
+
+    ## A library known by its names alone, which has no file to read: an API set, which the
+    ## loader resolves by name.
+    pub func listed(name: str, names: const str[]) -> !:
+        var library = Library(name = name, exports = try lookup.Lookup.create(names.length), file = none)
+        for (k, n) in names.indexed():
+            try library.exports.add(n, u32(k))
+        try self.items.push(library)
+
+    ## Where `name` comes from: the first library that exports it, or the CRT under the
+    ## spelling it has for it; none when no library has it.
+    pub func find(name: str) -> Import?!:
+        for (k, library) in self.items.span().indexed():
+            if let number = library.exports.find(name):
+                return import_of(u32(k), name, number)
+        # the CRT is the first library
+        let crt = &self.items.items[0]
+        for (k, spelled) in crt_names.indexed():
+            if spelled == name:
+                if let number = crt.exports.find(crt_spellings[k]):
+                    return import_of(0, crt_spellings[k], number)
+        var room: u8[512]
+        if name.length + 1 < room.length:
+            let underscored = try strings.format(room, f"_{name}")
+            if let number = crt.exports.find(underscored):
+                return import_of(0, try strings.copy(underscored), number)
+        return none
+
+    ## Let the files go.
+    pub func destroy():
+        for library in self.items.span():
+            if let contents = library.file:
+                contents.release()
+
+func import_of(library: u32, name: str, number: u32) -> Import:
+    return Import(library = library, name = name, hint = (u16)(number & 0xFFFF), data = number & data_bit != 0)
+
+## MinGW's driver links these with every program.
+let mingw_defaults: str[3] = ["user32", "shell32", "advapi32"]
+## Libraries the CRT, ucrtbase.dll, and the start library stand in for.
+let stood_in: str[9] = ["m", "c", "pthread", "winpthread", "mingw32", "mingwex", "moldname", "gcc", "ucrt"]
+## WaitOnAddress and its wakes, which `-lsynchronization` imports from an API set the loader
+## resolves without a file.
+let synchronization_set: str = "api-ms-win-core-synch-l1-2-0.dll"
+let synchronization_names: str[3] = ["WaitOnAddress", "WakeByAddressAll", "WakeByAddressSingle"]
+## The C names the UCRT's headers turn into its 64-bit time functions.
+let crt_names: str[7] = ["time", "mktime", "localtime", "gmtime", "ctime", "difftime", "_mkgmtime"]
+let crt_spellings: str[7] = ["_time64", "_mktime64", "_localtime64", "_gmtime64", "_ctime64", "_difftime64", "_mkgmtime64"]
+
+func ends_with(text: str, ending: str) -> bool:
+    return text.length >= ending.length and same_name((str)text.bytes[text.length - ending.length..], ending)
+
+## Whether two file names are one, as Windows compares them: ASCII letters without case.
+func same_name(a: str, b: str) -> bool:
+    if a.length != b.length:
+        return false
+    for k in 0..<a.length:
+        if lower(a.bytes[k]) != lower(b.bytes[k]):
+            return false
+    return true
+
+func lower(b: u8) -> u8:
+    return b + 32 if b >= 'A' and b <= 'Z' else b
+
+# mark: Export tables =========================================================================
+
+let section_execute: u32 = 0x20000000
+
+## The names `bytes`, a PE image at `path`, exports, into `library`: each with its index in
+## the name table, and whether it names data, a place in a section that is not code. A
+## forwarded name is code to whoever imports it.
+func exports_of(library: Library*, bytes: const u8[], path: str) -> !:
+    if bytes.length < 64 or bytes[0] != 'M' or bytes[1] != 'Z':
+        try read.refuse(f"{path} is not a DLL")
+    let pe = (usize)fields.u32_at(bytes, 60)
+    if pe + 24 + 112 + 8 > bytes.length or fields.u32_at(bytes, pe) != 0x00004550 or fields.u16_at(bytes, pe + 4) != 0x8664:
+        try read.refuse(f"{path} is not an x86-64 DLL")
+    let sections = (usize)fields.u16_at(bytes, pe + 6)
+    let optional = pe + 24
+    let headers = optional + (usize)fields.u16_at(bytes, pe + 20)
+    let image = Image(bytes = bytes, headers = headers, count = sections, path = path)
+    let directory = fields.u32_at(bytes, optional + 112)
+    let directory_size = fields.u32_at(bytes, optional + 116)
+    if directory == 0:
+        return
+    let table = try image.offset(directory)
+    let functions = fields.u32_at(bytes, table + 28)
+    let names = try image.offset(fields.u32_at(bytes, table + 32))
+    let ordinals = try image.offset(fields.u32_at(bytes, table + 36))
+    let count = (usize)fields.u32_at(bytes, table + 24)
+    for k in 0..<count:
+        let name_at = try image.offset(fields.u32_at(bytes, names + k * 4))
+        var end = name_at
+        while end < bytes.length and bytes[end] != 0:
+            end += 1
+        let ordinal = (usize)fields.u16_at(bytes, ordinals + k * 2)
+        let place = fields.u32_at(bytes, try image.offset(functions + u32(ordinal * 4)))
+        let forwarded = place >= directory and place < directory + directory_size
+        let data = not forwarded and not image.executable(place)
+        try library.exports.add((str)bytes[name_at..<end], u32(k & 0xFFFF) | (data_bit if data else 0))
+
+## A PE image's section table, to find a place's bytes.
+struct Image:
+    var bytes: const u8[]
+    var headers: usize
+    var count: usize
+    var path: str
+
+    ## The file offset of the place `rva`.
+    func offset(rva: u32) -> usize!:
+        for k in 0..<self.count:
+            let at = self.headers + k * 40
+            let start = fields.u32_at(self.bytes, at + 12)
+            let size = fields.u32_at(self.bytes, at + 8)
+            if rva >= start and rva < start + size:
+                let offset = (usize)(rva - start + fields.u32_at(self.bytes, at + 20))
+                if offset < self.bytes.length:
+                    return offset
+        try read.refuse(f"{self.path}'s export table points outside the file")
+
+    ## Whether the place `rva` is in a section of code.
+    func executable(rva: u32) -> bool:
+        for k in 0..<self.count:
+            let at = self.headers + k * 40
+            let start = fields.u32_at(self.bytes, at + 12)
+            if rva >= start and rva < start + fields.u32_at(self.bytes, at + 8):
+                return fields.u32_at(self.bytes, at + 36) & section_execute != 0
+        return false

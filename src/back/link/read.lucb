@@ -1,0 +1,253 @@
+#==============================================================================================
+#
+#   read - A COFF object file back into the object model
+#
+#   DESCRIPTION:
+#       The linker takes the objects a build left in its workspace or found in the cache,
+#       which the compiler's assembler or GNU `as` wrote: the file header, a header per
+#       section, the sections' bytes and relocations, the symbol table with its auxiliary
+#       records, and the string table after it. Each becomes what `object` says: a section
+#       its flags as content and access, a symbol its storage class as a binding, a weak
+#       external its fallback by index, and a relocation its meaning (`object.Fix`), the
+#       addend staying in the section's bytes. Records the model has no place for, such as
+#       a function's `.bf` and `.ef`, keep their index as plain local symbols, so every
+#       relocation still names the symbol it named in the file.
+#
+#==============================================================================================
+
+import back.assemble.assembler
+import back.assemble.object
+import back.link.fields
+import memory
+import strings
+import support.buffer
+import support.list
+from support.arena import Arena
+
+## The linker refused its input.
+pub let refused: ErrorCode = ErrorCode.package(62)
+
+## Stop the link with `message`.
+pub func refuse(message: fmt) -> never!:
+    var room: u8[4096]
+    let text = strings.format(room, message) catch failure:
+        error(refused, "the link failed, and its message does not fit")
+    error(refused, text)
+
+let machine_amd64: u16 = 0x8664
+let file_header_size: usize = 20
+let section_header_size: usize = 40
+let symbol_size: usize = 18
+
+# mark: The file ==============================================================================
+
+## The object `bytes` holds; `path` names it in messages. The sections' bytes are copied, so
+## `bytes` may go once this returns.
+pub func object_from(bytes: const u8[], path: str) -> object.Object!:
+    if bytes.length < file_header_size or fields.u16_at(bytes, 0) != machine_amd64:
+        try refuse(f"{path} is not an x86-64 COFF object")
+    let count = (usize)fields.u16_at(bytes, 2)
+    let symbols_at = (usize)fields.u32_at(bytes, 8)
+    let records = (usize)fields.u32_at(bytes, 12)
+    let optional = (usize)fields.u16_at(bytes, 16)
+    let strings_at = symbols_at + records * symbol_size
+    if file_header_size + optional + count * section_header_size > bytes.length or strings_at > bytes.length:
+        try refuse(f"{path} is cut short")
+    var names = Names(bytes = bytes, at = strings_at, path = path)
+    var o = try object.Object.create()
+    for i in 0..<count:
+        try o.sections.push(try section_at(bytes, file_header_size + optional + i * section_header_size, &names))
+    # each record's index in the model, for the relocations and the weak externals
+    var indexes = try new u32[records + 1]
+    defer free(indexes)
+    try symbols(bytes, symbols_at, records, &names, &o, indexes)
+    for i in 0..<count:
+        try relocations(bytes, file_header_size + optional + i * section_header_size, &o.sections.items[i], indexes, records, path)
+    return o
+
+## The string table, where names longer than eight bytes are.
+struct Names:
+    var bytes: const u8[]
+    var at: usize
+    var path: str
+
+    ## The NUL-terminated name `offset` bytes into the table, copied.
+    func at_offset(offset: usize) -> str!:
+        let start = self.at + offset
+        if start >= self.bytes.length:
+            try refuse(f"{self.path} names a string past its string table")
+        var end = start
+        while end < self.bytes.length and self.bytes[end] != 0:
+            end += 1
+        return try strings.copy((str)self.bytes[start..<end])
+
+    ## An eight-byte name field: inline, NUL-padded when shorter.
+    func inline(field: const u8[]) -> str!:
+        var end: usize = 0
+        while end < 8 and field[end] != 0:
+            end += 1
+        return try strings.copy((str)field[..<end])
+
+# mark: Sections ==============================================================================
+
+## The flags a section header carries.
+let flag_code: u32 = 0x00000020
+let flag_data: u32 = 0x00000040
+let flag_zeroed: u32 = 0x00000080
+let flag_remove: u32 = 0x00000800
+let flag_discardable: u32 = 0x02000000
+let flag_overflow: u32 = 0x01000000
+let flag_read: u32 = 0x40000000
+let flag_write: u32 = 0x80000000
+
+## The section whose header is at `at`, its bytes copied, its relocations still to come.
+func section_at(bytes: const u8[], at: usize, names: Names*) -> object.Section!:
+    let field = bytes[at..<at + 8]
+    var name = try names.inline(field)
+    if field[0] == '/':
+        name = try names.at_offset(decimal(field[1..]))
+    let size = (usize)fields.u32_at(bytes, at + 16)
+    let raw_at = (usize)fields.u32_at(bytes, at + 20)
+    let flags = fields.u32_at(bytes, at + 36)
+    var content = object.Content.data
+    if flags & flag_code != 0:
+        content = object.Content.code
+    elif flags & flag_zeroed != 0 and flags & flag_data == 0:
+        content = object.Content.zeroed
+    var s = object.Section(name = name, content = content, writable = flags & flag_write != 0,
+                           loaded = flags & (flag_discardable | flag_remove) == 0, readable = flags & flag_read != 0,
+                           alignment = alignment_of(flags), size = (u64)size, used = (u64)size,
+                           relocations = try list.List[object.Relocation].create(0))
+    if content != object.Content.zeroed and size > 0:
+        if raw_at + size > bytes.length:
+            try refuse(f"section `{name}` runs past the end of the file")
+        s.bytes = try new u8[size] ---
+        memory.copy(s.bytes, bytes[raw_at..<raw_at + size], size)
+    return s
+
+## A section's alignment from its flags' four-bit power: 1 when it names none.
+func alignment_of(flags: u32) -> u64:
+    let power = (flags >> 20) & 0xF
+    return (u64)1 << (u64)(power - 1) if power > 0 else 1
+
+## The digits of a `/123` section name.
+func decimal(digits: const u8[]) -> usize:
+    var n: usize = 0
+    for d in digits:
+        if d < '0' or d > '9':
+            break
+        n = n * 10 + (usize)(d - '0')
+    return n
+
+## The relocations of the section whose header is at `at`, into `s`, each symbol by its
+## index in the model.
+func relocations(bytes: const u8[], at: usize, s: object.Section*, indexes: const u32[], records: usize, path: str) -> !:
+    var count = (usize)fields.u16_at(bytes, at + 32)
+    var first = (usize)fields.u32_at(bytes, at + 24)
+    if fields.u32_at(bytes, at + 36) & flag_overflow != 0:
+        # the true count is in the first relocation's place, which counts itself
+        count = (usize)fields.u32_at(bytes, first) - 1
+        first += 10
+    if first + count * 10 > bytes.length:
+        try refuse(f"the relocations of `{s.name}` run past the end of {path}")
+    s.relocations = try list.List[object.Relocation].create(count)
+    for k in 0..<count:
+        let r = first + k * 10
+        let symbol = (usize)fields.u32_at(bytes, r + 4)
+        if symbol >= records:
+            try refuse(f"a relocation in `{s.name}` names no symbol")
+        let fix = fix_of(fields.u16_at(bytes, r + 8)) else return try refuse(f"{path}: relocation type {fields.u16_at(bytes, r + 8)} in `{s.name}` is not one the linker writes")
+        try s.relocations.push(object.Relocation(offset = (u64)fields.u32_at(bytes, r), symbol = indexes[symbol], fix = fix))
+
+## The meaning of AMD64 relocation type `kind`, or none for one the linker does not write.
+func fix_of(kind: u16) -> object.Fix?:
+    if kind == 1:
+        return object.Fix.absolute64
+    if kind == 2:
+        return object.Fix.absolute32
+    if kind == 3:
+        return object.Fix.image32
+    if kind == 4:
+        return object.Fix.relative32
+    if kind == 10:
+        return object.Fix.section16
+    if kind == 11:
+        return object.Fix.section32
+    return none
+
+# mark: Symbols ===============================================================================
+
+let class_external: u8 = 2
+let class_static: u8 = 3
+let class_label: u8 = 6
+let class_file: u8 = 103
+let class_weak_external: u8 = 105
+
+## The symbol table's `records` records from `at`, into `o`, with each record's index in
+## the model in `indexes`; auxiliary records are not symbols of their own.
+func symbols(bytes: const u8[], at: usize, records: usize, names: Names*, o: object.Object*, indexes: u32[]) -> !:
+    var i: usize = 0
+    while i < records:
+        let r = at + i * symbol_size
+        let field = bytes[r..<r + 8]
+        # a long name is its offset in the string table, after four zero bytes
+        var name = ""
+        if fields.u32_at(bytes, r) == 0:
+            name = try names.at_offset((usize)fields.u32_at(bytes, r + 4))
+        else:
+            name = try names.inline(field)
+        let number = (i16)fields.u16_at(bytes, r + 12)
+        let storage = bytes[r + 16]
+        let auxiliary = (usize)bytes[r + 17]
+        var s = object.Symbol(name = name, section = 0, value = (u64)fields.u32_at(bytes, r + 8), binding = object.Binding.internal, code = false, fallback = 0)
+        if number > 0:
+            s.section = (u32)number
+        elif number == -1:
+            s.section = object.absolute_section
+        if storage == class_external:
+            s.binding = object.Binding.external
+        elif storage == class_weak_external and auxiliary > 0:
+            s.binding = object.Binding.weak_external
+            # the fallback's record index for now; its index in the model once all are read
+            s.fallback = fields.u32_at(bytes, r + symbol_size)
+        elif storage == class_file:
+            s.binding = object.Binding.file
+        elif storage == class_static and auxiliary > 0 and s.value == 0 and number > 0:
+            s.binding = object.Binding.section_base
+        else:
+            s.code = storage == class_label
+        indexes[i] = u32(o.symbols.count)
+        for k in 1..<auxiliary + 1:
+            if i + k < records:
+                indexes[i + k] = u32(o.symbols.count)
+        try o.symbols.push(s)
+        i += 1 + auxiliary
+    for s in &o.symbols.span():
+        if s.binding == object.Binding.weak_external:
+            if (usize)s.fallback >= records:
+                try refuse(f"weak symbol `{s.name}` falls back to no symbol")
+            s.fallback = indexes[s.fallback]
+
+# mark: Tests =================================================================================
+
+test "an object reads back as the assembler wrote it":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let text = "    .text\n    .globl f\nf:\n    call g\n    ret\n    .weak w\n    .data\n    .quad f\n"
+        var written = try buffer.Buffer.create(1024)
+        try assembler.assemble(text.bytes, "t.s", &written)
+        let o = try object_from(written.bytes(), "t.o")
+        let made = try assembler.object_from(text.bytes, "t.s")
+        assert(o.sections.count == made.sections.count and o.symbols.count == made.symbols.count)
+        for (k, s) in o.symbols.span().indexed():
+            let m = made.symbols.items[k]
+            # the file symbol's name is in its auxiliary record, which the link has no use for
+            if s.binding == object.Binding.file:
+                continue
+            assert(s.name == m.name and s.section == m.section and s.value == m.value and s.binding == m.binding and s.fallback == m.fallback)
+        let text_section = o.sections.items[0]
+        assert(text_section.relocations.count == 1 and text_section.relocations.items[0].fix == object.Fix.relative32)
+        assert(o.symbols.items[text_section.relocations.items[0].symbol].name == "g")
+        let data = o.sections.items[1]
+        assert(data.name == ".data" and data.relocations.items[0].fix == object.Fix.absolute64)

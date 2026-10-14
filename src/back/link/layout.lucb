@@ -1,0 +1,182 @@
+#==============================================================================================
+#
+#   layout - The image's sections, and where every object's sections land in them
+#
+#   DESCRIPTION:
+#       An object's section joins the image's section named by what comes before a `$` in
+#       its name: `.text$lb_x` joins `.text`, `.CRT$XCU` joins `.CRT`. Within one, the
+#       sections without a `$` come first, then the others in the order of what follows the
+#       `$`, each group in the objects' order; so `.CRT$XCA`, `.CRT$XCU` and `.CRT$XCZ`
+#       bracket the initialisers between them and `.tls$ZZZ` ends the thread-local template.
+#       The image's sections come in the order GNU `ld` gives them, then any others in the
+#       order the objects name them; each starts on a page, and each object's section on
+#       its own alignment. Debugging sections, which the loaded image does not use, come
+#       last (`lay_out` with `loaded` false), after the base relocations.
+#
+#==============================================================================================
+
+import back.assemble.assembler
+import back.assemble.object
+import back.link.symbols
+import memory
+import support.list
+import support.order
+from support.arena import Arena
+
+## The page the image's sections start on.
+pub let page: u64 = 0x1000
+
+## A section of the image.
+pub struct Output:
+    ## Its name, which a section header holds in eight bytes or the string table.
+    pub var name: str
+    ## The header's flags: what it holds and how the loaded image may use it.
+    pub var flags: u32
+    ## Its address relative to the image's base.
+    pub var place: u64
+    ## Its size in memory.
+    pub var size: u64
+    ## Its bytes in the file; empty for a section that is only zeroes.
+    pub var bytes: u8[]
+
+## The image's sections in GNU `ld`'s order for a PE image.
+let ranked: str[11] = [".text", ".data", ".rdata", ".eh_frame", ".pdata", ".xdata", ".bss", ".idata", ".CRT", ".tls", ".rsrc"]
+
+## An object's section as a member of an image's section.
+struct Member:
+    var input: u32
+    var section: u32
+    ## What follows the `$` in its name, empty for none.
+    var suffix: str
+
+## The object sections an image section gathers.
+struct Group:
+    var name: str
+    var members: list.List[Member]
+
+## Lay out the sections of `inputs` that are `loaded` (or, when false, the debugging ones)
+## as image sections from `start`, appended to `outputs`: each object section's image
+## section and place go into its input. Answers the first page after them.
+pub func lay_out(inputs: symbols.Input[], outputs: list.List[Output]*, start: u64, loaded: bool) -> u64!:
+    var groups = try list.List[Group].create(16)
+    for name in ranked:
+        if loaded:
+            try groups.push(Group(name = name, members = try list.List[Member].create(16)))
+    for (i, input) in inputs.indexed():
+        for (k, s) in input.o.sections.span().indexed():
+            if s.loaded != loaded:
+                continue
+            let (name, suffix) = split(s.name)
+            let g = try group_of(&groups, name)
+            try g.members.push(Member(input = u32(i), section = u32(k), suffix = suffix))
+    var place = start
+    for g in &groups.span():
+        if g.members.count == 0:
+            continue
+        try order.stable(g.members.span(), suffix_less)
+        let number = u32(outputs.count + 1)
+        var out = Output(name = g.name, flags = 0, place = place, size = 0)
+        # the members' places, and the flags all of them want
+        var zeroes = true
+        var code = false
+        var writable = false
+        for m in g.members.span():
+            let s = &inputs[m.input].o.sections.items[m.section]
+            out.size = (out.size + s.alignment - 1) & ~(s.alignment - 1)
+            inputs[m.input].outputs[m.section] = number
+            inputs[m.input].places[m.section] = place + out.size
+            out.size += s.size
+            zeroes = zeroes and s.content == object.Content.zeroed
+            code = code or s.content == object.Content.code
+            writable = writable or s.writable
+        out.flags = flags_of(zeroes, code, writable, loaded)
+        if not zeroes:
+            out.bytes = try new u8[(usize)out.size]
+            for m in g.members.span():
+                let s = &inputs[m.input].o.sections.items[m.section]
+                if s.content != object.Content.zeroed:
+                    let at = (usize)(inputs[m.input].places[m.section] - place)
+                    memory.copy(out.bytes[at..], s.bytes, s.bytes.length)
+            if code:
+                fill_gaps(inputs, g, place, out.bytes)
+        try outputs.push(out)
+        place = (place + out.size + page - 1) & ~(page - 1)
+    return place
+
+## The group for image section `name`, made when there is none yet.
+func group_of(groups: list.List[Group]*, name: str) -> Group*!:
+    for g in &groups.span():
+        if g.name == name:
+            return g
+    try groups.push(Group(name = name, members = try list.List[Member].create(16)))
+    return &groups.items[groups.count - 1]
+
+## A section name as the image section it joins and what follows the `$`.
+func split(name: str) -> (str, str):
+    for k in 0..<name.length:
+        if name.bytes[k] == '$':
+            return ((str)name.bytes[..<k], (str)name.bytes[k + 1..])
+    return (name, "")
+
+## Whether `a` sorts before `b`: no suffix first, then by the suffixes' bytes.
+func suffix_less(a: Member, b: Member) -> bool:
+    let n = a.suffix.length if a.suffix.length < b.suffix.length else b.suffix.length
+    for k in 0..<n:
+        if a.suffix.bytes[k] != b.suffix.bytes[k]:
+            return a.suffix.bytes[k] < b.suffix.bytes[k]
+    return a.suffix.length < b.suffix.length
+
+## The space between code sections, padding to the next one's alignment, as `int3`s.
+func fill_gaps(inputs: const symbols.Input[], g: const Group*, place: u64, bytes: u8[]):
+    var end: usize = 0
+    for m in g.members.span():
+        let at = (usize)(inputs[m.input].places[m.section] - place)
+        for k in end..<at:
+            bytes[k] = 0xCC
+        end = at + (usize)inputs[m.input].o.sections.items[m.section].size
+
+# mark: Header flags ==========================================================================
+
+let flag_code: u32 = 0x00000020
+let flag_data: u32 = 0x00000040
+let flag_zeroed: u32 = 0x00000080
+let flag_discardable: u32 = 0x02000000
+let flag_execute: u32 = 0x20000000
+let flag_read: u32 = 0x40000000
+let flag_write: u32 = 0x80000000
+
+## An image section's flags: code, data or zeroes, readable, writable when a member is,
+## and discardable when the loaded image does not use it.
+pub func flags_of(zeroes: bool, code: bool, writable: bool, loaded: bool) -> u32:
+    var flags = flag_read
+    if code:
+        flags |= flag_code | flag_execute
+    elif zeroes:
+        flags |= flag_zeroed
+    else:
+        flags |= flag_data
+    if writable:
+        flags |= flag_write
+    if not loaded:
+        flags |= flag_discardable
+    return flags
+
+## Whether an image section holds code.
+pub func is_code(out: const Output*) -> bool:
+    return out.flags & flag_code != 0
+
+# mark: Tests =================================================================================
+
+test "sections join by the name before the `$`, ordered by what follows it":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let a = try assembler.object_from("    .section .CRT$XCZ,\"dr\"\n    .quad 3\n    .text\n    ret\n".bytes, "a.s")
+        let b = try assembler.object_from("    .section .CRT$XCU,\"dr\"\n    .quad 2\n    .section .CRT$XCA,\"dr\"\n    .quad 1\n".bytes, "b.s")
+        var inputs: symbols.Input[2] = [try symbols.Input.of(a, "a.o"), try symbols.Input.of(b, "b.o")]
+        var outputs = try list.List[Output].create(4)
+        _ = try lay_out(inputs, &outputs, page, true)
+        # `.text` first, then the empty `.data` and `.bss`, then `.CRT`
+        assert(outputs.items[0].name == ".text" and outputs.items[3].name == ".CRT")
+        let crt = outputs.items[3].bytes
+        assert(crt.length == 24 and crt[0] == 1 and crt[8] == 2 and crt[16] == 3)

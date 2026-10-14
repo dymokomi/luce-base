@@ -1,0 +1,399 @@
+#==============================================================================================
+#
+#   startup - The start library: what MinGW's start files and support libraries gave
+#
+#   DESCRIPTION:
+#       A program the compiler builds needs a few things no DLL exports: the entry the
+#       loader calls, which runs the C initialisers (`.CRT$XCU`) and `main` and exits with
+#       its status through the CRT, so `atexit` handlers run and streams flush; the TLS
+#       directory, which gives the image's `.tls` template and `_tls_index` to the loader;
+#       the stack probe `___chkstk_ms` a large frame calls; and the C names the UCRT keeps
+#       in its headers rather than its DLL: `atexit`, the `printf` family over its common
+#       entries, `fabsf`, `frexpf` and `ldexpf` over the double ones; and what MinGW's own
+#       libraries added, `usleep`, and `clock_gettime` over the performance counter and the
+#       precise system time, as winpthreads gave it.
+#       Each member is assembly for the compiler's own assembler, linked as a library
+#       member is: when the link wants a name it defines (`linker`).
+#
+#==============================================================================================
+
+import back.assemble.assembler
+import back.assemble.object
+import support.list
+
+# mark: Members ===============================================================================
+
+## Every member, assembled, in the order they are offered.
+pub func members() -> list.List[object.Object]!:
+    var objects = try list.List[object.Object].create(texts.length)
+    for text in texts:
+        try objects.push(try assembler.object_from(text.bytes, "startup.s"))
+    return objects
+
+# mark: The entry and its tables ==============================================================
+
+## The entry, `mainCRTStartup`: the CRT told this is a console program and to fail a call
+## with a bad parameter (`EINVAL`) rather than end the process, as on POSIX; each
+## initialiser between `__xc_a` and `__xc_z` run; then `main` with no arguments, since the
+## program reads its wide command line itself, and `exit` with what it answers.
+let start_text: str = """
+    .text
+    .p2align 4
+    .globl mainCRTStartup
+mainCRTStartup:
+    .seh_proc mainCRTStartup
+    pushq %rbx
+    .seh_pushreg %rbx
+    subq $32, %rsp
+    .seh_stackalloc 32
+    .seh_endprologue
+    movl $1, %ecx
+    call _set_app_type
+    leaq ignore_invalid_parameter(%rip), %rcx
+    call _set_invalid_parameter_handler
+    leaq __xc_a(%rip), %rbx
+1:
+    addq $8, %rbx
+    leaq __xc_z(%rip), %rax
+    cmpq %rax, %rbx
+    jae 2f
+    movq (%rbx), %rax
+    testq %rax, %rax
+    je 1b
+    call *%rax
+    jmp 1b
+2:
+    xorl %ecx, %ecx
+    xorl %edx, %edx
+    call main
+    movl %eax, %ecx
+    call exit
+    int3
+    .seh_endproc
+
+    .p2align 4
+ignore_invalid_parameter:
+    ret
+
+    .section .CRT$XCA,"dr"
+    .p2align 3
+__xc_a:
+    .quad 0
+
+    .section .CRT$XCZ,"dr"
+    .p2align 3
+__xc_z:
+    .quad 0
+"""
+
+## The TLS directory, `_tls_used`, which the image's header names: the template, `.tls`
+## and every `.tls$` section after it up to `.tls$ZZZ`; where the loader writes the image's
+## index among the modules' thread-local blocks; and no callbacks.
+let tls_text: str = """
+    .section .tls,"dw"
+__tls_start:
+
+    .section .tls$ZZZ,"dw"
+__tls_end:
+
+    .data
+    .p2align 2
+    .globl _tls_index
+_tls_index:
+    .long 0
+
+    .section .rdata$T,"dr"
+    .p2align 3
+    .globl _tls_used
+_tls_used:
+    .quad __tls_start, __tls_end, _tls_index, __tls_callbacks
+    .long 0, 0
+__tls_callbacks:
+    .quad 0
+"""
+
+# mark: Runtime support =======================================================================
+
+## The stack probe a frame of more than a page calls before it moves the stack pointer:
+## `rax` bytes below the caller's stack pointer touched a page at a time from the top, so
+## each guard page is met in order and the stack grows; every register kept.
+let probe_text: str = """
+    .text
+    .p2align 4
+    .globl ___chkstk_ms
+___chkstk_ms:
+    pushq %rcx
+    pushq %rax
+    leaq 24(%rsp), %rcx
+1:
+    cmpq $4096, %rax
+    jb 2f
+    subq $4096, %rcx
+    orq $0, (%rcx)
+    subq $4096, %rax
+    jmp 1b
+2:
+    subq %rax, %rcx
+    orq $0, (%rcx)
+    popq %rax
+    popq %rcx
+    ret
+"""
+
+# mark: What MinGW's libraries added =========================================================
+
+## `clock_gettime`: clock 0, the wall clock, from the system time in 100-nanosecond ticks
+## since 1601; any other, the performance counter, which never goes backwards. A
+## `timespec`'s nanoseconds are a C `long`, four bytes on Windows.
+let clock_text: str = """
+    .text
+    .p2align 4
+    .globl clock_gettime
+clock_gettime:
+    .seh_proc clock_gettime
+    pushq %rbx
+    .seh_pushreg %rbx
+    subq $48, %rsp
+    .seh_stackalloc 48
+    .seh_endprologue
+    movq %rdx, %rbx
+    testl %ecx, %ecx
+    jne 1f
+    leaq 32(%rsp), %rcx
+    call GetSystemTimePreciseAsFileTime
+    movq 32(%rsp), %rax
+    movabsq $116444736000000000, %rcx
+    subq %rcx, %rax
+    movl $10000000, %ecx
+    xorl %edx, %edx
+    divq %rcx
+    movq %rax, (%rbx)
+    imull $100, %edx, %edx
+    movl %edx, 8(%rbx)
+    jmp 2f
+1:
+    leaq 32(%rsp), %rcx
+    call QueryPerformanceCounter
+    leaq 40(%rsp), %rcx
+    call QueryPerformanceFrequency
+    movq 32(%rsp), %rax
+    xorl %edx, %edx
+    divq 40(%rsp)
+    movq %rax, (%rbx)
+    movq %rdx, %rax
+    movl $1000000000, %ecx
+    mulq %rcx
+    divq 40(%rsp)
+    movl %eax, 8(%rbx)
+2:
+    xorl %eax, %eax
+    addq $48, %rsp
+    popq %rbx
+    ret
+    .seh_endproc
+"""
+
+## `usleep`, as MinGW gave it: Windows sleeps in milliseconds, so the microseconds round up
+## to the next one, at least the time asked.
+let usleep_text: str = """
+    .text
+    .p2align 4
+    .globl usleep
+usleep:
+    .seh_proc usleep
+    subq $40, %rsp
+    .seh_stackalloc 40
+    .seh_endprologue
+    movl %ecx, %eax
+    addq $999, %rax
+    xorl %edx, %edx
+    movl $1000, %ecx
+    divq %rcx
+    movl %eax, %ecx
+    call Sleep
+    xorl %eax, %eax
+    addq $40, %rsp
+    ret
+    .seh_endproc
+"""
+
+# mark: The C library's header functions ======================================================
+
+## `atexit`, which the UCRT exports as `_crt_atexit`: its table runs in `exit`.
+let atexit_text: str = """
+    .text
+    .p2align 4
+    .globl atexit
+atexit:
+    jmp _crt_atexit
+"""
+
+## `snprintf` (MinGW's `__mingw_snprintf` too) and `vsnprintf` over the UCRT's
+## `__stdio_common_vsprintf`, with C99's answer when the buffer is short (option 2): the
+## variadic arguments are homed beside those on the stack, where a `va_list` points.
+let snprintf_text: str = """
+    .text
+    .p2align 4
+    .globl snprintf
+    .globl __mingw_snprintf
+snprintf:
+__mingw_snprintf:
+    .seh_proc snprintf
+    movq %r9, 32(%rsp)
+    subq $56, %rsp
+    .seh_stackalloc 56
+    .seh_endprologue
+    leaq 88(%rsp), %rax
+    movq %rax, 40(%rsp)
+    movq $0, 32(%rsp)
+    movq %r8, %r9
+    movq %rdx, %r8
+    movq %rcx, %rdx
+    movl $2, %ecx
+    call __stdio_common_vsprintf
+    addq $56, %rsp
+    ret
+    .seh_endproc
+
+    .p2align 4
+    .globl vsnprintf
+vsnprintf:
+    .seh_proc vsnprintf
+    subq $56, %rsp
+    .seh_stackalloc 56
+    .seh_endprologue
+    movq %r9, 40(%rsp)
+    movq $0, 32(%rsp)
+    movq %r8, %r9
+    movq %rdx, %r8
+    movq %rcx, %rdx
+    movl $2, %ecx
+    call __stdio_common_vsprintf
+    addq $56, %rsp
+    ret
+    .seh_endproc
+"""
+
+## `sprintf`, with no limit and the legacy null termination (option 1) the UCRT's gives it.
+let sprintf_text: str = """
+    .text
+    .p2align 4
+    .globl sprintf
+sprintf:
+    .seh_proc sprintf
+    movq %r8, 24(%rsp)
+    movq %r9, 32(%rsp)
+    subq $56, %rsp
+    .seh_stackalloc 56
+    .seh_endprologue
+    leaq 80(%rsp), %rax
+    movq %rax, 40(%rsp)
+    movq $0, 32(%rsp)
+    movq %rdx, %r9
+    movq $-1, %r8
+    movq %rcx, %rdx
+    movl $1, %ecx
+    call __stdio_common_vsprintf
+    addq $56, %rsp
+    ret
+    .seh_endproc
+"""
+
+## `fprintf` and `printf` over the UCRT's `__stdio_common_vfprintf`; `printf` writes to
+## standard output, stream 1 of `__acrt_iob_func`.
+let fprintf_text: str = """
+    .text
+    .p2align 4
+    .globl fprintf
+fprintf:
+    .seh_proc fprintf
+    movq %r8, 24(%rsp)
+    movq %r9, 32(%rsp)
+    subq $56, %rsp
+    .seh_stackalloc 56
+    .seh_endprologue
+    leaq 80(%rsp), %rax
+    movq %rax, 32(%rsp)
+    xorl %r9d, %r9d
+    movq %rdx, %r8
+    movq %rcx, %rdx
+    xorl %ecx, %ecx
+    call __stdio_common_vfprintf
+    addq $56, %rsp
+    ret
+    .seh_endproc
+"""
+
+let printf_text: str = """
+    .text
+    .p2align 4
+    .globl printf
+printf:
+    .seh_proc printf
+    movq %rdx, 16(%rsp)
+    movq %r8, 24(%rsp)
+    movq %r9, 32(%rsp)
+    pushq %rbx
+    .seh_pushreg %rbx
+    subq $48, %rsp
+    .seh_stackalloc 48
+    .seh_endprologue
+    movq %rcx, %rbx
+    movl $1, %ecx
+    call __acrt_iob_func
+    leaq 72(%rsp), %r10
+    movq %r10, 32(%rsp)
+    xorl %r9d, %r9d
+    movq %rbx, %r8
+    movq %rax, %rdx
+    xorl %ecx, %ecx
+    call __stdio_common_vfprintf
+    addq $48, %rsp
+    popq %rbx
+    ret
+    .seh_endproc
+"""
+
+## The single-precision functions the UCRT keeps inline: `fabsf` clears the sign;
+## `frexpf` and `ldexpf` widen to their double functions and narrow the answer, which is
+## exact both ways.
+let single_text: str = """
+    .text
+    .p2align 4
+    .globl fabsf
+fabsf:
+    movd %xmm0, %eax
+    andl $2147483647, %eax
+    movd %eax, %xmm0
+    ret
+
+    .p2align 4
+    .globl frexpf
+frexpf:
+    .seh_proc frexpf
+    subq $40, %rsp
+    .seh_stackalloc 40
+    .seh_endprologue
+    cvtss2sd %xmm0, %xmm0
+    call frexp
+    cvtsd2ss %xmm0, %xmm0
+    addq $40, %rsp
+    ret
+    .seh_endproc
+
+    .p2align 4
+    .globl ldexpf
+ldexpf:
+    .seh_proc ldexpf
+    subq $40, %rsp
+    .seh_stackalloc 40
+    .seh_endprologue
+    cvtss2sd %xmm0, %xmm0
+    call ldexp
+    cvtsd2ss %xmm0, %xmm0
+    addq $40, %rsp
+    ret
+    .seh_endproc
+"""
+
+let texts: str[11] = [start_text, tls_text, probe_text, atexit_text, clock_text, usleep_text, snprintf_text, sprintf_text, fprintf_text, printf_text, single_text]

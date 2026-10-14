@@ -382,7 +382,7 @@ A monotonic clock that never goes backwards, and the wall clock as seconds since
 
 ## `thread`
 
-Spawning, joining and detaching host threads over pthreads (Windows through its own primitives), with the running thread's identity and yielding and sleeping.
+Spawning, joining and detaching host threads over pthreads, and on Windows over its own threads, with the running thread's identity and yielding and sleeping.
 
 - `let failed: ErrorCode = ErrorCode.package(5)` — A thread operation failed.
 
@@ -392,14 +392,14 @@ Spawning, joining and detaching host threads over pthreads (Windows through its 
 
 ### `Handle` (struct)
 
-A running thread; the zero value is no thread at all, so arrays of handles exist.
+A running thread; the zero value is no thread at all, so arrays of handles exist. On Windows the id is the thread's handle.
 
 - `func join() -> !` — Wait for the thread to finish.
 - `func detach()` — Let the thread run on its own; its resources are reclaimed at exit.
 
 - `func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!` — Start a thread running `entry(context)`. `stack` is its stack in bytes, `default_stack` when 0, at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the host's tools show for it, its first fifteen bytes.
 
-- `func current() -> Handle` — A handle to the calling thread.
+- `func current() -> Handle` — A handle to the calling thread: on Windows its pseudo-handle, which stands for whichever thread uses it and which closing leaves alone.
 
 - `func is_main() -> bool` — Whether this is the process's initial thread, for main-thread native resources.
 

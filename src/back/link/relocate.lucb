@@ -1,0 +1,154 @@
+#==============================================================================================
+#
+#   relocate - Every relocation written into the image's bytes
+#
+#   DESCRIPTION:
+#       Once each section has its place, a relocation's field gets its symbol's address
+#       `S` (`symbols.target`) with the addend `A` the field already holds, by what the
+#       relocation means (`object.Fix`): `S + A` in eight or four bytes, less the image's
+#       base for an address relative to the image, less the field's end for a jump or a
+#       `%rip`-relative operand, less the image section's start for a thread-local's or a
+#       debugging section's offset. An eight-byte address in a loaded section is also a
+#       base relocation, which the loader adds the image's move to when it loads the image
+#       elsewhere (ASLR); the base relocation table lists them by page. Last, the function
+#       table (`.pdata`) is sorted by start address, since Windows finds a function's unwind
+#       record in it by binary search and a weak function's section sorts apart from its
+#       object's.
+#
+#==============================================================================================
+
+import back.assemble.object
+import back.link.fields
+import back.link.layout
+import back.link.read
+import back.link.symbols
+import support.list
+import support.order
+
+## Write the relocations of the sections that are `loaded` (or the debugging ones) into
+## `outputs`, for an image at `base`; the places of the eight-byte addresses a loaded image
+## moves go into `moved`.
+pub func relocate(inputs: const symbols.Input[], globals: const symbols.Globals*, outputs: layout.Output[], base: u64, loaded: bool,
+                  moved: list.List[u32]*) -> !:
+    for (i, input) in inputs.indexed():
+        for (k, s) in input.o.sections.span().indexed():
+            let number = input.outputs[k]
+            if number == 0 or s.loaded != loaded or s.relocations.count == 0:
+                continue
+            let out = &outputs[number - 1]
+            if out.bytes.length == 0:
+                try read.refuse(f"{input.path}: section `{s.name}` has relocations but no bytes")
+            for r in s.relocations.span():
+                let place = input.places[k] + r.offset
+                let at = (usize)(place - out.place)
+                let t = try symbols.target(inputs, globals, u32(i), r.symbol, base)
+                try write(out.bytes, at, base + place, t, r.fix, outputs, base, &input.o.symbols.items[r.symbol], input.path)
+                if r.fix == object.Fix.absolute64 and not t.absolute and loaded:
+                    try moved.push(u32(place))
+
+## Relocation `fix` at `at` in `bytes`, the field at address `field`, for target `t`.
+func write(bytes: u8[], at: usize, field: u64, t: symbols.Target, fix: object.Fix, outputs: const layout.Output[], base: u64, s: const object.Symbol*,
+           path: str) -> !:
+    match fix:
+        .absolute64:
+            fields.put(bytes, at, t.address +% addend(bytes, at, 8), 8)
+        .absolute32:
+            let v = (i64)t.address + (i64)addend(bytes, at, 4)
+            if not t.absolute or v < 0 or v > 0xFFFFFFFF:
+                try read.refuse(f"{path}: a 32-bit absolute address of `{s.name}`, which the image's base above 4 GiB puts out of reach")
+            fields.put(bytes, at, (u64)v, 4)
+        .image32:
+            let v = (i64)(t.address -% base) + (i64)addend(bytes, at, 4)
+            if t.absolute or v < 0 or v > 0xFFFFFFFF:
+                try read.refuse(f"{path}: `{s.name}` has no address relative to the image")
+            fields.put(bytes, at, (u64)v, 4)
+        .relative32:
+            let v = (i64)(t.address -% (field + 4)) + (i64)addend(bytes, at, 4)
+            if v < -2147483648 or v > 2147483647:
+                try read.refuse(f"{path}: `{s.name}` is out of a 32-bit displacement's reach")
+            fields.put(bytes, at, (u64)v, 4)
+        .section32:
+            if t.output == 0:
+                try read.refuse(f"{path}: `{s.name}` is in no section, so has no offset in one")
+            let v = (i64)(t.address - (base + outputs[t.output - 1].place)) + (i64)addend(bytes, at, 4)
+            fields.put(bytes, at, (u64)v, 4)
+        .section16:
+            fields.put(bytes, at, (u64)t.output, 2)
+
+## The addend in the `size`-byte field at `at`, sign-extended.
+func addend(bytes: const u8[], at: usize, size: usize) -> u64:
+    if size == 8:
+        return (u64)fields.u32_at(bytes, at) | ((u64)fields.u32_at(bytes, at + 4) << 32)
+    return (u64)(i64)(i32)fields.u32_at(bytes, at)
+
+# mark: Base relocations ======================================================================
+
+## The base relocation table for the eight-byte addresses at `moved`: a block per page, its
+## place and size, then an entry per address, type 10 (DIR64) and the offset in the page, and
+## a padding entry to keep the next block four-aligned.
+pub func base_relocations(moved: u32[]) -> u8[]!:
+    try order.stable(moved, lower)
+    var size: usize = 0
+    var k: usize = 0
+    while k < moved.length:
+        let (count, _) = block(moved, k)
+        size += 8 + (count + count % 2) * 2
+        k += count
+    var table = try new u8[size]
+    var at: usize = 0
+    k = 0
+    while k < moved.length:
+        let (count, page) = block(moved, k)
+        let entries = count + count % 2
+        fields.put(table, at, (u64)page, 4)
+        fields.put(table, at + 4, (u64)(8 + entries * 2), 4)
+        for e in 0..<count:
+            fields.put(table, at + 8 + e * 2, (u64)(0xA000 | (moved[k + e] - page)), 2)
+        at += 8 + entries * 2
+        k += count
+    return table
+
+## How many of `moved` from `k` are on the page of `moved[k]`, and that page.
+func block(moved: const u32[], k: usize) -> (usize, u32):
+    let page = moved[k] & ~(u32(layout.page) - 1)
+    var n: usize = 1
+    while k + n < moved.length and moved[k + n] & ~(u32(layout.page) - 1) == page:
+        n += 1
+    return (n, page)
+
+# mark: The function table ====================================================================
+
+## A function table entry: its start, its end and its unwind record, relative to the image.
+struct Entry:
+    var start: u32
+    var end: u32
+    var unwind: u32
+
+## Sort the function table in `out` by start address.
+pub func sort_functions(out: layout.Output*) -> !:
+    let count = out.bytes.length // 12
+    var entries = try new Entry[count] ---
+    defer free(entries)
+    for k in 0..<count:
+        entries[k] = Entry(start = fields.u32_at(out.bytes, k * 12), end = fields.u32_at(out.bytes, k * 12 + 4), unwind = fields.u32_at(out.bytes, k * 12 + 8))
+    try order.stable(entries, starts_before)
+    for (k, e) in entries.indexed():
+        fields.put(out.bytes, k * 12, (u64)e.start, 4)
+        fields.put(out.bytes, k * 12 + 4, (u64)e.end, 4)
+        fields.put(out.bytes, k * 12 + 8, (u64)e.unwind, 4)
+
+func lower(a: u32, b: u32) -> bool:
+    return a < b
+
+func starts_before(a: Entry, b: Entry) -> bool:
+    return a.start < b.start
+
+# mark: Tests =================================================================================
+
+test "base relocations come a block a page, each block padded to four bytes":
+    var moved: u32[3] = [0x2010, 0x1008, 0x1000]
+    let table = try base_relocations(moved)
+    defer free(table)
+    assert(table.length == 24)
+    assert(fields.u32_at(table, 0) == 0x1000 and fields.u32_at(table, 4) == 12 and fields.u16_at(table, 8) == 0xA000 and fields.u16_at(table, 10) == 0xA008)
+    assert(fields.u32_at(table, 12) == 0x2000 and fields.u32_at(table, 16) == 12 and fields.u16_at(table, 20) == 0xA010 and fields.u16_at(table, 22) == 0)
