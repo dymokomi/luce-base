@@ -70,6 +70,13 @@ def fetch(path):
         raise
 
 
+def source(fields):
+    """The GitHub commit a release was made from, from its `versions` line: `version sha256
+    commit [source]`. A release `luc publish` sent as a snapshot names the commit it was
+    made from; an older one is that commit."""
+    return fields[3] if len(fields) > 3 else fields[2]
+
+
 def manifest(directory):
     """(name, version, kind, path dependencies) of a checkout's package.prisma."""
     text = (directory / "package.prisma").read_text()
@@ -120,7 +127,7 @@ class Package:
         self.repository = directory.name
         listing = fetch(f"/{owner}/{self.name}/versions").split("\n")
         last = [line.split() for line in listing if line.strip()]
-        self.released, self.released_commit = (last[-1][0], last[-1][2]) if last else (None, None)
+        self.released, self.released_commit = (last[-1][0], source(last[-1])) if last else (None, None)
         self.problems = []
         git(directory, "fetch", "-q", "origin")
         self.head = git(directory, "rev-parse", "HEAD")
@@ -220,7 +227,7 @@ def verify_applications(dry_run):
             listing = [line.split() for line in fetch(f"/{owner}/{name}/versions").split("\n") if line.strip()]
             repository = REPOSITORIES.get(name, name)
             subprocess.run(["git", "clone", "-q", f"https://github.com/{owner}/{repository}.git", str(clone)], check=True)
-            git(clone, "checkout", "-q", listing[-1][2])
+            git(clone, "checkout", "-q", source(listing[-1]))
             locked = subprocess.run(["luc", "lock"], cwd=clone, env=environment, capture_output=True, text=True)
             print(f"release: luc lock {owner}/{name}: {'ok' if locked.returncode == 0 else 'FAILED'}")
             if locked.returncode != 0:
@@ -366,13 +373,19 @@ def github_release(directory, version, files):
                     "--notes", notes, *map(str, files)], check=True)
 
 
+# luce's installers: install.sh (macOS, Linux), install.ps1 (Windows) and install.cmd, which
+# runs install.ps1 from Command Prompt
+INSTALLERS = ("install.sh", "install.ps1", "install.cmd")
+
+
 def deploy_installers(luce, version):
     root = SITES["luce"]
-    subprocess.run(["scp", "-i", EDGE[2], "-o", "BatchMode=yes", str(luce / "tools/install.sh"),
-                    str(luce / "tools/install.ps1"), f"{EDGE[-1]}:/tmp/"], check=True)
+    staged = " ".join(f"/tmp/{name}" for name in INSTALLERS)
+    subprocess.run(["scp", "-i", EDGE[2], "-o", "BatchMode=yes", *(str(luce / "tools" / name) for name in INSTALLERS),
+                    f"{EDGE[-1]}:/tmp/"], check=True)
     subprocess.run([*EDGE, f"sudo mkdir -p {root}/install/{version} && "
-                    f"sudo cp /tmp/install.sh /tmp/install.ps1 {root}/install/{version}/ && "
-                    f"sudo cp /tmp/install.sh /tmp/install.ps1 {root}/ && rm /tmp/install.sh /tmp/install.ps1"],
+                    f"sudo cp {staged} {root}/install/{version}/ && "
+                    f"sudo cp {staged} {root}/ && rm {staged}"],
                    check=True)
 
 
