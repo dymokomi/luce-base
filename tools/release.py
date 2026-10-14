@@ -12,8 +12,9 @@ Usage: python3 ../luce-base/tools/release.py [--workspace DIR] [--dry-run]
   3. Each version is bumped (patch, unless package.prisma already moved past the
      registry's), committed, pushed and published with `luc publish`, dependencies
      first, one at a time.
-  4. Every application on the registry is resolved again: `luc lock` in a clone of its
-     registry repository, with a scratch HOME, so nothing is installed.
+  4. Every application on the registry is resolved again: `luc lock` in a GitHub clone
+     at its newest release's commit, with a scratch HOME, so nothing is installed. GitHub
+     keeps every package's history; the registry is for installing and updating.
   5. The toolchain: when luce-base, luce or luc changed since the last luce-VERSION tag,
      luce-base and luce get new versions (luce's installers too), and luce-base is
      published to the registry at its version, for packages that import its checker
@@ -203,7 +204,8 @@ def layers(packages):
 
 
 def verify_applications(dry_run):
-    """`luc lock` in a registry clone of every application, in a scratch HOME."""
+    """`luc lock` in every application at its newest release, in a scratch HOME. The sources
+    come from GitHub, which keeps every package's history; the registry is for installing."""
     applications = registry_names("/applications/")
     print(f"release: resolving {len(applications)} applications: " + ", ".join(name for _, name in applications))
     if dry_run:
@@ -215,7 +217,10 @@ def verify_applications(dry_run):
         environment = dict(os.environ, HOME=str(home), LUC_HOME=str(home / ".luce"))
         for owner, name in applications:
             clone = Path(scratch) / name
-            subprocess.run(["git", "clone", "-q", f"{REGISTRY}/git/{owner}/{name}", str(clone)], check=True)
+            listing = [line.split() for line in fetch(f"/{owner}/{name}/versions").split("\n") if line.strip()]
+            repository = REPOSITORIES.get(name, name)
+            subprocess.run(["git", "clone", "-q", f"https://github.com/{owner}/{repository}.git", str(clone)], check=True)
+            git(clone, "checkout", "-q", listing[-1][2])
             locked = subprocess.run(["luc", "lock"], cwd=clone, env=environment, capture_output=True, text=True)
             print(f"release: luc lock {owner}/{name}: {'ok' if locked.returncode == 0 else 'FAILED'}")
             if locked.returncode != 0:
