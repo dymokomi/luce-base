@@ -78,7 +78,9 @@ func symbols(u: state.Unit*, c: source.Cursor*, weak: bool) -> !:
         let name = c.name()
         if name.length == 0:
             try u.fail("expected a symbol's name")
-        let s = &u.symbols.items[try u.symbol(name)]
+        # the symbol first: a name seen here first is added, and the list may move
+        let index = try u.symbol(name)
+        let s = &u.symbols.items[index]
         if weak:
             s.weak = true
         else:
