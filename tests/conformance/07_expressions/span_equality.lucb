@@ -1,4 +1,3 @@
-# oracle: none
 ## §7.4: spans compare by their elements, as Python compares lists: the same length and
 ## equal elements, each by its own `==` (floats by value, text by bytes, structs by fields),
 ## whatever memory they view; a struct holding a span compares through it, and an array

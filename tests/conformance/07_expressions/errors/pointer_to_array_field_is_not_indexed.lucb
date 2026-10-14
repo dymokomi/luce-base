@@ -1,0 +1,9 @@
+# error: `p[i]` on a pointer to an array steps over whole arrays: write `(*p)[i]`
+struct Cursor:
+    var row: i32[4]*
+
+pub func main(arguments: str[]) -> i32:
+    var row: i32[4] = [1, 2, 3, 4]
+    let cursor = Cursor(row = &row)
+    cursor.row[2] = [0, 0, 0, 0]
+    return 0

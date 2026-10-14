@@ -579,7 +579,7 @@ Integers, including `usize` and `isize`, support `&`, `|`, `^`, `~`, `<<`, `>>`.
 
 ### 7.4 Equality and hashing
 
-`==` and `!=` exist for scalars, `char`, `str` (by bytes), tuples, arrays, spans (the same length and equal elements, as Python compares lists), structs, enums, optionals, and pointers (by address), when every component supports equality; comparing any optional with `none` asks whether it holds a value, whatever its payload. A struct or enum whose components are hashable is hashable; a span is not, since what it views may change under it, and neither is an aggregate holding one; and every hashable value has the method `value.hash() -> u64`, process-seeded and not stable across runs. A pointer hashes its address; its pointee's hash is `(*p).hash()`. Unions and interface views have neither. A hashable type declares no `hash` method of its own: the one its fields give it is the one `Hashable` (§14.4) and every hashed container use. No user type overloads an operator; a domain with unusual equality exposes a named method.
+`==` and `!=` exist for scalars, `char`, `str` (by bytes), tuples, arrays and spans (the same length and equal elements, each by its own `==`, as Python compares lists, so a float array holding NaN is unequal to itself and `[-0.0]` equals `[0.0]`; an array beside a span compares as one), structs, enums, optionals, and pointers (by address), when every component supports equality; comparing any optional with `none` asks whether it holds a value, whatever its payload. A struct or enum whose components are hashable is hashable; a span is not, since what it views may change under it, and neither is an aggregate holding one; and every hashable value has the method `value.hash() -> u64`, process-seeded and not stable across runs. A pointer hashes its address; its pointee's hash is `(*p).hash()`. Unions and interface views have neither. A hashable type declares no `hash` method of its own: the one its fields give it is the one `Hashable` (§14.4) and every hashed container use. No user type overloads an operator; a domain with unusual equality exposes a named method.
 
 ### 7.5 Conversions and casts
 
@@ -638,11 +638,15 @@ decode[Header](data)
 | `*p` | load; `*p = v` stores |
 | `p.field`, `p.method()` | auto-dereference; `->` is not needed and remains the type arrow |
 | `&x` | address-of (§6.6) |
-| `p + n`, `p - n`, `p[i]` | element-scaled arithmetic and unchecked indexing; `n` and `i` are `usize` or `isize` |
+| `p + n`, `p - n`, `p[i]` | element-scaled arithmetic and unchecked indexing; `n` and `i` are `usize` or `isize`; no `p[i]` when the pointee is an array or a span |
 | `p - q` | element difference as `isize`; same pointee type required |
 | `p == q`, `p < q` | address comparison (§5.3) |
 
 Pointer arithmetic is unchecked: producing a pointer outside the object `p` addresses, or one past its end, and using it, is undefined as in C. `&a[N]` on an array or span of length `N` is the one-past-the-end address, permitted for `&` alone; every other index is checked against the length. Spans cover the cases where a length is known.
+
+`p[i]` on a pointer to an array or a span, `T[N]*` or `(T[])*` with any qualifiers, is an error: it would step over whole arrays or spans, and the code that writes it almost always means an element of the one `p` addresses. That element is `(*p)[i]`, checked against the length. A walk over consecutive arrays writes its step, `*(p + i)`, or makes a span of them with a type alias, `Row[](p, count)` for `type Row = T[N]`. Inside a generic, `p[i]` on a `T*` steps over whole `T`s whatever `T` is, an array included, since the generic's author wrote a walk over `T`. A pointer is not sliced either: `(*p)[start..<end]` slices what it points to, and `T[](p, count)` views `count` elements from it.
+
+**Why not dereference for `[]` as `.` does.** A field has one meaning wherever the pointer is, so `p.field` can only mean `(*p).field`. `p[i]` already means a step, C's meaning, so reading it as an element of the pointee when the pointee is an array would give one spelling two meanings decided by a type the reader may not see. A silent read past the array is the failure, so the form is refused and the reader writes which one they meant.
 
 **Reading typed values from untyped memory.** Prefer declaring a struct for what is stored and casting once where the untyped memory enters; the cast-and-dereference form `*(Link*)block` is legal and is the last choice. When no struct fits, a header decoded from a buffer or a C structure walked by offsets, `memory.read[T](address: void*) -> T` and `memory.write[T](address: void*, value: T)` copy `memory.size_of(T)` bytes at the address with no alignment assumption. `memory.copy(to, from, count)`, `memory.move(to, from, count)` for overlapping ranges, and `memory.set(span, byte)` are `memcpy`, `memmove`, and `memset`.
 

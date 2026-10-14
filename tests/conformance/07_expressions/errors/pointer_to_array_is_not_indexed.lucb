@@ -1,0 +1,11 @@
+# error: `p[i]` on a pointer to an array steps over whole arrays: write `(*p)[i]`
+func same(a: const f64[3]*, b: const f64[3]*) -> bool:
+    for at in 0..<(usize)3:
+        if a[at] != b[at]:
+            return false
+    return true
+
+pub func main(arguments: str[]) -> i32:
+    let key: f64[3] = [1.0, 2.0, 3.0]
+    _ = same(&key, &key)
+    return 0

@@ -1,0 +1,8 @@
+# error: a pointer is not sliced: write `(*p)[start..<end]`
+func head(p: const i64[4]*) -> const i64[]:
+    return p[..<2]
+
+pub func main(arguments: str[]) -> i32:
+    let a: i64[4] = [1, 2, 3, 4]
+    _ = head(&a)
+    return 0

@@ -437,21 +437,20 @@ extend Checker:
         let owner = e.left else return try self.fail(e, "missing operand")
         let index = e.body else return try self.fail(e, "missing index")
         let raw = try self.check_expr(owner, types.none_id)
-        let ot = self.deref(raw)
-        var t = self.table.get(ot)
-        let through = self.table.get(raw)
-        if through.kind == types.Kind.pointer and through.elem != types.void_id and self.table.kind(through.elem) != types.Kind.span:
-            # `p[i]` on a pointer: element-scaled by the pointee and unchecked, an array
-            # pointee included, so `rows[n][i]` reads row `n` (§7.7)
-            t = through
+        let t = self.table.get(raw)
+        if t.kind == types.Kind.pointer and t.elem != types.void_id:
+            # `p[i]` on a pointer steps by its pointee, unchecked (§7.7); on a pointer to an
+            # array or span that step is a whole array or span past the one `p` addresses,
+            # where the element that was meant is `(*p)[i]`
+            let pointee = self.table.kind(t.elem)
+            if pointee == types.Kind.array:
+                return try self.fail(e, "`p[i]` on a pointer to an array steps over whole arrays: write `(*p)[i]` for an element, or `*(p + i)` for the array `i` places on")
+            if pointee == types.Kind.span:
+                return try self.fail(e, "`p[i]` on a pointer to a span steps over whole spans: write `(*p)[i]` for an element")
         elif t.kind != types.Kind.span and t.kind != types.Kind.array:
-            let pointee = self.table.get(raw)
-            if pointee.kind == types.Kind.pointer and pointee.elem != types.void_id:
-                t = pointee
-            elif ot == types.str_id:
+            if raw == types.str_id:
                 return try self.fail(e, "`str` is not indexed; slice `.bytes` or iterate")
-            else:
-                return try self.fail(e, "indexing needs a span, an array, or a pointer")
+            return try self.fail(e, "indexing needs a span, an array, or a pointer")
         # a pointer's index is signed, `sp[-1]` the element before; a span's or array's is not (§7.7)
         let offset_type = types.isize_id if t.kind == types.Kind.pointer else types.usize_id
         var it = try self.check_expr(index, offset_type)
@@ -467,8 +466,11 @@ extend Checker:
 
     func slice_type(e: ast.Node*, hint: u32) -> u32!:
         let owner = e.left else return try self.fail(e, "missing operand")
-        let ot = self.deref(try self.check_expr(owner, types.none_id))
+        let ot = try self.check_expr(owner, types.none_id)
         let t = self.table.get(ot)
+        if t.kind == types.Kind.pointer:
+            # a slice is of an array or span, never of the pointer to one (§7.6)
+            return try self.fail(e, "a pointer is not sliced: write `(*p)[start..<end]` to slice the array or span it points to, or `T[](p, count)` for `count` elements from it")
         if let start = e.body:
             let st = try self.check_expr(start, types.usize_id)
             if not (st == types.untyped_int_id or self.table.is_integer(st)):

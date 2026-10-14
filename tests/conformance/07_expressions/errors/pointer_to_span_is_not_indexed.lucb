@@ -1,0 +1,9 @@
+# error: `p[i]` on a pointer to a span steps over whole spans: write `(*p)[i]`
+func first(p: (const i64[])*) -> i64:
+    return p[0]
+
+pub func main(arguments: str[]) -> i32:
+    let a: i64[2] = [1, 2]
+    var s: const i64[] = a
+    _ = first(&s)
+    return 0

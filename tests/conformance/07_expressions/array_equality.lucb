@@ -1,0 +1,32 @@
+## §7.4, §7.7: arrays compare element by element, each element by its own `==`, so a float
+## array holding NaN is unequal to itself and `-0.0` equals `0.0`; nested arrays, and structs,
+## tuples, and optionals holding arrays, compare through them. An element behind a pointer to
+## an array is `(*p)[i]`.
+struct Holder:
+    var key: f64[3]
+
+func same(a: const f64[3]*, b: const f64[3]*) -> bool:
+    for at in 0..<(usize)3:
+        if (*a)[at] != (*b)[at]:
+            return false
+    return true
+
+pub func main(arguments: str[]) -> i32:
+    let nan = 0.0 / 0.0
+    let held = Holder([1.0, 2.0, 3.0])
+    let key: f64[3] = [1.0, 2.0, 3.0]
+    let other: f64[3] = [1.0, 2.0, 4.0]
+    print(f"{same(&key, &key)} {same(&key, &held.key)} {same(&key, &other)} {key == held.key} {*&key == *&other}")
+    let a: f64[3] = [1.0, nan, 3.0]
+    let zero: f32[2] = [0.0, 1.0]
+    let negative: f32[2] = [-0.0, 1.0]
+    print(f"{a == a} {a != a} {zero == negative} {zero != negative}")
+    let grid: (f64[2])[2] = [[0.0, nan], [1.0, 2.0]]
+    let flat: (f64[2])[2] = [[-0.0, 1.0], [1.0, 2.0]]
+    let flat2: (f64[2])[2] = [[0.0, 1.0], [1.0, 2.0]]
+    print(f"{grid == grid} {grid != grid} {flat == flat2} {grid[1] == flat[1]}")
+    let maybe: (f32[2])? = zero
+    let pair: (f32[2], i32) = (negative, 1)
+    let pair2: (f32[2], i32) = (zero, 1)
+    print(f"{maybe == negative} {pair == pair2} {Holder(a) == Holder(a)} {held == Holder(key)}")
+    return 0

@@ -1,6 +1,12 @@
 ## §5.3, §7.7: `<` and its kin order object pointers by address; a pointer offset is any
-## integer that widens to `usize` or `isize`; `p[i]` on a pointer to an array is scaled by
-## the whole array, so `rows[n][i]` reads row `n`.
+## integer that widens to `usize` or `isize`; `p + n` on a pointer to an array is scaled by
+## the whole array, so `*(rows + n)` is row `n` and `(*rows)[i]` an element of the first;
+## a generic's `p[i]` on a `T*` steps over whole `T`s, an array `T` included.
+type Row = i32[4]
+
+func nth[T](items: T*, n: usize) -> T:
+    return items[n]
+
 struct Ins:
     var op: i32
 
@@ -16,7 +22,9 @@ pub func main(arguments: str[]) -> i32:
         i = i + 1
     var grid: i32[3][4]
     grid[2][1] = 21
+    grid[0][1] = 1
     let p: (i32[4])* = &grid[0]
     let step: i16 = 2
-    print(f"{a < b} {b <= a} {walked} {p[2][1]} {(p + step)[0][1]}")
+    let rows = Row[](p, 3)
+    print(f"{a < b} {b <= a} {walked} {(*(p + 2))[1]} {(*(p + step))[1]} {(*p)[1]} {rows[2][1]} {nth(p, 2)[1]}")
     return 0
