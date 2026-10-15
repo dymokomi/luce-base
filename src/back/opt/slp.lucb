@@ -111,9 +111,11 @@ struct Pass:
     ## Per instruction, the block holding it.
     var block_of: u32[]
     ## The readers of each temporary, as positions: `use_start[t] ..< use_start[t + 1]`
-    ## of `use_at` (an instruction's index; a phi's argument reads at its predecessor's end).
+    ## of `use_at` (an instruction's index; a phi's argument reads at its predecessor's end,
+    ## after its last instruction, and `by_phi` says so: that instruction is not the reader).
     var use_start: u32[]
     var use_at: u32[]
+    var by_phi: bool[]
     ## Per instruction, whether a kept tree took it (`claimed`) or removed it (`removed`).
     var claimed: bool[]
     var removed: bool[]
@@ -127,7 +129,7 @@ struct Pass:
 
     static func over(f: ir.Function*, g: cfg.Graph*, aliases: load.Aliases*, arch: targets.Arch) -> Pass!:
         let n = f.instrs.count
-        var s = Pass(f = f, g = g, aliases = aliases, arch = arch, defined = try new u32[f.temps.count + 1] ---, block_of = try new u32[n + 1] ---, use_start = try new u32[f.temps.count + 2] ---, use_at = try new u32[1] ---, claimed = try new bool[n + 1] ---, removed = try new bool[n + 1] ---, nodes = try list.List[Node].create(16), inserts = try list.List[Insert].create(16), start = 0, end = 0)
+        var s = Pass(f = f, g = g, aliases = aliases, arch = arch, defined = try new u32[f.temps.count + 1] ---, block_of = try new u32[n + 1] ---, use_start = try new u32[f.temps.count + 2] ---, use_at = try new u32[1] ---, by_phi = try new bool[1] ---, claimed = try new bool[n + 1] ---, removed = try new bool[n + 1] ---, nodes = try list.List[Node].create(16), inserts = try list.List[Insert].create(16), start = 0, end = 0)
         for t in 0..<s.defined.length:
             s.defined[t] = none_index
         for i in 0..<s.claimed.length:
@@ -150,6 +152,7 @@ struct Pass:
         free(self.block_of)
         free(self.use_start)
         free(self.use_at)
+        free(self.by_phi)
         free(self.claimed)
         free(self.removed)
         self.nodes.destroy()
@@ -174,7 +177,9 @@ struct Pass:
             counts[t] = self.use_start[t]
         self.use_start[temps] = total
         free(self.use_at)
+        free(self.by_phi)
         self.use_at = try new u32[(usize)total + 1] ---
+        self.by_phi = try new bool[(usize)total + 1] ---
         self.walk_uses(counts, true)
 
     ## One pass over the readers: counting each temporary's in `counts`, or, with `place`,
@@ -190,19 +195,20 @@ struct Pass:
                     if pred != cfg.none_block:
                         let block = self.g.blocks.get((usize)pred)
                         at = block.end - 1 if block.end > block.start else block.end
-                    self.use(counts, arg.value, at, place)
+                    self.use(counts, arg.value, at, true, place)
                 continue
-            self.use(counts, x.a, u32(i), place)
-            self.use(counts, x.b, u32(i), place)
+            self.use(counts, x.a, u32(i), false, place)
+            self.use(counts, x.b, u32(i), false, place)
             let (args_start, args_count) = ir.argument_range(self.f, x)
             for k in 0..<args_count:
-                self.use(counts, self.f.args.get((usize)(args_start + k)).value, u32(i), place)
+                self.use(counts, self.f.args.get((usize)(args_start + k)).value, u32(i), false, place)
 
-    func use(counts: u32[], r: ir.Ref, at: u32, place: bool):
+    func use(counts: u32[], r: ir.Ref, at: u32, phi: bool, place: bool):
         if r.kind != ir.RefKind.temp or (usize)r.index >= counts.length:
             return
         if place:
             self.use_at[(usize)counts[(usize)r.index]] = at
+            self.by_phi[(usize)counts[(usize)r.index]] = phi
         counts[(usize)r.index] += 1
 
     # mark: Seeds =============================================================================
@@ -437,7 +443,14 @@ struct Pass:
                 continue
             for l in 0..<lanes:
                 let t = (usize)n.values[l].index
-                for u in self.use_at[(usize)self.use_start[t]..<(usize)self.use_start[t + 1]]:
+                for p in (usize)self.use_start[t]..<(usize)self.use_start[t + 1]:
+                    let u = self.use_at[p]
+                    if self.by_phi[p]:
+                        # a phi past the block's end: it reads the scalar after the node
+                        if not self.later(u, n.at) and u != n.at:
+                            return false
+                        extracts[k * 4 + l] = true
+                        continue
                     if self.taken(u, lanes) != none:
                         # a lane reads it through this node, or through a packing below
                         continue

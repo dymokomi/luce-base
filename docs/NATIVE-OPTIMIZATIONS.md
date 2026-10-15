@@ -86,7 +86,8 @@ singles to four (else two), seed a tree of lanes: lanes one operation computes
 (add, subtract, multiply, divide, negate, square root, and conversion between
 singles and doubles) become one vector operation, lanes loaded from neighbouring
 addresses one vector load, and other lanes are broadcast or packed from their
-scalars. A tree is kept when it saves instructions, packings and extracted
+scalars. A lane still read as a scalar, by an instruction outside the tree or
+by a phi past the block's end, is extracted from the vector. A tree is kept when it saves instructions, packings and extracted
 lanes counted against it, and only when the new order keeps the program's: no
 load or store crosses a store it may touch (the alias classes of `opt/load`), a
 call, or, for a store, a check that may trap. Each lane rounds as its scalar did,

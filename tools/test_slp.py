@@ -10,8 +10,10 @@ sharing values across lanes, some through records that overlap, some with a lane
 elsewhere, print every bit they computed: the native build at --opt 3 must print what the C
 backend prints; two lanes are read again in another block, through a helper. (Value
 numbering once took two lanes extracted from one vector as one value, in a caller numbered
-again after the vectors were made; opt/gvn's test keeps that case.) `--count N` and
-`--seed S` widen the search."""
+again after the vectors were made; opt/gvn's test keeps that case.) A pair loaded and stored
+whole in one arm of a branch, its scalars carried past the join by phis, must still reach
+them (the phi's read, placed at the arm's last instruction, was once taken for that store's
+own, and the lanes were never extracted). `--count N` and `--seed S` widen the search."""
 from pathlib import Path
 import argparse, random, re, subprocess, sys, tempfile
 
@@ -60,6 +62,52 @@ def check_kernels(compiler, work):
             sys.exit(f'FAIL: lerp computes no lanes together ({target}):\n{lerp}')
         if re.search(r'v\d+\.2d|pd\s', scaled):
             sys.exit(f'FAIL: scaled moved a store past a load it may reach ({target}):\n{scaled}')
+
+
+JOINED = '''struct Move:
+    var kind: i64
+    var x: f64
+    var y: f64
+    var fine: bool
+
+struct Drag:
+    var aim_x: f64
+    var aim_y: f64
+    var last_x: f64
+    var last_y: f64
+    var seen: f64
+
+    ## Follow a move: to it, or a quarter of the way while it is fine.
+    func follow(move: Move):
+        if move.fine:
+            self.aim_x += (move.x - self.last_x) * 0.25
+            self.aim_y += (move.y - self.last_y) * 0.25
+        else:
+            self.aim_x = move.x
+            self.aim_y = move.y
+        self.last_x = move.x
+        self.last_y = move.y
+        self.seen = self.aim_x * 1000.0 + self.aim_y
+
+pub func main(arguments: str[]) -> i32:
+    var drag = Drag(aim_x = 0.0, aim_y = 0.0, last_x = 0.0, last_y = 0.0, seen = 0.0)
+    drag.follow(Move(kind = 2, x = 3.0, y = (f64)arguments.length + 3.0, fine = false))
+    drag.follow(Move(kind = 2, x = 7.0, y = 9.0, fine = arguments.length > 0))
+    print(f"{drag.seen} {drag.last_x} {drag.last_y}")
+    return 0
+'''
+
+
+def check_joined(compiler, work):
+    source = work / 'joined.lucb'
+    source.write_text(JOINED)
+    binary = work / 'joined'
+    answers = []
+    for flags in (['--backend=c'], ['--native', '--opt', '3']):
+        subprocess.run([compiler, 'build', source, *flags, '-o', binary], check=True)
+        answers.append(subprocess.run([binary], capture_output=True, text=True, check=True).stdout)
+    if answers[0] != answers[1]:
+        sys.exit(f'FAIL: a pair stored whole in one arm reaches the join as {answers[1].strip()} natively, {answers[0].strip()} through C')
 
 
 def expression(rng, names, depth):
@@ -137,6 +185,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='slp-') as directory:
         work = Path(directory)
         check_kernels(compiler, work)
+        check_joined(compiler, work)
         source = work / 'main.lucb'
         binary = work / 'main'
         for n in range(args.count):
