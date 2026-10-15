@@ -8,6 +8,7 @@ def package "luce-base" {
     str readme = "README.md"
     str entry = "src/main.lucb"
     str[] public = ["embed", "front.ast", "front.layout", "front.parser", "front.source", "sema.check", "sema.types"]
+    str[] development = ["benchmarks", "bootstrap", "build.sh", "docs", "runtime", "test.sh", "tools", "VERSION"]
 
     def dependency "luce-std" {
         str owner = "dymokomi"

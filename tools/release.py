@@ -31,7 +31,6 @@ import concurrent.futures
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -335,34 +334,11 @@ def tag(directory, version):
     return name
 
 
-# what a registry install of luce-base needs: its sources and manifest, not its history
-MIRRORED = ("src", "package.prisma", "README.md", "LICENSE", "LICENSE-APACHE", "LICENSE-MIT")
-
-
-def publish_mirror(directory, version):
-    """luce-base on the registry: its history, the bootstrap C rewritten in most commits,
-    is far past what one push may carry (64 MiB unpacked), so the registry gets a mirror
-    of what an install uses, a commit per release on top of the one before."""
-    mirror = directory.parent / ".registry-luce-base"
-    if not (mirror / ".git").exists():
-        mirror.mkdir(exist_ok=True)
-        git(mirror, "init", "-q", "-b", "main")
-    # the registry's main, which the commit goes on top of: fetched from the registry, or
-    # from the checkout when the registry has only luce-base's own history there
-    remote = git(mirror, "ls-remote", f"{REGISTRY}/git/dymokomi/luce-base", "refs/heads/main", check=False).split()
-    if remote:
-        if subprocess.run(["git", "fetch", "-q", f"{REGISTRY}/git/dymokomi/luce-base", "main"],
-                          cwd=mirror, capture_output=True).returncode != 0:
-            git(mirror, "fetch", "-q", str(directory), remote[0])
-        git(mirror, "reset", "-q", "--hard", remote[0])
-    for entry in mirror.iterdir():
-        if entry.name != ".git":
-            shutil.rmtree(entry) if entry.is_dir() else entry.unlink()
-    archive = subprocess.run(["git", "archive", "HEAD", *MIRRORED], cwd=directory, capture_output=True, check=True)
-    subprocess.run(["tar", "-x"], cwd=mirror, input=archive.stdout, check=True)
-    git(mirror, "add", "-A")
-    git(mirror, "commit", "-q", "-m", f"luce-base {version}", "--allow-empty")
-    subprocess.run(["luc", "publish", "-m", f"luce-base {version}: batch release"], cwd=mirror, check=True)
+def publish_registry(directory, version):
+    """luce-base on the registry, for packages that import its checker: `luc publish` sends
+    one snapshot of HEAD without the development paths package.prisma lists (the bootstrap
+    C, tools, docs), so an install gets the sources and manifest alone."""
+    subprocess.run(["luc", "publish", "-m", f"luce-base {version}: batch release"], cwd=directory, check=True)
 
 
 def github_release(directory, version, files):
@@ -484,7 +460,7 @@ def main():
         else:
             tag(directory, entry["target"])
             # its public modules (embed, front.*, sema.*) as a registry package
-            publish_mirror(directory, entry["target"])
+            publish_registry(directory, entry["target"])
         deploy_site(directory)
     return 0 if verify_applications(False) else 1
 
